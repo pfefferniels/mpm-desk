@@ -4,11 +4,17 @@ import { MPM, MSM, Pipeline } from 'mpmify';
 import { ExtractStyleDefinitions, InsertDynamicsInstructions, InsertTempoInstructions, InsertTemporalSpread, SimplifyTempo, TranslatePhyiscalTimeToTicks } from 'mpmify/lib/transformers';
 import { read } from 'midifile-ts'
 import { usePiano } from './hooks/usePiano';
+import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
+import { TempoDesk } from './TempoDesk';
+
+const aspects = ['tempo', 'dynamics', 'arpeggiation', 'result'] as const;
+type Aspect = typeof aspects[number];
 
 export const App = () => {
     const { play } = usePiano()
     const [msm, setMSM] = useState<MSM>();
     const [mpm, setMPM] = useState<MPM>();
+    const [selectedAspect, setSelectedAspect] = useState<Aspect>()
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -102,31 +108,70 @@ export const App = () => {
         }
     };
 
+    let main = null
+    if (!msm || !mpm || !selectedAspect) {
+        main = 'not yet ready'
+    }
+    else {
+        switch (selectedAspect) {
+            case 'tempo':
+                main = <TempoDesk
+                    msm={msm}
+                    mpm={mpm}
+                    setMSM={setMSM}
+                    setMPM={setMPM} />
+                break
+            default:
+                main = (
+                    <pre style={{ margin: '1rem' }}>
+                        {mpm && mpm.serialize()}
+                    </pre>
+                )
+        }
+    }
 
     return (
         <div>
-            <button onClick={handleFileImport}>Import Aligned MEI</button>
-            <input
-                type="file"
-                id="fileInput"
-                style={{ display: 'none' }}
-                onChange={handleFileChange}
-            />
-            {msm && (
-                <>
-                    <button onClick={handleDownloadMSM}>Download MSM</button>
-                    <button onClick={generateMPM}>Generate MPM</button>
-                </>
-            )}
-            {mpm && (
-                <>
-                    <button onClick={() => playMPM()}>Play</button>
-                    <button onClick={() => copyToClipboard(mpm.serialize())}>Copy</button>
-                    <pre style={{ margin: '1rem' }}>
-                        {mpm.serialize()}
-                    </pre>
-                </>
-            )}
+            <Stack direction='row' spacing={1} p={1}>
+                <Button variant='outlined' onClick={handleFileImport}>Import Aligned MEI</Button>
+                <input
+                    type="file"
+                    id="fileInput"
+                    style={{ display: 'none' }}
+                    onChange={handleFileChange}
+                />
+                {msm && (
+                    <>
+                        <Button variant='outlined' onClick={handleDownloadMSM}>Download MSM</Button>
+                        <Button variant='outlined' onClick={generateMPM}>Generate MPM</Button>
+                    </>
+                )}
+                {mpm && (
+                    <>
+                        <Button variant='outlined' onClick={() => playMPM()}>Play</Button>
+                        <Button variant='outlined' onClick={() => copyToClipboard(mpm.serialize())}>Copy</Button>
+                    </>
+                )}
+            </Stack>
+
+            <Grid container>
+                <Grid item xs={2}>
+                    <List>
+                        {aspects.map(aspect => (
+                            <ListItem key={`aspect_${aspect}`}>
+                                <ListItemButton
+                                    selected={selectedAspect === aspect}
+                                    onClick={() => setSelectedAspect(aspect)}>
+                                    <ListItemText>{aspect}</ListItemText>
+                                </ListItemButton>
+                            </ListItem>
+                        ))}
+                    </List>
+                </Grid>
+                <Grid item xs={10}>
+                    {main}
+                </Grid>
+            </Grid>
         </div>
     );
 };
