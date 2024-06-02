@@ -4,7 +4,7 @@ import { InsertTempoInstructions } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Part } from "../../mpm-ts/lib"
 import { Skyline } from "./tempo/Skyline"
-import { Tempo, TempoCluster } from "./tempo/Tempo"
+import { Marker, Tempo, TempoCluster, isShallowEqual } from "./tempo/Tempo"
 
 interface TransformerViewProps {
     setMSM: (newMSM: MSM) => void
@@ -19,13 +19,13 @@ interface TransformerViewProps {
 
 export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>()
-    const [breakPoints, setBreakPoints] = useState<{ date: number, beatLength: number }[]>([])
-    const [part, ] = useState<Part>('global')
+    const [markers, setMarkers] = useState<Marker[]>([])
+    const [part,] = useState<Part>('global')
 
     useEffect(() => {
         const newPoints: Tempo[] = []
         const chords = Object.entries(msm.asChords(part))
-        for (let i = 0; i < chords.length-1; i++) {
+        for (let i = 0; i < chords.length - 1; i++) {
             console.log('adding')
             const [date, notes] = chords[i]
             const [nextDate, nextNotes] = chords[i + 1]
@@ -69,18 +69,32 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
 
     return (
         <div>
-            <div>How to count?</div>
+            <div>
+                Markers:
+                {markers.map((marker, i) => (
+                    <span key={`marker_${i}`}>
+                        {marker.date} ({marker.beatLength}) {' | '}</span>
+                ))}
+            </div>
+
             {tempoCluster && (
                 <Skyline
                     tempos={tempoCluster}
                     setTempos={setTempoCluster}
                     stretchX={0.04}
                     stretchY={1}
-                    onMarkSegmentStart={atTempo => {
-                        setBreakPoints([...breakPoints, {
-                            date: atTempo.date.start,
-                            beatLength: atTempo.date.end - atTempo.date.start
-                        }])
+                    markers={markers}
+                    onMark={newMarker => {
+                        setMarkers([...markers, newMarker])
+                    }}
+                    onRemoveMarker={toRemove => {
+                        setMarkers(prev => {
+                            const index = markers.findIndex(marker => isShallowEqual(marker, toRemove))
+                            if (index === -1) return prev
+
+                            prev.splice(index, 1)
+                            return [...prev]
+                        })
                     }} />
             )}
             <Button onClick={insertTempoValues}>Insert selected tempo values into MPM</Button>

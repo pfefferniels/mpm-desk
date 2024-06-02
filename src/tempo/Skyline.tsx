@@ -1,13 +1,17 @@
 import { useCallback, useEffect } from "react"
 import { Box } from "./Box"
-import { Tempo, TempoCluster } from "./Tempo"
+import { Marker, Tempo, TempoCluster, isShallowEqual, markerFromTempo } from "./Tempo"
 
-type SkylineProps = {
+interface SkylineProps {
   tempos: TempoCluster
   setTempos: (newTempos: TempoCluster) => void
+
   stretchX: number
   stretchY: number
-  onMarkSegmentStart: (atTempo: Tempo) => void
+
+  markers: Marker[]
+  onMark: (marker: Marker) => void
+  onRemoveMarker: (marker: Marker) => void
 }
 
 /**
@@ -16,9 +20,7 @@ type SkylineProps = {
  * to combine durations and change their appearances.
  * 
  */
-export function Skyline(props: SkylineProps) {
-  const { tempos, setTempos, onMarkSegmentStart, stretchX, stretchY } = props
-
+export function Skyline({ tempos, setTempos, markers, onMark, onRemoveMarker, stretchX, stretchY }: SkylineProps) {
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       tempos.unselectAll()
@@ -33,13 +35,13 @@ export function Skyline(props: SkylineProps) {
 
   const startX = stretchX * tempos.start()
   const endX = stretchX * tempos.end()
-  const width = endX  - startX
+  const width = endX - startX
   const height = -stretchY * tempos.highestBPM()
   const margin = 50
 
   return (
     <svg
-      className='butterfly'
+      className='skyline'
       style={{ margin: '3rem' }}
       width={width + margin * 2}
       height={-height + margin * 2}
@@ -50,14 +52,20 @@ export function Skyline(props: SkylineProps) {
         -height + margin * 2 // height
       ].join(' ')}>
       {tempos?.sort().map((tempo: Tempo, index: number) => {
+        const correspondingMarker = markerFromTempo(tempo)
+
         return (
           <Box
             key={`box${index}`}
             tempo={tempo}
-            stretchX={props.stretchX || 0}
-            stretchY={props.stretchY || 0}
+            stretchX={stretchX || 0}
+            stretchY={stretchY || 0}
+            marked={markers.findIndex(marker => isShallowEqual(marker, correspondingMarker)) !== -1}
             onMark={() => {
-              onMarkSegmentStart(tempo)
+              onMark(correspondingMarker)
+            }}
+            onRemoveMark={() => {
+              onRemoveMarker(correspondingMarker)
             }}
             onSelect={() => {
               tempos.unselectAll()
@@ -77,6 +85,8 @@ export function Skyline(props: SkylineProps) {
             }}
             onRemove={() => {
               tempos.removeTempo(tempo)
+              // make sure to leave no markers without a referenced tempo
+              onRemoveMarker(correspondingMarker)
               setTempos(new TempoCluster(tempos.tempos))
             }} />
         )

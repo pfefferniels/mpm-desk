@@ -3,9 +3,14 @@ import { Tempo, asBPM } from "./Tempo"
 
 type BoxProps = {
   tempo: Tempo
+
   stretchX: number
   stretchY: number
+
+  marked: boolean
   onMark: () => void
+  onRemoveMark: () => void
+
   onExpand: () => void
   onSelect: () => void
   onRemove: () => void
@@ -24,7 +29,7 @@ type BoxProps = {
  */
 export function Box(props: BoxProps) {
   const [markerHovered, setMarkerHovered] = useState(false)
-  const { tempo, stretchX, stretchY, onMark, onExpand, onSelect, onRemove } = props
+  const { tempo, stretchX, stretchY, marked, onMark, onRemoveMark, onExpand, onSelect, onRemove } = props
   const { date, time, selected } = tempo
   const { start, end } = date
   const bpm = asBPM(time)
@@ -56,16 +61,20 @@ export function Box(props: BoxProps) {
         x2={start * stretchX}
         y1={0}
         y2={upperY}
-        stroke={markerHovered ? 'black' : 'white'}
-        strokeWidth={3}
-        strokeOpacity={markerHovered ? 0.1 : 0.8}
+        stroke={marked ? 'red' : 'black'}
+        strokeWidth={(markerHovered || marked) ? 3 : 1}
+        strokeOpacity={markerHovered ? 0.3 : 0.8}
         onMouseOver={() => {
           setMarkerHovered(true)
         }}
         onMouseOut={() => {
           setMarkerHovered(false)
         }}
-        onClick={onMark} />
+        onClick={(e) => {
+          if (e.altKey && e.shiftKey) onRemoveMark()
+          else onMark()
+        }} />
     </g>
   )
 }
+

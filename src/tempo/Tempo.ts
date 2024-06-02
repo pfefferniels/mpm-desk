@@ -1,5 +1,5 @@
 type Range = {
-    start: number 
+    start: number
     end: number
 }
 
@@ -36,7 +36,7 @@ export class TempoCluster {
     // sort by area descending
     sort() {
         // const areaOf = (t: Tempo) => (t.date.end - t.date.start) * asBPM(t.time)
-        return this.tempos.sort((a, b) => asBPM(b.date) - asBPM(a.date))
+        return this.tempos.sort((a, b) => (a.date.start - b.date.start) || asBPM(b.date) - asBPM(a.date))
     }
 
     unselectAll() {
@@ -48,6 +48,7 @@ export class TempoCluster {
     }
 
     start() {
+        console.log(this.tempos)
         return Math.min(...this.tempos.map(d => d.date.start))
     }
 
@@ -55,3 +56,22 @@ export class TempoCluster {
         return Math.max(...this.tempos.map(d => d.date.end))
     }
 }
+
+export type Marker = {
+    date: number
+    beatLength: number
+}
+
+export const markerFromTempo = (tempo: Tempo): Marker => {
+    return {
+        date: tempo.date.start,
+        beatLength: tempo.date.end - tempo.date.start
+    }
+}
+
+export const isShallowEqual = <T extends object,>(obj1: T, obj2: T) =>
+    Object.keys(obj1).length === Object.keys(obj2).length &&
+    Object.keys(obj1).every(key =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        Object.hasOwn(obj2, key) && (obj1 as any)[key] === (obj2 as any)[key]
+    );

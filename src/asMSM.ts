@@ -87,6 +87,7 @@ export const asMSM = async (mei: string) => {
         if (!when) return acc
 
         const absolute = when.getAttribute('absolute')?.replace('ms', '')
+        console.log('absolute=', absolute)
         const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
         const velocity = when.querySelector('extData[type="velocity"]')?.textContent
         if (!absolute || !duration || !velocity) return acc
