@@ -13,7 +13,7 @@ type Aspect = typeof aspects[number];
 export const App = () => {
     const { play } = usePiano()
     const [msm, setMSM] = useState<MSM>();
-    const [mpm, setMPM] = useState<MPM>();
+    const [mpm, setMPM] = useState<MPM>(new MPM(2));
     const [selectedAspect, setSelectedAspect] = useState<Aspect>()
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

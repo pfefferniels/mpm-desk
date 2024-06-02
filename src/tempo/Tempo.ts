@@ -1,5 +1,6 @@
 import { MSM } from "mpmify"
 import { Part } from "../../../mpm-ts/lib"
+import { Marker } from "mpmify/lib/transformers"
 
 type Range = {
     start: number
@@ -16,7 +17,7 @@ export const asBPM = (r: Range) => {
     return 60 / (r.end - r.start)
 }
 
-export const extractTempoSegment = (msm: MSM, part: Part) => {
+export const extractTempoSegments = (msm: MSM, part: Part) => {
     const segments: TempoSegment[] = []
     const chords = Object.entries(msm.asChords(part))
     for (let i = 0; i < chords.length - 1; i++) {
@@ -81,18 +82,12 @@ export class TempoCluster {
     }
 
     start() {
-        console.log(this.tempos)
         return Math.min(...this.tempos.map(d => d.date.start))
     }
 
     end() {
         return Math.max(...this.tempos.map(d => d.date.end))
     }
-}
-
-export type Marker = {
-    date: number
-    beatLength: number
 }
 
 export const markerFromTempo = (tempo: TempoSegment): Marker => {

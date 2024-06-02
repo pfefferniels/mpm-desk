@@ -1,10 +1,10 @@
 import { Button } from "@mui/material"
 import { MPM, MSM } from "mpmify"
-import { InsertTempoInstructions } from "mpmify/lib/transformers"
+import { InsertTempoInstructions, Marker, getTempoAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
-import { Part } from "../../mpm-ts/lib"
+import { Part, Tempo } from "../../mpm-ts/lib"
 import { Skyline } from "./tempo/Skyline"
-import { Marker, TempoCluster, isShallowEqual, extractTempoSegment } from "./tempo/Tempo"
+import { TempoCluster, isShallowEqual, extractTempoSegments } from "./tempo/Tempo"
 
 interface TransformerViewProps {
     setMSM: (newMSM: MSM) => void
@@ -14,6 +14,11 @@ interface TransformerViewProps {
     mpm: MPM
 }
 
+export type TempoPoint = {
+    date: number
+    bpm: number
+}
+
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
@@ -21,17 +26,43 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>()
     const [markers, setMarkers] = useState<Marker[]>([])
     const [part,] = useState<Part>('global')
+    const [syntheticPoints, setSyntheticPoints] = useState<TempoPoint[]>([])
 
     useEffect(() => {
-        setTempoCluster(new TempoCluster(extractTempoSegment(msm, part)))
+        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
     }, [msm, part])
+
+    useEffect(() => {
+        const tempos = mpm.getInstructions<Tempo>('tempo', 'global')
+
+        const points = []
+        const step = 10
+        for (let i = 0; i < tempos.length - 1; i++) {
+            const tempo = tempos[i]
+            const nextTempo = tempos[i + 1]
+            if (!nextTempo) continue
+
+            const tempoWithEndDate = {
+                ...tempo,
+                endDate: nextTempo.date
+            }
+
+            for (let i = tempo.date; i < nextTempo.date; i += step) {
+                points.push({
+                    date: i,
+                    bpm: getTempoAt(i, tempoWithEndDate)
+                })
+            }
+        }
+        setSyntheticPoints(points)
+    }, [mpm])
 
     const insertTempoValues = () => {
         if (!tempoCluster) return
 
+        mpm.removeInstructions('tempo', 'global')
         const transformer = new InsertTempoInstructions({
-            // breakPoints,
-            beatLength: 0.25,
+            markers,
             part
         })
         transformer.transform(msm, mpm)
@@ -55,6 +86,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                     setTempos={setTempoCluster}
                     stretchX={0.04}
                     stretchY={1}
+                    points={syntheticPoints}
                     markers={markers}
                     onMark={newMarker => {
                         setMarkers([...markers, newMarker])

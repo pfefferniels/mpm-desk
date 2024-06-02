@@ -1,10 +1,15 @@
 import { useCallback, useEffect } from "react"
 import { Box } from "./Box"
-import { Marker, TempoSegment, TempoCluster, isShallowEqual, markerFromTempo } from "./Tempo"
+import { TempoSegment, TempoCluster, isShallowEqual, markerFromTempo } from "./Tempo"
+import { TempoPoint } from "../TempoDesk"
+import { Marker } from "mpmify/lib/transformers"
+import { SyntheticLine } from "./SyntheticLine"
 
 interface SkylineProps {
   tempos: TempoCluster
   setTempos: (newTempos: TempoCluster) => void
+
+  points: TempoPoint[]
 
   stretchX: number
   stretchY: number
@@ -20,7 +25,7 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  * 
  */
-export function Skyline({ tempos, setTempos, markers, onMark, onRemoveMarker, stretchX, stretchY }: SkylineProps) {
+export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMarker, stretchX, stretchY }: SkylineProps) {
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       tempos.unselectAll()
@@ -91,6 +96,11 @@ export function Skyline({ tempos, setTempos, markers, onMark, onRemoveMarker, st
             }} />
         )
       })}
+
+      <SyntheticLine
+        stretchX={stretchX}
+        stretchY={stretchY}
+        points={points} />
     </svg>
   )
 }
