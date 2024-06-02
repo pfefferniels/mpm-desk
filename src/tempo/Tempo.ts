@@ -1,9 +1,12 @@
+import { MSM } from "mpmify"
+import { Part } from "../../../mpm-ts/lib"
+
 type Range = {
     start: number
     end: number
 }
 
-export type Tempo = {
+export type TempoSegment = {
     date: Range
     time: Range
     selected: boolean
@@ -13,6 +16,36 @@ export const asBPM = (r: Range) => {
     return 60 / (r.end - r.start)
 }
 
+export const extractTempoSegment = (msm: MSM, part: Part) => {
+    const segments: TempoSegment[] = []
+    const chords = Object.entries(msm.asChords(part))
+    for (let i = 0; i < chords.length - 1; i++) {
+        const [date, notes] = chords[i]
+        const [nextDate, nextNotes] = chords[i + 1]
+
+        const onset = notes[0]['midi.onset']
+        const nextOnset = nextNotes[0]['midi.onset']
+        if (!onset || !nextOnset) {
+            console.log('MIDI onset not defined')
+            continue
+        }
+
+        segments.push({
+            date: {
+                start: +date,
+                end: +nextDate
+            },
+            time: {
+                start: onset,
+                end: nextOnset
+            },
+            selected: false
+        })
+    }
+
+    return segments
+}
+
 /**
  * A wrapper around an array of `Duration`s. Provides 
  * useful methods for working with durations, such as 
@@ -20,13 +53,13 @@ export const asBPM = (r: Range) => {
  * last onset times etc.
  */
 export class TempoCluster {
-    tempos: Tempo[]
+    tempos: TempoSegment[]
 
-    constructor(tempos: Tempo[]) {
+    constructor(tempos: TempoSegment[]) {
         this.tempos = tempos
     }
 
-    removeTempo(tempo: Tempo) {
+    removeTempo(tempo: TempoSegment) {
         const index = this.tempos.indexOf(tempo)
         if (index !== -1) {
             this.tempos.splice(index, 1)
@@ -62,7 +95,7 @@ export type Marker = {
     beatLength: number
 }
 
-export const markerFromTempo = (tempo: Tempo): Marker => {
+export const markerFromTempo = (tempo: TempoSegment): Marker => {
     return {
         date: tempo.date.start,
         beatLength: tempo.date.end - tempo.date.start

@@ -1,8 +1,8 @@
 import { useState } from "react"
-import { Tempo, asBPM } from "./Tempo"
+import { TempoSegment, asBPM } from "./Tempo"
 
 type BoxProps = {
-  tempo: Tempo
+  tempo: TempoSegment
 
   stretchX: number
   stretchY: number

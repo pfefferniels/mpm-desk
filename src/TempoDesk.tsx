@@ -4,7 +4,7 @@ import { InsertTempoInstructions } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Part } from "../../mpm-ts/lib"
 import { Skyline } from "./tempo/Skyline"
-import { Marker, Tempo, TempoCluster, isShallowEqual } from "./tempo/Tempo"
+import { Marker, TempoCluster, isShallowEqual, extractTempoSegment } from "./tempo/Tempo"
 
 interface TransformerViewProps {
     setMSM: (newMSM: MSM) => void
@@ -23,35 +23,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
     const [part,] = useState<Part>('global')
 
     useEffect(() => {
-        const newPoints: Tempo[] = []
-        const chords = Object.entries(msm.asChords(part))
-        for (let i = 0; i < chords.length - 1; i++) {
-            console.log('adding')
-            const [date, notes] = chords[i]
-            const [nextDate, nextNotes] = chords[i + 1]
-
-            const onset = notes[0]['midi.onset']
-            const nextOnset = nextNotes[0]['midi.onset']
-            if (!onset || !nextOnset) {
-                console.log('MIDI onset not defined')
-                continue
-            }
-
-            newPoints.push({
-                date: {
-                    start: +date,
-                    end: +nextDate
-                },
-                time: {
-                    start: onset,
-                    end: nextOnset
-                },
-                selected: false
-            })
-        }
-
-        console.log('poitns=', chords)
-        setTempoCluster(new TempoCluster(newPoints))
+        setTempoCluster(new TempoCluster(extractTempoSegment(msm, part)))
     }, [msm, part])
 
     const insertTempoValues = () => {

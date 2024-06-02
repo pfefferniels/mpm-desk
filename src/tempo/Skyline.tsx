@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react"
 import { Box } from "./Box"
-import { Marker, Tempo, TempoCluster, isShallowEqual, markerFromTempo } from "./Tempo"
+import { Marker, TempoSegment, TempoCluster, isShallowEqual, markerFromTempo } from "./Tempo"
 
 interface SkylineProps {
   tempos: TempoCluster
@@ -51,7 +51,7 @@ export function Skyline({ tempos, setTempos, markers, onMark, onRemoveMarker, st
         width + margin, // width
         -height + margin * 2 // height
       ].join(' ')}>
-      {tempos?.sort().map((tempo: Tempo, index: number) => {
+      {tempos?.sort().map((tempo: TempoSegment, index: number) => {
         const correspondingMarker = markerFromTempo(tempo)
 
         return (
@@ -76,7 +76,7 @@ export function Skyline({ tempos, setTempos, markers, onMark, onRemoveMarker, st
             }}
             onExpand={() => {
               const newTempos = [...tempos.tempos]
-              const selected = newTempos.find((d: Tempo) => d.selected)
+              const selected = newTempos.find((d: TempoSegment) => d.selected)
               if (selected) {
                 selected.date.end = tempo.date.end
                 selected.time.end = tempo.time.end
