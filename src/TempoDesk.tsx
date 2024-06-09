@@ -54,6 +54,8 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                 })
             }
         }
+
+        console.log(tempos)
         setSyntheticPoints(points)
     }, [mpm])
 
@@ -101,7 +103,11 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                         })
                     }} />
             )}
-            <Button onClick={insertTempoValues}>Insert selected tempo values into MPM</Button>
+            <Button
+                variant='contained'
+                onClick={insertTempoValues}>
+                Insert into MPM
+            </Button>
         </div>
     )
 }

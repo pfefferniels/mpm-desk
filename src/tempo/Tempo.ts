@@ -19,10 +19,17 @@ export const asBPM = (r: Range) => {
 
 export const extractTempoSegments = (msm: MSM, part: Part) => {
     const segments: TempoSegment[] = []
-    const chords = Object.entries(msm.asChords(part))
-    for (let i = 0; i < chords.length - 1; i++) {
-        const [date, notes] = chords[i]
-        const [nextDate, nextNotes] = chords[i + 1]
+    const chords = msm.asChords(part)
+
+    const iterator = chords.entries()
+    let current = iterator.next()
+    while (!current.done) {
+        const [date, notes] = current.value
+
+        current = iterator.next()
+        if (current.done) break
+
+        const [nextDate, nextNotes] = current.value
 
         const onset = notes[0]['midi.onset']
         const nextOnset = nextNotes[0]['midi.onset']
@@ -33,8 +40,8 @@ export const extractTempoSegments = (msm: MSM, part: Part) => {
 
         segments.push({
             date: {
-                start: +date,
-                end: +nextDate
+                start: date,
+                end: nextDate
             },
             time: {
                 start: onset,
