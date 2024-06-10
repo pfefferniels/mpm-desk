@@ -23,13 +23,17 @@ export type TempoPoint = {
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
 export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) => {
-    const [tempoCluster, setTempoCluster] = useState<TempoCluster>()
+    const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [markers, setMarkers] = useState<Marker[]>([])
     const [part,] = useState<Part>('global')
     const [syntheticPoints, setSyntheticPoints] = useState<TempoPoint[]>([])
 
     useEffect(() => {
-        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
+        setTempoCluster(prev => {
+            // make sure not to overwrite an existing tempo architecture
+            prev.importSegments(extractTempoSegments(msm, part))
+            return prev.clone()
+        })
     }, [msm, part])
 
     useEffect(() => {

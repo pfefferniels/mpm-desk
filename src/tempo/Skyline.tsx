@@ -29,7 +29,7 @@ export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMa
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       tempos.unselectAll()
-      setTempos(new TempoCluster(tempos.tempos))
+      setTempos(new TempoCluster(tempos.segments))
     }
   }, [tempos, setTempos])
 
@@ -38,10 +38,10 @@ export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMa
     return () => document.removeEventListener('keydown', escFunction, false)
   }, [tempos, escFunction])
 
-  const startX = stretchX * tempos.start()
-  const endX = stretchX * tempos.end()
+  const startX = stretchX * tempos.start
+  const endX = stretchX * tempos.end
   const width = endX - startX
-  const height = -stretchY * tempos.highestBPM()
+  const height = -stretchY * tempos.highestBPM
   const margin = 50
 
   return (
@@ -76,11 +76,11 @@ export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMa
               tempos.unselectAll()
               const tempoClone = structuredClone(tempo)
               tempoClone.selected = true
-              const newTempos = [...tempos.tempos, tempoClone]
+              const newTempos = [...tempos.segments, tempoClone]
               setTempos(new TempoCluster(newTempos))
             }}
             onExpand={() => {
-              const newTempos = [...tempos.tempos]
+              const newTempos = [...tempos.segments]
               const selected = newTempos.find((d: TempoSegment) => d.selected)
               if (selected) {
                 selected.date.end = tempo.date.end
@@ -92,7 +92,7 @@ export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMa
               tempos.removeTempo(tempo)
               // make sure to leave no markers without a referenced tempo
               onRemoveMarker(correspondingMarker)
-              setTempos(new TempoCluster(tempos.tempos))
+              setTempos(new TempoCluster(tempos.segments))
             }} />
         )
       })}

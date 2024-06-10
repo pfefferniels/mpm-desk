@@ -55,45 +55,74 @@ export const extractTempoSegments = (msm: MSM, part: Part) => {
 }
 
 /**
- * A wrapper around an array of `Duration`s. Provides 
- * useful methods for working with durations, such as 
+ * A wrapper around an array of `TempoSegment`s. Provides 
+ * useful methods for working with segments, such as 
  * sorting by their lengthes, finding the first and the 
  * last onset times etc.
  */
 export class TempoCluster {
-    tempos: TempoSegment[]
+    segments: TempoSegment[] = []
 
-    constructor(tempos: TempoSegment[]) {
-        this.tempos = tempos
+    constructor(tempos?: TempoSegment[]) {
+        if (tempos) {
+            this.segments = tempos
+        }
+    }
+
+    clone() {
+        return new TempoCluster(this.segments)
     }
 
     removeTempo(tempo: TempoSegment) {
-        const index = this.tempos.indexOf(tempo)
+        const index = this.segments.indexOf(tempo)
         if (index !== -1) {
-            this.tempos.splice(index, 1)
+            this.segments.splice(index, 1)
         }
     }
 
     // sort by area descending
     sort() {
         // const areaOf = (t: Tempo) => (t.date.end - t.date.start) * asBPM(t.time)
-        return this.tempos.sort((a, b) => (a.date.start - b.date.start) || asBPM(b.date) - asBPM(a.date))
+        return this.segments.sort((a, b) => (a.date.start - b.date.start) || asBPM(b.date) - asBPM(a.date))
     }
 
     unselectAll() {
-        this.tempos.forEach(d => d.selected = false)
+        this.segments.forEach(d => d.selected = false)
     }
 
-    highestBPM() {
-        return Math.max(...this.tempos.map(t => asBPM(t.time)))
+    importSegments(newSegments: TempoSegment[]) {
+        if (this.segments.length === 0) {
+            this.segments = newSegments
+            return
+        }
+
+        for (const segment of this.segments) {
+            const leftFriend = newSegments.find(s => s.date.start === segment.date.start)
+            if (leftFriend) {
+                segment.time.start = leftFriend.time.start
+            }
+
+            const rightFriend = newSegments.find(s => s.date.end === segment.date.end)
+            if (rightFriend) {
+                segment.time.end = rightFriend.time.end
+            }
+        }
     }
 
-    start() {
-        return Math.min(...this.tempos.map(d => d.date.start))
+    get highestBPM() {
+        return Math.max(...this.segments.map(t => asBPM(t.time)))
     }
 
-    end() {
-        return Math.max(...this.tempos.map(d => d.date.end))
+    get start() {
+        return Math.min(...this.segments.map(d => d.date.start))
+    }
+
+    get end() {
+        return Math.max(...this.segments.map(d => d.date.end))
+    }
+
+    get length() {
+        return this.segments.length
     }
 }
 
