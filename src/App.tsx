@@ -7,7 +7,7 @@ import { usePiano } from './hooks/usePiano';
 import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { TempoDesk } from './TempoDesk';
 
-const aspects = ['tempo', 'dynamics', 'arpeggiation', 'result'] as const;
+const aspects = ['arpeggiation', 'tempo', 'dynamics', 'result'] as const;
 type Aspect = typeof aspects[number];
 
 export const App = () => {
@@ -115,11 +115,12 @@ export const App = () => {
     else {
         switch (selectedAspect) {
             case 'tempo':
-                main = <TempoDesk
-                    msm={msm}
-                    mpm={mpm}
-                    setMSM={setMSM}
-                    setMPM={setMPM} />
+                main = (
+                    <TempoDesk
+                        msm={msm}
+                        mpm={mpm}
+                        setMSM={setMSM}
+                        setMPM={setMPM} />)
                 break
             default:
                 main = (
