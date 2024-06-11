@@ -1,14 +1,10 @@
 import { Point, TempoWithSegmentData } from "../experiments/BezierApproach";
 
-function randomColor(): string {
-    // Generate random values for Red, Green, and Blue components
+const randomColor = () => {
     const red = Math.floor(Math.random() * 256); // 0 to 255
     const green = Math.floor(Math.random() * 256); // 0 to 255
     const blue = Math.floor(Math.random() * 256); // 0 to 255
-
     const opacity = 0.3;
-
-    // Return the color in 'rgba(r, g, b, a)' format
     return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
 }
 

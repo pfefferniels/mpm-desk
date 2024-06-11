@@ -5,7 +5,8 @@ import { ExtractStyleDefinitions, InsertDynamicsInstructions, InsertTempoInstruc
 import { read } from 'midifile-ts'
 import { usePiano } from './hooks/usePiano';
 import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
-import { TempoDesk } from './TempoDesk';
+import { TempoDesk } from './tempo/TempoDesk';
+import { ArpeggiationDesk } from './arpeggiation/ArpeggiationDesk';
 
 const aspects = ['arpeggiation', 'tempo', 'dynamics', 'result'] as const;
 type Aspect = typeof aspects[number];
@@ -18,16 +19,13 @@ export const App = () => {
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
-        if (file && file.name.endsWith('.mei')) {
-            const reader = new FileReader();
-            reader.onload = async (e: ProgressEvent<FileReader>) => {
-                const content = e.target?.result as string;
-                setMSM(await asMSM(content));
-            };
-            reader.readAsText(file);
-        } else {
-            alert('Please select a MEI file.');
-        }
+        if (!file) return
+        const reader = new FileReader();
+        reader.onload = async (e: ProgressEvent<FileReader>) => {
+            const content = e.target?.result as string;
+            setMSM(await asMSM(content));
+        };
+        reader.readAsText(file);
     };
 
     const handleFileImport = () => {
@@ -114,6 +112,15 @@ export const App = () => {
     }
     else {
         switch (selectedAspect) {
+            case 'arpeggiation':
+                main = (
+                    <ArpeggiationDesk
+                        msm={msm}
+                        mpm={mpm}
+                        setMSM={setMSM}
+                        setMPM={setMPM} />
+                )
+                break;
             case 'tempo':
                 main = (
                     <TempoDesk
@@ -138,6 +145,7 @@ export const App = () => {
                 <input
                     type="file"
                     id="fileInput"
+                    accept='application/xml,.mei'
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
                 />

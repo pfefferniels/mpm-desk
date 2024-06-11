@@ -1,18 +1,10 @@
 import { Button } from "@mui/material"
-import { MPM, MSM } from "mpmify"
 import { InsertTempoInstructions, Marker, getTempoAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
-import { Part, Tempo } from "../../mpm-ts/lib"
-import { Skyline } from "./tempo/Skyline"
-import { TempoCluster, isShallowEqual, extractTempoSegments } from "./tempo/Tempo"
-
-interface TransformerViewProps {
-    setMSM: (newMSM: MSM) => void
-    msm: MSM
-
-    setMPM: (newMPM: MPM) => void
-    mpm: MPM
-}
+import { Part, Tempo } from "../../../mpm-ts/lib"
+import { Skyline } from "./Skyline"
+import { TempoCluster, isShallowEqual, extractTempoSegments } from "./Tempo"
+import { TransformerViewProps } from "../TransformerViewProps"
 
 export type TempoPoint = {
     date: number
@@ -86,27 +78,29 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                 ))}
             </div>
 
-            {tempoCluster && (
-                <Skyline
-                    tempos={tempoCluster}
-                    setTempos={setTempoCluster}
-                    stretchX={0.04}
-                    stretchY={1}
-                    points={syntheticPoints}
-                    markers={markers}
-                    onMark={newMarker => {
-                        setMarkers([...markers, newMarker])
-                    }}
-                    onRemoveMarker={toRemove => {
-                        setMarkers(prev => {
-                            const index = markers.findIndex(marker => isShallowEqual(marker, toRemove))
-                            if (index === -1) return prev
+            <div style={{ width: '80vw', overflow: 'scroll' }}>
+                {tempoCluster && (
+                    <Skyline
+                        tempos={tempoCluster}
+                        setTempos={setTempoCluster}
+                        stretchX={0.04}
+                        stretchY={1}
+                        points={syntheticPoints}
+                        markers={markers}
+                        onMark={newMarker => {
+                            setMarkers([...markers, newMarker])
+                        }}
+                        onRemoveMarker={toRemove => {
+                            setMarkers(prev => {
+                                const index = markers.findIndex(marker => isShallowEqual(marker, toRemove))
+                                if (index === -1) return prev
 
-                            prev.splice(index, 1)
-                            return [...prev]
-                        })
-                    }} />
-            )}
+                                prev.splice(index, 1)
+                                return [...prev]
+                            })
+                        }} />
+                )}
+            </div>
             <Button
                 variant='contained'
                 onClick={insertTempoValues}>

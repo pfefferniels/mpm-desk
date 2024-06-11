@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react"
 import { Box } from "./Box"
 import { TempoSegment, TempoCluster, isShallowEqual, markerFromTempo } from "./Tempo"
-import { TempoPoint } from "../TempoDesk"
+import { TempoPoint } from "./TempoDesk"
 import { Marker } from "mpmify/lib/transformers"
 import { SyntheticLine } from "./SyntheticLine"
 

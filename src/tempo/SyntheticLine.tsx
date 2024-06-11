@@ -1,4 +1,4 @@
-import { TempoPoint } from "../TempoDesk"
+import { TempoPoint } from "./TempoDesk"
 
 interface SyntheticLineProps {
     points: TempoPoint[]
