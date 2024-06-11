@@ -4,6 +4,7 @@ import { useRef } from "react"
 import { randomColor } from "../utils"
 import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify/lib/transformers"
 import { SplitButton } from "./SplitButton"
+import { ButtonGroup } from "@mui/material"
 
 interface ChordProps {
     notes: MsmNote[]
@@ -101,10 +102,12 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM }: TransformerViewPr
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
+            <ButtonGroup>
+                
+            </ButtonGroup>
             <svg width={10000}>
                 <ChordOverview chords={msm.asChords()} />
             </svg>
-
             <SplitButton options={options} />
         </div>
     )

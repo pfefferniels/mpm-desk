@@ -5,17 +5,14 @@ import { ExtractStyleDefinitions, InsertDynamicsInstructions, InsertTempoInstruc
 import { read } from 'midifile-ts'
 import { usePiano } from './hooks/usePiano';
 import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
-import { TempoDesk } from './tempo/TempoDesk';
-import { ArpeggiationDesk } from './arpeggiation/ArpeggiationDesk';
-
-const aspects = ['arpeggiation', 'tempo', 'dynamics', 'result'] as const;
-type Aspect = typeof aspects[number];
+import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
+import { downloadAsFile } from './utils';
 
 export const App = () => {
     const { play } = usePiano()
-    const [msm, setMSM] = useState<MSM>();
+    const [msm, setMSM] = useState<MSM>(new MSM());
     const [mpm, setMPM] = useState<MPM>(new MPM(2));
-    const [selectedAspect, setSelectedAspect] = useState<Aspect>()
+    const [selectedAspect, setSelectedAspect] = useState<Aspect>('result')
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -35,14 +32,7 @@ export const App = () => {
 
     const handleDownloadMSM = () => {
         if (!msm) return
-
-        const element = document.createElement('a');
-        const file = new Blob([msm.serialize(false)], { type: 'text/plain' });
-        element.href = URL.createObjectURL(file);
-        element.download = 'export.msm';
-        document.body.appendChild(element); // Append the element to the body
-        element.click(); // Simulate a click on the element
-        document.body.removeChild(element); // Remove the element from the body
+        downloadAsFile(msm.serialize(false), 'export.msm', 'application/xml')
     };
 
     const generateMPM = () => {
@@ -106,38 +96,6 @@ export const App = () => {
         }
     };
 
-    let main = null
-    if (!msm || !mpm || !selectedAspect) {
-        main = 'not yet ready'
-    }
-    else {
-        switch (selectedAspect) {
-            case 'arpeggiation':
-                main = (
-                    <ArpeggiationDesk
-                        msm={msm}
-                        mpm={mpm}
-                        setMSM={setMSM}
-                        setMPM={setMPM} />
-                )
-                break;
-            case 'tempo':
-                main = (
-                    <TempoDesk
-                        msm={msm}
-                        mpm={mpm}
-                        setMSM={setMSM}
-                        setMPM={setMPM} />)
-                break
-            default:
-                main = (
-                    <pre style={{ margin: '1rem' }}>
-                        {mpm && mpm.serialize()}
-                    </pre>
-                )
-        }
-    }
-
     return (
         <div>
             <Stack direction='row' spacing={1} p={1}>
@@ -178,7 +136,12 @@ export const App = () => {
                     </List>
                 </Grid>
                 <Grid item xs={10}>
-                    {main}
+                    <DeskSwitch
+                        selectedAspect={selectedAspect}
+                        mpm={mpm}
+                        msm={msm}
+                        setMPM={setMPM}
+                        setMSM={setMSM} />
                 </Grid>
             </Grid>
         </div>
