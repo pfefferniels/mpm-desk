@@ -3,10 +3,11 @@ import { asMSM } from './asMSM';
 import { MPM, MSM, Pipeline } from 'mpmify';
 import { ExtractStyleDefinitions, InsertDynamicsInstructions, InsertTempoInstructions, InsertTemporalSpread, SimplifyTempo, TranslatePhyiscalTimeToTicks } from 'mpmify/lib/transformers';
 import { read } from 'midifile-ts'
-import { usePiano } from './hooks/usePiano';
+import { usePiano } from 'react-pianosound';
 import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import { downloadAsFile } from './utils';
+import { PianoContextProvider } from 'react-pianosound';
 
 export const App = () => {
     const { play } = usePiano()
@@ -97,7 +98,7 @@ export const App = () => {
     };
 
     return (
-        <div>
+        <PianoContextProvider velocities={1}>
             <Stack direction='row' spacing={1} p={1}>
                 <Button variant='outlined' onClick={handleFileImport}>Import Aligned MEI</Button>
                 <input
@@ -144,6 +145,6 @@ export const App = () => {
                         setMSM={setMSM} />
                 </Grid>
             </Grid>
-        </div>
+        </PianoContextProvider>
     );
 };

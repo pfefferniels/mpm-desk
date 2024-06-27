@@ -1,5 +1,6 @@
 import { TransformerViewProps } from "./TransformerViewProps"
 import { ArpeggiationDesk } from "./arpeggiation/ArpeggiationDesk";
+import { NotesProvider } from "./hooks/NotesProvider";
 import { ResultDesk } from "./result/ResultDesk";
 import { TempoDesk } from "./tempo/TempoDesk";
 
@@ -22,12 +23,14 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
         setMPM
     }
 
-    switch (selectedAspect) {
-        case 'arpeggiation':
-            return <ArpeggiationDesk {...props} />
-        case 'tempo':
-            return <TempoDesk {...props} />
-        default:
-            return <ResultDesk {...props} />
-    }
+    let desk = <ResultDesk {...props} />
+
+    if (selectedAspect === 'arpeggiation') desk = <ArpeggiationDesk {...props} />
+    else if (selectedAspect === 'tempo') desk = <TempoDesk {...props} />
+
+    return (
+        <NotesProvider notes={msm.allNotes}>
+            {desk}
+        </NotesProvider>
+    )
 }

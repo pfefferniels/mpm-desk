@@ -20,6 +20,7 @@
     "mpmify": "file:../mpmify",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-pianosound": "file:../react-pianosound",
     "tone": "^14.7.77",
     "verovio": "^4.1.0",
     "webmidi": "^2.5.1"

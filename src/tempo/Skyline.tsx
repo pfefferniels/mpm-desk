@@ -62,7 +62,7 @@ export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMa
         return (
           <Box
             key={`box${index}`}
-            tempo={tempo}
+            segment={tempo}
             stretchX={stretchX || 0}
             stretchY={stretchY || 0}
             marked={markers.findIndex(marker => isShallowEqual(marker, correspondingMarker)) !== -1}

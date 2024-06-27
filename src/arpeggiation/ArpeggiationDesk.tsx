@@ -1,16 +1,19 @@
 import { ChordMap, MsmNote } from "mpmify/lib/msm"
 import { TransformerViewProps } from "../TransformerViewProps"
-import { useRef } from "react"
-import { randomColor } from "../utils"
+import { useRef, useState } from "react"
+import { asMIDI, randomColor } from "../utils"
 import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify/lib/transformers"
 import { SplitButton } from "./SplitButton"
 import { ButtonGroup } from "@mui/material"
+import { usePiano } from "react-pianosound"
 
 interface ChordProps {
     notes: MsmNote[]
 }
 
 export const Chord = ({ notes }: ChordProps) => {
+    const { play, stop } = usePiano()
+    const [hovered, setHovered] = useState(false)
     const color = useRef(randomColor())
 
     const stretch = 30
@@ -26,12 +29,24 @@ export const Chord = ({ notes }: ChordProps) => {
     return (
         <g className='chord'>
             <rect
+                onMouseOver={() => {
+                    const midi = asMIDI(notes)
+                    if (midi) {
+                        stop()
+                        play(midi)
+                    }
+                    setHovered(true)
+                }}
+                onMouseOut={() => {
+                    stop()
+                    setHovered(false)
+                }}
                 x={firstOnset * stretch}
                 y={0}
                 width={(lastOnset - firstOnset) * stretch}
                 height={height}
                 fill={color.current}
-                fillOpacity={0.3} />
+                fillOpacity={hovered ? 0.35 : 0.1} />
 
             {notes.map(note => {
                 return (
@@ -91,7 +106,7 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM }: TransformerViewPr
             onClick: () => transform('before-beat')
         },
         {
-            label:'All on beat',
+            label: 'All on beat',
             onClick: () => transform('on-beat')
         },
         {
@@ -103,7 +118,7 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM }: TransformerViewPr
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
             <ButtonGroup>
-                
+
             </ButtonGroup>
             <svg width={10000}>
                 <ChordOverview chords={msm.asChords()} />

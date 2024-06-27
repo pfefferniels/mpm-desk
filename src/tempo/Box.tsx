@@ -1,8 +1,11 @@
 import { useState } from "react"
 import { TempoSegment, asBPM } from "./Tempo"
+import { usePiano } from "react-pianosound"
+import { asMIDI } from "../utils"
+import { useNotes } from "../hooks/NotesProvider"
 
 type BoxProps = {
-  tempo: TempoSegment
+  segment: TempoSegment
 
   stretchX: number
   stretchY: number
@@ -27,10 +30,13 @@ type BoxProps = {
  * @prop onSelect - function called when a box is clicked
  * @prop onRemove - function called when a box is clicked with alt and shift pressed
  */
-export function Box(props: BoxProps) {
+export const Box = (props: BoxProps) => {
+  const { play, stop } = usePiano()
+  const { slice } = useNotes()
+  const [hovered, setHovered] = useState(false)
   const [markerHovered, setMarkerHovered] = useState(false)
-  const { tempo, stretchX, stretchY, marked, onMark, onRemoveMark, onExpand, onSelect, onRemove } = props
-  const { date, time, selected } = tempo
+  const { segment, stretchX, stretchY, marked, onMark, onRemoveMark, onExpand, onSelect, onRemove } = props
+  const { date, time, selected } = segment
   const { start, end } = date
   const bpm = asBPM(time)
   const upperY = bpm * -stretchY
@@ -45,10 +51,22 @@ export function Box(props: BoxProps) {
           [end * stretchX, upperY].join(','), // move left
           [end * stretchX, 0].join(',')  // move down
         ].join(' ')}
-        fill={'white'}
+        fill={hovered ? 'lightgray' : 'white'}
         fillOpacity={0.6}
         stroke={'black'}
         strokeWidth={selected ? 2 : 1}
+        onMouseOver={() => {
+          const midi = asMIDI(slice(segment.date.start, segment.date.end))
+          if (midi) {
+            stop()
+            play(midi)
+          }
+          setHovered(true)
+        }}
+        onMouseOut={() => {
+          stop()
+          setHovered(false)
+        }}
         onClick={(e) => {
           if (e.shiftKey && e.altKey) onRemove()
           else if (e.shiftKey) onExpand()
@@ -73,6 +91,13 @@ export function Box(props: BoxProps) {
         onClick={(e) => {
           if (e.altKey && e.shiftKey) onRemoveMark()
           else onMark()
+
+          const midi = asMIDI(slice(segment.date.start))
+          if (midi) {
+            stop()
+            play(midi)
+          }
+          setHovered(true)
         }} />
     </g>
   )
