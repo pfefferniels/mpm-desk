@@ -83,7 +83,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                     <Skyline
                         tempos={tempoCluster}
                         setTempos={setTempoCluster}
-                        stretchX={0.04}
+                        stretchX={13}
                         stretchY={1}
                         points={syntheticPoints}
                         markers={markers}
@@ -105,6 +105,10 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                 variant='contained'
                 onClick={insertTempoValues}>
                 Insert into MPM
+            </Button>
+
+            <Button variant='outlined'>
+                Split Segment
             </Button>
         </div>
     )

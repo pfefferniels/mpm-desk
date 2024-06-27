@@ -36,8 +36,8 @@ export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [markerHovered, setMarkerHovered] = useState(false)
   const { segment, stretchX, stretchY, marked, onMark, onRemoveMark, onExpand, onSelect, onRemove } = props
-  const { date, time, selected } = segment
-  const { start, end } = date
+  const { time, selected } = segment
+  const { start, end } = time
   const bpm = asBPM(time)
   const upperY = bpm * -stretchY
 
