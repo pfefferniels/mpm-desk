@@ -111,6 +111,10 @@ export class TempoCluster {
         }
     }
 
+    serialize() {
+        return JSON.stringify(this.segments, null, 4)
+    }
+
     get highestBPM() {
         return Math.max(...this.segments.map(t => asBPM(t.time)))
     }
@@ -149,3 +153,4 @@ export const isShallowEqual = <T extends object,>(obj1: T, obj2: T) =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         Object.hasOwn(obj2, key) && (obj1 as any)[key] === (obj2 as any)[key]
     );
+

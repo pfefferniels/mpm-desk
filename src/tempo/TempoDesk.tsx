@@ -1,10 +1,11 @@
-import { Button, ToggleButton } from "@mui/material"
+import { Button, Stack, ToggleButton } from "@mui/material"
 import { InsertTempoInstructions, Marker, SilentOnset, computeMillisecondsAt, getTempoAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Part, Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
 import { TempoCluster, isShallowEqual, extractTempoSegments } from "./Tempo"
 import { TransformerViewProps } from "../TransformerViewProps"
+import { downloadAsFile } from "../utils"
 
 export type TempoPoint = {
     date: number
@@ -83,13 +84,23 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
 
     return (
         <div>
-            <div>
-                Markers:
-                {markers.map((marker, i) => (
-                    <span key={`marker_${i}`}>
-                        {marker.date} ({marker.beatLength}) {' | '}</span>
-                ))}
-            </div>
+            <Stack direction='row' spacing={1}>
+                <Button
+                    variant='contained'
+                    onClick={insertTempoValues}
+                >
+                    Save to MPM
+                </Button>
+
+                <Button
+                    variant='outlined'
+                    onClick={() => {
+                        downloadAsFile(tempoCluster.serialize(), 'segments.json', 'application/json')
+                    }}
+                >
+                    Export Tempo Segments
+                </Button>
+            </Stack>
 
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 {tempoCluster && (
@@ -133,19 +144,17 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                     />
                 )}
             </div>
-            <Button
-                variant='contained'
-                onClick={insertTempoValues}>
-                Insert into MPM
-            </Button>
 
-            <ToggleButton
-                value='check'
-                selected={splitMode}
-                onChange={() => setSplitMode(!splitMode)}
-            >
-                Split Segment
-            </ToggleButton>
+            <div>
+                <ToggleButton
+                    value='check'
+                    size='small'
+                    selected={splitMode}
+                    onChange={() => setSplitMode(!splitMode)}
+                >
+                    Split Segment
+                </ToggleButton>
+            </div>
         </div>
     )
 }
