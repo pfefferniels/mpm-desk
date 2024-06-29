@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react"
 import { Box } from "./Box"
 import { TempoSegment, TempoCluster, isShallowEqual, markerFromTempo } from "./Tempo"
-import { TempoPoint } from "./TempoDesk"
+import { TempoCurve } from "./TempoDesk"
 import { Marker } from "mpmify/lib/transformers"
 import { SyntheticLine } from "./SyntheticLine"
 
@@ -9,7 +9,7 @@ interface SkylineProps {
   tempos: TempoCluster
   setTempos: (newTempos: TempoCluster) => void
 
-  points: TempoPoint[]
+  curves: TempoCurve[]
 
   stretchX: number
   stretchY: number
@@ -17,6 +17,9 @@ interface SkylineProps {
   markers: Marker[]
   onMark: (marker: Marker) => void
   onRemoveMarker: (marker: Marker) => void
+
+  splitMode: boolean
+  onSplit: (first: TempoSegment, second: TempoSegment) => void
 }
 
 /**
@@ -25,7 +28,7 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  * 
  */
-export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMarker, stretchX, stretchY }: SkylineProps) {
+export function Skyline({ tempos, setTempos, curves, markers, onMark, onRemoveMarker, stretchX, stretchY, splitMode, onSplit }: SkylineProps) {
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       tempos.unselectAll()
@@ -38,8 +41,8 @@ export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMa
     return () => document.removeEventListener('keydown', escFunction, false)
   }, [tempos, escFunction])
 
-  const startX = stretchX * tempos.start
-  const endX = stretchX * tempos.end
+  const startX = stretchX * tempos.startOnset
+  const endX = stretchX * tempos.endOnset
   const width = endX - startX
   const height = -stretchY * tempos.highestBPM
   const margin = 50
@@ -93,14 +96,19 @@ export function Skyline({ tempos, setTempos, points, markers, onMark, onRemoveMa
               // make sure to leave no markers without a referenced tempo
               onRemoveMarker(correspondingMarker)
               setTempos(new TempoCluster(tempos.segments))
-            }} />
+            }}
+            splitMode={splitMode}
+            onSplit={onSplit} />
         )
       })}
 
-      <SyntheticLine
-        stretchX={stretchX}
-        stretchY={stretchY}
-        points={points} />
+      {curves.map((c, i) => (
+        <SyntheticLine
+          key={`curve_${i}`}
+          stretchX={stretchX}
+          stretchY={stretchY}
+          points={c} />
+      ))}
     </svg>
   )
 }

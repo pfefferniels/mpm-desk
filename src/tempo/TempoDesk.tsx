@@ -1,5 +1,5 @@
-import { Button } from "@mui/material"
-import { InsertTempoInstructions, Marker, getTempoAt } from "mpmify/lib/transformers"
+import { Button, ToggleButton } from "@mui/material"
+import { InsertTempoInstructions, Marker, SilentOnset, computeMillisecondsAt, getTempoAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Part, Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
@@ -8,20 +8,26 @@ import { TransformerViewProps } from "../TransformerViewProps"
 
 export type TempoPoint = {
     date: number
+    time: number
     bpm: number
 }
+
+export type TempoCurve = TempoPoint[]
 
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
 export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
+    const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [markers, setMarkers] = useState<Marker[]>([])
     const [part,] = useState<Part>('global')
-    const [syntheticPoints, setSyntheticPoints] = useState<TempoPoint[]>([])
+    const [curves, setCurves] = useState<TempoCurve[]>([])
+    const [splitMode, setSplitMode] = useState(false)
 
     useEffect(() => {
         setTempoCluster(prev => {
+            if (prev.length) return prev
             // make sure not to overwrite an existing tempo architecture
             prev.importSegments(extractTempoSegments(msm, part))
             return prev.clone()
@@ -31,8 +37,9 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', 'global')
 
-        const points = []
+        const curves: TempoCurve[] = []
         const step = 10
+        let frameTime = 0
         for (let i = 0; i < tempos.length - 1; i++) {
             const tempo = tempos[i]
             const nextTempo = tempos[i + 1]
@@ -43,16 +50,21 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                 endDate: nextTempo.date
             }
 
+            const points: TempoCurve = []
             for (let i = tempo.date; i < nextTempo.date; i += step) {
                 points.push({
                     date: i,
+                    time: frameTime + computeMillisecondsAt(i, tempoWithEndDate) / 1000,
                     bpm: getTempoAt(i, tempoWithEndDate)
                 })
             }
+            curves.push(points)
+
+            frameTime += computeMillisecondsAt(tempoWithEndDate.endDate, tempoWithEndDate) / 1000
         }
 
         console.log(tempos)
-        setSyntheticPoints(points)
+        setCurves(curves)
     }, [mpm])
 
     const insertTempoValues = () => {
@@ -61,7 +73,8 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
         mpm.removeInstructions('tempo', 'global')
         const transformer = new InsertTempoInstructions({
             markers,
-            part
+            part,
+            silentOnsets
         })
         transformer.transform(msm, mpm)
         setMSM(msm.clone())
@@ -83,9 +96,9 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                     <Skyline
                         tempos={tempoCluster}
                         setTempos={setTempoCluster}
-                        stretchX={13}
+                        stretchX={20}
                         stretchY={1}
-                        points={syntheticPoints}
+                        curves={curves}
                         markers={markers}
                         onMark={newMarker => {
                             setMarkers([...markers, newMarker])
@@ -98,7 +111,26 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                                 prev.splice(index, 1)
                                 return [...prev]
                             })
-                        }} />
+                        }}
+                        splitMode={splitMode}
+                        onSplit={(first, second) => {
+                            setSilentOnsets(prev => {
+                                const existing = prev.find(o => o.date === second.date.start)
+                                if (existing) {
+                                    existing.onset = second.time.start
+                                    return [...prev]
+                                }
+
+                                return [...prev, {
+                                    date: second.date.start,
+                                    onset: second.time.start
+                                }]
+                            })
+
+                            // tempoCluster.importSegments([first, second])
+                            setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
+                        }}
+                    />
                 )}
             </div>
             <Button
@@ -107,9 +139,13 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                 Insert into MPM
             </Button>
 
-            <Button variant='outlined'>
+            <ToggleButton
+                value='check'
+                selected={splitMode}
+                onChange={() => setSplitMode(!splitMode)}
+            >
                 Split Segment
-            </Button>
+            </ToggleButton>
         </div>
     )
 }

@@ -18,6 +18,8 @@ export const asBPM = (r: Range) => {
 }
 
 export const extractTempoSegments = (msm: MSM, part: Part) => {
+    msm.shiftToFirstOnset()
+
     const segments: TempoSegment[] = []
     const chords = msm.asChords(part)
 
@@ -33,7 +35,7 @@ export const extractTempoSegments = (msm: MSM, part: Part) => {
 
         const onset = notes[0]['midi.onset']
         const nextOnset = nextNotes[0]['midi.onset']
-        if (!onset || !nextOnset) {
+        if (onset === undefined || nextOnset === undefined) {
             console.log('MIDI onset not defined')
             continue
         }
@@ -113,12 +115,20 @@ export class TempoCluster {
         return Math.max(...this.segments.map(t => asBPM(t.time)))
     }
 
-    get start() {
+    get startDate() {
         return Math.min(...this.segments.map(d => d.date.start))
     }
 
-    get end() {
+    get endDate() {
         return Math.max(...this.segments.map(d => d.date.end))
+    }
+
+    get startOnset() {
+        return Math.min(...this.segments.map(d => d.time.start))
+    }
+
+    get endOnset() {
+        return Math.max(...this.segments.map(d => d.time.end))
     }
 
     get length() {

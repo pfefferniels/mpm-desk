@@ -3,7 +3,7 @@ import { useState } from "react"
 
 interface SyntheticLineProps {
     points: TempoPoint[]
-    stretchX: number 
+    stretchX: number
     stretchY: number
 }
 
@@ -12,16 +12,14 @@ export const SyntheticLine = ({ points, stretchX, stretchY }: SyntheticLineProps
 
     return (
         <g className='syntheticLine' onMouseOver={() => setHovered(true)} onMouseOut={() => setHovered(false)}>
-            {points.map((p, i) => {
-                return (
-                    <circle
-                        key={`p_${p.date}_${i}`}
-                        cx={p.date * stretchX}
-                        cy={p.bpm * -stretchY}
-                        r={hovered ? 2 : 1}
-                        fill='gray' />
-                )
-            })}
+            {points.map((p, i) => (
+                <circle
+                    key={`p_${p.date}_${i}`}
+                    cx={p.time * stretchX}
+                    cy={p.bpm * -stretchY}
+                    r={hovered ? 2 : 1}
+                    fill='gray' />
+            ))}
         </g>
     )
 }

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { MouseEventHandler, useState } from "react"
 import { TempoSegment, asBPM } from "./Tempo"
 import { usePiano } from "react-pianosound"
 import { asMIDI } from "../utils"
@@ -17,6 +17,9 @@ type BoxProps = {
   onExpand: () => void
   onSelect: () => void
   onRemove: () => void
+
+  splitMode: boolean
+  onSplit: (first: TempoSegment, second: TempoSegment) => void
 }
 
 /**
@@ -35,14 +38,71 @@ export const Box = (props: BoxProps) => {
   const { slice } = useNotes()
   const [hovered, setHovered] = useState(false)
   const [markerHovered, setMarkerHovered] = useState(false)
-  const { segment, stretchX, stretchY, marked, onMark, onRemoveMark, onExpand, onSelect, onRemove } = props
+  const [splitTime, setSplitTime] = useState<number>()
+  const { segment, stretchX, stretchY, marked, onMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
   const { time, selected } = segment
   const { start, end } = time
   const bpm = asBPM(time)
   const upperY = bpm * -stretchY
 
+  const handleMouseMove: MouseEventHandler<SVGPolygonElement> = e => {
+    if (!splitMode) return
+
+    const margin = 75
+    const x = e.clientX - (e.target as Element).closest('svg')!.getBoundingClientRect().left - margin
+    setSplitTime(x / stretchX)
+  }
+
+  const splitBoxProps = {
+    stretchX,
+    stretchY,
+    onExpand: () => { },
+    onMark: () => { },
+    onRemove: () => { },
+    marked: false,
+    onSelect: () => { },
+    onRemoveMark: () => { },
+    splitMode: false,
+    onSplit: () => { }
+  }
+
+  let first: TempoSegment
+  let second: TempoSegment
+  if (splitTime) {
+    first = {
+      date: {
+        start: segment.date.start,
+        end: segment.date.start + (segment.date.end - segment.date.start) / 2
+      },
+      time: { start: segment.time.start, end: splitTime },
+      selected: false
+    }
+
+    second = {
+      date: {
+        start: segment.date.start + (segment.date.end - segment.date.start) / 2,
+        end: segment.date.end
+      },
+      time: { start: splitTime, end: segment.time.end },
+      selected: false
+    }
+  }
+
   return (
     <g>
+      {splitTime && (
+        <>
+          <Box
+            segment={first!}
+            {...splitBoxProps}
+          />
+          <Box
+            segment={second!}
+            {...splitBoxProps}
+          />
+        </>
+      )}
+
       <polygon
         className='box'
         points={[
@@ -55,6 +115,7 @@ export const Box = (props: BoxProps) => {
         fillOpacity={0.6}
         stroke={'black'}
         strokeWidth={selected ? 2 : 1}
+        onMouseMove={handleMouseMove}
         onMouseOver={() => {
           const midi = asMIDI(slice(segment.date.start, segment.date.end))
           if (midi) {
@@ -66,11 +127,17 @@ export const Box = (props: BoxProps) => {
         onMouseOut={() => {
           stop()
           setHovered(false)
+          setSplitTime(undefined)
         }}
         onClick={(e) => {
-          if (e.shiftKey && e.altKey) onRemove()
-          else if (e.shiftKey) onExpand()
-          else onSelect()
+          if (splitMode) {
+            onSplit(first, second)
+          }
+          else {
+            if (e.shiftKey && e.altKey) onRemove()
+            else if (e.shiftKey) onExpand()
+            else onSelect()
+          }
         }} />
 
       <line
