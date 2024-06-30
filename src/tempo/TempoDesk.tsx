@@ -6,6 +6,7 @@ import { Skyline } from "./Skyline"
 import { TempoCluster, isShallowEqual, extractTempoSegments } from "./Tempo"
 import { TransformerViewProps } from "../TransformerViewProps"
 import { downloadAsFile } from "../utils"
+import { ZoomControls } from "./ZoomControls"
 
 export type TempoPoint = {
     date: number
@@ -25,6 +26,8 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
     const [part,] = useState<Part>('global')
     const [curves, setCurves] = useState<TempoCurve[]>([])
     const [splitMode, setSplitMode] = useState(false)
+    const [stretchX, setStretchX] = useState(20)
+    const [stretchY, setStretchY] = useState(1)
 
     useEffect(() => {
         setTempoCluster(prev => {
@@ -102,47 +105,50 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                 </Button>
             </Stack>
 
-            <div style={{ width: '80vw', overflow: 'scroll' }}>
-                {tempoCluster && (
-                    <Skyline
-                        tempos={tempoCluster}
-                        setTempos={setTempoCluster}
-                        stretchX={20}
-                        stretchY={1}
-                        curves={curves}
-                        markers={markers}
-                        onMark={newMarker => {
-                            setMarkers([...markers, newMarker])
-                        }}
-                        onRemoveMarker={toRemove => {
-                            setMarkers(prev => {
-                                const index = markers.findIndex(marker => isShallowEqual(marker, toRemove))
-                                if (index === -1) return prev
+            <div style={{ position: 'relative' }}>
+                <ZoomControls setStretchX={setStretchX} setStretchY={setStretchY} />
+                <div style={{ width: '80vw', overflow: 'scroll' }}>
+                    {tempoCluster && (
+                        <Skyline
+                            tempos={tempoCluster}
+                            setTempos={setTempoCluster}
+                            stretchX={stretchX}
+                            stretchY={stretchY}
+                            curves={curves}
+                            markers={markers}
+                            onMark={newMarker => {
+                                setMarkers([...markers, newMarker])
+                            }}
+                            onRemoveMarker={toRemove => {
+                                setMarkers(prev => {
+                                    const index = markers.findIndex(marker => isShallowEqual(marker, toRemove))
+                                    if (index === -1) return prev
 
-                                prev.splice(index, 1)
-                                return [...prev]
-                            })
-                        }}
-                        splitMode={splitMode}
-                        onSplit={(first, second) => {
-                            setSilentOnsets(prev => {
-                                const existing = prev.find(o => o.date === second.date.start)
-                                if (existing) {
-                                    existing.onset = second.time.start
+                                    prev.splice(index, 1)
                                     return [...prev]
-                                }
+                                })
+                            }}
+                            splitMode={splitMode}
+                            onSplit={(first, second) => {
+                                setSilentOnsets(prev => {
+                                    const existing = prev.find(o => o.date === second.date.start)
+                                    if (existing) {
+                                        existing.onset = second.time.start
+                                        return [...prev]
+                                    }
 
-                                return [...prev, {
-                                    date: second.date.start,
-                                    onset: second.time.start
-                                }]
-                            })
+                                    return [...prev, {
+                                        date: second.date.start,
+                                        onset: second.time.start
+                                    }]
+                                })
 
-                            // tempoCluster.importSegments([first, second])
-                            setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
-                        }}
-                    />
-                )}
+                                // tempoCluster.importSegments([first, second])
+                                setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
+                            }}
+                        />
+                    )}
+                </div>
             </div>
 
             <div>

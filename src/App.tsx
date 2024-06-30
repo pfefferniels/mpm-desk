@@ -8,6 +8,7 @@ import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } fro
 import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import { downloadAsFile } from './utils';
 import { PianoContextProvider } from 'react-pianosound';
+import './App.css'
 
 export const App = () => {
     const { play } = usePiano()

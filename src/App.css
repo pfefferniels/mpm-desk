@@ -1,0 +1,19 @@
+.horizontalStretch {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    width: 300px;
+}
+
+.verticalStretch {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    margin-top: auto;
+    margin-bottom: auto;
+    height: 300px;
+}
