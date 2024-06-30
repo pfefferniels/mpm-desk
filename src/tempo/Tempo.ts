@@ -2,7 +2,7 @@ import { MSM } from "mpmify"
 import { Part } from "../../../mpm-ts/lib"
 import { Marker } from "mpmify/lib/transformers"
 
-type Range = {
+export type Range = {
     start: number
     end: number
 }
@@ -11,6 +11,7 @@ export type TempoSegment = {
     date: Range
     time: Range
     selected: boolean
+    silent: boolean
 }
 
 export const asBPM = (r: Range) => {
@@ -49,7 +50,8 @@ export const extractTempoSegments = (msm: MSM, part: Part) => {
                 start: onset,
                 end: nextOnset
             },
-            selected: false
+            selected: false,
+            silent: false
         })
     }
 
@@ -138,6 +140,10 @@ export class TempoCluster {
     get length() {
         return this.segments.length
     }
+}
+
+export const isWithinSegment = (date: number, segment: TempoSegment) => {
+    return (date >= segment.date.start) && (date < segment.date.end)
 }
 
 export const markerFromTempo = (tempo: TempoSegment): Marker => {

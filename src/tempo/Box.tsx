@@ -1,14 +1,15 @@
 import { MouseEventHandler, useState } from "react"
 import { TempoSegment, asBPM } from "./Tempo"
-import { usePiano } from "react-pianosound"
-import { asMIDI } from "../utils"
-import { useNotes } from "../hooks/NotesProvider"
 
 type BoxProps = {
   segment: TempoSegment
 
   stretchX: number
   stretchY: number
+
+  onPlay: (start: number, end?: number) => void
+  onStop: () => void
+  played: boolean
 
   marked: boolean
   onMark: () => void
@@ -34,12 +35,10 @@ type BoxProps = {
  * @prop onRemove - function called when a box is clicked with alt and shift pressed
  */
 export const Box = (props: BoxProps) => {
-  const { play, stop } = usePiano()
-  const { slice } = useNotes()
   const [hovered, setHovered] = useState(false)
   const [markerHovered, setMarkerHovered] = useState(false)
   const [splitTime, setSplitTime] = useState<number>()
-  const { segment, stretchX, stretchY, marked, onMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
+  const { segment, stretchX, stretchY, marked, onPlay, onStop, played, onMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
   const { time, selected } = segment
   const { start, end } = time
   const bpm = asBPM(time)
@@ -53,9 +52,12 @@ export const Box = (props: BoxProps) => {
     setSplitTime(x / stretchX)
   }
 
-  const splitBoxProps = {
+  const splitBoxProps: Omit<BoxProps, 'segment'> = {
     stretchX,
     stretchY,
+    played,
+    onPlay: () => { },
+    onStop: () => { },
     onExpand: () => { },
     onMark: () => { },
     onRemove: () => { },
@@ -75,7 +77,8 @@ export const Box = (props: BoxProps) => {
         end: segment.date.start + (segment.date.end - segment.date.start) / 2
       },
       time: { start: segment.time.start, end: splitTime },
-      selected: false
+      selected: false,
+      silent: true
     }
 
     second = {
@@ -84,7 +87,8 @@ export const Box = (props: BoxProps) => {
         end: segment.date.end
       },
       time: { start: splitTime, end: segment.time.end },
-      selected: false
+      selected: false,
+      silent: true
     }
   }
 
@@ -111,21 +115,18 @@ export const Box = (props: BoxProps) => {
           [end * stretchX, upperY].join(','), // move left
           [end * stretchX, 0].join(',')  // move down
         ].join(' ')}
-        fill={hovered ? 'lightgray' : 'white'}
-        fillOpacity={0.6}
+        fill={played ? 'blue' : (hovered ? 'lightgray' : 'white')}
+        fillOpacity={0.4}
         stroke={'black'}
+        strokeDasharray={segment.silent ? '1 1' : undefined}
         strokeWidth={selected ? 2 : 1}
         onMouseMove={handleMouseMove}
         onMouseOver={() => {
-          const midi = asMIDI(slice(segment.date.start, segment.date.end))
-          if (midi) {
-            stop()
-            play(midi)
-          }
+          onPlay(segment.date.start, segment.date.end)
           setHovered(true)
         }}
         onMouseOut={() => {
-          stop()
+          onStop()
           setHovered(false)
           setSplitTime(undefined)
         }}
@@ -149,6 +150,7 @@ export const Box = (props: BoxProps) => {
         stroke={marked ? 'red' : 'black'}
         strokeWidth={(markerHovered || marked) ? 3 : 1}
         strokeOpacity={markerHovered ? 0.3 : 0.8}
+        strokeDasharray={segment.silent ? '1 1' : undefined}
         onMouseOver={() => {
           setMarkerHovered(true)
         }}
@@ -158,12 +160,7 @@ export const Box = (props: BoxProps) => {
         onClick={(e) => {
           if (e.altKey && e.shiftKey) onRemoveMark()
           else onMark()
-
-          const midi = asMIDI(slice(segment.date.start))
-          if (midi) {
-            stop()
-            play(midi)
-          }
+          onPlay(segment.date.start)
           setHovered(true)
         }} />
     </g>

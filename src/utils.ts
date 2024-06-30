@@ -22,11 +22,18 @@ export const downloadAsFile = (
 }
 
 export const asMIDI = (notes_: MsmNote[]): MidiFile | undefined => {
-    if (!notes_.length) return 
+    if (!notes_.length) return
 
     const events: AnyEvent[] = []
 
-    type NoteEvent = { type: 'on' | 'off', at: number, pitch: number, velocity: number }
+    type NoteEvent = {
+        type: 'on' | 'off',
+        at: number,
+        pitch: number,
+        velocity: number,
+        date: number
+    }
+
     const notes = notes_
         .filter(note => note["midi.onset"] !== undefined && note['midi.duration'] !== undefined)
         .reduce((prev, curr) => {
@@ -34,14 +41,16 @@ export const asMIDI = (notes_: MsmNote[]): MidiFile | undefined => {
                 type: 'on',
                 at: curr["midi.onset"],
                 velocity: curr["midi.velocity"],
-                pitch: curr["midi.pitch"]
+                pitch: curr["midi.pitch"],
+                date: curr.date
             })
 
             prev.push({
                 type: 'off',
                 at: curr["midi.onset"] + curr["midi.duration"],
                 velocity: curr["midi.velocity"],
-                pitch: curr["midi.pitch"]
+                pitch: curr["midi.pitch"],
+                date: curr.date + curr.duration
             })
 
             return prev
@@ -62,13 +71,22 @@ export const asMIDI = (notes_: MsmNote[]): MidiFile | undefined => {
         const deltaTimeMs = (event.at - currentTime) * 1000
 
         if (event.type === 'on') {
+            if (event.velocity > 0) {
+                events.push({
+                    type: 'channel',
+                    subtype: 'noteOn',
+                    noteNumber: event.pitch,
+                    velocity: +event.velocity.toFixed(0),
+                    deltaTime: deltaTimeMs,
+                    channel: 0
+                })
+            }
+
             events.push({
-                type: 'channel',
-                subtype: 'noteOn',
-                noteNumber: event.pitch,
-                velocity: +event.velocity.toFixed(0),
-                deltaTime: deltaTimeMs,
-                channel: 0
+                type: 'meta',
+                subtype: 'text',
+                text: event.date.toString(),
+                deltaTime: 0
             })
         }
         else if (event.type === 'off') {
