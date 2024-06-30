@@ -2,9 +2,10 @@ import { TransformerViewProps } from "./TransformerViewProps"
 import { ArpeggiationDesk } from "./arpeggiation/ArpeggiationDesk";
 import { NotesProvider } from "./hooks/NotesProvider";
 import { ResultDesk } from "./result/ResultDesk";
+import { StylesDesk } from "./styles/StylesDesk";
 import { TempoDesk } from "./tempo/TempoDesk";
 
-export const aspects = ['arpeggiation', 'tempo', 'dynamics', 'result'] as const;
+export const aspects = ['arpeggiation', 'tempo', 'dynamics', 'styles', 'result'] as const;
 export type Aspect = (typeof aspects)[number];
 
 interface DeskSwitchProps extends TransformerViewProps {
@@ -16,7 +17,7 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
         return 'not yet ready'
     }
 
-    const props = {
+    const props: TransformerViewProps = {
         msm,
         mpm,
         setMSM,
@@ -27,6 +28,7 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
 
     if (selectedAspect === 'arpeggiation') desk = <ArpeggiationDesk {...props} />
     else if (selectedAspect === 'tempo') desk = <TempoDesk {...props} />
+    else if (selectedAspect === 'styles') desk = <StylesDesk {...props} />
 
     return (
         <NotesProvider notes={msm.allNotes}>

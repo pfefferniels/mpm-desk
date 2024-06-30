@@ -100,7 +100,7 @@ export const App = () => {
 
     return (
         <PianoContextProvider velocities={1}>
-            <Stack direction='row' spacing={1} p={1}>
+            <Stack direction='row' spacing={1} p={1} style={{ position: 'absolute', top: '1rem', left: '1rem' }}>
                 <Button variant='outlined' onClick={handleFileImport}>Import Aligned MEI</Button>
                 <input
                     type="file"
@@ -123,7 +123,7 @@ export const App = () => {
                 )}
             </Stack>
 
-            <Grid container>
+            <Grid container sx={{ minHeight: '80vh' }}>
                 <Grid item xs={2}>
                     <List>
                         {aspects.map(aspect => (
