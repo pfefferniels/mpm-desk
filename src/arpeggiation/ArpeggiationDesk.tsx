@@ -1,7 +1,7 @@
 import { ChordMap, MsmNote } from "mpmify/lib/msm"
 import { useRef, useState } from "react"
 import { asMIDI, randomColor } from "../utils"
-import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify/lib/transformers"
+import { ArpeggioPlacement, InsertDynamicsGradient, InsertTemporalSpread } from "mpmify/lib/transformers"
 import { SplitButton } from "./SplitButton"
 import { ButtonGroup } from "@mui/material"
 import { usePiano } from "react-pianosound"
@@ -72,9 +72,9 @@ interface ChordOverviewProps {
 export const ChordOverview = ({ chords }: ChordOverviewProps) => {
     const c = []
     for (const notes of chords.values()) {
-        notes.sort((a, b) => a["midi.onset"] - b["midi.onset"])
+        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
         c.push((
-            <Chord notes={notes} />
+            <Chord notes={chordNotes} />
         ))
     }
 
@@ -87,7 +87,7 @@ export const ChordOverview = ({ chords }: ChordOverviewProps) => {
 
 export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
     const transform = (placement: ArpeggioPlacement) => {
-        const insert = new InsertTemporalSpread({
+        const insertSpread = new InsertTemporalSpread({
             minimumArpeggioSize: 2,
             durationThreshold: 2,
             part: part as Part,
@@ -95,7 +95,12 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
             noteOffShiftTolerance: 2
         })
 
-        insert.transform(msm, mpm)
+        const insertGradient = new InsertDynamicsGradient({
+            part: part as Part
+        })
+
+        insertSpread.transform(msm, mpm)
+        insertGradient.transform(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
