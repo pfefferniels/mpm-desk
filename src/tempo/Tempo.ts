@@ -7,6 +7,13 @@ export type Range = {
     end: number
 }
 
+export const expandRange = (a: Range, b: Range) => {
+    return {
+        start: Math.min(a.start, b.start),
+        end: Math.max(a.end, b.end)
+    }
+}
+
 export type TempoSegment = {
     date: Range
     time: Range
