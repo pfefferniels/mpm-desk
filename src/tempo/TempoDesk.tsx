@@ -4,9 +4,9 @@ import { useEffect, useState } from "react"
 import { Part, Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
 import { TempoCluster, isShallowEqual, extractTempoSegments } from "./Tempo"
-import { TransformerViewProps } from "../TransformerViewProps"
 import { downloadAsFile } from "../utils"
 import { ZoomControls } from "./ZoomControls"
+import { ScopedTransformerViewProps } from "../DeskSwitch"
 
 export type TempoPoint = {
     date: number
@@ -19,27 +19,22 @@ export type TempoCurve = TempoPoint[]
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) => {
+export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerViewProps) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [markers, setMarkers] = useState<Marker[]>([])
-    const [part,] = useState<Part>('global')
     const [curves, setCurves] = useState<TempoCurve[]>([])
     const [splitMode, setSplitMode] = useState(false)
     const [stretchX, setStretchX] = useState(20)
     const [stretchY, setStretchY] = useState(1)
 
     useEffect(() => {
-        setTempoCluster(prev => {
-            if (prev.length) return prev
-            // make sure not to overwrite an existing tempo architecture
-            prev.importSegments(extractTempoSegments(msm, part))
-            return prev.clone()
-        })
+        // TODO: make sure not to overwrite an existing tempo architecture
+        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part as Part)))
     }, [msm, part])
 
     useEffect(() => {
-        const tempos = mpm.getInstructions<Tempo>('tempo', 'global')
+        const tempos = mpm.getInstructions<Tempo>('tempo', part as Part)
 
         const curves: TempoCurve[] = []
         const step = 10
@@ -69,7 +64,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
 
         console.log(tempos)
         setCurves(curves)
-    }, [mpm])
+    }, [mpm, part])
 
     const insertTempoValues = () => {
         if (!tempoCluster) return
@@ -77,7 +72,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
         mpm.removeInstructions('tempo', 'global')
         const transformer = new InsertTempoInstructions({
             markers,
-            part,
+            part: part as Part,
             silentOnsets
         })
         transformer.transform(msm, mpm)
@@ -110,6 +105,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM }: TransformerViewProps) =>
                 <div style={{ width: '80vw', overflow: 'scroll' }}>
                     {tempoCluster && (
                         <Skyline
+                            part={part}
                             tempos={tempoCluster}
                             setTempos={setTempoCluster}
                             stretchX={stretchX}

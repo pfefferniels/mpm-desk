@@ -1,11 +1,12 @@
 import { ChordMap, MsmNote } from "mpmify/lib/msm"
-import { TransformerViewProps } from "../TransformerViewProps"
 import { useRef, useState } from "react"
 import { asMIDI, randomColor } from "../utils"
 import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify/lib/transformers"
 import { SplitButton } from "./SplitButton"
 import { ButtonGroup } from "@mui/material"
 import { usePiano } from "react-pianosound"
+import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { Part } from "../../../mpm-ts/lib"
 
 interface ChordProps {
     notes: MsmNote[]
@@ -84,12 +85,12 @@ export const ChordOverview = ({ chords }: ChordOverviewProps) => {
     )
 }
 
-export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM }: TransformerViewProps) => {
+export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
     const transform = (placement: ArpeggioPlacement) => {
         const insert = new InsertTemporalSpread({
             minimumArpeggioSize: 2,
             durationThreshold: 2,
-            part: 'global',
+            part: part as Part,
             placement,
             noteOffShiftTolerance: 2
         })
@@ -121,7 +122,7 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM }: TransformerViewPr
 
             </ButtonGroup>
             <svg width={10000}>
-                <ChordOverview chords={msm.asChords()} />
+                <ChordOverview chords={msm.asChords(part as Part)} />
             </svg>
             <SplitButton options={options} />
         </div>

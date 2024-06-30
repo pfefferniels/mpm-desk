@@ -7,6 +7,7 @@ import { SyntheticLine } from "./SyntheticLine"
 import { asMIDI } from "../utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
+import { Scope } from "../DeskSwitch"
 
 const silentSegmentToNote = (s: TempoSegment) => {
   return ({
@@ -25,6 +26,7 @@ const silentSegmentToNote = (s: TempoSegment) => {
 }
 
 interface SkylineProps {
+  part: Scope
   tempos: TempoCluster
   setTempos: (newTempos: TempoCluster) => void
 
@@ -47,7 +49,7 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  * 
  */
-export function Skyline({ tempos, setTempos, curves, markers, onMark, onRemoveMarker, stretchX, stretchY, splitMode, onSplit }: SkylineProps) {
+export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onRemoveMarker, stretchX, stretchY, splitMode, onSplit }: SkylineProps) {
   const { play, stop } = usePiano()
   const { slice } = useNotes()
 
@@ -61,15 +63,18 @@ export function Skyline({ tempos, setTempos, curves, markers, onMark, onRemoveMa
   }, [tempos, setTempos])
 
   const handlePlay = (from: number, to?: number) => {
-    const notes = slice(from, to)
+    let notes = slice(from, to)
+    if (typeof part === 'number') notes = notes.filter(n => n.part - 1 === part)
     const silentNotes = tempos.segments
       .filter(s => {
         if (!s.silent) return false
         return s.date.start >= from
       })
       .map(silentSegmentToNote)
+    
+    const all = [...notes, ...silentNotes].sort((a, b) => a.date - b.date)
 
-    const midi = asMIDI([...notes, ...silentNotes].sort((a, b) => a.date - b.date))
+    const midi = asMIDI(all)
     if (midi) {
       stop()
       play(midi, (e) => {
