@@ -21,7 +21,9 @@ export const downloadAsFile = (
     URL.revokeObjectURL(url);
 }
 
-export const asMIDI = (notes_: MsmNote[]): MidiFile | undefined => {
+type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
+
+export const asMIDI = (notes_: PartialBy<MsmNote, 'midi.onset' | 'midi.duration'>[]): MidiFile | undefined => {
     if (!notes_.length) return
 
     const events: AnyEvent[] = []
@@ -35,11 +37,10 @@ export const asMIDI = (notes_: MsmNote[]): MidiFile | undefined => {
     }
 
     const notes = notes_
-        .filter(note => note["midi.onset"] !== undefined && note['midi.duration'] !== undefined)
         .reduce((prev, curr) => {
             prev.push({
                 type: 'on',
-                at: curr["midi.onset"],
+                at: curr["midi.onset"] || (curr.date / 1000),
                 velocity: curr["midi.velocity"],
                 pitch: curr["midi.pitch"],
                 date: curr.date
@@ -47,7 +48,7 @@ export const asMIDI = (notes_: MsmNote[]): MidiFile | undefined => {
 
             prev.push({
                 type: 'off',
-                at: curr["midi.onset"] + curr["midi.duration"],
+                at: (curr["midi.onset"] || (curr.date / 1000)) + (curr["midi.duration"] || (curr.duration / 1000)),
                 velocity: curr["midi.velocity"],
                 pitch: curr["midi.pitch"],
                 date: curr.date + curr.duration
