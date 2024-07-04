@@ -55,7 +55,7 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
                     Global
                 </ToggleButton>
                 {availableParts.map(p => (
-                    <ToggleButton value={p}>
+                    <ToggleButton key={`button_${p}`} value={p}>
                         {p}
                     </ToggleButton>
                 ))}
