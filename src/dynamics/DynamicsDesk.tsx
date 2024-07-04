@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { Part } from "../../../mpm-ts/lib";
+import { Dynamics, Part } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI } from "../utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { expandRange, Range } from "../tempo/Tempo";
+import { DynamicsWithEndDate, InsertDynamicsInstructions } from "mpmify/lib/transformers";
+import { Box, Button, Stack, ToggleButton } from "@mui/material";
+import { CurveSegment } from "./CurveSegment";
 
 interface DynamicsSegment {
     date: Range
@@ -34,18 +37,45 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm }: ScopedTransformerViewProps) => {
+export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransformerViewProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
+    const [editMode, setCombinationMode] = useState(false)
+    const [markers, setMarkers] = useState<number[]>([])
+    const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
 
-    const stretchY = 5
+    useEffect(() => {
+        const dynamics = mpm.getInstructions<Dynamics>('dynamics', part as Part)
+        const withEndDate = []
+        for (let i = 0; i < dynamics.length - 1; i++) {
+            withEndDate.push({
+                ...dynamics[i],
+                endDate: dynamics[i + 1].date
+            })
+        }
+        setInstructions(withEndDate)
+    }, [mpm, part])
+
+    const stretchY = 3
     const stretchX = 0.03
     const margin = 10
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
+
+    const handleInsert = () => {
+        const insert = new InsertDynamicsInstructions({
+            part: part as Part,
+            markers: markers
+        })
+
+        insert.transform(msm, mpm)
+
+        setMSM(msm.clone())
+        setMPM(mpm.clone())
+    }
 
     const handlePlay = (from: number, to?: number) => {
         let notes =
@@ -68,7 +98,26 @@ export const DynamicsDesk = ({ part, msm }: ScopedTransformerViewProps) => {
         }
     }
 
+    const insertMarker = (date: number) => {
+        setMarkers(prev => [...prev, date].sort())
+    }
+
+    const removeMarker = (date: number) => {
+        setMarkers(prev => {
+            const index = prev.indexOf(date)
+            if (index !== -1) {
+                prev.splice(index, 1)
+            }
+            return [...prev]
+        })
+    }
+
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
+        if (!editMode) {
+            insertMarker(segment.date.start)
+            return
+        }
+
         if (e.altKey && e.shiftKey) {
             const index = segments.indexOf(segment)
             if (index !== -1) {
@@ -103,7 +152,7 @@ export const DynamicsDesk = ({ part, msm }: ScopedTransformerViewProps) => {
             return (
                 <circle
                     cx={segment.date.start * stretchX + margin}
-                    cy={350 - segment.velocity * stretchY}
+                    cy={(127 - segment.velocity) * stretchY}
                     key={`velocity_segment_${segment.date}_${i}`}
                     r={3}
                     fill={datePlayed === segment.date.start ? 'blue' : 'black'}
@@ -122,8 +171,8 @@ export const DynamicsDesk = ({ part, msm }: ScopedTransformerViewProps) => {
                 <line
                     x1={segment.date.start * stretchX + margin}
                     x2={segment.date.end * stretchX + margin}
-                    y1={350 - segment.velocity * stretchY}
-                    y2={350 - segment.velocity * stretchY}
+                    y1={(127 - segment.velocity) * stretchY}
+                    y2={(127 - segment.velocity) * stretchY}
                     stroke={'black'}
                     strokeWidth={segment.active ? 3 : 1}
                     key={`velocity_segment_${segment.date}_${i}`}
@@ -135,11 +184,46 @@ export const DynamicsDesk = ({ part, msm }: ScopedTransformerViewProps) => {
         }
     })
 
+    const markerLines = markers.map(date => {
+        return (
+            <line
+                x1={date * stretchX + margin}
+                x2={date * stretchX + margin}
+                y1={350}
+                y2={350 - 100 * stretchY}
+                stroke={'black'}
+                strokeWidth={2}
+                key={`velocity_segment_${date}`}
+                fill='black'
+                onClick={() => removeMarker(date)} />
+        )
+    })
+
+    const curves = instructions.map(i => {
+        return (
+            <CurveSegment instruction={i} stretchX={stretchX} stretchY={stretchY} />
+        )
+    })
+
     return (
         <div>
-            {part !== 'global' && <div>Part {part + 1}</div>}
+            <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
+            <Stack direction='row' spacing={1}>
+                <Button variant='contained' onClick={handleInsert}>Insert into MPM</Button>
+                <ToggleButton
+                    value='check'
+                    size='small'
+                    selected={editMode}
+                    onChange={() => setCombinationMode(!editMode)}
+                >
+                    Edit Volumes
+                </ToggleButton>
+            </Stack>
+
             <svg width={1000} height={300}>
                 {circles}
+                {markerLines}
+                {curves}
             </svg>
         </div>
     )
