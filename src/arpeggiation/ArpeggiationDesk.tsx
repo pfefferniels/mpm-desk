@@ -126,6 +126,7 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
             <ButtonGroup>
 
             </ButtonGroup>
+            
             <svg width={10000}>
                 <ChordOverview chords={msm.asChords(part as Part)} />
             </svg>

@@ -1,5 +1,5 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { InsertTempoInstructions, Marker, SilentOnset, computeMillisecondsAt, getTempoAt } from "mpmify/lib/transformers"
+import { InsertTempoInstructions, Marker, SilentOnset, TranslatePhyiscalTimeToTicks, computeMillisecondsAt, getTempoAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Part, Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
@@ -70,12 +70,19 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
         if (!tempoCluster) return
 
         mpm.removeInstructions('tempo', 'global')
-        const transformer = new InsertTempoInstructions({
+        const insert = new InsertTempoInstructions({
             markers,
             part: part as Part,
             silentOnsets
         })
-        transformer.transform(msm, mpm)
+
+        const translate = new TranslatePhyiscalTimeToTicks({
+            'translatePhysicalModifiers': true
+        })
+
+        insert.transform(msm, mpm)
+        translate.transform(msm, mpm)
+        
         setMSM(msm.clone())
         setMPM(mpm.clone())
     }

@@ -7,8 +7,10 @@ import { ResultDesk } from "./result/ResultDesk";
 import { StylesDesk } from "./styles/StylesDesk";
 import { TempoDesk } from "./tempo/TempoDesk";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { AccentuationDesk } from "./accentuation/AccentuationDesk";
+import { RubatoDesk } from "./rubato/RubatoDesk";
 
-export const aspects = ['arpeggiation', 'tempo', 'dynamics', 'styles', 'result'] as const;
+export const aspects = ['arpeggiation', 'tempo', 'rubato', 'dynamics', 'accentuation', 'styles', 'result'] as const;
 export type Aspect = (typeof aspects)[number];
 
 interface DeskSwitchProps extends TransformerViewProps {
@@ -42,6 +44,8 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
     else if (selectedAspect === 'tempo') DeskComponent = TempoDesk
     else if (selectedAspect === 'styles') DeskComponent = StylesDesk
     else if (selectedAspect === 'dynamics') DeskComponent = DynamicsDesk
+    else if (selectedAspect === 'accentuation') DeskComponent = AccentuationDesk
+    else if (selectedAspect === 'rubato') DeskComponent = RubatoDesk
 
     return (
         <NotesProvider notes={msm.allNotes}>
