@@ -4,45 +4,59 @@ import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { Part } from "../../../mpm-ts/lib"
 
 export const RubatoDesk = ({ msm, part }: ScopedTransformerViewProps) => {
-    const stretchX = 0.03
+    const stretchX = 0.06
     const stretchY = 5
-
     const centerLineY = 50
+    const height = 10
 
-    const tickDates = []
+    const dates = []
+
     for (const [date, notes] of msm.asChords(part as Part)) {
+        dates.push((
+            <line
+                data-date={date}
+                className='shouldTick'
+                strokeWidth={1}
+                stroke='black'
+                x1={date * stretchX}
+                x2={date * stretchX}
+                y1={centerLineY * stretchY}
+                y2={(centerLineY + height) * stretchY}
+                key={`shouldTick_${date}`} />
+        ))
+
         for (const note of notes) {
-            if (note.tickDate === undefined) continue 
+            if (note.tickDate === undefined) continue
 
-            const relativeTickDate = note.tickDate - note.date
-
-            tickDates.push((
-                <circle
+            dates.push((
+                <line
+                    key={`tickShift_${note["xml:id"]}`}
                     data-date={date}
-                    r={2}
-                    fill='blue'
-                    cx={date * stretchX}
-                    cy={(centerLineY - relativeTickDate) * stretchY}
-                    key={`accentuation_${note["xml:id"]}`} />
+                    stroke='blue'
+                    strokeWidth={1}
+                    x1={note.tickDate * stretchX}
+                    x2={note.tickDate * stretchX}
+                    y1={centerLineY * stretchY}
+                    y2={(centerLineY - height) * stretchY} />
             ))
         }
     }
-    return (
-        <div style={{ width: '80vw', overflow: 'scroll' }}>
-            <Stack spacing={1} direction='row'>
-                <Button>Insert into MPM</Button>
-            </Stack>
+return (
+    <div style={{ width: '80vw', overflow: 'scroll' }}>
+        <Stack spacing={1} direction='row'>
+            <Button>Insert into MPM</Button>
+        </Stack>
 
-            <svg width={10000} height={600}>
-                <line
-                    stroke='black'
-                    strokeWidth={1}
-                    x1={0}
-                    x2={10000}
-                    y1={centerLineY * stretchY}
-                    y2={centerLineY * stretchY} />
-                {tickDates}
-            </svg>
-        </div>
-    )
+        <svg width={10000} height={600}>
+            <line
+                stroke='black'
+                strokeWidth={1}
+                x1={0}
+                x2={10000}
+                y1={centerLineY * stretchY}
+                y2={centerLineY * stretchY} />
+            {dates}
+        </svg>
+    </div>
+)
 }
