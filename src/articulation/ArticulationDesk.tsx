@@ -7,6 +7,7 @@ import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
 import { useState } from "react"
 import { asMIDI, numberToColor } from "../utils"
+import { InsertRelativeDuration } from "mpmify/lib/transformers"
 
 interface ArticulatedNoteProps {
     note: MsmNote
@@ -45,7 +46,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
         <>
             <line
                 data-date={note.date}
-                strokeWidth={2.5}
+                strokeWidth={4}
                 stroke={numberToColor(note.relativeVolume, { start: -5, end: 5 })}
                 strokeOpacity={hovered ? 1 : 0.8}
                 x1={isOnset * stretchX}
@@ -58,7 +59,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
             />
             <line
                 data-date={note.date}
-                strokeWidth={0.5}
+                strokeWidth={1}
                 stroke='black'
                 strokeOpacity={hovered ? 1 : 0.8}
                 x1={isOnset * stretchX}
@@ -70,7 +71,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
                 onMouseOut={handleMouseOut}
             />
             <line
-                strokeWidth={0.2}
+                strokeWidth={0.8}
                 stroke='black'
                 x1={(isOnset + isDuration) * stretchX}
                 x2={(isOnset + isDuration) * stretchX}
@@ -83,16 +84,24 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
     )
 }
 
-export const ArticulationDesk = ({ msm, part }: ScopedTransformerViewProps) => {
-    const stretchX = 0.04
-    const stretchY = 5
+export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+    const insert = () => {
+        const insertArticulation = new InsertRelativeDuration({
+            part: part as Part
+        })
 
-    const centerLineY = 20
+        insertArticulation.transform(msm, mpm)
+        setMSM(msm.clone())
+        setMPM(mpm.clone())
+    }
 
-    const volumes = []
+    const stretchX = 0.08
+    const stretchY = 8
+
+    const articulatedNotes = []
     for (const [, notes] of msm.asChords(part as Part)) {
         for (const note of notes) {
-            volumes.push((
+            articulatedNotes.push((
                 <ArticulatedNote
                     key={`articulatedNote_${note["xml:id"]}`}
                     note={note}
@@ -102,21 +111,23 @@ export const ArticulationDesk = ({ msm, part }: ScopedTransformerViewProps) => {
             ))
         }
     }
+
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
-            <Stack spacing={1} direction='row'>
-                <Button>Insert into MPM</Button>
+            <Stack
+                spacing={1}
+                direction='row'
+            >
+                <Button
+                    variant='contained'
+                    onClick={insert}
+                >
+                    Insert into MPM
+                </Button>
             </Stack>
 
-            <svg width={10000} height={600}>
-                <line
-                    stroke='black'
-                    strokeWidth={1}
-                    x1={0}
-                    x2={10000}
-                    y1={centerLineY * stretchY}
-                    y2={centerLineY * stretchY} />
-                {volumes}
+            <svg width={10000} height={900}>
+                {articulatedNotes}
             </svg>
         </div>
     )
