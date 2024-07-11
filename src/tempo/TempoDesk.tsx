@@ -1,7 +1,7 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
 import { InsertTempoInstructions, Marker, SilentOnset, TranslatePhyiscalTimeToTicks, computeMillisecondsAt, getTempoAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
-import { Part, Tempo } from "../../../mpm-ts/lib"
+import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
 import { TempoCluster, isShallowEqual, extractTempoSegments } from "./Tempo"
 import { downloadAsFile } from "../utils"
@@ -30,11 +30,11 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
 
     useEffect(() => {
         // TODO: make sure not to overwrite an existing tempo architecture
-        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part as Part)))
+        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
     }, [msm, part])
 
     useEffect(() => {
-        const tempos = mpm.getInstructions<Tempo>('tempo', part as Part)
+        const tempos = mpm.getInstructions<Tempo>('tempo', part)
 
         const curves: TempoCurve[] = []
         const step = 10
@@ -72,7 +72,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
         mpm.removeInstructions('tempo', 'global')
         const insert = new InsertTempoInstructions({
             markers,
-            part: part as Part,
+            part,
             silentOnsets
         })
 

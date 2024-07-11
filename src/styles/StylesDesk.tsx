@@ -1,13 +1,15 @@
 import { Button } from "@mui/material";
 import { TransformerViewProps } from "../TransformerViewProps";
-import { ExtractStyleDefinitions } from "mpmify/lib/transformers";
+import { StylizeArticulation, StylizeOrnamentation } from "mpmify/lib/transformers";
 import { Ornament } from "../../../mpm-ts/lib";
 
 export const StylesDesk = ({ msm, mpm, setMSM, setMPM }: TransformerViewProps) => {
     const transform = () => {
-        const extract = new ExtractStyleDefinitions()
+        const stylizeOrnaments = new StylizeOrnamentation()
+        const stylizeArticulation = new StylizeArticulation()
 
-        extract.transform(msm, mpm)
+        stylizeOrnaments.transform(msm, mpm)
+        stylizeArticulation.transform(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

@@ -151,6 +151,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
         if (segment.date.start === segment.date.end) {
             return (
                 <circle
+                    data-date={segment.date.start}
                     cx={segment.date.start * stretchX + margin}
                     cy={(127 - segment.velocity) * stretchY}
                     key={`velocity_segment_${segment.date}_${i}`}

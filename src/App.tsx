@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { asMSM } from './asMSM';
-import { MPM, MSM, Pipeline } from 'mpmify';
-import { ExtractStyleDefinitions, InsertDynamicsInstructions, InsertTempoInstructions, InsertTemporalSpread, SimplifyTempo, TranslatePhyiscalTimeToTicks } from 'mpmify/lib/transformers';
+import { MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
@@ -36,39 +35,6 @@ export const App = () => {
         if (!msm) return
         downloadAsFile(msm.serialize(false), 'export.msm', 'application/xml')
     };
-
-    const generateMPM = () => {
-        if (!msm) return
-
-        const pipeline = new Pipeline()
-        pipeline.push(new InsertTempoInstructions())
-        const newMPM = new MPM(2)
-
-        const translate = new TranslatePhyiscalTimeToTicks()
-        const simplify = new SimplifyTempo()
-        const insertTempo = new InsertTempoInstructions()
-        const spread = new InsertTemporalSpread()
-        const extract = new ExtractStyleDefinitions()
-        const leftDynamics = new InsertDynamicsInstructions({ part: 0, beatLength: 0.125 })
-        const rightDynamics = new InsertDynamicsInstructions({ part: 1, beatLength: 0.125 })
-
-        spread.setNext(
-            insertTempo.setNext(
-                simplify.setNext(
-                    translate.setNext(
-                        extract.setNext(
-                            leftDynamics.setNext(
-                                rightDynamics
-                            )
-                        )
-                    )
-                ))
-        )
-
-        spread.transform(msm, newMPM)
-        // pipeline.head?.transform(msm, newMPM)
-        setMPM(newMPM)
-    }
 
     const playMPM = async () => {
         if (!mpm || !msm) return
@@ -112,11 +78,11 @@ export const App = () => {
                 {msm && (
                     <>
                         <Button variant='outlined' onClick={handleDownloadMSM}>Download MSM</Button>
-                        <Button variant='outlined' onClick={generateMPM}>Generate MPM</Button>
                     </>
                 )}
                 {mpm && (
                     <>
+                        <Button variant='outlined'>Download MPM</Button>
                         <Button variant='outlined' onClick={() => playMPM()}>Play</Button>
                         <Button variant='outlined' onClick={() => copyToClipboard(mpm.serialize())}>Copy</Button>
                     </>

@@ -1,5 +1,5 @@
 import { MSM } from "mpmify"
-import { Part } from "../../../mpm-ts/lib"
+import { Scope } from "../../../mpm-ts/lib"
 import { Marker } from "mpmify/lib/transformers"
 
 export type Range = {
@@ -25,7 +25,7 @@ export const asBPM = (r: Range) => {
     return 60 / (r.end - r.start)
 }
 
-export const extractTempoSegments = (msm: MSM, part: Part) => {
+export const extractTempoSegments = (msm: MSM, part: Scope) => {
     msm.shiftToFirstOnset()
 
     const segments: TempoSegment[] = []
