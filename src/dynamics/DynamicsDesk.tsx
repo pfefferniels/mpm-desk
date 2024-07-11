@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dynamics, Part } from "../../../mpm-ts/lib";
+import { Dynamics } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI } from "../utils";
@@ -18,7 +18,7 @@ interface DynamicsSegment {
 
 const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     const segments: DynamicsSegment[] = []
-    msm.asChords(part as Part).forEach((notes, date) => {
+    msm.asChords(part).forEach((notes, date) => {
         if (!notes.length) return
 
         for (const note of notes) {
@@ -48,7 +48,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
 
     useEffect(() => {
-        const dynamics = mpm.getInstructions<Dynamics>('dynamics', part as Part)
+        const dynamics = mpm.getInstructions<Dynamics>('dynamics', part)
         const withEndDate = []
         for (let i = 0; i < dynamics.length - 1; i++) {
             withEndDate.push({
@@ -67,7 +67,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
 
     const handleInsert = () => {
         const insert = new InsertDynamicsInstructions({
-            part: part as Part,
+            part: part,
             markers: markers
         })
 

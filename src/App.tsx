@@ -8,6 +8,7 @@ import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import { downloadAsFile } from './utils';
 import { PianoContextProvider } from 'react-pianosound';
 import './App.css'
+import { exportMPM } from '../../mpm-ts/lib';
 
 export const App = () => {
     const { play } = usePiano()
@@ -40,7 +41,7 @@ export const App = () => {
         if (!mpm || !msm) return
 
         const request = {
-            mpm: mpm.serialize(),
+            mpm: exportMPM(mpm),
             msm: msm.serialize(false)
         }
 

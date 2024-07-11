@@ -6,7 +6,6 @@ import { SplitButton } from "./SplitButton"
 import { ButtonGroup } from "@mui/material"
 import { usePiano } from "react-pianosound"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
-import { Part } from "../../../mpm-ts/lib"
 
 interface ChordProps {
     notes: MsmNote[]
@@ -90,13 +89,13 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
         const insertSpread = new InsertTemporalSpread({
             minimumArpeggioSize: 2,
             durationThreshold: 2,
-            part: part as Part,
+            part,
             placement,
             noteOffShiftTolerance: 2
         })
 
         const insertGradient = new InsertDynamicsGradient({
-            part: part as Part
+            part
         })
 
         insertSpread.transform(msm, mpm)
@@ -128,7 +127,7 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
             </ButtonGroup>
             
             <svg width={10000}>
-                <ChordOverview chords={msm.asChords(part as Part)} />
+                <ChordOverview chords={msm.asChords(part)} />
             </svg>
             <SplitButton options={options} />
         </div>
