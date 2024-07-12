@@ -69,7 +69,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
     const insertTempoValues = () => {
         if (!tempoCluster) return
 
-        mpm.removeInstructions('tempo', 'global')
+        mpm.removeInstructions('tempo', part)
         const insert = new InsertTempoInstructions({
             markers,
             part,

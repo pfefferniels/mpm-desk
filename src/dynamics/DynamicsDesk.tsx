@@ -71,6 +71,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
             markers: markers
         })
 
+        mpm.removeInstructions('dynamics', part)
         insert.transform(msm, mpm)
 
         setMSM(msm.clone())
