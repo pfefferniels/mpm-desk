@@ -1,7 +1,6 @@
 
 import { Button, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
-import { Part } from "../../../mpm-ts/lib"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
@@ -53,7 +52,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
                 x2={(isOnset + shouldDuration) * stretchX}
                 y1={(127 - note["midi.pitch"]) * stretchY}
                 y2={(127 - note["midi.pitch"]) * stretchY}
-                key={`accentuation_${note["xml:id"]}`}
+                key={`accentuation_${note.part}_${note["xml:id"]}`}
                 onMouseOver={handleMouseOver}
                 onMouseOut={handleMouseOut}
             />
@@ -87,7 +86,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
 export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
     const insert = () => {
         const insertArticulation = new InsertRelativeDuration({
-            part: part as Part
+            part
         })
 
         insertArticulation.transform(msm, mpm)
@@ -99,7 +98,7 @@ export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
     const stretchY = 8
 
     const articulatedNotes = []
-    for (const [, notes] of msm.asChords(part as Part)) {
+    for (const [, notes] of msm.asChords(part)) {
         for (const note of notes) {
             articulatedNotes.push((
                 <ArticulatedNote
