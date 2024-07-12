@@ -19,8 +19,11 @@ function interpolateColor(color1: [number, number, number], color2: [number, num
 
 export function numberToColor(num: number, range: Range): string {
     // Ensure the number is within the specified range
-    if (num < range.start || num > range.end) {
-        throw new Error('Number out of range.');
+    if (num < range.start) {
+        num = range.start
+    }
+    else if (num > range.end) {
+        num = range.end
     }
 
     // Normalize the number to a value between 0 and 1 within the specified range
