@@ -73,7 +73,10 @@ export const ChordOverview = ({ chords }: ChordOverviewProps) => {
     for (const notes of chords.values()) {
         const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
         c.push((
-            <Chord notes={chordNotes} />
+            <Chord
+                key={`chordNotes_${chordNotes[0]["xml:id"]}`}
+                notes={chordNotes}
+            />
         ))
     }
 
@@ -125,7 +128,7 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
             <ButtonGroup>
 
             </ButtonGroup>
-            
+
             <svg width={10000}>
                 <ChordOverview chords={msm.asChords(part)} />
             </svg>
