@@ -6,15 +6,18 @@ import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
 import { useState } from "react"
 import { asMIDI, numberToColor } from "../utils"
-import { InsertRelativeDuration } from "mpmify/lib/transformers"
+import { InsertArticulation } from "mpmify/lib/transformers"
 
 interface ArticulatedNoteProps {
     note: MsmNote
     stretchX: number
     stretchY: number
+
+    selected: boolean
+    onClick: (id: string) => void
 }
 
-const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => {
+const ArticulatedNote = ({ note, stretchX, stretchY, selected, onClick }: ArticulatedNoteProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -43,13 +46,28 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
 
     return (
         <>
+            <rect
+                data-date={note.date}
+                stroke='black'
+                strokeWidth={selected ? 2 : 0.2}
+                fill={numberToColor(note.relativeVolume, { start: -5, end: 5 })}
+                fillOpacity={hovered ? 1 : 0.8}
+                x={isOnset * stretchX}
+                width={shouldDuration * stretchX}
+                y={(127 - note["midi.pitch"]) * stretchY - 2}
+                height={4}
+                key={`accentuation_${note.part}_${note["xml:id"]}`}
+                onMouseOver={handleMouseOver}
+                onMouseOut={handleMouseOut}
+                onClick={() => onClick(note["xml:id"])}
+            />
             <line
                 data-date={note.date}
-                strokeWidth={4}
-                stroke={numberToColor(note.relativeVolume, { start: -5, end: 5 })}
+                strokeWidth={hovered ? 2 : 1}
+                stroke='black'
                 strokeOpacity={hovered ? 1 : 0.8}
                 x1={isOnset * stretchX}
-                x2={(isOnset + shouldDuration) * stretchX}
+                x2={(isOnset + isDuration) * stretchX}
                 y1={(127 - note["midi.pitch"]) * stretchY}
                 y2={(127 - note["midi.pitch"]) * stretchY}
                 key={`accentuation_${note.part}_${note["xml:id"]}`}
@@ -57,20 +75,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
                 onMouseOut={handleMouseOut}
             />
             <line
-                data-date={note.date}
-                strokeWidth={1}
-                stroke='black'
-                strokeOpacity={hovered ? 1 : 0.8}
-                x1={isOnset * stretchX}
-                x2={(isOnset + isDuration) * stretchX}
-                y1={(127 - note["midi.pitch"]) * stretchY}
-                y2={(127 - note["midi.pitch"]) * stretchY}
-                key={`accentuation_${note["xml:id"]}`}
-                onMouseOver={handleMouseOver}
-                onMouseOut={handleMouseOut}
-            />
-            <line
-                strokeWidth={0.8}
+                strokeWidth={hovered ? 1.2 : 0.8}
                 stroke='black'
                 x1={(isOnset + isDuration) * stretchX}
                 x2={(isOnset + isDuration) * stretchX}
@@ -84,9 +89,12 @@ const ArticulatedNote = ({ note, stretchX, stretchY }: ArticulatedNoteProps) => 
 }
 
 export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+    const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
+
     const insert = () => {
-        const insertArticulation = new InsertRelativeDuration({
-            part
+        const insertArticulation = new InsertArticulation({
+            scope: part,
+            noteIDs: selectedNotes.size === 0 ? undefined : [...selectedNotes]
         })
 
         mpm.removeInstructions('articulation', part)
@@ -108,6 +116,14 @@ export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
                     note={note}
                     stretchX={stretchX}
                     stretchY={stretchY}
+                    selected={selectedNotes.has(note["xml:id"])}
+                    onClick={(id) => {
+                        setSelectedNotes(prev => {
+                            if (prev.has(id)) prev.delete(id)
+                            else prev.add(id)
+                            return new Set([...prev])
+                        })
+                    }}
                 />
             ))
         }
