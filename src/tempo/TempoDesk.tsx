@@ -39,18 +39,26 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
         const curves: TempoCurve[] = []
         const step = 10
         let frameTime = 0
-        for (let i = 0; i < tempos.length - 1; i++) {
+        for (let i = 0; i < tempos.length; i++) {
             const tempo = tempos[i]
+
+            let endDate
+
             const nextTempo = tempos[i + 1]
-            if (!nextTempo) continue
+            if (nextTempo) {
+                endDate = nextTempo.date
+            }
+            else {
+                endDate = Math.max(...msm.allNotes.map(n => n.date))
+            }
 
             const tempoWithEndDate = {
                 ...tempo,
-                endDate: nextTempo.date
+                endDate
             }
 
             const points: TempoCurve = []
-            for (let i = tempo.date; i < nextTempo.date; i += step) {
+            for (let i = tempo.date; i < endDate; i += step) {
                 points.push({
                     date: i,
                     time: frameTime + computeMillisecondsAt(i, tempoWithEndDate) / 1000,
@@ -59,7 +67,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
             }
             curves.push(points)
 
-            frameTime += computeMillisecondsAt(tempoWithEndDate.endDate, tempoWithEndDate) / 1000
+            frameTime += computeMillisecondsAt(endDate, tempoWithEndDate) / 1000
         }
 
         console.log(tempos)
