@@ -13,7 +13,7 @@ import { exportMPM } from '../../mpm-ts/lib';
 export const App = () => {
     const { play } = usePiano()
     const [msm, setMSM] = useState<MSM>(new MSM());
-    const [mpm, setMPM] = useState<MPM>(new MPM(2));
+    const [mpm, setMPM] = useState<MPM>(new MPM());
     const [selectedAspect, setSelectedAspect] = useState<Aspect>('result')
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,9 +83,9 @@ export const App = () => {
                 )}
                 {mpm && (
                     <>
-                        <Button variant='outlined'>Download MPM</Button>
+                        <Button variant='outlined' onClick={() => downloadAsFile(exportMPM(mpm), 'export.mpm')}>Download MPM</Button>
                         <Button variant='outlined' onClick={() => playMPM()}>Play</Button>
-                        <Button variant='outlined' onClick={() => copyToClipboard(mpm.serialize())}>Copy</Button>
+                        <Button variant='outlined' onClick={() => copyToClipboard(exportMPM(mpm))}>Copy</Button>
                     </>
                 )}
             </Stack>
