@@ -1,7 +1,6 @@
 
 import { Button, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
-import { Part } from "../../../mpm-ts/lib"
 import { MouseEventHandler, useState } from "react"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
@@ -53,7 +52,7 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformer
 
     const handleInsert = () => {
         const insert = new InterpolateRubato({
-            part: part as Part,
+            part,
             frames: frames.filter(f => f.length !== undefined) as FrameData[]
         })
 
@@ -100,7 +99,7 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformer
         setFrames([...frames])
     }
 
-    for (const [date, notes] of msm.asChords(part as Part)) {
+    for (const [date, notes] of msm.asChords(part)) {
         dates.push((
             <line
                 data-date={date}
@@ -173,8 +172,8 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformer
                     x2={10000}
                     y1={centerLineY * stretchY}
                     y2={centerLineY * stretchY} />
-                {dates}
                 {boxes}
+                {dates}
             </svg>
         </div>
     )
