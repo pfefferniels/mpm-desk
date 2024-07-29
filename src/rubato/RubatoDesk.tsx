@@ -123,6 +123,7 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformer
                 <line
                     key={`tickShift_${note["xml:id"]}`}
                     data-date={date}
+                    data-tickDate={note.tickDate}
                     stroke='blue'
                     strokeWidth={hovered === date ? 3 : 1.5}
                     x1={note.tickDate * stretchX}

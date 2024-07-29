@@ -21,7 +21,7 @@ export const CurveSegment = ({ instruction, stretchX, stretchY }: CurveSegmentPr
         const newPoints = []
         const instructionWithControlPoints = {
             ...instruction,
-            ...computeInnerControlPointsXPositions(instruction.curvature!, instruction.protraction!)
+            ...computeInnerControlPointsXPositions(instruction.curvature || 0.5, instruction.protraction || 0)
         }
 
         for (let date = instruction.date; date < instruction.endDate; date += stepSize) {
@@ -35,7 +35,12 @@ export const CurveSegment = ({ instruction, stretchX, stretchY }: CurveSegmentPr
     }, [instruction])
 
     return (
-        <g className='curveSegment' data-id={`curve_${instruction["xml:id"]}`}>
+        <g
+            className='curveSegment'
+            data-id={`curve_${instruction["xml:id"]}`}
+            data-startDate={instruction.date}
+            data-endDate={instruction.endDate}
+        >
             {points.map((p, i) => {
                 return (
                     <circle

@@ -21,7 +21,8 @@ const silentSegmentToNote = (s: TempoSegment) => {
     pitchname: '',
     part: 0,
     accidentals: 0,
-    octave: 0
+    octave: 0,
+    relativeVolume: 0
   })
 }
 
