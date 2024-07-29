@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Dynamics } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
-import { asMIDI } from "../utils";
+import { asMIDI, downloadAsFile } from "../utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { expandRange, Range } from "../tempo/Tempo";
@@ -48,6 +48,8 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
 
     useEffect(() => {
+        setMarkers([])
+
         const dynamics = mpm.getInstructions<Dynamics>('dynamics', part)
         const withEndDate = []
         for (let i = 0; i < dynamics.length - 1; i++) {
@@ -64,6 +66,29 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     const margin = 10
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files ? event.target.files[0] : null;
+        if (!file) return
+        const reader = new FileReader();
+        reader.onload = async (e: ProgressEvent<FileReader>) => {
+            const content = e.target?.result as string;
+            const json = JSON.parse(content)
+            if (!Array.isArray(json)) {
+                console.log('Invalid JSON file provided.')
+                return
+            }
+
+            setMarkers(json)
+        };
+
+        reader.readAsText(file);
+    };
+
+    const handleFileImport = () => {
+        const fileInput = document.getElementById('markersInput') as HTMLInputElement;
+        fileInput.click();
+    };
 
     const handleInsert = () => {
         const insert = new InsertDynamicsInstructions({
@@ -212,6 +237,18 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1}>
                 <Button variant='contained' onClick={handleInsert}>Insert into MPM</Button>
+                <Button variant='outlined' onClick={() => {
+                    downloadAsFile(JSON.stringify(markers, null, 4), 'dynamics_markers.json')
+                }}>Export Markers</Button>
+                <Button variant='outlined' onClick={handleFileImport}>Import Markers</Button>
+                <input
+                    type="file"
+                    id="markersInput"
+                    accept='*.json'
+                    style={{ display: 'none' }}
+                    onChange={handleFileChange}
+                />
+
                 <ToggleButton
                     value='check'
                     size='small'
@@ -222,7 +259,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
                 </ToggleButton>
             </Stack>
 
-            <svg width={1000} height={300}>
+            <svg width={8000} height={300}>
                 {circles}
                 {markerLines}
                 {curves}
