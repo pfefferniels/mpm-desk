@@ -35,13 +35,30 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
     let current = iterator.next()
     while (!current.done) {
         const [date, notes] = current.value
+        const onset = notes[0]['midi.onset']
 
         current = iterator.next()
-        if (current.done) break
+        if (current.done) {
+            const longest = notes.sort((a, b) => b.duration - a.duration)[0]
+
+            segments.push({
+                date: {
+                    start: date,
+                    end: longest.date + longest.duration
+                },
+                time: {
+                    start: onset,
+                    end: longest["midi.onset"] + longest["midi.duration"]
+                },
+                selected: false,
+                silent: false
+            })
+    
+            break
+        }
 
         const [nextDate, nextNotes] = current.value
 
-        const onset = notes[0]['midi.onset']
         const nextOnset = nextNotes[0]['midi.onset']
         if (onset === undefined || nextOnset === undefined) {
             console.log('MIDI onset not defined')
