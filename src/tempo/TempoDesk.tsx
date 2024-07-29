@@ -29,9 +29,11 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
     const [stretchY, setStretchY] = useState(1)
 
     useEffect(() => {
-        // TODO: make sure not to overwrite an existing tempo architecture
-        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
-    }, [msm, part])
+        if (markers.length === 0) {
+            // TODO: make sure not to overwrite an existing tempo architecture
+            setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
+        }
+    }, [msm, part, markers])
 
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
@@ -72,7 +74,37 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
 
         console.log(tempos)
         setCurves(curves)
-    }, [mpm, part])
+    }, [mpm, part, msm])
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files ? event.target.files[0] : null;
+        if (!file) return
+        const reader = new FileReader();
+        reader.onload = async (e: ProgressEvent<FileReader>) => {
+            const content = e.target?.result as string;
+            // setMSM(await asMSM(content));
+            const json = JSON.parse(content)
+            if (!json.tempoCluster || !json.markers || !json.silentOnsets ||
+                !Array.isArray(json.tempoCluster) || !Array.isArray(json.markers) || !Array.isArray(json.silentOnsets)
+            ) {
+                console.log('Invalid JSON file provided.')
+                return
+            }
+
+            setTempoCluster(
+                new TempoCluster(json.tempoCluster)
+            )
+            setMarkers(json.markers)
+            setSilentOnsets(json.silentOnsets)
+        };
+
+        reader.readAsText(file);
+    };
+
+    const handleFileImport = () => {
+        const fileInput = document.getElementById('segmentInput') as HTMLInputElement;
+        fileInput.click();
+    };
 
     const insertTempoValues = () => {
         if (!tempoCluster) return
@@ -92,7 +124,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
         insert.transform(msm, mpm)
         compress.transform(msm, mpm)
         translate.transform(msm, mpm)
-        
+
         setMSM(msm.clone())
         setMPM(mpm.clone())
     }
@@ -110,11 +142,33 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                 <Button
                     variant='outlined'
                     onClick={() => {
-                        downloadAsFile(tempoCluster.serialize(), 'segments.json', 'application/json')
+                        const json = {
+                            tempoCluster: tempoCluster.segments,
+                            markers,
+                            silentOnsets
+                        }
+
+                        downloadAsFile(
+                            JSON.stringify(json, null, 4),
+                            'segments.json',
+                            'application/json'
+                        )
                     }}
                 >
-                    Export Tempo Segments
+                    Export Segments
                 </Button>
+                <Button
+                    variant='outlined'
+                    onClick={handleFileImport}>
+                    Import Segments
+                </Button>
+                <input
+                    type="file"
+                    id="segmentInput"
+                    accept='*.json'
+                    style={{ display: 'none' }}
+                    onChange={handleFileChange}
+                />
             </Stack>
 
             <div style={{ position: 'relative' }}>
