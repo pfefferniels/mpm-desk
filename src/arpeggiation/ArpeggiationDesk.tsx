@@ -89,6 +89,10 @@ export const ChordOverview = ({ chords }: ChordOverviewProps) => {
 
 export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
     const transform = (placement: ArpeggioPlacement) => {
+        const insertGradient = new InsertDynamicsGradient({
+            part
+        })
+
         const insertSpread = new InsertTemporalSpread({
             minimumArpeggioSize: 2,
             durationThreshold: 2,
@@ -97,12 +101,8 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
             noteOffShiftTolerance: 2
         })
 
-        const insertGradient = new InsertDynamicsGradient({
-            part
-        })
-
-        insertSpread.transform(msm, mpm)
         insertGradient.transform(msm, mpm)
+        insertSpread.transform(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
