@@ -125,6 +125,10 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
         compress.transform(msm, mpm)
         translate.transform(msm, mpm)
 
+        insert.insertMetadata(mpm)
+        compress.insertMetadata(mpm)
+        translate.insertMetadata(mpm)
+
         setMSM(msm.clone())
         setMPM(mpm.clone())
     }

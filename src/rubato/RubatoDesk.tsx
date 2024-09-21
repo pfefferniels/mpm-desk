@@ -57,6 +57,7 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformer
         })
 
         insert.transform(msm, mpm)
+        insert.insertMetadata(mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

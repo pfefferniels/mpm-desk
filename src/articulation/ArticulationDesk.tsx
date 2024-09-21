@@ -99,6 +99,7 @@ export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
 
         mpm.removeInstructions('articulation', part)
         insertArticulation.transform(msm, mpm)
+        insertArticulation.insertMetadata(mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

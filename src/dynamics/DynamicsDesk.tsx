@@ -98,6 +98,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
 
         mpm.removeInstructions('dynamics', part)
         insert.transform(msm, mpm)
+        insert.insertMetadata(mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

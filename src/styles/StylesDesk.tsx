@@ -17,6 +17,11 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM }: TransformerViewProps) =
         stylizeArticulation.transform(msm, mpm)
         compressArticulation.transform(msm, mpm)
 
+        stylizeOrnaments.insertMetadata(mpm)
+        compressOrnaments.insertMetadata(mpm)
+        stylizeArticulation.insertMetadata(mpm)
+        compressArticulation.insertMetadata(mpm)
+
         setMSM(msm.clone())
         setMPM(mpm.clone())
     }
