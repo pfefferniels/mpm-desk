@@ -9,8 +9,19 @@ import { TempoDesk } from "./tempo/TempoDesk";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { ArticulationDesk } from "./articulation/ArticulationDesk";
 import { RubatoDesk } from "./rubato/RubatoDesk";
+import { MetadataDesk } from "./metadata/MetadataDesk";
 
-export const aspects = ['arpeggiation', 'tempo', 'rubato', 'dynamics', 'articulation', 'styles', 'result'] as const;
+export const aspects = [
+    'arpeggiation',
+    'tempo',
+    'rubato',
+    'dynamics',
+    'articulation',
+    'styles',
+    'result',
+    'metadata'
+] as const;
+
 export type Aspect = (typeof aspects)[number];
 
 interface DeskSwitchProps extends TransformerViewProps {
@@ -46,27 +57,28 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
     else if (selectedAspect === 'dynamics') DeskComponent = DynamicsDesk
     else if (selectedAspect === 'articulation') DeskComponent = ArticulationDesk
     else if (selectedAspect === 'rubato') DeskComponent = RubatoDesk
+    else if (selectedAspect === 'metadata') DeskComponent = MetadataDesk
 
-    return (
-        <NotesProvider notes={msm.allNotes}>
-            <ToggleButtonGroup
-                size='small'
-                value={scope}
-                exclusive
-                onChange={(_, value) => setScope(value)}
-            >
-                <ToggleButton value='global'>
-                    Global
-                </ToggleButton>
-                {availableParts.map(p => (
-                    <ToggleButton key={`button_${p}`} value={p}>
-                        {p}
+        return (
+            <NotesProvider notes={msm.allNotes}>
+                <ToggleButtonGroup
+                    size='small'
+                    value={scope}
+                    exclusive
+                    onChange={(_, value) => setScope(value)}
+                >
+                    <ToggleButton value='global'>
+                        Global
                     </ToggleButton>
-                ))}
-            </ToggleButtonGroup>
-            <div style={{ overflow: 'scroll', maxHeight: '70vh', width: '80vw' }}>
-                <DeskComponent {...props} part={scope} />
-            </div>
-        </NotesProvider>
-    )
+                    {availableParts.map(p => (
+                        <ToggleButton key={`button_${p}`} value={p}>
+                            {p}
+                        </ToggleButton>
+                    ))}
+                </ToggleButtonGroup>
+                <div style={{ overflow: 'scroll', maxHeight: '70vh', width: '80vw' }}>
+                    <DeskComponent {...props} part={scope} />
+                </div>
+            </NotesProvider>
+        )
 }

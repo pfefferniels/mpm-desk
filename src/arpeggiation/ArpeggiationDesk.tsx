@@ -104,6 +104,9 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
         insertGradient.transform(msm, mpm)
         insertSpread.transform(msm, mpm)
 
+        insertGradient.insertMetadata(mpm)
+        insertSpread.insertMetadata(mpm)
+
         setMSM(msm.clone())
         setMPM(mpm.clone())
     }
