@@ -4,7 +4,11 @@ import { AppInfo } from "../../../mpm-ts/lib";
 export const AppInfoDisplay = ({ appInfo }: { appInfo: AppInfo; }) => {
     return (
         <div>
-            <div>Application Info: <b>{appInfo.name}</b> (Version {appInfo.version})</div>
+            <div>
+                Application Info:{' '}
+                <a href={appInfo.url} style={{ fontWeight: 'bold' }}>{appInfo.name}</a>
+                {' '}(Version {appInfo.version})
+            </div>
 
             <div>
                 {appInfo.children.map((transformation, j) => {
