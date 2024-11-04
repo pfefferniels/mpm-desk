@@ -173,7 +173,8 @@ export const isWithinSegment = (date: number, segment: TempoSegment) => {
 export const markerFromTempo = (tempo: TempoSegment): Marker => {
     return {
         date: tempo.date.start,
-        beatLength: tempo.date.end - tempo.date.start
+        beatLength: tempo.date.end - tempo.date.start,
+        continuous: false
     }
 }
 
