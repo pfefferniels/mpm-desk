@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Box } from "./Box"
-import { TempoSegment, TempoCluster, isShallowEqual, markerFromTempo, isWithinSegment } from "./Tempo"
+import { TempoSegment, TempoCluster, markerFromTempo, isWithinSegment } from "./Tempo"
 import { TempoCurve } from "./TempoDesk"
 import { Marker } from "mpmify/lib/transformers"
 import { SyntheticLine } from "./SyntheticLine"
@@ -38,6 +38,7 @@ interface SkylineProps {
 
   markers: Marker[]
   onMark: (marker: Marker) => void
+  onSelectMark: (marker: Marker) => void
   onRemoveMarker: (marker: Marker) => void
 
   splitMode: boolean
@@ -50,7 +51,7 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  * 
  */
-export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onRemoveMarker, stretchX, stretchY, splitMode, onSplit }: SkylineProps) {
+export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSelectMark, onRemoveMarker, stretchX, stretchY, splitMode, onSplit }: SkylineProps) {
   const { play, stop } = usePiano()
   const { slice } = useNotes()
 
@@ -118,16 +119,13 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onRe
             segment={tempo}
             stretchX={stretchX || 0}
             stretchY={stretchY || 0}
-            marked={markers.findIndex(marker => isShallowEqual(marker, correspondingMarker)) !== -1}
+            marker={markers.find(marker => marker.date === correspondingMarker.date && marker.beatLength === correspondingMarker.beatLength)}
             onPlay={handlePlay}
             onStop={stop}
             played={datePlayed ? isWithinSegment(datePlayed, tempo) : false}
-            onMark={() => {
-              onMark(correspondingMarker)
-            }}
-            onRemoveMark={() => {
-              onRemoveMarker(correspondingMarker)
-            }}
+            onMark={() => onMark(correspondingMarker)}
+            onSelectMark={() => onSelectMark(correspondingMarker)}
+            onRemoveMark={() => onRemoveMarker(correspondingMarker)}
             onSelect={() => {
               tempos.unselectAll()
               const tempoClone = structuredClone(tempo)

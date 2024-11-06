@@ -1,4 +1,4 @@
-import { Button, Stack, ToggleButton } from "@mui/material"
+import { Box, Button, Checkbox, Drawer, FormControlLabel, Stack, ToggleButton } from "@mui/material"
 import { CompressTempo, InsertTempoInstructions, Marker, SilentOnset, TranslatePhyiscalTimeToTicks, computeMillisecondsAt, getTempoAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Tempo } from "../../../mpm-ts/lib"
@@ -27,6 +27,8 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
     const [splitMode, setSplitMode] = useState(false)
     const [stretchX, setStretchX] = useState(20)
     const [stretchY, setStretchY] = useState(1)
+
+    const [activeMarker, setActiveMarker] = useState<number | null>(null)
 
     useEffect(() => {
         if (markers.length === 0) {
@@ -190,6 +192,9 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                             onMark={newMarker => {
                                 setMarkers([...markers, newMarker])
                             }}
+                            onSelectMark={toSelect => {
+                                setActiveMarker(toSelect.date)
+                            }}
                             onRemoveMarker={toRemove => {
                                 setMarkers(prev => {
                                     const index = markers.findIndex(marker => isShallowEqual(marker, toRemove))
@@ -232,6 +237,30 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                     Split Segment
                 </ToggleButton>
             </div>
+
+            <Drawer
+                open={activeMarker !== null}
+                onClose={() => setActiveMarker(null)}
+            >
+                {(activeMarker !== null) && (
+                    <Box padding={2}>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={markers.find(marker => marker.date === activeMarker)?.continuous || false}
+                                    onChange={(e) => {
+                                        const marker = markers.find(marker => marker.date === activeMarker)
+                                        if (!marker) return
+                                        marker.continuous = e.target.checked
+                                        setMarkers([...markers]);
+                                    }}
+                                />
+                            }
+                            label="Continuous"
+                        />
+                    </Box>
+                )}
+            </Drawer>
         </div>
     )
 }

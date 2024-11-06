@@ -1,5 +1,6 @@
 import { MouseEventHandler, useState } from "react"
 import { TempoSegment, asBPM } from "./Tempo"
+import { Marker } from "mpmify/lib/transformers"
 
 type BoxProps = {
   segment: TempoSegment
@@ -11,8 +12,9 @@ type BoxProps = {
   onStop: () => void
   played: boolean
 
-  marked: boolean
+  marker?: Marker
   onMark: () => void
+  onSelectMark: () => void
   onRemoveMark: () => void
 
   onExpand: () => void
@@ -38,7 +40,7 @@ export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [markerHovered, setMarkerHovered] = useState(false)
   const [splitTime, setSplitTime] = useState<number>()
-  const { segment, stretchX, stretchY, marked, onPlay, onStop, played, onMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
+  const { segment, stretchX, stretchY, marker, onPlay, onStop, played, onMark, onSelectMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
   const { time, selected } = segment
   const { start, end } = time
   const bpm = asBPM(time)
@@ -60,8 +62,9 @@ export const Box = (props: BoxProps) => {
     onStop: () => { },
     onExpand: () => { },
     onMark: () => { },
+    onSelectMark: () => { },
     onRemove: () => { },
-    marked: false,
+    marker: undefined,
     onSelect: () => { },
     onRemoveMark: () => { },
     splitMode: false,
@@ -147,8 +150,8 @@ export const Box = (props: BoxProps) => {
         x2={start * stretchX}
         y1={0}
         y2={upperY}
-        stroke={marked ? 'red' : 'black'}
-        strokeWidth={(markerHovered || marked) ? 3 : 1}
+        stroke={marker ? 'red' : 'black'}
+        strokeWidth={(markerHovered || marker) ? 3 : 1}
         strokeOpacity={markerHovered ? 0.3 : 0.8}
         strokeDasharray={segment.silent ? '1 1' : undefined}
         onMouseOver={() => {
@@ -158,11 +161,32 @@ export const Box = (props: BoxProps) => {
           setMarkerHovered(false)
         }}
         onClick={(e) => {
-          if (e.altKey && e.shiftKey) onRemoveMark()
-          else onMark()
-          onPlay(segment.date.start)
+          if (e.altKey && e.shiftKey) {
+            onRemoveMark()
+            return
+          }
+
+          if (!marker) {
+            onMark()
+          }
+          else {
+            onSelectMark()
+            onPlay(segment.date.start)
+          }
           setHovered(true)
         }} />
+
+      {marker?.continuous && (
+        <text
+          x={start * stretchX}
+          y={upperY - 5}
+          fontSize={10}
+          textAnchor='middle'
+          fill='black'
+        >
+          c
+        </text>
+      )}
     </g>
   )
 }
