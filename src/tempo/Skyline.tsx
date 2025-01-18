@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Box } from "./Box"
-import { TempoSegment, TempoCluster, markerFromTempo, isWithinSegment } from "./Tempo"
+import { TempoSegment, TempoCluster, markerFromTempo, isWithinSegment, asBPM } from "./Tempo"
 import { TempoCurve } from "./TempoDesk"
 import { Marker } from "mpmify/lib/transformers"
 import { SyntheticLine } from "./SyntheticLine"
@@ -8,6 +8,8 @@ import { asMIDI } from "../utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { Scope } from "../DeskSwitch"
+import { VerticalScale } from "./VerticalScale"
+import HorizontalScale from "./HorizontalScale"
 
 const silentSegmentToNote = (s: TempoSegment) => {
   return ({
@@ -73,7 +75,7 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
         return s.date.start >= from
       })
       .map(silentSegmentToNote)
-    
+
     const all = [...notes, ...silentNotes].sort((a, b) => a.date - b.date)
 
     const midi = asMIDI(all)
@@ -109,7 +111,18 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
         height - margin, // y
         width + margin, // width
         -height + margin * 2 // height
-      ].join(' ')}>
+      ].join(' ')}
+    >
+      <VerticalScale
+        stretchY={stretchY}
+        maxTempo={Math.max(...tempos.sort().map(t => asBPM(t.time)))}
+      />
+
+      <HorizontalScale
+        stretchX={stretchX}
+        offset={Math.max(...(tempos.sort().map(t => t.time.end))) || 0}
+      />
+
       {tempos?.sort().map((tempo: TempoSegment, index: number) => {
         const correspondingMarker = markerFromTempo(tempo)
 

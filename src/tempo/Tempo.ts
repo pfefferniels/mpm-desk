@@ -41,6 +41,11 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
         if (current.done) {
             const longest = notes.sort((a, b) => b.duration - a.duration)[0]
 
+            if (longest.duration === 0 || longest['midi.duration'] === 0) {
+                console.log('duration not defined')
+                break
+            }
+
             segments.push({
                 date: {
                     start: date,
@@ -63,6 +68,10 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
         if (onset === undefined || nextOnset === undefined) {
             console.log('MIDI onset not defined')
             continue
+        }
+
+        if (onset - nextOnset === 0) {
+            continue;
         }
 
         segments.push({
