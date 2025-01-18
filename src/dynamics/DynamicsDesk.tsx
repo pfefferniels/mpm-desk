@@ -9,8 +9,9 @@ import { expandRange, Range } from "../tempo/Tempo";
 import { DynamicsWithEndDate, InsertDynamicsInstructions } from "mpmify/lib/transformers";
 import { Box, Button, Stack, ToggleButton } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
+import { DynamicsCircle } from "./DynamicsCircle";
 
-interface DynamicsSegment {
+export interface DynamicsSegment {
     date: Range
     velocity: number
     active: boolean
@@ -177,21 +178,16 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     const circles: JSX.Element[] = segments.map((segment, i) => {
         if (segment.date.start === segment.date.end) {
             return (
-                <circle
-                    data-date={segment.date.start}
-                    cx={segment.date.start * stretchX + margin}
-                    cy={(127 - segment.velocity) * stretchY}
+                <DynamicsCircle
                     key={`velocity_segment_${segment.date}_${i}`}
-                    r={3}
-                    fill={datePlayed === segment.date.start ? 'blue' : 'black'}
-                    fillOpacity={0.4}
-                    stroke={'black'}
-                    strokeWidth={segment.active ? 3 : 1}
-                    onMouseOver={() => handlePlay(segment.date.start, segment.date.start + 1)}
-                    onClick={(e) => {
-                        handlePlay(segment.date.start)
-                        handleClick(e as unknown as MouseEvent, segment)
-                    }} />
+                    segment={segment}
+                    datePlayed={datePlayed}
+                    stretchX={stretchX}
+                    stretchY={stretchY}
+                    margin={margin}
+                    handlePlay={handlePlay}
+                    handleClick={handleClick}
+                />
             )
         }
         else {
@@ -268,4 +264,3 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
         </div>
     )
 }
-
