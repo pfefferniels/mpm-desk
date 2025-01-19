@@ -67,52 +67,54 @@ export const App = () => {
 
     return (
         <PianoContextProvider velocities={1}>
-            <Stack direction='row' spacing={1} p={1} style={{ position: 'absolute', top: '1rem', left: '1rem' }}>
-                <Button variant='outlined' onClick={handleFileImport}>Import Aligned MEI</Button>
-                <input
-                    type="file"
-                    id="fileInput"
-                    accept='application/xml,.mei'
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                />
-                {msm && (
-                    <>
-                        <Button variant='outlined' onClick={handleDownloadMSM}>Download MSM</Button>
-                    </>
-                )}
-                {mpm && (
-                    <>
-                        <Button variant='outlined' onClick={() => downloadAsFile(exportMPM(mpm), 'export.mpm')}>Download MPM</Button>
-                        <Button variant='outlined' onClick={() => playMPM()}>Play</Button>
-                        <Button variant='outlined' onClick={() => copyToClipboard(exportMPM(mpm))}>Copy</Button>
-                    </>
-                )}
-            </Stack>
+            <Stack direction='column'>
+                <Stack direction='row' spacing={1} p={1} sx={{ height: '5vh'}}>
+                    <Button variant='outlined' onClick={handleFileImport}>Import Aligned MEI</Button>
+                    <input
+                        type="file"
+                        id="fileInput"
+                        accept='application/xml,.mei'
+                        style={{ display: 'none' }}
+                        onChange={handleFileChange}
+                    />
+                    {msm && (
+                        <>
+                            <Button variant='outlined' onClick={handleDownloadMSM}>Download MSM</Button>
+                        </>
+                    )}
+                    {mpm && (
+                        <>
+                            <Button variant='outlined' onClick={() => downloadAsFile(exportMPM(mpm), 'export.mpm')}>Download MPM</Button>
+                            <Button variant='outlined' onClick={() => playMPM()}>Play</Button>
+                            <Button variant='outlined' onClick={() => copyToClipboard(exportMPM(mpm))}>Copy</Button>
+                        </>
+                    )}
+                </Stack>
 
-            <Grid container sx={{ minHeight: '80vh' }}>
-                <Grid item xs={2}>
-                    <List>
-                        {aspects.map(aspect => (
-                            <ListItem key={`aspect_${aspect}`}>
-                                <ListItemButton
-                                    selected={selectedAspect === aspect}
-                                    onClick={() => setSelectedAspect(aspect)}>
-                                    <ListItemText>{aspect}</ListItemText>
-                                </ListItemButton>
-                            </ListItem>
-                        ))}
-                    </List>
+                <Grid container sx={{ minHeight: '90vh' }}>
+                    <Grid item xs={2}>
+                        <List>
+                            {aspects.map(aspect => (
+                                <ListItem key={`aspect_${aspect}`}>
+                                    <ListItemButton
+                                        selected={selectedAspect === aspect}
+                                        onClick={() => setSelectedAspect(aspect)}>
+                                        <ListItemText>{aspect}</ListItemText>
+                                    </ListItemButton>
+                                </ListItem>
+                            ))}
+                        </List>
+                    </Grid>
+                    <Grid item xs={10}>
+                        <DeskSwitch
+                            selectedAspect={selectedAspect}
+                            mpm={mpm}
+                            msm={msm}
+                            setMPM={setMPM}
+                            setMSM={setMSM} />
+                    </Grid>
                 </Grid>
-                <Grid item xs={10}>
-                    <DeskSwitch
-                        selectedAspect={selectedAspect}
-                        mpm={mpm}
-                        msm={msm}
-                        setMPM={setMPM}
-                        setMSM={setMSM} />
-                </Grid>
-            </Grid>
+            </Stack>
         </PianoContextProvider>
     );
 };

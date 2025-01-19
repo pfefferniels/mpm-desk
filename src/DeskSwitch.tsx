@@ -59,26 +59,26 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
     else if (selectedAspect === 'rubato') DeskComponent = RubatoDesk
     else if (selectedAspect === 'metadata') DeskComponent = MetadataDesk
 
-        return (
-            <NotesProvider notes={msm.allNotes}>
-                <ToggleButtonGroup
-                    size='small'
-                    value={scope}
-                    exclusive
-                    onChange={(_, value) => setScope(value)}
-                >
-                    <ToggleButton value='global'>
-                        Global
+    return (
+        <NotesProvider notes={msm.allNotes}>
+            <ToggleButtonGroup
+                size='small'
+                value={scope}
+                exclusive
+                onChange={(_, value) => setScope(value)}
+            >
+                <ToggleButton value='global'>
+                    Global
+                </ToggleButton>
+                {availableParts.map(p => (
+                    <ToggleButton key={`button_${p}`} value={p}>
+                        {p}
                     </ToggleButton>
-                    {availableParts.map(p => (
-                        <ToggleButton key={`button_${p}`} value={p}>
-                            {p}
-                        </ToggleButton>
-                    ))}
-                </ToggleButtonGroup>
-                <div style={{ overflow: 'scroll', maxHeight: '70vh', width: '80vw' }}>
-                    <DeskComponent {...props} part={scope} />
-                </div>
-            </NotesProvider>
-        )
+                ))}
+            </ToggleButtonGroup>
+            <div style={{ overflow: 'scroll', maxHeight: '80vh', width: '80vw' }}>
+                <DeskComponent {...props} part={scope} />
+            </div>
+        </NotesProvider>
+    )
 }
