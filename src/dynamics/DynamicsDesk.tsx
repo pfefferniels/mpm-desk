@@ -10,6 +10,7 @@ import { DynamicsWithEndDate, InsertDynamicsInstructions } from "mpmify/lib/tran
 import { Box, Button, Stack, ToggleButton } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
+import { VerticalScale } from "./VerticalScale";
 
 export interface DynamicsSegment {
     date: Range
@@ -64,7 +65,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
 
     const stretchY = 3
     const stretchX = 0.03
-    const margin = 10
+    const margin = 20
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
@@ -176,43 +177,24 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     }
 
     const circles: JSX.Element[] = segments.map((segment, i) => {
-        if (segment.date.start === segment.date.end) {
-            return (
-                <DynamicsCircle
-                    key={`velocity_segment_${segment.date}_${i}`}
-                    segment={segment}
-                    datePlayed={datePlayed}
-                    stretchX={stretchX}
-                    stretchY={stretchY}
-                    margin={margin}
-                    handlePlay={handlePlay}
-                    handleClick={handleClick}
-                />
-            )
-        }
-        else {
-            return (
-                <line
-                    x1={segment.date.start * stretchX + margin}
-                    x2={segment.date.end * stretchX + margin}
-                    y1={(127 - segment.velocity) * stretchY}
-                    y2={(127 - segment.velocity) * stretchY}
-                    stroke={'black'}
-                    strokeWidth={segment.active ? 3 : 1}
-                    key={`velocity_segment_${segment.date}_${i}`}
-                    fill='black'
-                    onClick={(e) => {
-                        handleClick(e as unknown as MouseEvent, segment)
-                    }} />
-            )
-        }
+        return (
+            <DynamicsCircle
+                key={`velocity_segment_${segment.date}_${i}`}
+                segment={segment}
+                datePlayed={datePlayed}
+                stretchX={stretchX}
+                stretchY={stretchY}
+                handlePlay={handlePlay}
+                handleClick={handleClick}
+            />
+        )
     })
 
     const markerLines = markers.map(date => {
         return (
             <line
-                x1={date * stretchX + margin}
-                x2={date * stretchX + margin}
+                x1={date * stretchX}
+                x2={date * stretchX}
                 y1={350}
                 y2={350 - 100 * stretchY}
                 stroke={'black'}
@@ -230,7 +212,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     })
 
     return (
-        <div>
+        <div style={{ height: '400' }}>
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1}>
                 <Button variant='contained' onClick={handleInsert}>Insert into MPM</Button>
@@ -256,10 +238,22 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
                 </ToggleButton>
             </Stack>
 
-            <svg width={8000} height={300}>
+            <svg
+                width={8000 + margin}
+                height={300 + margin}
+                viewBox={
+                    [
+                        -margin,
+                        -0,
+                        8000 + margin,
+                        300 + margin
+                    ].join(' ')
+                }
+            >
+                <VerticalScale min={30} max={80} step={5} stretchY={stretchY} />
+                {curves}
                 {circles}
                 {markerLines}
-                {curves}
             </svg>
         </div>
     )

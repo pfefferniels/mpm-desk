@@ -6,11 +6,10 @@ interface DynamicsCircleProps {
     datePlayed: number | undefined;
     stretchX: number;
     stretchY: number;
-    margin: number;
     handlePlay: (from: number, to?: number) => void;
     handleClick: (e: MouseEvent, segment: DynamicsSegment) => void;
 }
-export const DynamicsCircle = ({ segment, datePlayed, stretchX, stretchY, margin, handlePlay, handleClick }: DynamicsCircleProps) => {
+export const DynamicsCircle = ({ segment, datePlayed, stretchX, stretchY, handlePlay, handleClick }: DynamicsCircleProps) => {
     const [hovered, setHovered] = useState(false);
 
     return (
@@ -18,14 +17,21 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, stretchY, margin
             {hovered && (
                 <>
                     <line
-                        x1={segment.date.start * stretchX + margin}
-                        x2={segment.date.start * stretchX + margin}
-                        y1={(127 - segment.velocity) * stretchY - 30}
-                        y2={(127 - segment.velocity) * stretchY + 30}
+                        x1={segment.date.start * stretchX}
+                        x2={segment.date.start * stretchX}
+                        y1={(127 - segment.velocity) * stretchY}
+                        y2={127 * stretchY}
+                        stroke='gray'
+                        strokeWidth={1} />
+                    <line 
+                        x1={0}
+                        x2={segment.date.start * stretchX}
+                        y1={(127 - segment.velocity) * stretchY}
+                        y2={(127 - segment.velocity) * stretchY}
                         stroke='gray'
                         strokeWidth={1} />
                     <text
-                        x={segment.date.start * stretchX + margin}
+                        x={segment.date.start * stretchX}
                         y={(127 - segment.velocity) * stretchY - 30}
                         textAnchor='start'
                         fill='black'
@@ -34,7 +40,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, stretchY, margin
                         date: {segment.date.start}
                     </text>
                     <text
-                        x={segment.date.start * stretchX + margin}
+                        x={segment.date.start * stretchX}
                         y={(127 - segment.velocity) * stretchY - 20}
                         textAnchor='start'
                         fill='black'
@@ -47,7 +53,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, stretchY, margin
 
             <circle
                 data-date={segment.date.start}
-                cx={segment.date.start * stretchX + margin}
+                cx={segment.date.start * stretchX}
                 cy={(127 - segment.velocity) * stretchY}
                 r={3}
                 fill={datePlayed === segment.date.start ? 'blue' : 'black'}
