@@ -1,6 +1,9 @@
 import { computeMillisecondsAt, getTempoAt } from "mpmify"
 import { TempoCurve, TempoPoint } from "./TempoDesk"
 import { useState } from "react"
+import { useNotes } from "../hooks/NotesProvider"
+import { asMIDI } from "../utils"
+import { usePiano } from "react-pianosound"
 
 interface SyntheticLineProps {
     curve: TempoCurve
@@ -10,6 +13,10 @@ interface SyntheticLineProps {
 
 export const SyntheticLine = ({ curve, stretchX, stretchY }: SyntheticLineProps) => {
     const [hovered, setHovered] = useState(false)
+    const { play, stop } = usePiano()
+    const { slice } = useNotes()
+
+    console.log(curve)
 
     const step = 20
     const points: TempoPoint[] = []
@@ -22,7 +29,43 @@ export const SyntheticLine = ({ curve, stretchX, stretchY }: SyntheticLineProps)
     }
 
     const handlePlay = () => {
-        console.log('play')
+        const notes = slice(curve.date, curve.endDate)
+        // TODO: filter by part
+
+        for (const note of notes) {
+            note["midi.onset"] = computeMillisecondsAt(note.date, curve) / 1000
+            note["midi.duration"] = computeMillisecondsAt(note.date + note.duration, curve) / 1000 - note["midi.onset"]
+        }
+
+        // emulating a metronome by inserting very high-pitched notes
+        for (let i = curve.date; i <= curve.endDate; i += (curve.beatLength * 4 * 720) / 2) {
+            notes.push({
+                date: i,
+                duration: 5,
+                'midi.pitch': i === curve.endDate ? 120: 127,
+                'xml:id': `metronome-${i}`,
+                part: 0,
+                pitchname: 'C',
+                accidentals: 0,
+                octave: 4,
+                'midi.onset': computeMillisecondsAt(i, curve) / 1000,
+                'midi.duration': 0.01,
+                'midi.velocity': 80
+            })
+        }
+
+        notes.sort((a, b) => a.date - b.date)
+
+        const midi = asMIDI(notes)
+        if (midi) {
+            stop()
+            play(midi, (/*e*/) => {
+                // if (e.type === 'meta' && e.subtype === 'text') {
+                //     setDatePlayed(+e.text)
+                // }
+            })
+        }
+
     }
 
     return (
