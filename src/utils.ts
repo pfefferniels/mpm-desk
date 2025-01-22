@@ -82,7 +82,7 @@ export const asMIDI = (notes_: PartialBy<MsmNote, 'midi.onset' | 'midi.duration'
         .reduce((prev, curr) => {
             prev.push({
                 type: 'on',
-                at: curr["midi.onset"] || (curr.date / 1000),
+                at: curr["midi.onset"] === undefined ? (curr.date / 1000) : curr["midi.onset"],
                 velocity: curr["midi.velocity"],
                 pitch: curr["midi.pitch"],
                 date: curr.date
@@ -90,7 +90,7 @@ export const asMIDI = (notes_: PartialBy<MsmNote, 'midi.onset' | 'midi.duration'
 
             prev.push({
                 type: 'off',
-                at: (curr["midi.onset"] || (curr.date / 1000)) + (curr["midi.duration"] || (curr.duration / 1000)),
+                at: (curr["midi.onset"] === undefined ? (curr.date / 1000) : curr["midi.onset"]) + (curr["midi.duration"] || (curr.duration / 1000)),
                 velocity: curr["midi.velocity"],
                 pitch: curr["midi.pitch"],
                 date: curr.date + curr.duration
