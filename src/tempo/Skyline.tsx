@@ -15,7 +15,7 @@ const silentSegmentToNote = (s: TempoSegment) => {
   return ({
     date: s.date.start,
     duration: s.date.end - s.date.start,
-    'midi.pitch': 0,
+    'midi.pitch': 10,
     'midi.onset': s.time.start,
     'midi.duration': s.time.end - s.time.start,
     'midi.velocity': 0,
@@ -171,11 +171,8 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
           key={`curve_${i}`}
           stretchX={stretchX}
           stretchY={stretchY}
-          points={c}
-          onPlay={() => {
-            if (!c.length) return
-            handlePlay(c[0].date, c[c.length - 1].date)
-          }} />
+          curve={c}
+        />
       ))}
     </svg>
   )

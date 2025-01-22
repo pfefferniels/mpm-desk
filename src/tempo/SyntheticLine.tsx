@@ -1,31 +1,52 @@
-import { TempoPoint } from "./TempoDesk"
+import { computeMillisecondsAt, getTempoAt } from "mpmify"
+import { TempoCurve, TempoPoint } from "./TempoDesk"
 import { useState } from "react"
 
 interface SyntheticLineProps {
-    onPlay: () => void
-    points: TempoPoint[]
+    curve: TempoCurve
     stretchX: number
     stretchY: number
 }
 
-export const SyntheticLine = ({ onPlay, points, stretchX, stretchY }: SyntheticLineProps) => {
+export const SyntheticLine = ({ curve, stretchX, stretchY }: SyntheticLineProps) => {
     const [hovered, setHovered] = useState(false)
 
+    const step = 20
+    const points: TempoPoint[] = []
+    for (let i = curve.date; i <= curve.endDate; i += step) {
+        points.push({
+            date: i,
+            time: (curve.startMs + computeMillisecondsAt(i, curve)) / 1000,
+            bpm: getTempoAt(i, curve)
+        })
+    }
+
+    const handlePlay = () => {
+        console.log('play')
+    }
+
     return (
-        <g  
+        <g
             className='syntheticLine'
             onMouseOver={() => setHovered(true)}
             onMouseOut={() => setHovered(false)}
-            onClick={onPlay}
+            onClick={handlePlay}
         >
-            {points.map((p, i) => (
-                <circle
-                    key={`p_${p.date}_${i}`}
-                    cx={p.time * stretchX}
-                    cy={p.bpm * -stretchY}
-                    r={hovered ? 2 : 1}
-                    fill='gray' />
-            ))}
+            {points.map((p, i, arr) => {
+                if (i >= arr.length - 1) return null
+
+                return (
+                    <line
+                        key={`p_${p.date}_${i}`}
+                        x1={p.time * stretchX}
+                        y1={p.bpm * -stretchY}
+                        x2={arr[i + 1].time * stretchX}
+                        y2={arr[i + 1].bpm * -stretchY}
+                        strokeWidth={hovered ? 3 : 2}
+                        stroke="black"
+                    />
+                )
+            })}
         </g>
     )
 }

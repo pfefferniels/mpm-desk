@@ -1,5 +1,5 @@
 import { Box, Button, Checkbox, Drawer, FormControlLabel, Stack, ToggleButton } from "@mui/material"
-import { CompressTempo, InsertTempoInstructions, Marker, SilentOnset, TranslatePhyiscalTimeToTicks, computeMillisecondsAt, getTempoAt } from "mpmify/lib/transformers"
+import { CompressTempo, InsertTempoInstructions, Marker, SilentOnset, TempoWithEndDate, TranslatePhyiscalTimeToTicks, computeMillisecondsAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
@@ -14,7 +14,7 @@ export type TempoPoint = {
     bpm: number
 }
 
-export type TempoCurve = TempoPoint[]
+export type TempoCurve = TempoWithEndDate & { startMs: number }
 
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
@@ -40,9 +40,8 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
 
-        const curves: TempoCurve[] = []
-        const step = 10
-        let frameTime = 0
+        const curves = []
+        let startMs = 0
         for (let i = 0; i < tempos.length; i++) {
             const tempo = tempos[i]
 
@@ -56,25 +55,16 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                 endDate = Math.max(...msm.allNotes.map(n => n.date))
             }
 
-            const tempoWithEndDate = {
+            const tempoWithEndDate: TempoCurve = {
                 ...tempo,
-                endDate
+                endDate,
+                startMs
             }
 
-            const points: TempoCurve = []
-            for (let i = tempo.date; i < endDate; i += step) {
-                points.push({
-                    date: i,
-                    time: frameTime + computeMillisecondsAt(i, tempoWithEndDate) / 1000,
-                    bpm: getTempoAt(i, tempoWithEndDate)
-                })
-            }
-            curves.push(points)
-
-            frameTime += computeMillisecondsAt(endDate, tempoWithEndDate) / 1000
+            curves.push(tempoWithEndDate)
+            startMs += computeMillisecondsAt(endDate, tempoWithEndDate)
         }
 
-        console.log(tempos)
         setCurves(curves)
     }, [mpm, part, msm])
 
