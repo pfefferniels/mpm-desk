@@ -3,7 +3,7 @@ import { CompressTempo, InsertTempoInstructions, Marker, SilentOnset, TranslateP
 import { useEffect, useState } from "react"
 import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
-import { TempoCluster, isShallowEqual, extractTempoSegments } from "./Tempo"
+import { TempoCluster, isShallowEqual, extractTempoSegments, markerFromTempo } from "./Tempo"
 import { downloadAsFile } from "../utils"
 import { ZoomControls } from "./ZoomControls"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
@@ -175,6 +175,19 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
                 />
+
+                <Button
+                    size='small'
+                    variant='outlined'
+                    color='warning'
+                    onClick={() => {
+                        setMarkers(tempoCluster.segments.map(segment => {
+                            return markerFromTempo(segment)
+                        }))
+                    }}
+                >
+                    Insert marker for every IOI
+                </Button>
             </Stack>
 
             <div style={{ position: 'relative' }}>
