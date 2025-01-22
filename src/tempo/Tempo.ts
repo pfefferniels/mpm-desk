@@ -58,7 +58,7 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
                 selected: false,
                 silent: false
             })
-    
+
             break
         }
 
@@ -117,10 +117,13 @@ export class TempoCluster {
         }
     }
 
-    // sort by area descending
     sort() {
-        // const areaOf = (t: Tempo) => (t.date.end - t.date.start) * asBPM(t.time)
-        return this.segments.sort((a, b) => (a.date.start - b.date.start) || asBPM(b.date) - asBPM(a.date))
+        return this.segments.sort((a, b) => {
+            if (a.selected !== b.selected) {
+                return a.selected ? 1 : -1
+            }
+            return (a.date.start - b.date.start) || asBPM(b.date) - asBPM(a.date)
+        })
     }
 
     unselectAll() {
