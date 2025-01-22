@@ -1,6 +1,6 @@
 import { MSM } from "mpmify"
 import { loadVerovio } from "./loadVerovio.mts"
-import { MsmNote } from "mpmify/lib/msm";
+import { MsmNote, MsmPedal } from "mpmify/lib/msm";
 
 const qstampToTstamp = (qstamp: number, ppq: number = 720) => {
     return Math.round(qstamp * ppq)
@@ -109,6 +109,27 @@ export const asMSM = async (mei: string) => {
         })
         return acc;
     }, [] as MsmNote[])
-    return new MSM(msmNotes, { numerator: 4, denominator: 4 })
+
+    const msmPedals = Array
+        .from(scoreDOM.querySelectorAll('when[type="sustain"], when[type="soft"]')).map((when, index) => {
+            const absolute = when.getAttribute('absolute')?.replace('ms', '')
+            const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
+            if (!absolute || !duration) return null
+
+            const type = when.getAttribute('type') === 'sustain' ? 'sustain' : 'soft'
+
+            const msmPedal: MsmPedal = {
+                'xml:id': `pedal-${index}`,
+                'midi.onset': +absolute / 1000, 
+                'midi.duration': +duration / 1000,
+                'type': type,
+            }
+            return msmPedal
+        })
+        .filter((pedal) => pedal !== null) as MsmPedal[]
+
+    const newMSM = new MSM(msmNotes, { numerator: 4, denominator: 4 })
+    newMSM.pedals = msmPedals
+    return newMSM
 }
 

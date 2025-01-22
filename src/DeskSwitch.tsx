@@ -10,16 +10,18 @@ import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { ArticulationDesk } from "./articulation/ArticulationDesk";
 import { RubatoDesk } from "./rubato/RubatoDesk";
 import { MetadataDesk } from "./metadata/MetadataDesk";
+import { PedalDesk } from "./pedal/PedalDesk";
 
 export const aspects = [
     'arpeggiation',
+    'pedalling',
     'tempo',
     'rubato',
     'dynamics',
     'articulation',
     'styles',
     'result',
-    'metadata'
+    'metadata',
 ] as const;
 
 export type Aspect = (typeof aspects)[number];
@@ -58,6 +60,7 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM }: DeskSwi
     else if (selectedAspect === 'articulation') DeskComponent = ArticulationDesk
     else if (selectedAspect === 'rubato') DeskComponent = RubatoDesk
     else if (selectedAspect === 'metadata') DeskComponent = MetadataDesk
+    else if (selectedAspect === 'pedalling') DeskComponent = PedalDesk
 
     return (
         <NotesProvider notes={msm.allNotes}>
