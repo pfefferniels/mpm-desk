@@ -3,17 +3,19 @@ import { asMSM } from './asMSM';
 import { MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
-import { Button, Grid, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
+import { Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
-import { downloadAsFile } from './utils';
 import { PianoContextProvider } from 'react-pianosound';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
+import { FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
 
 export const App = () => {
-    const { play } = usePiano()
+    const { play, stop } = usePiano()
     const [msm, setMSM] = useState<MSM>(new MSM());
     const [mpm, setMPM] = useState<MPM>(new MPM());
+    const [isPlaying, setIsPlaying] = useState(false)
+    const [fileName, setFileName] = useState<string>()
     const [selectedAspect, setSelectedAspect] = useState<Aspect>('result')
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,6 +25,7 @@ export const App = () => {
         reader.onload = async (e: ProgressEvent<FileReader>) => {
             const content = e.target?.result as string;
             setMSM(await asMSM(content));
+            setFileName(file.name)
         };
         reader.readAsText(file);
     };
@@ -30,11 +33,6 @@ export const App = () => {
     const handleFileImport = () => {
         const fileInput = document.getElementById('fileInput') as HTMLInputElement;
         fileInput.click();
-    };
-
-    const handleDownloadMSM = () => {
-        if (!msm) return
-        downloadAsFile(msm.serialize(false), 'export.msm', 'application/xml')
     };
 
     const playMPM = async () => {
@@ -56,20 +54,22 @@ export const App = () => {
         play(file)
     }
 
-    const copyToClipboard = async (text: string) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            console.log("Content copied to clipboard successfully!");
-        } catch (error) {
-            console.error("Failed to copy content to clipboard: ", error);
-        }
-    };
+    const stopMPM = () => {
+        stop()
+        setIsPlaying(false)
+    }
 
     return (
         <PianoContextProvider velocities={1}>
             <Stack direction='column'>
-                <Stack direction='row' spacing={1} p={1} sx={{ height: '5vh'}}>
-                    <Button variant='outlined' onClick={handleFileImport}>Import Aligned MEI</Button>
+                <Stack direction='row' spacing={1} p={1} sx={{ height: '5vh' }}>
+                    <Button
+                        variant='outlined'
+                        onClick={handleFileImport}
+                        startIcon={<FileOpen />}
+                    >
+                        {fileName || 'Import Aligned MEI'}
+                    </Button>
                     <input
                         type="file"
                         id="fileInput"
@@ -77,16 +77,13 @@ export const App = () => {
                         style={{ display: 'none' }}
                         onChange={handleFileChange}
                     />
-                    {msm && (
-                        <>
-                            <Button variant='outlined' onClick={handleDownloadMSM}>Download MSM</Button>
-                        </>
-                    )}
                     {mpm && (
                         <>
-                            <Button variant='outlined' onClick={() => downloadAsFile(exportMPM(mpm), 'export.mpm')}>Download MPM</Button>
-                            <Button variant='outlined' onClick={() => playMPM()}>Play</Button>
-                            <Button variant='outlined' onClick={() => copyToClipboard(exportMPM(mpm))}>Copy</Button>
+                            <IconButton
+                                onClick={() => isPlaying ? stopMPM() : playMPM()}
+                            >
+                                {isPlaying ? <PauseCircle /> : <PlayCircle />}
+                            </IconButton>
                         </>
                     )}
                 </Stack>
