@@ -132,6 +132,8 @@ export const Box = (props: BoxProps) => {
 
       <polygon
         className='box'
+        data-start={segment.date.start}
+        data-length={segment.date.end - segment.date.start}
         points={[
           [start * stretchX, 0].join(','), // start point
           [start * stretchX, upperY].join(','), // move up
