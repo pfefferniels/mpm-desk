@@ -1,12 +1,13 @@
-import { Box, Button, Checkbox, Drawer, FormControlLabel, Stack, ToggleButton } from "@mui/material"
+import { Button, Stack, ToggleButton } from "@mui/material"
 import { CompressTempo, InsertTempoInstructions, Marker, SilentOnset, TempoWithEndDate, TranslatePhyiscalTimeToTicks, computeMillisecondsAt } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
-import { TempoCluster, isShallowEqual, extractTempoSegments, markerFromTempo } from "./Tempo"
+import { TempoCluster, extractTempoSegments, markerFromTempo } from "./Tempo"
 import { downloadAsFile } from "../utils"
 import { ZoomControls } from "./ZoomControls"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { MarkerDrawer } from "./MarkerDrawer"
 
 export type TempoPoint = {
     date: number
@@ -178,6 +179,18 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                 >
                     Insert marker for every IOI
                 </Button>
+
+                <Button
+                    size='small'
+                    variant='outlined'
+                    color='error'
+                    onClick={() => {
+                        mpm.removeInstructions('tempo', part)
+                        setMPM(mpm.clone())
+                    }}
+                >
+                    Remove Instruction
+                </Button>
             </Stack>
 
             <div style={{ position: 'relative' }}>
@@ -200,7 +213,9 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                             }}
                             onRemoveMarker={toRemove => {
                                 setMarkers(prev => {
-                                    const index = markers.findIndex(marker => isShallowEqual(marker, toRemove))
+                                    // there can be only one marker per date, 
+                                    // so this should be safe.
+                                    const index = markers.findIndex(marker => marker.date === toRemove.date)
                                     if (index === -1) return prev
 
                                     prev.splice(index, 1)
@@ -241,29 +256,21 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
                 </ToggleButton>
             </div>
 
-            <Drawer
-                open={activeMarker !== null}
-                onClose={() => setActiveMarker(null)}
-            >
-                {(activeMarker !== null) && (
-                    <Box padding={2}>
-                        <FormControlLabel
-                            control={
-                                <Checkbox
-                                    checked={markers.find(marker => marker.date === activeMarker)?.continuous || false}
-                                    onChange={(e) => {
-                                        const marker = markers.find(marker => marker.date === activeMarker)
-                                        if (!marker) return
-                                        marker.continuous = e.target.checked
-                                        setMarkers([...markers]);
-                                    }}
-                                />
-                            }
-                            label="Continuous"
-                        />
-                    </Box>
-                )}
-            </Drawer>
-        </div>
+            {activeMarker && (
+                <MarkerDrawer
+                    marker={markers.find(marker => marker.date === activeMarker)!}
+                    onClose={() => setActiveMarker(null)}
+                    onChange={(marker) => {
+                        setMarkers(prev => {
+                            const index = prev.findIndex(m => m.date === marker.date)
+                            prev[index] = marker
+                            return [...prev]
+                        })
+                    }}
+                />
+            )}
+        </div >
     )
 }
+
+
