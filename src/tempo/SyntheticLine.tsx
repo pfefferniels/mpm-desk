@@ -1,6 +1,6 @@
 import { computeMillisecondsAt, getTempoAt } from "mpmify"
 import { TempoCurve, TempoPoint } from "./TempoDesk"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { useNotes } from "../hooks/NotesProvider"
 import { asMIDI } from "../utils"
 import { usePiano } from "react-pianosound"
@@ -16,20 +16,8 @@ export const SyntheticLine = ({ curve, stretchX, stretchY }: SyntheticLineProps)
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
-    console.log(curve)
-
-    const step = 20
-    const points: TempoPoint[] = []
-    for (let i = curve.date; i <= curve.endDate; i += step) {
-        points.push({
-            date: i,
-            time: (curve.startMs + computeMillisecondsAt(i, curve)) / 1000,
-            bpm: getTempoAt(i, curve)
-        })
-    }
-
-    const handlePlay = () => {
-        const notes = slice(curve.date, curve.endDate)
+    const handlePlay = useCallback(() => {
+        const notes = structuredClone(slice(curve.date, curve.endDate))
         // TODO: filter by part
 
         for (const note of notes) {
@@ -65,7 +53,16 @@ export const SyntheticLine = ({ curve, stretchX, stretchY }: SyntheticLineProps)
                 // }
             })
         }
+    }, [curve, play, stop, slice])
 
+    const step = 20
+    const points: TempoPoint[] = []
+    for (let i = curve.date; i <= curve.endDate; i += step) {
+        points.push({
+            date: i,
+            time: (curve.startMs + computeMillisecondsAt(i, curve)) / 1000,
+            bpm: getTempoAt(i, curve)
+        })
     }
 
     return (
