@@ -5,9 +5,10 @@ import { asMIDI } from "../utils";
 
 interface ChordProps {
     notes: MsmNote[];
+    onClick: () => void;
 }
 
-export const Chord = ({ notes }: ChordProps) => {
+export const Chord = ({ notes, onClick }: ChordProps) => {
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
 
@@ -37,6 +38,7 @@ export const Chord = ({ notes }: ChordProps) => {
                     stop();
                     setHovered(false);
                 }}
+                onClick={onClick}
                 x={firstOnset * stretch}
                 y={0}
                 width={frameLength * stretch}

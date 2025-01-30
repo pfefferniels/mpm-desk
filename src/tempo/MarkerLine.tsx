@@ -1,5 +1,4 @@
 import { Marker } from "mpmify";
-import { undefined } from "./Box";
 import { TempoSegment } from "./Tempo";
 
 type MarkerLineProps = {
