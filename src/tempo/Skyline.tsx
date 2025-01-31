@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Box } from "./Box"
 import { TempoSegment, TempoCluster, markerFromTempo, isWithinSegment, asBPM } from "./Tempo"
 import { TempoCurve } from "./TempoDesk"
@@ -94,6 +94,17 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
     return () => document.removeEventListener('keydown', escFunction, false)
   }, [tempos, escFunction])
 
+  const syntheticLines = useMemo(() => {
+    return curves.map((c, i) => (
+      <SyntheticLine
+        key={`curve_${i}`}
+        stretchX={stretchX}
+        stretchY={stretchY}
+        curve={c}
+      />
+    ))
+  }, [curves, stretchX, stretchY])
+
   const startX = stretchX * tempos.startOnset
   const endX = stretchX * tempos.endOnset
   const width = endX - startX
@@ -166,14 +177,7 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
         )
       })}
 
-      {curves.map((c, i) => (
-        <SyntheticLine
-          key={`curve_${i}`}
-          stretchX={stretchX}
-          stretchY={stretchY}
-          curve={c}
-        />
-      ))}
+      {syntheticLines}
     </svg>
   )
 }
