@@ -51,7 +51,7 @@ export function numberToColor(num: number, range: Range): string {
 
 
 export const downloadAsFile = (
-    content: string,
+    content: string | ArrayBuffer,
     filename: string,
     mimeType = 'text/plain') => {
     const blob = new Blob([content], { type: mimeType });

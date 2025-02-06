@@ -5,8 +5,23 @@ import { exportMPM } from "../../../mpm-ts/lib"
 import { CopyAll, Download } from "@mui/icons-material"
 
 export const ResultDesk = ({ mpm }: TransformerViewProps) => {
-    const handleDownload = () => {
+    const handleDownloadMPM = () => {
         downloadAsFile(exportMPM(mpm), 'export.mpm', 'application/xml')
+    }
+
+    const handleDownloadMIDI = async () => {
+        const request = {
+            mpm: exportMPM(mpm)
+        }
+
+        console.log(`Converting to MIDI ...`)
+        const response = await fetch(`http://localhost:8080/convert`, {
+            method: 'POST',
+            body: JSON.stringify(request)
+        })
+
+        const midiBuffer = await response.arrayBuffer()
+        downloadAsFile(midiBuffer, 'export.midi', 'audio/midi')
     }
 
     const copyToClipboard = async (text: string) => {
@@ -29,10 +44,17 @@ export const ResultDesk = ({ mpm }: TransformerViewProps) => {
             <Stack direction='row' spacing={1}>
                 <Button
                     variant='contained'
-                    onClick={handleDownload}
+                    onClick={handleDownloadMPM}
                     startIcon={<Download />}
                 >
-                    Download
+                    Download MPM
+                </Button>
+                <Button
+                    variant='contained'
+                    onClick={handleDownloadMIDI}
+                    startIcon={<Download />}
+                >
+                    Download MIDI
                 </Button>
                 <Button
                     variant='outlined'
