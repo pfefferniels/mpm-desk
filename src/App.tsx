@@ -52,6 +52,8 @@ export const App = () => {
         const midiBuffer = await response.arrayBuffer()
         const file = read(midiBuffer)
         play(file)
+
+        setIsPlaying(true)
     }
 
     const stopMPM = () => {
