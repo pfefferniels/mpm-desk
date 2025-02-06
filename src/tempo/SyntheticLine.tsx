@@ -72,6 +72,16 @@ export const SyntheticLine = ({ curve, stretchX, stretchY }: SyntheticLineProps)
             onMouseOut={() => setHovered(false)}
             onClick={handlePlay}
         >
+            {hovered && (
+                <>
+                    <text x={points[0].time * stretchX} y={-stretchY * points[0].bpm - 10} fontSize={12}>
+                        {curve.bpm}
+                    </text>
+                    <text x={points[points.length - 1].time * stretchX} y={-stretchY * points[points.length - 1].bpm - 10} fontSize={12}>
+                        {curve["transition.to"]}
+                    </text>
+                </>
+            )}
             {points.map((p, i, arr) => {
                 if (i >= arr.length - 1) return null
 
