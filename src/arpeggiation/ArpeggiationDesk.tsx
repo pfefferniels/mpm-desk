@@ -1,36 +1,9 @@
-import { ChordMap } from "mpmify/lib/msm"
 import { ArpeggioPlacement, DatedArpeggioPlacement, InsertDynamicsGradient, InsertTemporalSpread } from "mpmify/lib/transformers"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { Chord } from "./Chord"
 import { useState } from "react"
 import PlacementDetails from "./PlacementDetails"
 import { Button, MenuItem, Select, Stack } from "@mui/material"
-
-interface ChordOverviewProps {
-    chords: ChordMap
-    setCurrentDate: (date: number) => void
-}
-
-export const ChordOverview = ({ chords, setCurrentDate }: ChordOverviewProps) => {
-    const c = []
-    for (const notes of chords.values()) {
-        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
-        const date = chordNotes[0].date
-        c.push((
-            <Chord
-                key={`chordNotes_${chordNotes[0]["xml:id"]}`}
-                notes={chordNotes}
-                onClick={() => setCurrentDate(date)}
-            />
-        ))
-    }
-
-    return (
-        <g>
-            {c}
-        </g>
-    )
-}
 
 export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
     const [currentDate, setCurrentDate] = useState<number>()
@@ -61,13 +34,27 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
         setMPM(mpm.clone())
     }
 
+    const c = []
+    for (const notes of msm.asChords().values()) {
+        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
+        const date = chordNotes[0].date
+        c.push((
+            <Chord
+                key={`chordNotes_${chordNotes[0]["xml:id"]}`}
+                notes={chordNotes}
+                onClick={() => setCurrentDate(date)}
+                placement={placements.get(date) || defaultPlacement}
+            />
+        ))
+    }
+
     return (
         <div>
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 <svg width={10000}>
-                    <ChordOverview
-                        chords={msm.asChords(part)}
-                        setCurrentDate={setCurrentDate} />
+                    <g>
+                        {c}
+                    </g>
                 </svg>
             </div>
 
