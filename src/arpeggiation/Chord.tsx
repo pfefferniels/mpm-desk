@@ -2,13 +2,15 @@ import { MsmNote } from "mpmify/lib/msm";
 import { useState } from "react";
 import { usePiano } from "react-pianosound";
 import { asMIDI } from "../utils";
+import { ArpeggioPlacement } from "mpmify";
 
 interface ChordProps {
     notes: MsmNote[];
+    placement: ArpeggioPlacement;
     onClick: () => void;
 }
 
-export const Chord = ({ notes, onClick }: ChordProps) => {
+export const Chord = ({ notes, onClick, placement }: ChordProps) => {
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
 
@@ -22,6 +24,15 @@ export const Chord = ({ notes, onClick }: ChordProps) => {
     const firstOnset = notes[0]['midi.onset'];
     const lastOnset = notes[notes.length - 1]['midi.onset'];
     const frameLength = lastOnset - firstOnset;
+
+    let placedLine = 0
+    if (placement === 'estimate') {
+        placedLine = notes.reduce((acc, note) => acc + note['midi.onset'], 0) / notes.length;
+    } else if (placement === 'before-beat') {
+        placedLine = notes[notes.length - 1]['midi.onset'];
+    } else if (placement === 'on-beat') {
+        placedLine = notes[0]['midi.onset'];
+    }
 
     return (
         <g className='chord'>
@@ -58,6 +69,16 @@ export const Chord = ({ notes, onClick }: ChordProps) => {
                         strokeWidth={1} />
                 );
             })}
+
+            <line
+                key={`currentPlacement_${notes[0].accidentals}`}
+                x1={placedLine * stretch}
+                x2={placedLine * stretch}
+                y1={0}
+                y2={height}
+                stroke='red'
+                strokeWidth={1} />
+
 
             {frameLength !== 0 && (
                 <text
