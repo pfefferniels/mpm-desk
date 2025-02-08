@@ -8,14 +8,13 @@ interface ChordProps {
     notes: MsmNote[];
     placement: ArpeggioPlacement;
     onClick: () => void;
+    stretch: number
+    height: number
 }
 
-export const Chord = ({ notes, onClick, placement }: ChordProps) => {
+export const Chord = ({ notes, onClick, placement, stretch, height }: ChordProps) => {
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
-
-    const stretch = 30;
-    const height = 200;
 
     if (notes.length <= 1) {
         return null;
