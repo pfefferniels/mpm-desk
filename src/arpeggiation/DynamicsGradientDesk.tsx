@@ -1,6 +1,6 @@
-import { DatedDynamicsGradient, InsertDynamicsGradient, sortVelocities } from "mpmify"
+import { DatedDynamicsGradient, InsertDynamicsGradient } from "mpmify"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
-import { Button } from "@mui/material"
+import { Button, Checkbox, FormControlLabel } from "@mui/material"
 import { useState } from "react"
 import { ChordGradient } from "./ChordGradient"
 import GradientDetails from "./GradientDetails"
@@ -8,11 +8,13 @@ import GradientDetails from "./GradientDetails"
 export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
     const [currentDate, setCurrentDate] = useState<number>()
     const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
+    const [sortVelocities, setSortVelocities] = useState(true)
 
     const transform = () => {
         const insertGradient = new InsertDynamicsGradient({
             part,
-            gradients
+            gradients,
+            sortVelocities
         })
 
         insertGradient.transform(msm, mpm)
@@ -76,24 +78,22 @@ export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedT
 
     return (
         <div>
+            <FormControlLabel
+                control={
+                    <Checkbox
+                        checked={sortVelocities}
+                        onChange={(e) => setSortVelocities(e.target.checked)}
+                        color="primary"
+                    />
+                }
+                label="Sort Velocities"
+            />
             <Button
                 variant='contained'
                 onClick={transform}
                 style={{ marginTop: '1rem' }}
             >
                 Transform
-            </Button>
-            <Button
-                variant='contained'
-                onClick={() => {
-                    for (const chord of msm.asChords().values()) {
-                        sortVelocities(chord)
-                    }
-                    setMSM(msm.clone())
-                }}
-                style={{ marginTop: '1rem' }}
-            >
-                Sort Velocities
             </Button>
 
             <div style={{ width: '80vw', overflow: 'scroll' }}>
