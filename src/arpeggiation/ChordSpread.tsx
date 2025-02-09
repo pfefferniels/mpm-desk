@@ -4,7 +4,7 @@ import { usePiano } from "react-pianosound";
 import { asMIDI } from "../utils";
 import { ArpeggioPlacement } from "mpmify";
 
-interface ChordProps {
+interface ChordSpreadProps {
     notes: MsmNote[];
     placement: ArpeggioPlacement;
     onClick: () => void;
@@ -12,7 +12,7 @@ interface ChordProps {
     height: number
 }
 
-export const Chord = ({ notes, onClick, placement, stretch, height }: ChordProps) => {
+export const ChordSpread = ({ notes, onClick, placement, stretch, height }: ChordSpreadProps) => {
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
 

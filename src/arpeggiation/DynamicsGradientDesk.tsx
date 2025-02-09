@@ -1,0 +1,140 @@
+import { DatedDynamicsGradient, InsertDynamicsGradient, sortVelocities } from "mpmify"
+import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { Button } from "@mui/material"
+import { useState } from "react"
+import { ChordGradient } from "./ChordGradient"
+import GradientDetails from "./GradientDetails"
+
+export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+    const [currentDate, setCurrentDate] = useState<number>()
+    const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
+
+    const transform = () => {
+        const insertGradient = new InsertDynamicsGradient({
+            part,
+            gradients
+        })
+
+        insertGradient.transform(msm, mpm)
+        insertGradient.insertMetadata(mpm)
+
+        setMSM(msm.clone())
+        setMPM(mpm.clone())
+    }
+
+    const stretch = 30
+    const height = 250
+
+    const chordsGradients = []
+    for (const notes of msm.asChords().values()) {
+        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
+        if (!chordNotes.length) continue
+
+        const date = chordNotes[0].date
+        chordsGradients.push((
+            <ChordGradient
+                key={`chordNotes_${chordNotes[0]["xml:id"]}`}
+                notes={chordNotes}
+                onClick={() => setCurrentDate(date)}
+                gradient={gradients.get(date)}
+                stretch={stretch}
+                height={height}
+            />
+        ))
+    }
+
+    const points: { onset: number, velocity: number }[] = []
+    for (const notes of msm.asChords().values()) {
+        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
+        if (!chordNotes.length) continue
+
+        if (chordNotes.length === 1) {
+            points.push({ onset: chordNotes[0]["midi.onset"], velocity: chordNotes[0]["midi.velocity"] })
+        }
+        else {
+            let gradient = gradients.get(chordNotes[0].date)
+            if (!gradient) {
+                if (chordNotes[0]["midi.velocity"] < chordNotes[chordNotes.length - 1]["midi.velocity"]) {
+                    gradient = { from: -1, to: 0 }
+                }
+                else {
+                    gradient = { from: 0, to: -1 }
+                }
+            }
+
+            const normalized = (value: number, start: number, end: number): number => {
+                return (value - start) / (end - start);
+            }
+
+            const zeroGradient = normalized(0, gradient.from, gradient.to)
+            const translated = zeroGradient * (chordNotes[chordNotes.length - 1]["midi.velocity"] - chordNotes[0]["midi.velocity"])
+            const velocity = chordNotes[0]["midi.velocity"] + translated
+            const onset = chordNotes[0]['midi.onset'] + zeroGradient * (chordNotes[chordNotes.length - 1]["midi.onset"] - chordNotes[0]["midi.onset"]);
+            points.push({ onset, velocity })
+        }
+    }
+
+    return (
+        <div>
+            <Button
+                variant='contained'
+                onClick={transform}
+                style={{ marginTop: '1rem' }}
+            >
+                Transform
+            </Button>
+            <Button
+                variant='contained'
+                onClick={() => {
+                    for (const chord of msm.asChords().values()) {
+                        sortVelocities(chord)
+                    }
+                    setMSM(msm.clone())
+                }}
+                style={{ marginTop: '1rem' }}
+            >
+                Sort Velocities
+            </Button>
+
+            <div style={{ width: '80vw', overflow: 'scroll' }}>
+                <svg width={8000} height={200}>
+                    {chordsGradients}
+
+                    {points.length > 1 && points.slice(1).map((point, index) => {
+                        const prevPoint = points[index]
+                        const x1 = prevPoint.onset * stretch
+                        const y1 = height - (prevPoint.velocity / 127) * height
+                        const x2 = point.onset * stretch
+                        const y2 = height - (point.velocity / 127) * height
+
+                        return (
+                            <line
+                                key={index}
+                                x1={x1}
+                                y1={y1}
+                                x2={x2}
+                                y2={y2}
+                                stroke="gray"
+                                strokeWidth={1}
+                            />
+                        )
+                    })}
+                </svg>
+
+                <div>{currentDate}</div>
+
+                <GradientDetails
+                    setGradient={(gradient) => {
+                        if (!currentDate) return
+                        gradients.set(currentDate, gradient)
+                        setGradients(new Map(gradients))
+                    }}
+                    gradient={currentDate ? gradients.get(currentDate) : undefined}
+                    open={!!currentDate}
+                    onClose={() => setCurrentDate(undefined)}
+                />
+
+            </div>
+        </div >
+    )
+}
