@@ -5,7 +5,6 @@ import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
-import { PianoContextProvider } from 'react-pianosound';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
 import { FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
@@ -62,7 +61,7 @@ export const App = () => {
     }
 
     return (
-        <PianoContextProvider velocities={1}>
+        <>
             <Stack direction='column'>
                 <Stack direction='row' spacing={1} p={1} sx={{ height: '5vh' }}>
                     <Button
@@ -114,6 +113,6 @@ export const App = () => {
                     </Grid>
                 </Grid>
             </Stack>
-        </PianoContextProvider>
+        </>
     );
 };
