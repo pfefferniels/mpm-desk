@@ -6,7 +6,7 @@ import { PianoContextProvider } from 'react-pianosound'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <PianoContextProvider>
+    <PianoContextProvider velocities={3}>
       <App />
     </PianoContextProvider>
   </React.StrictMode>,
