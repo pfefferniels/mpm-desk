@@ -5,8 +5,8 @@ import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
 import { useState } from "react"
-import { asMIDI, numberToColor } from "../utils"
-import { InsertArticulation } from "mpmify/lib/transformers"
+import { asMIDI } from "../utils"
+import { InsertRelativeDuration } from "mpmify"
 
 interface ArticulatedNoteProps {
     note: MsmNote
@@ -50,13 +50,13 @@ const ArticulatedNote = ({ note, stretchX, stretchY, selected, onClick }: Articu
                 data-date={note.date}
                 stroke='black'
                 strokeWidth={selected ? 2 : 0.2}
-                fill={numberToColor(note.relativeVolume, { start: -5, end: 5 })}
+                fill='gray'
                 fillOpacity={hovered ? 1 : 0.8}
                 x={isOnset * stretchX}
                 width={shouldDuration * stretchX}
                 y={(127 - note["midi.pitch"]) * stretchY - 2}
                 height={4}
-                key={`accentuation_${note.part}_${note["xml:id"]}`}
+                key={`articulatedNote_${note.part}_${note["xml:id"]}`}
                 onMouseOver={handleMouseOver}
                 onMouseOut={handleMouseOut}
                 onClick={() => onClick(note["xml:id"])}
@@ -92,7 +92,7 @@ export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
     const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
 
     const insert = () => {
-        const insertArticulation = new InsertArticulation({
+        const insertArticulation = new InsertRelativeDuration({
             scope: part,
             noteIDs: selectedNotes.size === 0 ? undefined : [...selectedNotes]
         })
