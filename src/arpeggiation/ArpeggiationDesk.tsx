@@ -15,27 +15,27 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
     return (
         <div>
             <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Ornaments and Articulations tabs">
-                <Tab label="Temporal Spread" id="simple-tab-0" aria-controls="simple-tabpanel-0" />
-                <Tab label="Dynamics Gradient" id="simple-tab-1" aria-controls="simple-tabpanel-1" />
+                <Tab label="Dynamics Gradient" id="simple-tab-0" aria-controls="simple-tabpanel-0" />
+                <Tab label="Temporal Spread" id="simple-tab-1" aria-controls="simple-tabpanel-1" />
             </Tabs>
 
             <TabPanel value={tabIndex} index={0}>
-                <TemporalSpreadDesk
-                    msm={msm}
-                    mpm={mpm}
-                    setMSM={setMSM}
-                    setMPM={setMPM}
-                    part={part}
-                />
-            </TabPanel>
-
-            <TabPanel value={tabIndex} index={1}>
                 <DynamicsGradientDesk
                     mpm={mpm}
                     part={part}
                     msm={msm}
                     setMPM={setMPM}
                     setMSM={setMSM}
+                />
+            </TabPanel>
+
+            <TabPanel value={tabIndex} index={1}>
+                <TemporalSpreadDesk
+                    msm={msm}
+                    mpm={mpm}
+                    setMSM={setMSM}
+                    setMPM={setMPM}
+                    part={part}
                 />
             </TabPanel>
         </div>
