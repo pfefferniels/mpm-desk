@@ -109,14 +109,16 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, on
                         </IconButton>
                     </Stack>
 
-                    {transformers.map((transformer, index) => (
-                        <TransformerListItem
-                            key={index}
-                            transformer={transformer}
-                            onRemove={() => onRemove(transformer)}
-                            onSelect={() => onSelect(transformer)}
-                        />
-                    ))}
+                    <div style={{ maxHeight: '80vh', overflow: 'scroll' }}>
+                        {transformers.map((transformer, index) => (
+                            <TransformerListItem
+                                key={index}
+                                transformer={transformer}
+                                onRemove={() => onRemove(transformer)}
+                                onSelect={() => onSelect(transformer)}
+                            />
+                        ))}
+                    </div>
                 </Collapse>
             </List>
         </Card>
