@@ -6,6 +6,7 @@ import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { asMIDI, PartialBy } from "../utils"
 import { Frame as FrameData, InterpolateRubato } from "mpmify/lib/transformers"
+import { ZoomControls } from "../ZoomControls"
 
 interface FrameProps {
     frame: PartialBy<FrameData, 'length'>
@@ -42,8 +43,8 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
 
     const [hovered, setHovered] = useState<number>()
     const [frames, setFrames] = useState<PartialBy<FrameData, 'length'>[]>([])
+    const [stretchX, setStretchX] = useState(0.06)
 
-    const stretchX = 0.06
     const stretchY = 5
     const centerLineY = 50
     const height = 10
@@ -167,6 +168,12 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
             <Stack spacing={1} direction='row'>
                 <Button variant='contained' onClick={handleInsert}>Insert into MPM</Button>
             </Stack>
+
+            <ZoomControls
+                stretchX={stretchX}
+                setStretchX={setStretchX}
+                rangeX={[0.01, 0.1]}
+            />
 
             <svg width={10000} height={600}>
                 <line

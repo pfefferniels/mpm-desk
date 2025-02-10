@@ -11,6 +11,7 @@ import { Box, Button, Stack, ToggleButton } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
+import { ZoomControls } from "../ZoomControls";
 
 export interface DynamicsSegment {
     date: Range
@@ -39,7 +40,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransformerViewProps) => {
+export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer }: ScopedTransformerViewProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -48,6 +49,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     const [editMode, setCombinationMode] = useState(false)
     const [markers, setMarkers] = useState<number[]>([])
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
+    const [stretchX, setStretchX] = useState(0.03)
 
     useEffect(() => {
         setMarkers([])
@@ -64,7 +66,6 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
     }, [mpm, part])
 
     const stretchY = 3
-    const stretchX = 0.03
     const margin = 20
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
@@ -104,6 +105,8 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(insert)
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -183,7 +186,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
                 segment={segment}
                 datePlayed={datePlayed}
                 stretchX={stretchX}
-                stretchY={stretchY}
+                screenY={(velocity: number) => (127 - velocity) * stretchY}
                 handlePlay={handlePlay}
                 handleClick={handleClick}
             />
@@ -207,12 +210,21 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM }: ScopedTransform
 
     const curves = instructions.map(i => {
         return (
-            <CurveSegment instruction={i} stretchX={stretchX} stretchY={stretchY} />
+            <CurveSegment
+                instruction={i}
+                stretchX={stretchX}
+                stretchY={stretchY}
+            />
         )
     })
 
     return (
         <div style={{ height: '400' }}>
+            <ZoomControls
+                setStretchX={setStretchX}
+                stretchX={stretchX}
+                rangeX={[0.01, 0.05]}
+            />
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1}>
                 <Button variant='contained' onClick={handleInsert}>Insert into MPM</Button>

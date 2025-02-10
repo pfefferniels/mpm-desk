@@ -5,7 +5,7 @@ import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments, markerFromTempo } from "./Tempo"
 import { downloadAsFile } from "../utils"
-import { ZoomControls } from "./ZoomControls"
+import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { MarkerDrawer } from "./MarkerDrawer"
 
@@ -202,7 +202,15 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: Sc
             </Stack>
 
             <div style={{ position: 'relative' }}>
-                <ZoomControls setStretchX={setStretchX} setStretchY={setStretchY} />
+                <ZoomControls
+                    stretchX={stretchX}
+                    setStretchX={setStretchX}
+                    rangeX={[20, 50]}
+                    stretchY={stretchY}
+                    setStretchY={setStretchY}
+                    rangeY={[1, 2]}
+                />
+
                 <div style={{ width: '80vw', overflow: 'scroll' }}>
                     {tempoCluster && (
                         <Skyline

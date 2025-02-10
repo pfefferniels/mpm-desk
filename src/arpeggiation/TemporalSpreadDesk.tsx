@@ -4,12 +4,14 @@ import { ArpeggioPlacement, DatedArpeggioPlacement, InsertTemporalSpread } from 
 import { ChordSpread } from "./ChordSpread";
 import { Stack, TextField, Select, MenuItem, Button, Divider } from "@mui/material";
 import PlacementDetails from "./PlacementDetails";
+import { ZoomControls } from "../ZoomControls";
 
 export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
     const [beatLength, setBeatLength] = useState(720);
     const [currentDate, setCurrentDate] = useState<number>()
     const [placements, setPlacement] = useState<DatedArpeggioPlacement>(new Map())
     const [defaultPlacement, setDefaultPlacement] = useState<ArpeggioPlacement>('estimate')
+    const [stretchX, setStretchX] = useState(20)
 
     const transform = () => {
         const insertSpread = new InsertTemporalSpread({
@@ -30,7 +32,6 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
         addTransformer(insertSpread)
     }
 
-    const stretch = 30;
     const height = 250;
 
     const bpms = []
@@ -76,7 +77,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
                 notes={chordNotes}
                 onClick={() => setCurrentDate(date)}
                 placement={placements.get(date) || defaultPlacement}
-                stretch={stretch}
+                stretch={stretchX}
                 height={height}
             />
         ))
@@ -112,6 +113,12 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
                 </Button>
             </Stack>
 
+            <ZoomControls
+                stretchX={stretchX}
+                setStretchX={setStretchX}
+                rangeX={[1, 40]}
+            />
+
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 <svg width={10000} height={height}>
                     <g>
@@ -121,15 +128,15 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
                                 <>
                                     <line
                                         key={`tempoLine_${date}`}
-                                        x1={onset * stretch}
-                                        x2={arr[i + 1].onset * stretch}
+                                        x1={onset * stretchX}
+                                        x2={arr[i + 1].onset * stretchX}
                                         y1={height - bpm}
                                         y2={height - arr[i + 1].bpm}
                                         stroke='black'
                                         strokeOpacity={0.5}
                                     />
                                     <text
-                                        x={onset * stretch}
+                                        x={onset * stretchX}
                                         y={height - bpm + 5}
                                         fill='black'
                                         fontSize={10}

@@ -4,11 +4,13 @@ import { Button, Checkbox, FormControlLabel } from "@mui/material"
 import { useState } from "react"
 import { ChordGradient } from "./ChordGradient"
 import GradientDetails from "./GradientDetails"
+import { ZoomControls } from "../ZoomControls"
 
 export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
     const [currentDate, setCurrentDate] = useState<number>()
     const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
     const [sortVelocities, setSortVelocities] = useState(true)
+    const [stretchX, setStretchX] = useState(20)
 
     const transform = () => {
         const insertGradient = new InsertDynamicsGradient({
@@ -26,7 +28,6 @@ export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer,
         addTransformer(insertGradient)
     }
 
-    const stretch = 30
     const height = 250
 
     const chordsGradients = []
@@ -41,7 +42,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer,
                 notes={chordNotes}
                 onClick={() => setCurrentDate(date)}
                 gradient={gradients.get(date)}
-                stretch={stretch}
+                stretch={stretchX}
                 height={height}
             />
         ))
@@ -98,15 +99,21 @@ export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer,
                 Transform
             </Button>
 
+            <ZoomControls
+                stretchX={stretchX}
+                setStretchX={setStretchX}
+                rangeX={[1, 40]}
+            />
+
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 <svg width={8000} height={200}>
                     {chordsGradients}
 
                     {points.length > 1 && points.slice(1).map((point, index) => {
                         const prevPoint = points[index]
-                        const x1 = prevPoint.onset * stretch
+                        const x1 = prevPoint.onset * stretchX
                         const y1 = height - (prevPoint.velocity / 127) * height
-                        const x2 = point.onset * stretch
+                        const x2 = point.onset * stretchX
                         const y2 = height - (point.velocity / 127) * height
 
                         return (

@@ -3,12 +3,12 @@ import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { Button } from "@mui/material"
 import { Movement } from "../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
-import { PedalZoom } from "./PedalZoom"
 import { useState } from "react"
+import { ZoomControls } from "../ZoomControls"
 
 
 export const PedalDesk = ({ msm, mpm, setMSM, setMPM, addTransformer }: ScopedTransformerViewProps) => {
-    const [stretchX, setStretchX] = useState(1)
+    const [stretchX, setStretchX] = useState(0.1)
 
     const transform = () => {
         const insertPedals = new InsertPedal({
@@ -31,7 +31,11 @@ export const PedalDesk = ({ msm, mpm, setMSM, setMPM, addTransformer }: ScopedTr
     return (
         <div>
             <div style={{ width: '80vw', overflow: 'scroll' }}>
-                <PedalZoom setStretchX={setStretchX} stretchX={stretchX} />
+                <ZoomControls
+                    setStretchX={setStretchX}
+                    stretchX={stretchX}
+                    rangeX={[0.01, 0.5]}
+                />
 
                 <svg width={10000}>
                     {msm.pedals.map(p => {
