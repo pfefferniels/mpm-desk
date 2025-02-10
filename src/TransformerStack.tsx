@@ -7,7 +7,8 @@ import {
     ListItemText,
     IconButton,
 } from "@mui/material";
-import { Delete, ExpandLess, ExpandMore, PlayCircle, RestartAlt } from "@mui/icons-material";
+import { Delete, ExpandLess, ExpandMore, PlayCircle, RestartAlt, Save } from "@mui/icons-material";
+import { downloadAsFile } from "./utils";
 
 interface TransformerListItemProps {
     transformer: Transformer;
@@ -67,6 +68,14 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, on
         setExpanded(!expanded);
     };
 
+    const onSave = () => {
+        const json = JSON.stringify(transformers.map(t => ({
+            name: t.name(),
+            options: t.getOptions()
+        })));
+        downloadAsFile(json, 'transformers.json', 'application/json');
+    }
+
     return (
         <Card>
             <List>
@@ -91,6 +100,12 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, on
                             onClick={onRun}
                         >
                             <PlayCircle />
+                        </IconButton>
+                        <IconButton
+                            disabled={transformers.length === 0}
+                            onClick={onSave}
+                        >
+                            <Save />
                         </IconButton>
                     </Stack>
 
