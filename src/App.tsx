@@ -71,13 +71,15 @@ export const App = () => {
 
     const reset = () => {
         setMPM(new MPM())
-        const clone = Object.assign(Object.create(Object.getPrototypeOf(initialMSM)), structuredClone(initialMSM))
-        setMSM(clone)
+        if (initialMSM) setMSM(initialMSM.deepClone())
     }
 
     const run = () => {
         const pipeline = new Pipeline()
-        transformers.forEach(t => pipeline.push(t))
+        transformers.forEach(t => {
+            t.setNext(undefined)
+            pipeline.push(t)
+        })
         pipeline.head?.transform(msm, mpm)
 
         setMPM(mpm.clone())
