@@ -20,7 +20,7 @@ export type TempoCurve = TempoWithEndDate & { startMs: number }
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerViewProps) => {
+export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: ScopedTransformerViewProps) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [markers, setMarkers] = useState<Marker[]>([])
@@ -109,6 +109,10 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
             silentOnsets
         })
         const compress = new CompressTempo()
+        compress.setOptions({
+            bpmPrecision: 4,
+            meanTempoAtPrecision: 4
+        })
 
         const translate = new TranslatePhyiscalTimeToTicks({
             'translatePhysicalModifiers': true
@@ -124,6 +128,10 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, part }: ScopedTransformerV
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(insert)
+        addTransformer(compress)
+        addTransformer(translate)
     }
 
     return (

@@ -88,7 +88,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY, selected, onClick }: Articu
     )
 }
 
-export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part, addTransformer }: ScopedTransformerViewProps) => {
     const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
 
     const insert = () => {
@@ -103,6 +103,8 @@ export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTrans
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(insertArticulation)
     }
 
     const stretchX = 0.08

@@ -5,7 +5,7 @@ import { ChordSpread } from "./ChordSpread";
 import { Stack, TextField, Select, MenuItem, Button, Divider } from "@mui/material";
 import PlacementDetails from "./PlacementDetails";
 
-export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
     const [beatLength, setBeatLength] = useState(720);
     const [currentDate, setCurrentDate] = useState<number>()
     const [placements, setPlacement] = useState<DatedArpeggioPlacement>(new Map())
@@ -26,6 +26,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTra
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(insertSpread)
     }
 
     const stretch = 30;

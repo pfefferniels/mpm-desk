@@ -1,11 +1,11 @@
 import { Button, Slider, Stack, Tab, Tabs, Typography } from "@mui/material";
-import { CompressOrnamentation, StylizeArticulation, StylizeOrnamentation } from "mpmify/lib/transformers";
+import { StylizeArticulation, StylizeOrnamentation } from "mpmify/lib/transformers";
 import { useState } from "react";
 import { ScopedTransformerViewProps } from "../DeskSwitch";
 import { Plot } from "./Plot";
-import { TabPanel } from "./TabPanel";
+import { TabPanel } from "../TabPanel";
 
-export const StylesDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
     const [volumeTolerance, setVolumeTolerance] = useState(0.05)
     const [relativeDurationTolerance, setRelativeDurationTolerance] = useState(0.15)
     const [tickTolerance, setTickTolerance] = useState(10)
@@ -32,17 +32,23 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformer
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(stylizeArticulation)
     }
 
     const transformOrnaments = () => {
-        const stylizeOrnaments = new StylizeOrnamentation()
-        const compressOrnaments = new CompressOrnamentation()
+        const stylizeOrnaments = new StylizeOrnamentation({
+            tolerance: tickTolerance
+        })
+        //const compressOrnaments = new CompressOrnamentation()
 
         stylizeOrnaments.transform(msm, mpm)
-        compressOrnaments.transform(msm, mpm)
+        //compressOrnaments.transform(msm, mpm)
 
         stylizeOrnaments.insertMetadata(mpm)
-        compressOrnaments.insertMetadata(mpm)
+        //compressOrnaments.insertMetadata(mpm)
+
+        addTransformer(stylizeOrnaments)
     }
 
     const articulationPoints = new StylizeArticulation({

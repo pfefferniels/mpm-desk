@@ -5,7 +5,7 @@ import { useState } from "react"
 import { ChordGradient } from "./ChordGradient"
 import GradientDetails from "./GradientDetails"
 
-export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
     const [currentDate, setCurrentDate] = useState<number>()
     const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
     const [sortVelocities, setSortVelocities] = useState(true)
@@ -22,6 +22,8 @@ export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedT
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(insertGradient)
     }
 
     const stretch = 30

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { asMSM } from './asMSM';
-import { MPM, MSM } from 'mpmify';
+import { MPM, MSM, Pipeline } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
@@ -8,11 +8,19 @@ import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
 import { FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
+import { TransformerStack } from './TransformerStack';
+import { Transformer } from 'mpmify/lib/transformers/Transformer';
 
 export const App = () => {
     const { play, stop } = usePiano()
+
+    const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
+
     const [msm, setMSM] = useState<MSM>(new MSM());
     const [mpm, setMPM] = useState<MPM>(new MPM());
+
+    const [transformers, setTransformers] = useState<Transformer[]>([])
+
     const [isPlaying, setIsPlaying] = useState(false)
     const [fileName, setFileName] = useState<string>()
     const [selectedAspect, setSelectedAspect] = useState<Aspect>('result')
@@ -24,6 +32,7 @@ export const App = () => {
         reader.onload = async (e: ProgressEvent<FileReader>) => {
             const content = e.target?.result as string;
             setMSM(await asMSM(content));
+            setInitialMSM(await asMSM(content));
             setFileName(file.name)
         };
         reader.readAsText(file);
@@ -58,6 +67,21 @@ export const App = () => {
     const stopMPM = () => {
         stop()
         setIsPlaying(false)
+    }
+
+    const reset = () => {
+        setMPM(new MPM())
+        const clone = Object.assign(Object.create(Object.getPrototypeOf(initialMSM)), structuredClone(initialMSM))
+        setMSM(clone)
+    }
+
+    const run = () => {
+        const pipeline = new Pipeline()
+        transformers.forEach(t => pipeline.push(t))
+        pipeline.head?.transform(msm, mpm)
+
+        setMPM(mpm.clone())
+        setMSM(msm.clone())
     }
 
     return (
@@ -109,10 +133,24 @@ export const App = () => {
                             mpm={mpm}
                             msm={msm}
                             setMPM={setMPM}
-                            setMSM={setMSM} />
+                            setMSM={setMSM}
+                            addTransformer={(transformer) => setTransformers(prev => [...prev, transformer])}
+                        />
                     </Grid>
                 </Grid>
             </Stack>
+
+            <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
+                <TransformerStack
+                    transformers={transformers}
+                    onSelect={() => { }}
+                    onRemove={(transformer) => {
+                        setTransformers(prev => prev.filter(t => t !== transformer))
+                    }}
+                    onReset={reset}
+                    onRun={run}
+                />
+            </div>
         </>
     );
 };

@@ -1,4 +1,5 @@
 import { MPM, MSM } from "mpmify";
+import { Transformer } from "mpmify/lib/transformers/Transformer";
 
 export interface TransformerViewProps {
     setMSM: (newMSM: MSM) => void;
@@ -6,4 +7,6 @@ export interface TransformerViewProps {
 
     setMPM: (newMPM: MPM) => void;
     mpm: MPM;
+
+    addTransformer: (transformer: Transformer) => void;
 }

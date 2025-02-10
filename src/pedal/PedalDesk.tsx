@@ -7,7 +7,7 @@ import { PedalZoom } from "./PedalZoom"
 import { useState } from "react"
 
 
-export const PedalDesk = ({ msm, mpm, setMSM, setMPM }: ScopedTransformerViewProps) => {
+export const PedalDesk = ({ msm, mpm, setMSM, setMPM, addTransformer }: ScopedTransformerViewProps) => {
     const [stretchX, setStretchX] = useState(1)
 
     const transform = () => {
@@ -20,6 +20,8 @@ export const PedalDesk = ({ msm, mpm, setMSM, setMPM }: ScopedTransformerViewPro
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(insertPedals)
     }
 
     const stretchY = 30

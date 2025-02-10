@@ -36,7 +36,7 @@ const Frame = ({ frame, stretchX, stretchY, centerLineY, height, onRemove, onCli
     )
 }
 
-export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformerViewProps) => {
+export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -61,6 +61,8 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, part }: ScopedTransformer
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
+
+        addTransformer(insert)
     }
 
 
