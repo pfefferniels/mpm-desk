@@ -11,14 +11,16 @@ import { ArticulationDesk } from "./articulation/ArticulationDesk";
 import { RubatoDesk } from "./rubato/RubatoDesk";
 import { MetadataDesk } from "./metadata/MetadataDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
+import { AccentuationDesk } from "./accentuation/AccentuationDesk";
 
 export const aspects = [
     'arpeggiation',
-    'pedalling',
     'tempo',
-    'rubato',
     'dynamics',
+    'rubato',
+    'accentuation',
     'articulation',
+    'pedalling',
     'styles',
     'result',
     'metadata',
@@ -62,6 +64,7 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM, addTransf
     else if (selectedAspect === 'rubato') DeskComponent = RubatoDesk
     else if (selectedAspect === 'metadata') DeskComponent = MetadataDesk
     else if (selectedAspect === 'pedalling') DeskComponent = PedalDesk
+    else if (selectedAspect === 'accentuation') DeskComponent = AccentuationDesk
 
     return (
         <NotesProvider notes={msm.allNotes}>
@@ -70,6 +73,7 @@ export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM, addTransf
                 value={scope}
                 exclusive
                 onChange={(_, value) => setScope(value)}
+                sx={{ pt: 1, pb: 1 }}
             >
                 <ToggleButton value='global'>
                     Global
