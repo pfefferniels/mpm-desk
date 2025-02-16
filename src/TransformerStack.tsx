@@ -1,4 +1,4 @@
-import { Card, Collapse, ListItemButton, Stack } from "@mui/material";
+import { Card, Collapse, ListItemButton, ListItemIcon, Stack } from "@mui/material";
 import { Transformer } from "mpmify/lib/transformers/Transformer";
 import { useState } from "react";
 import {
@@ -7,30 +7,44 @@ import {
     ListItemText,
     IconButton,
 } from "@mui/material";
-import { Delete, ExpandLess, ExpandMore, RestartAlt, Save } from "@mui/icons-material";
+import { Delete, ErrorOutline, ExpandLess, ExpandMore, RestartAlt, Save, Warning } from "@mui/icons-material";
 import { downloadAsFile } from "./utils";
+import { validate, ValidationMessage } from "mpmify";
 
 interface TransformerListItemProps {
     transformer: Transformer;
+    message?: ValidationMessage
     onRemove: () => void;
     onSelect: () => void;
     selected: boolean;
 }
 
-const TransformerListItem = ({ transformer, onRemove, onSelect, selected }: TransformerListItemProps) => {
+const TransformerListItem = ({ transformer, onRemove, onSelect, selected, message }: TransformerListItemProps) => {
     const [expanded, setExpanded] = useState(false);
 
     const optionsString = JSON.stringify(transformer.options);
     const displayText =
-        optionsString.length > 20 && !expanded
-            ? optionsString.slice(0, 20) + "..."
-            : optionsString;
+        message
+            ? <span>{message.message}</span>
+            : (
+                optionsString.length > 20 && !expanded
+                    ? optionsString.slice(0, 20) + "..."
+                    : optionsString);
     const isLong = optionsString.length > 20;
 
     return (
         <ListItem divider>
-            <ListItemButton onClick={onSelect} selected={selected}>
-                <ListItemText primary={transformer.name} secondary={displayText} />
+            {message && (
+                <ListItemIcon>
+                    {message.type === 'error' && <ErrorOutline color="error" />}
+                    {message.type === 'warning' && <Warning color="warning" />}
+                </ListItemIcon>
+            )}
+            <ListItemButton
+                onClick={onSelect}
+                selected={selected}
+            >
+                <ListItemText primary={transformer.name} secondary={displayText} title="test" />
                 {isLong && (
                     <IconButton
                         onClick={(e) => {
@@ -77,6 +91,8 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, ac
         downloadAsFile(json, 'transformers.json', 'application/json');
     }
 
+    const messages = validate(transformers);
+
     return (
         <Card>
             <List>
@@ -104,16 +120,20 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, ac
                         </IconButton>
                     </Stack>
 
-                    <div style={{ maxHeight: '80vh', overflow: 'scroll' }}>
-                        {transformers.map((transformer, index) => (
-                            <TransformerListItem
-                                key={`transformer_${index}`}
-                                transformer={transformer}
-                                onRemove={() => onRemove(transformer)}
-                                onSelect={() => onSelect(transformer)}
-                                selected={activeTransformer === transformer}
-                            />
-                        ))}
+                    <div style={{ maxHeight: '80vh', overflow: 'scroll', maxWidth: 450 }}>
+                        {transformers.map((transformer, index) => {
+                            const message = messages.find(m => m.index === index);
+                            return (
+                                <TransformerListItem
+                                    key={`transformer_${index}`}
+                                    transformer={transformer}
+                                    onRemove={() => onRemove(transformer)}
+                                    onSelect={() => onSelect(transformer)}
+                                    selected={activeTransformer === transformer}
+                                    message={message}
+                                />
+                            )
+                        })}
                     </div>
                 </Collapse>
             </List>
