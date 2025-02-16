@@ -109,10 +109,10 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: Sc
             silentOnsets
         })
         const compress = new CompressTempo()
-        compress.setOptions({
+        compress.options = {
             bpmPrecision: 4,
             meanTempoAtPrecision: 4
-        })
+        }
 
         const translate = new TranslatePhyiscalTimeToTicks({
             'translatePhysicalModifiers': true

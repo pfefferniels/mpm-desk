@@ -20,7 +20,7 @@ interface TransformerListItemProps {
 const TransformerListItem = ({ transformer, onRemove, onSelect, selected }: TransformerListItemProps) => {
     const [expanded, setExpanded] = useState(false);
 
-    const optionsString = JSON.stringify(transformer.getOptions());
+    const optionsString = JSON.stringify(transformer.options);
     const displayText =
         optionsString.length > 20 && !expanded
             ? optionsString.slice(0, 20) + "..."
@@ -72,7 +72,7 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, ac
     const onSave = () => {
         const json = JSON.stringify(transformers.map(t => ({
             name: t.name,
-            options: t.getOptions()
+            options: t.options
         })));
         downloadAsFile(json, 'transformers.json', 'application/json');
     }

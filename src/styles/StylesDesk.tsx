@@ -16,13 +16,12 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
     }
 
     const transformArticulations = () => {
-        const stylizeArticulation = new StylizeArticulation()
-        // const compressArticulation = new CompressArticulation()
-
-        stylizeArticulation.setOptions({
+        const stylizeArticulation = new StylizeArticulation({
             volumeTolerance,
             relativeDurationTolerance
         })
+
+        // const compressArticulation = new CompressArticulation()
 
         stylizeArticulation.transform(msm, mpm)
         // compressArticulation.transform(msm, mpm)
