@@ -29,7 +29,7 @@ const TransformerListItem = ({ transformer, onRemove, onSelect }: TransformerLis
     return (
         <ListItem divider>
             <ListItemButton onClick={onSelect}>
-                <ListItemText primary={transformer.name()} secondary={displayText} />
+                <ListItemText primary={transformer.name} secondary={displayText} />
                 {isLong && (
                     <IconButton
                         onClick={(e) => {
@@ -70,7 +70,7 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, on
 
     const onSave = () => {
         const json = JSON.stringify(transformers.map(t => ({
-            name: t.name(),
+            name: t.name,
             options: t.getOptions()
         })));
         downloadAsFile(json, 'transformers.json', 'application/json');
