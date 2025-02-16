@@ -205,7 +205,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: Sc
                 <ZoomControls
                     stretchX={stretchX}
                     setStretchX={setStretchX}
-                    rangeX={[20, 50]}
+                    rangeX={[5, 50]}
                     stretchY={stretchY}
                     setStretchY={setStretchY}
                     rangeY={[1, 2]}
