@@ -40,7 +40,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer }: ScopedTransformerViewProps) => {
+export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer, wasCreatedBy, activeTransformer, setActiveTransformer }: ScopedTransformerViewProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -99,7 +99,6 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer }:
             markers: markers
         })
 
-        mpm.removeInstructions('dynamics', part)
         insert.transform(msm, mpm)
         insert.insertMetadata(mpm)
 
@@ -211,9 +210,16 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer }:
     const curves = instructions.map(i => {
         return (
             <CurveSegment
+                active={activeTransformer !== undefined && wasCreatedBy(i["xml:id"]) === activeTransformer}
                 instruction={i}
                 stretchX={stretchX}
                 stretchY={stretchY}
+                onClick={() => {
+                    const createdBy = wasCreatedBy(i["xml:id"])
+                    if (createdBy && activeTransformer !== createdBy) {
+                        setActiveTransformer(createdBy)
+                    }
+                }}
             />
         )
     })

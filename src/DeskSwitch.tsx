@@ -38,21 +38,15 @@ export interface ScopedTransformerViewProps extends TransformerViewProps {
     part: Scope
 }
 
-export const DeskSwitch = ({ selectedAspect, msm, mpm, setMSM, setMPM, addTransformer }: DeskSwitchProps) => {
+export const DeskSwitch = (props: DeskSwitchProps) => {
     const [scope, setScope] = useState<Scope>('global')
+
+    const { selectedAspect, msm, mpm } = props
 
     const availableParts = [...msm.parts()]
 
     if (!msm || !mpm || !selectedAspect) {
         return 'not yet ready'
-    }
-
-    const props: TransformerViewProps = {
-        msm,
-        mpm,
-        setMSM,
-        setMPM,
-        addTransformer
     }
 
     let DeskComponent: React.FC<ScopedTransformerViewProps> = ResultDesk

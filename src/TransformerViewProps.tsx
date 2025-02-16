@@ -9,4 +9,7 @@ export interface TransformerViewProps {
     mpm: MPM;
 
     addTransformer: (transformer: Transformer) => void;
+    wasCreatedBy: (id: string) => Transformer | undefined;
+    activeTransformer?: Transformer;
+    setActiveTransformer: (transformer: Transformer) => void;
 }

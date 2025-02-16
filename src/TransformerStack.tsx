@@ -7,16 +7,17 @@ import {
     ListItemText,
     IconButton,
 } from "@mui/material";
-import { Delete, ExpandLess, ExpandMore, PlayCircle, RestartAlt, Save } from "@mui/icons-material";
+import { Delete, ExpandLess, ExpandMore, RestartAlt, Save } from "@mui/icons-material";
 import { downloadAsFile } from "./utils";
 
 interface TransformerListItemProps {
     transformer: Transformer;
     onRemove: () => void;
     onSelect: () => void;
+    selected: boolean;
 }
 
-const TransformerListItem = ({ transformer, onRemove, onSelect }: TransformerListItemProps) => {
+const TransformerListItem = ({ transformer, onRemove, onSelect, selected }: TransformerListItemProps) => {
     const [expanded, setExpanded] = useState(false);
 
     const optionsString = JSON.stringify(transformer.getOptions());
@@ -28,7 +29,7 @@ const TransformerListItem = ({ transformer, onRemove, onSelect }: TransformerLis
 
     return (
         <ListItem divider>
-            <ListItemButton onClick={onSelect}>
+            <ListItemButton onClick={onSelect} selected={selected}>
                 <ListItemText primary={transformer.name} secondary={displayText} />
                 {isLong && (
                     <IconButton
@@ -58,10 +59,10 @@ interface TransformerStackProps {
     onRemove: (transformer: Transformer) => void;
     onSelect: (transformer: Transformer) => void;
     onReset: () => void;
-    onRun: () => void
+    activeTransformer?: Transformer;
 }
 
-export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, onRun }: TransformerStackProps) => {
+export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, activeTransformer }: TransformerStackProps) => {
     const [expanded, setExpanded] = useState(true);
 
     const handleToggle = () => {
@@ -97,12 +98,6 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, on
                         </IconButton>
                         <IconButton
                             disabled={transformers.length === 0}
-                            onClick={onRun}
-                        >
-                            <PlayCircle />
-                        </IconButton>
-                        <IconButton
-                            disabled={transformers.length === 0}
                             onClick={onSave}
                         >
                             <Save />
@@ -112,10 +107,11 @@ export const TransformerStack = ({ transformers, onRemove, onSelect, onReset, on
                     <div style={{ maxHeight: '80vh', overflow: 'scroll' }}>
                         {transformers.map((transformer, index) => (
                             <TransformerListItem
-                                key={index}
+                                key={`transformer_${index}`}
                                 transformer={transformer}
                                 onRemove={() => onRemove(transformer)}
                                 onSelect={() => onSelect(transformer)}
+                                selected={activeTransformer === transformer}
                             />
                         ))}
                     </div>

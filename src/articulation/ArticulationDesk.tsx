@@ -23,8 +23,6 @@ const ArticulatedNote = ({ note, stretchX, stretchY, selected, onClick }: Articu
 
     const [hovered, setHovered] = useState(false)
 
-    if (note.relativeVolume === undefined) return null
-
     const isOnset = note.date
     const isDuration = note.tickDuration || note["midi.duration"]
     const shouldDuration = note.duration

@@ -100,7 +100,6 @@ export const asMSM = async (mei: string) => {
             'octave': note.octave!,
             'accidentals': note.accid!,
             'midi.pitch': note.pnum,
-            relativeVolume: 0,
 
             // performance stuff
             'midi.onset': +absolute / 1000,

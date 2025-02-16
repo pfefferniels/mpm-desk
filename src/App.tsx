@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { asMSM } from './asMSM';
-import { MPM, MSM, Pipeline } from 'mpmify';
+import { MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
@@ -20,6 +20,7 @@ export const App = () => {
     const [mpm, setMPM] = useState<MPM>(new MPM());
 
     const [transformers, setTransformers] = useState<Transformer[]>([])
+    const [activeTransformer, setActiveTransformer] = useState<Transformer>()
 
     const [isPlaying, setIsPlaying] = useState(false)
     const [fileName, setFileName] = useState<string>()
@@ -69,21 +70,21 @@ export const App = () => {
         setIsPlaying(false)
     }
 
-    const reset = () => {
-        setMPM(new MPM())
-        if (initialMSM) setMSM(initialMSM.deepClone())
+    const reset = (newTransformers: Transformer[]) => {
+        const newMPM = new MPM()
+        const newMSM  = initialMSM ? initialMSM.deepClone() : new MSM()
+
+        newTransformers.forEach(t => {
+            t.run(newMSM, newMPM)
+        })
+
+        setMPM(newMPM)
+        setMSM(newMSM)
+        setTransformers(newTransformers)
     }
 
-    const run = () => {
-        const pipeline = new Pipeline()
-        transformers.forEach(t => {
-            t.setNext(undefined)
-            pipeline.push(t)
-        })
-        pipeline.head?.transform(msm, mpm)
-
-        setMPM(mpm.clone())
-        setMSM(msm.clone())
+    const wasCreatedBy = (id: string) => {
+        return transformers.find(t => t.created.includes(id))
     }
 
     return (
@@ -137,6 +138,9 @@ export const App = () => {
                             setMPM={setMPM}
                             setMSM={setMSM}
                             addTransformer={(transformer) => setTransformers(prev => [...prev, transformer])}
+                            wasCreatedBy={wasCreatedBy}
+                            activeTransformer={activeTransformer}
+                            setActiveTransformer={setActiveTransformer}
                         />
                     </Grid>
                 </Grid>
@@ -145,12 +149,10 @@ export const App = () => {
             <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
                 <TransformerStack
                     transformers={transformers}
-                    onSelect={() => { }}
-                    onRemove={(transformer) => {
-                        setTransformers(prev => prev.filter(t => t !== transformer))
-                    }}
-                    onReset={reset}
-                    onRun={run}
+                    onSelect={transformer => setActiveTransformer(transformer)}
+                    onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
+                    onReset={() => reset(transformers)}
+                    activeTransformer={activeTransformer}
                 />
             </div>
         </>

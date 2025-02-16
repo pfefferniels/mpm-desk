@@ -5,7 +5,7 @@ import { TabPanel } from "../TabPanel"
 import { DynamicsGradientDesk } from "./DynamicsGradientDesk"
 import { TemporalSpreadDesk } from "./TemporalSpreadDesk"
 
-export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
+export const ArpeggiationDesk = (props: ScopedTransformerViewProps) => {
     const [tabIndex, setTabIndex] = useState(0)
 
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -20,25 +20,10 @@ export const ArpeggiationDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, par
             </Tabs>
 
             <TabPanel value={tabIndex} index={0}>
-                <DynamicsGradientDesk
-                    mpm={mpm}
-                    part={part}
-                    msm={msm}
-                    setMPM={setMPM}
-                    setMSM={setMSM}
-                    addTransformer={addTransformer}
-                />
+                <DynamicsGradientDesk {...props} />
             </TabPanel>
-
             <TabPanel value={tabIndex} index={1}>
-                <TemporalSpreadDesk
-                    msm={msm}
-                    mpm={mpm}
-                    setMSM={setMSM}
-                    setMPM={setMPM}
-                    part={part}
-                    addTransformer={addTransformer}
-                />
+                <TemporalSpreadDesk {...props} />
             </TabPanel>
         </div>
     )

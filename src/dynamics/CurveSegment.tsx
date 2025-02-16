@@ -2,9 +2,11 @@ import { computeInnerControlPointsXPositions, DynamicsWithEndDate, volumeAtDate 
 import { useEffect, useState } from "react"
 
 interface CurveSegmentProps {
+    active: boolean
     instruction: DynamicsWithEndDate
     stretchX: number
     stretchY: number
+    onClick: () => void
 }
 
 interface DynamicsPoint {
@@ -12,7 +14,7 @@ interface DynamicsPoint {
     volume: number
 }
 
-export const CurveSegment = ({ instruction, stretchX, stretchY }: CurveSegmentProps) => {
+export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick }: CurveSegmentProps) => {
     const [points, setPoints] = useState<DynamicsPoint[]>([])
     const [hovered, setHovered] = useState(false)
 
@@ -53,10 +55,11 @@ export const CurveSegment = ({ instruction, stretchX, stretchY }: CurveSegmentPr
             data-id={`curve_${instruction["xml:id"]}`}
             data-startDate={instruction.date}
             data-endDate={instruction.endDate}
+            onClick={onClick}
         >
             <path
                 d={path}
-                fill="lightblue"
+                fill={active ? 'darkblue' : 'lightblue'}
                 fillOpacity={hovered ? 0.6 : 0.3}
                 stroke="black"
                 strokeWidth={1}
