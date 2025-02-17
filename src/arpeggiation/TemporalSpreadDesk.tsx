@@ -104,6 +104,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
                     <MenuItem value="before-beat">All before beat</MenuItem>
                     <MenuItem value="on-beat">All on beat</MenuItem>
                     <MenuItem value="estimate">Estimate</MenuItem>
+                    <MenuItem value="none">None</MenuItem>
                 </Select>
                 <Button
                     variant='contained'
