@@ -8,7 +8,7 @@ import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
 import { FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
-import { TransformerStack } from './TransformerStack';
+import { TransformerStack } from './transformer-stack/TransformerStack';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 
 export const App = () => {
@@ -149,6 +149,7 @@ export const App = () => {
             <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
                 <TransformerStack
                     transformers={transformers}
+                    setTransformers={setTransformers}
                     onSelect={transformer => setActiveTransformer(transformer)}
                     onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
                     onReset={() => reset(transformers)}

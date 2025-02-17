@@ -4,7 +4,7 @@ import { downloadAsFile } from "../utils"
 import { exportMPM } from "../../../mpm-ts/lib"
 import { CopyAll, Download } from "@mui/icons-material"
 
-export const ResultDesk = ({ mpm }: TransformerViewProps) => {
+export const ResultDesk = ({ mpm, msm }: TransformerViewProps) => {
     const handleDownloadMPM = () => {
         downloadAsFile(exportMPM(mpm), 'export.mpm', 'application/xml')
     }
@@ -38,6 +38,9 @@ export const ResultDesk = ({ mpm }: TransformerViewProps) => {
             <div style={{ width: '80vw', height: '70vh', overflow: 'scroll' }}>
                 <pre style={{ margin: '1rem' }}>
                     {mpm && exportMPM(mpm)}
+                </pre>
+                <pre style={{ margin: '2rem', color: 'blue' }}>
+                    {msm && msm.serialize(false)}
                 </pre>
             </div>
 
