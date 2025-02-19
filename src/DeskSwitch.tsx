@@ -14,6 +14,7 @@ import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
 
 export const aspects = [
+    'metadata',
     'arpeggiation',
     'tempo',
     'dynamics',
@@ -23,7 +24,6 @@ export const aspects = [
     'pedalling',
     'styles',
     'result',
-    'metadata',
 ] as const;
 
 export type Aspect = (typeof aspects)[number];

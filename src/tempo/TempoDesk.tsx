@@ -1,6 +1,6 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
 import { CompressTempo, InsertTempoInstructions, Marker, SilentOnset, TempoWithEndDate, TranslatePhyiscalTimeToTicks, computeMillisecondsAt } from "mpmify/lib/transformers"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments, markerFromTempo } from "./Tempo"
@@ -20,7 +20,7 @@ export type TempoCurve = TempoWithEndDate & { startMs: number }
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: ScopedTransformerViewProps) => {
+export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part, activeTransformer }: ScopedTransformerViewProps) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [markers, setMarkers] = useState<Marker[]>([])
@@ -31,12 +31,28 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: Sc
 
     const [activeMarker, setActiveMarker] = useState<number | null>(null)
 
+    const isCompatibleTransformer = useCallback(() => {
+        if (activeTransformer && activeTransformer.name === 'InsertTempoInstructions') {
+            const activeInsert = activeTransformer as InsertTempoInstructions
+            if (activeInsert.options.part === part) {
+                return true
+            }
+        }
+        return false
+    }, [activeTransformer, part])
+
     useEffect(() => {
         if (markers.length === 0) {
             // TODO: make sure not to overwrite an existing tempo architecture
             setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
         }
     }, [msm, part, markers])
+
+    useEffect(() => {
+        if (isCompatibleTransformer()) {
+            setMarkers((activeTransformer as InsertTempoInstructions).options.markers as Marker[])
+        }
+    }, [isCompatibleTransformer, activeTransformer])
 
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
@@ -102,7 +118,15 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: Sc
     const insertTempoValues = () => {
         if (!tempoCluster) return
 
-        mpm.removeInstructions('tempo', part)
+        if (isCompatibleTransformer()) {
+            const insert = activeTransformer as InsertTempoInstructions
+            insert.options.markers = markers
+            insert.run(msm, mpm)
+            setMSM(msm.clone())
+            setMPM(mpm.clone())
+            return
+        }
+
         const insert = new InsertTempoInstructions({
             markers,
             part,
@@ -137,7 +161,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: Sc
                     variant='contained'
                     onClick={insertTempoValues}
                 >
-                    Save to MPM
+                    {isCompatibleTransformer() ? 'Update' : 'Insert'} Tempo Instructions
                 </Button>
 
                 <Button
