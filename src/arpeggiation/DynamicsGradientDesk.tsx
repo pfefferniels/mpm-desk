@@ -19,8 +19,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer,
             sortVelocities
         })
 
-        insertGradient.transform(msm, mpm)
-        insertGradient.insertMetadata(mpm)
+        insertGradient.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

@@ -118,13 +118,9 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part }: Sc
             'translatePhysicalModifiers': true
         })
 
-        insert.transform(msm, mpm)
-        compress.transform(msm, mpm)
-        translate.transform(msm, mpm)
-
-        insert.insertMetadata(mpm)
-        compress.insertMetadata(mpm)
-        translate.insertMetadata(mpm)
+        insert.run(msm, mpm)
+        compress.run(msm, mpm)
+        translate.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

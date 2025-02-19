@@ -58,7 +58,7 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
             scope: part
         })
 
-        insertAccentuation.transform(msm, mpm)
+        insertAccentuation.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
@@ -71,7 +71,7 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
             scope: part,
         })
 
-        insertRelativeVolume.transform(msm, mpm)
+        insertRelativeVolume.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

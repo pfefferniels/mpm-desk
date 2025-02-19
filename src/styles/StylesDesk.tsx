@@ -24,11 +24,8 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
 
         // const compressArticulation = new CompressArticulation()
 
-        stylizeArticulation.transform(msm, mpm)
-        // compressArticulation.transform(msm, mpm)
-
-        stylizeArticulation.insertMetadata(mpm)
-        // compressArticulation.insertMetadata(mpm)
+        stylizeArticulation.run(msm, mpm)
+        // compressArticulation.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
@@ -44,11 +41,8 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
         })
         //const compressOrnaments = new CompressOrnamentation()
 
-        stylizeOrnaments.transform(msm, mpm)
-        //compressOrnaments.transform(msm, mpm)
-
-        stylizeOrnaments.insertMetadata(mpm)
-        //compressOrnaments.insertMetadata(mpm)
+        stylizeOrnaments.run(msm, mpm)
+        //compressOrnaments.run(msm, mpm)
 
         addTransformer(stylizeOrnaments)
     }

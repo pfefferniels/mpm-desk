@@ -1,6 +1,5 @@
 import { calculateRubatoOnDate } from "mpmify"
 import { Rubato } from "../../../mpm-ts/lib"
-import { MsmNote } from "mpmify/lib/msm"
 import { useState } from "react"
 
 interface RubatoInstructionProps {
@@ -8,9 +7,11 @@ interface RubatoInstructionProps {
     onsetDates: number[]
     stretchX: number
     height: number
+    onClick: () => void
+    active: boolean
 }
 
-export const RubatoInstruction = ({ rubato, onsetDates, stretchX, height }: RubatoInstructionProps) => {
+export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretchX, height }: RubatoInstructionProps) => {
     const [hovered, setHovered] = useState(false)
     const lines = []
 
@@ -37,45 +38,14 @@ export const RubatoInstruction = ({ rubato, onsetDates, stretchX, height }: Ruba
                 y={0}
                 width={rubato.frameLength * stretchX}
                 height={height}
-                fill='gray'
+                fill={active ? 'blue' : 'gray'}
                 fillOpacity={hovered ? 0.5 : 0.2}
                 onMouseOver={() => setHovered(true)}
                 onMouseOut={() => setHovered(false)}
+                onClick={onClick}
             />
 
             {lines}
-        </g>
-    )
-}
-
-interface InstructionsRowProps {
-    rubatos: Rubato[]
-    notes: MsmNote[]
-    stretchX: number
-    height: number
-}
-
-export const InstructionsRow = ({ rubatos, notes, stretchX, height }: InstructionsRowProps) => {
-    const instructions = rubatos.map(rubato => {
-        const affected = new Set(notes
-            .filter(note => note.date >= rubato.date && note.date <= rubato.date + rubato.frameLength)
-            .map(note => note.date)
-        )
-
-        return (
-            <RubatoInstruction
-                key={`rubatoInstruction_${rubato.date}`}
-                rubato={rubato}
-                onsetDates={Array.from(affected)}
-                stretchX={stretchX}
-                height={height}
-            />
-        )
-    })
-
-    return (
-        <g className="instructions">
-            {instructions}
         </g>
     )
 }

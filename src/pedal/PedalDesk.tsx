@@ -15,8 +15,7 @@ export const PedalDesk = ({ msm, mpm, setMSM, setMPM, addTransformer }: ScopedTr
             changeDuration: 200
         })
 
-        insertPedals.transform(msm, mpm)
-        insertPedals.insertMetadata(mpm)
+        insertPedals.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

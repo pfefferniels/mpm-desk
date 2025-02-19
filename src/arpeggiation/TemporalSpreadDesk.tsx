@@ -23,8 +23,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
             noteOffShiftTolerance: 2
         })
 
-        insertSpread.transform(msm, mpm)
-        insertSpread.insertMetadata(mpm)
+        insertSpread.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())

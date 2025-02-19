@@ -99,8 +99,7 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer, w
             markers: markers
         })
 
-        insert.transform(msm, mpm)
-        insert.insertMetadata(mpm)
+        insert.run(msm, mpm)
 
         setMSM(msm.clone())
         setMPM(mpm.clone())
