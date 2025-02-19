@@ -1,4 +1,4 @@
-import { Button, Slider, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Box, Button, Slider, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { StylizeArticulation, StylizeOrnamentation } from "mpmify/lib/transformers";
 import { useState } from "react";
 import { ScopedTransformerViewProps } from "../DeskSwitch";
@@ -9,6 +9,7 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
     const [volumeTolerance, setVolumeTolerance] = useState(0.05)
     const [relativeDurationTolerance, setRelativeDurationTolerance] = useState(0.15)
     const [tickTolerance, setTickTolerance] = useState(10)
+    const [intensityTolerance, setIntensityTolerance] = useState(0.2)
     const [tabIndex, setTabIndex] = useState(0)
 
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -37,7 +38,9 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
 
     const transformOrnaments = () => {
         const stylizeOrnaments = new StylizeOrnamentation({
-            tolerance: tickTolerance
+            tickTolerance,
+            intensityTolerance,
+            gradientTolerance: 0.2
         })
         //const compressOrnaments = new CompressOrnamentation()
 
@@ -56,8 +59,13 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
     }).generateClusters(mpm.getInstructions('articulation', part))
 
     const ornamentPoints = new StylizeOrnamentation({
-        tolerance: tickTolerance
+        tickTolerance,
+        intensityTolerance,
+        gradientTolerance: 0.2
     }).generateClusters(mpm.getInstructions('ornament', part))
+
+    //const ornamentDefPoints = mpm
+    //    .getDefinitions<OrnamentDef>('ornamentDef', part)
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
@@ -67,18 +75,35 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
             </Tabs>
 
             <TabPanel value={tabIndex} index={0}>
-                <Typography gutterBottom>
-                    Tick Tolerance
-                </Typography>
-                <Slider
-                    value={tickTolerance}
-                    onChange={(_, newValue) => setTickTolerance(newValue as number)}
-                    step={1}
-                    min={1}
-                    max={20}
-                    valueLabelDisplay="auto"
-                    sx={{ maxWidth: '50%' }}
-                />
+                <Stack direction='row' spacing={1} sx={{ maxWidth: '50%' }}>
+                    <Box>
+                        <Typography gutterBottom>
+                            Tick Tolerance
+                        </Typography>
+                        <Slider
+                            value={tickTolerance}
+                            onChange={(_, newValue) => setTickTolerance(newValue as number)}
+                            step={1}
+                            min={1}
+                            max={20}
+                            valueLabelDisplay="auto"
+                        />
+                    </Box>
+                    <Box>
+                        <Typography gutterBottom>
+                            Intensity Tolerance
+                        </Typography>
+                        <Slider
+                            value={intensityTolerance}
+                            onChange={(_, newValue) => setIntensityTolerance(newValue as number)}
+                            step={0.05}
+                            min={0.00}
+                            max={2}
+                            valueLabelDisplay="auto"
+                            sx={{ maxWidth: '50%' }}
+                        />
+                    </Box>
+                </Stack>
                 <Plot
                     points={ornamentPoints}
                     xLabel="Frame start"
@@ -91,6 +116,7 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
                     yStep={25}
                     xStretch={5}
                     yStretch={1.5}
+                    rStretch={2}
                 />
                 <Button
                     variant='contained'

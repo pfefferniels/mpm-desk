@@ -12,9 +12,10 @@ interface PlotProps {
     yStep: number
     xStretch: number 
     yStretch: number
+    rStretch?: number
 }
 
-export const Plot = ({ points, xLabel, yLabel, xMin, xMax, yMin, yMax, xStep, yStep, xStretch, yStretch }: PlotProps) => {
+export const Plot = ({ points, xLabel, yLabel, xMin, xMax, yMin, yMax, xStep, yStep, xStretch, yStretch, rStretch }: PlotProps) => {
     const screenX = (x: number) => x * xStretch
     const ticksX = []
     for (let i = xMin; i < xMax; i += xStep) {
@@ -66,6 +67,7 @@ export const Plot = ({ points, xLabel, yLabel, xMin, xMax, yMin, yMax, xStep, yS
                 const [x, y] = p.value;
                 const cx = x * xStretch;
                 const cy = screenY(y);
+                const r = p.value[2]  || 1
 
                 const distinctColors = [
                     "white",
@@ -102,7 +104,7 @@ export const Plot = ({ points, xLabel, yLabel, xMin, xMax, yMin, yMax, xStep, yS
                 ];
                 const fill = p.label + 1 < distinctColors.length ? distinctColors[p.label + 1] : 'white';
 
-                return <circle key={i} cx={cx} cy={cy} r={3} fill={fill} fillOpacity={0.5} stroke='black' strokeWidth={0.1} />;
+                return <circle key={i} cx={cx} cy={cy} r={r * (rStretch || 1)} fill={fill} fillOpacity={0.5} stroke='black' strokeWidth={0.1} />;
             })}
         </svg>
     )
