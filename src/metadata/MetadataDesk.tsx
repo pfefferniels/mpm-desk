@@ -8,33 +8,8 @@ import { AuthorDisplay } from "./AuthorDisplay";
 export const MetadataDesk = ({ mpm, setMPM }: TransformerViewProps) => {
     return (
         <div>
-            <Stack direction='column' spacing={2}>
-                {mpm.doc.metadata.map((field, i) => {
-                    if (field.type === 'appInfo') {
-                        return <AppInfoDisplay key={`${field}_${i}`} appInfo={field as AppInfo} />
-                    }
-                    else if (field.type === 'author') {
-                        return (
-                            <AuthorDisplay
-                                key={`${field}_${i}`}
-                                author={field as Author}
-                                onChange={author => {
-                                    (field as Author).text = author.text
-                                    setMPM(mpm.clone())
-                                }}
-                                onRemove={() => {
-                                    mpm.doc.metadata.splice(mpm.doc.metadata.indexOf(field), 1)
-                                    setMPM(mpm.clone())
-                                }}
-                            />
-                        )
-                    }
-                })}
-            </Stack>
-
             <Stack
                 direction='row'
-                sx={{ marginTop: '2rem' }}
                 spacing={2}
             >
                 <Button
@@ -72,6 +47,28 @@ export const MetadataDesk = ({ mpm, setMPM }: TransformerViewProps) => {
                 >
                     Add Related Resource
                 </Button>
+            </Stack>
+
+            <Stack direction='column' spacing={2} m={2}>
+                {mpm.doc.metadata.filter(field => field.type === 'author').map((field, i) => {
+                    return (
+                        <AuthorDisplay
+                            key={`${field}_${i}`}
+                            author={field as Author}
+                            onChange={author => {
+                                (field as Author).text = author.text
+                                setMPM(mpm.clone())
+                            }}
+                            onRemove={() => {
+                                mpm.doc.metadata.splice(mpm.doc.metadata.indexOf(field), 1)
+                                setMPM(mpm.clone())
+                            }}
+                        />
+                    )
+                })}
+                {mpm.doc.metadata.filter(field => field.type === 'appInfo').map((field, i) => {
+                    return <AppInfoDisplay key={`${field}_${i}`} appInfo={field as AppInfo} />
+                })}
             </Stack>
         </div>
     )
