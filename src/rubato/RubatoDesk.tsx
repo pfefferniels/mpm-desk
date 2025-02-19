@@ -46,12 +46,13 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
                 rangeX={[0.01, 0.1]}
             />
 
-            <Stack spacing={1} direction='row'>
+            <Stack spacing={1} direction='row' sx={{ position: 'sticky', left: 0 }}>
                 <Button variant='contained' onClick={handleInsertRubato}>Insert Rubatos</Button>
                 <Button variant='contained' onClick={handleInsertDelay}>Insert Absolute Delay</Button>
+                <Button variant='outlined' onClick={() => setFrames([])}>Clear frames</Button>
             </Stack>
 
-            <h3>
+            <h3 style={{ position: 'sticky', left: 0 }}>
                 Tick Dates
             </h3>
             <svg
@@ -71,7 +72,7 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
                 </g>
             </svg>
 
-            <h3>
+            <h3 style={{ position: 'sticky', left: 0 }}>
                 Instructions
             </h3>
             <svg

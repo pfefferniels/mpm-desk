@@ -1,6 +1,7 @@
 import { calculateRubatoOnDate } from "mpmify"
 import { Rubato } from "../../../mpm-ts/lib"
 import { MsmNote } from "mpmify/lib/msm"
+import { useState } from "react"
 
 interface RubatoInstructionProps {
     rubato: Rubato
@@ -10,6 +11,7 @@ interface RubatoInstructionProps {
 }
 
 export const RubatoInstruction = ({ rubato, onsetDates, stretchX, height }: RubatoInstructionProps) => {
+    const [hovered, setHovered] = useState(false)
     const lines = []
 
     for (const date of onsetDates) {
@@ -21,7 +23,7 @@ export const RubatoInstruction = ({ rubato, onsetDates, stretchX, height }: Ruba
                 x2={tickDate * stretchX}
                 y1={0}
                 y2={height}
-                stroke='red'
+                stroke='black'
                 strokeWidth={1}
             />
         ))
@@ -35,8 +37,10 @@ export const RubatoInstruction = ({ rubato, onsetDates, stretchX, height }: Ruba
                 y={0}
                 width={rubato.frameLength * stretchX}
                 height={height}
-                fill='red'
-                fillOpacity={0.2}
+                fill='gray'
+                fillOpacity={hovered ? 0.5 : 0.2}
+                onMouseOver={() => setHovered(true)}
+                onMouseOut={() => setHovered(false)}
             />
 
             {lines}

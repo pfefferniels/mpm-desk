@@ -98,6 +98,8 @@ export const DatesRow = ({ stretchX, height, width, chords, frames, setFrames }:
         }
     }
 
+    console.log(frames)
+
     const boxes = frames.map(frame => {
         return (
             <Frame

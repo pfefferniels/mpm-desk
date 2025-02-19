@@ -13,6 +13,7 @@ interface FrameProps {
 export const Frame = ({ frame, stretchX, height, onRemove, onClick }: FrameProps) => {
     return (
         <rect
+            className='frame'
             x={frame.date * stretchX}
             y={0}
             width={(frame.length || 0) * stretchX}
