@@ -24,7 +24,7 @@ export const App = () => {
 
     const [isPlaying, setIsPlaying] = useState(false)
     const [fileName, setFileName] = useState<string>()
-    const [selectedAspect, setSelectedAspect] = useState<Aspect>('result')
+    const [selectedAspect, setSelectedAspect] = useState<Aspect>('metadata')
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
