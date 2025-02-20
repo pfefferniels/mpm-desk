@@ -3,7 +3,7 @@ import { Button, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { useState } from "react"
 import { PartialBy } from "../utils"
-import { Frame as FrameData, InsertRubato } from "mpmify/lib/transformers"
+import { CombineAdjacentRubatos, Frame as FrameData, InsertRubato } from "mpmify/lib/transformers"
 import { ZoomControls } from "../ZoomControls"
 import { RubatoInstruction } from "./RubatoInstruction"
 import { DatesRow } from "./DatesRow"
@@ -22,8 +22,10 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
 
     const handleInsertRubato = () => {
         const insert = new InsertRubato({
-            part,
-            frames: frames.filter(f => f.length !== undefined) as FrameData[]
+            scope: part,
+            frames: frames
+                .sort((a, b) => a.date - b.date)
+                .filter(f => f.length !== undefined) as FrameData[]
         })
 
         insert.run(msm, mpm)
@@ -31,14 +33,27 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
         setMSM(msm.clone())
         setMPM(mpm.clone())
 
-        console.log('created', insert.created)
-
         addTransformer(insert)
+    }
+
+    const handleCombine = () => {
+        const combine = new CombineAdjacentRubatos({
+            intensityTolerance: 0.2,
+            scope: part
+        })
+
+        combine.run(msm, mpm)
+        setMSM(msm.clone())
+        setMPM(mpm.clone())
+
+        addTransformer(combine)
     }
 
     const handleInsertDelay = () => {
         // TODO
     }
+
+    const allRubatos = mpm.getInstructions<Rubato>('rubato', part)
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
@@ -51,6 +66,13 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
             <Stack spacing={1} direction='row' sx={{ position: 'sticky', left: 0 }}>
                 <Button variant='contained' onClick={handleInsertRubato}>Insert Rubatos</Button>
                 <Button variant='contained' onClick={handleInsertDelay}>Insert Absolute Delay</Button>
+                <Button
+                    variant='contained'
+                    onClick={handleCombine}
+                    disabled={allRubatos.length <= 1}
+                >
+                    Combine Rubatos
+                </Button>
                 <Button variant='outlined' onClick={() => setFrames([])}>Clear frames</Button>
             </Stack>
 
@@ -83,14 +105,13 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
                 viewBox={`${-marginLeft} 0 ${svgWidth + marginLeft} ${svgHeight}`}
             >
                 <g transform={`translate(0, ${height * stretchY})`}>
-                    {mpm.getInstructions<Rubato>('rubato', part).map(rubato => {
+                    {allRubatos.map(rubato => {
                         const notes = msm.notesInPart(part)
-                        const affected = new Set(notes
-                            .filter(note => note.date >= rubato.date && note.date <= rubato.date + rubato.frameLength)
-                            .map(note => note.date)
+                        const affected = new Set(
+                            notes
+                                .filter(note => note.date >= rubato.date && note.date <= rubato.date + rubato.frameLength)
+                                .map(note => note.date)
                         )
-
-                        console.log('test', wasCreatedBy(rubato["xml:id"]))
 
                         return (
                             <RubatoInstruction
