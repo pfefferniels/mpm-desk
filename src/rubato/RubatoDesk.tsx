@@ -39,6 +39,7 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
     const handleCombine = () => {
         const combine = new CombineAdjacentRubatos({
             intensityTolerance: 0.2,
+            compressionTolerance: 0.2,
             scope: part
         })
 

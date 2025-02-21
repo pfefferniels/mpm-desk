@@ -18,15 +18,39 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
     for (const date of onsetDates) {
         const tickDate = calculateRubatoOnDate(date, rubato)
         lines.push((
-            <line
-                key={`rubatoLine_${rubato.date}`}
-                x1={tickDate * stretchX}
-                x2={tickDate * stretchX}
-                y1={0}
-                y2={height}
-                stroke='black'
-                strokeWidth={1}
-            />
+            <g key={`rubatoLine_${rubato.date}`}>
+                <line
+                    x1={tickDate * stretchX}
+                    x2={tickDate * stretchX}
+                    y1={0}
+                    y2={height}
+                    stroke='black'
+                    strokeWidth={1}
+                />
+
+                {(onsetDates.indexOf(date) === 0 && rubato.lateStart) && (
+                    <text
+                        transform={`rotate(90, ${tickDate * stretchX}, ${height})`}
+                        x={tickDate * stretchX}
+                        y={height}
+                        fontSize={10}
+                        fill={hovered ? 'black' : 'gray'}
+                    >
+                        {rubato.lateStart.toFixed(2)}
+                    </text>
+                )}
+                {(onsetDates.indexOf(date) === onsetDates.length - 1 && rubato.earlyEnd) && (
+                    <text
+                        transform={`rotate(90, ${tickDate * stretchX}, ${height})`}
+                        x={tickDate * stretchX}
+                        y={height}
+                        fontSize={10}
+                        fill={hovered ? 'black' : 'gray'}
+                    >
+                        {rubato.earlyEnd.toFixed(2)}
+                    </text>
+                )}
+            </g>
         ))
     }
 
@@ -52,7 +76,7 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
                 x={(rubato.date * stretchX) + margin}
                 y={0}
                 fontSize={10}
-                fill='black'
+                fill={hovered ? 'black' : 'gray'}
             >
                 {rubato.intensity?.toFixed(2)}
             </text>
