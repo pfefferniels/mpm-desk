@@ -8,6 +8,9 @@ import { Box, Button, Stack } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume } from "mpmify";
+import { AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
+import { Pattern } from "./Pattern";
+import { Cell } from "./Cell";
 
 const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     const segments: DynamicsSegment[] = []
@@ -41,7 +44,7 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
     const [cells, setCells] = useState<AccentuationCell[]>([])
     const [currentCell, setCurrentCell] = useState<AccentuationCell>()
 
-    const stretchY = 2
+    const stretchY = 10
     const stretchX = 0.03
     const margin = 20
 
@@ -112,7 +115,6 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
                 beatLength: 0.125
             }
             setCells([...cells, cell])
-            // setCurrentCell(cell)
         }
         else {
             setActiveSegment(segment)
@@ -136,7 +138,19 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
     const width = 8000
     const height = 300
 
-    const cellMargin = 5
+    const patterns = mpm
+        .getInstructions<AccentuationPattern>('accentuationPattern', part)
+        .map(i => {
+            const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
+            if (!def) return null
+
+            return {
+                length: def.length,
+                children: def.children,
+                ...i
+            }
+        })
+        .filter(i => i !== null)
 
     return (
         <div style={{ height: '400' }}>
@@ -146,6 +160,9 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
             <Stack direction='row' spacing={1}>
                 <Button variant='contained' onClick={handleMetricalAccentuation}>
                     Insert Metrical Accentuations
+                </Button>
+                <Button variant='outlined' disabled={cells.length === 0} onClick={() => setCells([])}>
+                    Remove Frames ({cells.length})
                 </Button>
                 <Button variant='contained' onClick={handleRelativeVolume}>
                     Insert Relative Volumes
@@ -167,52 +184,41 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
                 <line
                     x1={0}
                     x2={width}
-                    y1={getScreenY(0.5)}
-                    y2={getScreenY(0.5)}
+                    y1={getScreenY(0)}
+                    y2={getScreenY(0)}
                     stroke='black'
                     strokeWidth={1}
                 />
-                <line
-                    x1={0}
-                    x2={width}
-                    y1={getScreenY(1)}
-                    y2={getScreenY(1)}
-                    stroke='black'
-                    strokeWidth={1.5}
-                />
-                <line
-                    x1={0}
-                    x2={width}
-                    y1={getScreenY(1.5)}
-                    y2={getScreenY(1.5)}
-                    stroke='black'
-                    strokeWidth={1}
-                />
-                {circles}
 
                 {cells.map((cell, i) => {
-                    const y1 = getScreenY(segments.find(s => s.date.start === cell.start)?.velocity || 0.5)
-                    const y2 = getScreenY(segments.find(s => s.date.start === cell.end)?.velocity || 0.5)
-
                     return (
-                        <rect
+                        <Cell
                             key={`cell_${cell.start}_${cell.end}_${i}`}
-                            x={cell.start * stretchX - cellMargin}
-                            y={y1 - cellMargin}
-                            width={(cell.end - cell.start) * stretchX + 2 * cellMargin}
-                            height={(y2 - y1) + 2 * cellMargin}
-                            fill='gray'
-                            fillOpacity={0.5}
-                            onClick={(e) => {
-                                if (e.altKey && e.shiftKey) {
-                                    setCells(prevCells => prevCells.filter((_, j) => j !== i));
-                                } else {
-                                    setCurrentCell(cell);
-                                }
-                            }}
+                            cell={cell}
+                            i={i}
+                            stretchX={stretchX}
+                            getScreenY={getScreenY}
+                            segments={segments}
+                            setCells={setCells}
+                            setCurrentCell={setCurrentCell}
                         />
                     )
                 })}
+
+                {patterns.map(pattern => {
+                    return (
+                        <Pattern
+                            key={`pattern_${pattern.date}`}
+                            pattern={pattern}
+                            stretchX={stretchX}
+                            stretchY={stretchY}
+                            getScreenY={getScreenY}
+                            denominator={4}
+                        />
+                    )
+                })}
+
+                {circles}
             </svg>
 
             <Box sx={{ m: 1 }}>
