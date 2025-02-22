@@ -1,65 +1,16 @@
-import { Box, Button, Slider, Stack, Tab, Tabs, Typography } from "@mui/material";
-import { StylizeArticulation, StylizeOrnamentation } from "mpmify/lib/transformers";
+import { Tab, Tabs } from "@mui/material";
 import { useState } from "react";
 import { ScopedTransformerViewProps } from "../DeskSwitch";
-import { Plot } from "./Plot";
 import { TabPanel } from "../TabPanel";
+import { OrnamentationStyles } from "./OrnamentationStyles";
+import { ArticulationStyles } from "./ArticulationStyles";
 
-export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
-    const [volumeTolerance, setVolumeTolerance] = useState(0.05)
-    const [relativeDurationTolerance, setRelativeDurationTolerance] = useState(0.15)
-    const [tickTolerance, setTickTolerance] = useState(10)
-    const [intensityTolerance, setIntensityTolerance] = useState(0.2)
+export const StylesDesk = (props: ScopedTransformerViewProps) => {
     const [tabIndex, setTabIndex] = useState(0)
 
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
         setTabIndex(newValue)
     }
-
-    const transformArticulations = () => {
-        const stylizeArticulation = new StylizeArticulation({
-            volumeTolerance,
-            relativeDurationTolerance
-        })
-
-        // const compressArticulation = new CompressArticulation()
-
-        stylizeArticulation.run(msm, mpm)
-        // compressArticulation.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(stylizeArticulation)
-    }
-
-    const transformOrnaments = () => {
-        const stylizeOrnaments = new StylizeOrnamentation({
-            tickTolerance,
-            intensityTolerance,
-            gradientTolerance: 0.2
-        })
-        //const compressOrnaments = new CompressOrnamentation()
-
-        stylizeOrnaments.run(msm, mpm)
-        //compressOrnaments.run(msm, mpm)
-
-        addTransformer(stylizeOrnaments)
-    }
-
-    const articulationPoints = new StylizeArticulation({
-        relativeDurationTolerance,
-        volumeTolerance
-    }).generateClusters(mpm.getInstructions('articulation', part))
-
-    const ornamentPoints = new StylizeOrnamentation({
-        tickTolerance,
-        intensityTolerance,
-        gradientTolerance: 0.2
-    }).generateClusters(mpm.getInstructions('ornament', part))
-
-    //const ornamentDefPoints = mpm
-    //    .getDefinitions<OrnamentDef>('ornamentDef', part)
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
@@ -69,106 +20,11 @@ export const StylesDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: S
             </Tabs>
 
             <TabPanel value={tabIndex} index={0}>
-                <Stack direction='row' spacing={1} sx={{ maxWidth: '50%' }}>
-                    <Box>
-                        <Typography gutterBottom>
-                            Tick Tolerance
-                        </Typography>
-                        <Slider
-                            value={tickTolerance}
-                            onChange={(_, newValue) => setTickTolerance(newValue as number)}
-                            step={1}
-                            min={1}
-                            max={20}
-                            valueLabelDisplay="auto"
-                        />
-                    </Box>
-                    <Box>
-                        <Typography gutterBottom>
-                            Intensity Tolerance
-                        </Typography>
-                        <Slider
-                            value={intensityTolerance}
-                            onChange={(_, newValue) => setIntensityTolerance(newValue as number)}
-                            step={0.05}
-                            min={0.00}
-                            max={2}
-                            valueLabelDisplay="auto"
-                            sx={{ maxWidth: '50%' }}
-                        />
-                    </Box>
-                </Stack>
-                <Plot
-                    points={ornamentPoints}
-                    xLabel="Frame start"
-                    yLabel="Frame length"
-                    xMin={-200}
-                    xMax={50}
-                    yMin={0}
-                    yMax={250}
-                    xStep={25}
-                    yStep={25}
-                    xStretch={5}
-                    yStretch={1.5}
-                    rStretch={2}
-                />
-                <Button
-                    variant='contained'
-                    onClick={transformOrnaments}
-                >
-                    Stylize Ornaments
-                </Button>
+                <OrnamentationStyles {...props} />
             </TabPanel>
 
             <TabPanel value={tabIndex} index={1}>
-                <Stack direction='row' spacing={1}>
-                    <Typography gutterBottom>
-                        Volume Tolerance
-                    </Typography>
-                    <Slider
-                        value={volumeTolerance}
-                        onChange={(_, newValue) => setVolumeTolerance(newValue as number)}
-                        step={0.01}
-                        min={0}
-                        max={1}
-                        valueLabelDisplay="auto"
-                    />
-
-                    <Typography gutterBottom>
-                        Duration Tolerance
-                    </Typography>
-                    <Slider
-                        value={relativeDurationTolerance}
-                        onChange={(_, newValue) => setRelativeDurationTolerance(newValue as number)}
-                        step={0.01}
-                        min={0}
-                        max={1}
-                        valueLabelDisplay="auto"
-                    />
-                </Stack>
-
-                <Plot
-                    points={articulationPoints}
-                    xLabel="Relative Duration"
-                    yLabel="Relative Volume"
-                    xMin={0}
-                    xMax={2.5}
-                    yMin={0.5}
-                    yMax={1.5}
-                    xStep={0.25}
-                    yStep={0.25}
-                    xStretch={500}
-                    yStretch={400}
-                />
-
-                <br />
-
-                <Button
-                    variant='contained'
-                    onClick={transformArticulations}
-                >
-                    Stylize Articulations
-                </Button>
+                <ArticulationStyles {...props} />
             </TabPanel>
         </div>
     )

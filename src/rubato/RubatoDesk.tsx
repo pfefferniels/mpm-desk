@@ -67,6 +67,7 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
             <Stack spacing={1} direction='row' sx={{ position: 'sticky', left: 0 }}>
                 <Button variant='contained' onClick={handleInsertRubato}>Insert Rubatos</Button>
                 <Button variant='contained' onClick={handleInsertDelay}>Insert Absolute Delay</Button>
+
                 <Button
                     variant='contained'
                     onClick={handleCombine}
@@ -74,7 +75,13 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
                 >
                     Combine Rubatos
                 </Button>
-                <Button variant='outlined' onClick={() => setFrames([])}>Clear frames</Button>
+
+                <Button
+                    variant='outlined'
+                    onClick={() => setFrames([])}
+                >
+                    Clear frames ({frames.length})
+                </Button>
             </Stack>
 
             <h3 style={{ position: 'sticky', left: 0 }}>
