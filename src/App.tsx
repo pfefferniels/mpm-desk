@@ -4,7 +4,7 @@ import { MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
-import { Aspect, DeskSwitch, aspects } from './DeskSwitch';
+import { AnyTransformer, Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
 import { FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
@@ -72,7 +72,7 @@ export const App = () => {
 
     const reset = (newTransformers: Transformer[]) => {
         const newMPM = new MPM()
-        const newMSM  = initialMSM ? initialMSM.deepClone() : new MSM()
+        const newMSM = initialMSM ? initialMSM.deepClone() : new MSM()
 
         newTransformers.forEach(t => {
             t.run(newMSM, newMPM)
@@ -83,8 +83,8 @@ export const App = () => {
         setTransformers(newTransformers)
     }
 
-    const wasCreatedBy = (id: string) => {
-        return transformers.find(t => t.created.includes(id))
+    const wasCreatedBy = (id: string): InstanceType<AnyTransformer> | undefined => {
+        return transformers.find(t => t.created.includes(id)) as InstanceType<AnyTransformer> | undefined
     }
 
     return (
@@ -132,12 +132,29 @@ export const App = () => {
                     </Grid>
                     <Grid item xs={10}>
                         <DeskSwitch
-                            selectedAspect={selectedAspect}
+                            aspect={selectedAspect}
+                            changeAspect={setSelectedAspect}
                             mpm={mpm}
                             msm={msm}
                             setMPM={setMPM}
                             setMSM={setMSM}
-                            addTransformer={(transformer) => setTransformers(prev => [...prev, transformer])}
+                            addTransformer={(transformer, options) => {
+                                const newTransformers = [...transformers]
+
+                                const existing = transformers.find(t => t === transformer)
+                                if (existing) {
+                                    existing.options = options
+                                    reset(newTransformers)
+                                }
+                                else {
+                                    transformer.options = options
+                                    newTransformers.push(transformer)
+                                    transformer.run(msm, mpm)
+                                    setTransformers(newTransformers)
+                                    setMSM(msm.clone())
+                                    setMPM(mpm.clone())
+                                }
+                            }}
                             wasCreatedBy={wasCreatedBy}
                             activeTransformer={activeTransformer}
                             setActiveTransformer={setActiveTransformer}

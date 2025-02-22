@@ -4,35 +4,21 @@ import { useState } from "react";
 import { ScopedTransformerViewProps } from "../DeskSwitch";
 import { Plot } from "./Plot";
 
-export const ArticulationStyles = ({ msm, setMSM, setMPM, mpm, addTransformer, part }: ScopedTransformerViewProps) => {
+export const ArticulationStyles = ({ mpm, activeTransformer, addTransformer, part }: ScopedTransformerViewProps<StylizeArticulation>) => {
     const [volumeTolerance, setVolumeTolerance] = useState(0.05)
     const [relativeDurationTolerance, setRelativeDurationTolerance] = useState(0.15)
 
     const transformArticulations = () => {
-        const stylizeArticulation = new StylizeArticulation({
+        addTransformer(activeTransformer || new StylizeArticulation(), {
             volumeTolerance,
             relativeDurationTolerance
         })
-
-        // const compressArticulation = new CompressArticulation()
-
-        stylizeArticulation.run(msm, mpm)
-        // compressArticulation.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(stylizeArticulation)
     }
-
 
     const articulationPoints = new StylizeArticulation({
         relativeDurationTolerance,
         volumeTolerance
     }).generateClusters(mpm.getInstructions('articulation', part))
-
-    //const ornamentDefPoints = mpm
-    //    .getDefinitions<OrnamentDef>('ornamentDef', part)
 
     return (
         <div>

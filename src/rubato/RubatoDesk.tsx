@@ -10,7 +10,7 @@ import { DatesRow } from "./DatesRow"
 import { Rubato } from "../../../mpm-ts/lib"
 
 
-export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, wasCreatedBy, activeTransformer, setActiveTransformer }: ScopedTransformerViewProps) => {
+export const RubatoDesk = ({ msm, mpm, addTransformer, part, wasCreatedBy, activeTransformer, setActiveTransformer }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
     const [frames, setFrames] = useState<PartialBy<FrameData, 'length'>[]>([])
     const [stretchX, setStretchX] = useState(0.06)
 
@@ -21,33 +21,20 @@ export const RubatoDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part, was
     const height = 10
 
     const handleInsertRubato = () => {
-        const insert = new InsertRubato({
+        addTransformer(activeTransformer instanceof InsertRubato ? activeTransformer : new InsertRubato(), {
             scope: part,
             frames: frames
                 .sort((a, b) => a.date - b.date)
                 .filter(f => f.length !== undefined) as FrameData[]
         })
-
-        insert.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insert)
     }
 
     const handleCombine = () => {
-        const combine = new CombineAdjacentRubatos({
+        addTransformer(activeTransformer instanceof CombineAdjacentRubatos ? activeTransformer : new CombineAdjacentRubatos(), {
             intensityTolerance: 0.2,
             compressionTolerance: 0.2,
             scope: part
         })
-
-        combine.run(msm, mpm)
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(combine)
     }
 
     const handleInsertDelay = () => {

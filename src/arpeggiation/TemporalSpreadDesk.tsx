@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScopedTransformerViewProps } from "../DeskSwitch";
 import { ArpeggioPlacement, DatedArpeggioPlacement, InsertTemporalSpread } from "mpmify";
 import { ChordSpread } from "./ChordSpread";
@@ -6,29 +6,29 @@ import { Stack, TextField, Select, MenuItem, Button, Divider } from "@mui/materi
 import PlacementDetails from "./PlacementDetails";
 import { ZoomControls } from "../ZoomControls";
 
-export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
+export const TemporalSpreadDesk = ({ msm, part, activeTransformer, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const [beatLength, setBeatLength] = useState(720);
     const [currentDate, setCurrentDate] = useState<number>()
-    const [placements, setPlacement] = useState<DatedArpeggioPlacement>(new Map())
+    const [placements, setPlacements] = useState<DatedArpeggioPlacement>(new Map())
     const [defaultPlacement, setDefaultPlacement] = useState<ArpeggioPlacement>('estimate')
     const [stretchX, setStretchX] = useState(20)
 
+    useEffect(() => {
+        if (!activeTransformer) return
+
+        setPlacements(activeTransformer.options.placement)
+        setDefaultPlacement(activeTransformer.options.defaultPlacement)
+    }, [activeTransformer])
+
     const transform = () => {
-        const insertSpread = new InsertTemporalSpread({
+        addTransformer(activeTransformer || new InsertTemporalSpread(), {
             minimumArpeggioSize: 2,
             durationThreshold: 2,
-            part,
+            scope: part,
             placement: placements,
             defaultPlacement,
             noteOffShiftTolerance: 2
         })
-
-        insertSpread.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insertSpread)
     }
 
     const height = 250;
@@ -51,7 +51,6 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
         let bpm = 60 / (currentOnset - prevOnset);
         if (bpms.length) {
             const multiplier = (date - bpms[bpms.length - 1].date) / beatLength;
-            console.log('multiplier', multiplier)
             bpm *= multiplier;
         }
 
@@ -109,7 +108,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
                     variant='contained'
                     onClick={transform}
                 >
-                    Transform
+                    {activeTransformer ? 'Update' : 'Insert'} Temporal Spreads
                 </Button>
             </Stack>
 
@@ -158,7 +157,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, p
                 setPlacement={(placement) => {
                     if (!currentDate) return
                     placements.set(currentDate, placement)
-                    setPlacement(new Map(placements))
+                    setPlacements(new Map(placements))
                 }}
                 placement={placements.get(currentDate || -1) || 'none'}
                 open={!!currentDate}

@@ -1,6 +1,6 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { CompressTempo, InsertTempoInstructions, Marker, SilentOnset, TempoWithEndDate, TranslatePhyiscalTimeToTicks, computeMillisecondsAt } from "mpmify/lib/transformers"
-import { useCallback, useEffect, useState } from "react"
+import { InsertTempoInstructions, Marker, SilentOnset, TempoWithEndDate, TranslatePhyiscalTimeToTicks, computeMillisecondsAt } from "mpmify/lib/transformers"
+import { useEffect, useState } from "react"
 import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments, markerFromTempo } from "./Tempo"
@@ -20,7 +20,7 @@ export type TempoCurve = TempoWithEndDate & { startMs: number }
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part, activeTransformer }: ScopedTransformerViewProps) => {
+export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<InsertTempoInstructions | TranslatePhyiscalTimeToTicks>) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [markers, setMarkers] = useState<Marker[]>([])
@@ -31,16 +31,6 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part, acti
 
     const [activeMarker, setActiveMarker] = useState<number | null>(null)
 
-    const isCompatibleTransformer = useCallback(() => {
-        if (activeTransformer && activeTransformer.name === 'InsertTempoInstructions') {
-            const activeInsert = activeTransformer as InsertTempoInstructions
-            if (activeInsert.options.part === part) {
-                return true
-            }
-        }
-        return false
-    }, [activeTransformer, part])
-
     useEffect(() => {
         if (markers.length === 0) {
             // TODO: make sure not to overwrite an existing tempo architecture
@@ -49,10 +39,11 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part, acti
     }, [msm, part, markers])
 
     useEffect(() => {
-        if (isCompatibleTransformer()) {
-            setMarkers((activeTransformer as InsertTempoInstructions).options.markers as Marker[])
+        if (!activeTransformer) return
+        if (activeTransformer instanceof InsertTempoInstructions) {
+            setMarkers(activeTransformer.options.markers as Marker[])
         }
-    }, [isCompatibleTransformer, activeTransformer])
+    }, [activeTransformer])
 
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
@@ -118,40 +109,22 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part, acti
     const insertTempoValues = () => {
         if (!tempoCluster) return
 
-        if (isCompatibleTransformer()) {
-            const insert = activeTransformer as InsertTempoInstructions
-            insert.options.markers = markers
-            insert.run(msm, mpm)
-            setMSM(msm.clone())
-            setMPM(mpm.clone())
-            return
-        }
-
-        const insert = new InsertTempoInstructions({
+        addTransformer(activeTransformer instanceof InsertTempoInstructions ? activeTransformer : new InsertTempoInstructions(), {
             markers,
             part,
             silentOnsets
         })
-        const compress = new CompressTempo()
-        compress.options = {
-            bpmPrecision: 4,
-            meanTempoAtPrecision: 4
-        }
 
-        const translate = new TranslatePhyiscalTimeToTicks({
-            'translatePhysicalModifiers': true
+        // addTransformer(activeTransformer instanceof CompressTempo ? activeTransformer : new CompressTempo(), {
+        //     bpmPrecision: 4,
+        //     meanTempoAtPrecision: 4
+        // })
+    }
+
+    const translate = () => {
+        addTransformer(activeTransformer instanceof TranslatePhyiscalTimeToTicks ? activeTransformer : new TranslatePhyiscalTimeToTicks(), {
+            translatePhysicalModifiers: true
         })
-
-        insert.run(msm, mpm)
-        compress.run(msm, mpm)
-        translate.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insert)
-        addTransformer(compress)
-        addTransformer(translate)
     }
 
     return (
@@ -161,7 +134,14 @@ export const TempoDesk = ({ mpm, msm, setMPM, setMSM, addTransformer, part, acti
                     variant='contained'
                     onClick={insertTempoValues}
                 >
-                    {isCompatibleTransformer() ? 'Update' : 'Insert'} Tempo Instructions
+                    {activeTransformer instanceof InsertTempoInstructions ? 'Update' : 'Insert'} Tempo Instructions
+                </Button>
+
+                <Button
+                    variant='contained'
+                    onClick={translate}
+                >
+                    Translate To Ticks
                 </Button>
 
                 <Button

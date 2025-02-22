@@ -1,10 +1,10 @@
 import { Button, Stack } from "@mui/material"
-import { TransformerViewProps } from "../TransformerViewProps"
+import { ViewProps } from "../TransformerViewProps"
 import { downloadAsFile } from "../utils"
 import { exportMPM } from "../../../mpm-ts/lib"
 import { CopyAll, Download } from "@mui/icons-material"
 
-export const ResultDesk = ({ mpm, msm }: TransformerViewProps) => {
+export const ResultDesk = ({ mpm, msm }: ViewProps) => {
     const handleDownloadMPM = () => {
         downloadAsFile(exportMPM(mpm), 'export.mpm', 'application/xml')
     }

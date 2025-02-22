@@ -4,7 +4,7 @@ import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { asMIDI } from "../utils"
 import { InsertRelativeDuration } from "mpmify"
 
@@ -86,22 +86,22 @@ const ArticulatedNote = ({ note, stretchX, stretchY, selected, onClick }: Articu
     )
 }
 
-export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part, addTransformer }: ScopedTransformerViewProps) => {
+export const ArticulationDesk = ({ msm, part, activeTransformer, addTransformer }: ScopedTransformerViewProps<InsertRelativeDuration>) => {
     const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
 
+    useEffect(() => {
+        if (!activeTransformer) return
+
+        if (activeTransformer.options.noteIDs) {
+            setSelectedNotes(new Set(activeTransformer.options.noteIDs))
+        }
+    }, [activeTransformer])
+
     const insert = () => {
-        const insertArticulation = new InsertRelativeDuration({
+        addTransformer(activeTransformer || new InsertRelativeDuration(), {
             scope: part,
             noteIDs: selectedNotes.size === 0 ? undefined : [...selectedNotes]
         })
-
-        mpm.removeInstructions('articulation', part)
-        insertArticulation.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insertArticulation)
     }
 
     const stretchX = 0.08
@@ -139,7 +139,7 @@ export const ArticulationDesk = ({ msm, mpm, setMSM, setMPM, part, addTransforme
                     variant='contained'
                     onClick={insert}
                 >
-                    Insert into MPM
+                    {activeTransformer ? 'Update' : 'Insert'} Relative Durations
                 </Button>
             </Stack>
 

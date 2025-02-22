@@ -1,11 +1,11 @@
-import { TransformerViewProps } from "../TransformerViewProps";
+import { ViewProps } from "../TransformerViewProps";
 import { AppInfo, Author } from "../../../mpm-ts/lib";
 import { Button, Stack } from "@mui/material";
 import { Add } from "@mui/icons-material";
 import { AppInfoDisplay } from "./AppInfoDisplay";
 import { AuthorDisplay } from "./AuthorDisplay";
 
-export const MetadataDesk = ({ mpm, setMPM }: TransformerViewProps) => {
+export const MetadataDesk = ({ mpm, setMPM }: ViewProps) => {
     return (
         <div>
             <Stack

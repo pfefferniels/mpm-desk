@@ -33,7 +33,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer }: ScopedTransformerViewProps) => {
+export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | InsertRelativeVolume>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -54,32 +54,26 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
+    useEffect(() => {
+        if (!activeTransformer) return
+
+        if (activeTransformer instanceof InsertMetricalAccentuation) {
+            setCells(activeTransformer.options.cells)
+        }
+    }, [activeTransformer])
+
     const handleMetricalAccentuation = () => {
-        const insertAccentuation = new InsertMetricalAccentuation({
+        addTransformer(activeTransformer || new InsertMetricalAccentuation(), {
             cells,
             loopTolerance: 10,
             scope: part
         })
-
-        insertAccentuation.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insertAccentuation)
     }
 
     const handleRelativeVolume = () => {
-        const insertRelativeVolume = new InsertRelativeVolume({
-            scope: part,
+        addTransformer(activeTransformer || new InsertRelativeVolume(), {
+            scope: part
         })
-
-        insertRelativeVolume.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insertRelativeVolume)
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -159,7 +153,7 @@ export const AccentuationDesk = ({ part, msm, mpm, setMSM, setMPM, addTransforme
             </Box>
             <Stack direction='row' spacing={1}>
                 <Button variant='contained' onClick={handleMetricalAccentuation}>
-                    Insert Metrical Accentuations
+                    {activeTransformer ? 'Update' : 'Insert'} Metrical Accentuations
                 </Button>
                 <Button variant='outlined' disabled={cells.length === 0} onClick={() => setCells([])}>
                     Remove Frames ({cells.length})

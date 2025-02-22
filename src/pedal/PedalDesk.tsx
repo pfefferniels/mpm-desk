@@ -7,20 +7,13 @@ import { useState } from "react"
 import { ZoomControls } from "../ZoomControls"
 
 
-export const PedalDesk = ({ msm, mpm, setMSM, setMPM, addTransformer }: ScopedTransformerViewProps) => {
+export const PedalDesk = ({ msm, mpm, activeTransformer, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
     const [stretchX, setStretchX] = useState(0.1)
 
     const transform = () => {
-        const insertPedals = new InsertPedal({
+        addTransformer(activeTransformer || new InsertPedal(), {
             changeDuration: 200
         })
-
-        insertPedals.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insertPedals)
     }
 
     const stretchY = 30

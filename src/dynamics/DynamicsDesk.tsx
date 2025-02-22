@@ -40,7 +40,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer, wasCreatedBy, activeTransformer, setActiveTransformer }: ScopedTransformerViewProps) => {
+export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, activeTransformer, setActiveTransformer }: ScopedTransformerViewProps<InsertDynamicsInstructions>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -50,6 +50,13 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer, w
     const [markers, setMarkers] = useState<number[]>([])
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
     const [stretchX, setStretchX] = useState(0.03)
+
+    useEffect(() => {
+        if (!activeTransformer) return
+        if (activeTransformer instanceof InsertDynamicsInstructions) {
+            setMarkers(activeTransformer.options.markers)
+        }
+    }, [activeTransformer])
 
     useEffect(() => {
         setMarkers([])
@@ -94,17 +101,10 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer, w
     };
 
     const handleInsert = () => {
-        const insert = new InsertDynamicsInstructions({
-            part: part,
-            markers: markers
+        addTransformer(activeTransformer || new InsertDynamicsInstructions(), {
+            markers,
+            scope: part
         })
-
-        insert.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insert)
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -232,10 +232,14 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer, w
             />
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1}>
-                <Button variant='contained' onClick={handleInsert}>Insert into MPM</Button>
+                <Button variant='contained' onClick={handleInsert}>
+                    {activeTransformer ? 'Update' : 'Insert'} Dynamics
+                </Button>
+
                 <Button variant='outlined' onClick={() => {
                     downloadAsFile(JSON.stringify(markers, null, 4), 'dynamics_markers.json')
                 }}>Export Markers</Button>
+
                 <Button variant='outlined' onClick={handleFileImport}>Import Markers</Button>
                 <input
                     type="file"
@@ -244,6 +248,13 @@ export const DynamicsDesk = ({ part, msm, mpm, setMSM, setMPM, addTransformer, w
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
                 />
+
+                <Button
+                    variant='outlined'
+                    onClick={() => setMarkers(segments.map(s => s.date.start).sort())}
+                >
+                    Insert Markers from Points
+                </Button>
 
                 <ToggleButton
                     value='check'

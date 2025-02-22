@@ -4,23 +4,17 @@ import { StylizeOrnamentation } from "mpmify";
 import { Stack, Box, Typography, Slider, Button } from "@mui/material";
 import { Plot } from "./Plot";
 
-export const OrnamentationStyles = ({ msm, mpm, addTransformer, part }: ScopedTransformerViewProps) => {
+export const OrnamentationStyles = ({ mpm, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const [tickTolerance, setTickTolerance] = useState(10)
     const [intensityTolerance, setIntensityTolerance] = useState(0.2)
     const [gradientTolerance, setGradientTolerance] = useState(0.2)
 
     const transformOrnaments = () => {
-        const stylizeOrnaments = new StylizeOrnamentation({
+        addTransformer(activeTransformer || new StylizeOrnamentation(), {
             tickTolerance,
             intensityTolerance,
             gradientTolerance
         })
-        //const compressOrnaments = new CompressOrnamentation()
-
-        stylizeOrnaments.run(msm, mpm)
-        //compressOrnaments.run(msm, mpm)
-
-        addTransformer(stylizeOrnaments)
     }
 
     const ornamentPoints = new StylizeOrnamentation({

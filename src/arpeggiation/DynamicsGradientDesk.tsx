@@ -1,30 +1,30 @@
 import { DatedDynamicsGradient, InsertDynamicsGradient } from "mpmify"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChordGradient } from "./ChordGradient"
 import GradientDetails from "./GradientDetails"
 import { ZoomControls } from "../ZoomControls"
 
-export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer, part }: ScopedTransformerViewProps) => {
+export const DynamicsGradientDesk = ({ msm, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [currentDate, setCurrentDate] = useState<number>()
     const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
     const [sortVelocities, setSortVelocities] = useState(true)
     const [stretchX, setStretchX] = useState(20)
 
+    useEffect(() => {
+        if (!activeTransformer) return
+
+        setGradients(activeTransformer.options.gradients)
+        setSortVelocities(activeTransformer.options.sortVelocities)
+    }, [activeTransformer])
+
     const transform = () => {
-        const insertGradient = new InsertDynamicsGradient({
+        addTransformer(activeTransformer || new InsertDynamicsGradient(), {
             part,
             gradients,
             sortVelocities
         })
-
-        insertGradient.run(msm, mpm)
-
-        setMSM(msm.clone())
-        setMPM(mpm.clone())
-
-        addTransformer(insertGradient)
     }
 
     const height = 250
@@ -95,7 +95,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, setMSM, setMPM, addTransformer,
                 onClick={transform}
                 style={{ marginTop: '1rem' }}
             >
-                Transform
+                {activeTransformer ? 'Update' : 'Insert'} Dynamics Gradients
             </Button>
 
             <ZoomControls
