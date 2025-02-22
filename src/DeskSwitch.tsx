@@ -16,6 +16,7 @@ import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
 import { TemporalSpreadDesk } from "./arpeggiation/TemporalSpreadDesk";
 import { ResultDesk } from "./result/ResultDesk";
 import { OrnamentationStyles } from "./styles/OrnamentationStyles";
+import { ArticulationStyles } from "./styles/ArticulationStyles";
 
 export const aspects = [
     'metadata',
@@ -90,7 +91,14 @@ const correspondingDesks: { transformer?: AnyTransformer, aspect: Aspect, desk: 
     {
         transformer: InsertRelativeDuration,
         aspect: 'articulation',
+        displayName: 'Relative Duration',
         desk: ArticulationDesk,
+    },
+    {
+        transformer: StylizeArticulation,
+        aspect: 'articulation',
+        displayName: 'Style',
+        desk: ArticulationStyles
     },
     {
         transformer: InsertPedal,

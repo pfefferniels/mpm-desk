@@ -56,6 +56,7 @@ export const Cell = ({ cell, stretchX, getScreenY, segments, setCells, setCurren
 
     return (
         <polygon
+            className='accentuationCell'
             points={pointsStr}
             fill="gray"
             fillOpacity={0.5}

@@ -63,7 +63,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     }, [activeTransformer])
 
     const handleMetricalAccentuation = () => {
-        addTransformer(activeTransformer || new InsertMetricalAccentuation(), {
+        addTransformer(activeTransformer instanceof InsertMetricalAccentuation ? activeTransformer : new InsertMetricalAccentuation(), {
             cells,
             loopTolerance: 10,
             scope: part
@@ -71,8 +71,14 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     }
 
     const handleRelativeVolume = () => {
-        addTransformer(activeTransformer || new InsertRelativeVolume(), {
-            scope: part
+        addTransformer(activeTransformer instanceof InsertRelativeVolume ? activeTransformer : new InsertRelativeVolume(), {
+            scope: part,
+            noteIDs: cells.map(c => {
+                return msm
+                    .notesInPart(part)
+                    .filter(n => n.date >= c.start && n.date <= c.end)
+                    .map(n => n["xml:id"])
+            }).flat()
         })
     }
 
@@ -102,12 +108,14 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     }
 
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
+        console.log('handle click', segment)
         if (e.shiftKey && activeSegment) {
             const cell: AccentuationCell = {
                 start: activeSegment.date.start,
                 end: segment.date.start,
                 beatLength: 0.125
             }
+            console.log('')
             setCells([...cells, cell])
         }
         else {
