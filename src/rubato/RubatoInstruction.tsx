@@ -1,6 +1,7 @@
 import { calculateRubatoOnDate } from "mpmify"
 import { Rubato } from "../../../mpm-ts/lib"
 import { MouseEventHandler, useState } from "react"
+import * as Tone from "tone"
 
 interface RubatoInstructionProps {
     rubato: Rubato
@@ -14,6 +15,25 @@ interface RubatoInstructionProps {
 export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretchX, height }: RubatoInstructionProps) => {
     const [hovered, setHovered] = useState(false)
     const lines = []
+
+    const handleClick = () => {
+        const transport = Tone.getTransport()
+        transport.stop()
+        transport.position = 0
+        transport.cancel()
+
+        const synth = new Tone.Synth().toDestination();
+
+        const n = 8
+        for (let i = 0; i < n; i++) {
+            const date = rubato.date + rubato.frameLength / n * i
+            const tickDate = calculateRubatoOnDate(date, rubato) - rubato.date
+            transport.schedule((time) => {
+                synth.triggerAttackRelease("G4", "8n", time);
+            }, tickDate / 720)
+        }
+        transport.start()
+    }
 
     for (const date of onsetDates) {
         const tickDate = calculateRubatoOnDate(date, rubato)
@@ -68,7 +88,10 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
                 fillOpacity={hovered ? 0.5 : 0.2}
                 onMouseOver={() => setHovered(true)}
                 onMouseOut={() => setHovered(false)}
-                onClick={onClick}
+                onClick={(e) => {
+                    handleClick()
+                    onClick(e)
+                }}
             />
             {lines}
 
