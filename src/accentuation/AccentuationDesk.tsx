@@ -39,7 +39,6 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
 
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
-    const [activeSegment, setActiveSegment] = useState<DynamicsSegment>()
 
     const [cells, setCells] = useState<AccentuationCell[]>([])
     const [currentCell, setCurrentCell] = useState<AccentuationCell>()
@@ -108,18 +107,20 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     }
 
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
-        console.log('handle click', segment)
-        if (e.shiftKey && activeSegment) {
+        if (e.shiftKey && cells.length > 0) {
             const cell: AccentuationCell = {
-                start: activeSegment.date.start,
+                start: cells[cells.length - 1].start,
                 end: segment.date.start,
                 beatLength: 0.125
             }
-            console.log('')
             setCells([...cells, cell])
         }
         else {
-            setActiveSegment(segment)
+            setCells([...cells, {
+                start: segment.date.start,
+                end: segment.date.end,
+                beatLength: 0.125
+            }])
         }
     }
 
@@ -225,7 +226,6 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
 
             <Box sx={{ m: 1 }}>
                 {currentCell && `Current cell: ${currentCell.start} - ${currentCell.end}`}
-                {activeSegment && `Active segment: ${activeSegment.date.start}`}
             </Box>
         </div>
     )
