@@ -4,13 +4,15 @@ import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI } from "../utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
-import { Box, Button, Stack } from "@mui/material";
+import { Box, Button, Slider, Stack, Typography } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume } from "mpmify";
-import { AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
+import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
 import { Pattern } from "./Pattern";
 import { Cell } from "./Cell";
+import { Delete } from "@mui/icons-material";
+import { ZoomControls } from "../ZoomControls";
 
 const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     const segments: DynamicsSegment[] = []
@@ -43,12 +45,29 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     const [cells, setCells] = useState<AccentuationCell[]>([])
     const [currentCell, setCurrentCell] = useState<AccentuationCell>()
 
+    const [scaleTolerance, setScaleTolerance] = useState(1.5)
+
+    const [lowerLimit, setLowerLimit] = useState<number>()
+    const [upperLimit, setUpperLimit] = useState<number>()
+
+    const [stretchX, setStretchX] = useState(0.03)
+
     const stretchY = 10
-    const stretchX = 0.03
     const margin = 20
 
     const getScreenY = (velocity: number) => {
         return (1 - velocity) * stretchY + 100
+    }
+
+    const avgCellVelocity = (cells: AccentuationCell[]): number => {
+        const avgs = cells.map(cell => {
+            return segments
+                .filter(s => s.date.start >= cell.start && s.date.start <= cell.end)
+                .map(s => (s.velocity))
+        }).flat()
+
+        const sum = avgs.reduce((acc, vel) => acc + vel, 0)
+        return sum / cells.length
     }
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
@@ -64,8 +83,9 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     const handleMetricalAccentuation = () => {
         addTransformer(activeTransformer instanceof InsertMetricalAccentuation ? activeTransformer : new InsertMetricalAccentuation(), {
             cells,
-            loopTolerance: 10,
-            scope: part
+            scaleTolerance,
+            scope: part,
+            neutralEnd: true
         })
     }
 
@@ -77,7 +97,9 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                     .notesInPart(part)
                     .filter(n => n.date >= c.start && n.date <= c.end)
                     .map(n => n["xml:id"])
-            }).flat()
+            }).flat(),
+            // lowerLimit,
+            // upperLimit
         })
     }
 
@@ -108,12 +130,8 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
 
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
         if (e.shiftKey && cells.length > 0) {
-            const cell: AccentuationCell = {
-                start: cells[cells.length - 1].start,
-                end: segment.date.start,
-                beatLength: 0.125
-            }
-            setCells([...cells, cell])
+            cells[cells.length - 1].end = segment.date.start
+            setCells([...cells])
         }
         else {
             setCells([...cells, {
@@ -141,7 +159,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     const width = 8000
     const height = 300
 
-    const patterns = mpm
+    const patterns: (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })[] = mpm
         .getInstructions<AccentuationPattern>('accentuationPattern', part)
         .map(i => {
             const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
@@ -157,19 +175,58 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
 
     return (
         <div style={{ height: '400' }}>
+            <ZoomControls
+                stretchX={stretchX}
+                setStretchX={setStretchX}
+                rangeX={[0.1, 1]}
+            />
+
             <Box sx={{ m: 1 }}>
                 {part !== 'global' && `Part ${part + 1}`}
             </Box>
-            <Stack direction='row' spacing={1}>
-                <Button variant='contained' onClick={handleMetricalAccentuation}>
-                    {activeTransformer ? 'Update' : 'Insert'} Metrical Accentuations
-                </Button>
-                <Button variant='outlined' disabled={cells.length === 0} onClick={() => setCells([])}>
-                    Remove Frames ({cells.length})
-                </Button>
-                <Button variant='contained' onClick={handleRelativeVolume}>
-                    Insert Relative Volumes
-                </Button>
+            <Box sx={{ maxWidth: '50%' }}>
+                <Typography gutterBottom>
+                    Loop Tolerance
+                </Typography>
+                <Slider
+                    value={scaleTolerance}
+                    onChange={(_, newValue) => setScaleTolerance(newValue as number)}
+                    step={0.25}
+                    min={0}
+                    max={5}
+                    valueLabelDisplay="auto"
+                />
+            </Box>
+            <Stack direction='column' spacing={1}>
+                <Stack direction='row' spacing={1}>
+                    <Button variant='contained' onClick={handleMetricalAccentuation}>
+                        {activeTransformer ? 'Update' : 'Insert'} Metrical Accentuations
+                    </Button>
+                    <Button
+                        variant='outlined'
+                        disabled={cells.length === 0}
+                        onClick={() => setCells([])}
+                        startIcon={<Delete />}
+                    >
+                        Clear Frames ({cells.length})
+                    </Button>
+                </Stack>
+                <Stack direction='row' spacing={1}>
+                    <Button variant='contained' onClick={handleRelativeVolume}>
+                        Insert Relative Volumes
+                    </Button>
+                    <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
+                        setLowerLimit(avgCellVelocity(cells))
+                    }}
+                    >
+                        Insert Lower Limit
+                    </Button>
+                    <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
+                        setUpperLimit(avgCellVelocity(cells))
+                    }}>
+                        Insert Upper Limit
+                    </Button>
+                </Stack>
             </Stack>
 
             <svg

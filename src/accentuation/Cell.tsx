@@ -44,6 +44,25 @@ export const Cell = ({ cell, stretchX, getScreenY, segments, setCells, setCurren
         .filter(s => s.date.start >= cell.start && s.date.start <= cell.end)
         .map(s => ({ x: s.date.start * stretchX, y: getScreenY(s.velocity) }));
 
+    if (cellPoints.length === 1) {
+        return (
+            <circle
+                cx={cellPoints[0].x}
+                cy={cellPoints[0].y}
+                r={5}
+                fill="red"
+                fillOpacity={0.5}
+                onClick={(e) => {
+                    if (e.altKey && e.shiftKey) {
+                        setCells(prevCells => prevCells.filter(c => c !== cell));
+                    } else {
+                        setCurrentCell(cell);
+                    }
+                }}
+            />
+        )
+    }
+
     // Add boundaries at the cell's start and end with an estimated velocity.
     const leftVelocity = segments.find(s => s.date.start >= cell.start)?.velocity ?? 0.5;
     const rightVelocity = segments.slice().reverse().find(s => s.date.start <= cell.end)?.velocity ?? 0.5;
@@ -58,7 +77,7 @@ export const Cell = ({ cell, stretchX, getScreenY, segments, setCells, setCurren
         <polygon
             className='accentuationCell'
             points={pointsStr}
-            fill="gray"
+            fill='red'
             fillOpacity={0.5}
             onClick={(e) => {
                 if (e.altKey && e.shiftKey) {

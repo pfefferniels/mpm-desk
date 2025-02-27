@@ -46,6 +46,9 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator }
                 fillOpacity={hovered ? 0.6 : 0.2}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
+                strokeWidth={0.8}
+                stroke='black'
+                strokeDasharray={'5 5'}
             />
 
             {hovered && (
