@@ -1,6 +1,5 @@
 import { MouseEventHandler, useState } from "react"
 import { TempoSegment, asBPM } from "./Tempo"
-import { Marker } from "mpmify/lib/transformers"
 import { MarkerLine } from "./MarkerLine"
 
 type BoxProps = {
@@ -13,9 +12,8 @@ type BoxProps = {
   onStop: () => void
   played: boolean
 
-  marker?: Marker
+  marked: boolean
   onMark: () => void
-  onSelectMark: () => void
   onRemoveMark: () => void
 
   onExpand: () => void
@@ -39,11 +37,12 @@ type BoxProps = {
  */
 export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
-  const [markerHovered, setMarkerHovered] = useState(false)
   const [splitTime, setSplitTime] = useState<number>()
-  const { segment, stretchX, stretchY, marker, onPlay, onStop, played, onMark, onSelectMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
+
+  const { segment, stretchX, stretchY, marked, onPlay, onStop, played, onMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
   const { time, selected } = segment
   const { start, end } = time
+
   const bpm = asBPM(time)
   const upperY = bpm * -stretchY
 
@@ -63,9 +62,8 @@ export const Box = (props: BoxProps) => {
     onStop: () => { },
     onExpand: () => { },
     onMark: () => { },
-    onSelectMark: () => { },
     onRemove: () => { },
-    marker: undefined,
+    marked: false,
     onSelect: () => { },
     onRemoveMark: () => { },
     splitMode: false,
@@ -98,21 +96,17 @@ export const Box = (props: BoxProps) => {
 
   const markerLine = (
     <MarkerLine
-      start={start}
-      stretchX={stretchX}
-      upperY={upperY}
-      marker={marker}
-      markerHovered={markerHovered}
-      segment={segment}
-      splitMode={splitMode}
-      setMarkerHovered={setMarkerHovered}
-      onRemoveMark={onRemoveMark}
-      onMark={onMark}
-      onSelectMark={onSelectMark}
-      onPlay={onPlay}
-      setHovered={setHovered}
+      x={start * stretchX}
+      height={upperY}
+      active={marked}
+      dashed={segment.silent}
+      onClick={e => {
+        if (e.shiftKey && e.altKey) onRemoveMark()
+        else onMark()
+      }}
     />
   )
+
 
   return (
     <g>
@@ -168,18 +162,6 @@ export const Box = (props: BoxProps) => {
         }} />
 
       {!splitMode && markerLine}
-
-      {marker?.continuous && (
-        <text
-          x={start * stretchX}
-          y={upperY - 5}
-          fontSize={10}
-          textAnchor='middle'
-          fill='black'
-        >
-          c
-        </text>
-      )}
     </g>
   )
 }

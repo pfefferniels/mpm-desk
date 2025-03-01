@@ -1,13 +1,12 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { InsertTempoInstructions, Marker, SilentOnset, TempoWithEndDate, TranslatePhyiscalTimeToTicks, computeMillisecondsAt } from "mpmify/lib/transformers"
+import { ApproximateLogarithmicTempo, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
-import { Tempo } from "../../../mpm-ts/lib"
 import { Skyline } from "./Skyline"
-import { TempoCluster, extractTempoSegments, markerFromTempo } from "./Tempo"
+import { TempoCluster, extractTempoSegments } from "./Tempo"
 import { downloadAsFile } from "../utils"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
-import { MarkerDrawer } from "./MarkerDrawer"
+import { SyntheticLine } from "./SyntheticLine"
 
 export type TempoPoint = {
     date: number
@@ -17,64 +16,30 @@ export type TempoPoint = {
 
 export type TempoCurve = TempoWithEndDate & { startMs: number }
 
+export type TempoDeskMode = 'split' | 'curve' | undefined
+
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<InsertTempoInstructions | TranslatePhyiscalTimeToTicks>) => {
+export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
-    const [markers, setMarkers] = useState<Marker[]>([])
-    const [curves, setCurves] = useState<TempoCurve[]>([])
-    const [splitMode, setSplitMode] = useState(false)
+    const [segments, setSegments] = useState<TempoSegment[]>([])
+    const [mode, setMode] = useState<'split' | 'curve' | undefined>(undefined)
+
     const [stretchX, setStretchX] = useState(20)
     const [stretchY, setStretchY] = useState(1)
 
-    const [activeMarker, setActiveMarker] = useState<number | null>(null)
-
     useEffect(() => {
-        if (markers.length === 0) {
-            // TODO: make sure not to overwrite an existing tempo architecture
-            setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
-        }
-    }, [msm, part, markers])
+        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
+    }, [msm, part])
 
     useEffect(() => {
         if (!activeTransformer) return
-        if (activeTransformer instanceof InsertTempoInstructions) {
-            setMarkers(activeTransformer.options.markers as Marker[])
+        if (activeTransformer instanceof ApproximateLogarithmicTempo) {
+            setSegments(activeTransformer.options.segments as TempoSegment[])
         }
     }, [activeTransformer])
-
-    useEffect(() => {
-        const tempos = mpm.getInstructions<Tempo>('tempo', part)
-
-        const curves = []
-        let startMs = 0
-        for (let i = 0; i < tempos.length; i++) {
-            const tempo = tempos[i]
-
-            let endDate
-
-            const nextTempo = tempos[i + 1]
-            if (nextTempo) {
-                endDate = nextTempo.date
-            }
-            else {
-                endDate = Math.max(...msm.allNotes.map(n => n.date))
-            }
-
-            const tempoWithEndDate: TempoCurve = {
-                ...tempo,
-                endDate,
-                startMs
-            }
-
-            curves.push(tempoWithEndDate)
-            startMs += computeMillisecondsAt(endDate, tempoWithEndDate)
-        }
-
-        setCurves(curves)
-    }, [mpm, part, msm])
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -94,7 +59,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
             setTempoCluster(
                 new TempoCluster(json.tempoCluster)
             )
-            setMarkers(json.markers)
+            // setMarkers(json.markers)
             setSilentOnsets(json.silentOnsets)
         };
 
@@ -109,8 +74,8 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
     const insertTempoValues = () => {
         if (!tempoCluster) return
 
-        addTransformer(activeTransformer instanceof InsertTempoInstructions ? activeTransformer : new InsertTempoInstructions(), {
-            markers,
+        addTransformer(activeTransformer instanceof ApproximateLogarithmicTempo ? activeTransformer : new ApproximateLogarithmicTempo(), {
+            segments,
             part,
             silentOnsets
         })
@@ -134,7 +99,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                     variant='contained'
                     onClick={insertTempoValues}
                 >
-                    {activeTransformer instanceof InsertTempoInstructions ? 'Update' : 'Insert'} Tempo Instructions
+                    {activeTransformer instanceof ApproximateLogarithmicTempo ? 'Update' : 'Insert'} Tempo Instructions
                 </Button>
 
                 <Button
@@ -149,7 +114,6 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                     onClick={() => {
                         const json = {
                             tempoCluster: tempoCluster.segments,
-                            markers,
                             silentOnsets
                         }
 
@@ -180,12 +144,12 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                     variant='outlined'
                     color='warning'
                     onClick={() => {
-                        setMarkers(tempoCluster.segments.map(segment => {
-                            return markerFromTempo(segment)
-                        }))
+                        // setMarkers(tempoCluster.segments.map(segment => {
+                        //     return markerFromTempo(segment)
+                        // }))
                     }}
                 >
-                    Insert marker for every IOI
+                    Insert segment for every IOI
                 </Button>
 
                 <Button
@@ -219,26 +183,14 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                             setTempos={setTempoCluster}
                             stretchX={stretchX}
                             stretchY={stretchY}
-                            curves={curves}
-                            markers={markers}
-                            onMark={newMarker => {
-                                setMarkers([...markers, newMarker])
+                            onAddSegment={(from, to, beatLength) => {
+                                setSegments(prev => [...prev, {
+                                    startDate: from,
+                                    endDate: to,
+                                    beatLength
+                                }])
                             }}
-                            onSelectMark={toSelect => {
-                                setActiveMarker(toSelect.date)
-                            }}
-                            onRemoveMarker={toRemove => {
-                                setMarkers(prev => {
-                                    // there can be only one marker per date, 
-                                    // so this should be safe.
-                                    const index = markers.findIndex(marker => marker.date === toRemove.date)
-                                    if (index === -1) return prev
-
-                                    prev.splice(index, 1)
-                                    return [...prev]
-                                })
-                            }}
-                            splitMode={splitMode}
+                            mode={mode}
                             onSplit={(first, second) => {
                                 setSilentOnsets(prev => {
                                     const existing = prev.find(o => o.date === second.date.start)
@@ -256,7 +208,32 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                                 // tempoCluster.importSegments([first, second])
                                 setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
                             }}
-                        />
+                        >
+                            {segments.map((segment, i) => {
+                                const notes = msm.allNotes.filter(n => n.date >= segment.startDate && n.date <= segment.endDate)
+                                console.log('notes', notes, 'for segment', segment)
+                                if (notes.length < 2) return null
+
+                                return (
+                                    <SyntheticLine
+                                        key={`segment_${i}`}
+                                        notes={notes}
+                                        segment={segment}
+                                        stretchX={stretchX}
+                                        stretchY={stretchY}
+                                        onClick={(e) => {
+                                            if (e.altKey && e.shiftKey) {
+                                                setSegments(prev => prev.filter(s => s !== segment))
+                                                return
+                                            }
+                                        }}
+                                        onChange={(newSegment) => {
+                                            setSegments(prev => prev.map(s => s === segment ? newSegment : s))
+                                        }}
+                                    />
+                                )
+                            })}
+                        </Skyline>
                     )}
                 </div>
             </div>
@@ -265,27 +242,14 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                 <ToggleButton
                     value='check'
                     size='small'
-                    selected={splitMode}
-                    onChange={() => setSplitMode(!splitMode)}
+                    selected={mode === 'split'}
+                    onChange={() => mode === 'split' ? setMode(undefined) : setMode('split')}
                 >
                     Split Segment
                 </ToggleButton>
+                {segments.length}
             </div>
-
-            {activeMarker && (
-                <MarkerDrawer
-                    marker={markers.find(marker => marker.date === activeMarker)!}
-                    onClose={() => setActiveMarker(null)}
-                    onChange={(marker) => {
-                        setMarkers(prev => {
-                            const index = prev.findIndex(m => m.date === marker.date)
-                            prev[index] = marker
-                            return [...prev]
-                        })
-                    }}
-                />
-            )}
-        </div >
+        </div>
     )
 }
 

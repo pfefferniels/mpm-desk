@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Box } from "./Box"
-import { TempoSegment, TempoCluster, markerFromTempo, isWithinSegment, asBPM } from "./Tempo"
-import { TempoCurve } from "./TempoDesk"
-import { Marker } from "mpmify/lib/transformers"
-import { SyntheticLine } from "./SyntheticLine"
+import { TempoSegment, TempoCluster, isWithinSegment, asBPM } from "./Tempo"
+import { TempoDeskMode } from "./TempoDesk"
 import { asMIDI } from "../utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
@@ -29,22 +27,20 @@ const silentSegmentToNote = (s: TempoSegment) => {
 }
 
 interface SkylineProps {
+  mode: TempoDeskMode
+
   part: Scope
   tempos: TempoCluster
   setTempos: (newTempos: TempoCluster) => void
 
-  curves: TempoCurve[]
-
   stretchX: number
   stretchY: number
 
-  markers: Marker[]
-  onMark: (marker: Marker) => void
-  onSelectMark: (marker: Marker) => void
-  onRemoveMarker: (marker: Marker) => void
+  onAddSegment: (fromDate: number, toDate: number, beatLength: number) => void
 
-  splitMode: boolean
   onSplit: (first: TempoSegment, second: TempoSegment) => void
+
+  children: React.ReactNode
 }
 
 /**
@@ -53,11 +49,12 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  * 
  */
-export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSelectMark, onRemoveMarker, stretchX, stretchY, splitMode, onSplit }: SkylineProps) {
+export function Skyline({ part, tempos, setTempos, onAddSegment, stretchX, stretchY, mode, onSplit, children }: SkylineProps) {
   const { play, stop } = usePiano()
   const { slice } = useNotes()
 
   const [datePlayed, setDatePlayed] = useState<number>()
+  const [startMarker, setStartMarker] = useState<{ date: number, beatLength: number }>()
 
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
@@ -94,17 +91,6 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
     return () => document.removeEventListener('keydown', escFunction, false)
   }, [tempos, escFunction])
 
-  const syntheticLines = useMemo(() => {
-    return curves.map((c, i) => (
-      <SyntheticLine
-        key={`curve_${i}`}
-        stretchX={stretchX}
-        stretchY={stretchY}
-        curve={c}
-      />
-    ))
-  }, [curves, stretchX, stretchY])
-
   const startX = stretchX * tempos.startOnset
   const endX = stretchX * tempos.endOnset
   const width = endX - startX
@@ -135,21 +121,28 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
       />
 
       {tempos?.sort().map((tempo: TempoSegment, index: number) => {
-        const correspondingMarker = markerFromTempo(tempo)
-
         return (
           <Box
             key={`box${index}`}
             segment={tempo}
             stretchX={stretchX || 0}
             stretchY={stretchY || 0}
-            marker={markers.find(marker => marker.date === correspondingMarker.date && marker.beatLength === correspondingMarker.beatLength)}
+            marked={startMarker?.date === tempo.date.start}
             onPlay={handlePlay}
             onStop={stop}
             played={datePlayed ? isWithinSegment(datePlayed, tempo) : false}
-            onMark={() => onMark(correspondingMarker)}
-            onSelectMark={() => onSelectMark(correspondingMarker)}
-            onRemoveMark={() => onRemoveMarker(correspondingMarker)}
+            onMark={() => {
+              if (startMarker) {
+                onAddSegment(startMarker.date, tempo.date.end, startMarker.beatLength)
+                setStartMarker(undefined)
+              }
+              else {
+                setStartMarker({ date: tempo.date.start, beatLength: tempo.date.end - tempo.date.start })
+              }
+            }}
+            onRemoveMark={() => {
+              setStartMarker(undefined)
+            }}
             onSelect={() => {
               tempos.unselectAll()
               const tempoClone = structuredClone(tempo)
@@ -169,15 +162,16 @@ export function Skyline({ part, tempos, setTempos, curves, markers, onMark, onSe
             onRemove={() => {
               tempos.removeTempo(tempo)
               // make sure to leave no markers without a referenced tempo
-              onRemoveMarker(correspondingMarker)
+              // onRemoveMarker(correspondingMarker)
               setTempos(new TempoCluster(tempos.segments))
             }}
-            splitMode={splitMode}
-            onSplit={onSplit} />
+            splitMode={mode === 'split'}
+            onSplit={onSplit}
+          />
         )
       })}
 
-      {syntheticLines}
+      {children}
     </svg>
   )
 }
