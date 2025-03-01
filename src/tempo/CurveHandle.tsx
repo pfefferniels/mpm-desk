@@ -7,6 +7,7 @@ interface CurveHandleProps {
 }
 
 export const CurveHandle = ({ x, y, onDrag }: CurveHandleProps) => {
+    const [hovered, setHovered] = useState(false);
     const [dragging, setDragging] = useState(false);
     const [currentY, setCurrentY] = useState(y);
     const [offsetY, setOffsetY] = useState(0);
@@ -48,8 +49,11 @@ export const CurveHandle = ({ x, y, onDrag }: CurveHandleProps) => {
             cx={x}
             cy={currentY}
             r={5}
-            fill="black"
+            fill='red'
             onMouseDown={handleMouseDown}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            fillOpacity={hovered ? 1 : 0.5}
         />
     );
 };
