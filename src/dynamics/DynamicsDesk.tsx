@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dynamics } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI, downloadAsFile } from "../utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
-import { expandRange, Range } from "../tempo/Tempo";
+import { Range } from "../tempo/Tempo";
 import { DynamicsWithEndDate, InsertDynamicsInstructions } from "mpmify/lib/transformers";
 import { Box, Button, Stack, ToggleButton } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
@@ -46,17 +46,45 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
 
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
-    const [editMode, setCombinationMode] = useState(false)
+    const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
+    const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
+    const [phantomMode, setPhantomMode] = useState(false)
     const [markers, setMarkers] = useState<number[]>([])
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
     const [stretchX, setStretchX] = useState(0.03)
+
+    const svgRef = useRef<SVGSVGElement>(null);
 
     useEffect(() => {
         if (!activeTransformer) return
         if (activeTransformer instanceof InsertDynamicsInstructions) {
             setMarkers(activeTransformer.options.markers)
+            setPhantomVelocities(activeTransformer.options.phantomVelocities)
         }
     }, [activeTransformer])
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+
+            e.preventDefault()
+            if (!currentPhantomDate || !phantomMode) return
+
+            setPhantomVelocities(prev => {
+                const entry = prev.get(currentPhantomDate)
+                if (entry === undefined) return prev
+
+                prev.set(currentPhantomDate, entry + (e.key === 'ArrowUp' ? 1 : -1))
+                return new Map(prev)
+            })
+        }
+
+        window.addEventListener("keydown", handleKeyDown);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [currentPhantomDate, phantomMode]);
 
     useEffect(() => {
         setMarkers([])
@@ -103,6 +131,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
     const handleInsert = () => {
         addTransformer(activeTransformer || new InsertDynamicsInstructions(), {
             markers,
+            phantomVelocities,
             scope: part
         })
     }
@@ -143,38 +172,13 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
     }
 
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
-        if (!editMode) {
-            insertMarker(segment.date.start)
+        if (phantomMode) {
+            phantomVelocities.set(segment.date.start, segment.velocity)
+            setPhantomVelocities(new Map(phantomVelocities))
+            setCurrentPhantomDate(segment.date.start)
             return
         }
-
-        if (e.altKey && e.shiftKey) {
-            const index = segments.indexOf(segment)
-            if (index !== -1) {
-                segments.splice(index, 1)
-                setSegments([...segments])
-            }
-        }
-        if (e.shiftKey) {
-            const active = segments.find(s => s.active)
-            if (!active) return
-            active.date = expandRange(active.date, segment.date)
-            active.velocity = (active.velocity + segment.velocity) / 2
-            setSegments([...segments])
-        }
-        else {
-            const active = segments.find(s => s.active)
-            if (active) active.active = false
-
-            setSegments([...segments, {
-                date: {
-                    start: segment.date.start,
-                    end: segment.date.end
-                },
-                velocity: segment.velocity,
-                active: true
-            }])
-        }
+        insertMarker(segment.date.start)
     }
 
     const circles: JSX.Element[] = segments.map((segment, i) => {
@@ -188,6 +192,21 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
                 handlePlay={handlePlay}
                 handleClick={handleClick}
             />
+        )
+    })
+
+    phantomVelocities.forEach((velocity, date) => {
+        circles.push(
+            <text
+                key={`phantom_velocity_${date}`}
+                x={date * stretchX}
+                y={(127 - velocity) * stretchY}
+                fill='darkred'
+                textAnchor='middle'
+                dominantBaseline='middle'
+            >
+                x
+            </text>
         )
     })
 
@@ -259,14 +278,18 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
                 <ToggleButton
                     value='check'
                     size='small'
-                    selected={editMode}
-                    onChange={() => setCombinationMode(!editMode)}
+                    selected={phantomMode}
+                    onChange={() => setPhantomMode(!phantomMode)}
                 >
-                    Edit Volumes
+                    Edit Velocity
                 </ToggleButton>
+                <Button onClick={() => setPhantomVelocities(new Map())}>
+                    Clear Phantoms
+                </Button>
             </Stack>
 
             <svg
+                ref={svgRef}
                 width={8000 + margin}
                 height={300 + margin}
                 viewBox={
