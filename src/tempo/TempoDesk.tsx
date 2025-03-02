@@ -44,6 +44,7 @@ export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: Scop
         if (!activeTransformer) return
         if (activeTransformer instanceof ApproximateLogarithmicTempo) {
             setSegments(activeTransformer.options.segments as TempoSegment[])
+            setSilentOnsets(activeTransformer.options.silentOnsets as SilentOnset[])
         }
     }, [activeTransformer])
 
