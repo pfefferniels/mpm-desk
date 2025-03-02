@@ -1,6 +1,5 @@
 import { MSM } from "mpmify"
 import { Scope } from "../../../mpm-ts/lib"
-import { Marker } from "mpmify/lib/transformers"
 
 export type Range = {
     start: number
@@ -117,11 +116,12 @@ export class TempoCluster {
         }
     }
 
-    sort() {
+    sort(backwards?: boolean) {
         return this.segments.sort((a, b) => {
             if (a.selected !== b.selected) {
                 return a.selected ? 1 : -1
             }
+            if (backwards) return (b.date.start - a.date.start) || asBPM(b.date) - asBPM(a.date)
             return (a.date.start - b.date.start) || asBPM(b.date) - asBPM(a.date)
         })
     }
@@ -180,14 +180,6 @@ export class TempoCluster {
 
 export const isWithinSegment = (date: number, segment: TempoSegment) => {
     return (date >= segment.date.start) && (date < segment.date.end)
-}
-
-export const markerFromTempo = (tempo: TempoSegment): Marker => {
-    return {
-        date: tempo.date.start,
-        beatLength: tempo.date.end - tempo.date.start,
-        continuous: false
-    }
 }
 
 export const isShallowEqual = <T extends object,>(obj1: T, obj2: T) =>

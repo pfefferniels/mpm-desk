@@ -39,7 +39,6 @@ export const CurveHandle = ({ x, y, onDrag }: CurveHandleProps) => {
     }, [dragging, offsetY, onDrag]);
 
     const handleMouseDown: MouseEventHandler<SVGCircleElement> = (e) => {
-        // Calculate the difference between the mouse position and the current handle position
         setOffsetY(e.clientY - currentY);
         setDragging(true);
     };
@@ -48,7 +47,7 @@ export const CurveHandle = ({ x, y, onDrag }: CurveHandleProps) => {
         <circle
             cx={x}
             cy={currentY}
-            r={5}
+            r={4}
             fill='red'
             onMouseDown={handleMouseDown}
             onMouseEnter={() => setHovered(true)}

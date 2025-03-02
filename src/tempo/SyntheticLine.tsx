@@ -1,14 +1,14 @@
-import { approximateTempo, computeMillisecondsAt, getTempoAt, TempoSegment, TempoWithEndDate } from "mpmify"
+import { approximateTempo, computeMillisecondsAt, getTempoAt, Point, TempoSegment, TempoWithEndDate } from "mpmify"
 import { TempoPoint } from "./TempoDesk"
 import { MouseEventHandler, useCallback, useEffect, useState } from "react"
-import { MsmNote } from "mpmify/lib/msm"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { asMIDI } from "../utils"
 import { CurveHandle } from "./CurveHandle"
 
 interface SyntheticLineProps {
-    notes: MsmNote[]
+    points: Point[]
+    startTime: number
     segment: TempoSegment
     onChange: (newSegment: TempoSegment) => void
     stretchX: number
@@ -16,7 +16,7 @@ interface SyntheticLineProps {
     onClick: MouseEventHandler
 }
 
-export const SyntheticLine = ({ notes, segment, stretchX, stretchY, onClick, onChange }: SyntheticLineProps) => {
+export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, onClick, onChange }: SyntheticLineProps) => {
     const [hovered, setHovered] = useState(false)
     const [tempo, setTempo] = useState<TempoWithEndDate>()
 
@@ -65,31 +65,34 @@ export const SyntheticLine = ({ notes, segment, stretchX, stretchY, onClick, onC
     }, [tempo, play, stop, slice])
 
     useEffect(() => {
-        const firstOnset = notes[0]['midi.onset']
         setTempo(
             approximateTempo(
-                notes
-                    .map(n => [n.date, (n["midi.onset"] - firstOnset) * 1000] as [number, number])
-                    .filter((item, index, self) => self.findIndex(i => i[0] === item[0]) === index),
+                points,
                 segment.startBPM,
                 segment.endBPM,
                 segment.meanTempoAt,
-                segment.beatLength / 4 / 720
+                segment.beatLength
             )
         )
-    }, [notes, segment])
+    }, [points, segment])
 
     if (!tempo) return null
 
     const step = 20
-    const points: TempoPoint[] = []
+    const curvePoints: TempoPoint[] = []
     for (let i = tempo.date; i <= tempo.endDate; i += step) {
-        points.push({
+        curvePoints.push({
             date: i,
-            time: notes[0]['midi.onset'] + (computeMillisecondsAt(i, tempo) / 1000),
+            time: startTime + (computeMillisecondsAt(i, tempo)) / 1000,
             bpm: getTempoAt(i, tempo)
         })
     }
+
+    if (curvePoints.length === 0) return null
+
+    const meanTempoDate = (tempo.endDate - tempo.date) * (tempo.meanTempoAt || 0.5)
+    const meanTempoMs = (points[0][0] * 1000) + computeMillisecondsAt(tempo.date + meanTempoDate, tempo)
+    const meanTempo = (tempo["transition.to"] || tempo.bpm) + 0.5 * (tempo.bpm - (tempo["transition.to"] || tempo.bpm))
 
     return (
         <g
@@ -100,40 +103,35 @@ export const SyntheticLine = ({ notes, segment, stretchX, stretchY, onClick, onC
             onMouseEnter={handlePlay}
             onMouseLeave={stop}
         >
-            <CurveHandle
-                x={points[0].time * stretchX}
-                y={-stretchY * points[0].bpm}
-                onDrag={(newY) => {
-                    const newBPM = -newY / stretchY
-                    onChange({
-                        ...segment,
-                        startBPM: newBPM
-                    })
-                }}
-            />
-            <CurveHandle
-                x={points[points.length - 1].time * stretchX}
-                y={-stretchY * points[points.length - 1].bpm}
-                onDrag={(newY) => {
-                    const newBPM = -newY / stretchY
-                    onChange({
-                        ...segment,
-                        endBPM: newBPM
-                    })
-                }}
-            />
-
             {hovered && (
                 <>
-                    <text x={points[0].time * stretchX} y={-stretchY * points[0].bpm - 10} fontSize={12}>
+                    <text x={curvePoints[0].time * stretchX} y={-stretchY * curvePoints[0].bpm - 10} fontSize={12}>
                         {tempo.bpm.toFixed(2)}
                     </text>
-                    <text x={points[points.length - 1].time * stretchX} y={-stretchY * points[points.length - 1].bpm - 10} fontSize={12}>
+                    <text x={curvePoints[curvePoints.length - 1].time * stretchX} y={-stretchY * curvePoints[curvePoints.length - 1].bpm - 10} fontSize={12}>
                         {tempo["transition.to"]?.toFixed(2)}
                     </text>
+
+                    <circle
+                        cx={(meanTempoMs / 1000) * stretchX}
+                        cy={meanTempo * -stretchY}
+                        r={5}
+                        fill="lightcoral"
+                    />
+
+                    {tempo.meanTempoAt && (
+                        <text
+                            x={(meanTempoMs / 1000) * stretchX}
+                            y={meanTempo * -stretchY - 10}
+                            fontSize={12}
+                        >
+                            {tempo.meanTempoAt.toFixed(2)}
+                        </text>
+                    )}
                 </>
             )}
-            {points.map((p, i, arr) => {
+
+            {curvePoints.map((p, i, arr) => {
                 if (i >= arr.length - 1) return null
 
                 return (
@@ -145,9 +143,33 @@ export const SyntheticLine = ({ notes, segment, stretchX, stretchY, onClick, onC
                         y2={arr[i + 1].bpm * -stretchY}
                         strokeWidth={hovered ? 3 : 2}
                         stroke="black"
+                        strokeOpacity={hovered ? 1 : 0.5}
                     />
                 )
             })}
+
+            <CurveHandle
+                x={curvePoints[0].time * stretchX}
+                y={-stretchY * curvePoints[0].bpm}
+                onDrag={(newY) => {
+                    const newBPM = -newY / stretchY
+                    onChange({
+                        ...segment,
+                        startBPM: newBPM
+                    })
+                }}
+            />
+            <CurveHandle
+                x={curvePoints[curvePoints.length - 1].time * stretchX}
+                y={-stretchY * curvePoints[curvePoints.length - 1].bpm}
+                onDrag={(newY) => {
+                    const newBPM = -newY / stretchY
+                    onChange({
+                        ...segment,
+                        endBPM: newBPM
+                    })
+                }}
+            />
         </g>
     )
 }

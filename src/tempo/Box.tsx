@@ -1,6 +1,5 @@
 import { MouseEventHandler, useState } from "react"
 import { TempoSegment, asBPM } from "./Tempo"
-import { MarkerLine } from "./MarkerLine"
 
 type BoxProps = {
   segment: TempoSegment
@@ -12,9 +11,7 @@ type BoxProps = {
   onStop: () => void
   played: boolean
 
-  marked: boolean
-  onMark: () => void
-  onRemoveMark: () => void
+  marker: JSX.Element | false
 
   onExpand: () => void
   onSelect: () => void
@@ -39,7 +36,7 @@ export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [splitTime, setSplitTime] = useState<number>()
 
-  const { segment, stretchX, stretchY, marked, onPlay, onStop, played, onMark, onRemoveMark, onExpand, onSelect, onRemove, splitMode, onSplit } = props
+  const { segment, stretchX, stretchY, marker, onPlay, onStop, played, onExpand, onSelect, onRemove, splitMode, onSplit } = props
   const { time, selected } = segment
   const { start, end } = time
 
@@ -61,11 +58,9 @@ export const Box = (props: BoxProps) => {
     onPlay: () => { },
     onStop: () => { },
     onExpand: () => { },
-    onMark: () => { },
+    marker,
     onRemove: () => { },
-    marked: false,
     onSelect: () => { },
-    onRemoveMark: () => { },
     splitMode: false,
     onSplit: () => { }
   }
@@ -94,20 +89,6 @@ export const Box = (props: BoxProps) => {
     }
   }
 
-  const markerLine = (
-    <MarkerLine
-      x={start * stretchX}
-      height={upperY}
-      active={marked}
-      dashed={segment.silent}
-      onClick={e => {
-        if (e.shiftKey && e.altKey) onRemoveMark()
-        else onMark()
-      }}
-    />
-  )
-
-
   return (
     <g>
       {splitTime && (
@@ -123,7 +104,38 @@ export const Box = (props: BoxProps) => {
         </>
       )}
 
-      {splitMode && markerLine}
+      {splitMode && marker}
+
+      {hovered && (
+        <>
+          <text
+            x={start * stretchX}
+            y={upperY - 5}
+            dominantBaseline='hanging'
+            fontSize={8}
+            transform={`rotate(-90, ${start * stretchX}, ${upperY - 5})`}
+          >
+            {segment.date.start}
+          </text>
+          <text
+            x={end * stretchX}
+            y={upperY - 5}
+            fontSize={8}
+            transform={`rotate(-90, ${end * stretchX}, ${upperY - 5})`}
+          >
+            {segment.date.end}
+          </text>
+            <text
+            x={-10}
+            y={upperY - 5}
+            fontSize={10}
+            textAnchor="end"
+            fontWeight="bold"
+            >
+            {bpm.toFixed(0)}
+          </text>
+        </>
+      )}
 
       <polygon
         className='box'
@@ -137,7 +149,7 @@ export const Box = (props: BoxProps) => {
         ].join(' ')}
         fill={played ? 'blue' : (hovered ? 'lightgray' : 'white')}
         fillOpacity={0.4}
-        stroke={'black'}
+        stroke='black'
         strokeDasharray={segment.silent ? '1 1' : undefined}
         strokeWidth={selected ? 2 : 1}
         onMouseMove={handleMouseMove}
@@ -161,7 +173,7 @@ export const Box = (props: BoxProps) => {
           }
         }} />
 
-      {!splitMode && markerLine}
+      {!splitMode && marker}
     </g>
   )
 }

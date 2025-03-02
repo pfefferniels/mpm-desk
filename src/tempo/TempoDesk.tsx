@@ -1,5 +1,5 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { ApproximateLogarithmicTempo, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
+import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments } from "./Tempo"
@@ -7,6 +7,7 @@ import { downloadAsFile } from "../utils"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { SyntheticLine } from "./SyntheticLine"
+import { Clear } from "@mui/icons-material"
 
 export type TempoPoint = {
     date: number
@@ -21,7 +22,7 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
+export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [segments, setSegments] = useState<TempoSegment[]>([])
@@ -31,7 +32,12 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
     const [stretchY, setStretchY] = useState(1)
 
     useEffect(() => {
-        setTempoCluster(new TempoCluster(extractTempoSegments(msm, part)))
+        msm.shiftToFirstOnset()
+
+        setTempoCluster((prev) => {
+            if (prev.segments.length > 0) return prev
+            return new TempoCluster(extractTempoSegments(msm, part))
+        })
     }, [msm, part])
 
     useEffect(() => {
@@ -142,26 +148,13 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                 <Button
                     size='small'
                     variant='outlined'
-                    color='warning'
-                    onClick={() => {
-                        // setMarkers(tempoCluster.segments.map(segment => {
-                        //     return markerFromTempo(segment)
-                        // }))
-                    }}
-                >
-                    Insert segment for every IOI
-                </Button>
-
-                <Button
-                    size='small'
-                    variant='outlined'
                     color='error'
                     onClick={() => {
-                        mpm.removeInstructions('tempo', part)
-                        setMPM(mpm.clone())
+                        setSegments([])
                     }}
+                    startIcon={<Clear />}
                 >
-                    Remove Instruction
+                    Clear Segments
                 </Button>
             </Stack>
 
@@ -187,7 +180,7 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                                 setSegments(prev => [...prev, {
                                     startDate: from,
                                     endDate: to,
-                                    beatLength
+                                    beatLength: beatLength / 4 / 720,
                                 }])
                             }}
                             mode={mode}
@@ -210,15 +203,31 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                             }}
                         >
                             {segments.map((segment, i) => {
-                                const notes = msm.allNotes.filter(n => n.date >= segment.startDate && n.date <= segment.endDate)
-                                console.log('notes', notes, 'for segment', segment)
-                                if (notes.length < 2) return null
+                                console.log('silent onsets', silentOnsets)
+                                // const firstOnset = msm.notesAtDate(0, part)[0]?.['midi.onset'] || 0
+
+                                const segmentWithPoints = pointsWithinSegment(
+                                    segment,
+                                    msm.notesInPart(part),
+                                    silentOnsets.map(o => ({
+                                        ...o,
+                                        onset: o.onset
+                                    }))
+                                )
+
+                                let startTime: number | undefined = msm.notesAtDate(segment.startDate, part)[0]?.['midi.onset']
+                                if (startTime === undefined) {
+                                    startTime = silentOnsets.find(o => o.date === segment.startDate)?.onset
+                                }
+
+                                startTime = (startTime || 0)
 
                                 return (
                                     <SyntheticLine
                                         key={`segment_${i}`}
-                                        notes={notes}
+                                        points={segmentWithPoints.points}
                                         segment={segment}
+                                        startTime={startTime}
                                         stretchX={stretchX}
                                         stretchY={stretchY}
                                         onClick={(e) => {
@@ -247,7 +256,6 @@ export const TempoDesk = ({ mpm, msm, setMPM, addTransformer, part, activeTransf
                 >
                     Split Segment
                 </ToggleButton>
-                {segments.length}
             </div>
         </div>
     )

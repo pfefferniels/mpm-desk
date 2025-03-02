@@ -8,6 +8,7 @@ import { useNotes } from "../hooks/NotesProvider"
 import { Scope } from "../DeskSwitch"
 import { VerticalScale } from "./VerticalScale"
 import HorizontalScale from "./HorizontalScale"
+import { MarkerLine } from "./MarkerLine"
 
 const silentSegmentToNote = (s: TempoSegment) => {
   return ({
@@ -120,29 +121,36 @@ export function Skyline({ part, tempos, setTempos, onAddSegment, stretchX, stret
         offset={Math.max(...(tempos.sort().map(t => t.time.end))) || 0}
       />
 
-      {tempos?.sort().map((tempo: TempoSegment, index: number) => {
+      {tempos?.sort(!!startMarker).map((tempo: TempoSegment, index: number) => {
         return (
           <Box
             key={`box${index}`}
             segment={tempo}
             stretchX={stretchX || 0}
             stretchY={stretchY || 0}
-            marked={startMarker?.date === tempo.date.start}
             onPlay={handlePlay}
             onStop={stop}
             played={datePlayed ? isWithinSegment(datePlayed, tempo) : false}
-            onMark={() => {
-              if (startMarker) {
-                onAddSegment(startMarker.date, tempo.date.end, startMarker.beatLength)
-                setStartMarker(undefined)
-              }
-              else {
-                setStartMarker({ date: tempo.date.start, beatLength: tempo.date.end - tempo.date.start })
-              }
-            }}
-            onRemoveMark={() => {
-              setStartMarker(undefined)
-            }}
+            marker={
+              <MarkerLine
+                x={((startMarker === undefined || startMarker.date === tempo.date.start) ? tempo.time.start : tempo.time.end) * stretchX}
+                height={asBPM(tempo.time) * -stretchY}
+                dashed={tempo.silent}
+                active={startMarker?.date === tempo.date.start}
+                onClick={e => {
+                  if (e.shiftKey && e.altKey) setStartMarker(undefined)
+                  else {
+                    if (startMarker) {
+                      onAddSegment(startMarker.date, tempo.date.end, startMarker.beatLength)
+                      setStartMarker(undefined)
+                    }
+                    else {
+                      setStartMarker({ date: tempo.date.start, beatLength: tempo.date.end - tempo.date.start })
+                    }
+                  }
+                }}
+              />
+            }
             onSelect={() => {
               tempos.unselectAll()
               const tempoClone = structuredClone(tempo)

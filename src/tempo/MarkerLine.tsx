@@ -19,7 +19,7 @@ export const MarkerLine: React.FC<MarkerLineProps> = (props: MarkerLineProps) =>
     y1={0}
     y2={height}
     stroke={active ? 'red' : 'black'}
-    strokeWidth={(hovered || active) ? 3 : 1}
+    strokeWidth={(hovered || active) ? 5 : 1}
     strokeOpacity={hovered ? 0.3 : 0.8}
     strokeDasharray={dashed ? '1 1' : undefined}
     onMouseOver={() => {

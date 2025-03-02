@@ -26,6 +26,7 @@ export const VerticalScale: React.FC<VerticalScaleProps> = ({ stretchY, maxTempo
                     textAnchor="end"
                     fontSize="10"
                     fill="black"
+                    fillOpacity={0.25}
                 >
                     {i.toFixed(0)}
                 </text>
