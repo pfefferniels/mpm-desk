@@ -1,5 +1,6 @@
 import { AccentuationCell } from "mpmify";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
+import { MouseEventHandler } from "react";
 
 // Convex Hull using the Monotone Chain algorithm
 const convexHull = (points: { x: number, y: number }[]): { x: number, y: number }[] => {
@@ -35,11 +36,10 @@ interface CellProps {
     stretchX: number;
     getScreenY: (velocity: number) => number;
     segments: DynamicsSegment[];
-    setCells: React.Dispatch<React.SetStateAction<AccentuationCell[]>>;
-    setCurrentCell: React.Dispatch<React.SetStateAction<AccentuationCell | undefined>>;
+    onClick: MouseEventHandler;
 }
 
-export const Cell = ({ cell, stretchX, getScreenY, segments, setCells, setCurrentCell }: CellProps) => {
+export const Cell = ({ cell, stretchX, getScreenY, segments, onClick }: CellProps) => {
     const cellPoints = segments
         .filter(s => s.date.start >= cell.start && s.date.start <= cell.end)
         .map(s => ({ x: s.date.start * stretchX, y: getScreenY(s.velocity) }));
@@ -52,13 +52,7 @@ export const Cell = ({ cell, stretchX, getScreenY, segments, setCells, setCurren
                 r={5}
                 fill="red"
                 fillOpacity={0.5}
-                onClick={(e) => {
-                    if (e.altKey && e.shiftKey) {
-                        setCells(prevCells => prevCells.filter(c => c !== cell));
-                    } else {
-                        setCurrentCell(cell);
-                    }
-                }}
+                onClick={onClick}
             />
         )
     }
@@ -79,13 +73,7 @@ export const Cell = ({ cell, stretchX, getScreenY, segments, setCells, setCurren
             points={pointsStr}
             fill='red'
             fillOpacity={0.5}
-            onClick={(e) => {
-                if (e.altKey && e.shiftKey) {
-                    setCells(prevCells => prevCells.filter(c => c !== cell));
-                } else {
-                    setCurrentCell(cell);
-                }
-            }}
+            onClick={onClick}
         />
     );
 }

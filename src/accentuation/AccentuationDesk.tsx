@@ -13,6 +13,7 @@ import { Pattern } from "./Pattern";
 import { Cell } from "./Cell";
 import { Delete } from "@mui/icons-material";
 import { ZoomControls } from "../ZoomControls";
+import { CellDrawer } from "./CellDrawer";
 
 const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     const segments: DynamicsSegment[] = []
@@ -259,8 +260,14 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                             stretchX={stretchX}
                             getScreenY={getScreenY}
                             segments={segments}
-                            setCells={setCells}
-                            setCurrentCell={setCurrentCell}
+                            onClick={(e) => {
+                                console.log('onClick!!')
+                                if (e.altKey && e.shiftKey) {
+                                    setCells(prevCells => prevCells.filter(c => c !== cell));
+                                } else {
+                                    setCurrentCell(cell);
+                                }
+                            }}
                         />
                     )
                 })}
@@ -281,9 +288,19 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                 {circles}
             </svg>
 
-            <Box sx={{ m: 1 }}>
-                {currentCell && `Current cell: ${currentCell.start} - ${currentCell.end}`}
-            </Box>
+            {currentCell && (
+                <CellDrawer
+                    cell={currentCell}
+                    open={true}
+                    onClose={() => setCurrentCell(undefined)}
+                    onChange={(cell) => {
+                        setCurrentCell(cell)
+                        setCells(cells.map(c => c === currentCell ? cell : c))
+                    }}
+                />
+            )}
+
+            {currentCell && currentCell.start}
         </div>
     )
 }
