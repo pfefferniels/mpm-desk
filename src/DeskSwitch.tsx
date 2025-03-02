@@ -9,7 +9,7 @@ import { RubatoDesk } from "./rubato/RubatoDesk";
 import { MetadataDesk } from "./metadata/MetadataDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
-import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation } from "mpmify";
+import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks } from "mpmify";
 import { ScopedTransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { TabPanel } from "./TabPanel";
 import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
@@ -45,6 +45,7 @@ export type AnyTransformer =
     | typeof CombineAdjacentRubatos
     | typeof StylizeOrnamentation
     | typeof StylizeArticulation
+    | typeof TranslatePhyiscalTimeToTicks
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
