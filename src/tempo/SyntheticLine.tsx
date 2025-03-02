@@ -1,4 +1,4 @@
-import { approximateTempo, computeMillisecondsAt, getTempoAt, Point, TempoSegment, TempoWithEndDate } from "mpmify"
+import { approximateTempo, computeMillisecondsAt, computeTotalError, getTempoAt, Point, TempoSegment, TempoWithEndDate } from "mpmify"
 import { TempoPoint } from "./TempoDesk"
 import { MouseEventHandler, useCallback, useEffect, useState } from "react"
 import { usePiano } from "react-pianosound"
@@ -94,6 +94,12 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
     const meanTempoMs = (points[0][0] * 1000) + computeMillisecondsAt(tempo.date + meanTempoDate, tempo)
     const meanTempo = (tempo["transition.to"] || tempo.bpm) + 0.5 * (tempo.bpm - (tempo["transition.to"] || tempo.bpm))
 
+    const totalError = computeTotalError(tempo, points)
+    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+    const t = clamp((totalError - 200) / (1000 - 200), 0, 1)
+    const hue = (1 - t) * 120  // 120 => green, 0 => red
+    const color = `hsl(${hue}, 85%, 30%)`
+
     return (
         <g
             className='syntheticLine'
@@ -142,8 +148,8 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                         x2={arr[i + 1].time * stretchX}
                         y2={arr[i + 1].bpm * -stretchY}
                         strokeWidth={hovered ? 3 : 2}
-                        stroke="black"
-                        strokeOpacity={hovered ? 1 : 0.5}
+                        stroke={color}
+                        strokeOpacity={hovered ? 1 : 0.7}
                     />
                 )
             })}
