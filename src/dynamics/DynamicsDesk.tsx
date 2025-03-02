@@ -181,8 +181,31 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
         insertMarker(segment.date.start)
     }
 
-    const circles: JSX.Element[] = segments.map((segment, i) => {
-        return (
+    const circles: JSX.Element[] = []
+
+    phantomVelocities.forEach((velocity, date) => {
+        circles.push(
+            <text
+                key={`phantom_velocity_${date}`}
+                x={date * stretchX}
+                y={(127 - velocity) * stretchY}
+                fill='darkred'
+                textAnchor='middle'
+                dominantBaseline='middle'
+                onClick={(e) => {
+                    if (e.altKey && e.shiftKey) {
+                        phantomVelocities.delete(date)
+                        setPhantomVelocities(new Map(phantomVelocities))
+                    }
+                }}
+            >
+                x
+            </text>
+        )
+    })
+
+    segments.forEach((segment, i) => {
+        circles.push(
             <DynamicsCircle
                 key={`velocity_segment_${segment.date}_${i}`}
                 segment={segment}
@@ -195,20 +218,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
         )
     })
 
-    phantomVelocities.forEach((velocity, date) => {
-        circles.push(
-            <text
-                key={`phantom_velocity_${date}`}
-                x={date * stretchX}
-                y={(127 - velocity) * stretchY}
-                fill='darkred'
-                textAnchor='middle'
-                dominantBaseline='middle'
-            >
-                x
-            </text>
-        )
-    })
 
     const markerLines = markers.map(date => {
         return (
