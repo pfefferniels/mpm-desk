@@ -110,9 +110,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                 const partial: Partial<MsmNote> = { ...n }
                 delete partial['midi.onset']
                 delete partial['midi.duration']
-                if (partial['midi.velocity']) {
-                    partial['midi.velocity'] -= n.absoluteVelocityChange || 0
-                }
+                partial['midi.velocity'] = (partial['midi.velocity'] || 60) + (n.absoluteVelocityChange || 0)
                 return partial as Omit<MsmNote, 'midi.onset' | 'midi.duration'>
             })
 
