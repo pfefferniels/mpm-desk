@@ -18,6 +18,7 @@ import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish
 import { isTransformerData } from "./transformer-data";
 import { TransformerListItem } from "./TransformerListItem";
 import { useRef } from "react";
+import { v4 } from "uuid";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -49,7 +50,7 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
         }
 
         const json = JSON.stringify(transformers.map(t => ({
-            id: t.id,
+            id: t.id || v4(),
             name: t.name,
             options: t.options
         })), replacer, 2);
@@ -134,7 +135,7 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                             else {
                                 return null;
                             }
-                            transformer.id = t.id;
+                            transformer.id = t.id || v4();
                             transformer.options = t.options;
                             return transformer;
                         })
