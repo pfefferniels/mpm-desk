@@ -4,7 +4,7 @@ import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI } from "../utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
-import { Box, Button, Slider, Stack, Typography } from "@mui/material";
+import { Box, Button, Stack } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume } from "mpmify";
@@ -36,7 +36,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | InsertRelativeVolume>) => {
+export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | InsertRelativeVolume>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -46,7 +46,8 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     const [cells, setCells] = useState<AccentuationCell[]>([])
     const [currentCell, setCurrentCell] = useState<AccentuationCell>()
 
-    const [scaleTolerance, setScaleTolerance] = useState(1.5)
+    const [lowerLimit, setLowerLimit] = useState<number>()
+    const [upperLimit, setUpperLimit] = useState<number>()
 
     const [stretchX, setStretchX] = useState(0.03)
 
@@ -55,6 +56,17 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
 
     const getScreenY = (velocity: number) => {
         return (1 - velocity) * stretchY + 100
+    }
+
+    const avgCellVelocity = (cells: AccentuationCell[]): number => {
+        const avgs = cells.map(cell => {
+            return segments
+                .filter(s => s.date.start >= cell.start && s.date.start <= cell.end)
+                .map(s => (s.velocity))
+        }).flat()
+
+        const sum = avgs.reduce((acc, vel) => acc + vel, 0)
+        return sum / cells.length
     }
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
@@ -67,12 +79,17 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
         }
     }, [activeTransformer])
 
-    const handleMetricalAccentuation = () => {
-        addTransformer(activeTransformer instanceof InsertMetricalAccentuation ? activeTransformer : new InsertMetricalAccentuation(), {
-            cells,
-            scaleTolerance,
+    const handleRelativeVolume = () => {
+        addTransformer(activeTransformer instanceof InsertRelativeVolume ? activeTransformer : new InsertRelativeVolume(), {
             scope: part,
-            neutralEnd: true
+            noteIDs: cells.map(c => {
+                return msm
+                    .notesInPart(part)
+                    .filter(n => n.date >= c.start && n.date <= c.end)
+                    .map(n => n["xml:id"])
+            }).flat(),
+            // lowerLimit,
+            // upperLimit
         })
     }
 
@@ -82,7 +99,9 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                 const partial: Partial<MsmNote> = { ...n }
                 delete partial['midi.onset']
                 delete partial['midi.duration']
-                partial['midi.velocity'] = 40 + (n.absoluteVelocityChange || 0)
+                if (partial['midi.velocity']) {
+                    partial['midi.velocity'] -= n.absoluteVelocityChange || 0
+                }
                 return partial as Omit<MsmNote, 'midi.onset' | 'midi.duration'>
             })
 
@@ -108,8 +127,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
             setCells([...cells, {
                 start: segment.date.start,
                 end: segment.date.end,
-                beatLength: 0.125,
-                neutralEnd: false
+                beatLength: 0.125
             }])
         }
     }
@@ -156,33 +174,29 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
             <Box sx={{ m: 1 }}>
                 {part !== 'global' && `Part ${part + 1}`}
             </Box>
-            <Box sx={{ maxWidth: '50%' }}>
-                <Typography gutterBottom>
-                    Loop Tolerance
-                </Typography>
-                <Slider
-                    value={scaleTolerance}
-                    onChange={(_, newValue) => setScaleTolerance(newValue as number)}
-                    step={0.25}
-                    min={0}
-                    max={5}
-                    valueLabelDisplay="auto"
-                />
-            </Box>
-            <Stack direction='column' spacing={1}>
-                <Stack direction='row' spacing={1}>
-                    <Button variant='contained' onClick={handleMetricalAccentuation}>
-                        {activeTransformer ? 'Update' : 'Insert'} Metrical Accentuations
-                    </Button>
-                    <Button
-                        variant='outlined'
-                        disabled={cells.length === 0}
-                        onClick={() => setCells([])}
-                        startIcon={<Delete />}
-                    >
-                        Clear Frames ({cells.length})
-                    </Button>
-                </Stack>
+            <Stack direction='row' spacing={1}>
+                <Button variant='contained' onClick={handleRelativeVolume}>
+                    Insert Relative Volumes
+                </Button>
+                <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
+                    setLowerLimit(avgCellVelocity(cells))
+                }}
+                >
+                    Insert Lower Limit
+                </Button>
+                <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
+                    setUpperLimit(avgCellVelocity(cells))
+                }}>
+                    Insert Upper Limit
+                </Button>
+                <Button
+                    variant='outlined'
+                    disabled={cells.length === 0}
+                    onClick={() => setCells([])}
+                    startIcon={<Delete />}
+                >
+                    Clear Frames ({cells.length})
+                </Button>
             </Stack>
 
             <svg
@@ -206,19 +220,6 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                     strokeWidth={1}
                 />
 
-                {patterns.map(pattern => {
-                    return (
-                        <Pattern
-                            key={`pattern_${pattern.date}`}
-                            pattern={pattern}
-                            stretchX={stretchX}
-                            stretchY={stretchY}
-                            getScreenY={getScreenY}
-                            denominator={4}
-                        />
-                    )
-                })}
-
                 {cells.map((cell, i) => {
                     return (
                         <Cell
@@ -236,6 +237,19 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                                     setCurrentCell(cell);
                                 }
                             }}
+                        />
+                    )
+                })}
+
+                {patterns.map(pattern => {
+                    return (
+                        <Pattern
+                            key={`pattern_${pattern.date}`}
+                            pattern={pattern}
+                            stretchX={stretchX}
+                            stretchY={stretchY}
+                            getScreenY={getScreenY}
+                            denominator={4}
                         />
                     )
                 })}

@@ -17,6 +17,7 @@ import { TemporalSpreadDesk } from "./arpeggiation/TemporalSpreadDesk";
 import { ResultDesk } from "./result/ResultDesk";
 import { OrnamentationStyles } from "./styles/OrnamentationStyles";
 import { ArticulationStyles } from "./styles/ArticulationStyles";
+import { RelativeVolumeDesk } from "./accentuation/RelativeVolumeDesk";
 
 export const aspects = [
     'metadata',
@@ -87,7 +88,14 @@ const correspondingDesks: { transformer?: AnyTransformer, aspect: Aspect, desk: 
     {
         transformer: InsertMetricalAccentuation,
         desk: AccentuationDesk,
+        displayName: 'Metrical Accentuation',
         aspect: 'accentuation'
+    },
+    {
+        transformer: InsertRelativeVolume,
+        aspect: 'accentuation',
+        displayName: 'Relative Volume',
+        desk: RelativeVolumeDesk
     },
     {
         transformer: InsertRelativeDuration,
@@ -173,7 +181,7 @@ export const DeskSwitch = (props: DeskSwitchProps) => {
 
     if (correspondingDesks.find(entry => entry.desk === DeskComponents[tabIndex])?.transformer?.name
         !== activeTransformer?.name) {
-            console.log('resetting active transformer', activeTransformer?.name)
+        console.log('resetting active transformer', activeTransformer?.name)
         setActiveTransformer(undefined)
     }
 
