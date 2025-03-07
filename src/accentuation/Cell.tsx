@@ -1,6 +1,7 @@
-import { AccentuationCell } from "mpmify";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { MouseEventHandler } from "react";
+import { CellWithPattern } from "./AccentuationDesk";
+import { Pattern } from "./Pattern";
 
 // Convex Hull using the Monotone Chain algorithm
 const convexHull = (points: { x: number, y: number }[]): { x: number, y: number }[] => {
@@ -31,15 +32,31 @@ const convexHull = (points: { x: number, y: number }[]): { x: number, y: number 
 };
 
 interface CellProps {
-    cell: AccentuationCell;
+    cell: CellWithPattern;
     i: number;
     stretchX: number;
     getScreenY: (velocity: number) => number;
     segments: DynamicsSegment[];
     onClick: MouseEventHandler;
+    denominator: number;
+    stretchY: number;
+    selected: boolean;
 }
 
-export const Cell = ({ cell, stretchX, getScreenY, segments, onClick }: CellProps) => {
+export const Cell = ({ cell, stretchX, stretchY, getScreenY, segments, denominator, onClick, selected }: CellProps) => {
+    if (cell.pattern) {
+        return (
+            <Pattern
+                pattern={cell.pattern}
+                stretchX={stretchX}
+                stretchY={stretchY}
+                getScreenY={getScreenY}
+                denominator={denominator}
+                selected={selected}
+                onClick={onClick}
+            />
+        )
+    }
     const cellPoints = segments
         .filter(s => s.date.start >= cell.start && s.date.start <= cell.end)
         .map(s => ({ x: s.date.start * stretchX, y: getScreenY(s.velocity) }));

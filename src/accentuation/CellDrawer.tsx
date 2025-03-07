@@ -21,7 +21,7 @@ export const CellDrawer = ({ open, onClose, cell, onChange }: CellDrawerProps) =
     }, [cell]);
 
     return (
-        <Drawer anchor="left" open={open} onClose={onClose}>
+        <Drawer anchor="left" open={open} onClose={onClose} variant='persistent'>
             <div style={{ width: 300, padding: 16 }}>
                 <h2>Edit Accentuation Cell</h2>
                 <Stack direction='column' spacing={1}>

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { MouseEventHandler, useState } from "react"
 import { Accentuation, AccentuationPattern } from "../../../mpm-ts/lib"
 
 interface PatternProps {
@@ -7,9 +7,11 @@ interface PatternProps {
     stretchY: number
     getScreenY: (velocity: number) => number
     denominator: number
+    onClick?: MouseEventHandler
+    selected: boolean
 }
 
-export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator }: PatternProps) => {
+export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, onClick, selected }: PatternProps) => {
     const [hovered, setHovered] = useState(false)
 
     const allPositions = pattern.children
@@ -25,7 +27,7 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator }
     }
 
     return (
-        <g className="pattern">
+        <g className="pattern" onClick={onClick}>
             {pattern["name.ref"] === 'neutral' && (
                 <line
                     x1={pattern.date * stretchX}
@@ -43,7 +45,7 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator }
                 width={((pattern.length * 4 * 720 / denominator) * stretchX)}
                 height={getScreenY(posMin) - getScreenY(posMax)}
                 fill='red'
-                fillOpacity={hovered ? 0.6 : 0.2}
+                fillOpacity={(hovered || selected) ? 0.6 : 0.2}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 strokeWidth={0.8}

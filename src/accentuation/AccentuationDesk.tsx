@@ -7,13 +7,16 @@ import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Box, Button, Slider, Stack, Typography } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
-import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume } from "mpmify";
+import { AccentuationCell, InsertMetricalAccentuation, MergeMetricalAccentuations } from "mpmify";
 import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
 import { Pattern } from "./Pattern";
 import { Cell } from "./Cell";
 import { Delete } from "@mui/icons-material";
 import { ZoomControls } from "../ZoomControls";
 import { CellDrawer } from "./CellDrawer";
+
+type Pattern = (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })
+export type CellWithPattern = AccentuationCell & { pattern?: Pattern }
 
 const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     const segments: DynamicsSegment[] = []
@@ -36,15 +39,15 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | InsertRelativeVolume>) => {
+export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
 
-    const [cells, setCells] = useState<AccentuationCell[]>([])
-    const [currentCell, setCurrentCell] = useState<AccentuationCell>()
+    const [cells, setCells] = useState<CellWithPattern[]>([])
+    const [currentCells, setCurrentCells] = useState<CellWithPattern[]>([])
 
     const [scaleTolerance, setScaleTolerance] = useState(1.5)
 
@@ -63,9 +66,28 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
         if (!activeTransformer) return
 
         if (activeTransformer instanceof InsertMetricalAccentuation) {
-            setCells(activeTransformer.options.cells)
+            const prev = activeTransformer.options.cells as CellWithPattern[]
+            const instructions = mpm
+                .getInstructions<AccentuationPattern>('accentuationPattern', part)
+                .map(i => {
+                    const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
+                    if (!def) return null
+
+                    return {
+                        length: def.length,
+                        children: def.children,
+                        ...i
+                    }
+                })
+                .filter((i): i is Pattern => i !== null)
+
+            prev.forEach(cell => {
+                cell.pattern = instructions.find(i => i.date === cell.start)
+            })
+
+            setCells(prev)
         }
-    }, [activeTransformer])
+    }, [activeTransformer, mpm, part])
 
     const handleMetricalAccentuation = () => {
         addTransformer(activeTransformer instanceof InsertMetricalAccentuation ? activeTransformer : new InsertMetricalAccentuation(), {
@@ -73,6 +95,16 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
             scaleTolerance,
             scope: part,
             neutralEnd: true
+        })
+    }
+
+    const handleMerge = () => {
+        addTransformer(activeTransformer instanceof MergeMetricalAccentuations ? activeTransformer : new MergeMetricalAccentuations(), {
+            names: currentCells
+                .map(c => c.pattern?.["name.ref"])
+                .filter(n => n !== undefined) as string[],
+            into: 'test123',
+            scope: part
         })
     }
 
@@ -131,20 +163,6 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     const width = 8000
     const height = 300
 
-    const patterns: (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })[] = mpm
-        .getInstructions<AccentuationPattern>('accentuationPattern', part)
-        .map(i => {
-            const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
-            if (!def) return null
-
-            return {
-                length: def.length,
-                children: def.children,
-                ...i
-            }
-        })
-        .filter(i => i !== null)
-
     return (
         <div style={{ height: '400' }}>
             <ZoomControls
@@ -183,6 +201,15 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                         Clear Frames ({cells.length})
                     </Button>
                 </Stack>
+                <Stack direction='row' spacing={1}>
+                    <Button
+
+                        variant='contained'
+                        onClick={handleMerge}
+                    >
+                        Merge
+                    </Button>
+                </Stack>
             </Stack>
 
             <svg
@@ -206,19 +233,6 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                     strokeWidth={1}
                 />
 
-                {patterns.map(pattern => {
-                    return (
-                        <Pattern
-                            key={`pattern_${pattern.date}`}
-                            pattern={pattern}
-                            stretchX={stretchX}
-                            stretchY={stretchY}
-                            getScreenY={getScreenY}
-                            denominator={4}
-                        />
-                    )
-                })}
-
                 {cells.map((cell, i) => {
                     return (
                         <Cell
@@ -226,16 +240,22 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                             cell={cell}
                             i={i}
                             stretchX={stretchX}
+                            stretchY={stretchY}
                             getScreenY={getScreenY}
                             segments={segments}
+                            denominator={msm.timeSignature?.denominator || 4}
                             onClick={(e) => {
-                                console.log('onClick!!')
                                 if (e.altKey && e.shiftKey) {
                                     setCells(prevCells => prevCells.filter(c => c !== cell));
-                                } else {
-                                    setCurrentCell(cell);
+                                }
+                                else if (e.metaKey) {
+                                    setCurrentCells(prevCells => prevCells.concat([cell]))
+                                }
+                                else {
+                                    setCurrentCells([cell]);
                                 }
                             }}
+                            selected={currentCells.includes(cell)}
                         />
                     )
                 })}
@@ -243,19 +263,19 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                 {circles}
             </svg>
 
-            {currentCell && (
+            {currentCells.length === 1 && (
                 <CellDrawer
-                    cell={currentCell}
+                    cell={currentCells[0]}
                     open={true}
-                    onClose={() => setCurrentCell(undefined)}
+                    onClose={() => setCurrentCells([])}
                     onChange={(cell) => {
-                        setCurrentCell(cell)
-                        setCells(cells.map(c => c === currentCell ? cell : c))
+                        setCurrentCells([cell])
+                        setCells(cells.map(c => c === currentCells[0] ? cell : c))
                     }}
                 />
             )}
 
-            {currentCell && currentCell.start}
+            {currentCells.length > 0 && <div>{currentCells.length} patterns selected</div>}
         </div>
     )
 }
