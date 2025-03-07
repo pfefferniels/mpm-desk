@@ -11,9 +11,10 @@ import { AccentuationCell, InsertMetricalAccentuation, MergeMetricalAccentuation
 import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
 import { Pattern } from "./Pattern";
 import { Cell } from "./Cell";
-import { Delete } from "@mui/icons-material";
+import { Delete, SelectAll } from "@mui/icons-material";
 import { ZoomControls } from "../ZoomControls";
 import { CellDrawer } from "./CellDrawer";
+import { NameDialog } from "./NameDialog";
 
 type Pattern = (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })
 export type CellWithPattern = AccentuationCell & { pattern?: Pattern }
@@ -50,8 +51,9 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     const [currentCells, setCurrentCells] = useState<CellWithPattern[]>([])
 
     const [scaleTolerance, setScaleTolerance] = useState(1.5)
-
     const [stretchX, setStretchX] = useState(0.03)
+
+    const [nameDialogOpen, setNameDialogOpen] = useState(false)
 
     const stretchY = 10
     const margin = 20
@@ -91,19 +93,20 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
 
     const handleMetricalAccentuation = () => {
         addTransformer(activeTransformer instanceof InsertMetricalAccentuation ? activeTransformer : new InsertMetricalAccentuation(), {
-            cells,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            cells: cells.map(({ pattern, ...rest }) => rest),
             scaleTolerance,
             scope: part,
             neutralEnd: true
         })
     }
 
-    const handleMerge = () => {
+    const handleMerge = (name: string) => {
         addTransformer(activeTransformer instanceof MergeMetricalAccentuations ? activeTransformer : new MergeMetricalAccentuations(), {
             names: currentCells
                 .map(c => c.pattern?.["name.ref"])
                 .filter(n => n !== undefined) as string[],
-            into: 'test123',
+            into: name,
             scope: part
         })
     }
@@ -164,30 +167,30 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     const height = 300
 
     return (
-        <div style={{ height: '400' }}>
+        <div style={{ height: '400', overflow: 'scroll' }}>
             <ZoomControls
                 stretchX={stretchX}
                 setStretchX={setStretchX}
-                rangeX={[0.1, 1]}
+                rangeX={[0.005, 0.25]}
             />
 
-            <Box sx={{ m: 1 }}>
-                {part !== 'global' && `Part ${part + 1}`}
-            </Box>
-            <Box sx={{ maxWidth: '50%' }}>
-                <Typography gutterBottom>
-                    Loop Tolerance
-                </Typography>
-                <Slider
-                    value={scaleTolerance}
-                    onChange={(_, newValue) => setScaleTolerance(newValue as number)}
-                    step={0.25}
-                    min={0}
-                    max={5}
-                    valueLabelDisplay="auto"
-                />
-            </Box>
-            <Stack direction='column' spacing={1}>
+            <Stack spacing={1} direction='column' sx={{ position: 'sticky', left: 0 }}>
+                <Box sx={{ m: 1 }}>
+                    {part !== 'global' && `Part ${part + 1}`}
+                </Box>
+                <Box sx={{ maxWidth: '50%' }}>
+                    <Typography gutterBottom>
+                        Loop Tolerance
+                    </Typography>
+                    <Slider
+                        value={scaleTolerance}
+                        onChange={(_, newValue) => setScaleTolerance(newValue as number)}
+                        step={0.25}
+                        min={0}
+                        max={5}
+                        valueLabelDisplay="auto"
+                    />
+                </Box>
                 <Stack direction='row' spacing={1}>
                     <Button variant='contained' onClick={handleMetricalAccentuation}>
                         {activeTransformer ? 'Update' : 'Insert'} Metrical Accentuations
@@ -205,9 +208,18 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                     <Button
 
                         variant='contained'
-                        onClick={handleMerge}
+                        onClick={() => setNameDialogOpen(true)}
                     >
-                        Merge
+                        Merge ({currentCells.length})
+                    </Button>
+                    <Button
+                        variant='outlined'
+                        startIcon={<SelectAll />}
+                        onClick={() => {
+                            setCurrentCells(cells)
+                        }}
+                    >
+                        Select All
                     </Button>
                 </Stack>
             </Stack>
@@ -275,7 +287,13 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                 />
             )}
 
-            {currentCells.length > 0 && <div>{currentCells.length} patterns selected</div>}
+            {nameDialogOpen && (
+                <NameDialog
+                    open={nameDialogOpen}
+                    onClose={() => setNameDialogOpen(false)}
+                    onDone={handleMerge}
+                />
+            )}
         </div>
     )
 }
