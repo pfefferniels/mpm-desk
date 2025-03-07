@@ -28,6 +28,7 @@ const allNotes = async (mei: string): Promise<MEINote[]> => {
     const tk = await loadVerovio()
     tk.loadData(mei)
     const timemap = tk.renderToTimemap()
+    tk.renderToMIDI()
 
     const scoreDOM = new DOMParser().parseFromString(mei, 'application/xml')
 
@@ -36,8 +37,9 @@ const allNotes = async (mei: string): Promise<MEINote[]> => {
     for (const event of timemap) {
         if (!event.on) continue
         for (const on of event.on) {
+            const times = tk.getTimesForElement(on)
             const midiValues = tk.getMIDIValuesForElement(on)
-            const offTime = timemap.find((event) => event.off && event.off.includes(on))?.qstamp || 0
+            const duration = ((times.scoreTimeTiedDuration as unknown as number[])[0] || 0) + ((times.scoreTimeDuration as unknown as number[])[0] || 0)
 
             // using query selector with [*|id='...'] does not work 
             // yet with JSDOM, therefore this workaround
@@ -69,7 +71,7 @@ const allNotes = async (mei: string): Promise<MEINote[]> => {
                     return acc
                 }, 0),
                 pnum: midiValues.pitch,
-                duration: offTime - event.qstamp,
+                duration,
                 part: Number(staff.getAttribute('n'))
             })
             index += 1
@@ -119,7 +121,7 @@ export const asMSM = async (mei: string) => {
 
             const msmPedal: MsmPedal = {
                 'xml:id': `pedal-${index}`,
-                'midi.onset': +absolute / 1000, 
+                'midi.onset': +absolute / 1000,
                 'midi.duration': +duration / 1000,
                 'type': type,
             }
