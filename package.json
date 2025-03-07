@@ -19,7 +19,7 @@
     "@mui/material": "^5.15.19",
     "@tonejs/piano": "^0.2.1",
     "@types/uuid": "^10.0.0",
-    "@types/verovio": "^3.13.4",
+    "@types/verovio": "^5.0.0",
     "midifile-ts": "^1.5.1",
     "mpmify": "file:../mpmify",
     "react": "^18.2.0",
