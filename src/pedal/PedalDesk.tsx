@@ -1,24 +1,32 @@
 import { InsertPedal } from "mpmify/lib/transformers"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
-import { Button } from "@mui/material"
+import { Box, Button, Slider, Stack, Typography } from "@mui/material"
 import { Movement } from "../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ZoomControls } from "../ZoomControls"
 
 
 export const PedalDesk = ({ msm, mpm, activeTransformer, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
     const [stretchX, setStretchX] = useState(0.1)
+    const [changeDuration, setChangeDuration] = useState(0)
 
     const transform = () => {
         addTransformer(activeTransformer || new InsertPedal(), {
-            changeDuration: 200
+            changeDuration
         })
     }
 
+    useEffect(() => {
+        if (activeTransformer) {
+            setChangeDuration(activeTransformer.options.changeDuration)
+        }
+    }, [activeTransformer])
+
     const stretchY = 30
 
-    const movements = mpm.getInstructions<Movement>('movement')
+    const movementsByController = Object
+        .groupBy(mpm.getInstructions<Movement>('movement'), m => m.controller)
 
     return (
         <div>
@@ -29,6 +37,29 @@ export const PedalDesk = ({ msm, mpm, activeTransformer, addTransformer }: Scope
                     rangeX={[0.01, 0.5]}
                 />
 
+                <Stack direction='column' sx={{ maxWidth: '300px' }} spacing={1} p={1}>
+                    <Button
+                        onClick={transform}
+                        variant="contained"
+                    >
+                        {activeTransformer ? 'Update' : 'Insert'} Pedals
+                    </Button>
+                    <Box>
+                        <Typography id="change-duration-slider" gutterBottom>
+                            Default Change Duration: {changeDuration}
+                        </Typography>
+                        <Slider
+                            value={changeDuration}
+                            onChange={(_, value) => setChangeDuration(value as number)}
+                            aria-labelledby="change-duration-slider"
+                            step={1}
+                            marks={[{ value: 0, label: '0' }, { value: 100, label: '100' }, { value: 200, label: '200' }]}
+                            min={0}
+                            max={200}
+                        />
+                    </Box>
+                </Stack>
+
                 <svg width={10000}>
                     {msm.pedals.map(p => {
                         console.log(p)
@@ -38,34 +69,47 @@ export const PedalDesk = ({ msm, mpm, activeTransformer, addTransformer }: Scope
                             <g key={`pedal${p["xml:id"]}`}>
                                 <rect
                                     x={p.tickDate * stretchX}
-                                    y={50}
+                                    y={80}
                                     width={p.tickDuration * stretchX}
-                                    height={50}
+                                    height={20}
                                     fill='lightblue'
                                 />
                             </g>
                         )
                     })}
 
-                    {movements.sort((a, b) => a.date - b.date).map((movement, i) => {
-                        if (i === movements.length - 1)
-                            return null
+                    {Object
+                        .entries(movementsByController)
+                        .map(([controller, movements], i) => {
+                            return (
+                                <g
+                                    key={controller}
+                                    className={`controller_${controller}`}
+                                    transform={`translate(0, ${i * stretchY})`}
+                                >
+                                    {movements
+                                        .sort((a, b) => a.date - b.date)
+                                        .map((movement, i) => {
+                                            if (i === movements.length - 1)
+                                                return null
 
-                        const endDate = movements[i + 1].date
+                                            const endDate = movements[i + 1].date
 
-                        return (
-                            <MovementSegment
-                                instruction={{ ...movement, endDate }}
-                                key={`movement_${movement["xml:id"]}`}
-                                stretchX={stretchX}
-                                stretchY={stretchY}
-                            />
-                        )
-                    })}
+                                            return (
+                                                <MovementSegment
+                                                    instruction={{ ...movement, endDate }}
+                                                    key={`movement_${movement["xml:id"]}`}
+                                                    stretchX={stretchX}
+                                                    stretchY={stretchY}
+                                                />
+                                            )
+                                        })}
+                                </g>
+                            )
+                        })
+                    }
                 </svg>
             </div>
-
-            <Button onClick={transform}>Insert Pedals</Button>
         </div>
     )
 }
