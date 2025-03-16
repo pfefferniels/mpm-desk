@@ -9,7 +9,7 @@ import { RubatoDesk } from "./rubato/RubatoDesk";
 import { MetadataDesk } from "./metadata/MetadataDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
-import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks } from "mpmify";
+import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MakeArticulationDefinition, MergeArticulations, MergeMetricalAccentuations, InsertArticulation } from "mpmify";
 import { ScopedTransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { TabPanel } from "./TabPanel";
 import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
@@ -47,6 +47,10 @@ export type AnyTransformer =
     | typeof StylizeOrnamentation
     | typeof StylizeArticulation
     | typeof TranslatePhyiscalTimeToTicks
+    | typeof MakeArticulationDefinition
+    | typeof MergeArticulations
+    | typeof MergeMetricalAccentuations
+    | typeof InsertArticulation
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
@@ -98,9 +102,8 @@ const correspondingDesks: { transformer?: AnyTransformer, aspect: Aspect, desk: 
         desk: RelativeVolumeDesk
     },
     {
-        transformer: InsertRelativeDuration,
+        transformer: InsertArticulation,
         aspect: 'articulation',
-        displayName: 'Relative Duration',
         desk: ArticulationDesk,
     },
     {

@@ -2,7 +2,7 @@ import { MsmNote } from "mpmify/lib/msm";
 import { DynamicsGradient } from "mpmify";
 import { useState } from "react";
 import { usePiano } from "react-pianosound";
-import { asMIDI } from "../utils";
+import { asMIDI } from "../utils/utils";
 
 interface ChordGradientProps {
     notes: MsmNote[];
@@ -36,18 +36,18 @@ export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: Cho
     return (
         <g
             className='chordGradient'
-                onMouseOver={() => {
-                    const midi = asMIDI(notes);
-                    if (midi) {
-                        stop();
-                        play(midi);
-                    }
-                    setHovered(true);
-                }}
-                onMouseOut={() => {
+            onMouseOver={() => {
+                const midi = asMIDI(notes);
+                if (midi) {
                     stop();
-                    setHovered(false);
-                }}
+                    play(midi);
+                }
+                setHovered(true);
+            }}
+            onMouseOut={() => {
+                stop();
+                setHovered(false);
+            }}
             onClick={onClick}
         >
             {notes.map((note, index) => {
@@ -88,6 +88,15 @@ export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: Cho
                         fontSize="10"
                     >
                         {(gradient || defaultGradient).to}
+                    </text>
+
+                    <text
+                        x={lastNote["midi.onset"] * stretch + 2}
+                        y={height - (lastNote["midi.velocity"] / 127) * height + 20}
+                        fill="black"
+                        fontSize="10"
+                    >
+                        {firstNote.date}
                     </text>
                 </>
             )}

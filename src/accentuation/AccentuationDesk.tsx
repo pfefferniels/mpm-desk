@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
-import { asMIDI } from "../utils";
+import { asMIDI } from "../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Box, Button, Slider, Stack, Typography } from "@mui/material";
@@ -96,8 +96,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             cells: cells.map(({ pattern, ...rest }) => rest),
             scaleTolerance,
-            scope: part,
-            neutralEnd: true
+            scope: part
         })
     }
 

@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
-import { asMIDI } from "../utils";
+import { asMIDI } from "../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Box, Button, Stack } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
-import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume } from "mpmify";
-import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
-import { Pattern } from "./Pattern";
+import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume, MakeArticulationDefinition, MergeArticulations } from "mpmify";
 import { Cell } from "./Cell";
 import { Delete } from "@mui/icons-material";
 import { ZoomControls } from "../ZoomControls";
@@ -36,9 +34,11 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | InsertRelativeVolume>) => {
+export const RelativeVolumeDesk = ({ part, msm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertRelativeVolume | MergeArticulations | MakeArticulationDefinition>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
+
+    const [defName, setDefName] = useState<string>('unknown')
 
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
@@ -46,8 +46,8 @@ export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTrans
     const [cells, setCells] = useState<AccentuationCell[]>([])
     const [currentCell, setCurrentCell] = useState<AccentuationCell>()
 
-    const [lowerLimit, setLowerLimit] = useState<number>()
-    const [upperLimit, setUpperLimit] = useState<number>()
+    const [, setLowerLimit] = useState<number>()
+    const [, setUpperLimit] = useState<number>()
 
     const [stretchX, setStretchX] = useState(0.03)
 
@@ -90,6 +90,17 @@ export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTrans
             }).flat(),
             // lowerLimit,
             // upperLimit
+        })
+    }
+
+    const handleInsertDef = () => {
+        addTransformer(activeTransformer instanceof MakeArticulationDefinition ? activeTransformer : new MakeArticulationDefinition(), {
+            name: defName
+        })
+    }
+
+    const handleMerge = () => {
+        addTransformer(activeTransformer instanceof MergeArticulations ? activeTransformer : new MergeArticulations(), {
         })
     }
 
@@ -149,20 +160,6 @@ export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTrans
     const width = 8000
     const height = 300
 
-    const patterns: (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })[] = mpm
-        .getInstructions<AccentuationPattern>('accentuationPattern', part)
-        .map(i => {
-            const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
-            if (!def) return null
-
-            return {
-                length: def.length,
-                children: def.children,
-                ...i
-            }
-        })
-        .filter(i => i !== null)
-
     return (
         <div style={{ height: '400' }}>
             <ZoomControls
@@ -174,29 +171,31 @@ export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTrans
             <Box sx={{ m: 1 }}>
                 {part !== 'global' && `Part ${part + 1}`}
             </Box>
-            <Stack direction='row' spacing={1}>
-                <Button variant='contained' onClick={handleRelativeVolume}>
-                    Insert Relative Volumes
-                </Button>
-                <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
-                    setLowerLimit(avgCellVelocity(cells))
-                }}
-                >
-                    Insert Lower Limit
-                </Button>
-                <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
-                    setUpperLimit(avgCellVelocity(cells))
-                }}>
-                    Insert Upper Limit
-                </Button>
-                <Button
-                    variant='outlined'
-                    disabled={cells.length === 0}
-                    onClick={() => setCells([])}
-                    startIcon={<Delete />}
-                >
-                    Clear Frames ({cells.length})
-                </Button>
+            <Stack direction='column' spacing={1}>
+                <Stack direction='row' spacing={1}>
+                    <Button variant='contained' onClick={handleRelativeVolume}>
+                        Insert Relative Volumes
+                    </Button>
+                    <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
+                        setLowerLimit(avgCellVelocity(cells))
+                    }}
+                    >
+                        Insert Lower Limit
+                    </Button>
+                    <Button variant='outlined' disabled={cells.length === 0} onClick={() => {
+                        setUpperLimit(avgCellVelocity(cells))
+                    }}>
+                        Insert Upper Limit
+                    </Button>
+                    <Button
+                        variant='outlined'
+                        disabled={cells.length === 0}
+                        onClick={() => setCells([])}
+                        startIcon={<Delete />}
+                    >
+                        Clear Frames ({cells.length})
+                    </Button>
+                </Stack>
             </Stack>
 
             <svg
@@ -227,10 +226,11 @@ export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTrans
                             cell={cell}
                             i={i}
                             stretchX={stretchX}
+                            stretchY={stretchY}
                             getScreenY={getScreenY}
+                            denominator={4}
                             segments={segments}
                             onClick={(e) => {
-                                console.log('onClick!!')
                                 if (e.altKey && e.shiftKey) {
                                     setCells(prevCells => prevCells.filter(c => c !== cell));
                                 } else {
@@ -241,35 +241,24 @@ export const RelativeVolumeDesk = ({ part, msm, mpm, addTransformer, activeTrans
                     )
                 })}
 
-                {patterns.map(pattern => {
-                    return (
-                        <Pattern
-                            key={`pattern_${pattern.date}`}
-                            pattern={pattern}
-                            stretchX={stretchX}
-                            stretchY={stretchY}
-                            getScreenY={getScreenY}
-                            denominator={4}
-                        />
-                    )
-                })}
-
                 {circles}
             </svg>
 
-            {currentCell && (
-                <CellDrawer
-                    cell={currentCell}
-                    open={true}
-                    onClose={() => setCurrentCell(undefined)}
-                    onChange={(cell) => {
-                        setCurrentCell(cell)
-                        setCells(cells.map(c => c === currentCell ? cell : c))
-                    }}
-                />
-            )}
+            {
+                currentCell && (
+                    <CellDrawer
+                        cell={currentCell}
+                        open={true}
+                        onClose={() => setCurrentCell(undefined)}
+                        onChange={(cell) => {
+                            setCurrentCell(cell)
+                            setCells(cells.map(c => c === currentCell ? cell : c))
+                        }}
+                    />
+                )
+            }
 
             {currentCell && currentCell.start}
-        </div>
+        </div >
     )
 }

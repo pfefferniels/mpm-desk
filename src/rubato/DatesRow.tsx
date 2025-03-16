@@ -1,6 +1,6 @@
 import { ChordMap } from "mpmify/lib/msm"
 import { Frame as FrameData } from "mpmify/lib/transformers"
-import { asMIDI, PartialBy } from "../utils"
+import { asMIDI, PartialBy } from "../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { useState } from "react"

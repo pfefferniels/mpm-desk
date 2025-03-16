@@ -1,6 +1,6 @@
 import { Button, Stack } from "@mui/material"
 import { ViewProps } from "../TransformerViewProps"
-import { downloadAsFile } from "../utils"
+import { downloadAsFile } from "../utils/utils"
 import { exportMPM } from "../../../mpm-ts/lib"
 import { CopyAll, Download } from "@mui/icons-material"
 

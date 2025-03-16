@@ -2,7 +2,7 @@
 import { Button, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { useState } from "react"
-import { PartialBy } from "../utils"
+import { PartialBy } from "../utils/utils"
 import { CombineAdjacentRubatos, Frame as FrameData, InsertRubato } from "mpmify/lib/transformers"
 import { ZoomControls } from "../ZoomControls"
 import { RubatoInstruction } from "./RubatoInstruction"

@@ -1,6 +1,6 @@
 import { AnyEvent, MidiFile } from "midifile-ts";
 import { MsmNote } from "mpmify/lib/msm";
-import { Range } from "./tempo/Tempo";
+import { Range } from "../tempo/Tempo";
 
 export const randomColor = () => {
     const red = Math.floor(Math.random() * 256);

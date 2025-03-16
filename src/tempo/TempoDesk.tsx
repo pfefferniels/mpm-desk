@@ -3,7 +3,7 @@ import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSeg
 import { useEffect, useState } from "react"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments } from "./Tempo"
-import { downloadAsFile } from "../utils"
+import { downloadAsFile } from "../utils/utils"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { SyntheticLine } from "./SyntheticLine"

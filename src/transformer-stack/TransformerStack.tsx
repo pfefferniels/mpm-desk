@@ -7,9 +7,9 @@ import {
     ListItemText,
     IconButton,
 } from "@mui/material";
-import { ExpandLess, ExpandMore, RestartAlt, Save, UploadFile } from "@mui/icons-material";
-import { downloadAsFile } from "../utils";
-import { ApproximateLogarithmicTempo, CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, validate } from "mpmify";
+import { Clear, ExpandLess, ExpandMore, RestartAlt, Save, UploadFile } from "@mui/icons-material";
+import { downloadAsFile } from "../utils/utils";
+import { ApproximateLogarithmicTempo, CombineAdjacentRubatos, InsertArticulation, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, InsertTemporalSpread, MergeMetricalAccentuations, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, validate } from "mpmify";
 import { flushSync } from "react-dom";
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
@@ -42,9 +42,16 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
             if (value instanceof Map) {
                 return {
                     dataType: 'Map',
-                    value: Array.from(value.entries()), // or with spread: value: [...value]
-                };
-            } else {
+                    value: Array.from(value.entries()),
+                }
+            }
+            else if (value instanceof Set) {
+                return {
+                    dataType: 'Set',
+                    value: Array.from(value.values()),
+                }
+            }
+            else {
                 return value;
             }
         }
@@ -70,6 +77,9 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
             if (typeof value === 'object' && value !== null) {
                 if (value.dataType === 'Map') {
                     return new Map(value.value);
+                }
+                else if (value.dataType === 'Set') {
+                    return new Set(value.value);
                 }
             }
             return value;
@@ -131,6 +141,12 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                             }
                             else if (t.name === 'TranslatePhyiscalTimeToTicks') {
                                 transformer = new TranslatePhyiscalTimeToTicks();
+                            }
+                            else if (t.name === 'MergeMetricalAccentuations') {
+                                transformer = new MergeMetricalAccentuations();
+                            }
+                            else if (t.name === 'InsertArticulation') {
+                                transformer = new InsertArticulation();
                             }
                             else {
                                 return null;
@@ -239,6 +255,10 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                 accept="application/json"
                             />
                         </>
+
+                        <IconButton onClick={() => setTransformers([])}>
+                            <Clear />
+                        </IconButton>
                     </Stack>
 
                     <div style={{ maxHeight: '80vh', overflow: 'scroll', maxWidth: 450 }}>

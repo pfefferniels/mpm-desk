@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Dynamics } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
-import { asMIDI, downloadAsFile } from "../utils";
+import { asMIDI, downloadAsFile } from "../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Range } from "../tempo/Tempo";
@@ -252,14 +252,14 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
     })
 
     return (
-        <div style={{ height: '400' }}>
+        <div style={{ height: '400', overflow: 'scroll' }}>
             <ZoomControls
                 setStretchX={setStretchX}
                 stretchX={stretchX}
                 rangeX={[0.01, 0.05]}
             />
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
-            <Stack direction='row' spacing={1}>
+            <Stack direction='row' spacing={1} sx={{ position: 'sticky', left: 0 }}>
                 <Button variant='contained' onClick={handleInsert}>
                     {activeTransformer ? 'Update' : 'Insert'} Dynamics
                 </Button>

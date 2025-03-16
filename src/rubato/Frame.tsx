@@ -1,5 +1,5 @@
 import { MouseEventHandler } from "react"
-import { PartialBy } from "../utils"
+import { PartialBy } from "../utils/utils"
 import { Frame as FrameData } from "mpmify/lib/transformers"
 
 interface FrameProps {
