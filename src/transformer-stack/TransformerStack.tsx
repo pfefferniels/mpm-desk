@@ -19,6 +19,7 @@ import { isTransformerData } from "./transformer-data";
 import { TransformerListItem } from "./TransformerListItem";
 import { useRef } from "react";
 import { v4 } from "uuid";
+import { TransformerDialog } from "./TransformerDialog";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -31,6 +32,7 @@ interface TransformerStackProps {
 
 export const TransformerStack = ({ transformers, setTransformers, onRemove, onSelect, onReset, activeTransformer }: TransformerStackProps) => {
     const [expanded, setExpanded] = useState(true);
+    const [editIndex, setEditIndex] = useState<number | null>(null);
 
     const handleToggle = () => {
         setExpanded(!expanded);
@@ -59,6 +61,7 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
         const json = JSON.stringify(transformers.map(t => ({
             id: t.id || v4(),
             name: t.name,
+            note: t.note,
             options: t.options
         })), replacer, 2);
 
@@ -153,6 +156,7 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                             }
                             transformer.id = t.id || v4();
                             transformer.options = t.options;
+                            transformer.note = t.note;
                             return transformer;
                         })
                         .filter(t => t !== null)
@@ -218,66 +222,80 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
     }, [transformers, setTransformers]);
 
     return (
-        <Card>
-            <List>
-                <ListItem
-                    secondaryAction={
-                        <IconButton edge="end" onClick={handleToggle}>
-                            {expanded ? <ExpandLess /> : <ExpandMore />}
-                        </IconButton>
-                    }
-                >
-                    <ListItemText primary="History" />
-                </ListItem>
-                <Collapse in={expanded} timeout="auto" unmountOnExit>
-                    <Stack direction="row">
-                        <IconButton
-                            onClick={onReset}
-                        >
-                            <RestartAlt />
-                        </IconButton>
-                        <IconButton
-                            disabled={transformers.length === 0}
-                            onClick={onSave}
-                        >
-                            <Save />
-                        </IconButton>
-
-                        <>
-                            <IconButton onClick={triggerImport}>
-                                <UploadFile />
+        <>
+            <Card>
+                <List>
+                    <ListItem
+                        secondaryAction={
+                            <IconButton edge="end" onClick={handleToggle}>
+                                {expanded ? <ExpandLess /> : <ExpandMore />}
                             </IconButton>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={onImport}
-                                style={{ display: 'none' }}
-                                accept="application/json"
-                            />
-                        </>
+                        }
+                    >
+                        <ListItemText primary="History" />
+                    </ListItem>
+                    <Collapse in={expanded} timeout="auto" unmountOnExit>
+                        <Stack direction="row">
+                            <IconButton
+                                onClick={onReset}
+                            >
+                                <RestartAlt />
+                            </IconButton>
+                            <IconButton
+                                disabled={transformers.length === 0}
+                                onClick={onSave}
+                            >
+                                <Save />
+                            </IconButton>
 
-                        <IconButton onClick={() => setTransformers([])}>
-                            <Clear />
-                        </IconButton>
-                    </Stack>
-
-                    <div style={{ maxHeight: '80vh', overflow: 'scroll', maxWidth: 450 }}>
-                        {transformers.map((transformer, index) => {
-                            const message = messages.find(m => m.index === index);
-                            return (
-                                <TransformerListItem
-                                    key={`transformer_${index}`}
-                                    transformer={transformer}
-                                    onRemove={() => onRemove(transformer)}
-                                    onSelect={() => onSelect(transformer)}
-                                    selected={activeTransformer === transformer}
-                                    message={message}
+                            <>
+                                <IconButton onClick={triggerImport}>
+                                    <UploadFile />
+                                </IconButton>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={onImport}
+                                    style={{ display: 'none' }}
+                                    accept="application/json"
                                 />
-                            )
-                        })}
-                    </div>
-                </Collapse>
-            </List>
-        </Card>
+                            </>
+
+                            <IconButton onClick={() => setTransformers([])}>
+                                <Clear />
+                            </IconButton>
+                        </Stack>
+
+                        <div style={{ maxHeight: '80vh', overflow: 'scroll', maxWidth: 450 }}>
+                            {transformers.map((transformer, index) => {
+                                const message = messages.find(m => m.index === index);
+                                return (
+                                    <TransformerListItem
+                                        key={`transformer_${index}`}
+                                        transformer={transformer}
+                                        onRemove={() => onRemove(transformer)}
+                                        onEdit={() => setEditIndex(index)}
+                                        onSelect={() => onSelect(transformer)}
+                                        selected={activeTransformer === transformer}
+                                        message={message}
+                                    />
+                                )
+                            })}
+                        </div>
+                    </Collapse>
+                </List>
+            </Card>
+            {editIndex !== null && (
+                <TransformerDialog
+                    open={editIndex !== null}
+                    onClose={() => setEditIndex(null)}
+                    onChange={(transformer) => {
+                        setTransformers(transformers.map((t, i) => i === editIndex ? transformer : t));
+                        setEditIndex(null);
+                    }}
+                    transformer={transformers[editIndex]}
+                />
+            )}
+        </>
     );
 };
