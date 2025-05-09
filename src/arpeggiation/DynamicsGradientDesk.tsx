@@ -15,6 +15,9 @@ export const DynamicsGradientDesk = ({ msm, addTransformer, part, activeTransfor
     useEffect(() => {
         if (!activeTransformer) return
 
+        console.log('setting gradients to', activeTransformer.options)
+        if (!activeTransformer.options.gradients) return
+
         setGradients(activeTransformer.options.gradients)
         setSortVelocities(activeTransformer.options.sortVelocities)
     }, [activeTransformer])

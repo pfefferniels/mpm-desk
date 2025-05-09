@@ -171,7 +171,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
         })
     }
 
-    const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
+    const handleClick = (_: MouseEvent, segment: DynamicsSegment) => {
         if (phantomMode) {
             phantomVelocities.set(segment.date.start, segment.velocity)
             setPhantomVelocities(new Map(phantomVelocities))

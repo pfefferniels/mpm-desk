@@ -1,0 +1,248 @@
+import { useEffect, useState } from "react";
+import { usePiano } from "react-pianosound";
+import { useNotes } from "../hooks/NotesProvider";
+import { asMIDI } from "../utils/utils";
+import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
+import { MSM, MsmNote } from "mpmify/lib/msm";
+import { Box, Button, Stack } from "@mui/material";
+import { DynamicsCircle } from "../dynamics/DynamicsCircle";
+import { DynamicsSegment } from "../dynamics/DynamicsDesk";
+import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume } from "mpmify";
+import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
+import { Pattern } from "./Pattern";
+import { Cell } from "./Cell";
+import { Delete } from "@mui/icons-material";
+import { ZoomControls } from "../ZoomControls";
+import { CellDrawer } from "./CellDrawer";
+
+const extractDynamicsSegments = (msm: MSM, part: Scope) => {
+    const segments: DynamicsSegment[] = []
+    msm.asChords(part).forEach((notes, date) => {
+        if (!notes.length) return
+
+        for (const note of notes) {
+            if (segments.findIndex(s => s.date.start === date && s.velocity === note.absoluteVelocityChange) !== -1) continue
+            segments.push({
+                date: {
+                    start: date,
+                    end: date
+                },
+                velocity: note.absoluteVelocityChange || 0,
+                active: false
+            })
+        }
+    })
+
+    return segments
+}
+
+export const VolumeImprecisionDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | InsertRelativeVolume>) => {
+    const { play, stop } = usePiano()
+    const { slice } = useNotes()
+
+    const [datePlayed, setDatePlayed] = useState<number>()
+    const [segments, setSegments] = useState<DynamicsSegment[]>([])
+
+    const [cells, setCells] = useState<AccentuationCell[]>([])
+    const [currentCell, setCurrentCell] = useState<AccentuationCell>()
+
+    const [stretchX, setStretchX] = useState(0.03)
+
+    const stretchY = 10
+    const margin = 20
+
+    const getScreenY = (velocity: number) => {
+        return (1 - velocity) * stretchY + 100
+    }
+
+    useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
+
+    useEffect(() => {
+        if (!activeTransformer) return
+
+        if (activeTransformer instanceof InsertMetricalAccentuation) {
+            setCells(activeTransformer.options.cells)
+        }
+    }, [activeTransformer])
+
+    const insert = () => {
+        addTransformer(activeTransformer instanceof InsertRelativeVolume ? activeTransformer : new InsertRelativeVolume(), {
+            scope: part,
+            noteIDs: cells.map(c => {
+                return msm
+                    .notesInPart(part)
+                    .filter(n => n.date >= c.start && n.date <= c.end)
+                    .map(n => n["xml:id"])
+            }).flat(),
+        })
+    }
+
+    const handlePlay = (from: number, to?: number) => {
+        let notes =
+            slice(from, to).map(n => {
+                const partial: Partial<MsmNote> = { ...n }
+                delete partial['midi.onset']
+                delete partial['midi.duration']
+                if (partial['midi.velocity']) {
+                    partial['midi.velocity'] -= n.absoluteVelocityChange || 0
+                }
+                return partial as Omit<MsmNote, 'midi.onset' | 'midi.duration'>
+            })
+
+        if (typeof part === 'number') notes = notes.filter(n => n.part - 1 === part)
+        const midi = asMIDI(notes)
+
+        if (midi) {
+            stop()
+            play(midi, (e) => {
+                if (e.type === 'meta' && e.subtype === 'text') {
+                    setDatePlayed(+e.text)
+                }
+            })
+        }
+    }
+
+    const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
+        if (e.shiftKey && cells.length > 0) {
+            cells[cells.length - 1].end = segment.date.start
+            setCells([...cells])
+        }
+        else {
+            setCells([...cells, {
+                start: segment.date.start,
+                end: segment.date.end,
+                beatLength: 0.125
+            }])
+        }
+    }
+
+    const circles: JSX.Element[] = segments.map((segment, i) => {
+        return (
+            <DynamicsCircle
+                key={`velocity_segment_${segment.date}_${i}`}
+                segment={segment}
+                datePlayed={datePlayed}
+                stretchX={stretchX}
+                screenY={getScreenY}
+                handlePlay={handlePlay}
+                handleClick={handleClick}
+            />
+        )
+    })
+
+    const width = 8000
+    const height = 300
+
+    const patterns: (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })[] = mpm
+        .getInstructions<AccentuationPattern>('accentuationPattern', part)
+        .map(i => {
+            const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
+            if (!def) return null
+
+            return {
+                length: def.length,
+                children: def.children,
+                ...i
+            }
+        })
+        .filter(i => i !== null)
+
+    return (
+        <div style={{ height: '400' }}>
+            <ZoomControls
+                stretchX={stretchX}
+                setStretchX={setStretchX}
+                rangeX={[0.1, 1]}
+            />
+
+            <Box sx={{ m: 1 }}>
+                {part !== 'global' && `Part ${part + 1}`}
+            </Box>
+            <Stack direction='row' spacing={1}>
+                <Button variant='contained' onClick={insert}>
+                    Insert Imprecision
+                </Button>
+                <Button
+                    variant='outlined'
+                    disabled={cells.length === 0}
+                    onClick={() => setCells([])}
+                    startIcon={<Delete />}
+                >
+                    Clear Frames ({cells.length})
+                </Button>
+            </Stack>
+
+            <svg
+                width={width + margin}
+                height={height + margin}
+                viewBox={
+                    [
+                        -margin,
+                        -margin,
+                        width + margin,
+                        height + margin
+                    ].join(' ')
+                }
+            >
+                <line
+                    x1={0}
+                    x2={width}
+                    y1={getScreenY(0)}
+                    y2={getScreenY(0)}
+                    stroke='black'
+                    strokeWidth={1}
+                />
+
+                {cells.map((cell, i) => {
+                    return (
+                        <Cell
+                            key={`cell_${cell.start}_${cell.end}_${i}`}
+                            cell={cell}
+                            i={i}
+                            stretchX={stretchX}
+                            getScreenY={getScreenY}
+                            segments={segments}
+                            onClick={(e) => {
+                                console.log('onClick!!')
+                                if (e.altKey && e.shiftKey) {
+                                    setCells(prevCells => prevCells.filter(c => c !== cell));
+                                } else {
+                                    setCurrentCell(cell);
+                                }
+                            }}
+                        />
+                    )
+                })}
+
+                {patterns.map(pattern => {
+                    return (
+                        <Pattern
+                            key={`pattern_${pattern.date}`}
+                            pattern={pattern}
+                            stretchX={stretchX}
+                            stretchY={stretchY}
+                            getScreenY={getScreenY}
+                            denominator={4}
+                        />
+                    )
+                })}
+
+                {circles}
+            </svg>
+
+            {currentCell && (
+                <CellDrawer
+                    cell={currentCell}
+                    open={true}
+                    onClose={() => setCurrentCell(undefined)}
+                    onChange={(cell) => {
+                        setCurrentCell(cell)
+                        setCells(cells.map(c => c === currentCell ? cell : c))
+                    }}
+                />
+            )}
+
+            {currentCell && currentCell.start}
+        </div>
+    )
+}

@@ -3,7 +3,7 @@ import { TempoPoint } from "./TempoDesk"
 import { MouseEventHandler, useCallback, useEffect, useState } from "react"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
-import { asMIDI } from "../utils"
+import { asMIDI } from "../utils/utils"
 import { CurveHandle } from "./CurveHandle"
 
 interface SyntheticLineProps {
