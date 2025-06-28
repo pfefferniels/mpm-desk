@@ -7,9 +7,58 @@ import { Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText,
 import { AnyTransformer, Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
-import { FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
+import { CopyAllRounded, FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
+import { v4 } from 'uuid';
+import { MsmNote } from 'mpmify/lib/msm';
+
+const injectInstructions = (mei: string, msm: MSM, mpm: MPM): string => {
+    const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
+
+    const instructions = mpm.getInstructions()
+    for (const instruction of instructions) {
+        let notes: MsmNote[] = []
+        if (instruction.noteid) {
+            notes = instruction.noteid
+                .split(' ')
+                .map(id => msm.getByID(id.slice(1)))
+                .filter(note => !!note)
+        }
+        else {
+            // TODO: take scope into account
+            notes = msm.notesAtDate(instruction.date, 'global')
+        }
+        if (notes.length === 0) continue
+
+        const plist = notes.map(note => `#${note['xml:id']}`).join(' ')
+        const corresp = meiDoc.querySelector(`*[*|id=${notes[0]['xml:id']}]`)
+        if (!corresp) continue
+
+        const measure = corresp.closest('measure')
+        if (!measure) continue
+
+        const annot = meiDoc.createElementNS('http://www.music-encoding.org/ns/mei', 'dir')
+        annot.setAttribute('xml:id', `dir-${v4().slice(0, 8)}`)
+        annot.setAttribute('plist', plist)
+        annot.setAttribute('startid', `#${notes[0]['xml:id']}`)
+        annot.setAttribute('corresp', `#${instruction['xml:id']}`)
+        annot.textContent = instruction.type
+        const comment = meiDoc.createComment(
+            Object.entries(instruction)
+                        .filter(([k, v]) => (
+                            !['date', 'xml:id', 'type', 'corresp', 'noteid'].includes(k) &&
+                            v !== undefined
+                        ))
+                        .map(([k,v]) => `${k}: ${v}`)
+                        .join(', ')
+        );
+        annot.appendChild(comment);
+        measure.appendChild(annot)
+    }
+
+    return new XMLSerializer().serializeToString(meiDoc)
+}
 
 export const App = () => {
     const { play, stop } = usePiano()
@@ -18,6 +67,7 @@ export const App = () => {
 
     const [msm, setMSM] = useState<MSM>(new MSM());
     const [mpm, setMPM] = useState<MPM>(new MPM());
+    const [mei, setMEI] = useState<string>()
 
     const [transformers, setTransformers] = useState<Transformer[]>([])
     const [activeTransformer, setActiveTransformer] = useState<Transformer>()
@@ -32,6 +82,7 @@ export const App = () => {
         const reader = new FileReader();
         reader.onload = async (e: ProgressEvent<FileReader>) => {
             const content = e.target?.result as string;
+            setMEI(content);
             setMSM(await asMSM(content));
             setInitialMSM(await asMSM(content));
             setFileName(file.name)
@@ -113,6 +164,18 @@ export const App = () => {
                                 {isPlaying ? <PauseCircle /> : <PlayCircle />}
                             </IconButton>
                         </>
+                    )}
+                    {(mei && mpm.getInstructions().length > 0) && (
+                        <IconButton
+                            onClick={async () => {
+                                console.log('parsing mei', mei)
+                                const newMEI = injectInstructions(mei, msm, mpm)
+                                const result = await navigator.clipboard.writeText(newMEI)
+                                console.log('MEI copied to clipboard', result)
+                            }}
+                        >
+                            <CopyAllRounded />
+                        </IconButton>
                     )}
                 </Stack>
 
