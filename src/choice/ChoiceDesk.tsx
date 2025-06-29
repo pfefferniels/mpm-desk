@@ -74,7 +74,7 @@ const NoteChoice = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProps
     )
 }
 
-export const EcclectisimDesk = ({ msm, mpm, part, activeTransformer, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
+export const ChoiceDesk = ({ msm, mpm, part, activeTransformer, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
     const [choices, setChoices] = useState<RangeChoice[]>([])
     const [currentChoice, setCurrentChoice] = useState<RangeChoice>()
     const [defaultChoice, setDefaultChoice] = useState<string>()

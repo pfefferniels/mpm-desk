@@ -18,7 +18,7 @@ import { ResultDesk } from "./result/ResultDesk";
 import { OrnamentationStyles } from "./styles/OrnamentationStyles";
 import { ArticulationStyles } from "./styles/ArticulationStyles";
 import { RelativeVolumeDesk } from "./accentuation/RelativeVolumeDesk";
-import { EcclectisimDesk } from "./ecclecticism/EcclecticismDesk";
+import { ChoiceDesk } from "./choice/ChoiceDesk";
 
 export const aspects = [
     'metadata',
@@ -67,7 +67,7 @@ const correspondingDesks: { transformer?: AnyTransformer, aspect: Aspect, desk: 
     {
         aspect: 'ecclecticism',
         displayName: 'Base Text',
-        desk: EcclectisimDesk,
+        desk: ChoiceDesk,
         transformer: MakeChoice
     },
     {
