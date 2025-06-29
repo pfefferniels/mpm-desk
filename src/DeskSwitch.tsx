@@ -9,7 +9,7 @@ import { RubatoDesk } from "./rubato/RubatoDesk";
 import { MetadataDesk } from "./metadata/MetadataDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
-import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MakeArticulationDefinition, MergeArticulations, MergeMetricalAccentuations, InsertArticulation } from "mpmify";
+import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MakeArticulationDefinition, MergeArticulations, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
 import { ScopedTransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { TabPanel } from "./TabPanel";
 import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
@@ -18,9 +18,11 @@ import { ResultDesk } from "./result/ResultDesk";
 import { OrnamentationStyles } from "./styles/OrnamentationStyles";
 import { ArticulationStyles } from "./styles/ArticulationStyles";
 import { RelativeVolumeDesk } from "./accentuation/RelativeVolumeDesk";
+import { EcclectisimDesk } from "./ecclecticism/EcclecticismDesk";
 
 export const aspects = [
     'metadata',
+    'ecclecticism',
     'arpeggiation',
     'tempo',
     'dynamics',
@@ -51,6 +53,7 @@ export type AnyTransformer =
     | typeof MergeArticulations
     | typeof MergeMetricalAccentuations
     | typeof InsertArticulation
+    | typeof MakeChoice
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
@@ -60,6 +63,12 @@ const correspondingDesks: { transformer?: AnyTransformer, aspect: Aspect, desk: 
         transformer: InsertDynamicsInstructions,
         aspect: 'dynamics',
         desk: DynamicsDesk,
+    },
+    {
+        aspect: 'ecclecticism',
+        displayName: 'Base Text',
+        desk: EcclectisimDesk,
+        transformer: MakeChoice
     },
     {
         transformer: InsertDynamicsGradient,

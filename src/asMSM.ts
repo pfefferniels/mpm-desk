@@ -85,29 +85,36 @@ export const asMSM = async (mei: string) => {
     const scoreDOM = new DOMParser().parseFromString(mei, 'application/xml')
 
     const msmNotes = (await allNotes(mei)).reduce((acc, note) => {
-        const when = scoreDOM.querySelector(`when[data~="#${note.id}"]`)
-        if (!when) return acc
+        const whens = scoreDOM.querySelectorAll(`when[data~="#${note.id}"]`)
+        if (!whens) return acc
 
-        const absolute = when.getAttribute('absolute')?.replace('ms', '')
-        const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
-        const velocity = when.querySelector('extData[type="velocity"]')?.textContent
-        if (!absolute || !duration || !velocity) return acc
+        for (const when of whens) {
+            const source = when.closest('recording')?.getAttribute('source') || undefined
+            const absolute = when.getAttribute('absolute')?.replace('ms', '')
+            const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
+            const velocity = when.querySelector('extData[type="velocity"]')?.textContent
+            if (!absolute || !duration || !velocity) return acc
 
-        acc.push({
-            'part': note.part,
-            'xml:id': note.id,
-            'date': qstampToTstamp(note.qstamp),
-            'duration': qstampToTstamp(note.duration),
-            'pitchname': note.pname!,
-            'octave': note.octave!,
-            'accidentals': note.accid!,
-            'midi.pitch': note.pnum,
+            const corresp = when.getAttribute('corresp')?.split(' ') || []
+            console.log(`corresp for ${note.id}:`, corresp)
 
-            // performance stuff
-            'midi.onset': +absolute / 1000,
-            'midi.duration': +duration / 1000,
-            'midi.velocity': +velocity
-        })
+            acc.push({
+                'part': note.part,
+                'xml:id': note.id,
+                'date': qstampToTstamp(note.qstamp),
+                'duration': qstampToTstamp(note.duration),
+                'pitchname': note.pname!,
+                'octave': note.octave!,
+                'accidentals': note.accid!,
+                'midi.pitch': note.pnum,
+ 
+                // performance stuff
+                'midi.onset': +absolute / 1000,
+                'midi.duration': +duration / 1000,
+                'midi.velocity': +velocity,
+                source
+            })
+        }
         return acc;
     }, [] as MsmNote[])
 
@@ -133,4 +140,3 @@ export const asMSM = async (mei: string) => {
     newMSM.pedals = msmPedals
     return newMSM
 }
-
