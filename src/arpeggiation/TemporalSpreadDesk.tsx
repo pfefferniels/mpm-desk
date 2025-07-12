@@ -1,34 +1,56 @@
 import { useEffect, useState } from "react";
 import { ScopedTransformerViewProps } from "../DeskSwitch";
-import { ArpeggioPlacement, DatedArpeggioPlacement, InsertTemporalSpread } from "mpmify";
+import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify";
 import { ChordSpread } from "./ChordSpread";
-import { Stack, TextField, Select, MenuItem, Button, Divider } from "@mui/material";
-import PlacementDetails from "./PlacementDetails";
+import { Stack, TextField, Select, MenuItem, Button, Divider, Drawer, FormControl, InputLabel, Typography } from "@mui/material";
 import { ZoomControls } from "../ZoomControls";
+import { Ornament, OrnamentDef, TemporalSpread } from "../../../mpm-ts/lib";
 
-export const TemporalSpreadDesk = ({ msm, part, activeTransformer, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
-    const [beatLength, setBeatLength] = useState(720);
+export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
+    const [temporalSpreads, setTemporalSpreads] = useState<(Ornament & { def: TemporalSpread })[]>([])
+
+    // these are being defined in the drawer
     const [currentDate, setCurrentDate] = useState<number>()
-    const [placements, setPlacements] = useState<DatedArpeggioPlacement>(new Map())
-    const [defaultPlacement, setDefaultPlacement] = useState<ArpeggioPlacement>('estimate')
+    const [placement, setPlacement] = useState<ArpeggioPlacement>('estimate');
+    const [durationThreshold, setDurationThreshold] = useState<number>()
+
+    // this is used for drawing the preview of a tempo curve
+    const [beatLength, setBeatLength] = useState(720);
     const [stretchX, setStretchX] = useState(20)
 
     useEffect(() => {
-        if (!activeTransformer) return
-
-        setPlacements(activeTransformer.options.placement)
-        setDefaultPlacement(activeTransformer.options.defaultPlacement)
-    }, [activeTransformer])
+        const spreads = mpm
+            .getInstructions<Ornament>('ornament', part)
+            .map(ornament => {
+                const def = mpm.getDefinition('ornamentDef', ornament['name.ref']) as OrnamentDef
+                return {
+                    ...ornament,
+                    def: def?.temporalSpread
+                }
+            })
+            .filter((spread): spread is (Ornament & { def: TemporalSpread }) => spread.def !== undefined);
+        setTemporalSpreads(spreads);
+    }, [mpm, part])
 
     const transform = () => {
-        addTransformer(activeTransformer || new InsertTemporalSpread(), {
-            minimumArpeggioSize: 2,
-            durationThreshold: 2,
-            scope: part,
-            placement: placements,
-            defaultPlacement,
-            noteOffShiftTolerance: 2
-        })
+        if (currentDate) {
+            // This is a single temporal spread
+            addTransformer(new InsertTemporalSpread(), {
+                scope: part,
+                placement,
+                noteOffShiftTolerance: 2,
+                date: currentDate,
+            })
+        }
+        else {
+            // This is a default temporal spread
+            addTransformer(new InsertTemporalSpread(), {
+                scope: part,
+                placement,
+                noteOffShiftTolerance: 2,
+                durationThreshold: 35
+            })
+        }
     }
 
     const height = 250;
@@ -39,14 +61,7 @@ export const TemporalSpreadDesk = ({ msm, part, activeTransformer, addTransforme
         const currentNotes = msm.notesAtDate(date, part).slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
         if (!currentNotes || !currentNotes.length) continue
 
-        const placement = placements.get(date) || defaultPlacement;
-        let currentOnset = currentNotes.reduce((acc, note) => acc + note["midi.onset"], 0) / currentNotes.length;
-        if (placement === 'before-beat') {
-            currentOnset = currentNotes[currentNotes.length - 1]["midi.onset"];
-        }
-        else if (placement === 'on-beat') {
-            currentOnset = currentNotes[0]["midi.onset"];
-        }
+        const currentOnset = currentNotes.reduce((acc, note) => acc + note["midi.onset"], 0) / currentNotes.length;
 
         let bpm = 60 / (currentOnset - prevOnset);
         if (bpms.length) {
@@ -69,14 +84,17 @@ export const TemporalSpreadDesk = ({ msm, part, activeTransformer, addTransforme
         if (!chordNotes.length) continue
 
         const date = chordNotes[0].date
+        const existingSpread = temporalSpreads.find(s => s.date === date)
+
         chords.push((
             <ChordSpread
                 key={`chordNotes_${chordNotes[0]["xml:id"]}`}
                 notes={chordNotes}
-                onClick={() => setCurrentDate(date)}
-                placement={placements.get(date) || defaultPlacement}
                 stretch={stretchX}
                 height={height}
+                spread={existingSpread?.def}
+                onClick={() => setCurrentDate(date)}
+                placement={(currentDate && (date === currentDate)) ? placement : undefined}
             />
         ))
     }
@@ -94,21 +112,11 @@ export const TemporalSpreadDesk = ({ msm, part, activeTransformer, addTransforme
                     variant="outlined"
                 />
                 <Divider orientation="vertical" flexItem />
-                <Select
-                    size='small'
-                    value={defaultPlacement}
-                    onChange={(e) => setDefaultPlacement(e.target.value as ArpeggioPlacement)}
-                >
-                    <MenuItem value="before-beat">All before beat</MenuItem>
-                    <MenuItem value="on-beat">All on beat</MenuItem>
-                    <MenuItem value="estimate">Estimate</MenuItem>
-                    <MenuItem value="none">None</MenuItem>
-                </Select>
                 <Button
                     variant='contained'
                     onClick={transform}
                 >
-                    {activeTransformer ? 'Update' : 'Insert'} Temporal Spreads
+                    Insert Temporal Spreads
                 </Button>
             </Stack>
 
@@ -152,17 +160,46 @@ export const TemporalSpreadDesk = ({ msm, part, activeTransformer, addTransforme
                     </g>
                 </svg>
             </div>
+            <Drawer
+                anchor='right'
+                variant='permanent'
+            >
+                <div style={{ width: 250, padding: 16 }}>
+                    <Typography>
+                        {currentDate}
+                    </Typography>
 
-            <PlacementDetails
-                setPlacement={(placement) => {
-                    if (!currentDate) return
-                    placements.set(currentDate, placement)
-                    setPlacements(new Map(placements))
-                }}
-                placement={placements.get(currentDate || -1) || 'none'}
-                open={!!currentDate}
-                onClose={() => setCurrentDate(undefined)}
-            />
+                    <FormControl fullWidth>
+                        <InputLabel id="placement-select-label">Placement</InputLabel>
+                        <Select
+                            labelId="placement-select-label"
+                            id="placement-select"
+                            onChange={(e) => setPlacement(e.target.value as ArpeggioPlacement)}
+                            defaultValue="none"
+                            value={placement}
+                        >
+                            <MenuItem value="on-beat">On Beat</MenuItem>
+                            <MenuItem value="before-beat">Before Beat</MenuItem>
+                            <MenuItem value="estimate">Estimate</MenuItem>
+                            <MenuItem value="none">None (fallback to default)</MenuItem>
+                        </Select>
+                    </FormControl>
+
+                    {!currentDate && (
+                        <FormControl>
+                            <TextField
+                                label="Duration Threshold"
+                                type="number"
+                                value={durationThreshold}
+                                onChange={(e) => setDurationThreshold(Number(e.target.value))}
+                                InputLabelProps={{ shrink: true }}
+                                variant="outlined"
+                                fullWidth
+                            />
+                        </FormControl>
+                    )}
+                </div>
+            </Drawer>
         </div>
     )
 }

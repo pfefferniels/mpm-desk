@@ -3,16 +3,18 @@ import { useState } from "react";
 import { usePiano } from "react-pianosound";
 import { asMIDI } from "../utils/utils";
 import { ArpeggioPlacement } from "mpmify";
+import { TemporalSpread } from "../../../mpm-ts/lib";
 
 interface ChordSpreadProps {
     notes: MsmNote[];
-    placement: ArpeggioPlacement;
+    spread?: TemporalSpread;
+    placement?: ArpeggioPlacement;
     onClick: () => void;
     stretch: number
     height: number
 }
 
-export const ChordSpread = ({ notes, onClick, placement, stretch, height }: ChordSpreadProps) => {
+export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height }: ChordSpreadProps) => {
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
 
@@ -20,17 +22,24 @@ export const ChordSpread = ({ notes, onClick, placement, stretch, height }: Chor
         return null;
     }
 
-    const firstOnset = notes[0]['midi.onset'];
+    let firstOnset = notes[0]['midi.onset'];
     const lastOnset = notes[notes.length - 1]['midi.onset'];
-    const frameLength = lastOnset - firstOnset;
+    let frameLength = lastOnset - firstOnset;
+
+    if (spread && spread["time.unit"] === 'milliseconds') {
+        firstOnset = firstOnset - spread["frame.start"]
+        frameLength = spread.frameLength
+    }
 
     let placedLine = 0
-    if (placement === 'estimate') {
-        placedLine = notes.reduce((acc, note) => acc + note['midi.onset'], 0) / notes.length;
-    } else if (placement === 'before-beat') {
-        placedLine = notes[notes.length - 1]['midi.onset'];
-    } else if (placement === 'on-beat') {
-        placedLine = notes[0]['midi.onset'];
+    if (!spread) {
+        if (placement === 'estimate') {
+            placedLine = notes.reduce((acc, note) => acc + note['midi.onset'], 0) / notes.length;
+        } else if (placement === 'before-beat') {
+            placedLine = notes[notes.length - 1]['midi.onset'];
+        } else if (placement === 'on-beat') {
+            placedLine = notes[0]['midi.onset'];
+        }
     }
 
     return (
