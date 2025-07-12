@@ -1,35 +1,17 @@
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { MouseEventHandler } from "react";
-import { CellWithPattern } from "./AccentuationDesk";
-import { Pattern } from "./Pattern";
 import { convexHull } from "../utils/convexHull";
+import { InsertMetricalAccentuationOptions } from "mpmify";
 
-interface CellProps {
-    cell: CellWithPattern;
-    i: number;
+interface PreviewProps {
+    cell: Omit<InsertMetricalAccentuationOptions, 'scope'>;
     stretchX: number;
     getScreenY: (velocity: number) => number;
     segments: DynamicsSegment[];
     onClick: MouseEventHandler;
-    denominator: number;
-    stretchY: number;
-    selected: boolean;
 }
 
-export const Cell = ({ cell, stretchX, stretchY, getScreenY, segments, denominator, onClick, selected }: CellProps) => {
-    if (cell.pattern) {
-        return (
-            <Pattern
-                pattern={cell.pattern}
-                stretchX={stretchX}
-                stretchY={stretchY}
-                getScreenY={getScreenY}
-                denominator={denominator}
-                selected={selected}
-                onClick={onClick}
-            />
-        )
-    }
+export const Preview = ({ cell, stretchX, getScreenY, segments, onClick }: PreviewProps) => {
     const cellPoints = segments
         .filter(s => s.date.start >= cell.start && s.date.start <= cell.end)
         .map(s => ({ x: s.date.start * stretchX, y: getScreenY(s.velocity) }));
@@ -59,7 +41,7 @@ export const Cell = ({ cell, stretchX, stretchY, getScreenY, segments, denominat
 
     return (
         <polygon
-            className='accentuationCell'
+            className='accentuationPreview'
             points={pointsStr}
             fill='red'
             fillOpacity={0.5}

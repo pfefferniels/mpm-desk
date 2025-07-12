@@ -1,12 +1,12 @@
 import { Button, Checkbox, Drawer, FormControlLabel, Stack, TextField } from "@mui/material"
-import { AccentuationCell } from "mpmify"
+import { InsertMetricalAccentuationOptions } from "mpmify";
 import { useState, useEffect } from "react";
 
 interface CellDrawerProps {
     open: boolean
     onClose: () => void
-    cell: AccentuationCell
-    onChange: (newCell: AccentuationCell) => void
+    cell: Omit<InsertMetricalAccentuationOptions, 'scope'>
+    onChange: (newCell: Omit<InsertMetricalAccentuationOptions, 'scope'>) => void
 }
 
 export const CellDrawer = ({ open, onClose, cell, onChange }: CellDrawerProps) => {
@@ -23,7 +23,7 @@ export const CellDrawer = ({ open, onClose, cell, onChange }: CellDrawerProps) =
     return (
         <Drawer anchor="left" open={open} onClose={onClose} variant='persistent'>
             <div style={{ width: 300, padding: 16 }}>
-                <h2>Edit Accentuation Cell</h2>
+                <h2>Edit Accentuation Candidate ({cell.start}-{cell.end})</h2>
                 <Stack direction='column' spacing={1}>
 
                     <TextField

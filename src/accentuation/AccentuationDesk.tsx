@@ -7,17 +7,16 @@ import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Box, Button, Slider, Stack, Typography } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
-import { AccentuationCell, InsertMetricalAccentuation, MergeMetricalAccentuations } from "mpmify";
+import { InsertMetricalAccentuation, InsertMetricalAccentuationOptions, MergeMetricalAccentuations } from "mpmify";
 import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
 import { Pattern } from "./Pattern";
-import { Cell } from "./Cell";
-import { Delete, SelectAll } from "@mui/icons-material";
+import { Delete } from "@mui/icons-material";
 import { ZoomControls } from "../ZoomControls";
 import { CellDrawer } from "./CellDrawer";
 import { NameDialog } from "./NameDialog";
+import { Preview } from "./Preview";
 
 type Pattern = (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })
-export type CellWithPattern = AccentuationCell & { pattern?: Pattern }
 
 const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     const segments: DynamicsSegment[] = []
@@ -40,15 +39,19 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
+export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
 
-    const [cells, setCells] = useState<CellWithPattern[]>([])
-    const [currentCells, setCurrentCells] = useState<CellWithPattern[]>([])
+    const [patterns, setPatterns] = useState<Pattern[]>([])
+    const [selectedPatterns, setSelectedPatterns] = useState<Pattern[]>([])
+
+    // creating a new metrical accentuation
+    const [candidate, setCandidate] = useState<Omit<InsertMetricalAccentuationOptions, 'scope'>>()
+
 
     const [scaleTolerance, setScaleTolerance] = useState(1.5)
     const [stretchX, setStretchX] = useState(0.03)
@@ -65,49 +68,41 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
     useEffect(() => {
-        if (!activeTransformer) return
+        const patterns = mpm
+            .getInstructions<AccentuationPattern>('accentuationPattern', part)
+            .map(i => {
+                const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
+                if (!def) return null
 
-        if (activeTransformer instanceof InsertMetricalAccentuation) {
-            const prev = activeTransformer.options.cells as CellWithPattern[]
-            const instructions = mpm
-                .getInstructions<AccentuationPattern>('accentuationPattern', part)
-                .map(i => {
-                    const def = mpm.getDefinition('accentuationPatternDef', i["name.ref"]) as AccentuationPatternDef | null
-                    if (!def) return null
-
-                    return {
-                        length: def.length,
-                        children: def.children,
-                        ...i
-                    }
-                })
-                .filter((i): i is Pattern => i !== null)
-
-            prev.forEach(cell => {
-                cell.pattern = instructions.find(i => i.date === cell.start)
+                return {
+                    length: def.length,
+                    children: def.children,
+                    ...i
+                }
             })
+            .filter((i): i is Pattern => i !== null)
 
-            setCells(prev)
-        }
-    }, [activeTransformer, mpm, part])
+        setPatterns(patterns)
+    }, [mpm, part])
 
-    const handleMetricalAccentuation = () => {
-        addTransformer(activeTransformer instanceof InsertMetricalAccentuation ? activeTransformer : new InsertMetricalAccentuation(), {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            cells: cells.map(({ pattern, ...rest }) => rest),
-            scaleTolerance,
-            scope: part
+    const handleInsert = () => {
+        if (!candidate) return
+        addTransformer(new InsertMetricalAccentuation(), {
+            ...candidate,
+            scope: part,
         })
+        setCandidate(undefined)
     }
 
     const handleMerge = (name: string) => {
-        addTransformer(activeTransformer instanceof MergeMetricalAccentuations ? activeTransformer : new MergeMetricalAccentuations(), {
-            names: currentCells
-                .map(c => c.pattern?.["name.ref"])
+        addTransformer(new MergeMetricalAccentuations(), {
+            names: selectedPatterns
+                .map(c => c["name.ref"])
                 .filter(n => n !== undefined) as string[],
             into: name,
             scope: part
         })
+        setSelectedPatterns([])
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -134,17 +129,20 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
     }
 
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
-        if (e.shiftKey && cells.length > 0) {
-            cells[cells.length - 1].end = segment.date.start
-            setCells([...cells])
-        }
-        else {
-            setCells([...cells, {
+        if (!candidate) {
+            setCandidate({
                 start: segment.date.start,
                 end: segment.date.end,
                 beatLength: 0.125,
-                neutralEnd: false
-            }])
+                name: 'new-pattern',
+                scaleTolerance: 0,
+                neutralEnd: true
+            })
+        }
+
+        if (candidate && e.shiftKey) {
+            candidate.end = segment.date.start
+            setCandidate({ ...candidate })
         }
     }
 
@@ -191,35 +189,29 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                     />
                 </Box>
                 <Stack direction='row' spacing={1}>
-                    <Button variant='contained' onClick={handleMetricalAccentuation}>
-                        {activeTransformer ? 'Update' : 'Insert'} Metrical Accentuations
+                    <Button variant='contained' onClick={handleInsert}>
+                        Insert Metrical Accentuation
                     </Button>
-                    <Button
-                        variant='outlined'
-                        disabled={cells.length === 0}
-                        onClick={() => setCells([])}
-                        startIcon={<Delete />}
-                    >
-                        Clear Frames ({cells.length})
-                    </Button>
+                    {candidate && (
+                        <Button
+                            variant='outlined'
+                            onClick={() => setCandidate(undefined)}
+                            startIcon={<Delete />}
+                        >
+                            Clear Candidate
+                        </Button>
+                    )}
                 </Stack>
                 <Stack direction='row' spacing={1}>
-                    <Button
+                    {selectedPatterns && (
+                        <Button
 
-                        variant='contained'
-                        onClick={() => setNameDialogOpen(true)}
-                    >
-                        Merge ({currentCells.length})
-                    </Button>
-                    <Button
-                        variant='outlined'
-                        startIcon={<SelectAll />}
-                        onClick={() => {
-                            setCurrentCells(cells)
-                        }}
-                    >
-                        Select All
-                    </Button>
+                            variant='contained'
+                            onClick={() => setNameDialogOpen(true)}
+                        >
+                            Merge ({selectedPatterns.length})
+                        </Button>
+                    )}
                 </Stack>
             </Stack>
 
@@ -244,29 +236,24 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                     strokeWidth={1}
                 />
 
-                {cells.map((cell, i) => {
+                {patterns.map((pattern) => {
                     return (
-                        <Cell
-                            key={`cell_${cell.start}_${cell.end}_${i}`}
-                            cell={cell}
-                            i={i}
+                        <Pattern
+                            key={`cell_${pattern["xml:id"]}`}
+                            pattern={pattern}
                             stretchX={stretchX}
                             stretchY={stretchY}
                             getScreenY={getScreenY}
-                            segments={segments}
                             denominator={msm.timeSignature?.denominator || 4}
-                            onClick={(e) => {
-                                if (e.altKey && e.shiftKey) {
-                                    setCells(prevCells => prevCells.filter(c => c !== cell));
-                                }
-                                else if (e.metaKey) {
-                                    setCurrentCells(prevCells => prevCells.concat([cell]))
+                            onClick={() => {
+                                if (selectedPatterns.includes(pattern)) {
+                                    setSelectedPatterns(selectedPatterns.filter(p => p !== pattern))
                                 }
                                 else {
-                                    setCurrentCells([cell]);
+                                    setSelectedPatterns([...selectedPatterns, pattern])
                                 }
                             }}
-                            selected={currentCells.includes(cell)}
+                            selected={selectedPatterns.includes(pattern)}
                         />
                     )
                 })}
@@ -274,16 +261,28 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, activeTransfo
                 {circles}
             </svg>
 
-            {currentCells.length === 1 && (
-                <CellDrawer
-                    cell={currentCells[0]}
-                    open={true}
-                    onClose={() => setCurrentCells([])}
-                    onChange={(cell) => {
-                        setCurrentCells([cell])
-                        setCells(cells.map(c => c === currentCells[0] ? cell : c))
-                    }}
-                />
+            {candidate && (
+                <>
+                    <CellDrawer
+                        cell={candidate}
+                        open={true}
+                        onClose={() => setCandidate(undefined)}
+                        onChange={(cell) => {
+                            setCandidate(cell)
+                        }}
+                    />
+                    <Preview
+                        cell={candidate}
+                        segments={segments}
+                        stretchX={stretchX}
+                        getScreenY={getScreenY}
+                        onClick={(e) => {
+                            if (e.shiftKey && e.altKey) {
+                                setCandidate(undefined)
+                            }
+                        }}
+                    />
+                </>
             )}
 
             {nameDialogOpen && (
