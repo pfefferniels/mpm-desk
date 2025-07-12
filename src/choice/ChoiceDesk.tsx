@@ -1,10 +1,9 @@
 
-import { Box, Button, FormControl, FormLabel, IconButton, List, ListItem, ListItemButton, ListItemText, MenuItem, Select, Stack } from "@mui/material"
+import { Button, Drawer, FormControl, FormLabel, MenuItem, Select, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { MsmNote } from "mpmify/lib/msm"
-import { MouseEvent, useEffect, useState } from "react"
+import { MouseEvent, useState } from "react"
 import { MakeChoice, RangeChoice } from "mpmify"
-import { Edit } from "@mui/icons-material"
 
 interface ArticulatedNoteProps {
     notes: MsmNote[]
@@ -74,27 +73,23 @@ const NoteChoice = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProps
     )
 }
 
-export const ChoiceDesk = ({ msm, mpm, part, activeTransformer, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
-    const [choices, setChoices] = useState<RangeChoice[]>([])
+export const ChoiceDesk = ({ msm, part, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
     const [currentChoice, setCurrentChoice] = useState<RangeChoice>()
     const [defaultChoice, setDefaultChoice] = useState<string>()
-    const [editDialog, setEditDialog] = useState(false)
-
-    useEffect(() => {
-        if (!activeTransformer) return
-
-        if (activeTransformer instanceof MakeChoice && activeTransformer.options.choices) {
-            setChoices(activeTransformer.options.choices as RangeChoice[])
-            setDefaultChoice(activeTransformer.options.defaultChoice || '')
-        }
-    }, [activeTransformer, mpm, msm])
 
     const insert = () => {
-        addTransformer(activeTransformer || new MakeChoice(), {
-            scope: part,
-            choices,
-            defaultChoice
-        })
+        if (currentChoice) {
+            addTransformer(new MakeChoice({
+                scope: part,
+                ...currentChoice
+            }))
+        }
+        else if (defaultChoice) {
+            addTransformer(new MakeChoice({
+                scope: part,
+                prefer: defaultChoice
+            }))
+        }
     }
 
     const stretchX = 30
@@ -115,33 +110,32 @@ export const ChoiceDesk = ({ msm, mpm, part, activeTransformer, addTransformer }
                 onClick={(e, note) => {
                     if (!note.source) return
 
-                    if (e.shiftKey) {
-                        if (!currentChoice) return
-                        if (currentChoice.prefer === note.source) {
-                            if (note.date < currentChoice.from) {
-                                currentChoice.from = note.date
-                            }
-                            else if (note.date > currentChoice.to) {
-                                currentChoice.to = note.date
-                            }
-                        }
-                        const updated = { ...currentChoice }
-                        setCurrentChoice(updated)
-                        setChoices(prev => prev.map(choice => {
-                            if (choice === currentChoice) {
-                                return { ...updated }
-                            }
-                            return choice
-                        }))
-                    }
-                    else {
+                    if (!currentChoice) {
                         const newChoice: RangeChoice = {
                             from: note.date,
                             to: note.date,
                             prefer: note.source
                         }
                         setCurrentChoice(newChoice)
-                        setChoices(prev => [...prev, newChoice])
+                        return
+                    }
+
+                    if (!('from' in currentChoice && 'to' in currentChoice && 'prefer' in currentChoice)) {
+                        return
+                    }
+
+                    if (e.shiftKey) {
+                        if (!currentChoice) return
+                        if (currentChoice.prefer === note.source) {
+                            if (note.date < (currentChoice as RangeChoice).from) {
+                                currentChoice.from = note.date
+                            }
+                            else if (note.date > (currentChoice as RangeChoice).to) {
+                                currentChoice.to = note.date
+                            }
+                        }
+                        const updated = { ...currentChoice }
+                        setCurrentChoice(updated)
                     }
                 }}
             />
@@ -152,56 +146,41 @@ export const ChoiceDesk = ({ msm, mpm, part, activeTransformer, addTransformer }
 
     return (
         <>
-            <Box sx={{ position: 'absolute', zIndex: 1000, backgroundColor: 'white', padding: 2, top: '5rem' }}>
-                <List>
-                    {choices.map((choice, index) => (
-                        <ListItem
-                            key={`choice_${index}`}
-                            onClick={() => setCurrentChoice(choice)}
-                            secondaryAction={
-                                <IconButton edge="end" aria-label="edit" onClick={() => setEditDialog(true)}>
-                                    <Edit />
-                                </IconButton>
-                            }
+            <Drawer anchor='right' open={true} variant='permanent'>
+                {currentChoice && (
+                    <div>
+                        {currentChoice.prefer.slice(0, 8)} from {(currentChoice as RangeChoice).from} to {(currentChoice as RangeChoice).to}
+                    </div>
+                )}
+
+                {!currentChoice && (
+                    <FormControl>
+                        <FormLabel>Default Source</FormLabel>
+                        <Select
+                            value={defaultChoice || ''}
+                            onChange={(e) => {
+                                setDefaultChoice(e.target.value)
+                            }}
                         >
-                            <ListItemButton
-                                selected={currentChoice === choice}
-                                onClick={() => setCurrentChoice(choice)}
-                            >
-                                <ListItemText>
-                                    {choice.prefer.slice(0, 8)} from {choice.from} to {choice.to}
-                                </ListItemText>
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                </List>
+                            {Array.from(sources).map((source, index) => (
+                                <MenuItem key={`source_${index}`} value={source}>
+                                    {source}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>)
+                }
 
-                <FormControl>
-                    <FormLabel>Default Source</FormLabel>
-                    <Select
-                        value={defaultChoice || ''}
-                        onChange={(e) => {
-                            setDefaultChoice(e.target.value)
-                        }}
-                    >
-                        {Array.from(sources).map((source, index) => (
-                            <MenuItem key={`source_${index}`} value={source}>
-                                {source}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
 
-                {editDialog && <span>Editing ...</span>}
                 <Stack spacing={1} direction='row'>
                     <Button
                         variant='contained'
                         onClick={insert}
                     >
-                        {activeTransformer ? 'Update' : 'Insert'} Articulations
+                        Make Choice
                     </Button>
                 </Stack>
-            </Box>
+            </Drawer>
 
             <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
                 <svg width={10000} height={900}>

@@ -1,5 +1,5 @@
 import { MPM, MSM } from "mpmify";
-import { OptionsOf, Transformer } from "mpmify/lib/transformers/Transformer";
+import { Transformer } from "mpmify/lib/transformers/Transformer";
 
 export interface ViewProps {
     setMSM: (newMSM: MSM) => void;
@@ -10,7 +10,7 @@ export interface ViewProps {
 }
 
 export interface TransformerViewProps<T extends Transformer> extends ViewProps {
-    addTransformer: <U extends T>(transformer: U, options: OptionsOf<U>) => void;
+    addTransformer: <U extends T>(transformer: U) => void;
     wasCreatedBy: (id: string) => T | undefined;
     activeTransformer?: T;
     setActiveTransformer: (transformer?: T) => void;
