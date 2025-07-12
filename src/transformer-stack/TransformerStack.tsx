@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import { Clear, ExpandLess, ExpandMore, RestartAlt, Save, UploadFile } from "@mui/icons-material";
 import { downloadAsFile } from "../utils/utils";
-import { ApproximateLogarithmicTempo, CombineAdjacentRubatos, InsertArticulation, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, InsertTemporalSpread, MergeMetricalAccentuations, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, validate } from "mpmify";
+import { ApproximateLogarithmicTempo, CombineAdjacentRubatos, InsertArticulation, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, InsertTemporalSpread, MergeMetricalAccentuations, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks } from "mpmify";
 import { flushSync } from "react-dom";
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
@@ -154,6 +154,11 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                             else {
                                 return null;
                             }
+
+                            if (!transformer) {
+                                console.warn(`Unknown transformer name: ${t.name}`);
+                                return null;
+                            }
                             transformer.id = t.id || v4();
                             transformer.options = t.options;
                             transformer.note = t.note;
@@ -168,7 +173,7 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
         reader.readAsText(file);
     };
 
-    const messages = validate(transformers);
+    // const messages = validate(transformers);
 
     useEffect(() => {
         return monitorForElements({
@@ -221,6 +226,8 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
         });
     }, [transformers, setTransformers]);
 
+    const argumentations = Map.groupBy(transformers, t => t.argumentation)
+
     return (
         <>
             <Card>
@@ -267,20 +274,27 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                         </Stack>
 
                         <div style={{ maxHeight: '80vh', overflow: 'scroll', maxWidth: 450 }}>
-                            {transformers.map((transformer, index) => {
-                                const message = messages.find(m => m.index === index);
-                                return (
-                                    <TransformerListItem
-                                        key={`transformer_${index}`}
-                                        transformer={transformer}
-                                        onRemove={() => onRemove(transformer)}
-                                        onEdit={() => setEditIndex(index)}
-                                        onSelect={() => onSelect(transformer)}
-                                        selected={activeTransformer === transformer}
-                                        message={message}
-                                    />
-                                )
-                            })}
+                            {Array
+                                .from(argumentations.entries())
+                                .map(([argumentation, transformers]) => {
+                                    return (
+                                        <Card key={`argumentation_${argumentation}`}>
+                                            {argumentation.id}
+                                            {argumentation.description}
+
+                                            {transformers.map((transformer, index) => (
+                                                <TransformerListItem
+                                                    key={`transformer_${index}`}
+                                                    transformer={transformer}
+                                                    onSelect={() => onSelect(transformer)}
+                                                    onRemove={() => onRemove(transformer)}
+                                                    onEdit={() => setEditIndex(index)}
+                                                    selected={activeTransformer?.id === transformer.id}
+                                                />
+                                            ))}
+                                        </Card>
+                                    )
+                                })}
                         </div>
                     </Collapse>
                 </List>
