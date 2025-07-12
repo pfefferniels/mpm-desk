@@ -1,31 +1,48 @@
-import { DatedDynamicsGradient, InsertDynamicsGradient } from "mpmify"
+import { DatedDynamicsGradient, DynamicsGradient, InsertDynamicsGradient } from "mpmify"
 import { ScopedTransformerViewProps } from "../DeskSwitch"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
 import { useEffect, useState } from "react"
 import { ChordGradient } from "./ChordGradient"
 import GradientDetails from "./GradientDetails"
 import { ZoomControls } from "../ZoomControls"
+import { Ornament, OrnamentDef } from "../../../mpm-ts/lib"
 
-export const DynamicsGradientDesk = ({ msm, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
+export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [currentDate, setCurrentDate] = useState<number>()
     const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
+    const [newGradient, setNewGradient] = useState<DynamicsGradient>()
     const [sortVelocities, setSortVelocities] = useState(true)
     const [stretchX, setStretchX] = useState(20)
 
     useEffect(() => {
-        if (!activeTransformer) return
-
-        console.log('setting gradients to', activeTransformer.options)
-        if (!activeTransformer.options.gradients) return
-
-        setGradients(activeTransformer.options.gradients)
-        setSortVelocities(activeTransformer.options.sortVelocities)
-    }, [activeTransformer])
+        setGradients(
+            new Map(
+                mpm
+                    .getInstructions<Ornament>('ornament', part)
+                    .map(ornament => {
+                        const def = mpm.getDefinition('ornamentDef', ornament['name.ref']) as OrnamentDef | undefined
+                        if (!def) return
+                        return [
+                            ornament.date,
+                            {
+                                from: def.dynamicsGradient?.["transition.from"],
+                                to: def.dynamicsGradient?.["transition.to"]
+                            }
+                        ] as [number, DynamicsGradient]
+                    })
+                    .filter(record => record !== undefined)
+            )
+        )
+    }, [mpm, part])
 
     const transform = () => {
-        addTransformer(activeTransformer || new InsertDynamicsGradient(), {
+        if (!newGradient || !currentDate) return
+        addTransformer(new InsertDynamicsGradient(), {
             part,
-            gradients,
+            gradient: {
+                date: currentDate,
+                gradient: newGradient
+            },
             sortVelocities
         })
     }
@@ -98,7 +115,7 @@ export const DynamicsGradientDesk = ({ msm, addTransformer, part, activeTransfor
                 onClick={transform}
                 style={{ marginTop: '1rem' }}
             >
-                {activeTransformer ? 'Update' : 'Insert'} Dynamics Gradients
+                Insert Dynamics Gradients
             </Button>
 
             <ZoomControls
@@ -134,16 +151,15 @@ export const DynamicsGradientDesk = ({ msm, addTransformer, part, activeTransfor
 
                 <div>{currentDate}</div>
 
-                <GradientDetails
-                    setGradient={(gradient) => {
-                        if (!currentDate) return
-                        gradients.set(currentDate, gradient)
-                        setGradients(new Map(gradients))
-                    }}
-                    gradient={currentDate ? gradients.get(currentDate) : undefined}
-                    open={!!currentDate}
-                    onClose={() => setCurrentDate(undefined)}
-                />
+                {currentDate && (
+                    <GradientDetails
+                        setGradient={(gradient) => {
+                            setNewGradient(gradient)
+                        }}
+                        gradient={newGradient}
+                        open={currentDate !== undefined}
+                    />
+                )}
 
             </div>
         </div >

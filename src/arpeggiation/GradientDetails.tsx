@@ -6,13 +6,12 @@ interface GradientDetailsProps {
     gradient?: DynamicsGradient;
     setGradient: (gradient: DynamicsGradient) => void;
     open: boolean;
-    onClose: () => void;
 }
 
-const GradientDetails: React.FC<GradientDetailsProps> = ({ gradient, setGradient, open, onClose }) => {
+const GradientDetails: React.FC<GradientDetailsProps> = ({ gradient, setGradient, open }) => {
 
     return (
-        <Drawer anchor="right" open={open} onClose={onClose}>
+        <Drawer anchor="right" open={open}>
             <div style={{ width: 300, padding: 16 }}>
                 <TextField
                     label="From"
