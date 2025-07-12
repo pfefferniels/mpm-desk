@@ -37,14 +37,14 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedT
 
     const transform = () => {
         if (!newGradient || !currentDate) return
-        addTransformer(new InsertDynamicsGradient(), {
+        addTransformer(new InsertDynamicsGradient({
             part,
             gradient: {
                 date: currentDate,
                 gradient: newGradient
             },
             sortVelocities
-        })
+        }))
     }
 
     const height = 250

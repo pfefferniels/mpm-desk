@@ -35,21 +35,21 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     const transform = () => {
         if (currentDate) {
             // This is a single temporal spread
-            addTransformer(new InsertTemporalSpread(), {
+            addTransformer(new InsertTemporalSpread({
                 scope: part,
                 placement,
                 noteOffShiftTolerance: 2,
                 date: currentDate,
-            })
+            }))
         }
         else {
             // This is a default temporal spread
-            addTransformer(new InsertTemporalSpread(), {
+            addTransformer(new InsertTemporalSpread({
                 scope: part,
                 placement,
                 noteOffShiftTolerance: 2,
                 durationThreshold: 35
-            })
+            }))
         }
     }
 

@@ -87,21 +87,21 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTrans
 
     const handleInsert = () => {
         if (!candidate) return
-        addTransformer(new InsertMetricalAccentuation(), {
+        addTransformer(new InsertMetricalAccentuation({
             ...candidate,
             scope: part,
-        })
+        }))
         setCandidate(undefined)
     }
 
     const handleMerge = (name: string) => {
-        addTransformer(new MergeMetricalAccentuations(), {
+        addTransformer(new MergeMetricalAccentuations({
             names: selectedPatterns
                 .map(c => c["name.ref"])
                 .filter(n => n !== undefined) as string[],
             into: name,
             scope: part
-        })
+        }))
         setSelectedPatterns([])
     }
 
