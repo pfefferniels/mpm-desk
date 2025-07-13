@@ -1,10 +1,10 @@
-
-import { Button, Drawer, FormControl, FormLabel, MenuItem, Select } from "@mui/material"
+import { Button, FormControl, MenuItem, Select, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MsmNote } from "mpmify/lib/msm"
 import { MouseEvent, useState } from "react"
 import { MakeChoice, RangeChoice } from "mpmify"
 import { createPortal } from "react-dom"
+import { Ribbon } from "../Ribbon"
 
 interface ArticulatedNoteProps {
     notes: MsmNote[]
@@ -162,25 +162,36 @@ export const ChoiceDesk = ({ msm, part, addTransformer, appBarRef }: ScopedTrans
                 </>
             )}
 
-            <Drawer anchor='right' open={true} variant='permanent'>
-                {!currentChoice && (
-                    <FormControl>
-                        <FormLabel>Default Source</FormLabel>
-                        <Select
-                            value={defaultChoice || ''}
-                            onChange={(e) => {
-                                setDefaultChoice(e.target.value)
-                            }}
-                        >
-                            {Array.from(sources).map((source, index) => (
-                                <MenuItem key={`source_${index}`} value={source}>
-                                    {source}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>)
-                }
-            </Drawer>
+            {!currentChoice && (
+                <>
+                    {createPortal((
+                        <Ribbon title="Default Choice">
+                            <Stack direction='row' spacing={1} alignItems='center'>
+                                <FormControl size='small'>
+                                    <Select
+                                        value={defaultChoice || ''}
+                                        onChange={(e) => {
+                                            setDefaultChoice(e.target.value)
+                                        }}
+                                    >
+                                        {Array.from(sources).map((source, index) => (
+                                            <MenuItem key={`source_${index}`} value={source}>
+                                                {source.slice(0, 8)}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                <Button variant='contained' size='small' onClick={insert}>
+                                    Insert
+                                </Button>
+                            </Stack>
+                        </Ribbon>
+                    ), appBarRef.current || document.body)}
+                </>
+            )
+            }
+
 
             <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
                 <svg width={10000} height={900}>

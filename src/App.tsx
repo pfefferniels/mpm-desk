@@ -14,6 +14,7 @@ import { v4 } from 'uuid';
 import { MsmNote } from 'mpmify/lib/msm';
 import { MetadataDesk } from './metadata/MetadataDesk';
 import { NotesProvider } from './hooks/NotesProvider';
+import { Ribbon } from './Ribbon';
 
 const injectInstructions = (mei: string, msm: MSM, mpm: MPM): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
@@ -170,38 +171,40 @@ export const App = () => {
                         </Typography>)
                     }
 
-                    <Tooltip title='Import MEI file' arrow>
-                        <Button
-                            onClick={handleFileImport}
-                            startIcon={<UploadFile />}
-                        >
-                            Open
-                        </Button>
-                    </Tooltip>
+                    <Ribbon title='File'>
+                        <Tooltip title='Import MEI file' arrow>
+                            <Button
+                                onClick={handleFileImport}
+                                startIcon={<UploadFile />}
+                            >
+                                Open
+                            </Button>
+                        </Tooltip>
 
-                    <Tooltip title='Save Work (JSON-LD)' arrow>
-                        <IconButton
-                            disabled={transformers.length === 0}
-                            onClick={() => {
-                                exportWork({
-                                    name: 'Reconstruction of ...',
-                                    expression: 'reconstruction.mpm'
-                                }, transformers)
-                            }}
-                        >
-                            <Save />
-                        </IconButton>
-                    </Tooltip>
+                        <Tooltip title='Save Work (JSON-LD)' arrow>
+                            <IconButton
+                                disabled={transformers.length === 0}
+                                onClick={() => {
+                                    exportWork({
+                                        name: 'Reconstruction of ...',
+                                        expression: 'reconstruction.mpm'
+                                    }, transformers)
+                                }}
+                            >
+                                <Save />
+                            </IconButton>
+                        </Tooltip>
+                        <input
+                            type="file"
+                            id="fileInput"
+                            accept='application/xml,.mei'
+                            style={{ display: 'none' }}
+                            onChange={handleFileChange}
+                        />
+                    </Ribbon>
 
-                    <input
-                        type="file"
-                        id="fileInput"
-                        accept='application/xml,.mei'
-                        style={{ display: 'none' }}
-                        onChange={handleFileChange}
-                    />
                     {(mpm.getInstructions().length > 0) && (
-                        <>
+                        <Ribbon title='Playback'>
                             <IconButton
                                 onClick={() => isPlaying ? stopMPM() : playMPM()}
                             >
@@ -220,25 +223,27 @@ export const App = () => {
                                     <CopyAllRounded />
                                 </IconButton>
                             )}
-                        </>
+                        </Ribbon>
                     )}
 
-                    <ToggleButtonGroup
-                        size='small'
-                        value={scope}
-                        exclusive
-                        onChange={(_, value) => setScope(value)}
-                        sx={{ pt: 1, pb: 1 }}
-                    >
-                        <ToggleButton value='global'>
-                            Global
-                        </ToggleButton>
-                        {Array.from(msm.parts()).map(p => (
-                            <ToggleButton key={`button_${p}`} value={p}>
-                                {p}
+                    <Ribbon title='Scope'>
+                        <ToggleButtonGroup
+                            size='small'
+                            value={scope}
+                            exclusive
+                            onChange={(_, value) => setScope(value)}
+                            sx={{ pt: 1, pb: 1 }}
+                        >
+                            <ToggleButton value='global'>
+                                Global
                             </ToggleButton>
-                        ))}
-                    </ToggleButtonGroup>
+                            {Array.from(msm.parts()).map(p => (
+                                <ToggleButton key={`button_${p}`} value={p}>
+                                    {p}
+                                </ToggleButton>
+                            ))}
+                        </ToggleButtonGroup>
+                    </Ribbon>
                 </Stack>
             </AppBar>
 
@@ -247,7 +252,7 @@ export const App = () => {
                 background: 'rgba(255, 255, 255, 0.6)',
                 margin: '1rem',
                 position: 'absolute',
-                top: '4rem',
+                top: '7rem',
                 left: '1rem',
                 zIndex: 1000
             }}>
@@ -269,6 +274,7 @@ export const App = () => {
                                                     selected={aspect === selectedDesk}
                                                     onClick={() => {
                                                         setSelectedDesk(aspect)
+                                                        setToExpand(undefined)
                                                     }}
                                                 >
                                                     <ListItemText>{aspect}</ListItemText>
