@@ -3,7 +3,7 @@ import { asMSM } from './asMSM';
 import { MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
-import { Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
+import { AppBar, Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack, Typography } from '@mui/material';
 import { AnyTransformer, Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
@@ -46,12 +46,12 @@ const injectInstructions = (mei: string, msm: MSM, mpm: MPM): string => {
         annot.textContent = instruction.type
         const comment = meiDoc.createComment(
             Object.entries(instruction)
-                        .filter(([k, v]) => (
-                            !['date', 'xml:id', 'type', 'corresp', 'noteid'].includes(k) &&
-                            v !== undefined
-                        ))
-                        .map(([k,v]) => `${k}: ${v}`)
-                        .join(', ')
+                .filter(([k, v]) => (
+                    !['date', 'xml:id', 'type', 'corresp', 'noteid'].includes(k) &&
+                    v !== undefined
+                ))
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(', ')
         );
         annot.appendChild(comment);
         measure.appendChild(annot)
@@ -140,14 +140,13 @@ export const App = () => {
 
     return (
         <>
-            <Stack direction='column'>
-                <Stack direction='row' spacing={1} p={1} sx={{ height: '5vh' }}>
+            <AppBar position='static' color='transparent'>
+                <Stack direction='row'>
                     <Button
-                        variant='outlined'
                         onClick={handleFileImport}
                         startIcon={<FileOpen />}
                     >
-                        {fileName || 'Import Aligned MEI'}
+                        Open
                     </Button>
                     <input
                         type="file"
@@ -178,53 +177,49 @@ export const App = () => {
                         </IconButton>
                     )}
                 </Stack>
+            </AppBar>
 
-                <Grid container sx={{ minHeight: '90vh' }}>
-                    <Grid item xs={2}>
-                        <List>
-                            {aspects.map(aspect => (
-                                <ListItem key={`aspect_${aspect}`}>
-                                    <ListItemButton
-                                        selected={selectedAspect === aspect}
-                                        onClick={() => setSelectedAspect(aspect)}>
-                                        <ListItemText>{aspect}</ListItemText>
-                                    </ListItemButton>
-                                </ListItem>
-                            ))}
-                        </List>
-                    </Grid>
-                    <Grid item xs={10}>
-                        <DeskSwitch
-                            aspect={selectedAspect}
-                            changeAspect={setSelectedAspect}
-                            mpm={mpm}
-                            msm={msm}
-                            setMPM={setMPM}
-                            setMSM={setMSM}
-                            addTransformer={(transformer, options) => {
-                                const newTransformers = [...transformers]
-
-                                const existing = transformers.find(t => t === transformer)
-                                if (existing) {
-                                    existing.options = options
-                                    reset(newTransformers)
-                                }
-                                else {
-                                    transformer.options = options
-                                    newTransformers.push(transformer)
-                                    transformer.run(msm, mpm)
-                                    setTransformers(newTransformers)
-                                    setMSM(msm.clone())
-                                    setMPM(mpm.clone())
-                                }
-                            }}
-                            wasCreatedBy={wasCreatedBy}
-                            activeTransformer={activeTransformer}
-                            setActiveTransformer={setActiveTransformer}
-                        />
-                    </Grid>
+            <Grid container sx={{ minHeight: '90vh' }}>
+                <Grid item xs={2}>
+                    <List>
+                        {aspects.map(aspect => (
+                            <ListItem key={`aspect_${aspect}`}>
+                                <ListItemButton
+                                    selected={selectedAspect === aspect}
+                                    onClick={() => setSelectedAspect(aspect)}>
+                                    <ListItemText>{aspect}</ListItemText>
+                                </ListItemButton>
+                            </ListItem>
+                        ))}
+                    </List>
                 </Grid>
-            </Stack>
+                <Grid item xs={10}>
+                    <DeskSwitch
+                        aspect={selectedAspect}
+                        changeAspect={setSelectedAspect}
+                        mpm={mpm}
+                        msm={msm}
+                        setMPM={setMPM}
+                        setMSM={setMSM}
+                        addTransformer={(transformer) => {
+                            const newTransformers = [...transformers, transformer]
+
+                            transformer.argumentation = {
+                                description: '',
+                                id: `decision-${v4().slice(0, 8)}`
+                            }
+
+                            transformer.run(msm, mpm)
+                            setTransformers(newTransformers)
+                            setMSM(msm.clone())
+                            setMPM(mpm.clone())
+                        }}
+                        wasCreatedBy={wasCreatedBy}
+                        activeTransformer={activeTransformer}
+                        setActiveTransformer={setActiveTransformer}
+                    />
+                </Grid>
+            </Grid>
 
             <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
                 <TransformerStack
