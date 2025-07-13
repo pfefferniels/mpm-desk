@@ -7,6 +7,7 @@ import { Ornament, OrnamentDef, TemporalSpread } from "../../../mpm-ts/lib";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
 import { usePhysicalZoom } from "../hooks/ZoomProvider";
+import { Add } from "@mui/icons-material";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const [temporalSpreads, setTemporalSpreads] = useState<(Ornament & { def: TemporalSpread })[]>([])
@@ -116,6 +117,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                                     onClick={() => {
                                         setInsertDefault(true)
                                     }}
+                                    startIcon={<Add />}
                                 >
                                     Insert Default
                                 </Button>

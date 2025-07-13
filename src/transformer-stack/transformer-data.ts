@@ -1,9 +1,19 @@
 import { Transformer } from "mpmify/lib/transformers/Transformer";
 
 const transformerDataKey = Symbol('task');
-export type TransformerData = { [transformerDataKey]: true; transformerId: Transformer['id']; };
+
+export type TransformerData = {
+    [transformerDataKey]: true;
+    transformerId: Transformer['id'];
+    type: 'transformer'
+};
+
 export function getTransformerData(transformer: Transformer): TransformerData {
-    return { [transformerDataKey]: true, transformerId: transformer.id };
+    return {
+        [transformerDataKey]: true,
+        transformerId: transformer.id,
+        type: 'transformer'
+    }
 }
 export function isTransformerData(data: Record<string | symbol, unknown>): data is TransformerData {
     return data[transformerDataKey] === true;

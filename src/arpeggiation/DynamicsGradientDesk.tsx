@@ -1,18 +1,18 @@
 import { DatedDynamicsGradient, DynamicsGradient, InsertDynamicsGradient } from "mpmify"
-import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
 import { useEffect, useState } from "react"
 import { ChordGradient } from "./ChordGradient"
 import GradientDetails from "./GradientDetails"
-import { ZoomControls } from "../ZoomControls"
 import { Ornament, OrnamentDef } from "../../../mpm-ts/lib"
+import { usePhysicalZoom } from "../hooks/ZoomProvider"
 
 export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [currentDate, setCurrentDate] = useState<number>()
     const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
     const [newGradient, setNewGradient] = useState<DynamicsGradient>()
     const [sortVelocities, setSortVelocities] = useState(true)
-    const [stretchX, setStretchX] = useState(20)
+    const stretchX = usePhysicalZoom()
 
     useEffect(() => {
         setGradients(
@@ -117,12 +117,6 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedT
             >
                 Insert Dynamics Gradients
             </Button>
-
-            <ZoomControls
-                stretchX={stretchX}
-                setStretchX={setStretchX}
-                rangeX={[1, 40]}
-            />
 
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 <svg width={8000} height={200}>

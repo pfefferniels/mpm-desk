@@ -1,18 +1,17 @@
-import { attachClosestEdge, extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/types";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { ErrorOutline, Warning, ExpandLess, ExpandMore, Delete } from "@mui/icons-material";
-import { ListItem, ListItemIcon, ListItemButton, ListItemText, IconButton } from "@mui/material";
+import { ErrorOutline, Warning, Delete } from "@mui/icons-material";
+import { ListItem, ListItemIcon, ListItemButton, ListItemText, IconButton, Tooltip } from "@mui/material";
 import { ValidationMessage } from "mpmify";
 import { Transformer } from "mpmify/lib/transformers/Transformer";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import invariant from "tiny-invariant";
 import DropIndicator from "./DropIndicator";
-import { getTransformerData, isTransformerData } from "./transformer-data";
+import { getTransformerData } from "./transformer-data";
 
 interface TransformerListItemProps {
     transformer: Transformer;
@@ -41,7 +40,6 @@ type TransformerState =
 const idle: TransformerState = { type: 'idle' };
 
 export const TransformerListItem = ({ transformer, onRemove, onSelect, selected, message }: TransformerListItemProps) => {
-    const [expanded, setExpanded] = useState(false);
     const [state, setState] = useState<TransformerState>(idle);
     const ref = useRef<HTMLLIElement | null>(null);
 
@@ -50,10 +48,9 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
         message
             ? <span>{message.message}</span>
             : (
-                optionsString.length > 20 && !expanded
+                optionsString.length > 20
                     ? optionsString.slice(0, 20) + "..."
                     : optionsString);
-    const isLong = optionsString.length > 20;
 
 
     useEffect(() => {
@@ -84,50 +81,52 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
                     setState(idle);
                 },
             }),
-            dropTargetForElements({
-                element,
-                canDrop({ source }) {
-                    // not allowing dropping on yourself
-                    if (source.element === element) {
-                        return false;
-                    }
-                    // only allowing transformers to be dropped on me
-                    return isTransformerData(source.data);
-                },
-                getData({ input }) {
-                    const data = getTransformerData(transformer);
-                    return attachClosestEdge(data, {
-                        element,
-                        input,
-                        allowedEdges: ['top', 'bottom'],
-                    });
-                },
-                getIsSticky() {
-                    return true;
-                },
-                onDragEnter({ self }) {
-                    const closestEdge = extractClosestEdge(self.data);
-                    setState({ type: 'is-dragging-over', closestEdge });
-                },
-                onDrag({ self }) {
-                    const closestEdge = extractClosestEdge(self.data);
-
-                    // Only need to update react state if nothing has changed.
-                    // Prevents re-rendering.
-                    setState((current) => {
-                        if (current.type === 'is-dragging-over' && current.closestEdge === closestEdge) {
-                            return current;
-                        }
-                        return { type: 'is-dragging-over', closestEdge };
-                    });
-                },
-                onDragLeave() {
-                    setState(idle);
-                },
-                onDrop() {
-                    setState(idle);
-                },
-            }),
+            //dropTargetForElements({
+            //    element,
+            //    canDrop({ source }) {
+            //        // not allowing dropping on yourself
+            //        if (source.element === element) {
+            //            return false;
+            //        }
+            //        // only allowing transformers to be dropped on me
+            //        return isTransformerData(source.data);
+            //    },
+            //    getData({ input }) {
+            //        const data = getTransformerData(transformer);
+            //        return attachClosestEdge(data, {
+            //            element,
+            //            input,
+            //            allowedEdges: ['top', 'bottom'],
+            //        });
+            //    },
+            //    getIsSticky() {
+            //        return true;
+            //    },
+            //    onDragEnter({ self }) {
+            //        const closestEdge = extractClosestEdge(self.data);
+            //        setState({ type: 'is-dragging-over', closestEdge });
+            //    },
+            //    onDrag({ self }) {
+            //        const closestEdge = extractClosestEdge(self.data);
+//
+            //        // Only need to update react state if nothing has changed.
+            //        // Prevents re-rendering.
+            //        setState((current) => {
+            //            if (current.type === 'is-dragging-over' && current.closestEdge === closestEdge) {
+            //                return current;
+            //            }
+            //            return { type: 'is-dragging-over', closestEdge };
+            //        });
+            //    },
+            //    onDragLeave() {
+            //        setState(idle);
+            //    },
+            //    onDrop({ self, location }) {
+            //        console.log('self', self);
+            //        console.log('location', location);
+            //        setState(idle);
+            //    },
+            //}),
         );
     }, [transformer]);
 
@@ -143,31 +142,23 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
                     {message.type === 'warning' && <Warning color="warning" />}
                 </ListItemIcon>
             )}
-            <ListItemButton
-                onClick={onSelect}
-                selected={selected}
-            >
-                <ListItemText primary={transformer.name} secondary={displayText} title="test" />
-
-                {isLong && (
+            <Tooltip title={optionsString}>
+                <ListItemButton
+                    onClick={onSelect}
+                    selected={selected}
+                >
+                    <ListItemText primary={transformer.name} secondary={displayText} title="test" />
                     <IconButton
                         onClick={(e) => {
                             e.stopPropagation();
-                            setExpanded(!expanded);
+                            onRemove();
                         }}
                     >
-                        {expanded ? <ExpandLess /> : <ExpandMore />}
+                        <Delete />
                     </IconButton>
-                )}
-                <IconButton
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onRemove();
-                    }}
-                >
-                    <Delete />
-                </IconButton>
-            </ListItemButton>
+                </ListItemButton>
+            </Tooltip>
+
             {state.type === 'is-dragging-over' && state.closestEdge ? (
                 <DropIndicator edge={state.closestEdge} gap={'8px'} />
             ) : null}
