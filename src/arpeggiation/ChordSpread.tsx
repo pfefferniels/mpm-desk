@@ -27,8 +27,8 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
     let frameLength = lastOnset - firstOnset;
 
     if (spread && spread["time.unit"] === 'milliseconds') {
-        firstOnset = firstOnset - spread["frame.start"]
-        frameLength = spread.frameLength
+        firstOnset = (firstOnset - spread["frame.start"]) / 1000;
+        frameLength = spread.frameLength / 1000;
     }
 
     let placedLine = 0

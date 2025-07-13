@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { ScopedTransformerViewProps } from "../DeskSwitch";
+import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify";
 import { ChordSpread } from "./ChordSpread";
-import { Stack, TextField, Select, MenuItem, Button, Divider, Drawer, FormControl, InputLabel, Typography } from "@mui/material";
-import { ZoomControls } from "../ZoomControls";
+import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Typography, Dialog, DialogContent, DialogActions } from "@mui/material";
 import { Ornament, OrnamentDef, TemporalSpread } from "../../../mpm-ts/lib";
+import { createPortal } from "react-dom";
+import { Ribbon } from "../Ribbon";
+import { usePhysicalZoom } from "../hooks/ZoomProvider";
 
-export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
+export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const [temporalSpreads, setTemporalSpreads] = useState<(Ornament & { def: TemporalSpread })[]>([])
+    const [insertDefault, setInsertDefault] = useState(false);
 
     // these are being defined in the drawer
     const [currentDate, setCurrentDate] = useState<number>()
@@ -16,7 +19,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
 
     // this is used for drawing the preview of a tempo curve
     const [beatLength, setBeatLength] = useState(720);
-    const [stretchX, setStretchX] = useState(20)
+
+    const stretchX = usePhysicalZoom()
 
     useEffect(() => {
         const spreads = mpm
@@ -101,30 +105,37 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
 
     return (
         <div>
-            <Stack direction='row' spacing={1} mt={2} mb={2}>
-                <TextField
-                    size='small'
-                    label="Beat Length"
-                    type="number"
-                    value={beatLength}
-                    onChange={(e) => setBeatLength(Number(e.target.value))}
-                    InputLabelProps={{ shrink: true }}
-                    variant="outlined"
-                />
-                <Divider orientation="vertical" flexItem />
-                <Button
-                    variant='contained'
-                    onClick={transform}
-                >
-                    Insert Temporal Spreads
-                </Button>
-            </Stack>
-
-            <ZoomControls
-                stretchX={stretchX}
-                setStretchX={setStretchX}
-                rangeX={[1, 40]}
-            />
+            {appBarRef && (
+                <>
+                    {createPortal((
+                        <>
+                            <Ribbon title="Temporal Spread">
+                                <Button
+                                    size='small'
+                                    variant='outlined'
+                                    onClick={() => {
+                                        setInsertDefault(true)
+                                    }}
+                                >
+                                    Insert Default
+                                </Button>
+                            </Ribbon>
+                            <Ribbon title='Tempo Curve'>
+                                <TextField
+                                    size='small'
+                                    label="Beat Length"
+                                    type="number"
+                                    value={beatLength}
+                                    onChange={(e) => setBeatLength(Number(e.target.value))}
+                                    InputLabelProps={{ shrink: true }}
+                                    variant="outlined"
+                                    sx={{ width: '100px' }}
+                                />
+                            </Ribbon>
+                        </>
+                    ), appBarRef.current || document.body)}
+                </>
+            )}
 
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 <svg width={10000} height={height}>
@@ -160,15 +171,17 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                     </g>
                 </svg>
             </div>
-            <Drawer
-                anchor='right'
-                variant='permanent'
+            <Dialog
+                open={currentDate !== undefined || insertDefault}
+                onClose={() => {
+                    setCurrentDate(undefined)
+                    setInsertDefault(false)
+                }}
             >
-                <div style={{ width: 250, padding: 16 }}>
+                <DialogContent>
                     <Typography>
                         {currentDate}
                     </Typography>
-
                     <FormControl fullWidth>
                         <InputLabel id="placement-select-label">Placement</InputLabel>
                         <Select
@@ -198,8 +211,16 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                             />
                         </FormControl>
                     )}
-                </div>
-            </Drawer>
-        </div>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => {
+                        transform();
+                        setCurrentDate(undefined);
+                    }}>
+                        Insert
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </div >
     )
 }

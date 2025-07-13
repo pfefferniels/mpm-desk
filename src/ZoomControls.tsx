@@ -22,7 +22,7 @@ export const ZoomControls = ({ stretchX, setStretchX, rangeX, stretchY, setStret
     return (
         <>
             {(stretchX && rangeX) && (
-                <div className='horizontalStretch'>
+                <div style={{ minWidth: 100 }}>
                     <Slider
                         aria-label="Horizontal Stretch"
                         valueLabelDisplay="auto"

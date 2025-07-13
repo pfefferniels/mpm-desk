@@ -15,6 +15,8 @@ import { MsmNote } from 'mpmify/lib/msm';
 import { MetadataDesk } from './metadata/MetadataDesk';
 import { NotesProvider } from './hooks/NotesProvider';
 import { Ribbon } from './Ribbon';
+import { ZoomControls } from './ZoomControls';
+import { ZoomContext } from './hooks/ZoomProvider';
 
 const injectInstructions = (mei: string, msm: MSM, mpm: MPM): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
@@ -81,6 +83,8 @@ export const App = () => {
     const [selectedDesk, setSelectedDesk] = useState<string>('metadata')
     const [toExpand, setToExpand] = useState<string>()
     const [scope, setScope] = useState<'global' | number>('global');
+
+    const [stretchX, setStretchX] = useState<number>(20)
 
     const appBarRef = React.useRef<HTMLDivElement>(null);
 
@@ -232,7 +236,6 @@ export const App = () => {
                             value={scope}
                             exclusive
                             onChange={(_, value) => setScope(value)}
-                            sx={{ pt: 1, pb: 1 }}
                         >
                             <ToggleButton value='global'>
                                 Global
@@ -243,6 +246,14 @@ export const App = () => {
                                 </ToggleButton>
                             ))}
                         </ToggleButtonGroup>
+                    </Ribbon>
+
+                    <Ribbon title='Zoom'>
+                        <ZoomControls
+                            stretchX={stretchX}
+                            setStretchX={setStretchX}
+                            rangeX={[1, 40]}
+                        />
                     </Ribbon>
                 </Stack>
             </AppBar>
@@ -318,27 +329,36 @@ export const App = () => {
             </Card>
 
             <NotesProvider notes={msm.allNotes}>
-                <DeskComponent
-                    appBarRef={appBarRef}
-                    msm={msm}
-                    mpm={mpm}
-                    setMSM={setMSM}
-                    setMPM={setMPM}
-                    addTransformer={(transformer: Transformer) => {
-                        const newTransformers = [...transformers, transformer]
+                <ZoomContext.Provider value={{
+                    symbolic: {
+                        stretchX: stretchX / 200
+                    },
+                    physical: {
+                        stretchX: stretchX
+                    }
+                }}>
+                    <DeskComponent
+                        appBarRef={appBarRef}
+                        msm={msm}
+                        mpm={mpm}
+                        setMSM={setMSM}
+                        setMPM={setMPM}
+                        addTransformer={(transformer: Transformer) => {
+                            const newTransformers = [...transformers, transformer]
 
-                        transformer.argumentation = {
-                            description: '',
-                            id: `decision-${v4().slice(0, 8)}`
-                        }
+                            transformer.argumentation = {
+                                description: '',
+                                id: `decision-${v4().slice(0, 8)}`
+                            }
 
-                        transformer.run(msm, mpm)
-                        setTransformers(newTransformers)
-                        setMSM(msm.clone())
-                        setMPM(mpm.clone())
-                    }}
-                    part={scope}
-                />
+                            transformer.run(msm, mpm)
+                            setTransformers(newTransformers)
+                            setMSM(msm.clone())
+                            setMPM(mpm.clone())
+                        }}
+                        part={scope}
+                    />
+                </ZoomContext.Provider>
             </NotesProvider>
 
             <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
