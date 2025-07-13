@@ -3,7 +3,7 @@ import { asMSM } from './asMSM';
 import { MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
-import { AppBar, Button, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Stack, Typography } from '@mui/material';
+import { AppBar, Button, Card, IconButton, ListItem, ListItemButton, ListItemText, MenuList, Stack, Tooltip, Typography } from '@mui/material';
 import { AnyTransformer, Aspect, DeskSwitch, aspects } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
@@ -142,12 +142,21 @@ export const App = () => {
         <>
             <AppBar position='static' color='transparent'>
                 <Stack direction='row'>
-                    <Button
-                        onClick={handleFileImport}
-                        startIcon={<FileOpen />}
-                    >
-                        Open
-                    </Button>
+                    {fileName && (
+                        <Typography component="div" sx={{ padding: '0.5rem' }}>
+                            {fileName}
+                        </Typography>)
+                    }
+
+                    <Tooltip title='Import MEI file' arrow>
+                        <Button
+                            onClick={handleFileImport}
+                            startIcon={<FileOpen />}
+                        >
+                            Open
+                        </Button>
+                    </Tooltip>
+
                     <input
                         type="file"
                         id="fileInput"
@@ -155,71 +164,77 @@ export const App = () => {
                         style={{ display: 'none' }}
                         onChange={handleFileChange}
                     />
-                    {mpm && (
+                    {(mpm.getInstructions().length > 0) && (
                         <>
                             <IconButton
                                 onClick={() => isPlaying ? stopMPM() : playMPM()}
                             >
                                 {isPlaying ? <PauseCircle /> : <PlayCircle />}
                             </IconButton>
+
+                            {mei && (
+                                <IconButton
+                                    onClick={async () => {
+                                        console.log('parsing mei', mei)
+                                        const newMEI = injectInstructions(mei, msm, mpm)
+                                        const result = await navigator.clipboard.writeText(newMEI)
+                                        console.log('MEI copied to clipboard', result)
+                                    }}
+                                >
+                                    <CopyAllRounded />
+                                </IconButton>
+                            )}
                         </>
-                    )}
-                    {(mei && mpm.getInstructions().length > 0) && (
-                        <IconButton
-                            onClick={async () => {
-                                console.log('parsing mei', mei)
-                                const newMEI = injectInstructions(mei, msm, mpm)
-                                const result = await navigator.clipboard.writeText(newMEI)
-                                console.log('MEI copied to clipboard', result)
-                            }}
-                        >
-                            <CopyAllRounded />
-                        </IconButton>
                     )}
                 </Stack>
             </AppBar>
 
-            <Grid container sx={{ minHeight: '90vh' }}>
-                <Grid item xs={2}>
-                    <List>
-                        {aspects.map(aspect => (
-                            <ListItem key={`aspect_${aspect}`}>
-                                <ListItemButton
-                                    selected={selectedAspect === aspect}
-                                    onClick={() => setSelectedAspect(aspect)}>
-                                    <ListItemText>{aspect}</ListItemText>
-                                </ListItemButton>
-                            </ListItem>
-                        ))}
-                    </List>
-                </Grid>
-                <Grid item xs={10}>
-                    <DeskSwitch
-                        aspect={selectedAspect}
-                        changeAspect={setSelectedAspect}
-                        mpm={mpm}
-                        msm={msm}
-                        setMPM={setMPM}
-                        setMSM={setMSM}
-                        addTransformer={(transformer) => {
-                            const newTransformers = [...transformers, transformer]
+            <Card sx={{
+                backdropFilter: 'blur(17px)',
+                background: 'rgba(255, 255, 255, 0.4)',
+                margin: '1rem',
+                position: 'absolute',
+                top: '4rem',
+                left: '1rem',
+                zIndex: 1000
+            }}>
+                <MenuList dense>
+                    {aspects.map(aspect => (
+                        <ListItem key={`aspect_${aspect}`}>
+                            <ListItemButton
+                                selected={selectedAspect === aspect}
+                                onClick={() => setSelectedAspect(aspect)}>
+                                <ListItemText>{aspect}</ListItemText>
+                            </ListItemButton>
+                        </ListItem>
+                    ))}
+                </MenuList>
+            </Card>
 
-                            transformer.argumentation = {
-                                description: '',
-                                id: `decision-${v4().slice(0, 8)}`
-                            }
+            <DeskSwitch
+                aspect={selectedAspect}
+                changeAspect={setSelectedAspect}
+                mpm={mpm}
+                msm={msm}
+                setMPM={setMPM}
+                setMSM={setMSM}
+                addTransformer={(transformer) => {
+                    const newTransformers = [...transformers, transformer]
 
-                            transformer.run(msm, mpm)
-                            setTransformers(newTransformers)
-                            setMSM(msm.clone())
-                            setMPM(mpm.clone())
-                        }}
-                        wasCreatedBy={wasCreatedBy}
-                        activeTransformer={activeTransformer}
-                        setActiveTransformer={setActiveTransformer}
-                    />
-                </Grid>
-            </Grid>
+                    transformer.argumentation = {
+                        description: '',
+                        id: `decision-${v4().slice(0, 8)}`
+                    }
+
+                    transformer.run(msm, mpm)
+                    setTransformers(newTransformers)
+                    setMSM(msm.clone())
+                    setMPM(mpm.clone())
+                }}
+                wasCreatedBy={wasCreatedBy}
+                activeTransformer={activeTransformer}
+                setActiveTransformer={setActiveTransformer}
+            />
 
             <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
                 <TransformerStack
