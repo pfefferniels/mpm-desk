@@ -149,8 +149,8 @@ export const App = () => {
 
     return (
         <>
-            <AppBar position='static' color='transparent' ref={appBarRef}>
-                <Stack direction='row'>
+            <AppBar position='static' color='transparent'>
+                <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1}}>
                     {fileName && (
                         <Typography component="div" sx={{ padding: '1rem' }}>
                             {fileName}
@@ -280,6 +280,7 @@ export const App = () => {
 
             <NotesProvider notes={msm.allNotes}>
                 <DeskComponent
+                    appBarRef={appBarRef}
                     msm={msm}
                     mpm={mpm}
                     setMSM={setMSM}

@@ -7,6 +7,8 @@ export interface ViewProps {
 
     setMPM: (newMPM: MPM) => void;
     mpm: MPM;
+
+    appBarRef: React.RefObject<HTMLDivElement>;
 }
 
 export interface TransformerViewProps<T extends Transformer> extends ViewProps {

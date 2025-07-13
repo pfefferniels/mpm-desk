@@ -1,9 +1,10 @@
 
-import { Button, Drawer, FormControl, FormLabel, MenuItem, Select, Stack } from "@mui/material"
-import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { Button, Drawer, FormControl, FormLabel, MenuItem, Select } from "@mui/material"
+import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MsmNote } from "mpmify/lib/msm"
 import { MouseEvent, useState } from "react"
 import { MakeChoice, RangeChoice } from "mpmify"
+import { createPortal } from "react-dom"
 
 interface ArticulatedNoteProps {
     notes: MsmNote[]
@@ -73,7 +74,7 @@ const NoteChoice = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProps
     )
 }
 
-export const ChoiceDesk = ({ msm, part, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
+export const ChoiceDesk = ({ msm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<MakeChoice>) => {
     const [currentChoice, setCurrentChoice] = useState<RangeChoice>()
     const [defaultChoice, setDefaultChoice] = useState<string>()
 
@@ -110,7 +111,7 @@ export const ChoiceDesk = ({ msm, part, addTransformer }: ScopedTransformerViewP
                 onClick={(e, note) => {
                     if (!note.source) return
 
-                    if (!currentChoice) {
+                    if (!currentChoice || !e.shiftKey) {
                         const newChoice: RangeChoice = {
                             from: note.date,
                             to: note.date,
@@ -144,15 +145,24 @@ export const ChoiceDesk = ({ msm, part, addTransformer }: ScopedTransformerViewP
 
     const sources = new Set(msm.allNotes.map(note => note.source || 'unknown'))
 
+
     return (
         <>
-            <Drawer anchor='right' open={true} variant='permanent'>
-                {currentChoice && (
-                    <div>
-                        {currentChoice.prefer.slice(0, 8)} from {(currentChoice as RangeChoice).from} to {(currentChoice as RangeChoice).to}
-                    </div>
-                )}
+            {currentChoice && (
+                <>
+                    {createPortal((
+                        <Button
+                            size='small'
+                            variant='outlined'
+                            onClick={insert}
+                        >
+                            Choose {currentChoice.prefer.slice(0, 8)} from {(currentChoice as RangeChoice).from} to {(currentChoice as RangeChoice).to}
+                        </Button>
+                    ), appBarRef.current || document.body)}
+                </>
+            )}
 
+            <Drawer anchor='right' open={true} variant='permanent'>
                 {!currentChoice && (
                     <FormControl>
                         <FormLabel>Default Source</FormLabel>
@@ -170,16 +180,6 @@ export const ChoiceDesk = ({ msm, part, addTransformer }: ScopedTransformerViewP
                         </Select>
                     </FormControl>)
                 }
-
-
-                <Stack spacing={1} direction='row'>
-                    <Button
-                        variant='contained'
-                        onClick={insert}
-                    >
-                        Make Choice
-                    </Button>
-                </Stack>
             </Drawer>
 
             <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
