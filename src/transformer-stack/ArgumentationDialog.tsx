@@ -1,22 +1,22 @@
 import { Button, Dialog, DialogActions, DialogContent, TextField } from "@mui/material";
-import { Transformer } from "mpmify/lib/transformers/Transformer";
+import { Argumentation } from "mpmify";
 import { useEffect, useState } from "react";
 
-interface TransformerDialogProps {
+interface ArgumentationDialogProps {
     open: boolean;
     onClose: () => void;
-    onChange(transformer: Transformer): void;
-    transformer: Transformer;
+    onChange(): void;
+    argumentation: Argumentation;
 }
 
-export const TransformerDialog = ({ open, onClose, onChange, transformer }: TransformerDialogProps) => {
-    const [id, setID] = useState(transformer.id);
-    const [note, setNote] = useState(transformer.note);
+export const ArgumentationDialog = ({ open, onClose, onChange, argumentation }: ArgumentationDialogProps) => {
+    const [id, setID] = useState(argumentation.id);
+    const [note, setNote] = useState(argumentation.description);
 
     useEffect(() => {
-        setID(transformer.id);
-        setNote(transformer.note);
-    }, [transformer]);
+        setID(argumentation.id);
+        setNote(argumentation.description);
+    }, [argumentation]);
 
     return (
         <Dialog open={open} onClose={onClose}>
@@ -44,9 +44,9 @@ export const TransformerDialog = ({ open, onClose, onChange, transformer }: Tran
                 </Button>
                 <Button
                     onClick={() => {
-                        transformer.id = id;
-                        transformer.note = note;
-                        onChange(transformer);
+                        argumentation.id = id;
+                        argumentation.description = note;
+                        onChange();
                         onClose();
                     }}
                     variant='contained'

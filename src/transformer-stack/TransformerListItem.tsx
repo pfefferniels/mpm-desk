@@ -4,7 +4,7 @@ import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { ErrorOutline, Warning, ExpandLess, ExpandMore, Delete, Edit } from "@mui/icons-material";
+import { ErrorOutline, Warning, ExpandLess, ExpandMore, Delete } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemButton, ListItemText, IconButton } from "@mui/material";
 import { ValidationMessage } from "mpmify";
 import { Transformer } from "mpmify/lib/transformers/Transformer";
@@ -18,7 +18,6 @@ interface TransformerListItemProps {
     transformer: Transformer;
     message?: ValidationMessage
     onRemove: () => void;
-    onEdit: () => void;
     onSelect: () => void;
     selected: boolean;
 }
@@ -41,7 +40,7 @@ type TransformerState =
 
 const idle: TransformerState = { type: 'idle' };
 
-export const TransformerListItem = ({ transformer, onRemove, onEdit, onSelect, selected, message }: TransformerListItemProps) => {
+export const TransformerListItem = ({ transformer, onRemove, onSelect, selected, message }: TransformerListItemProps) => {
     const [expanded, setExpanded] = useState(false);
     const [state, setState] = useState<TransformerState>(idle);
     const ref = useRef<HTMLLIElement | null>(null);
@@ -160,14 +159,6 @@ export const TransformerListItem = ({ transformer, onRemove, onEdit, onSelect, s
                         {expanded ? <ExpandLess /> : <ExpandMore />}
                     </IconButton>
                 )}
-                <IconButton
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit();
-                    }}
-                >
-                    <Edit />
-                </IconButton>
                 <IconButton
                     onClick={(e) => {
                         e.stopPropagation();

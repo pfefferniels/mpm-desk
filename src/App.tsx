@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { asMSM } from './asMSM';
-import { MPM, MSM } from 'mpmify';
+import { exportWork, importWork, MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
-import { CopyAllRounded, FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
+import { CopyAllRounded, ExpandLess, ExpandMore, PauseCircle, PlayCircle, Save, UploadFile } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
@@ -78,6 +78,7 @@ export const App = () => {
     const [fileName, setFileName] = useState<string>()
 
     const [selectedDesk, setSelectedDesk] = useState<string>('metadata')
+    const [toExpand, setToExpand] = useState<string>()
     const [scope, setScope] = useState<'global' | number>('global');
 
     const appBarRef = React.useRef<HTMLDivElement>(null);
@@ -85,14 +86,26 @@ export const App = () => {
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
         if (!file) return
+
         const reader = new FileReader();
-        reader.onload = async (e: ProgressEvent<FileReader>) => {
-            const content = e.target?.result as string;
-            setMEI(content);
-            setMSM(await asMSM(content));
-            setInitialMSM(await asMSM(content));
-            setFileName(file.name)
-        };
+
+        if (file.name.endsWith('.json')) {
+            // open JSON-LD
+            reader.onload = async (e: ProgressEvent<FileReader>) => {
+                const content = e.target?.result as string;
+                importWork(content)
+            };
+        }
+        else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) {
+            // 
+            reader.onload = async (e: ProgressEvent<FileReader>) => {
+                const content = e.target?.result as string;
+                setMEI(content);
+                setMSM(await asMSM(content));
+                setInitialMSM(await asMSM(content));
+                setFileName(file.name)
+            };
+        }
         reader.readAsText(file);
     };
 
@@ -150,7 +163,7 @@ export const App = () => {
     return (
         <>
             <AppBar position='static' color='transparent'>
-                <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1}}>
+                <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
                     {fileName && (
                         <Typography component="div" sx={{ padding: '1rem' }}>
                             {fileName}
@@ -160,10 +173,24 @@ export const App = () => {
                     <Tooltip title='Import MEI file' arrow>
                         <Button
                             onClick={handleFileImport}
-                            startIcon={<FileOpen />}
+                            startIcon={<UploadFile />}
                         >
                             Open
                         </Button>
+                    </Tooltip>
+
+                    <Tooltip title='Save Work (JSON-LD)' arrow>
+                        <IconButton
+                            disabled={transformers.length === 0}
+                            onClick={() => {
+                                exportWork({
+                                    name: 'Reconstruction of ...',
+                                    expression: 'reconstruction.mpm'
+                                }, transformers)
+                            }}
+                        >
+                            <Save />
+                        </IconButton>
                     </Tooltip>
 
                     <input
@@ -217,14 +244,14 @@ export const App = () => {
 
             <Card sx={{
                 backdropFilter: 'blur(17px)',
-                background: 'rgba(255, 255, 255, 0.4)',
+                background: 'rgba(255, 255, 255, 0.6)',
                 margin: '1rem',
                 position: 'absolute',
-                top: '2rem',
+                top: '4rem',
                 left: '1rem',
                 zIndex: 1000
             }}>
-                <List sx={{ maxWidth: 360 }}>
+                <List sx={{ minWidth: 200 }}>
                     {
                         Array
                             .from(
@@ -248,14 +275,20 @@ export const App = () => {
                                                 </ListItemButton>
                                             )
                                             : (
-                                                <ListItemButton>
-                                                    {aspect}
+                                                <ListItemButton
+                                                    selected={aspect === toExpand}
+                                                    onClick={() => {
+                                                        setToExpand(aspect === toExpand ? undefined : aspect)
+                                                    }}
+                                                >
+                                                    <ListItemText>{aspect}</ListItemText>
+                                                    {aspect === toExpand ? <ExpandLess /> : <ExpandMore />}
                                                 </ListItemButton>
                                             )}
 
                                         {info.length > 1 && (
-                                            <Collapse in={true} timeout="auto" unmountOnExit>
-                                                <List dense component='div' disablePadding sx={{ pl: 4 }}>
+                                            <Collapse in={toExpand === aspect} timeout="auto" unmountOnExit>
+                                                <List dense component='div' disablePadding sx={{ pl: 3 }}>
                                                     {info.map(({ displayName }) => {
                                                         if (!displayName) return null
 

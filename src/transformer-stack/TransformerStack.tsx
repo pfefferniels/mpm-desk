@@ -7,9 +7,7 @@ import {
     ListItemText,
     IconButton,
 } from "@mui/material";
-import { Clear, ExpandLess, ExpandMore, RestartAlt, Save, UploadFile } from "@mui/icons-material";
-import { downloadAsFile } from "../utils/utils";
-import { ApproximateLogarithmicTempo, CombineAdjacentRubatos, InsertArticulation, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, InsertTemporalSpread, MergeMetricalAccentuations, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks } from "mpmify";
+import { Clear, Edit, ExpandLess, ExpandMore, RestartAlt } from "@mui/icons-material";
 import { flushSync } from "react-dom";
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
@@ -17,13 +15,13 @@ import { reorderWithEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/r
 import { triggerPostMoveFlash } from '@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash';
 import { isTransformerData } from "./transformer-data";
 import { TransformerListItem } from "./TransformerListItem";
-import { useRef } from "react";
-import { v4 } from "uuid";
-import { TransformerDialog } from "./TransformerDialog";
+import { ArgumentationDialog } from "./ArgumentationDialog";
+import { Argumentation } from "mpmify";
 
 interface TransformerStackProps {
     transformers: Transformer[];
     setTransformers: (transformers: Transformer[]) => void;
+
     onRemove: (transformer: Transformer) => void;
     onSelect: (transformer: Transformer) => void;
     onReset: () => void;
@@ -32,148 +30,11 @@ interface TransformerStackProps {
 
 export const TransformerStack = ({ transformers, setTransformers, onRemove, onSelect, onReset, activeTransformer }: TransformerStackProps) => {
     const [expanded, setExpanded] = useState(true);
-    const [editIndex, setEditIndex] = useState<number | null>(null);
+    const [edit, setEdit] = useState<Argumentation>();
 
     const handleToggle = () => {
         setExpanded(!expanded);
     };
-
-    const onSave = () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        function replacer(_: string, value: any) {
-            if (value instanceof Map) {
-                return {
-                    dataType: 'Map',
-                    value: Array.from(value.entries()),
-                }
-            }
-            else if (value instanceof Set) {
-                return {
-                    dataType: 'Set',
-                    value: Array.from(value.values()),
-                }
-            }
-            else {
-                return value;
-            }
-        }
-
-        const json = JSON.stringify(transformers.map(t => ({
-            id: t.id || v4(),
-            name: t.name,
-            note: t.note,
-            options: t.options
-        })), replacer, 2);
-
-        downloadAsFile(json, 'transformers.json', 'application/json');
-    }
-
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const triggerImport = () => {
-        fileInputRef.current?.click();
-    };
-
-    const onImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        function reviver(_: string, value: any) {
-            if (typeof value === 'object' && value !== null) {
-                if (value.dataType === 'Map') {
-                    return new Map(value.value);
-                }
-                else if (value.dataType === 'Set') {
-                    return new Set(value.value);
-                }
-            }
-            return value;
-        }
-
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const result = e.target?.result;
-                if (typeof result !== "string") return;
-                const imported = JSON.parse(result, reviver);
-                if (!Array.isArray(imported)) {
-                    console.log("Imported data is not an array");
-                    return;
-                }
-
-                setTransformers(
-                    imported
-                        .map(t => {
-                            let transformer: Transformer | null = null;
-                            if (t.name === 'InsertDynamicsInstructions') {
-                                transformer = new InsertDynamicsInstructions();
-                            }
-                            else if (t.name === 'InsertDynamicsGradient') {
-                                transformer = new InsertDynamicsGradient();
-                            }
-                            else if (t.name === 'InsertTemporalSpread') {
-                                transformer = new InsertTemporalSpread();
-                            }
-                            else if (t.name === 'InsertRubato') {
-                                transformer = new InsertRubato();
-                            }
-                            else if (t.name === 'ApproximateLogarithmicTempo') {
-                                transformer = new ApproximateLogarithmicTempo();
-                            }
-                            else if (t.name === 'InsertMetricalAccentuation') {
-                                transformer = new InsertMetricalAccentuation();
-                            }
-                            else if (t.name === 'InsertRelativeDuration') {
-                                transformer = new InsertRelativeDuration();
-                            }
-                            else if (t.name === 'InsertRelativeVolume') {
-                                transformer = new InsertRelativeVolume();
-                            }
-                            else if (t.name === 'InsertPedal') {
-                                transformer = new InsertPedal();
-                            }
-                            else if (t.name === 'CombineAdjacentRubatos') {
-                                transformer = new CombineAdjacentRubatos();
-                            }
-                            else if (t.name === 'StylizeOrnamentation') {
-                                transformer = new StylizeOrnamentation();
-                            }
-                            else if (t.name === 'StylizeArticulation') {
-                                transformer = new StylizeArticulation();
-                            }
-                            else if (t.name === 'TranslatePhyiscalTimeToTicks') {
-                                transformer = new TranslatePhyiscalTimeToTicks();
-                            }
-                            else if (t.name === 'MergeMetricalAccentuations') {
-                                transformer = new MergeMetricalAccentuations();
-                            }
-                            else if (t.name === 'InsertArticulation') {
-                                transformer = new InsertArticulation();
-                            }
-                            else {
-                                return null;
-                            }
-
-                            if (!transformer) {
-                                console.warn(`Unknown transformer name: ${t.name}`);
-                                return null;
-                            }
-                            transformer.id = t.id || v4();
-                            transformer.options = t.options;
-                            transformer.note = t.note;
-                            return transformer;
-                        })
-                        .filter(t => t !== null)
-                );
-            } catch (error) {
-                console.error("Error importing transformers:", error);
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    // const messages = validate(transformers);
 
     useEffect(() => {
         return monitorForElements({
@@ -248,25 +109,6 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                             >
                                 <RestartAlt />
                             </IconButton>
-                            <IconButton
-                                disabled={transformers.length === 0}
-                                onClick={onSave}
-                            >
-                                <Save />
-                            </IconButton>
-
-                            <>
-                                <IconButton onClick={triggerImport}>
-                                    <UploadFile />
-                                </IconButton>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={onImport}
-                                    style={{ display: 'none' }}
-                                    accept="application/json"
-                                />
-                            </>
 
                             <IconButton onClick={() => setTransformers([])}>
                                 <Clear />
@@ -281,6 +123,15 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                         <Card key={`argumentation_${argumentation}`}>
                                             {argumentation.id}
                                             {argumentation.description}
+                                            <IconButton
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEdit(argumentation)
+                                                }}
+                                            >
+                                                <Edit />
+                                            </IconButton>
+
 
                                             {transformers.map((transformer, index) => (
                                                 <TransformerListItem
@@ -288,7 +139,6 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                                     transformer={transformer}
                                                     onSelect={() => onSelect(transformer)}
                                                     onRemove={() => onRemove(transformer)}
-                                                    onEdit={() => setEditIndex(index)}
                                                     selected={activeTransformer?.id === transformer.id}
                                                 />
                                             ))}
@@ -299,15 +149,15 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                     </Collapse>
                 </List>
             </Card>
-            {editIndex !== null && (
-                <TransformerDialog
-                    open={editIndex !== null}
-                    onClose={() => setEditIndex(null)}
-                    onChange={(transformer) => {
-                        setTransformers(transformers.map((t, i) => i === editIndex ? transformer : t));
-                        setEditIndex(null);
+            {edit && (
+                <ArgumentationDialog
+                    open={edit !== undefined}
+                    onClose={() => setEdit(undefined)}
+                    onChange={() => {
+                        setTransformers([...transformers]);
+                        setEdit(undefined);
                     }}
-                    transformer={transformers[editIndex]}
+                    argumentation={edit}
                 />
             )}
         </>
