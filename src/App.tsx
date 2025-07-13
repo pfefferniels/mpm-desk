@@ -3,8 +3,8 @@ import { asMSM } from './asMSM';
 import { MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
-import { AppBar, Button, Card, IconButton, ListItem, ListItemButton, ListItemText, MenuList, Stack, Tooltip, Typography } from '@mui/material';
-import { AnyTransformer, Aspect, DeskSwitch, aspects } from './DeskSwitch';
+import { AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { correspondingDesks } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
 import { CopyAllRounded, FileOpen, PauseCircle, PlayCircle } from '@mui/icons-material';
@@ -12,6 +12,8 @@ import { TransformerStack } from './transformer-stack/TransformerStack';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
 import { MsmNote } from 'mpmify/lib/msm';
+import { MetadataDesk } from './metadata/MetadataDesk';
+import { NotesProvider } from './hooks/NotesProvider';
 
 const injectInstructions = (mei: string, msm: MSM, mpm: MPM): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
@@ -74,7 +76,11 @@ export const App = () => {
 
     const [isPlaying, setIsPlaying] = useState(false)
     const [fileName, setFileName] = useState<string>()
-    const [selectedAspect, setSelectedAspect] = useState<Aspect>('metadata')
+
+    const [selectedDesk, setSelectedDesk] = useState<string>('metadata')
+    const [scope, setScope] = useState<'global' | number>('global');
+
+    const appBarRef = React.useRef<HTMLDivElement>(null);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -134,16 +140,19 @@ export const App = () => {
         setTransformers(newTransformers)
     }
 
-    const wasCreatedBy = (id: string): InstanceType<AnyTransformer> | undefined => {
-        return transformers.find(t => t.created.includes(id)) as InstanceType<AnyTransformer> | undefined
-    }
+    //const wasCreatedBy = (id: string): InstanceType<AnyTransformer> | undefined => {
+    //    return transformers.find(t => t.created.includes(id)) as InstanceType<AnyTransformer> | undefined
+    //}
+
+    const DeskComponent = correspondingDesks
+        .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk || MetadataDesk;
 
     return (
         <>
-            <AppBar position='static' color='transparent'>
+            <AppBar position='static' color='transparent' ref={appBarRef}>
                 <Stack direction='row'>
                     {fileName && (
-                        <Typography component="div" sx={{ padding: '0.5rem' }}>
+                        <Typography component="div" sx={{ padding: '1rem' }}>
                             {fileName}
                         </Typography>)
                     }
@@ -186,6 +195,23 @@ export const App = () => {
                             )}
                         </>
                     )}
+
+                    <ToggleButtonGroup
+                        size='small'
+                        value={scope}
+                        exclusive
+                        onChange={(_, value) => setScope(value)}
+                        sx={{ pt: 1, pb: 1 }}
+                    >
+                        <ToggleButton value='global'>
+                            Global
+                        </ToggleButton>
+                        {Array.from(msm.parts()).map(p => (
+                            <ToggleButton key={`button_${p}`} value={p}>
+                                {p}
+                            </ToggleButton>
+                        ))}
+                    </ToggleButtonGroup>
                 </Stack>
             </AppBar>
 
@@ -194,47 +220,86 @@ export const App = () => {
                 background: 'rgba(255, 255, 255, 0.4)',
                 margin: '1rem',
                 position: 'absolute',
-                top: '4rem',
+                top: '2rem',
                 left: '1rem',
                 zIndex: 1000
             }}>
-                <MenuList dense>
-                    {aspects.map(aspect => (
-                        <ListItem key={`aspect_${aspect}`}>
-                            <ListItemButton
-                                selected={selectedAspect === aspect}
-                                onClick={() => setSelectedAspect(aspect)}>
-                                <ListItemText>{aspect}</ListItemText>
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                </MenuList>
+                <List sx={{ maxWidth: 360 }}>
+                    {
+                        Array
+                            .from(
+                                Map
+                                    .groupBy(correspondingDesks, desk => desk.aspect)
+                            )
+                            .map(([aspect, info]) => {
+                                if (info.length === 0) return null
+
+                                return (
+                                    <>
+                                        {info.length === 1
+                                            ? (
+                                                <ListItemButton
+                                                    selected={aspect === selectedDesk}
+                                                    onClick={() => {
+                                                        setSelectedDesk(aspect)
+                                                    }}
+                                                >
+                                                    <ListItemText>{aspect}</ListItemText>
+                                                </ListItemButton>
+                                            )
+                                            : (
+                                                <ListItemButton>
+                                                    {aspect}
+                                                </ListItemButton>
+                                            )}
+
+                                        {info.length > 1 && (
+                                            <Collapse in={true} timeout="auto" unmountOnExit>
+                                                <List dense component='div' disablePadding sx={{ pl: 4 }}>
+                                                    {info.map(({ displayName }) => {
+                                                        if (!displayName) return null
+
+                                                        return (
+                                                            <ListItemButton
+                                                                selected={displayName === selectedDesk}
+                                                                onClick={() => {
+                                                                    setSelectedDesk(displayName)
+                                                                }}>
+                                                                <ListItemText>{displayName}</ListItemText>
+                                                            </ListItemButton>
+                                                        )
+                                                    })}
+                                                </List>
+                                            </Collapse>
+                                        )}
+                                    </>
+                                )
+                            })}
+                </List>
             </Card>
 
-            <DeskSwitch
-                aspect={selectedAspect}
-                changeAspect={setSelectedAspect}
-                mpm={mpm}
-                msm={msm}
-                setMPM={setMPM}
-                setMSM={setMSM}
-                addTransformer={(transformer) => {
-                    const newTransformers = [...transformers, transformer]
+            <NotesProvider notes={msm.allNotes}>
+                <DeskComponent
+                    msm={msm}
+                    mpm={mpm}
+                    setMSM={setMSM}
+                    setMPM={setMPM}
+                    addTransformer={(transformer: Transformer) => {
+                        const newTransformers = [...transformers, transformer]
 
-                    transformer.argumentation = {
-                        description: '',
-                        id: `decision-${v4().slice(0, 8)}`
-                    }
+                        transformer.argumentation = {
+                            description: '',
+                            id: `decision-${v4().slice(0, 8)}`
+                        }
 
-                    transformer.run(msm, mpm)
-                    setTransformers(newTransformers)
-                    setMSM(msm.clone())
-                    setMPM(mpm.clone())
-                }}
-                wasCreatedBy={wasCreatedBy}
-                activeTransformer={activeTransformer}
-                setActiveTransformer={setActiveTransformer}
-            />
+                        transformer.run(msm, mpm)
+                        setTransformers(newTransformers)
+                        setMSM(msm.clone())
+                        setMPM(mpm.clone())
+                    }}
+                    part={scope}
+                />
+            </NotesProvider>
 
             <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
                 <TransformerStack

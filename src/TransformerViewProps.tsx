@@ -11,7 +11,12 @@ export interface ViewProps {
 
 export interface TransformerViewProps<T extends Transformer> extends ViewProps {
     addTransformer: <U extends T>(transformer: U) => void;
-    wasCreatedBy: (id: string) => T | undefined;
-    activeTransformer?: T;
-    setActiveTransformer: (transformer?: T) => void;
+    activeElements?: string
+    setActiveElement?: (element: string) => void
+}
+
+export type Scope = number | 'global'
+
+export interface ScopedTransformerViewProps<T extends Transformer> extends TransformerViewProps<T> {
+    part: Scope
 }
