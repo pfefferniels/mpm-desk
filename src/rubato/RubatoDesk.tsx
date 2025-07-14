@@ -1,18 +1,19 @@
 
-import { Button, Stack } from "@mui/material"
-import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { Button } from "@mui/material"
+import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { useState } from "react"
-import { PartialBy } from "../utils/utils"
-import { CombineAdjacentRubatos, Frame as FrameData, InsertRubato } from "mpmify/lib/transformers"
-import { ZoomControls } from "../ZoomControls"
+import { CombineAdjacentRubatos, InsertRubato, InsertRubatoOptions } from "mpmify/lib/transformers"
 import { RubatoInstruction } from "./RubatoInstruction"
-import { DatesRow } from "./DatesRow"
+import { DatesRow, Frame } from "./DatesRow"
 import { Rubato } from "../../../mpm-ts/lib"
+import { useSymbolicZoom } from "../hooks/ZoomProvider"
+import { createPortal } from "react-dom"
+import { Ribbon } from "../Ribbon"
+import { Add } from "@mui/icons-material"
 
-
-export const RubatoDesk = ({ msm, mpm, addTransformer, part, wasCreatedBy, activeTransformer, setActiveTransformer }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
-    const [frames, setFrames] = useState<PartialBy<FrameData, 'length'>[]>([])
-    const [stretchX, setStretchX] = useState(0.06)
+export const RubatoDesk = ({ msm, mpm, addTransformer, part, setActiveElement, activeElements, appBarRef }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
+    const [frame, setFrame] = useState<Frame>()
+    const stretchX = useSymbolicZoom()
 
     const svgWidth = 10000
     const svgHeight = 180
@@ -21,20 +22,20 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, wasCreatedBy, activ
     const height = 10
 
     const handleInsertRubato = () => {
-        addTransformer(activeTransformer instanceof InsertRubato ? activeTransformer : new InsertRubato(), {
+        if (!frame || !frame.length) return
+
+        addTransformer(new InsertRubato({
             scope: part,
-            frames: frames
-                .sort((a, b) => a.date - b.date)
-                .filter(f => f.length !== undefined) as FrameData[]
-        })
+            ...(frame as Omit<InsertRubatoOptions, 'scope'>)
+        }))
     }
 
     const handleCombine = () => {
-        addTransformer(activeTransformer instanceof CombineAdjacentRubatos ? activeTransformer : new CombineAdjacentRubatos(), {
+        addTransformer(new CombineAdjacentRubatos({
             intensityTolerance: 0.2,
             compressionTolerance: 0.2,
             scope: part
-        })
+        }))
     }
 
     const handleInsertDelay = () => {
@@ -45,31 +46,41 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, wasCreatedBy, activ
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
-            <ZoomControls
-                stretchX={stretchX}
-                setStretchX={setStretchX}
-                rangeX={[0.01, 0.1]}
-            />
+            {createPortal((
+                <Ribbon title='Rubato'>
+                    <Button
+                        size='small'
+                        variant='outlined'
+                        onClick={handleInsertRubato}
+                        startIcon={<Add />}
+                    >
+                        Insert
+                    </Button>
+                    <Button
+                        variant='outlined'
+                        size='small'
+                        onClick={handleInsertDelay}
+                        startIcon={<Add />}
+                    >
+                        Insert Absolute Delay
+                    </Button>
 
-            <Stack spacing={1} direction='row' sx={{ position: 'sticky', left: 0 }}>
-                <Button variant='contained' onClick={handleInsertRubato}>Insert Rubatos</Button>
-                <Button variant='contained' onClick={handleInsertDelay}>Insert Absolute Delay</Button>
+                    <Button
+                        variant='outlined'
+                        onClick={handleCombine}
+                        disabled={allRubatos.length <= 1}
+                    >
+                        Combine
+                    </Button>
 
-                <Button
-                    variant='contained'
-                    onClick={handleCombine}
-                    disabled={allRubatos.length <= 1}
-                >
-                    Combine Rubatos
-                </Button>
-
-                <Button
-                    variant='outlined'
-                    onClick={() => setFrames([])}
-                >
-                    Clear frames ({frames.length})
-                </Button>
-            </Stack>
+                    <Button
+                        variant='outlined'
+                        onClick={() => setFrame(undefined)}
+                    >
+                        Clear Frame
+                    </Button>
+                </Ribbon>
+            ), appBarRef.current || document.body)}
 
             <h3 style={{ position: 'sticky', left: 0 }}>
                 Tick Dates
@@ -81,8 +92,8 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, wasCreatedBy, activ
             >
                 <g transform={`translate(0, ${height * stretchY})`}>
                     <DatesRow
-                        frames={frames}
-                        setFrames={setFrames}
+                        frame={frame}
+                        setFrame={setFrame}
                         height={height * stretchY}
                         stretchX={stretchX}
                         width={svgWidth}
@@ -110,17 +121,14 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, wasCreatedBy, activ
 
                         return (
                             <RubatoInstruction
-                                active={activeTransformer !== undefined && wasCreatedBy(rubato["xml:id"]) === activeTransformer}
+                                active={activeElements.includes(rubato["xml:id"])}
                                 key={`rubatoInstruction_${rubato.date}`}
                                 rubato={rubato}
                                 onsetDates={Array.from(affected)}
                                 stretchX={stretchX}
                                 height={height * stretchY}
                                 onClick={() => {
-                                    const createdBy = wasCreatedBy(rubato["xml:id"])
-                                    if (createdBy && activeTransformer !== createdBy) {
-                                        setActiveTransformer(createdBy)
-                                    }
+                                    setActiveElement(rubato["xml:id"])
                                 }}
                             />
                         )

@@ -4,6 +4,7 @@ import { StylizeOrnamentation } from "mpmify";
 import { Stack, Box, Typography, Slider, Button } from "@mui/material";
 import { Plot } from "./Plot";
 import { createPortal } from "react-dom";
+import { Ribbon } from "../Ribbon";
 
 export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const [tickTolerance, setTickTolerance] = useState(10)
@@ -84,12 +85,15 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
             />
 
             {createPortal((
-                <Button
-                    variant='contained'
-                    onClick={transformOrnaments}
-                >
-                    Stylize Ornaments
-                </Button>
+                <Ribbon title='Style'>
+                    <Button
+                        variant='contained'
+                        onClick={transformOrnaments}
+                        size='small'
+                    >
+                        Stylize Ornaments
+                    </Button>
+                </Ribbon>
             ), appBarRef.current || document.body)}
         </div>
     )

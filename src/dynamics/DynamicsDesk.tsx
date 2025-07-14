@@ -14,7 +14,7 @@ import { VerticalScale } from "./VerticalScale";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
-import { Add } from "@mui/icons-material";
+import { Add, Clear, FileOpen, Save } from "@mui/icons-material";
 
 export interface DynamicsSegment {
     date: Range
@@ -87,7 +87,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
         const dynamics = mpm.getInstructions<Dynamics>('dynamics', part)
         const withEndDate = []
         for (let i = 0; i < dynamics.length; i++) {
-            let endDate = dynamics[i+1]?.date
+            let endDate = dynamics[i + 1]?.date
             if ('endDate' in dynamics[i]) {
                 endDate = (dynamics[i] as DynamicsWithEndDate).endDate
             }
@@ -254,49 +254,73 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1} sx={{ position: 'sticky', left: 0 }}>
                 {createPortal((
-                    <Ribbon title='Dynamics'>
-                        <Button
-                            startIcon={<Add />}
-                            size='small'
-                            variant='contained'
-                            onClick={handleInsert}
-                        >
-                            Insert
-                        </Button>
-                    </Ribbon>
+                    <>
+                        <Ribbon title='Dynamics'>
+                            <Button
+                                startIcon={<Add />}
+                                size='small'
+                                variant='contained'
+                                onClick={handleInsert}
+                            >
+                                Insert
+                            </Button>
+                        </Ribbon>
+                        <Ribbon title='Markers'>
+                            <Button
+                                variant='outlined'
+                                size='small'
+                                onClick={() => {
+                                    downloadAsFile(JSON.stringify(markers, null, 4), 'dynamics_markers.json')
+                                }}
+                                startIcon={<Save />}
+                            >
+                                Export
+                            </Button>
+
+                            <Button
+                                variant='outlined'
+                                size='small'
+                                onClick={handleFileImport}
+                                startIcon={<FileOpen />}
+                            >
+                                Import
+                            </Button>
+                            <input
+                                type="file"
+                                id="markersInput"
+                                accept='*.json'
+                                style={{ display: 'none' }}
+                                onChange={handleFileChange}
+                            />
+
+                            <Button
+                                variant='outlined'
+                                size='small'
+                                onClick={() => setMarkers(segments.map(s => s.date.start).sort())}
+                            >
+                                Insert from Points
+                            </Button>
+                        </Ribbon>
+                        <Ribbon title='Phantoms'>
+                            <ToggleButton
+                                value='check'
+                                size='small'
+                                selected={phantomMode}
+                                onChange={() => setPhantomMode(!phantomMode)}
+                            >
+                                Edit Velocity
+                            </ToggleButton>
+                            <Button
+                                size='small'
+                                variant='outlined'
+                                onClick={() => setPhantomVelocities(new Map())}
+                                startIcon={<Clear />}
+                            >
+                                Clear
+                            </Button>
+                        </Ribbon>
+                    </>
                 ), appBarRef.current || document.body)}
-
-                <Button variant='outlined' onClick={() => {
-                    downloadAsFile(JSON.stringify(markers, null, 4), 'dynamics_markers.json')
-                }}>Export Markers</Button>
-
-                <Button variant='outlined' onClick={handleFileImport}>Import Markers</Button>
-                <input
-                    type="file"
-                    id="markersInput"
-                    accept='*.json'
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                />
-
-                <Button
-                    variant='outlined'
-                    onClick={() => setMarkers(segments.map(s => s.date.start).sort())}
-                >
-                    Insert Markers from Points
-                </Button>
-
-                <ToggleButton
-                    value='check'
-                    size='small'
-                    selected={phantomMode}
-                    onChange={() => setPhantomMode(!phantomMode)}
-                >
-                    Edit Velocity
-                </ToggleButton>
-                <Button onClick={() => setPhantomVelocities(new Map())}>
-                    Clear Phantoms
-                </Button>
             </Stack>
 
             <svg

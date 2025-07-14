@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI } from "../utils/utils";
-import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
+import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Box, Button, Slider, Stack, Typography } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
@@ -11,10 +11,12 @@ import { InsertMetricalAccentuation, InsertMetricalAccentuationOptions, MergeMet
 import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
 import { Pattern } from "./Pattern";
 import { Delete } from "@mui/icons-material";
-import { ZoomControls } from "../ZoomControls";
 import { CellDrawer } from "./CellDrawer";
 import { NameDialog } from "./NameDialog";
 import { Preview } from "./Preview";
+import { useSymbolicZoom } from "../hooks/ZoomProvider";
+import { createPortal } from "react-dom";
+import { Ribbon } from "../Ribbon";
 
 type Pattern = (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })
 
@@ -39,7 +41,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
+export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -52,9 +54,8 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTrans
     // creating a new metrical accentuation
     const [candidate, setCandidate] = useState<Omit<InsertMetricalAccentuationOptions, 'scope'>>()
 
-
     const [scaleTolerance, setScaleTolerance] = useState(1.5)
-    const [stretchX, setStretchX] = useState(0.03)
+    const stretchX = useSymbolicZoom()
 
     const [nameDialogOpen, setNameDialogOpen] = useState(false)
 
@@ -85,7 +86,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTrans
         setPatterns(patterns)
     }, [mpm, part])
 
-    const handleInsert = () => {
+    const handleInsert = (candidate: Omit<InsertMetricalAccentuationOptions, 'scope'>) => {
         if (!candidate) return
         addTransformer(new InsertMetricalAccentuation({
             ...candidate,
@@ -165,12 +166,6 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTrans
 
     return (
         <div style={{ height: '400', overflow: 'scroll' }}>
-            <ZoomControls
-                stretchX={stretchX}
-                setStretchX={setStretchX}
-                rangeX={[0.005, 0.25]}
-            />
-
             <Stack spacing={1} direction='column' sx={{ position: 'sticky', left: 0 }}>
                 <Box sx={{ m: 1 }}>
                     {part !== 'global' && `Part ${part + 1}`}
@@ -188,31 +183,30 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTrans
                         valueLabelDisplay="auto"
                     />
                 </Box>
-                <Stack direction='row' spacing={1}>
-                    <Button variant='contained' onClick={handleInsert}>
-                        Insert Metrical Accentuation
-                    </Button>
-                    {candidate && (
-                        <Button
-                            variant='outlined'
-                            onClick={() => setCandidate(undefined)}
-                            startIcon={<Delete />}
-                        >
-                            Clear Candidate
-                        </Button>
-                    )}
-                </Stack>
-                <Stack direction='row' spacing={1}>
-                    {selectedPatterns && (
-                        <Button
+                {createPortal((
+                    <>
+                        <Ribbon title='Metrical Accentuation'>
+                            {selectedPatterns && (
+                                <Button
 
-                            variant='contained'
-                            onClick={() => setNameDialogOpen(true)}
-                        >
-                            Merge ({selectedPatterns.length})
-                        </Button>
-                    )}
-                </Stack>
+                                    variant='contained'
+                                    onClick={() => setNameDialogOpen(true)}
+                                >
+                                    Merge ({selectedPatterns.length})
+                                </Button>
+                            )}
+                            {candidate && (
+                                <Button
+                                    variant='outlined'
+                                    onClick={() => setCandidate(undefined)}
+                                    startIcon={<Delete />}
+                                >
+                                    Clear Candidate
+                                </Button>
+                            )}
+                        </Ribbon>
+                    </>
+                ), appBarRef.current || document.body)}
             </Stack>
 
             <svg
@@ -261,37 +255,41 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer }: ScopedTrans
                 {circles}
             </svg>
 
-            {candidate && (
-                <>
-                    <CellDrawer
-                        cell={candidate}
-                        open={true}
-                        onClose={() => setCandidate(undefined)}
-                        onChange={(cell) => {
-                            setCandidate(cell)
-                        }}
-                    />
-                    <Preview
-                        cell={candidate}
-                        segments={segments}
-                        stretchX={stretchX}
-                        getScreenY={getScreenY}
-                        onClick={(e) => {
-                            if (e.shiftKey && e.altKey) {
-                                setCandidate(undefined)
-                            }
-                        }}
-                    />
-                </>
-            )}
+            {
+                candidate && (
+                    <>
+                        <CellDrawer
+                            cell={candidate}
+                            open={true}
+                            onClose={() => setCandidate(undefined)}
+                            onDone={(candidate) => {
+                                handleInsert(candidate)
+                            }}
+                        />
+                        <Preview
+                            cell={candidate}
+                            segments={segments}
+                            stretchX={stretchX}
+                            getScreenY={getScreenY}
+                            onClick={(e) => {
+                                if (e.shiftKey && e.altKey) {
+                                    setCandidate(undefined)
+                                }
+                            }}
+                        />
+                    </>
+                )
+            }
 
-            {nameDialogOpen && (
-                <NameDialog
-                    open={nameDialogOpen}
-                    onClose={() => setNameDialogOpen(false)}
-                    onDone={handleMerge}
-                />
-            )}
-        </div>
+            {
+                nameDialogOpen && (
+                    <NameDialog
+                        open={nameDialogOpen}
+                        onClose={() => setNameDialogOpen(false)}
+                        onDone={handleMerge}
+                    />
+                )
+            }
+        </div >
     )
 }

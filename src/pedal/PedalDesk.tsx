@@ -1,27 +1,24 @@
 import { InsertPedal } from "mpmify/lib/transformers"
-import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Box, Button, Slider, Stack, Typography } from "@mui/material"
 import { Movement } from "../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
-import { useEffect, useState } from "react"
-import { ZoomControls } from "../ZoomControls"
+import { useState } from "react"
+import { createPortal } from "react-dom"
+import { Ribbon } from "../Ribbon"
+import { useSymbolicZoom } from "../hooks/ZoomProvider"
 
 
-export const PedalDesk = ({ msm, mpm, activeTransformer, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
-    const [stretchX, setStretchX] = useState(0.1)
+export const PedalDesk = ({ msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertPedal>) => {
     const [changeDuration, setChangeDuration] = useState(0)
 
-    const transform = () => {
-        addTransformer(activeTransformer || new InsertPedal(), {
-            changeDuration
-        })
-    }
+    const stretchX = useSymbolicZoom()
 
-    useEffect(() => {
-        if (activeTransformer) {
-            setChangeDuration(activeTransformer.options.changeDuration)
-        }
-    }, [activeTransformer])
+    const transform = () => {
+        addTransformer(new InsertPedal({
+            changeDuration
+        }))
+    }
 
     const stretchY = 30
 
@@ -31,19 +28,18 @@ export const PedalDesk = ({ msm, mpm, activeTransformer, addTransformer }: Scope
     return (
         <div>
             <div style={{ width: '80vw', overflow: 'scroll' }}>
-                <ZoomControls
-                    setStretchX={setStretchX}
-                    stretchX={stretchX}
-                    rangeX={[0.01, 0.5]}
-                />
-
+                {createPortal((
+                    <Ribbon title='Pedal'>
+                        <Button
+                            onClick={transform}
+                            variant="outlined"
+                            size='small'
+                        >
+                            Insert
+                        </Button>
+                    </Ribbon>
+                ), appBarRef.current || document.body)}
                 <Stack direction='column' sx={{ maxWidth: '300px' }} spacing={1} p={1}>
-                    <Button
-                        onClick={transform}
-                        variant="contained"
-                    >
-                        {activeTransformer ? 'Update' : 'Insert'} Pedals
-                    </Button>
                     <Box>
                         <Typography id="change-duration-slider" gutterBottom>
                             Default Change Duration: {changeDuration}

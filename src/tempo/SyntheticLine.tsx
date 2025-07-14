@@ -65,6 +65,8 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
     }, [tempo, play, stop, slice])
 
     useEffect(() => {
+        if (points.length <= 1) return
+
         setTempo(
             approximateTempo(
                 points,

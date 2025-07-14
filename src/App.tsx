@@ -178,7 +178,7 @@ export const App = () => {
 
 
     return (
-        <>
+        <div style={{ maxWidth: '100vw', overflowX: 'hidden' }}>
             <AppBar position='static' color='transparent' elevation={1}>
                 <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
                     <Ribbon title='File'>
@@ -278,7 +278,7 @@ export const App = () => {
                         minWidth: '200px',
                     }}
                 >
-                    <List sx={{ minWidth: 200 }}>
+                    <List>
                         {
                             Array
                                 .from(
@@ -393,6 +393,6 @@ export const App = () => {
                     />
                 </div>
             )}
-        </>
+        </div>
     );
 };

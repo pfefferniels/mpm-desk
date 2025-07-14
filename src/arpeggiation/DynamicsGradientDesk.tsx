@@ -129,6 +129,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part, appBarRef
                         size='small'
                         onClick={transform}
                         startIcon={<Add />}
+                        variant='outlined'
                     >
                         Insert {!currentDate && 'Default'}
                     </Button>

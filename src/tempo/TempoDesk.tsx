@@ -7,7 +7,7 @@ import { downloadAsFile } from "../utils/utils"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { SyntheticLine } from "./SyntheticLine"
-import { Add, Clear } from "@mui/icons-material"
+import { Add, Clear, Save, UploadFile } from "@mui/icons-material"
 import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
 import { Tempo } from "../../../mpm-ts/lib"
@@ -110,66 +110,76 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
         <div>
             <Stack direction='row' spacing={1}>
                 {createPortal((
-                    <Ribbon title='Tempo'>
-                        <Button
-                            size='small'
-                            startIcon={<Add />}
-                            variant='contained'
-                            onClick={insertTempoValues}
-                        >
-                            Insert
-                        </Button>
-                    </Ribbon>
+                    <>
+                        <Ribbon title='Tempo'>
+                            <Button
+                                size='small'
+                                startIcon={<Add />}
+                                variant='contained'
+                                onClick={insertTempoValues}
+                            >
+                                Insert
+                            </Button>
+                        </Ribbon>
+                        <Ribbon title='Tick Time'>
+                            <Button
+                                variant='contained'
+                                onClick={translate}
+                                size='small'
+                            >
+                                Translate To Ticks
+                            </Button>
+                        </Ribbon>
+                        <Ribbon title='Segments'>
+                            <Button
+                                size='small'
+                                variant='outlined'
+                                startIcon={<Save />}
+                                onClick={() => {
+                                    const json = {
+                                        tempoCluster: tempoCluster.segments,
+                                        silentOnsets
+                                    }
+
+                                    downloadAsFile(
+                                        JSON.stringify(json, null, 4),
+                                        'segments.json',
+                                        'application/json'
+                                    )
+                                }}
+                            >
+                                Export
+                            </Button>
+                            <Button
+                                variant='outlined'
+                                onClick={handleFileImport}
+                                size='small'
+                                startIcon={<UploadFile />}
+                            >
+                                Import
+                            </Button>
+                            <input
+                                type="file"
+                                id="segmentInput"
+                                accept='*.json'
+                                style={{ display: 'none' }}
+                                onChange={handleFileChange}
+                            />
+
+                            <Button
+                                size='small'
+                                variant='outlined'
+                                color='error'
+                                onClick={() => {
+                                    setSegments([])
+                                }}
+                                startIcon={<Clear />}
+                            >
+                                Clear
+                            </Button>
+                        </Ribbon>
+                    </>
                 ), appBarRef.current || document.body)}
-
-                <Button
-                    variant='contained'
-                    onClick={translate}
-                >
-                    Translate To Ticks
-                </Button>
-
-                <Button
-                    variant='outlined'
-                    onClick={() => {
-                        const json = {
-                            tempoCluster: tempoCluster.segments,
-                            silentOnsets
-                        }
-
-                        downloadAsFile(
-                            JSON.stringify(json, null, 4),
-                            'segments.json',
-                            'application/json'
-                        )
-                    }}
-                >
-                    Export Segments
-                </Button>
-                <Button
-                    variant='outlined'
-                    onClick={handleFileImport}>
-                    Import Segments
-                </Button>
-                <input
-                    type="file"
-                    id="segmentInput"
-                    accept='*.json'
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                />
-
-                <Button
-                    size='small'
-                    variant='outlined'
-                    color='error'
-                    onClick={() => {
-                        setSegments([])
-                    }}
-                    startIcon={<Clear />}
-                >
-                    Clear Segments
-                </Button>
             </Stack>
 
             <div style={{ position: 'relative' }}>

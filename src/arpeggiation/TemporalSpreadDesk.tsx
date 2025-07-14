@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify";
 import { ChordSpread } from "./ChordSpread";
-import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Typography, Dialog, DialogContent, DialogActions } from "@mui/material";
+import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
 import { Ornament, OrnamentDef, TemporalSpread } from "../../../mpm-ts/lib";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
@@ -181,39 +181,41 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                     setInsert(false)
                 }}
             >
+                <DialogTitle>
+                    {currentDate ? `Temporal Spread @${currentDate}` : 'Insert Default'}
+                </DialogTitle>
                 <DialogContent>
-                    <Typography>
-                        {currentDate || 'default'}
-                    </Typography>
-                    <FormControl fullWidth>
-                        <InputLabel id="placement-select-label">Placement</InputLabel>
-                        <Select
-                            labelId="placement-select-label"
-                            id="placement-select"
-                            onChange={(e) => setPlacement(e.target.value as ArpeggioPlacement)}
-                            defaultValue="none"
-                            value={placement}
-                        >
-                            <MenuItem value="on-beat">On Beat</MenuItem>
-                            <MenuItem value="before-beat">Before Beat</MenuItem>
-                            <MenuItem value="estimate">Estimate</MenuItem>
-                            <MenuItem value="none">None (fallback to default)</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    {!currentDate && (
-                        <FormControl>
-                            <TextField
-                                label="Duration Threshold"
-                                type="number"
-                                value={durationThreshold}
-                                onChange={(e) => setDurationThreshold(Number(e.target.value))}
-                                InputLabelProps={{ shrink: true }}
-                                variant="outlined"
-                                fullWidth
-                            />
+                    <Stack direction="row" spacing={2} alignItems="center" m={2}>
+                        <FormControl fullWidth>
+                            <InputLabel id="placement-select-label">Placement</InputLabel>
+                            <Select
+                                labelId="placement-select-label"
+                                id="placement-select"
+                                onChange={(e) => setPlacement(e.target.value as ArpeggioPlacement)}
+                                defaultValue="none"
+                                value={placement}
+                            >
+                                <MenuItem value="on-beat">On Beat</MenuItem>
+                                <MenuItem value="before-beat">Before Beat</MenuItem>
+                                <MenuItem value="estimate">Estimate</MenuItem>
+                                <MenuItem value="none">None (fallback to default)</MenuItem>
+                            </Select>
                         </FormControl>
-                    )}
+
+                        {!currentDate && (
+                            <FormControl>
+                                <TextField
+                                    label="Duration Threshold"
+                                    type="number"
+                                    value={durationThreshold}
+                                    onChange={(e) => setDurationThreshold(Number(e.target.value))}
+                                    InputLabelProps={{ shrink: true }}
+                                    variant="outlined"
+                                    fullWidth
+                                />
+                            </FormControl>
+                        )}
+                    </Stack>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => {

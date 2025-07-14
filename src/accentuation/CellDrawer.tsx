@@ -1,3 +1,4 @@
+import { Add } from "@mui/icons-material";
 import { Button, Checkbox, Drawer, FormControlLabel, Stack, TextField } from "@mui/material"
 import { InsertMetricalAccentuationOptions } from "mpmify";
 import { useState, useEffect } from "react";
@@ -6,10 +7,10 @@ interface CellDrawerProps {
     open: boolean
     onClose: () => void
     cell: Omit<InsertMetricalAccentuationOptions, 'scope'>
-    onChange: (newCell: Omit<InsertMetricalAccentuationOptions, 'scope'>) => void
+    onDone: (newCell: Omit<InsertMetricalAccentuationOptions, 'scope'>) => void
 }
 
-export const CellDrawer = ({ open, onClose, cell, onChange }: CellDrawerProps) => {
+export const CellDrawer = ({ open, onClose, cell, onDone }: CellDrawerProps) => {
     const [beatLength, setBeatLength] = useState(cell.beatLength);
     const [name, setName] = useState(cell.name ?? "");
     const [neutralEnd, setNeutralEnd] = useState(cell.neutralEnd || false);
@@ -55,12 +56,12 @@ export const CellDrawer = ({ open, onClose, cell, onChange }: CellDrawerProps) =
                         variant="contained"
                         onClick={() => {
                             const updatedCell = { ...cell, beatLength, name };
-                            onChange(updatedCell)
-                            onClose()
+                            onDone(updatedCell)
                         }}
                         color="primary"
+                        startIcon={<Add />}
                     >
-                        Save Changes
+                        Insert
                     </Button>
                 </Stack>
             </div>

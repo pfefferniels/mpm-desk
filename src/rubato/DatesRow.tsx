@@ -1,21 +1,23 @@
 import { ChordMap } from "mpmify/lib/msm"
-import { Frame as FrameData } from "mpmify/lib/transformers"
+import { InsertRubatoOptions } from "mpmify/lib/transformers"
 import { asMIDI, PartialBy } from "../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { useState } from "react"
 import { Frame } from "./Frame"
 
+export type Frame = PartialBy<Omit<InsertRubatoOptions, 'scope'>, 'length'>
+
 interface DatesRowProps {
     stretchX: number
     height: number
     width: number
     chords: ChordMap
-    frames: PartialBy<FrameData, 'length'>[]
-    setFrames: React.Dispatch<React.SetStateAction<PartialBy<FrameData, 'length'>[]>>
+    frame?: Frame
+    setFrame: React.Dispatch<React.SetStateAction<Frame | undefined>>
 }
 
-export const DatesRow = ({ stretchX, height, width, chords, frames, setFrames }: DatesRowProps) => {
+export const DatesRow = ({ stretchX, height, width, chords, frame, setFrame }: DatesRowProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -23,7 +25,8 @@ export const DatesRow = ({ stretchX, height, width, chords, frames, setFrames }:
 
     const dates = []
 
-    const playFrame = (frame: FrameData) => {
+    const playFrame = (frame: Frame) => {
+        if (!frame.length) return
         const notes = slice(frame.date, frame.date + frame.length)
         const midi = asMIDI(notes)
         if (!midi) return
@@ -48,14 +51,18 @@ export const DatesRow = ({ stretchX, height, width, chords, frames, setFrames }:
     }
 
     const addMarker = (date: number) => {
-        const last = frames.at(-1)
-        if (!last || last.length) {
-            frames.push({ date })
-        }
-        else {
-            last.length = date - last.date
-        }
-        setFrames([...frames])
+        console.log('add marker', date)
+        setFrame(prev => {
+            console.log('prev', prev)
+            if (!prev) return { date }
+            if (!prev.length) {
+                prev.length = date - prev.date
+            }
+            else {
+                prev.date = date
+            }
+            return { ...prev }
+        })
     }
 
     for (const [date, notes] of chords) {
@@ -98,26 +105,20 @@ export const DatesRow = ({ stretchX, height, width, chords, frames, setFrames }:
         }
     }
 
-    console.log(frames)
-
-    const boxes = frames.map(frame => {
-        return (
-            <Frame
-                key={`frame_${frame.date}_${frame.length}`}
-                frame={frame}
-                stretchX={stretchX}
-                height={height}
-                onRemove={() => setFrames(prev => {
-                    const index = prev.indexOf(frame)
-                    if (index !== -1) prev.splice(index, 1)
-                    return [...prev]
-                })}
-                onClick={() => {
-                    if (frame.length) playFrame(frame as FrameData)
-                }}
-            />
-        )
-    })
+    const boxes = frame && (
+        <Frame
+            key={`frame_${frame.date}_${frame.length}`}
+            frame={frame}
+            stretchX={stretchX}
+            height={height}
+            onRemove={() => {
+                // ...                
+            }}
+            onClick={() => {
+                if (frame.length) playFrame(frame)
+            }}
+        />
+    )
 
     return (
         <g>

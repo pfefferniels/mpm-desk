@@ -10,7 +10,7 @@ export const Ribbon = ({ children, title }: RibbonProps) => {
         <>
             <Stack p={0.5}>
                 <span style={{ textAlign: 'center' }}>{title}</span>
-                <Stack direction='row'>
+                <Stack direction='row' spacing={0.5}>
                     {children}
                 </Stack>
             </Stack>
