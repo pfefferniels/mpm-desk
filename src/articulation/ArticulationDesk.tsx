@@ -1,16 +1,19 @@
 
-import { Box, Button, Checkbox, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Stack } from "@mui/material"
-import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { Button } from "@mui/material"
+import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
-import { MouseEventHandler, useEffect, useState } from "react"
+import { MouseEventHandler, useState } from "react"
 import { asMIDI } from "../utils/utils"
 import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation, MergeArticulations } from "mpmify"
 import { ArticulationDef } from "../../../mpm-ts/lib"
 import { v4 } from "uuid"
-import { Edit } from "@mui/icons-material"
 import { UnitDialog } from "./UnitDialog"
+import { useSymbolicZoom } from "../hooks/ZoomProvider"
+import { Ribbon } from "../Ribbon"
+import { createPortal } from "react-dom"
+import { Add } from "@mui/icons-material"
 
 interface ArticulatedNoteProps {
     note: MsmNote
@@ -104,72 +107,26 @@ export type UnitWithDef = {
     def?: ArticulationDef
 }
 
-export const ArticulationDesk = ({ msm, mpm, part, activeTransformer, addTransformer }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation | MergeArticulations>) => {
-    const [units, setUnits] = useState<UnitWithDef[]>([])
+export const ArticulationDesk = ({ msm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation | MergeArticulations>) => {
     const [currentUnit, setCurrentUnit] = useState<UnitWithDef>()
-    const [checked, setChecked] = useState<number[]>([]);
     const [unitDialogOpen, setUnitDialogOpen] = useState(false)
 
-    const handleToggle = (index: number) => {
-        const currentIndex = checked.indexOf(index);
-        const newChecked = [...checked];
-
-        if (currentIndex === -1) {
-            newChecked.push(index);
-        } else {
-            newChecked.splice(currentIndex, 1);
-        }
-
-        setChecked(newChecked);
-    };
-
-    console.log('checked', checked)
-
-    useEffect(() => {
-        if (!activeTransformer) return
-
-        if (activeTransformer instanceof InsertArticulation && activeTransformer.options.units) {
-            setUnits(
-                activeTransformer.options.units.map(u => {
-                    return {
-                        notes: u.noteIDs
-                            .map(id => msm.getByID(id))
-                            .filter(n => n !== null),
-                        aspects: new Set(u.aspects),
-                        name: u.name,
-                        def: mpm.getDefinition('articulationDef', u.name) as ArticulationDef || undefined
-                    }
-                })
-            )
-        }
-    }, [activeTransformer, mpm, msm])
-
-    const insert = () => {
-        addTransformer(activeTransformer || new InsertArticulation(), {
+    const insert = (unit: UnitWithDef) => {
+        addTransformer(new InsertArticulation({
             scope: part,
-            units: units.map(u => {
-                return {
-                    noteIDs: u.notes.map(n => n["xml:id"]),
-                    aspects: u.aspects,
-                    name: u.name
-                }
-            })
-        })
+            noteIDs: unit.notes.map(n => n["xml:id"]),
+            aspects: unit.aspects,
+            name: unit.name
+        }))
     }
 
     const makeDefault = () => {
-        addTransformer(activeTransformer || new MakeDefaultArticulation(), {
+        addTransformer(new MakeDefaultArticulation({
             scope: part
-        })
+        }))
     }
 
-    const merge = () => {
-        addTransformer(activeTransformer || new MergeArticulations(), {
-            scope: part
-        })
-    }
-
-    const stretchX = 0.08
+    const stretchX = useSymbolicZoom()
     const stretchY = 8
 
     const articulatedNotes = []
@@ -191,7 +148,6 @@ export const ArticulationDesk = ({ msm, mpm, part, activeTransformer, addTransfo
                                 }
 
                                 setCurrentUnit(shrunk)
-                                setUnits(units.map(u => u === currentUnit ? shrunk : u))
                             }
                             else {
                                 const expanded = {
@@ -200,7 +156,6 @@ export const ArticulationDesk = ({ msm, mpm, part, activeTransformer, addTransfo
                                 }
 
                                 setCurrentUnit(expanded)
-                                setUnits(units.map(u => u === currentUnit ? expanded : u))
                             }
                         }
                         else {
@@ -210,7 +165,6 @@ export const ArticulationDesk = ({ msm, mpm, part, activeTransformer, addTransfo
                                 name: v4()
                             }
                             setCurrentUnit(newUnit)
-                            setUnits([...units, newUnit])
                         }
                     }}
                 />
@@ -220,81 +174,39 @@ export const ArticulationDesk = ({ msm, mpm, part, activeTransformer, addTransfo
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
-            <Box sx={{ position: 'absolute', zIndex: 1000, backgroundColor: 'white', padding: 2, top: '5rem' }}>
-                {checked.length > 0 && (
-                    <Button
-                        variant='contained'
-                        onClick={() => {
-                            setUnits(units.filter((_, index) => !checked.includes(index)))
-                            setChecked([])
-                        }}
-                    >
-                        Delete
-                    </Button>
-                )}
-                <List>
-                    {units.map((u, index) => (
-                        <ListItem
-                            key={u.name}
-                            onClick={() => setCurrentUnit(u)}
-                            secondaryAction={
-                                <IconButton edge="end" aria-label="edit" onClick={() => setUnitDialogOpen(true)}>
-                                    <Edit />
-                                </IconButton>
-                            }
-                        >
-                            <ListItemButton
-                                selected={currentUnit === u}
-                                onClick={() => setCurrentUnit(u)}
+            {createPortal((
+                <Ribbon title="Articulation">
+                    {currentUnit && (
+                        <>
+                            <Button
+                                size='small'
+                                variant='outlined'
+                                onClick={() => setUnitDialogOpen(true)}
+                                startIcon={<Add />}
                             >
-                                <ListItemIcon>
-                                    <Checkbox
-                                        edge="start"
-                                        checked={checked.includes(index)}
-                                        tabIndex={-1}
-                                        disableRipple
-                                        onClick={() => handleToggle(index)}
-                                    />
-                                </ListItemIcon>
-                                <ListItemText>
-                                    {u.name}
-                                </ListItemText>
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                </List>
-            </Box>
-
-            <Stack spacing={1} direction='row'>
-                <Button
-                    variant='contained'
-                    onClick={insert}
-                >
-                    {activeTransformer ? 'Update' : 'Insert'} Articulations
-                </Button>
-                <Button
-                    variant='outlined'
-                    disabled={units.length === 0}
-                    onClick={() => {
-                        setCurrentUnit(undefined)
-                        setUnits([])
-                    }}
-                >
-                    Clear Units
-                </Button>
-                <Button
-                    variant='contained'
-                    onClick={makeDefault}
-                >
-                    Insert Default Articulation
-                </Button>
-                <Button
-                    variant='contained'
-                    onClick={merge}
-                >
-                    Merge
-                </Button>
-            </Stack>
+                                Insert
+                            </Button>
+                            <Button
+                                size='small'
+                                variant='outlined'
+                                onClick={() => {
+                                    setCurrentUnit(undefined)
+                                }}
+                            >
+                                Clear Unit
+                            </Button>
+                        </>
+                    )}
+                    <Button
+                        size='small'
+                        variant='outlined'
+                        onClick={makeDefault}
+                        startIcon={<Add />}
+                    >
+                        Insert Default
+                    </Button>
+                </Ribbon>
+            ), appBarRef.current || document.body)}
 
             <svg width={10000} height={900}>
                 {articulatedNotes}
@@ -306,9 +218,9 @@ export const ArticulationDesk = ({ msm, mpm, part, activeTransformer, addTransfo
                     onClose={() => setUnitDialogOpen(false)}
                     unit={currentUnit}
                     onDone={(unit) => {
-                        setCurrentUnit(unit)
-                        setUnits(units.map(u => u === currentUnit ? unit : u))
+                        insert(unit)
                         setUnitDialogOpen(false)
+                        setCurrentUnit(undefined)
                     }}
                 />
             )}
