@@ -86,10 +86,16 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
 
         const dynamics = mpm.getInstructions<Dynamics>('dynamics', part)
         const withEndDate = []
-        for (let i = 0; i < dynamics.length - 1; i++) {
+        for (let i = 0; i < dynamics.length; i++) {
+            let endDate = dynamics[i+1]?.date
+            if ('endDate' in dynamics[i]) {
+                endDate = (dynamics[i] as DynamicsWithEndDate).endDate
+            }
+            if (endDate === undefined) continue
+
             withEndDate.push({
                 ...dynamics[i],
-                endDate: dynamics[i + 1].date
+                endDate
             })
         }
         setInstructions(withEndDate)

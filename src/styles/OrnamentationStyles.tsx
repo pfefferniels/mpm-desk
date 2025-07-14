@@ -5,17 +5,17 @@ import { Stack, Box, Typography, Slider, Button } from "@mui/material";
 import { Plot } from "./Plot";
 import { createPortal } from "react-dom";
 
-export const OrnamentationStyles = ({ mpm, addTransformer, part, activeTransformer, appBarRef }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
+export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const [tickTolerance, setTickTolerance] = useState(10)
     const [intensityTolerance, setIntensityTolerance] = useState(0.2)
     const [gradientTolerance, setGradientTolerance] = useState(0.2)
 
     const transformOrnaments = () => {
-        addTransformer(activeTransformer || new StylizeOrnamentation(), {
+        addTransformer(new StylizeOrnamentation({
             tickTolerance,
             intensityTolerance,
             gradientTolerance
-        })
+        }))
     }
 
     const ornamentPoints = new StylizeOrnamentation({

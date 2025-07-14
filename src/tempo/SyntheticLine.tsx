@@ -89,6 +89,7 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
     }
 
     if (curvePoints.length === 0) return null
+    if (points.length === 0) return null
 
     const meanTempoDate = (tempo.endDate - tempo.date) * (tempo.meanTempoAt || 0.5)
     const meanTempoMs = (points[0][0] * 1000) + computeMillisecondsAt(tempo.date + meanTempoDate, tempo)

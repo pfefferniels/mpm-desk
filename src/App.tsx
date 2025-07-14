@@ -275,6 +275,7 @@ export const App = () => {
                         marginTop: '1rem',
                         marginRight: '1rem',
                         width: 'fit-content',
+                        minWidth: '200px',
                     }}
                 >
                     <List sx={{ minWidth: 200 }}>
