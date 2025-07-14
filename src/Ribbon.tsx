@@ -1,4 +1,4 @@
-import { Stack } from "@mui/material"
+import { Divider, Stack } from "@mui/material"
 
 interface RibbonProps {
     title: string
@@ -7,11 +7,14 @@ interface RibbonProps {
 
 export const Ribbon = ({ children, title }: RibbonProps) => {
     return (
-        <Stack p={1}>
-            <span style={{ textAlign: 'center' }}>{title}</span>
-            <Stack direction='row'>
-                {children}
+        <>
+            <Stack p={0.5}>
+                <span style={{ textAlign: 'center' }}>{title}</span>
+                <Stack direction='row'>
+                    {children}
+                </Stack>
             </Stack>
-        </Stack>
+            <Divider flexItem orientation="vertical" />
+        </>
     )
 }

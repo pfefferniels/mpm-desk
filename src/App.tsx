@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { asMSM } from './asMSM';
 import { exportWork, importWork, MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
-import { AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
 import { CopyAllRounded, ExpandLess, ExpandMore, PauseCircle, PlayCircle, Save, UploadFile } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
-import { Transformer } from 'mpmify/lib/transformers/Transformer';
+import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
 import { MsmNote } from 'mpmify/lib/msm';
 import { MetadataDesk } from './metadata/MetadataDesk';
@@ -17,6 +17,7 @@ import { NotesProvider } from './hooks/NotesProvider';
 import { Ribbon } from './Ribbon';
 import { ZoomControls } from './ZoomControls';
 import { ZoomContext } from './hooks/ZoomProvider';
+import { downloadAsFile } from './utils/utils';
 
 const injectInstructions = (mei: string, msm: MSM, mpm: MPM): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
@@ -78,7 +79,6 @@ export const App = () => {
     const [activeTransformer, setActiveTransformer] = useState<Transformer>()
 
     const [isPlaying, setIsPlaying] = useState(false)
-    const [fileName, setFileName] = useState<string>()
 
     const [selectedDesk, setSelectedDesk] = useState<string>('metadata')
     const [toExpand, setToExpand] = useState<string>()
@@ -108,7 +108,7 @@ export const App = () => {
                 setMEI(content);
                 setMSM(await asMSM(content));
                 setInitialMSM(await asMSM(content));
-                setFileName(file.name)
+                document.title = `${file.name} - MPM Desk`
             };
         }
         reader.readAsText(file);
@@ -158,23 +158,29 @@ export const App = () => {
         setTransformers(newTransformers)
     }
 
-    //const wasCreatedBy = (id: string): InstanceType<AnyTransformer> | undefined => {
-    //    return transformers.find(t => t.created.includes(id)) as InstanceType<AnyTransformer> | undefined
-    //}
+    useEffect(() => {
+        if (!activeTransformer) return
+
+        const entry = correspondingDesks
+            .filter(entry => !!entry.transformer)
+            .find(({ transformer }) => transformer!.name === activeTransformer.name)
+
+        if (!entry) return
+        setSelectedDesk(entry.displayName || entry.aspect)
+
+        if ('scope' in activeTransformer.options) {
+            setScope((activeTransformer.options as ScopedTransformationOptions).scope)
+        }
+    }, [activeTransformer])
 
     const DeskComponent = correspondingDesks
         .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk || MetadataDesk;
 
+
     return (
         <>
-            <AppBar position='static' color='transparent'>
+            <AppBar position='static' color='transparent' elevation={1}>
                 <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
-                    {fileName && (
-                        <Typography component="div" sx={{ padding: '1rem' }}>
-                            {fileName}
-                        </Typography>)
-                    }
-
                     <Ribbon title='File'>
                         <Tooltip title='Import MEI file' arrow>
                             <Button
@@ -189,10 +195,12 @@ export const App = () => {
                             <IconButton
                                 disabled={transformers.length === 0}
                                 onClick={() => {
-                                    exportWork({
+                                    const json = exportWork({
                                         name: 'Reconstruction of ...',
                                         expression: 'reconstruction.mpm'
                                     }, transformers)
+
+                                    downloadAsFile(json, 'reconstruction.json', 'application/json')
                                 }}
                             >
                                 <Save />
@@ -258,119 +266,132 @@ export const App = () => {
                 </Stack>
             </AppBar>
 
-            <Card sx={{
-                backdropFilter: 'blur(17px)',
-                background: 'rgba(255, 255, 255, 0.6)',
-                margin: '1rem',
-                position: 'absolute',
-                top: '7rem',
-                left: '1rem',
-                zIndex: 1000
-            }}>
-                <List sx={{ minWidth: 200 }}>
-                    {
-                        Array
-                            .from(
-                                Map
-                                    .groupBy(correspondingDesks, desk => desk.aspect)
-                            )
-                            .map(([aspect, info]) => {
-                                if (info.length === 0) return null
-
-                                return (
-                                    <>
-                                        {info.length === 1
-                                            ? (
-                                                <ListItemButton
-                                                    selected={aspect === selectedDesk}
-                                                    onClick={() => {
-                                                        setSelectedDesk(aspect)
-                                                        setToExpand(undefined)
-                                                    }}
-                                                >
-                                                    <ListItemText>{aspect}</ListItemText>
-                                                </ListItemButton>
-                                            )
-                                            : (
-                                                <ListItemButton
-                                                    selected={aspect === toExpand}
-                                                    onClick={() => {
-                                                        setToExpand(aspect === toExpand ? undefined : aspect)
-                                                    }}
-                                                >
-                                                    <ListItemText>{aspect}</ListItemText>
-                                                    {aspect === toExpand ? <ExpandLess /> : <ExpandMore />}
-                                                </ListItemButton>
-                                            )}
-
-                                        {info.length > 1 && (
-                                            <Collapse in={toExpand === aspect} timeout="auto" unmountOnExit>
-                                                <List dense component='div' disablePadding sx={{ pl: 3 }}>
-                                                    {info.map(({ displayName }) => {
-                                                        if (!displayName) return null
-
-                                                        return (
-                                                            <ListItemButton
-                                                                selected={displayName === selectedDesk}
-                                                                onClick={() => {
-                                                                    setSelectedDesk(displayName)
-                                                                }}>
-                                                                <ListItemText>{displayName}</ListItemText>
-                                                            </ListItemButton>
-                                                        )
-                                                    })}
-                                                </List>
-                                            </Collapse>
-                                        )}
-                                    </>
+            <Stack direction='row'>
+                <Card
+                    elevation={1}
+                    sx={{
+                        backdropFilter: 'blur(17px)',
+                        background: 'rgba(255, 255, 255, 0.6)',
+                        marginTop: '1rem',
+                        marginRight: '1rem',
+                        width: 'fit-content',
+                    }}
+                >
+                    <List sx={{ minWidth: 200 }}>
+                        {
+                            Array
+                                .from(
+                                    Map
+                                        .groupBy(correspondingDesks, desk => desk.aspect)
                                 )
-                            })}
-                </List>
-            </Card>
+                                .map(([aspect, info]) => {
+                                    if (info.length === 0) return null
 
-            <NotesProvider notes={msm.allNotes}>
-                <ZoomContext.Provider value={{
-                    symbolic: {
-                        stretchX: stretchX / 200
-                    },
-                    physical: {
-                        stretchX: stretchX
-                    }
-                }}>
-                    <DeskComponent
-                        appBarRef={appBarRef}
-                        msm={msm}
-                        mpm={mpm}
-                        setMSM={setMSM}
-                        setMPM={setMPM}
-                        addTransformer={(transformer: Transformer) => {
-                            const newTransformers = [...transformers, transformer]
+                                    return (
+                                        <>
+                                            {info.length === 1
+                                                ? (
+                                                    <ListItemButton
+                                                        selected={aspect === selectedDesk}
+                                                        onClick={() => {
+                                                            setSelectedDesk(aspect)
+                                                            setToExpand(undefined)
+                                                        }}
+                                                    >
+                                                        <ListItemText>{aspect}</ListItemText>
+                                                    </ListItemButton>
+                                                )
+                                                : (
+                                                    <ListItemButton
+                                                        selected={aspect === toExpand}
+                                                        onClick={() => {
+                                                            setToExpand(aspect === toExpand ? undefined : aspect)
+                                                        }}
+                                                    >
+                                                        <ListItemText>{aspect}</ListItemText>
+                                                        {aspect === toExpand ? <ExpandLess /> : <ExpandMore />}
+                                                    </ListItemButton>
+                                                )}
 
-                            transformer.argumentation = {
-                                description: '',
-                                id: `decision-${v4().slice(0, 8)}`
-                            }
+                                            {info.length > 1 && (
+                                                <Collapse in={toExpand === aspect} timeout="auto" unmountOnExit>
+                                                    <List dense component='div' disablePadding sx={{ pl: 3 }}>
+                                                        {info.map(({ displayName }) => {
+                                                            if (!displayName) return null
 
-                            transformer.run(msm, mpm)
-                            setTransformers(newTransformers)
-                            setMSM(msm.clone())
-                            setMPM(mpm.clone())
-                        }}
-                        part={scope}
+                                                            return (
+                                                                <ListItemButton
+                                                                    selected={displayName === selectedDesk}
+                                                                    onClick={() => {
+                                                                        setSelectedDesk(displayName)
+                                                                    }}>
+                                                                    <ListItemText>{displayName}</ListItemText>
+                                                                </ListItemButton>
+                                                            )
+                                                        })}
+                                                    </List>
+                                                </Collapse>
+                                            )}
+                                        </>
+                                    )
+                                })}
+                    </List>
+                </Card>
+                <NotesProvider notes={msm.allNotes}>
+                    <ZoomContext.Provider value={{
+                        symbolic: {
+                            stretchX: stretchX / 200
+                        },
+                        physical: {
+                            stretchX: stretchX
+                        }
+                    }}>
+                        <DeskComponent
+                            appBarRef={appBarRef}
+                            msm={msm}
+                            mpm={mpm}
+                            setMSM={setMSM}
+                            setMPM={setMPM}
+                            addTransformer={(transformer) => {
+                                const newTransformers = [...transformers, transformer]
+
+                                transformer.argumentation = {
+                                    description: '',
+                                    id: `decision-${v4().slice(0, 8)}`
+                                }
+
+                                transformer.run(msm, mpm)
+                                setTransformers(newTransformers)
+                                setMSM(msm.clone())
+                                setMPM(mpm.clone())
+                            }}
+                            activeElements={activeTransformer?.created || []}
+                            setActiveElement={(element) => {
+                                if (!activeTransformer) return
+                                const correspTransformer = transformers.find(t => t.created.includes(element))
+                                if (correspTransformer) {
+                                    setActiveTransformer(correspTransformer);
+                                }
+                            }}
+                            part={scope}
+                        />
+                    </ZoomContext.Provider>
+                </NotesProvider>
+            </Stack>
+
+
+            {transformers.length > 0 && (
+                <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
+                    <TransformerStack
+                        transformers={transformers}
+                        setTransformers={setTransformers}
+                        onSelect={transformer => setActiveTransformer(transformer)}
+                        onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
+                        onReset={() => reset(transformers)}
+                        activeTransformer={activeTransformer}
                     />
-                </ZoomContext.Provider>
-            </NotesProvider>
-
-            <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
-                <TransformerStack
-                    transformers={transformers}
-                    setTransformers={setTransformers}
-                    onSelect={transformer => setActiveTransformer(transformer)}
-                    onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
-                    onReset={() => reset(transformers)}
-                    activeTransformer={activeTransformer}
-                />
-            </div>
+                </div>
+            )}
         </>
     );
 };

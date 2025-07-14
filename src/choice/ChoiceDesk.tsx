@@ -84,6 +84,7 @@ export const ChoiceDesk = ({ msm, part, addTransformer, appBarRef }: ScopedTrans
                 scope: part,
                 ...currentChoice
             }))
+            setCurrentChoice(undefined)
         }
         else if (defaultChoice) {
             addTransformer(new MakeChoice({
@@ -151,13 +152,15 @@ export const ChoiceDesk = ({ msm, part, addTransformer, appBarRef }: ScopedTrans
             {currentChoice && (
                 <>
                     {createPortal((
-                        <Button
-                            size='small'
-                            variant='outlined'
-                            onClick={insert}
-                        >
-                            Choose {currentChoice.prefer.slice(0, 8)} from {(currentChoice as RangeChoice).from} to {(currentChoice as RangeChoice).to}
-                        </Button>
+                        <Ribbon title="Range Choice">
+                            <Button
+                                size='small'
+                                variant='outlined'
+                                onClick={insert}
+                            >
+                                Choose {currentChoice.prefer.slice(0, 8)} ({(currentChoice as RangeChoice).from}-{(currentChoice as RangeChoice).to})
+                            </Button>
+                        </Ribbon>
                     ), appBarRef.current || document.body)}
                 </>
             )}
@@ -183,7 +186,7 @@ export const ChoiceDesk = ({ msm, part, addTransformer, appBarRef }: ScopedTrans
                                 </FormControl>
 
                                 <Button variant='contained' size='small' onClick={insert}>
-                                    Insert
+                                    Insert Default
                                 </Button>
                             </Stack>
                         </Ribbon>

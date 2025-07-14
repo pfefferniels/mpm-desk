@@ -6,10 +6,15 @@ import { ChordGradient } from "./ChordGradient"
 import GradientDetails from "./GradientDetails"
 import { Ornament, OrnamentDef } from "../../../mpm-ts/lib"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
+import { createPortal } from "react-dom"
+import { Ribbon } from "../Ribbon"
+import { Add } from "@mui/icons-material"
 
-export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
+export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [currentDate, setCurrentDate] = useState<number>()
     const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
+    const [defaultCrescendo,] = useState<DynamicsGradient>({ from: -1, to: 0 })
+    const [defaultDecrescendo,] = useState<DynamicsGradient>({ from: 0, to: -1 })
     const [newGradient, setNewGradient] = useState<DynamicsGradient>()
     const [sortVelocities, setSortVelocities] = useState(true)
     const stretchX = usePhysicalZoom()
@@ -36,15 +41,22 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedT
     }, [mpm, part])
 
     const transform = () => {
-        if (!newGradient || !currentDate) return
-        addTransformer(new InsertDynamicsGradient({
-            part,
-            gradient: {
+        if (!currentDate) {
+            addTransformer(new InsertDynamicsGradient({
+                scope: part,
+                crescendo: defaultCrescendo,
+                decrescendo: defaultDecrescendo,
+                sortVelocities
+            }))
+        }
+        else if (currentDate && newGradient) {
+            addTransformer(new InsertDynamicsGradient({
+                scope: part,
                 date: currentDate,
-                gradient: newGradient
-            },
-            sortVelocities
-        }))
+                gradient: newGradient,
+                sortVelocities
+            }))
+        }
     }
 
     const height = 250
@@ -79,10 +91,10 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedT
             let gradient = gradients.get(chordNotes[0].date)
             if (!gradient) {
                 if (chordNotes[0]["midi.velocity"] < chordNotes[chordNotes.length - 1]["midi.velocity"]) {
-                    gradient = { from: -1, to: 0 }
+                    gradient = defaultCrescendo
                 }
                 else {
-                    gradient = { from: 0, to: -1 }
+                    gradient = defaultDecrescendo
                 }
             }
 
@@ -100,23 +112,28 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedT
 
     return (
         <div>
-            <FormControlLabel
-                control={
-                    <Checkbox
-                        checked={sortVelocities}
-                        onChange={(e) => setSortVelocities(e.target.checked)}
-                        color="primary"
+            {createPortal((
+                <Ribbon title='Dynamics Gradient'>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                size='small'
+                                checked={sortVelocities}
+                                onChange={(e) => setSortVelocities(e.target.checked)}
+                                color="primary"
+                            />
+                        }
+                        label="Sort Velocities"
                     />
-                }
-                label="Sort Velocities"
-            />
-            <Button
-                variant='contained'
-                onClick={transform}
-                style={{ marginTop: '1rem' }}
-            >
-                Insert Dynamics Gradients
-            </Button>
+                    <Button
+                        size='small'
+                        onClick={transform}
+                        startIcon={<Add />}
+                    >
+                        Insert {!currentDate && 'Default'}
+                    </Button>
+                </Ribbon>
+            ), appBarRef.current || document.body)}
 
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 <svg width={8000} height={200}>
@@ -147,11 +164,16 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part }: ScopedT
 
                 {currentDate && (
                     <GradientDetails
-                        setGradient={(gradient) => {
+                        gradient={newGradient}
+                        onChange={gradient => {
                             setNewGradient(gradient)
                         }}
-                        gradient={newGradient}
                         open={currentDate !== undefined}
+                        onClose={() => setCurrentDate(undefined)}
+                        onDone={() => {
+                            transform()
+                            setCurrentDate(undefined)
+                        }}
                     />
                 )}
 

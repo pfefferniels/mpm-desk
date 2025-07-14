@@ -5,9 +5,13 @@ import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments } from "./Tempo"
 import { downloadAsFile } from "../utils/utils"
 import { ZoomControls } from "../ZoomControls"
-import { ScopedTransformerViewProps } from "../DeskSwitch"
+import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { SyntheticLine } from "./SyntheticLine"
-import { Clear } from "@mui/icons-material"
+import { Add, Clear } from "@mui/icons-material"
+import { Ribbon } from "../Ribbon"
+import { createPortal } from "react-dom"
+import { Tempo } from "../../../mpm-ts/lib"
+import { usePhysicalZoom } from "../hooks/ZoomProvider"
 
 export type TempoPoint = {
     date: number
@@ -22,14 +26,30 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
+export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [segments, setSegments] = useState<TempoSegment[]>([])
+    const [newSegment, setNewSegment] = useState<TempoSegment>()
     const [mode, setMode] = useState<'split' | 'curve' | undefined>(undefined)
 
-    const [stretchX, setStretchX] = useState(20)
+    const stretchX = usePhysicalZoom()
     const [stretchY, setStretchY] = useState(1)
+
+    useEffect(() => {
+        const tempos = mpm.getInstructions<Tempo>('tempo', part)
+        setSegments(tempos
+            .map((tempo, i) => {
+                const next = tempos[i + 1]
+                if (!next) return null
+                return {
+                    startDate: tempo.date,
+                    endDate: next.date,
+                    beatLength: tempo.beatLength,
+                }
+            })
+            .filter(segment => segment !== null) as TempoSegment[])
+    }, [mpm, part])
 
     useEffect(() => {
         msm.shiftToFirstOnset()
@@ -39,14 +59,6 @@ export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: Scop
             return new TempoCluster(extractTempoSegments(msm, part))
         })
     }, [msm, part])
-
-    useEffect(() => {
-        if (!activeTransformer) return
-        if (activeTransformer instanceof ApproximateLogarithmicTempo) {
-            setSegments(activeTransformer.options.segments as TempoSegment[])
-            setSilentOnsets(activeTransformer.options.silentOnsets as SilentOnset[])
-        }
-    }, [activeTransformer])
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -79,35 +91,36 @@ export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: Scop
     };
 
     const insertTempoValues = () => {
-        if (!tempoCluster) return
+        if (!tempoCluster || !newSegment) return
 
-        addTransformer(activeTransformer instanceof ApproximateLogarithmicTempo ? activeTransformer : new ApproximateLogarithmicTempo(), {
-            segments,
+        addTransformer(new ApproximateLogarithmicTempo({
+            segment: newSegment,
             part,
             silentOnsets
-        })
-
-        // addTransformer(activeTransformer instanceof CompressTempo ? activeTransformer : new CompressTempo(), {
-        //     bpmPrecision: 4,
-        //     meanTempoAtPrecision: 4
-        // })
+        }))
     }
 
     const translate = () => {
-        addTransformer(activeTransformer instanceof TranslatePhyiscalTimeToTicks ? activeTransformer : new TranslatePhyiscalTimeToTicks(), {
+        addTransformer(new TranslatePhyiscalTimeToTicks({
             translatePhysicalModifiers: true
-        })
+        }))
     }
 
     return (
         <div>
             <Stack direction='row' spacing={1}>
-                <Button
-                    variant='contained'
-                    onClick={insertTempoValues}
-                >
-                    {activeTransformer instanceof ApproximateLogarithmicTempo ? 'Update' : 'Insert'} Tempo Instructions
-                </Button>
+                {createPortal((
+                    <Ribbon title='Tempo'>
+                        <Button
+                            size='small'
+                            startIcon={<Add />}
+                            variant='contained'
+                            onClick={insertTempoValues}
+                        >
+                            Insert
+                        </Button>
+                    </Ribbon>
+                ), appBarRef.current || document.body)}
 
                 <Button
                     variant='contained'
@@ -161,9 +174,6 @@ export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: Scop
 
             <div style={{ position: 'relative' }}>
                 <ZoomControls
-                    stretchX={stretchX}
-                    setStretchX={setStretchX}
-                    rangeX={[5, 50]}
                     stretchY={stretchY}
                     setStretchY={setStretchY}
                     rangeY={[1, 2]}
@@ -178,11 +188,12 @@ export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: Scop
                             stretchX={stretchX}
                             stretchY={stretchY}
                             onAddSegment={(from, to, beatLength) => {
-                                setSegments(prev => [...prev, {
+                                console.log('onaddsegment', from, to, beatLength)
+                                setNewSegment({
                                     startDate: from,
                                     endDate: to,
                                     beatLength: beatLength / 4 / 720,
-                                }])
+                                })
                             }}
                             mode={mode}
                             onSplit={(first, second) => {
@@ -203,9 +214,8 @@ export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: Scop
                                 setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
                             }}
                         >
-                            {segments.map((segment, i) => {
-                                console.log('silent onsets', silentOnsets)
-                                // const firstOnset = msm.notesAtDate(0, part)[0]?.['midi.onset'] || 0
+                            {[...segments, newSegment].map((segment, i) => {
+                                if (!segment) return
 
                                 const segmentWithPoints = pointsWithinSegment(
                                     segment,
@@ -231,14 +241,14 @@ export const TempoDesk = ({ msm, addTransformer, part, activeTransformer }: Scop
                                         startTime={startTime}
                                         stretchX={stretchX}
                                         stretchY={stretchY}
-                                        onClick={(e) => {
-                                            if (e.altKey && e.shiftKey) {
-                                                setSegments(prev => prev.filter(s => s !== segment))
-                                                return
-                                            }
+                                        onClick={() => {
+                                            // if (e.altKey && e.shiftKey) {
+                                            //     setSegments(prev => prev.filter(s => s !== segment))
+                                            //     return
+                                            // }
                                         }}
                                         onChange={(newSegment) => {
-                                            setSegments(prev => prev.map(s => s === segment ? newSegment : s))
+                                            setNewSegment(newSegment)
                                         }}
                                     />
                                 )

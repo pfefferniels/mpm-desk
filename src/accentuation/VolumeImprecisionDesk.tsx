@@ -10,7 +10,7 @@ import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume } from "mpmify";
 import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
 import { Pattern } from "./Pattern";
-import { Cell } from "./Cell";
+import { Preview } from "./Preview";
 import { Delete } from "@mui/icons-material";
 import { ZoomControls } from "../ZoomControls";
 import { CellDrawer } from "./CellDrawer";
@@ -195,7 +195,7 @@ export const VolumeImprecisionDesk = ({ part, msm, mpm, addTransformer, activeTr
 
                 {cells.map((cell, i) => {
                     return (
-                        <Cell
+                        <Preview
                             key={`cell_${cell.start}_${cell.end}_${i}`}
                             cell={cell}
                             i={i}

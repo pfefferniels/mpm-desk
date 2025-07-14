@@ -1,18 +1,21 @@
-import React from 'react';
-import { Drawer, TextField } from '@mui/material';
+import React, { } from 'react';
+import { Button, Dialog, DialogActions, DialogContent, TextField } from '@mui/material';
 import { DynamicsGradient } from 'mpmify';
 
 interface GradientDetailsProps {
     gradient?: DynamicsGradient;
-    setGradient: (gradient: DynamicsGradient) => void;
     open: boolean;
+    onChange: (gradient: DynamicsGradient) => void
+    onDone: () => void
+    onClose: () => void
 }
 
-const GradientDetails: React.FC<GradientDetailsProps> = ({ gradient, setGradient, open }) => {
-
+const GradientDetails: React.FC<GradientDetailsProps> = ({ gradient, open, onChange, onClose, onDone }) => {
+    console.log('gradient', gradient)
+    
     return (
-        <Drawer anchor="right" open={open}>
-            <div style={{ width: 300, padding: 16 }}>
+        <Dialog open={open} onClose={onClose}>
+            <DialogContent>
                 <TextField
                     label="From"
                     type="number"
@@ -21,7 +24,7 @@ const GradientDetails: React.FC<GradientDetailsProps> = ({ gradient, setGradient
                     inputProps={{ min: -1, max: 1, step: 0.1 }}
                     value={gradient?.from || 0}
                     onChange={(e) =>
-                        setGradient({ from: parseFloat(e.target.value) || 0, to: gradient?.to || 0 })
+                        onChange({ from: parseFloat(e.target.value) || 0, to: gradient?.to || 0 })
                     }
                 />
                 <TextField
@@ -32,11 +35,19 @@ const GradientDetails: React.FC<GradientDetailsProps> = ({ gradient, setGradient
                     inputProps={{ min: -1, max: 1, step: 0.1 }}
                     value={gradient?.to || 0}
                     onChange={(e) =>
-                        setGradient({ from: gradient?.from || 0, to: parseFloat(e.target.value) || 0 })
+                        onChange({ from: gradient?.from || 0, to: parseFloat(e.target.value) || 0 })
                     }
                 />
-            </div>
-        </Drawer>
+            </DialogContent>
+            <DialogActions>
+                <Button
+                    variant='contained'
+                    onClick={() => onDone()}
+                >
+                    Insert
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 };
 

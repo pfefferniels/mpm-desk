@@ -3,7 +3,7 @@ import { Dynamics } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI, downloadAsFile } from "../utils/utils";
-import { Scope, ScopedTransformerViewProps } from "../DeskSwitch";
+import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Range } from "../tempo/Tempo";
 import { DynamicsWithEndDate, InsertDynamicsInstructions } from "mpmify/lib/transformers";
@@ -11,7 +11,10 @@ import { Box, Button, Stack, ToggleButton } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
-import { ZoomControls } from "../ZoomControls";
+import { useSymbolicZoom } from "../hooks/ZoomProvider";
+import { createPortal } from "react-dom";
+import { Ribbon } from "../Ribbon";
+import { Add } from "@mui/icons-material";
 
 export interface DynamicsSegment {
     date: Range
@@ -40,7 +43,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, activeTransformer, setActiveTransformer }: ScopedTransformerViewProps<InsertDynamicsInstructions>) => {
+export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, setActiveElement, appBarRef }: ScopedTransformerViewProps<InsertDynamicsInstructions>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -51,17 +54,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
     const [phantomMode, setPhantomMode] = useState(false)
     const [markers, setMarkers] = useState<number[]>([])
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
-    const [stretchX, setStretchX] = useState(0.03)
+    const stretchX = useSymbolicZoom()
 
     const svgRef = useRef<SVGSVGElement>(null);
-
-    useEffect(() => {
-        if (!activeTransformer) return
-        if (activeTransformer instanceof InsertDynamicsInstructions) {
-            setMarkers(activeTransformer.options.markers)
-            setPhantomVelocities(activeTransformer.options.phantomVelocities)
-        }
-    }, [activeTransformer])
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -129,11 +124,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
     };
 
     const handleInsert = () => {
-        addTransformer(activeTransformer || new InsertDynamicsInstructions(), {
+        addTransformer(new InsertDynamicsInstructions({
             markers,
             phantomVelocities,
             scope: part
-        })
+        }))
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -237,15 +232,12 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
     const curves = instructions.map(i => {
         return (
             <CurveSegment
-                active={activeTransformer !== undefined && wasCreatedBy(i["xml:id"]) === activeTransformer}
+                active={activeElements.includes(i["xml:id"])}
                 instruction={i}
                 stretchX={stretchX}
                 stretchY={stretchY}
                 onClick={() => {
-                    const createdBy = wasCreatedBy(i["xml:id"])
-                    if (createdBy && activeTransformer !== createdBy) {
-                        setActiveTransformer(createdBy)
-                    }
+                    setActiveElement(i["xml:id"])
                 }}
             />
         )
@@ -253,16 +245,20 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, wasCreatedBy, act
 
     return (
         <div style={{ height: '400', overflow: 'scroll' }}>
-            <ZoomControls
-                setStretchX={setStretchX}
-                stretchX={stretchX}
-                rangeX={[0.01, 0.05]}
-            />
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1} sx={{ position: 'sticky', left: 0 }}>
-                <Button variant='contained' onClick={handleInsert}>
-                    {activeTransformer ? 'Update' : 'Insert'} Dynamics
-                </Button>
+                {createPortal((
+                    <Ribbon title='Dynamics'>
+                        <Button
+                            startIcon={<Add />}
+                            size='small'
+                            variant='contained'
+                            onClick={handleInsert}
+                        >
+                            Insert
+                        </Button>
+                    </Ribbon>
+                ), appBarRef.current || document.body)}
 
                 <Button variant='outlined' onClick={() => {
                     downloadAsFile(JSON.stringify(markers, null, 4), 'dynamics_markers.json')

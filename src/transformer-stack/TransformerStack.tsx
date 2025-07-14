@@ -7,7 +7,7 @@ import {
     ListItemText,
     IconButton,
 } from "@mui/material";
-import { Clear, ExpandLess, ExpandMore, RestartAlt } from "@mui/icons-material";
+import { Clear, DeleteForever, ExpandLess, ExpandMore, RestartAlt } from "@mui/icons-material";
 import { TransformerListItem } from "./TransformerListItem";
 import { ArgumentationCard } from "./ArgumentationCard";
 import { Argumentation } from "mpmify";
@@ -17,7 +17,7 @@ interface TransformerStackProps {
     setTransformers: (transformers: Transformer[]) => void;
 
     onRemove: (transformer: Transformer) => void;
-    onSelect: (transformer: Transformer) => void;
+    onSelect: (transformer?: Transformer) => void;
     onReset: () => void;
     activeTransformer?: Transformer;
 }
@@ -41,7 +41,10 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
 
     return (
         <>
-            <Card>
+            <Card elevation={7} sx={{
+                backdropFilter: 'blur(14px)',
+                background: 'rgba(255, 255, 255, 0.5)',
+            }}>
                 <List sx={{ minWidth: 350 }}>
                     <ListItem
                         secondaryAction={
@@ -54,15 +57,23 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                     </ListItem>
                     <Collapse in={expanded} timeout="auto" unmountOnExit>
                         <Stack direction="row">
-                            <IconButton
-                                onClick={onReset}
-                            >
-                                <RestartAlt />
-                            </IconButton>
-
-                            <IconButton onClick={() => setTransformers([])}>
-                                <Clear />
-                            </IconButton>
+                            {transformers.length > 0 && (
+                                <>
+                                    <IconButton
+                                        onClick={onReset}
+                                    >
+                                        <RestartAlt />
+                                    </IconButton>
+                                    <IconButton onClick={() => setTransformers([])}>
+                                        <DeleteForever />
+                                    </IconButton>
+                                </>
+                            )}
+                            {activeTransformer && (
+                                <IconButton onClick={() => onSelect(undefined)}>
+                                    <Clear />
+                                </IconButton>
+                            )}
                         </Stack>
 
                         <List>
@@ -85,6 +96,7 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                                             <TransformerListItem
                                                                 key={`transformer_${index}`}
                                                                 transformer={transformer}
+                                                                index={index}
                                                                 onSelect={() => onSelect(transformer)}
                                                                 onRemove={() => onRemove(transformer)}
                                                                 selected={activeTransformer?.id === transformer.id}

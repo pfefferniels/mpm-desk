@@ -6,7 +6,7 @@ import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/el
 import { ErrorOutline, Warning, Delete } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemButton, ListItemText, IconButton, Tooltip } from "@mui/material";
 import { ValidationMessage } from "mpmify";
-import { Transformer } from "mpmify/lib/transformers/Transformer";
+import { TransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import invariant from "tiny-invariant";
@@ -15,6 +15,7 @@ import { getTransformerData } from "./transformer-data";
 
 interface TransformerListItemProps {
     transformer: Transformer;
+    index: number;
     message?: ValidationMessage
     onRemove: () => void;
     onSelect: () => void;
@@ -39,7 +40,19 @@ type TransformerState =
 
 const idle: TransformerState = { type: 'idle' };
 
-export const TransformerListItem = ({ transformer, onRemove, onSelect, selected, message }: TransformerListItemProps) => {
+const isRangeBased = (transformer: TransformationOptions): transformer is TransformationOptions & { from: number; to: number } => {
+    return 'from' in transformer && 'to' in transformer;
+}
+
+const isDateBased = (transformer: TransformationOptions): transformer is TransformationOptions & { date: number } => {
+    return 'date' in transformer;
+}
+
+const isNoteBased = (transformer: TransformationOptions): transformer is TransformationOptions & { noteid: string } => {
+    return 'noteid' in transformer;
+}
+
+export const TransformerListItem = ({ transformer, index, onRemove, onSelect, selected, message }: TransformerListItemProps) => {
     const [state, setState] = useState<TransformerState>(idle);
     const ref = useRef<HTMLLIElement | null>(null);
 
@@ -47,10 +60,12 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
     const displayText =
         message
             ? <span>{message.message}</span>
-            : (
-                optionsString.length > 20
-                    ? optionsString.slice(0, 20) + "..."
-                    : optionsString);
+            : <span>{
+                isRangeBased(transformer.options) ? `${transformer.options.from}-${transformer.options.to}`
+                    : isDateBased(transformer.options) ? `@${transformer.options.date}`
+                        : isNoteBased(transformer.options) ? `#${transformer.options.noteid}`
+                            : ''}
+            </span>
 
 
     useEffect(() => {
@@ -108,7 +123,7 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
             //    },
             //    onDrag({ self }) {
             //        const closestEdge = extractClosestEdge(self.data);
-//
+            //
             //        // Only need to update react state if nothing has changed.
             //        // Prevents re-rendering.
             //        setState((current) => {
@@ -140,6 +155,7 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
                 <ListItemIcon>
                     {message.type === 'error' && <ErrorOutline color="error" />}
                     {message.type === 'warning' && <Warning color="warning" />}
+                    {index}
                 </ListItemIcon>
             )}
             <Tooltip title={optionsString}>
@@ -147,7 +163,7 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
                     onClick={onSelect}
                     selected={selected}
                 >
-                    <ListItemText primary={transformer.name} secondary={displayText} title="test" />
+                    <ListItemText primary={<span>{transformer.name} {displayText}</span>} title="test" />
                     <IconButton
                         onClick={(e) => {
                             e.stopPropagation();
@@ -168,7 +184,11 @@ export const TransformerListItem = ({ transformer, onRemove, onSelect, selected,
 };
 
 
-// A simplified version of our task for the user to drag around
+// A simplified version of the transformer for the user to drag around
 function DragPreview({ transformer }: { transformer: Transformer }) {
-    return <div className="border-solid rounded p-2 bg-white">{transformer.name}</div>;
+    return (
+        <div style={{ backgroundColor: 'white', padding: '1rem' }}>
+            {transformer.name}
+        </div>
+    )
 }

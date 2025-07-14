@@ -11,7 +11,7 @@ import { Add } from "@mui/icons-material";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const [temporalSpreads, setTemporalSpreads] = useState<(Ornament & { def: TemporalSpread })[]>([])
-    const [insertDefault, setInsertDefault] = useState(false);
+    const [insert, setInsert] = useState(false);
 
     // these are being defined in the drawer
     const [currentDate, setCurrentDate] = useState<number>()
@@ -39,6 +39,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
 
     const transform = () => {
         if (currentDate) {
+            console.log('current date', currentDate)
             // This is a single temporal spread
             addTransformer(new InsertTemporalSpread({
                 scope: part,
@@ -115,11 +116,11 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                                     size='small'
                                     variant='outlined'
                                     onClick={() => {
-                                        setInsertDefault(true)
+                                        setInsert(true)
                                     }}
                                     startIcon={<Add />}
                                 >
-                                    Insert Default
+                                    Insert {!currentDate && 'Default'}
                                 </Button>
                             </Ribbon>
                             <Ribbon title='Tempo Curve'>
@@ -174,15 +175,15 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                 </svg>
             </div>
             <Dialog
-                open={currentDate !== undefined || insertDefault}
+                open={insert}
                 onClose={() => {
                     setCurrentDate(undefined)
-                    setInsertDefault(false)
+                    setInsert(false)
                 }}
             >
                 <DialogContent>
                     <Typography>
-                        {currentDate}
+                        {currentDate || 'default'}
                     </Typography>
                     <FormControl fullWidth>
                         <InputLabel id="placement-select-label">Placement</InputLabel>
@@ -218,6 +219,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                     <Button onClick={() => {
                         transform();
                         setCurrentDate(undefined);
+                        setInsert(false)
                     }}>
                         Insert
                     </Button>

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { ScopedTransformerViewProps } from "../DeskSwitch";
+import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { StylizeOrnamentation } from "mpmify";
 import { Stack, Box, Typography, Slider, Button } from "@mui/material";
 import { Plot } from "./Plot";
+import { createPortal } from "react-dom";
 
-export const OrnamentationStyles = ({ mpm, addTransformer, part, activeTransformer }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
+export const OrnamentationStyles = ({ mpm, addTransformer, part, activeTransformer, appBarRef }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const [tickTolerance, setTickTolerance] = useState(10)
     const [intensityTolerance, setIntensityTolerance] = useState(0.2)
     const [gradientTolerance, setGradientTolerance] = useState(0.2)
@@ -66,7 +67,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, activeTransform
                     />
                 </Box>
             </Stack>
-            
+
             <Plot
                 points={ornamentPoints}
                 xLabel="Frame start"
@@ -81,12 +82,15 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, activeTransform
                 yStretch={1.5}
                 rStretch={2}
             />
-            <Button
-                variant='contained'
-                onClick={transformOrnaments}
-            >
-                Stylize Ornaments
-            </Button>
+
+            {createPortal((
+                <Button
+                    variant='contained'
+                    onClick={transformOrnaments}
+                >
+                    Stylize Ornaments
+                </Button>
+            ), appBarRef.current || document.body)}
         </div>
     )
 }

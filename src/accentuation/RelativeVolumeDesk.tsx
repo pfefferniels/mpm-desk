@@ -8,7 +8,7 @@ import { Box, Button, Stack } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { AccentuationCell, InsertMetricalAccentuation, InsertRelativeVolume, MakeArticulationDefinition, MergeArticulations } from "mpmify";
-import { Cell } from "./Cell";
+import { Preview } from "./Preview";
 import { Delete } from "@mui/icons-material";
 import { ZoomControls } from "../ZoomControls";
 import { CellDrawer } from "./CellDrawer";
@@ -221,7 +221,7 @@ export const RelativeVolumeDesk = ({ part, msm, addTransformer, activeTransforme
 
                 {cells.map((cell, i) => {
                     return (
-                        <Cell
+                        <Preview
                             key={`cell_${cell.start}_${cell.end}_${i}`}
                             cell={cell}
                             i={i}
