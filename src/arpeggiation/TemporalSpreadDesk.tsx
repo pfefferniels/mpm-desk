@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
 import { usePhysicalZoom } from "../hooks/ZoomProvider";
 import { Add } from "@mui/icons-material";
+import { TempoVariance } from "./TempoVariance";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const [temporalSpreads, setTemporalSpreads] = useState<(Ornament & { def: TemporalSpread })[]>([])
@@ -60,29 +61,6 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
     }
 
     const height = 250;
-
-    const bpms = []
-    let prevOnset = 0;
-    for (let date = 0; date < msm.lastDate(); date += beatLength) {
-        const currentNotes = msm.notesAtDate(date, part).slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
-        if (!currentNotes || !currentNotes.length) continue
-
-        const currentOnset = currentNotes.reduce((acc, note) => acc + note["midi.onset"], 0) / currentNotes.length;
-
-        let bpm = 60 / (currentOnset - prevOnset);
-        if (bpms.length) {
-            const multiplier = (date - bpms[bpms.length - 1].date) / beatLength;
-            bpm *= multiplier;
-        }
-
-        bpms.push({
-            date: date,
-            onset: currentOnset,
-            bpm
-        })
-
-        prevOnset = currentOnset;
-    }
 
     const chords = []
     for (const notes of msm.asChords().values()) {
@@ -143,35 +121,13 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
             <div style={{ width: '80vw', overflow: 'scroll' }}>
                 <svg width={10000} height={height}>
                     <g>
-                        {bpms.map(({ date, onset, bpm }, i, arr) => {
-                            if (i + 1 >= arr.length) return null;
-                            return (
-                                <>
-                                    <line
-                                        key={`tempoLine_${date}`}
-                                        x1={onset * stretchX}
-                                        x2={arr[i + 1].onset * stretchX}
-                                        y1={height - bpm}
-                                        y2={height - arr[i + 1].bpm}
-                                        stroke='black'
-                                        strokeOpacity={0.5}
-                                    />
-                                    <text
-                                        x={onset * stretchX}
-                                        y={height - bpm + 5}
-                                        fill='black'
-                                        fontSize={10}
-                                        strokeOpacity={0.5}
-                                    >
-                                        {bpm.toFixed(1)}
-                                    </text>
-                                </>
-                            );
-                        })}
-                    </g>
-                    <g>
                         {chords}
                     </g>
+                    <TempoVariance
+                        msm={msm}
+                        part={part}
+                        beatLength={beatLength}
+                    />
                 </svg>
             </div>
             <Dialog

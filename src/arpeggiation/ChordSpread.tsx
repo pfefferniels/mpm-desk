@@ -18,10 +18,6 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
 
-    if (notes.length <= 1) {
-        return null;
-    }
-
     let firstOnset = notes[0]['midi.onset'];
     const lastOnset = notes[notes.length - 1]['midi.onset'];
     let frameLength = lastOnset - firstOnset;
@@ -62,8 +58,8 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
                 y={0}
                 width={frameLength * stretch}
                 height={height}
-                fill='gray'
-                fillOpacity={hovered ? 0.35 : 0.1} />
+                fill='red'
+                fillOpacity={hovered ? 0.5 : 0.3} />
 
             {notes.map(note => {
                 return (
@@ -74,7 +70,7 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
                         y1={0}
                         y2={height}
                         stroke='gray'
-                        strokeWidth={1} />
+                        strokeWidth={notes.length === 1 ? 0.4 : 0.7} />
                 );
             })}
 
@@ -88,7 +84,7 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
                 strokeWidth={1} />
 
 
-            {frameLength !== 0 && (
+            {hovered && (
                 <text
                     x={(firstOnset + frameLength / 2) * stretch}
                     y={height / 2}

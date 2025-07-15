@@ -1,112 +1,227 @@
-import { DatedDynamicsGradient, DynamicsGradient, InsertDynamicsGradient } from "mpmify"
-import { ScopedTransformerViewProps } from "../TransformerViewProps"
+import { InsertDynamicsGradient, MSM } from "mpmify"
+import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
-import { useEffect, useState } from "react"
-import { ChordGradient } from "./ChordGradient"
-import GradientDetails from "./GradientDetails"
-import { Ornament, OrnamentDef } from "../../../mpm-ts/lib"
+import { useRef, useState } from "react"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../Ribbon"
 import { Add } from "@mui/icons-material"
+import { MsmNote } from "mpmify/lib/msm"
+import { Ornament } from "../../../mpm-ts/lib"
+import { usePiano } from "react-pianosound"
+import { useNotes } from "../hooks/NotesProvider"
+import { asMIDI } from "../utils/utils"
 
-export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
-    const [currentDate, setCurrentDate] = useState<number>()
-    const [gradients, setGradients] = useState<DatedDynamicsGradient>(new Map())
-    const [defaultCrescendo,] = useState<DynamicsGradient>({ from: -1, to: 0 })
-    const [defaultDecrescendo,] = useState<DynamicsGradient>({ from: 0, to: -1 })
-    const [newGradient, setNewGradient] = useState<DynamicsGradient>()
-    const [sortVelocities, setSortVelocities] = useState(true)
+const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
+    return (
+        <g>
+            <rect
+                x={0}
+                y={getY(70)}
+                width={30}
+                height={getY(0)}
+                fill="white"
+            />
+            <line
+                x1={0}
+                y1={getY(70)}
+                x2={0}
+                y2={getY(30)}
+                stroke="black"
+                strokeWidth={1.5}
+            />
+            {[30, 40, 50, 60, 70].map(v => {
+                const y = getY(v);
+                return (
+                    <g key={`scale_${v}`}>
+                        <line x1={0} y1={y} x2={10} y2={y} stroke="black" strokeWidth={1} />
+                        <text x={15} y={y + 4} fontSize={10} fill="black">
+                            {v}
+                        </text>
+                    </g>
+                );
+            })}
+        </g>
+    )
+}
+
+type RawGradientProps = {
+    notes: MsmNote[]
+    onClick: (gradient: { from: number; to: number }) => void
+    getY: (velocity: number) => number
+}
+
+export const RawGradient = ({ notes, onClick, getY }: RawGradientProps) => {
+    const { play, stop } = usePiano();
+    const { slice } = useNotes()
+
+    const [ratio, setRatio] = useState<number>()
+    const stretchX = usePhysicalZoom()
+    const rectRef = useRef<SVGRectElement | null>(null)
+
+    const { softest, loudest } = getDynamicsExtremes(notes);
+
+    return (
+        <g
+            onMouseEnter={() => {
+                if (notes.length === 0) return;
+
+                const sliced = slice(notes[0].date, notes[0].date + 1);
+                const midi = asMIDI(sliced);
+                if (midi) {
+                    stop();
+                    play(midi);
+                }
+            }}
+            onMouseMove={(e) => {
+                if (rectRef.current) {
+                    const rect = rectRef.current.getBoundingClientRect()
+                    const localY = e.clientY - rect.top
+                    const ratio = 1 - localY / rect.height
+                    setRatio(ratio)
+                }
+            }}
+            onMouseLeave={() => {
+                setRatio(undefined)
+            }}
+        >
+            <rect
+                ref={rectRef}
+                x={(softest.onset * stretchX) - 10}
+                y={Math.min(getY(softest.vel), getY(loudest.vel))}
+                width={((loudest.onset - softest.onset) * stretchX) + 20}
+                height={Math.abs(getY(loudest.vel) - getY(softest.vel))}
+                fill='transparent'
+            />
+            <line
+                x1={softest.onset * stretchX}
+                x2={loudest.onset * stretchX}
+                y1={getY(softest.vel)}
+                y2={getY(loudest.vel)}
+                stroke="black"
+                strokeWidth={2}
+                onClick={() => onClick({ from: softest.onset, to: loudest.onset })}
+            />
+            {ratio && (
+                <circle
+                    cx={softest.onset * stretchX}
+                    cy={getY((loudest.vel - softest.vel) * ratio + softest.vel)}
+                    r={2}
+                    fill='red'
+                    onClick={() => {
+                        const lower = -ratio
+                        const upper = 1 - ratio
+                        onClick({
+                            from: lower,
+                            to: upper
+                        })
+                    }}
+                />
+            )}
+        </g>
+    )
+}
+
+type MPMGradientProps = {
+    notes: MsmNote[]
+    gradient?: { from: number; to: number; scale?: number }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const MPMGradient = ({ notes, gradient }: MPMGradientProps) => {
+    console.log(notes, gradient)
+    return (
+        <g>
+
+        </g>
+    )
+}
+
+const getDynamicsExtremes = (notes: MsmNote[]) => {
+    const softestNote = notes.reduce(
+        (prev, curr) => curr["midi.velocity"] < prev["midi.velocity"] ? curr : prev,
+        notes[0]
+    );
+    const loudestNote = notes.reduce(
+        (prev, curr) => curr["midi.velocity"] > prev["midi.velocity"] ? curr : prev,
+        notes[0]
+    );
+    return {
+        softest: { vel: softestNote["midi.velocity"], onset: softestNote["midi.onset"] },
+        loudest: { vel: loudestNote["midi.velocity"], onset: loudestNote["midi.onset"] }
+    };
+};
+
+
+export const Hull = ({ msm, part, getY }: { msm: MSM, part: Scope, getY: (velocity: number) => void }) => {
     const stretchX = usePhysicalZoom()
 
-    useEffect(() => {
-        setGradients(
-            new Map(
-                mpm
-                    .getInstructions<Ornament>('ornament', part)
-                    .map(ornament => {
-                        const def = mpm.getDefinition('ornamentDef', ornament['name.ref']) as OrnamentDef | undefined
-                        if (!def) return
-                        return [
-                            ornament.date,
-                            {
-                                from: def.dynamicsGradient?.["transition.from"],
-                                to: def.dynamicsGradient?.["transition.to"]
-                            }
-                        ] as [number, DynamicsGradient]
-                    })
-                    .filter(record => record !== undefined)
+    return Array
+        .from(msm.asChords(part))
+        .map(([, notes], index, arr) => {
+            const next = arr[index + 1]
+            if (!next) return null
+
+            const { loudest, softest } = getDynamicsExtremes(notes);
+            const { loudest: nextLoudest, softest: nextSoftest } = getDynamicsExtremes(next[1]);
+
+            return (
+                <polygon
+                    key={`polygon_${index}`}
+                    points={[
+                        [softest.onset * stretchX, getY(softest.vel)],
+                        [loudest.onset * stretchX, getY(loudest.vel)],
+                        [nextLoudest.onset * stretchX, getY(nextLoudest.vel)],
+                        [nextSoftest.onset * stretchX, getY(nextSoftest.vel)],
+                    ].map(p => p.join(',')).join(' ')}
+                    fill="blue"
+                    fillOpacity={0.2}
+                    stroke="black"
+                    strokeWidth={0.5}
+                />
             )
+        })
+}
+
+export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
+    const [sortVelocities, setSortVelocities] = useState(true)
+
+    const height = 700
+
+    const transform = (date: number, gradient: { from: number, to: number }) => {
+        addTransformer(new InsertDynamicsGradient({
+            scope: part,
+            date,
+            gradient,
+            sortVelocities: true
+        })
         )
-    }, [mpm, part])
-
-    const transform = () => {
-        if (!currentDate) {
-            addTransformer(new InsertDynamicsGradient({
-                scope: part,
-                crescendo: defaultCrescendo,
-                decrescendo: defaultDecrescendo,
-                sortVelocities
-            }))
-        }
-        else if (currentDate && newGradient) {
-            addTransformer(new InsertDynamicsGradient({
-                scope: part,
-                date: currentDate,
-                gradient: newGradient,
-                sortVelocities
-            }))
-        }
     }
 
-    const height = 250
-
-    const chordsGradients = []
-    for (const notes of msm.asChords().values()) {
-        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
-        if (!chordNotes.length) continue
-
-        const date = chordNotes[0].date
-        chordsGradients.push((
-            <ChordGradient
-                key={`chordNotes_${chordNotes[0]["xml:id"]}`}
-                notes={chordNotes}
-                onClick={() => setCurrentDate(date)}
-                gradient={gradients.get(date)}
-                stretch={stretchX}
-                height={height}
-            />
-        ))
+    const transformDefault = () => {
+        addTransformer(new InsertDynamicsGradient({
+            scope: part,
+            crescendo: { from: -1, to: 0 },
+            decrescendo: { from: 0, to: -1 },
+            sortVelocities: true
+        }))
     }
 
-    const points: { onset: number, velocity: number }[] = []
-    for (const notes of msm.asChords().values()) {
-        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
-        if (!chordNotes.length) continue
+    const getY = (velocity: number): number => {
+        return height - (velocity / 100) * height
+    }
 
-        if (chordNotes.length === 1) {
-            points.push({ onset: chordNotes[0]["midi.onset"], velocity: chordNotes[0]["midi.velocity"] })
-        }
-        else {
-            let gradient = gradients.get(chordNotes[0].date)
-            if (!gradient) {
-                if (chordNotes[0]["midi.velocity"] < chordNotes[chordNotes.length - 1]["midi.velocity"]) {
-                    gradient = defaultCrescendo
-                }
-                else {
-                    gradient = defaultDecrescendo
-                }
+    const getMPMGradient = (date: number): { from: number, to: number, scale: number } | undefined => {
+        const instruction = mpm.getInstructions('ornament', part)
+            .find(i => i.date === date) as Ornament | undefined;
+        if (!instruction) return
+
+        if (instruction["transition.from"] !== undefined && instruction["transition.to"] !== undefined) {
+            return {
+                from: instruction["transition.from"],
+                to: instruction["transition.to"],
+                scale: instruction.scale || 1
             }
-
-            const normalized = (value: number, start: number, end: number): number => {
-                return (value - start) / (end - start);
-            }
-
-            const zeroGradient = normalized(0, gradient.from, gradient.to)
-            const translated = zeroGradient * (chordNotes[chordNotes.length - 1]["midi.velocity"] - chordNotes[0]["midi.velocity"])
-            const velocity = chordNotes[0]["midi.velocity"] + translated
-            const onset = chordNotes[0]['midi.onset'] + zeroGradient * (chordNotes[chordNotes.length - 1]["midi.onset"] - chordNotes[0]["midi.onset"]);
-            points.push({ onset, velocity })
         }
     }
 
@@ -127,57 +242,49 @@ export const DynamicsGradientDesk = ({ msm, mpm, addTransformer, part, appBarRef
                     />
                     <Button
                         size='small'
-                        onClick={transform}
+                        onClick={transformDefault}
                         startIcon={<Add />}
                         variant='outlined'
                     >
-                        Insert {!currentDate && 'Default'}
+                        Insert Default
                     </Button>
                 </Ribbon>
             ), appBarRef.current || document.body)}
 
-            <div style={{ width: '80vw', overflow: 'scroll' }}>
-                <svg width={8000} height={200}>
-                    {chordsGradients}
-
-                    {points.length > 1 && points.slice(1).map((point, index) => {
-                        const prevPoint = points[index]
-                        const x1 = prevPoint.onset * stretchX
-                        const y1 = height - (prevPoint.velocity / 127) * height
-                        const x2 = point.onset * stretchX
-                        const y2 = height - (point.velocity / 127) * height
-
-                        return (
-                            <line
-                                key={index}
-                                x1={x1}
-                                y1={y1}
-                                x2={x2}
-                                y2={y2}
-                                stroke="gray"
-                                strokeWidth={1}
-                            />
-                        )
-                    })}
+            <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
+                <svg height={height} width={100} style={{ position: 'absolute', top: 0, left: 0 }}>
+                    <VelocityScale getY={getY} />
                 </svg>
-
-                <div>{currentDate}</div>
-
-                {currentDate && (
-                    <GradientDetails
-                        gradient={newGradient}
-                        onChange={gradient => {
-                            setNewGradient(gradient)
-                        }}
-                        open={currentDate !== undefined}
-                        onClose={() => setCurrentDate(undefined)}
-                        onDone={() => {
-                            transform()
-                            setCurrentDate(undefined)
-                        }}
-                    />
-                )}
-
+                <div style={{ overflow: 'scroll' }}>
+                    <svg width={8000} height={height}>
+                        <Hull msm={msm} part={part} getY={getY} />
+                        {Array
+                            .from(msm.asChords())
+                            .map(([date, notes]) => {
+                                const mpmGradient = getMPMGradient(date);
+                                if (mpmGradient) {
+                                    return (
+                                        <MPMGradient
+                                            notes={notes}
+                                            gradient={mpmGradient}
+                                        />
+                                    )
+                                }
+                                else {
+                                    return (
+                                        <RawGradient
+                                            key={`gradient_${date}`}
+                                            notes={notes}
+                                            onClick={(gradient) => {
+                                                transform(date, gradient)
+                                            }}
+                                            getY={getY}
+                                        />
+                                    )
+                                }
+                            })}
+                    </svg>
+                </div>
             </div>
         </div >
     )

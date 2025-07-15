@@ -9,10 +9,10 @@ interface ChordGradientProps {
     gradient?: DynamicsGradient
     onClick: () => void;
     stretch: number
-    height: number
+    getY: (velocity: number) => number;
 }
 
-export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: ChordGradientProps) => {
+export const ChordGradient = ({ notes, onClick, gradient, stretch, getY }: ChordGradientProps) => {
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false)
 
@@ -21,9 +21,9 @@ export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: Cho
     const firstNote = notes[0];
     const lastNote = notes[notes.length - 1];
     const firstX = firstNote["midi.onset"] * stretch;
-    const firstY = height - (firstNote["midi.velocity"] / 127) * height;
+    const firstY = getY(firstNote["midi.velocity"]);
     const lastX = lastNote["midi.onset"] * stretch;
-    const lastY = height - (lastNote["midi.velocity"] / 127) * height;
+    const lastY = getY(lastNote["midi.velocity"]);
 
     let defaultGradient
     if (lastNote["midi.velocity"] > firstNote["midi.velocity"]) {
@@ -52,7 +52,7 @@ export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: Cho
         >
             {notes.map((note, index) => {
                 const x = note["midi.onset"] * stretch;
-                const y = height - (note["midi.velocity"] / 127) * height;
+                const y = getY(note["midi.velocity"]);
 
                 return (
                     <circle
@@ -74,7 +74,7 @@ export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: Cho
                 <>
                     <text
                         x={firstNote["midi.onset"] * stretch - 12}
-                        y={height - (firstNote["midi.velocity"] / 127) * height}
+                        y={getY(firstNote["midi.velocity"] / 127)}
                         fill="black"
                         fontSize="10"
                     >
@@ -83,7 +83,7 @@ export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: Cho
 
                     <text
                         x={lastNote["midi.onset"] * stretch + 2}
-                        y={height - (lastNote["midi.velocity"] / 127) * height}
+                        y={getY(lastNote["midi.velocity"] / 127)}
                         fill="black"
                         fontSize="10"
                     >
@@ -92,7 +92,7 @@ export const ChordGradient = ({ notes, onClick, gradient, stretch, height }: Cho
 
                     <text
                         x={lastNote["midi.onset"] * stretch + 2}
-                        y={height - (lastNote["midi.velocity"] / 127) * height + 20}
+                        y={getY(lastNote["midi.velocity"])}
                         fill="black"
                         fontSize="10"
                     >
