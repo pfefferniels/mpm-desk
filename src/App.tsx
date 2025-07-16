@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { asMSM } from './asMSM';
-import { exportWork, importWork, MPM, MSM } from 'mpmify';
+import { compareTransformers, exportWork, importWork, MPM, MSM } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
@@ -354,7 +354,7 @@ export const App = () => {
                             setMSM={setMSM}
                             setMPM={setMPM}
                             addTransformer={(transformer) => {
-                                const newTransformers = [...transformers, transformer]
+                                const newTransformers = [...transformers, transformer].sort(compareTransformers)
 
                                 transformer.argumentation = {
                                     description: '',

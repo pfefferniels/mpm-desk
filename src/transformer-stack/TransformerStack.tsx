@@ -80,7 +80,7 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                             <div style={{ maxHeight: '80vh', overflow: 'scroll', maxWidth: 450 }}>
                                 {Array
                                     .from(argumentations.entries())
-                                    .map(([argumentation, transformers]) => {
+                                    .map(([argumentation, localTransformers]) => {
                                         return (
                                             <>
                                                 <ArgumentationCard
@@ -92,16 +92,20 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                                 />
                                                 <Collapse in={true} timeout="auto" unmountOnExit>
                                                     <List dense>
-                                                        {transformers.map((transformer, index) => (
-                                                            <TransformerListItem
-                                                                key={`transformer_${index}`}
-                                                                transformer={transformer}
-                                                                index={index}
-                                                                onSelect={() => onSelect(transformer)}
-                                                                onRemove={() => onRemove(transformer)}
-                                                                selected={activeTransformer?.id === transformer.id}
-                                                            />
-                                                        ))}
+                                                        {localTransformers.map((transformer) => {
+                                                            const index = transformers.indexOf(transformer);
+
+                                                            return (
+                                                                <TransformerListItem
+                                                                    key={`transformer_${index}`}
+                                                                    transformer={transformer}
+                                                                    index={index}
+                                                                    onSelect={() => onSelect(transformer)}
+                                                                    onRemove={() => onRemove(transformer)}
+                                                                    selected={activeTransformer?.id === transformer.id}
+                                                                />
+                                                            )
+                                                        })}
                                                     </List>
                                                 </Collapse>
                                             </>

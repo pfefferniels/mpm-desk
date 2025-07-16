@@ -3,20 +3,17 @@ import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { ErrorOutline, Warning, Delete } from "@mui/icons-material";
+import { Delete } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemButton, ListItemText, IconButton, Tooltip } from "@mui/material";
-import { ValidationMessage } from "mpmify";
 import { TransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import invariant from "tiny-invariant";
-import DropIndicator from "./DropIndicator";
 import { getTransformerData } from "./transformer-data";
 
 interface TransformerListItemProps {
     transformer: Transformer;
     index: number;
-    message?: ValidationMessage
     onRemove: () => void;
     onSelect: () => void;
     selected: boolean;
@@ -52,21 +49,20 @@ const isNoteBased = (transformer: TransformationOptions): transformer is Transfo
     return 'noteid' in transformer;
 }
 
-export const TransformerListItem = ({ transformer, index, onRemove, onSelect, selected, message }: TransformerListItemProps) => {
+export const TransformerListItem = ({ transformer, index, onRemove, onSelect, selected }: TransformerListItemProps) => {
     const [state, setState] = useState<TransformerState>(idle);
     const ref = useRef<HTMLLIElement | null>(null);
 
     const optionsString = JSON.stringify(transformer.options);
-    const displayText =
-        message
-            ? <span>{message.message}</span>
-            : <span>{
+    const displayText = (
+        <span>
+            {
                 isRangeBased(transformer.options) ? `${transformer.options.from}-${transformer.options.to}`
                     : isDateBased(transformer.options) ? `@${transformer.options.date}`
                         : isNoteBased(transformer.options) ? `#${transformer.options.noteid}`
                             : ''}
-            </span>
-
+        </span>
+    )
 
     useEffect(() => {
         const element = ref.current;
@@ -96,52 +92,6 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, se
                     setState(idle);
                 },
             }),
-            //dropTargetForElements({
-            //    element,
-            //    canDrop({ source }) {
-            //        // not allowing dropping on yourself
-            //        if (source.element === element) {
-            //            return false;
-            //        }
-            //        // only allowing transformers to be dropped on me
-            //        return isTransformerData(source.data);
-            //    },
-            //    getData({ input }) {
-            //        const data = getTransformerData(transformer);
-            //        return attachClosestEdge(data, {
-            //            element,
-            //            input,
-            //            allowedEdges: ['top', 'bottom'],
-            //        });
-            //    },
-            //    getIsSticky() {
-            //        return true;
-            //    },
-            //    onDragEnter({ self }) {
-            //        const closestEdge = extractClosestEdge(self.data);
-            //        setState({ type: 'is-dragging-over', closestEdge });
-            //    },
-            //    onDrag({ self }) {
-            //        const closestEdge = extractClosestEdge(self.data);
-            //
-            //        // Only need to update react state if nothing has changed.
-            //        // Prevents re-rendering.
-            //        setState((current) => {
-            //            if (current.type === 'is-dragging-over' && current.closestEdge === closestEdge) {
-            //                return current;
-            //            }
-            //            return { type: 'is-dragging-over', closestEdge };
-            //        });
-            //    },
-            //    onDragLeave() {
-            //        setState(idle);
-            //    },
-            //    onDrop({ self, location }) {
-            //        console.log('self', self);
-            //        console.log('location', location);
-            //        setState(idle);
-            //    },
-            //}),
         );
     }, [transformer]);
 
@@ -151,13 +101,9 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, se
             data-transformer-id={transformer.id}
             divider
         >
-            {message && (
-                <ListItemIcon>
-                    {message.type === 'error' && <ErrorOutline color="error" />}
-                    {message.type === 'warning' && <Warning color="warning" />}
-                    {index}
-                </ListItemIcon>
-            )}
+            <ListItemIcon>
+                <span>{index}</span>
+            </ListItemIcon>
             <Tooltip title={optionsString}>
                 <ListItemButton
                     onClick={onSelect}
@@ -175,9 +121,6 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, se
                 </ListItemButton>
             </Tooltip>
 
-            {state.type === 'is-dragging-over' && state.closestEdge ? (
-                <DropIndicator edge={state.closestEdge} gap={'8px'} />
-            ) : null}
             {state.type === 'preview' ? createPortal(<DragPreview transformer={transformer} />, state.container) : null}
         </ListItem>
     );
