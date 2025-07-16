@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { asMSM } from './asMSM';
-import { compareTransformers, exportWork, importWork, MPM, MSM } from 'mpmify';
+import { compareTransformers, exportWork, importWork, MPM, MSM, validate } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
-import { AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { Alert, AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
@@ -77,6 +77,7 @@ export const App = () => {
 
     const [transformers, setTransformers] = useState<Transformer[]>([])
     const [activeTransformer, setActiveTransformer] = useState<Transformer>()
+    const [message, setMessage] = useState<string>()
 
     const [isPlaying, setIsPlaying] = useState(false)
 
@@ -355,6 +356,11 @@ export const App = () => {
                             setMPM={setMPM}
                             addTransformer={(transformer) => {
                                 const newTransformers = [...transformers, transformer].sort(compareTransformers)
+                                const messages = validate(newTransformers)
+                                if (messages.length) {
+                                    setMessage(messages.map(m => m.message).join('\n'))
+                                    return
+                                }
 
                                 transformer.argumentation = {
                                     description: '',
@@ -393,6 +399,17 @@ export const App = () => {
                     />
                 </div>
             )}
+
+            <Snackbar open={message !== undefined} autoHideDuration={4000} onClose={() => setMessage(undefined)}>
+                <Alert
+                    onClose={() => setMessage(undefined)}
+                    severity="error"
+                    variant="filled"
+                    sx={{ width: '40%' }}
+                >
+                    {message}
+                </Alert>
+            </Snackbar>
         </div>
     );
 };
