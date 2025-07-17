@@ -14,10 +14,11 @@ interface DatesRowProps {
     width: number
     chords: ChordMap
     frame?: Frame
-    setFrame: React.Dispatch<React.SetStateAction<Frame | undefined>>
+    onClickTick: (date: number) => void
+    instructions: JSX.Element[]
 }
 
-export const DatesRow = ({ stretchX, height, width, chords, frame, setFrame }: DatesRowProps) => {
+export const DatesRow = ({ stretchX, height, width, chords, frame, onClickTick, instructions }: DatesRowProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -50,59 +51,45 @@ export const DatesRow = ({ stretchX, height, width, chords, frame, setFrame }: D
         stop()
     }
 
-    const addMarker = (date: number) => {
-        console.log('add marker', date)
-        setFrame(prev => {
-            console.log('prev', prev)
-            if (!prev) return { date }
-            if (!prev.length) {
-                prev.length = date - prev.date
-            }
-            else {
-                prev.date = date
-            }
-            return { ...prev }
-        })
-    }
-
     for (const [date, notes] of chords) {
+        const tickDate = notes[0]?.tickDate
+        if (tickDate === undefined) continue
+
+
         dates.push((
-            <line
-                data-date={date}
-                className='shouldTick'
-                strokeWidth={hovered === date ? 3 : 1.5}
-                stroke='black'
-                x1={date * stretchX}
-                x2={date * stretchX}
-                y1={-10}
-                y2={height + 10}
-                key={`shouldTick_${date}`}
-                onMouseOver={() => handleMouseOver(date)}
-                onMouseOut={handleMouseOut}
-                strokeDasharray={'5 5'}
-            />
-        ))
+            <>
+                {(tickDate - date) !== 0 && (
+                    <text
+                        key={`diff_${date}`}
+                        x={((date + tickDate) / 2) * stretchX}
+                        y={height + 15}
+                        fontSize={12}
+                        textAnchor="middle"
+                        fill="black"
+                    >
+                        {tickDate - date > 0 && '+'}{(tickDate - date).toFixed(0)}
+                    </text>
+                )}
 
-        for (const note of notes) {
-            if (note.tickDate === undefined) continue
-
-            dates.push((
-                <line
-                    key={`tickShift_${note["xml:id"]}`}
+                <path
                     data-date={date}
-                    data-tickDate={note.tickDate}
-                    stroke='blue'
-                    strokeWidth={hovered === date ? 3 : 1.5}
-                    x1={note.tickDate * stretchX}
-                    x2={note.tickDate * stretchX}
-                    y1={0}
-                    y2={height}
+                    className="shouldTick"
+                    strokeWidth={hovered === date ? 3 : 2}
+                    stroke="gray"
+                    fill="none"
+                    d={`
+                        M ${date * stretchX},0
+                        L ${date * stretchX},${height * 0.7}
+                        L ${tickDate * stretchX},${height * 0.8}
+                        L ${tickDate * stretchX},${height}
+                    `}
+                    key={`shouldTick_${date}`}
                     onMouseOver={() => handleMouseOver(date)}
                     onMouseOut={handleMouseOut}
-                    onClick={() => addMarker(date)}
+                    onClick={() => onClickTick(date)}
                 />
-            ))
-        }
+            </>
+        ))
     }
 
     const boxes = frame && (
@@ -121,24 +108,70 @@ export const DatesRow = ({ stretchX, height, width, chords, frame, setFrame }: D
     )
 
     return (
-        <g>
-            <line
-                stroke='black'
-                strokeWidth={1}
-                x1={0}
-                x2={width}
-                y1={0}
-                y2={0} />
-            <line
-                stroke='black'
-                strokeWidth={1}
-                x1={0}
-                x2={width}
-                y1={height}
-                y2={height} />
+        <>
+            <g>
+                {/* top and bottom border lines */}
+                <line
+                    stroke="black"
+                    strokeWidth={1}
+                    x1={0}
+                    x2={width}
+                    y1={height * 0.7}
+                    y2={height * 0.7}
+                />
+                <line
+                    stroke="black"
+                    strokeWidth={1}
+                    x1={0}
+                    x2={width}
+                    y1={height * 0.8}
+                    y2={height * 0.8}
+                />
+                <line
+                    stroke="black"
+                    strokeWidth={1}
+                    x1={0}
+                    x2={width}
+                    y1={height}
+                    y2={height}
+                />
 
-            {boxes}
-            {dates}
-        </g>
+                {/* eighth‐note ticks every 360 ticks */}
+                {Array.from({
+                    length: Math.floor(width / (360 * stretchX)) + 1
+                }).map((_, i) => {
+                    const x = i * 360 * stretchX;
+                    return (
+                        <g
+                            key={`tick-${i}`}
+                            onClick={() => onClickTick(x / stretchX)}
+                        >
+                            <line
+                                x1={x}
+                                x2={x}
+                                y1={0}
+                                y2={5}
+                                stroke="black"
+                                strokeWidth={1}
+                            />
+                            <line
+                                x1={x}
+                                x2={x}
+                                y1={height}
+                                y2={height - 5}
+                                stroke="black"
+                                strokeWidth={1}
+                            />
+                        </g>
+                    )
+                })}
+
+                {boxes}
+                {dates}
+            </g>
+            <g transform={`translate(0, ${height + 30})`}>
+                {instructions}
+            </g>
+        </>
     )
 }

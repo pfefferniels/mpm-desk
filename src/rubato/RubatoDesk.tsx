@@ -16,10 +16,10 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, setActiveElement, a
     const stretchX = useSymbolicZoom()
 
     const svgWidth = 10000
-    const svgHeight = 180
+    const svgHeight = 200
     const marginLeft = 200
     const stretchY = 5
-    const height = 10
+    const height = 20
 
     const handleInsertRubato = () => {
         if (!frame || !frame.length) return
@@ -42,7 +42,37 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, setActiveElement, a
         // TODO
     }
 
+    const addMarker = (date: number) => {
+        setFrame(prev => {
+            if (!prev || (prev.date && prev.length)) return { date }
+            return { ...prev, length: date - prev.date }
+        })
+    }
+
     const allRubatos = mpm.getInstructions<Rubato>('rubato', part)
+
+    const rubatoElements = allRubatos.map(rubato => {
+        const notes = msm.notesInPart(part)
+        const affected = new Set(
+            notes
+                .filter(note => note.date >= rubato.date && note.date < rubato.date + rubato.frameLength)
+                .map(note => note.date)
+        )
+
+        return (
+            <RubatoInstruction
+                active={activeElements.includes(rubato["xml:id"])}
+                key={`rubatoInstruction_${rubato.date}`}
+                rubato={rubato}
+                onsetDates={Array.from(affected)}
+                stretchX={stretchX}
+                height={height * stretchY}
+                onClick={() => {
+                    setActiveElement(rubato["xml:id"])
+                }}
+            />
+        )
+    })
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll' }}>
@@ -87,52 +117,19 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, setActiveElement, a
             </h3>
             <svg
                 width={svgWidth + marginLeft}
-                height={svgHeight}
+                height={svgHeight * 2}
                 viewBox={`${-marginLeft} 0 ${svgWidth + marginLeft} ${svgHeight}`}
             >
-                <g transform={`translate(0, ${height * stretchY})`}>
+                <g transform={`translate(0, ${0 * stretchY})`}>
                     <DatesRow
                         frame={frame}
-                        setFrame={setFrame}
                         height={height * stretchY}
                         stretchX={stretchX}
                         width={svgWidth}
                         chords={msm.asChords(part)}
+                        onClickTick={addMarker}
+                        instructions={rubatoElements}
                     />
-                </g>
-            </svg>
-
-            <h3 style={{ position: 'sticky', left: 0 }}>
-                Instructions
-            </h3>
-            <svg
-                width={svgWidth + marginLeft}
-                height={svgHeight}
-                viewBox={`${-marginLeft} 0 ${svgWidth + marginLeft} ${svgHeight}`}
-            >
-                <g transform={`translate(0, ${height * stretchY})`}>
-                    {allRubatos.map(rubato => {
-                        const notes = msm.notesInPart(part)
-                        const affected = new Set(
-                            notes
-                                .filter(note => note.date >= rubato.date && note.date <= rubato.date + rubato.frameLength)
-                                .map(note => note.date)
-                        )
-
-                        return (
-                            <RubatoInstruction
-                                active={activeElements.includes(rubato["xml:id"])}
-                                key={`rubatoInstruction_${rubato.date}`}
-                                rubato={rubato}
-                                onsetDates={Array.from(affected)}
-                                stretchX={stretchX}
-                                height={height * stretchY}
-                                onClick={() => {
-                                    setActiveElement(rubato["xml:id"])
-                                }}
-                            />
-                        )
-                    })}
                 </g>
             </svg>
         </div>

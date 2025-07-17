@@ -14,7 +14,7 @@ interface RubatoInstructionProps {
 
 export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretchX, height }: RubatoInstructionProps) => {
     const [hovered, setHovered] = useState(false)
-    const lines = []
+    const lines: JSX.Element[] = []
 
     const handleClick = () => {
         const transport = Tone.getTransport()
@@ -35,14 +35,14 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
         transport.start()
     }
 
-    for (const date of onsetDates) {
+    onsetDates.forEach((date, i) => {
         const tickDate = calculateRubatoOnDate(date, rubato)
         lines.push((
             <g key={`rubatoLine_${rubato.date}`}>
                 <line
                     x1={tickDate * stretchX}
                     x2={tickDate * stretchX}
-                    y1={0}
+                    y1={i === 0 ? -7 : 0}
                     y2={height}
                     stroke='black'
                     strokeWidth={1}
@@ -50,19 +50,20 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
 
                 {(onsetDates.indexOf(date) === 0 && rubato.lateStart) && (
                     <text
+                        className='rubatoLateStart'
                         transform={`rotate(90, ${tickDate * stretchX}, ${height})`}
-                        x={tickDate * stretchX}
+                        x={tickDate * stretchX + 5}
                         y={height}
                         fontSize={10}
                         fill={hovered ? 'black' : 'gray'}
                     >
-                        {rubato.lateStart.toFixed(2)}
+                        {`${(rubato.lateStart * 100).toFixed(2)}%`}
                     </text>
                 )}
                 {(onsetDates.indexOf(date) === onsetDates.length - 1 && rubato.earlyEnd) && (
                     <text
-                        transform={`rotate(90, ${tickDate * stretchX}, ${height})`}
-                        x={tickDate * stretchX}
+                        transform={`rotate(90, ${tickDate * stretchX - 10}, ${height})`}
+                        x={tickDate * stretchX - 10}
                         y={height}
                         fontSize={10}
                         fill={hovered ? 'black' : 'gray'}
@@ -72,7 +73,7 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
                 )}
             </g>
         ))
-    }
+    })
 
     const margin = 2.5
 
@@ -98,7 +99,7 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
             <text
                 x={(rubato.date * stretchX) + margin}
                 y={0}
-                fontSize={10}
+                fontSize={12}
                 fill={hovered ? 'black' : 'gray'}
             >
                 {rubato.intensity?.toFixed(2)}
