@@ -1,66 +1,70 @@
 import React, { useEffect, useState } from 'react';
 import { asMSM } from './asMSM';
-import { compareTransformers, exportWork, importWork, MPM, MSM, validate } from 'mpmify';
+import { compareTransformers, exportWork, importWork, MakeChoice, MakeChoiceOptions, MPM, MSM, validate } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { Alert, AppBar, Button, Card, Collapse, IconButton, List, ListItemButton, ListItemText, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
-import { CopyAllRounded, ExpandLess, ExpandMore, PauseCircle, PlayCircle, Save, UploadFile } from '@mui/icons-material';
+import { ExpandLess, ExpandMore, PauseCircle, PlayCircle, Save, UploadFile } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
-import { MsmNote } from 'mpmify/lib/msm';
 import { MetadataDesk } from './metadata/MetadataDesk';
 import { NotesProvider } from './hooks/NotesProvider';
 import { Ribbon } from './Ribbon';
 import { ZoomControls } from './ZoomControls';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { downloadAsFile } from './utils/utils';
+import JSZip from 'jszip'
 
-const injectInstructions = (mei: string, msm: MSM, mpm: MPM): string => {
+const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[]): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
 
-    const instructions = mpm.getInstructions()
-    for (const instruction of instructions) {
-        let notes: MsmNote[] = []
-        if (instruction.noteid) {
-            notes = instruction.noteid
-                .split(' ')
-                .map(id => msm.getByID(id.slice(1)))
-                .filter(note => !!note)
+    for (const choice of choices) {
+        const notesAffectedByChoice = []
+
+        if (('from' in choice) && ('to' in choice)) {
+            // range
+            notesAffectedByChoice.push(...msm.allNotes.filter(n => n.date >= choice.from && n.date < choice.to))
+        }
+        // note
+        else if ('noteids' in choice) {
+            notesAffectedByChoice.push(...msm.allNotes.filter(n => choice.noteids.includes(n['xml:id'])))
         }
         else {
-            // TODO: take scope into account
-            notes = msm.notesAtDate(instruction.date, 'global')
+            // default
+            notesAffectedByChoice.push(...msm.allNotes)
         }
-        if (notes.length === 0) continue
 
-        const plist = notes.map(note => `#${note['xml:id']}`).join(' ')
-        const corresp = meiDoc.querySelector(`*[*|id=${notes[0]['xml:id']}]`)
-        if (!corresp) continue
+        const recording = meiDoc.querySelector(`recording[source="${choice.prefer}"]`)
+        if (!recording) continue
 
-        const measure = corresp.closest('measure')
-        if (!measure) continue
+        const relevantWhens = notesAffectedByChoice
+            .map(n => meiDoc.querySelector(`when[data="#${n['xml:id']}"]`))
+            .filter(when => when !== null) as Element[]
 
-        const annot = meiDoc.createElementNS('http://www.music-encoding.org/ns/mei', 'dir')
-        annot.setAttribute('xml:id', `dir-${v4().slice(0, 8)}`)
-        annot.setAttribute('plist', plist)
-        annot.setAttribute('startid', `#${notes[0]['xml:id']}`)
-        annot.setAttribute('corresp', `#${instruction['xml:id']}`)
-        annot.textContent = instruction.type
-        const comment = meiDoc.createComment(
-            Object.entries(instruction)
-                .filter(([k, v]) => (
-                    !['date', 'xml:id', 'type', 'corresp', 'noteid'].includes(k) &&
-                    v !== undefined
-                ))
-                .map(([k, v]) => `${k}: ${v}`)
-                .join(', ')
-        );
-        annot.appendChild(comment);
-        measure.appendChild(annot)
+
+        for (const when of relevantWhens) {
+            const data = when.getAttribute('data')!.slice(1)
+            const note = meiDoc.querySelector(`note[*|id="${data}"]`)
+            if (!note) continue
+
+            // do not overwrite existing corresp attribute
+            if (note.hasAttribute('corresp')) continue
+
+            const corresp = when.getAttribute('corresp')
+            if (!corresp) continue
+
+            note.setAttribute('corresp', corresp)
+        }
+    }
+
+
+    const recordings = meiDoc.querySelectorAll("recording")
+    for (const recording of recordings) {
+        recording.remove()
     }
 
     return new XMLSerializer().serializeToString(meiDoc)
@@ -99,7 +103,14 @@ export const App = () => {
             // open JSON-LD
             reader.onload = async (e: ProgressEvent<FileReader>) => {
                 const content = e.target?.result as string;
-                importWork(content)
+                const transformers = importWork(content);
+                const messages = validate(transformers);
+                if (messages.length) {
+                    setMessage(messages.map(m => m.message).join('\n'));
+                    return;
+                }
+                setMessage(undefined);
+                setTransformers(transformers.sort(compareTransformers));
             };
         }
         else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) {
@@ -147,6 +158,12 @@ export const App = () => {
     }
 
     const reset = (newTransformers: Transformer[]) => {
+        const message = validate(newTransformers)
+        if (message.length) {
+            setMessage(message.map(m => m.message).join('\n'))
+            return
+        }
+
         const newMPM = new MPM()
         const newMSM = initialMSM ? initialMSM.deepClone() : new MSM()
 
@@ -174,6 +191,11 @@ export const App = () => {
         }
     }, [activeTransformer])
 
+    useEffect(() => {
+        // prevent the user from loosing unsaved changes
+        window.onbeforeunload = () => ''
+    }, []);
+
     const DeskComponent = correspondingDesks
         .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk || MetadataDesk;
 
@@ -183,7 +205,7 @@ export const App = () => {
             <AppBar position='static' color='transparent' elevation={1}>
                 <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
                     <Ribbon title='File'>
-                        <Tooltip title='Import MEI file' arrow>
+                        <Tooltip title='Import MEI/JSON file' arrow>
                             <Button
                                 onClick={handleFileImport}
                                 startIcon={<UploadFile />}
@@ -192,16 +214,34 @@ export const App = () => {
                             </Button>
                         </Tooltip>
 
-                        <Tooltip title='Save Work (JSON-LD)' arrow>
+                        <Tooltip title='Save Work' arrow>
                             <IconButton
-                                disabled={transformers.length === 0}
-                                onClick={() => {
+                                disabled={transformers.length === 0 || !mei}
+                                onClick={async () => {
+                                    if (!mei) return
+
+                                    const newMEI = injectChoices(
+                                        mei, msm, transformers
+                                            .filter((t): t is MakeChoice => t.name === 'MakeChoice')
+                                            .map(t => t.options)
+                                    )
+
                                     const json = exportWork({
                                         name: 'Reconstruction of ...',
-                                        expression: 'reconstruction.mpm'
+                                        mpm: 'performance.mpm',
+                                        mei: 'transcription.mei'
                                     }, transformers)
 
-                                    downloadAsFile(json, 'reconstruction.json', 'application/json')
+                                    const zip = new JSZip();
+                                    zip.file("performance.mpm", exportMPM(mpm));
+                                    zip.file("transcription.mei", newMEI);
+                                    zip.file("info.json", json);
+
+                                    zip.generateAsync({ type: "blob" })
+                                        .then((content) => {
+                                            downloadAsFile(content, 'export.zip', 'application/zip');
+                                        });
+
                                 }}
                             >
                                 <Save />
@@ -210,7 +250,7 @@ export const App = () => {
                         <input
                             type="file"
                             id="fileInput"
-                            accept='application/xml,.mei'
+                            accept='application/xml,.mei,application/json'
                             style={{ display: 'none' }}
                             onChange={handleFileChange}
                         />
@@ -223,19 +263,6 @@ export const App = () => {
                             >
                                 {isPlaying ? <PauseCircle /> : <PlayCircle />}
                             </IconButton>
-
-                            {mei && (
-                                <IconButton
-                                    onClick={async () => {
-                                        console.log('parsing mei', mei)
-                                        const newMEI = injectInstructions(mei, msm, mpm)
-                                        const result = await navigator.clipboard.writeText(newMEI)
-                                        console.log('MEI copied to clipboard', result)
-                                    }}
-                                >
-                                    <CopyAllRounded />
-                                </IconButton>
-                            )}
                         </Ribbon>
                     )}
 
@@ -261,7 +288,7 @@ export const App = () => {
                         <ZoomControls
                             stretchX={stretchX}
                             setStretchX={setStretchX}
-                            rangeX={[1, 40]}
+                            rangeX={[1, 50]}
                         />
                     </Ribbon>
                 </Stack>
