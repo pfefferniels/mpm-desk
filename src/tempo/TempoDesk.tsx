@@ -43,8 +43,8 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
                 const next = tempos[i + 1]
                 if (!next) return null
                 return {
-                    startDate: tempo.date,
-                    endDate: next.date,
+                    from: tempo.date,
+                    to: next.date,
                     beatLength: tempo.beatLength,
                 }
             })
@@ -94,8 +94,8 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
         if (!tempoCluster || !newSegment) return
 
         addTransformer(new ApproximateLogarithmicTempo({
-            segment: newSegment,
-            part,
+            ...newSegment,
+            scope: part,
             silentOnsets
         }))
     }
@@ -200,8 +200,8 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
                             onAddSegment={(from, to, beatLength) => {
                                 console.log('onaddsegment', from, to, beatLength)
                                 setNewSegment({
-                                    startDate: from,
-                                    endDate: to,
+                                    from,
+                                    to,
                                     beatLength: beatLength / 4 / 720,
                                 })
                             }}
@@ -236,9 +236,9 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
                                     }))
                                 )
 
-                                let startTime: number | undefined = msm.notesAtDate(segment.startDate, part)[0]?.['midi.onset']
+                                let startTime: number | undefined = msm.notesAtDate(segment.from, part)[0]?.['midi.onset']
                                 if (startTime === undefined) {
-                                    startTime = silentOnsets.find(o => o.date === segment.startDate)?.onset
+                                    startTime = silentOnsets.find(o => o.date === segment.from)?.onset
                                 }
 
                                 startTime = (startTime || 0)
