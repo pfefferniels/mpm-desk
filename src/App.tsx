@@ -38,7 +38,11 @@ const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[]): str
             notesAffectedByChoice.push(...msm.allNotes)
         }
 
-        const recording = meiDoc.querySelector(`recording[source="${choice.prefer}"]`)
+        const preferredSources = 'prefer' in choice
+            ? [choice.prefer]
+            : [choice.velocity, choice.timing]
+        const prefer = preferredSources.join(' ')
+        const recording = meiDoc.querySelector(`recording[source="${prefer}"]`)
         if (!recording) continue
 
         const relevantWhens = notesAffectedByChoice
@@ -288,7 +292,7 @@ export const App = () => {
                         <ZoomControls
                             stretchX={stretchX}
                             setStretchX={setStretchX}
-                            rangeX={[1, 50]}
+                            rangeX={[1, 60]}
                         />
                     </Ribbon>
                 </Stack>
