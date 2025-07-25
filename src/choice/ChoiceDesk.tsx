@@ -7,6 +7,38 @@ import { createPortal } from "react-dom"
 import { Ribbon } from "../Ribbon"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
 
+// Cf. https://gist.github.com/alexhornbake/6005176
+// returns <path> attribute @d.
+// a curly brace between x1,y1 and x2,y2, w pixels wide 
+// and q factor, .5 is normal, higher q = more expressive bracket 
+const makeCurlyBrace = (x1: number, y1: number, x2: number, y2: number, w: number, q: number = 0.5) => {
+    //Calculate unit vector
+    let dx = x1 - x2;
+    let dy = y1 - y2;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    dx = dx / len;
+    dy = dy / len;
+
+    //Calculate Control Points of path,
+    const qx1 = x1 + q * w * dy;
+    const qy1 = y1 - q * w * dx;
+    const qx2 = (x1 - .25 * len * dx) + (1 - q) * w * dy;
+    const qy2 = (y1 - .25 * len * dy) - (1 - q) * w * dx;
+    const tx1 = (x1 - .5 * len * dx) + w * dy;
+    const ty1 = (y1 - .5 * len * dy) - w * dx;
+    const qx3 = x2 + q * w * dy;
+    const qy3 = y2 - q * w * dx;
+    const qx4 = (x1 - .75 * len * dx) + (1 - q) * w * dy;
+    const qy4 = (y1 - .75 * len * dy) - (1 - q) * w * dx;
+
+    return ("M " + x1 + " " + y1 +
+        " Q " + qx1 + " " + qy1 + " " + qx2 + " " + qy2 +
+        " T " + tx1 + " " + ty1 +
+        " M " + x2 + " " + y2 +
+        " Q " + qx3 + " " + qy3 + " " + qx4 + " " + qy4 +
+        " T " + tx1 + " " + ty1);
+}
+
 const colors = [
     "#e6194B",
     "#3cb44b",
@@ -63,20 +95,10 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProp
 
     return (
         <g
-            opacity={hovered ? 1 : (variationScore / (notes.length * 2) || 0.2)}
+            opacity={hovered ? 1 : (variationScore / (notes.length * 4) || 1)}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
-            <line
-                x1={refOnset * stretchX}
-                x2={refOnset * stretchX}
-                y1={(100 - refPitch - 2) * stretchY}
-                y2={(100 - refPitch + 2) * stretchY}
-                stroke={'black'}
-                strokeWidth={2}
-                strokeOpacity={1}
-            />
-
             {notes.map((note, i) => {
                 const velocity = note["midi.velocity"]
                 const duration = note["midi.duration"]
@@ -91,24 +113,26 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProp
 
                 return (
                     <>
-                        <line
+                        <rect
                             data-source={source}
-                            strokeWidth={stretchY - 0.4}
-                            strokeOpacity={(velocity + 40) / 127}
-                            stroke={colors[i % colors.length]}
-                            x1={onset * stretchX}
-                            x2={(onset + duration) * stretchX}
-                            y1={y}
-                            y2={y}
-                            key={`noteLine_${note["xml:id"]}`}
+                            x={onset * stretchX}
+                            y={y - (stretchY - 0.4) / 2}
+                            width={duration * stretchX}
+                            height={stretchY * 0.5}
+                            fill={colors[i % colors.length]}
+                            fillOpacity={(velocity + 40) / 127}
+                            stroke='black'
+                            strokeWidth={0.8}
+                            strokeDasharray={hovered ? 'none' : '1 1'}
                             onClick={(e) => onClick(e, note)}
+                            key={`noteRect_${note["xml:id"]}`}
                         />
 
                         <text
-                            x={onset * stretchX}
-                            y={y}
+                            x={onset * stretchX + 3}
+                            y={y - (stretchY - 0.4) / 2 + stretchY * 0.5 / 2}
                             fontSize={10}
-                            fill="white"
+                            fill="black"
                             dominantBaseline="middle"
                         >
                             {(velocity - refVel) !== 0 && `${(velocity - refVel).toFixed(0)}`}
@@ -116,6 +140,21 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProp
                     </>
                 )
             })}
+
+            <path
+                d={
+                    makeCurlyBrace(
+                        refOnset * stretchX,
+                        (100 - refPitch - 1.5) * stretchY,
+                        refOnset * stretchX,
+                        (100 - refPitch + 1.5) * stretchY,
+                        5,
+                        0.55
+                    )}
+                stroke={'black'}
+                strokeWidth={hovered ? 2 : 1.2}
+                fill='none'
+            />
         </g>
     )
 }
@@ -302,7 +341,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                         variant="contained"
                         color="primary"
                         onClick={() => {
-                            if (currentChoice && prefer) {
+                            if (prefer) {
                                 addTransformer(new MakeChoice({
                                     ...currentChoice,
                                     ...prefer
