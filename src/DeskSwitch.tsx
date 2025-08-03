@@ -7,13 +7,12 @@ import { RubatoDesk } from "./rubato/RubatoDesk";
 import { MetadataDesk } from "./metadata/MetadataDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
-import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRelativeDuration, InsertRelativeVolume, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MakeArticulationDefinition, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
+import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MakeArticulationDefinition, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
 import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
 import { TemporalSpreadDesk } from "./arpeggiation/TemporalSpreadDesk";
 import { ResultDesk } from "./result/ResultDesk";
 import { OrnamentationStyles } from "./styles/OrnamentationStyles";
 import { ArticulationStyles } from "./styles/ArticulationStyles";
-import { RelativeVolumeDesk } from "./accentuation/RelativeVolumeDesk";
 import { ChoiceDesk } from "./choice/ChoiceDesk";
 
 export type AnyTransformer =
@@ -23,8 +22,6 @@ export type AnyTransformer =
     | typeof InsertRubato
     | typeof ApproximateLogarithmicTempo
     | typeof InsertMetricalAccentuation
-    | typeof InsertRelativeDuration
-    | typeof InsertRelativeVolume
     | typeof InsertPedal
     | typeof CombineAdjacentRubatos
     | typeof StylizeOrnamentation
@@ -83,12 +80,6 @@ export const correspondingDesks: { transformer?: AnyTransformer, aspect: string,
         desk: AccentuationDesk,
         displayName: 'Metrical Accentuation',
         aspect: 'accentuation'
-    },
-    {
-        transformer: InsertRelativeVolume,
-        aspect: 'accentuation',
-        displayName: 'Relative Volume',
-        desk: RelativeVolumeDesk
     },
     {
         transformer: InsertArticulation,

@@ -44,8 +44,11 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto }: Argume
                 borderRadius: 4,
             }}>
                 <ListItemText
-                    primary={argumentation.description}
-                    secondary={argumentation.id} />
+                    primary={argumentation.conclusion.description || ''}
+                    secondary={<div>
+                        {argumentation.note}
+                        <br />{argumentation.id}
+                    </div>} />
 
                 <IconButton
                     onClick={(e) => {

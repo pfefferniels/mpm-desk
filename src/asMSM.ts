@@ -13,6 +13,7 @@ type MEINote = {
     pnum: number;
     duration: number;
     part: number;
+    layer: number;
 
     // the following parameters are optional:
     // they are useful for visualizing and 
@@ -65,6 +66,7 @@ const allNotes = async (mei: string): Promise<MEINote[]> => {
                 qstamp: event.qstamp,
                 octave: Number(noteEl?.getAttribute('oct') || 0),
                 pname: noteEl?.getAttribute('pname') || '',
+                layer: Number(noteEl?.closest('layer')?.getAttribute('n') || 0),
                 accid: Array.from(noteEl?.getAttribute('accid.ges') || noteEl?.getAttribute('accid') || '').reduce((acc, curr) => {
                     if (curr === 'f') return acc - 1
                     else if (curr === 's') return acc + 1
@@ -81,8 +83,15 @@ const allNotes = async (mei: string): Promise<MEINote[]> => {
     return result
 }
 
-export const asMSM = async (mei: string) => {
+export const asMSM = async (mei: string, voicesAsParts: boolean = false) => {
     const scoreDOM = new DOMParser().parseFromString(mei, 'application/xml')
+
+    const countLayers: Map<number, number> = new Map()
+    const notes = await allNotes(mei)
+    for (const [part, notesInLayer] of Map.groupBy(notes, (note) => note.part)) {
+        const layers = new Set(notesInLayer.map(note => note.layer))
+        countLayers.set(part, layers.size)
+    }
 
     const msmNotes = (await allNotes(mei)).reduce((acc, note) => {
         const whens = scoreDOM.querySelectorAll(`when[data~="#${note.id}"]`)
@@ -98,8 +107,12 @@ export const asMSM = async (mei: string) => {
             const corresp = when.getAttribute('corresp')?.split(' ') || []
             console.log(`corresp for ${note.id}:`, corresp)
 
+            const part = voicesAsParts 
+                ? note.part * (countLayers.get(note.part) || 0) + note.layer
+                : note.part
+
             acc.push({
-                'part': note.part,
+                part,
                 'xml:id': note.id,
                 'date': qstampToTstamp(note.qstamp),
                 'duration': qstampToTstamp(note.duration),

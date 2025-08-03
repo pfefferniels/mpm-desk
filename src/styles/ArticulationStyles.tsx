@@ -1,18 +1,18 @@
 import { Button, Slider, Stack, Typography } from "@mui/material";
 import { StylizeArticulation } from "mpmify/lib/transformers";
 import { useState } from "react";
-import { ScopedTransformerViewProps } from "../DeskSwitch";
+import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { Plot } from "./Plot";
 
-export const ArticulationStyles = ({ mpm, activeTransformer, addTransformer, part }: ScopedTransformerViewProps<StylizeArticulation>) => {
+export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransformerViewProps<StylizeArticulation>) => {
     const [volumeTolerance, setVolumeTolerance] = useState(0.05)
     const [relativeDurationTolerance, setRelativeDurationTolerance] = useState(0.15)
 
     const transformArticulations = () => {
-        addTransformer(activeTransformer || new StylizeArticulation(), {
+        addTransformer(new StylizeArticulation({
             volumeTolerance,
             relativeDurationTolerance
-        })
+        }))
     }
 
     const articulationPoints = new StylizeArticulation({

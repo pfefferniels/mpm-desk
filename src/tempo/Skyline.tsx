@@ -5,10 +5,10 @@ import { TempoDeskMode } from "./TempoDesk"
 import { asMIDI } from "../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
-import { Scope } from "../DeskSwitch"
 import { VerticalScale } from "./VerticalScale"
 import HorizontalScale from "./HorizontalScale"
 import { MarkerLine } from "./MarkerLine"
+import { Scope } from "../TransformerViewProps"
 
 const silentSegmentToNote = (s: TempoSegment) => {
   return ({

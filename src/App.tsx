@@ -385,7 +385,7 @@ export const App = () => {
                             mpm={mpm}
                             setMSM={setMSM}
                             setMPM={setMPM}
-                            addTransformer={(transformer) => {
+                            addTransformer={(transformer: Transformer) => {
                                 const newTransformers = [...transformers, transformer].sort(compareTransformers)
                                 const messages = validate(newTransformers)
                                 if (messages.length) {
@@ -394,8 +394,13 @@ export const App = () => {
                                 }
 
                                 transformer.argumentation = {
-                                    description: '',
-                                    id: `decision-${v4().slice(0, 8)}`
+                                    note: '',
+                                    id: `decision-${v4().slice(0, 8)}`,
+                                    conclusion: {
+                                        that: '',
+                                        certainty: 'plausible',
+                                        description: ''
+                                    }
                                 }
 
                                 transformer.run(msm, mpm)

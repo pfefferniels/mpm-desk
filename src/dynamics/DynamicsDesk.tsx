@@ -2,19 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { Dynamics } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
-import { asMIDI, downloadAsFile } from "../utils/utils";
+import { asMIDI } from "../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Range } from "../tempo/Tempo";
-import { DynamicsWithEndDate, InsertDynamicsInstructions } from "mpmify/lib/transformers";
-import { Box, Button, Stack, ToggleButton } from "@mui/material";
+import { DynamicsWithEndDate, InsertDynamicsInstructions, InsertDynamicsInstructionsOptions, Modify, ModifyOptions } from "mpmify/lib/transformers";
+import { Box, Button, Drawer, FormControl, FormLabel, Input, Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
-import { Add, Clear, FileOpen, Save } from "@mui/icons-material";
+import { Add, Clear } from "@mui/icons-material";
+import { MarkedRegion } from "./MarkedRegion";
 
 export interface DynamicsSegment {
     date: Range
@@ -43,19 +44,22 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, setActiveElement, appBarRef }: ScopedTransformerViewProps<InsertDynamicsInstructions>) => {
-    const { play, stop } = usePiano()
-    const { slice } = useNotes()
-
+export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, setActiveElement, appBarRef }: ScopedTransformerViewProps<
+    InsertDynamicsInstructions | Modify
+>) => {
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
-    const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
-    const [phantomMode, setPhantomMode] = useState(false)
-    const [markers, setMarkers] = useState<number[]>([])
+    const [mode, setMode] = useState<'insert' | 'modify' | 'phantom'>('insert')
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
-    const stretchX = useSymbolicZoom()
 
+    const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
+    const [insertOptions, setInsertOptions] = useState<InsertDynamicsInstructionsOptions>()
+    const [modifyOptions, setModifyOptions] = useState<ModifyOptions>()
+
+    const { play, stop } = usePiano()
+    const { slice } = useNotes()
+    const stretchX = useSymbolicZoom()
     const svgRef = useRef<SVGSVGElement>(null);
 
     useEffect(() => {
@@ -63,7 +67,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
             if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
 
             e.preventDefault()
-            if (!currentPhantomDate || !phantomMode) return
+            if (!currentPhantomDate || !mode) return
 
             setPhantomVelocities(prev => {
                 const entry = prev.get(currentPhantomDate)
@@ -79,10 +83,10 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [currentPhantomDate, phantomMode]);
+    }, [currentPhantomDate, mode]);
 
     useEffect(() => {
-        setMarkers([])
+        setInsertOptions(undefined)
 
         const dynamics = mpm.getInstructions<Dynamics>('dynamics', part)
         const withEndDate = []
@@ -106,33 +110,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files ? event.target.files[0] : null;
-        if (!file) return
-        const reader = new FileReader();
-        reader.onload = async (e: ProgressEvent<FileReader>) => {
-            const content = e.target?.result as string;
-            const json = JSON.parse(content)
-            if (!Array.isArray(json)) {
-                console.log('Invalid JSON file provided.')
-                return
-            }
-
-            setMarkers(json)
-        };
-
-        reader.readAsText(file);
-    };
-
-    const handleFileImport = () => {
-        const fileInput = document.getElementById('markersInput') as HTMLInputElement;
-        fileInput.click();
-    };
-
     const handleInsert = () => {
+        if (!insertOptions) return
+
         addTransformer(new InsertDynamicsInstructions({
-            markers,
-            phantomVelocities,
+            ...insertOptions,
             scope: part
         }))
     }
@@ -159,25 +141,89 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
     }
 
     const insertMarker = (date: number) => {
-        setMarkers(prev => [...prev, date].sort())
+        if (!insertOptions) {
+            setInsertOptions({
+                scope: part,
+                phantomVelocities,
+                from: date,
+                to: date
+            })
+            return
+        }
+
+        if (insertOptions.from !== undefined) {
+            setInsertOptions({
+                ...insertOptions,
+                to: date
+            })
+        }
+        else if (insertOptions.to !== undefined) {
+            setInsertOptions({
+                ...insertOptions,
+                from: date,
+                to: date
+            })
+        }
     }
 
-    const removeMarker = (date: number) => {
-        setMarkers(prev => {
-            const index = prev.indexOf(date)
-            if (index !== -1) {
-                prev.splice(index, 1)
-            }
-            return [...prev]
-        })
-    }
+    // const removeMarker = (date: number) => {
+    //     setMarkers(prev => {
+    //         const index = prev.indexOf(date)
+    //         if (index !== -1) {
+    //             prev.splice(index, 1)
+    //         }
+    //         return [...prev]
+    //     })
+    // }
 
-    const handleClick = (_: MouseEvent, segment: DynamicsSegment) => {
-        if (phantomMode) {
+    const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
+        if (mode === 'phantom') {
             phantomVelocities.set(segment.date.start, segment.velocity)
             setPhantomVelocities(new Map(phantomVelocities))
             setCurrentPhantomDate(segment.date.start)
             return
+        }
+        else if (mode === 'modify') {
+            const noteid = msm.allNotes.find(n => n["midi.velocity"] === segment.velocity && n.date === segment.date.start)?.["xml:id"]
+            if (!noteid) {
+                console.log('No note found for segment', segment)
+                return
+            }
+
+            if (!modifyOptions) {
+                // Create a noteid choice if none exists.
+                setModifyOptions({
+                    scope: part,
+                    aspect: 'velocity',
+                    change: 0,
+                    noteids: [noteid]
+                })
+            }
+            else if ('noteids' in modifyOptions && e.metaKey) {
+                // Cmd/Ctrl key adds a noteid to the existing choice.
+                modifyOptions.noteids.push(noteid)
+                setModifyOptions({ ...modifyOptions })
+            }
+            else if (e.shiftKey) {
+                // Shift key always refers to a range choice. 
+                // If the existing choice is a pure noteid choice,
+                // we convert it to a range choice.
+                if ('noteids' in modifyOptions) {
+                    const existingNotes = msm.allNotes.filter(n => modifyOptions.noteids.includes(n["xml:id"]))
+                    const fromDate = Math.min(...existingNotes.map(n => n.date))
+                    setModifyOptions({
+                        from: fromDate,
+                        to: segment.date.start,
+                        scope: part,
+                        aspect: 'velocity',
+                        change: 0
+                    })
+                }
+                else {
+                    modifyOptions.to = segment.date.start
+                    setModifyOptions({ ...modifyOptions })
+                }
+            }
         }
         insertMarker(segment.date.start)
     }
@@ -219,22 +265,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
         )
     })
 
-
-    const markerLines = markers.map(date => {
-        return (
-            <line
-                x1={date * stretchX}
-                x2={date * stretchX}
-                y1={350}
-                y2={350 - 100 * stretchY}
-                stroke={'black'}
-                strokeWidth={2}
-                key={`velocity_segment_${date}`}
-                fill='black'
-                onClick={() => removeMarker(date)} />
-        )
-    })
-
     const curves = instructions.map(i => {
         return (
             <CurveSegment
@@ -255,70 +285,68 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
             <Stack direction='row' spacing={1} sx={{ position: 'sticky', left: 0 }}>
                 {createPortal((
                     <>
-                        <Ribbon title='Dynamics'>
-                            <Button
-                                startIcon={<Add />}
-                                size='small'
-                                variant='contained'
-                                onClick={handleInsert}
-                            >
-                                Insert
-                            </Button>
-                        </Ribbon>
-                        <Ribbon title='Markers'>
-                            <Button
-                                variant='outlined'
-                                size='small'
-                                onClick={() => {
-                                    downloadAsFile(JSON.stringify(markers, null, 4), 'dynamics_markers.json')
+                        <Ribbon title='Mode'>
+                            <ToggleButtonGroup
+                                value={mode}
+                                exclusive
+                                onChange={(_, newMode) => {
+                                    if (newMode !== null) {
+                                        setMode(newMode)
+                                    }
                                 }}
-                                startIcon={<Save />}
-                            >
-                                Export
-                            </Button>
-
-                            <Button
-                                variant='outlined'
                                 size='small'
-                                onClick={handleFileImport}
-                                startIcon={<FileOpen />}
                             >
-                                Import
-                            </Button>
-                            <input
-                                type="file"
-                                id="markersInput"
-                                accept='*.json'
-                                style={{ display: 'none' }}
-                                onChange={handleFileChange}
-                            />
-
-                            <Button
-                                variant='outlined'
-                                size='small'
-                                onClick={() => setMarkers(segments.map(s => s.date.start).sort())}
-                            >
-                                Insert from Points
-                            </Button>
+                                <ToggleButton size='small' value='insert'>Insert</ToggleButton>
+                                <ToggleButton size='small' value='modify'>Modify</ToggleButton>
+                                <ToggleButton size='small' value='phantom'>Phantom</ToggleButton>
+                            </ToggleButtonGroup>
                         </Ribbon>
-                        <Ribbon title='Phantoms'>
-                            <ToggleButton
-                                value='check'
-                                size='small'
-                                selected={phantomMode}
-                                onChange={() => setPhantomMode(!phantomMode)}
-                            >
-                                Edit Velocity
-                            </ToggleButton>
-                            <Button
-                                size='small'
-                                variant='outlined'
-                                onClick={() => setPhantomVelocities(new Map())}
-                                startIcon={<Clear />}
-                            >
-                                Clear
-                            </Button>
-                        </Ribbon>
+
+                        {mode === 'modify' && (
+                            <Ribbon title='Modification'>
+                                <Button
+                                    size='small'
+                                    variant='contained'
+                                    disabled={!modifyOptions}
+                                    startIcon={<Add />}
+                                    onClick={() => {
+                                        if (!modifyOptions) return
+
+                                        addTransformer(new Modify(modifyOptions))
+                                        setModifyOptions(undefined)
+                                    }}
+                                >
+                                    Modify
+                                </Button>
+                            </Ribbon>
+                        )}
+                        {mode === 'insert' && (
+                            <>
+                                <Ribbon title='Dynamics'>
+                                    <Button
+                                        startIcon={<Add />}
+                                        size='small'
+                                        variant='contained'
+                                        onClick={handleInsert}
+                                    >
+                                        Insert
+                                    </Button>
+                                </Ribbon>
+                            </>
+                        )}
+
+                        {mode === 'phantom' && (
+                            <Ribbon title='Phantoms'>
+                                <Button
+                                    size='small'
+                                    variant='outlined'
+                                    onClick={() => setPhantomVelocities(new Map())}
+                                    startIcon={<Clear />}
+                                >
+                                    Clear
+                                </Button>
+                            </Ribbon>
+                        )}
                     </>
                 ), appBarRef.current || document.body)}
             </Stack>
@@ -339,8 +367,46 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
                 <VerticalScale min={30} max={80} step={5} stretchY={stretchY} />
                 {curves}
                 {circles}
-                {markerLines}
+                {<MarkedRegion
+                    from={insertOptions?.from || ((modifyOptions && ('from' in modifyOptions)) ? modifyOptions.from : undefined)}
+                    to={insertOptions?.to || ((modifyOptions && ('to' in modifyOptions)) ? modifyOptions.to : undefined)}
+                    svgRef={svgRef}
+                />}
             </svg>
+
+            <Drawer
+                open={modifyOptions !== undefined}
+                onClose={() => setModifyOptions(undefined)}
+                anchor='right'
+                sx={{ width: 300 }}
+                variant='persistent'
+            >
+                {modifyOptions && (
+                    <>
+                        <div>
+                            Affects:
+                            {'noteids' in modifyOptions && (
+                                modifyOptions.noteids.map(id => <span key={id}>{id} </span>)
+                            )}
+                        </div>
+                        <FormControl>
+                            <FormLabel>Relative Change</FormLabel>
+                            <Input
+                                type='number'
+                                value={modifyOptions?.change || 0}
+                                onChange={(e) => {
+                                    if (!modifyOptions) return
+                                    setModifyOptions({
+                                        ...modifyOptions,
+                                        change: parseFloat(e.target.value)
+                                    })
+                                }}
+                            />
+                        </FormControl>
+
+                    </>
+                )}
+            </Drawer>
         </div>
     )
 }

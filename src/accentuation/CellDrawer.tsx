@@ -24,7 +24,7 @@ export const CellDrawer = ({ open, onClose, cell, onDone }: CellDrawerProps) => 
     return (
         <Drawer anchor="left" open={open} onClose={onClose} variant='persistent'>
             <div style={{ width: 300, padding: 16 }}>
-                <h2>Edit Accentuation Candidate ({cell.start}-{cell.end})</h2>
+                <h2>Edit Accentuation Candidate ({cell.from}-{cell.to})</h2>
                 <Stack direction='column' spacing={1}>
 
                     <TextField

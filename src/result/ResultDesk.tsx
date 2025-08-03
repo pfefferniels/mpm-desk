@@ -4,6 +4,7 @@ import { downloadAsFile } from "../utils/utils"
 import { exportMPM } from "../../../mpm-ts/lib"
 import { CopyAll, Download } from "@mui/icons-material"
 
+// todo rename to debugdesk
 export const ResultDesk = ({ mpm, msm }: ViewProps) => {
     const handleDownloadMPM = () => {
         downloadAsFile(exportMPM(mpm), 'export.mpm', 'application/xml')

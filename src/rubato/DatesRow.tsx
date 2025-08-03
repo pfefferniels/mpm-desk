@@ -4,7 +4,7 @@ import { asMIDI, PartialBy } from "../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { useState } from "react"
-import { Frame } from "./Frame"
+import { FrameBox } from "./Frame"
 
 export type Frame = PartialBy<Omit<InsertRubatoOptions, 'scope'>, 'length'>
 
@@ -93,7 +93,7 @@ export const DatesRow = ({ stretchX, height, width, chords, frame, onClickTick, 
     }
 
     const boxes = frame && (
-        <Frame
+        <FrameBox
             key={`frame_${frame.date}_${frame.length}`}
             frame={frame}
             stretchX={stretchX}

@@ -1,16 +1,15 @@
 import { MouseEventHandler } from "react"
-import { PartialBy } from "../utils/utils"
-import { Frame as FrameData } from "mpmify/lib/transformers"
+import { Frame } from "./DatesRow"
 
-interface FrameProps {
-    frame: PartialBy<FrameData, 'length'>
+interface FrameBoxProps {
+    frame: Frame
     stretchX: number
     height: number
     onRemove: () => void
     onClick: MouseEventHandler
 }
 
-export const Frame = ({ frame, stretchX, height, onRemove, onClick }: FrameProps) => {
+export const FrameBox = ({ frame, stretchX, height, onRemove, onClick }: FrameBoxProps) => {
     return (
         <rect
             className='frame'

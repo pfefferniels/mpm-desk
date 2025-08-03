@@ -13,7 +13,7 @@ interface PreviewProps {
 
 export const Preview = ({ cell, stretchX, getScreenY, segments, onClick }: PreviewProps) => {
     const cellPoints = segments
-        .filter(s => s.date.start >= cell.start && s.date.start <= cell.end)
+        .filter(s => s.date.start >= cell.from && s.date.start <= cell.to)
         .map(s => ({ x: s.date.start * stretchX, y: getScreenY(s.velocity) }));
 
     if (cellPoints.length === 1) {
@@ -30,11 +30,11 @@ export const Preview = ({ cell, stretchX, getScreenY, segments, onClick }: Previ
     }
 
     // Add boundaries at the cell's start and end with an estimated velocity.
-    const leftVelocity = segments.find(s => s.date.start >= cell.start)?.velocity ?? 0.5;
-    const rightVelocity = segments.slice().reverse().find(s => s.date.start <= cell.end)?.velocity ?? 0.5;
+    const leftVelocity = segments.find(s => s.date.start >= cell.from)?.velocity ?? 0.5;
+    const rightVelocity = segments.slice().reverse().find(s => s.date.start <= cell.to)?.velocity ?? 0.5;
 
-    cellPoints.unshift({ x: cell.start * stretchX, y: getScreenY(leftVelocity) });
-    cellPoints.push({ x: cell.end * stretchX, y: getScreenY(rightVelocity) });
+    cellPoints.unshift({ x: cell.from * stretchX, y: getScreenY(leftVelocity) });
+    cellPoints.push({ x: cell.to * stretchX, y: getScreenY(rightVelocity) });
 
     const hull = convexHull(cellPoints);
     const pointsStr = hull.map(p => `${p.x},${p.y}`).join(" ");

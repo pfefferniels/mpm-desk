@@ -132,8 +132,8 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
         if (!candidate) {
             setCandidate({
-                start: segment.date.start,
-                end: segment.date.end,
+                from: segment.date.start,
+                to: segment.date.end,
                 beatLength: 0.125,
                 name: 'new-pattern',
                 scaleTolerance: 0,
@@ -142,7 +142,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
         }
 
         if (candidate && e.shiftKey) {
-            candidate.end = segment.date.start
+            candidate.to = segment.date.start
             setCandidate({ ...candidate })
         }
     }
