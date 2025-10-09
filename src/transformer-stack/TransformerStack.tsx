@@ -10,7 +10,7 @@ import {
 import { Clear, DeleteForever, ExpandLess, ExpandMore, RestartAlt } from "@mui/icons-material";
 import { TransformerListItem } from "./TransformerListItem";
 import { ArgumentationCard } from "./ArgumentationCard";
-import { Argumentation } from "mpmify";
+import { Argumentation } from "doubtful/inverse";
 
 interface TransformerStackProps {
     transformers: Transformer[];

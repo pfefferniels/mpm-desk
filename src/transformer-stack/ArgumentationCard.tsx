@@ -1,9 +1,9 @@
 import { Edit } from "@mui/icons-material";
 import { ListItemButton, ListItemText, IconButton } from "@mui/material";
-import { Argumentation } from "mpmify";
 import { useEffect, useRef, useState } from "react";
 import { ArgumentationDialog } from "./ArgumentationDialog";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { Argumentation } from "doubtful/inverse";
 
 interface ArgumentationCardProps {
     argumentation: Argumentation;
@@ -44,7 +44,7 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto }: Argume
                 borderRadius: 4,
             }}>
                 <ListItemText
-                    primary={argumentation.conclusion.description || ''}
+                    primary={argumentation.conclusion.that.assigned || ''}
                     secondary={<div>
                         {argumentation.note}
                         <br />{argumentation.id}
