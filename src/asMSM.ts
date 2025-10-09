@@ -1,126 +1,54 @@
 import { MSM } from "mpmify"
-import { loadVerovio } from "./loadVerovio.mts"
 import { MsmNote, MsmPedal } from "mpmify/lib/msm";
+import { v4 } from "uuid";
 
-const qstampToTstamp = (qstamp: number, ppq: number = 720) => {
-    return Math.round(qstamp * ppq)
-}
-
-type MEINote = {
-    index: number;
-    id: string;
-    qstamp: number;
-    pnum: number;
-    duration: number;
-    part: number;
-    layer: number;
-
-    // the following parameters are optional:
-    // they are useful for visualizing and 
-    // further processing an alignment, but not
-    // strictly necessary
-    pname?: string;
-    accid?: number;
-    octave?: number;
-};
-
-// transform timemap to notes array
-const allNotes = async (mei: string): Promise<MEINote[]> => {
-    const tk = await loadVerovio()
-    tk.loadData(mei)
-    const timemap = tk.renderToTimemap()
-    tk.renderToMIDI()
-
-    const scoreDOM = new DOMParser().parseFromString(mei, 'application/xml')
-
-    const result: MEINote[] = []
-    let index = 0
-    for (const event of timemap) {
-        if (!event.on) continue
-        for (const on of event.on) {
-            const times = tk.getTimesForElement(on)
-            const midiValues = tk.getMIDIValuesForElement(on)
-            const duration = ((times.scoreTimeTiedDuration as unknown as number[])[0] || 0) + ((times.scoreTimeDuration as unknown as number[])[0] || 0)
-
-            // using query selector with [*|id='...'] does not work 
-            // yet with JSDOM, therefore this workaround
-            const noteEl = Array.from(scoreDOM.querySelectorAll('note')).find(el => el.getAttribute('xml:id') === on)
-            if (!noteEl) continue
-
-            const staff = noteEl.closest('staff')
-            if (!staff) continue
-
-            // ignore the note if its tied
-            if (scoreDOM.querySelector(`tie[endid='#${on}']`)) {
-                continue
-            }
-
-            if (Number(staff.getAttribute('n')) === 1) {
-                // console.log('times for', noteEl?.getAttribute('pname'))
-                // console.log(this.vrvToolkit.getTimesForElement(on))
-            }
-
-            result.push({
-                index: index,
-                id: on,
-                qstamp: event.qstamp,
-                octave: Number(noteEl?.getAttribute('oct') || 0),
-                pname: noteEl?.getAttribute('pname') || '',
-                layer: Number(noteEl?.closest('layer')?.getAttribute('n') || 0),
-                accid: Array.from(noteEl?.getAttribute('accid.ges') || noteEl?.getAttribute('accid') || '').reduce((acc, curr) => {
-                    if (curr === 'f') return acc - 1
-                    else if (curr === 's') return acc + 1
-                    return acc
-                }, 0),
-                pnum: midiValues.pitch,
-                duration,
-                part: Number(staff.getAttribute('n'))
-            })
-            index += 1
-        }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
+    const response = await fetch(`http://localhost:8080/convert`, {
+        method: 'POST',
+        body: JSON.stringify({
+            mei
+        })
+    })
+    if (!response.ok) {
+        throw new Error(`Failed to convert MEI to MSM: ${response.statusText}`)
     }
 
-    return result
-}
+    const json = await response.json()
+    const msmDoc = new DOMParser().parseFromString(json.msm, 'application/xml')
 
-export const asMSM = async (mei: string, voicesAsParts: boolean = false) => {
-    const scoreDOM = new DOMParser().parseFromString(mei, 'application/xml')
+    // console.log('All elements', msmDoc.querySelectorAll('*'))
 
-    const countLayers: Map<number, number> = new Map()
-    const notes = await allNotes(mei)
-    for (const [part, notesInLayer] of Map.groupBy(notes, (note) => note.part)) {
-        const layers = new Set(notesInLayer.map(note => note.layer))
-        countLayers.set(part, layers.size)
-    }
+    // Enrich the official MSM with performance information
+    const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
 
-    const msmNotes = (await allNotes(mei)).reduce((acc, note) => {
-        const whens = scoreDOM.querySelectorAll(`when[data~="#${note.id}"]`)
-        if (!whens) return acc
+    const originalNotes = msmDoc.querySelectorAll('note')
+    const msmNotes: MsmNote[] = []
+    for (const note of originalNotes) {
+        const noteId = note.getAttribute('xml:id')
+        console.log('trying selector', `when[data~="#${noteId}"]`)
+        const whens = meiDoc.querySelectorAll(`when[data~="#${noteId}"]`)
+        if (!whens) continue
 
         for (const when of whens) {
             const source = when.closest('recording')?.getAttribute('source') || undefined
+
             const absolute = when.getAttribute('absolute')?.replace('ms', '')
             const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
             const velocity = when.querySelector('extData[type="velocity"]')?.textContent
-            if (!absolute || !duration || !velocity) return acc
 
-            const corresp = when.getAttribute('corresp')?.split(' ') || []
-            console.log(`corresp for ${note.id}:`, corresp)
+            if (!absolute || !duration || !velocity) continue
 
-            const part = voicesAsParts 
-                ? note.part * (countLayers.get(note.part) || 0) + note.layer
-                : note.part
+            msmNotes.push({
+                part: Number(note.closest('part')?.getAttribute('number')),
+                'xml:id': note.getAttribute('xml:id') || v4(),
+                'date': Number(note.getAttribute('date')),
+                'duration': Number(note.getAttribute('duration')),
+                'pitchname': note.getAttribute('pitchname') || '',
+                'octave': Number(note.getAttribute('octave')),
+                'accidentals': Number(note.getAttribute('accidentals')),
+                'midi.pitch': Number(note.getAttribute('midi.pitch')),
 
-            acc.push({
-                part,
-                'xml:id': note.id,
-                'date': qstampToTstamp(note.qstamp),
-                'duration': qstampToTstamp(note.duration),
-                'pitchname': note.pname!,
-                'octave': note.octave!,
-                'accidentals': note.accid!,
-                'midi.pitch': note.pnum,
- 
                 // performance stuff
                 'midi.onset': +absolute / 1000,
                 'midi.duration': +duration / 1000,
@@ -128,11 +56,10 @@ export const asMSM = async (mei: string, voicesAsParts: boolean = false) => {
                 source
             })
         }
-        return acc;
-    }, [] as MsmNote[])
+    }
 
     const msmPedals = Array
-        .from(scoreDOM.querySelectorAll('when[type="sustain"], when[type="soft"]')).map((when, index) => {
+        .from(meiDoc.querySelectorAll('when[type="sustain"], when[type="soft"]')).map((when, index) => {
             const absolute = when.getAttribute('absolute')?.replace('ms', '')
             const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
             if (!absolute || !duration) return null
@@ -149,7 +76,13 @@ export const asMSM = async (mei: string, voicesAsParts: boolean = false) => {
         })
         .filter((pedal) => pedal !== null) as MsmPedal[]
 
-    const newMSM = new MSM(msmNotes, { numerator: 4, denominator: 4 })
+    const timeSignature = msmDoc.querySelector('timeSignature')
+    const newMSM = new MSM(msmNotes, {
+        numerator: Number(timeSignature?.getAttribute('numerator') || 4),
+        denominator: Number(timeSignature?.getAttribute('denominator') || 4)
+    })
     newMSM.pedals = msmPedals
+
+    console.log('newmsm', newMSM)
     return newMSM
 }

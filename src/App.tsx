@@ -136,20 +136,39 @@ export const App = () => {
     };
 
     const playMPM = async () => {
-        if (!mpm || !msm) return
+        if (!mpm || !mei) return
 
         const request = {
             mpm: exportMPM(mpm),
-            msm: msm.serialize(false)
+            mei: mei, 
+            ids: [],
         }
 
         console.log(`Converting to MIDI ...`)
-        const response = await fetch(`http://localhost:8080/convert`, {
+        const response = await fetch(`http://localhost:8080/perform`, {
             method: 'POST',
             body: JSON.stringify(request)
         })
 
-        const midiBuffer = await response.arrayBuffer()
+        if (!response.ok) {
+            setMessage(`Playback request failed: ${response.status} ${response.statusText}`);
+            return;
+        }
+
+        const payload = await response.json();
+        const b64 = payload?.midi_b64;
+        if (!b64) {
+            setMessage('No midi_b64 field in response');
+            return;
+        }
+
+        // decode base64 to ArrayBuffer
+        const binary = atob(b64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+        const midiBuffer = bytes.buffer;
+
         const file = read(midiBuffer)
         play(file)
 
@@ -395,12 +414,19 @@ export const App = () => {
 
                                 transformer.argumentation = {
                                     note: '',
-                                    id: `decision-${v4().slice(0, 8)}`,
+                                    id: `argumentation-${v4().slice(0, 8)}`,
                                     conclusion: {
-                                        that: '',
-                                        certainty: 'plausible',
-                                        description: ''
-                                    }
+                                        that: {
+                                            subject: '[F31 Performance]',
+                                            assigned: '',
+                                            type: 'crm:P17_was_motivated_by',
+                                            id: `act-${v4().slice(0, 8)}`,
+                                        },
+                                        certainty: 'likely',
+                                        id: `belief-${v4().slice(0, 8)}`,
+                                        type: 'belief'
+                                    },
+                                    type: 'simpleArgumentation'
                                 }
 
                                 transformer.run(msm, mpm)
