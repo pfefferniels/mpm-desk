@@ -17,6 +17,7 @@ import { Preview } from "./Preview";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
+import { v4 } from "uuid";
 
 type Pattern = (AccentuationPattern & { scale: number, length: number, children: Accentuation[] })
 
@@ -90,6 +91,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
         if (!candidate) return
         addTransformer(new InsertMetricalAccentuation({
             ...candidate,
+            scaleTolerance,
             scope: part,
         }))
         setCandidate(undefined)
@@ -135,7 +137,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
                 from: segment.date.start,
                 to: segment.date.end,
                 beatLength: 0.125,
-                name: 'new-pattern',
+                name: `pattern-${v4().slice(0, 8)}`,
                 scaleTolerance: 0,
                 neutralEnd: true
             })
