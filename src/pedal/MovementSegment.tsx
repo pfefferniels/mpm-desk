@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
+import { SVGProps, useEffect, useState } from "react"
 import { Movement } from "../../../mpm-ts/lib"
 import { computeInnerControlPointsXPositions, positionAtDate } from "mpmify"
 
-interface MovementSegmentProps {
+interface MovementSegmentProps extends SVGProps<SVGPathElement> {
     instruction: Movement & { endDate: number }
     stretchX: number
     stretchY: number
@@ -14,7 +14,7 @@ interface MovementPoint {
 }
 
 
-export const MovementSegment = ({ instruction, stretchX, stretchY }: MovementSegmentProps) => {
+export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: MovementSegmentProps) => {
     const [points, setPoints] = useState<MovementPoint[]>([])
     const [hovered, setHovered] = useState(false)
 
@@ -65,6 +65,7 @@ export const MovementSegment = ({ instruction, stretchX, stretchY }: MovementSeg
                 strokeWidth={1}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
+                {...rest}
             />
         </g>
     )

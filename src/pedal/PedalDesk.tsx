@@ -1,23 +1,46 @@
-import { InsertPedal } from "mpmify/lib/transformers"
+import { InsertPedal, InsertPedalOptions } from "mpmify/lib/transformers"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { Box, Button, Slider, Stack, Typography } from "@mui/material"
 import { Movement } from "../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
 import { useState } from "react"
-import { createPortal } from "react-dom"
-import { Ribbon } from "../Ribbon"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
+import { PedalDialog } from "./PedalDialog"
+import { usePiano } from "react-pianosound"
+import { useNotes } from "../hooks/NotesProvider"
+import { MsmPedal } from "mpmify/lib/msm"
+import { asMIDI } from "../utils/utils"
 
-
-export const PedalDesk = ({ msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertPedal>) => {
-    const [changeDuration, setChangeDuration] = useState(0)
+export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement }: ScopedTransformerViewProps<InsertPedal>) => {
+    const [currentPedal, setCurrentPedal] = useState<string>()
 
     const stretchX = useSymbolicZoom()
+    const { notes } = useNotes()
+    const { play, stop } = usePiano()
 
-    const transform = () => {
-        addTransformer(new InsertPedal({
-            changeDuration
-        }))
+    const transform = (options: InsertPedalOptions) => {
+        if (!options) return
+
+        addTransformer(new InsertPedal(options))
+    }
+
+    const handlePlay = (p: MsmPedal) => {
+        if (!p.tickDate || !p.tickDuration) return
+
+        const filtered = notes.filter(n => {
+            if (p.tickDate === undefined || p.tickDuration === undefined) return false
+            const on = n.tickDate || n.date
+            const off = (n.tickDate || n.date) + (n.tickDuration || n.duration)
+            return on >= p.tickDate && on < (p.tickDate + p.tickDuration) ||
+                off > p.tickDate && off <= (p.tickDate + p.tickDuration)
+        })
+
+        console.log('filtered', filtered)
+
+        const midi = asMIDI(filtered)
+        if (!midi) return 
+
+        stop()
+        play(midi)
     }
 
     const stretchY = 30
@@ -27,83 +50,74 @@ export const PedalDesk = ({ msm, mpm, addTransformer, appBarRef }: ScopedTransfo
 
     return (
         <div>
+            {currentPedal && (
+                <PedalDialog
+                    open={currentPedal !== undefined}
+                    pedalId={currentPedal}
+                    onClose={() => setCurrentPedal(undefined)}
+                    onDone={(options) => {
+                        transform(options)
+                        setCurrentPedal(undefined)
+                    }}
+                />
+            )}
             <div style={{ width: '80vw', overflow: 'scroll' }}>
-                {createPortal((
-                    <Ribbon title='Pedal'>
-                        <Button
-                            onClick={transform}
-                            variant="outlined"
-                            size='small'
-                        >
-                            Insert
-                        </Button>
-                    </Ribbon>
-                ), appBarRef.current || document.body)}
-                <Stack direction='column' sx={{ maxWidth: '300px' }} spacing={1} p={1}>
-                    <Box>
-                        <Typography id="change-duration-slider" gutterBottom>
-                            Default Change Duration: {changeDuration}
-                        </Typography>
-                        <Slider
-                            value={changeDuration}
-                            onChange={(_, value) => setChangeDuration(value as number)}
-                            aria-labelledby="change-duration-slider"
-                            step={1}
-                            marks={[{ value: 0, label: '0' }, { value: 100, label: '100' }, { value: 200, label: '200' }]}
-                            min={0}
-                            max={200}
-                        />
-                    </Box>
-                </Stack>
-
                 <svg width={10000}>
                     {msm.pedals.map(p => {
+                        
                         console.log(p)
                         if (!p.tickDate || !p.tickDuration) return null
 
                         return (
-                            <g key={`pedal${p["xml:id"]}`}>
+                            <g key={`pedal_${p["xml:id"]}`}>
                                 <rect
                                     x={p.tickDate * stretchX}
-                                    y={80}
+                                    y={p.type === 'soft' ? 20 : 0}
                                     width={p.tickDuration * stretchX}
                                     height={20}
                                     fill='lightblue'
+                                    onClick={() => {
+                                        setCurrentPedal(p["xml:id"])
+                                    }}
+                                    onMouseOver={() => handlePlay(p)}
                                 />
                             </g>
                         )
                     })}
 
-                    {Object
-                        .entries(movementsByController)
-                        .map(([controller, movements], i) => {
-                            return (
-                                <g
-                                    key={controller}
-                                    className={`controller_${controller}`}
-                                    transform={`translate(0, ${i * stretchY})`}
-                                >
-                                    {movements
-                                        .sort((a, b) => a.date - b.date)
-                                        .map((movement, i) => {
-                                            if (i === movements.length - 1)
-                                                return null
+                    <g transform='translate(0, 100)'>
+                        {Object
+                            .entries(movementsByController)
+                            .map(([controller, movements], i) => {
+                                return (
+                                    <g
+                                        key={controller}
+                                        className={`controller_${controller}`}
+                                        transform={`translate(0, ${i * stretchY})`}
+                                    >
+                                        {movements
+                                            .sort((a, b) => a.date - b.date)
+                                            .map((movement, i) => {
+                                                if (i === movements.length - 1)
+                                                    return null
 
-                                            const endDate = movements[i + 1].date
+                                                const endDate = movements[i + 1].date
 
-                                            return (
-                                                <MovementSegment
-                                                    instruction={{ ...movement, endDate }}
-                                                    key={`movement_${movement["xml:id"]}`}
-                                                    stretchX={stretchX}
-                                                    stretchY={stretchY}
-                                                />
-                                            )
-                                        })}
-                                </g>
-                            )
-                        })
-                    }
+                                                return (
+                                                    <MovementSegment
+                                                        instruction={{ ...movement, endDate }}
+                                                        key={`movement_${movement["xml:id"]}`}
+                                                        stretchX={stretchX}
+                                                        stretchY={stretchY}
+                                                        onClick={() => setActiveElement(movement["xml:id"])}
+                                                    />
+                                                )
+                                            })}
+                                    </g>
+                                )
+                            })
+                        }
+                    </g>
                 </svg>
             </div>
         </div>
