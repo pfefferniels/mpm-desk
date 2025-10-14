@@ -1,39 +1,78 @@
 import { Stack, Box, Typography, Slider, Dialog, DialogContent, DialogActions, Button } from "@mui/material";
-import { InsertPedalOptions } from "mpmify";
-import { useState } from "react";
+import { InsertPedalOptions, MovementFrame } from "mpmify";
+import { MsmPedal } from "mpmify/lib/msm";
+import { useEffect, useState } from "react";
 
 interface PedalDialogProps {
     open: boolean;
     onClose: () => void;
     onDone: (options: InsertPedalOptions) => void;
-    pedalId?: string;
+    pedal: MsmPedal;
 }
 
-export const PedalDialog = ({ open, onClose, onDone, pedalId }: PedalDialogProps) => {
-    const [changeDuration, setChangeDuration] = useState(0);
+export const PedalDialog = ({ open, onClose, onDone, pedal }: PedalDialogProps) => {
+    const [values, setValues] = useState([0]);
     const [depth, setDepth] = useState(1);
+
+    useEffect(() => {
+        if (!pedal.tickDate || !pedal.tickDuration) return
+
+        const defaultDuration = 50
+        setValues([
+            pedal.tickDate - defaultDuration,
+            pedal.tickDate + defaultDuration,
+            pedal.tickDate + pedal.tickDuration - defaultDuration,
+            pedal.tickDate + pedal.tickDuration + defaultDuration
+        ])
+    }, [pedal])
+
+    if (!pedal.tickDate || !pedal.tickDuration) return null
+
+    const marks = [
+        { value: pedal.tickDate, label: 'Down' },
+        { value: pedal.tickDate + pedal.tickDuration, label: 'Up' },
+    ]
+
+    if (values.length !== 4) return null
+
+    const down: MovementFrame = {
+        start: values[0] - pedal.tickDate,
+        duration: values[1] - values[0]
+    }
+
+    const up: MovementFrame = {
+        start: values[2] - (pedal.tickDate + pedal.tickDuration),
+        duration: values[3] - values[2]
+    }
 
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogContent>
-                <Stack direction='column' sx={{ maxWidth: '300px' }} spacing={1} p={1}>
+                <Stack direction='column' sx={{ width: '400px' }} spacing={1} p={1}>
                     <Box>
-                        <Typography id="change-duration-slider" gutterBottom>
-                            Change Duration: {changeDuration}
-                        </Typography>
                         <Slider
-                            value={changeDuration}
-                            onChange={(_, value) => setChangeDuration(value as number)}
+                            value={values}
+                            onChange={(_, value) => {
+                                if (!Array.isArray(value) || value.length !== 4) return
+                                const isSorted = value.every((v, i, a) => !i || a[i - 1] <= v);
+                                if (!isSorted) return
+
+                                setValues(value as number[])
+                            }}
                             step={1}
-                            marks={[{ value: 0, label: '0' }, { value: 100, label: '100' }, { value: 200, label: '200' }]}
-                            min={0}
-                            max={200}
+                            marks={marks}
+                            valueLabelDisplay="auto"
+                            min={pedal.tickDate - 1000}
+                            max={pedal.tickDate + pedal.tickDuration + 1000}
+                            valueLabelFormat={(_, index) => {
+                                if (index === 0) return `relative down start: ${down.start}`
+                                if (index === 1) return `down duration: ${down.duration}`
+                                if (index === 2) return `relative up start: ${up.start}`
+                                if (index === 3) return `up duration: ${up.duration}`
+                            }}
                         />
                     </Box>
                     <Box>
-                        <Typography id="change-depth-slider" gutterBottom>
-                            Depth: {depth}
-                        </Typography>
                         <Slider
                             value={depth}
                             onChange={(_, value) => setDepth(value as number)}
@@ -41,6 +80,7 @@ export const PedalDialog = ({ open, onClose, onDone, pedalId }: PedalDialogProps
                             marks={[{ value: 0, label: 'up' }, { value: 0.5, label: 'halfway' }, { value: 1, label: 'full' }]}
                             min={0}
                             max={1}
+                            valueLabelDisplay="auto"
                         />
                     </Box>
                 </Stack>
@@ -49,7 +89,7 @@ export const PedalDialog = ({ open, onClose, onDone, pedalId }: PedalDialogProps
                 <Button onClick={onClose}>Cancel</Button>
                 <Button
                     onClick={() => {
-                        onDone({ pedal: pedalId, changeDuration, depth });
+                        onDone({ pedal: pedal["xml:id"], down, up, depth });
                         onClose()
                     }}
                 >

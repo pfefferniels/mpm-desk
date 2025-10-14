@@ -6,41 +6,19 @@ import { useState } from "react"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
 import { PedalDialog } from "./PedalDialog"
 import { usePiano } from "react-pianosound"
-import { useNotes } from "../hooks/NotesProvider"
-import { MsmPedal } from "mpmify/lib/msm"
 import { asMIDI } from "../utils/utils"
+import { MsmPedal } from "mpmify/lib/msm"
 
 export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement }: ScopedTransformerViewProps<InsertPedal>) => {
-    const [currentPedal, setCurrentPedal] = useState<string>()
+    const [currentPedal, setCurrentPedal] = useState<MsmPedal>()
 
     const stretchX = useSymbolicZoom()
-    const { notes } = useNotes()
     const { play, stop } = usePiano()
 
     const transform = (options: InsertPedalOptions) => {
         if (!options) return
 
         addTransformer(new InsertPedal(options))
-    }
-
-    const handlePlay = (p: MsmPedal) => {
-        if (!p.tickDate || !p.tickDuration) return
-
-        const filtered = notes.filter(n => {
-            if (p.tickDate === undefined || p.tickDuration === undefined) return false
-            const on = n.tickDate || n.date
-            const off = (n.tickDate || n.date) + (n.tickDuration || n.duration)
-            return on >= p.tickDate && on < (p.tickDate + p.tickDuration) ||
-                off > p.tickDate && off <= (p.tickDate + p.tickDuration)
-        })
-
-        console.log('filtered', filtered)
-
-        const midi = asMIDI(filtered)
-        if (!midi) return 
-
-        stop()
-        play(midi)
     }
 
     const stretchY = 30
@@ -53,7 +31,7 @@ export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement }: Scoped
             {currentPedal && (
                 <PedalDialog
                     open={currentPedal !== undefined}
-                    pedalId={currentPedal}
+                    pedal={currentPedal}
                     onClose={() => setCurrentPedal(undefined)}
                     onDone={(options) => {
                         transform(options)
@@ -77,9 +55,31 @@ export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement }: Scoped
                                     height={20}
                                     fill='lightblue'
                                     onClick={() => {
-                                        setCurrentPedal(p["xml:id"])
+                                        setCurrentPedal(p)
                                     }}
-                                    onMouseOver={() => handlePlay(p)}
+                                />
+                            </g>
+                        )
+                    })}
+
+                    {Array.from(msm.asChords().entries()).map(([date, chord]) => {
+                        return (
+                            <g key={`chord_${date}`}>
+                                <line
+                                    x1={date * stretchX}
+                                    y1={0}
+                                    x2={date * stretchX}
+                                    y2={100}
+                                    stroke='black'
+                                    strokeOpacity={0.2}
+                                    strokeWidth={3}
+                                    onMouseOver={() => {
+                                        const midi = asMIDI(chord)
+                                        if (!midi) return 
+
+                                        stop()
+                                        play(midi)
+                                    }}
                                 />
                             </g>
                         )
