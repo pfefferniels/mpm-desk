@@ -65,12 +65,20 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
             if (!absolute || !duration) return null
 
             const type = when.getAttribute('type') === 'sustain' ? 'sustain' : 'soft'
+            const source = when.closest('recording')?.getAttribute('source') || undefined
+
+            // find the closest following MSM note by midi.onset (>= pedalOnset)
+            const pedalOnset = +absolute / 1000
+            const followingNotes = msmNotes.filter(n => typeof n['midi.onset'] === 'number' && n['midi.onset'] >= pedalOnset)
+            const closest = followingNotes.sort((a, b) => (a['midi.onset']! - b['midi.onset']!))[0]
+            const xmlId = closest ? `${type}-${closest.date}` : `pedal-${index}`
 
             const msmPedal: MsmPedal = {
-                'xml:id': `pedal-${index}`,
-                'midi.onset': +absolute / 1000,
+                'xml:id': xmlId,
+                'midi.onset': pedalOnset,
                 'midi.duration': +duration / 1000,
                 'type': type,
+                source
             }
             return msmPedal
         })
