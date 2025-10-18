@@ -95,6 +95,12 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, se
         );
     }, [transformer]);
 
+    useEffect(() => {
+        if (selected) {
+            ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }, [selected])
+
     return (
         <ListItem
             ref={ref}
