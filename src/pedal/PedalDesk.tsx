@@ -9,7 +9,7 @@ import { usePiano } from "react-pianosound"
 import { asMIDI } from "../utils/utils"
 import { MsmPedal } from "mpmify/lib/msm"
 
-export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement }: ScopedTransformerViewProps<InsertPedal>) => {
+export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement, activeElements }: ScopedTransformerViewProps<InsertPedal>) => {
     const [currentPedal, setCurrentPedal] = useState<MsmPedal>()
 
     const stretchX = useSymbolicZoom()
@@ -40,11 +40,11 @@ export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement }: Scoped
                 />
             )}
             <div style={{ width: '80vw', overflow: 'scroll' }}>
-                <svg width={10000}>
+                <svg width={10000} height={400}>
                     {msm.pedals.map(p => {
                         
                         console.log(p)
-                        if (!p.tickDate || !p.tickDuration) return null
+                        if (p.tickDate === undefined || !p.tickDuration) return null
 
                         return (
                             <g key={`pedal_${p["xml:id"]}`}>
@@ -110,6 +110,7 @@ export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement }: Scoped
                                                         stretchX={stretchX}
                                                         stretchY={stretchY}
                                                         onClick={() => setActiveElement(movement["xml:id"])}
+                                                        fill={activeElements.includes(movement["xml:id"]) ? 'orange' : 'lightblue'}
                                                     />
                                                 )
                                             })}
