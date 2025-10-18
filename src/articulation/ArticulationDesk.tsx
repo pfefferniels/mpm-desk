@@ -4,10 +4,10 @@ import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
-import { MouseEventHandler, useState } from "react"
+import { MouseEventHandler, SVGProps, useState } from "react"
 import { asMIDI } from "../utils/utils"
-import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation, MergeArticulations } from "mpmify"
-import { ArticulationDef } from "../../../mpm-ts/lib"
+import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation } from "mpmify"
+import { Articulation, ArticulationDef } from "../../../mpm-ts/lib"
 import { v4 } from "uuid"
 import { UnitDialog } from "./UnitDialog"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
@@ -15,7 +15,7 @@ import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
 import { Add } from "@mui/icons-material"
 
-interface ArticulatedNoteProps {
+interface ArticulatedNoteProps extends SVGProps<SVGRectElement> {
     note: MsmNote
     stretchX: number
     stretchY: number
@@ -24,7 +24,7 @@ interface ArticulatedNoteProps {
     onClick: MouseEventHandler
 }
 
-const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected }: ArticulatedNoteProps) => {
+const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgProps }: ArticulatedNoteProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -51,19 +51,22 @@ const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected }: Articu
 
     return (
         <g onClick={onClick}>
-            <line
+            <rect
                 data-date={note.date}
-                strokeWidth={((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)}
-                stroke='black'
-                strokeOpacity={(hovered || selected) ? 1 : 0.4}
-                x1={isOnset * stretchX}
-                x2={(isOnset + isDuration) * stretchX}
-                y1={(127 - note["midi.pitch"]) * stretchY}
-                y2={(127 - note["midi.pitch"]) * stretchY}
-                key={`accentuation_${note.part}_${note["xml:id"]}`}
+                x={isOnset * stretchX}
+                y={(127 - note["midi.pitch"]) * stretchY - (((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)) / 2}
+                width={Math.max(1, ((isOnset + isDuration) * stretchX) - (isOnset * stretchX))}
+                height={((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)}
+                rx={2}
+                ry={2}
                 onMouseOver={handleMouseOver}
                 onMouseOut={handleMouseOut}
+                key={`accentuation_${note.part}_${note["xml:id"]}`}
+                strokeWidth={selected ? 2 : 0}
+                stroke='black'
+                {...svgProps}
             />
+
             <line
                 strokeWidth={hovered ? 1.2 : 0.8}
                 stroke='black'
@@ -107,7 +110,7 @@ export type UnitWithDef = {
     def?: ArticulationDef
 }
 
-export const ArticulationDesk = ({ msm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation | MergeArticulations>) => {
+export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef, activeElements, setActiveElement }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
     const [currentUnit, setCurrentUnit] = useState<UnitWithDef>()
     const [unitDialogOpen, setUnitDialogOpen] = useState(false)
 
@@ -129,9 +132,17 @@ export const ArticulationDesk = ({ msm, part, addTransformer, appBarRef }: Scope
     const stretchX = useSymbolicZoom()
     const stretchY = 8
 
+    const artics = mpm.getInstructions<Articulation>('articulation', part)
+
     const articulatedNotes = []
     for (const [, notes] of msm.asChords(part)) {
         for (const note of notes) {
+            const effectiveArtic = artics.find(a => {
+                return a.noteid?.split(' ').includes(`#${note["xml:id"]}`)
+            })
+
+            const active = effectiveArtic && activeElements.includes(effectiveArtic["xml:id"]) || false
+
             articulatedNotes.push((
                 <ArticulatedNote
                     key={`articulatedNote_${note["xml:id"]}`}
@@ -139,7 +150,13 @@ export const ArticulationDesk = ({ msm, part, addTransformer, appBarRef }: Scope
                     stretchX={stretchX}
                     stretchY={stretchY}
                     selected={currentUnit?.notes.includes(note) || false}
+                    fill={active ? 'red' : effectiveArtic ? 'orange' : 'gray'}
                     onClick={(e) => {
+                        if (effectiveArtic) {
+                            setActiveElement(effectiveArtic["xml:id"])
+                            return
+                        }
+
                         if ((e.metaKey || e.shiftKey) && currentUnit !== undefined) {
                             if (currentUnit.notes.includes(note)) {
                                 const shrunk = {
