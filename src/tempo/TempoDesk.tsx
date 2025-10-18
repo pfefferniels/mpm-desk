@@ -26,7 +26,7 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
+export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, setActiveElement }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [segments, setSegments] = useState<TempoSegment[]>([])
@@ -256,6 +256,10 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
                                             //     setSegments(prev => prev.filter(s => s !== segment))
                                             //     return
                                             // }
+                                            const commited = mpm.getInstructions('tempo').find(t => t.date === segment.from)
+                                            if (commited) {
+                                                setActiveElement(commited['xml:id'])
+                                            }
                                         }}
                                         onChange={(newSegment) => {
                                             setNewSegment(newSegment)
