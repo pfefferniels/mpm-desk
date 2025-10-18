@@ -76,9 +76,10 @@ interface ArticulatedNoteProps {
     stretchX: number
     stretchY: number
     onClick: (e: MouseEvent<Element>, note: MsmNote) => void
+    colorFor: (source: string) => string
 }
 
-const ChoiceGroup = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProps) => {
+const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: ArticulatedNoteProps) => {
     const [hovered, setHovered] = useState(false)
 
     if (!notes.length) return null
@@ -111,15 +112,18 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick }: ArticulatedNoteProp
 
                 const y = (100 - note["midi.pitch"] + yOffset) * stretchY
 
+                const color = colorFor(source)
+
                 return (
                     <>
                         <rect
                             data-source={source}
+                            data-id={note['xml:id']}
                             x={onset * stretchX}
                             y={y - (stretchY - 0.4) / 2}
                             width={duration * stretchX}
                             height={stretchY * 0.5}
-                            fill={colors[i % colors.length]}
+                            fill={color}
                             fillOpacity={(velocity + 40) / 127}
                             stroke='black'
                             strokeWidth={0.8}
@@ -167,18 +171,26 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
     const stretchX = usePhysicalZoom()
     const stretchY = 10
 
-    const articulatedNotes = []
+    const sourceIDs = Array.from(new Set(msm.allNotes.map(note => note.source || 'unknown')))
+    const colorFor = (source: string) => {
+        const index = sourceIDs.indexOf(source)
+        return colors[index % colors.length]
+    }
+
+    const groups = []
+
     // group notes with the same xml:id
     const grouped = Object.groupBy(msm.allNotes, note => note['xml:id'])
     for (const [xmlId, notes] of Object.entries(grouped)) {
         if (!notes || !notes.length) return
 
-        articulatedNotes.push((
+        groups.push((
             <ChoiceGroup
                 key={`group_${xmlId}`}
                 notes={notes}
                 stretchX={stretchX}
                 stretchY={stretchY}
+                colorFor={colorFor}
                 onClick={(e) => {
                     if (!e.shiftKey && !e.metaKey) {
                         const newChoice: NoteChoice = {
@@ -216,6 +228,46 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
         ))
     }
 
+    // display pedals
+    const groupedPedals = Object.groupBy(msm.pedals, pedal => pedal.type)
+    const yStart = 70 * stretchY
+    Object.entries(groupedPedals).forEach(([, pedals], typeIndex) => {
+        const bySource = Object
+            .entries(Object.groupBy(pedals, pedal => pedal.source || 'unknown'))
+            .filter(([, pedals]) => pedals && pedals.length)
+
+        const typeHeight = 20
+        const sourceHeight = typeHeight / bySource.length
+        bySource.forEach(([, pedals], sourceIndex) => {
+            if (!pedals || !pedals.length) return
+
+            for (const pedal of pedals) {
+                const onset = pedal["midi.onset"]
+                const duration = pedal["midi.duration"]
+                const xmlId = pedal['xml:id']
+                const color = colorFor(pedal.source || 'unknown')
+                console.log('pedal source=', pedal.source, color)
+
+                groups.push((
+                    <rect
+                        key={`pedal_${xmlId}`}
+                        data-id={xmlId}
+                        data-onset={onset}
+                        data-duration={duration}
+                        x={onset * stretchX}
+                        y={yStart + typeIndex * typeHeight + sourceIndex * sourceHeight}
+                        width={duration * stretchX}
+                        height={sourceHeight}
+                        fill={color}
+                        fillOpacity={0.5}
+                        stroke='black'
+                        strokeWidth={0.8}
+                    />
+                ))
+            }
+        })
+    })
+
     const sources = new Set(msm.allNotes.map(note => note.source || 'unknown'))
 
     return (
@@ -250,7 +302,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
 
             <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
                 <svg width={10000} height={900}>
-                    {articulatedNotes}
+                    {groups}
                 </svg>
             </div>
 
