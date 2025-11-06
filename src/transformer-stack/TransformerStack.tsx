@@ -11,6 +11,8 @@ import { Clear, DeleteForever, ExpandLess, ExpandMore, RestartAlt } from "@mui/i
 import { TransformerListItem } from "./TransformerListItem";
 import { ArgumentationCard } from "./ArgumentationCard";
 import { Argumentation } from "doubtful/inverse";
+import { DropTarget } from "./DropTarget";
+import { v4 } from "uuid";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -24,6 +26,7 @@ interface TransformerStackProps {
 
 export const TransformerStack = ({ transformers, setTransformers, onRemove, onSelect, onReset, activeTransformer }: TransformerStackProps) => {
     const [expanded, setExpanded] = useState(true);
+    const [isDragging, setIsDragging] = useState(false);
 
     const handleToggle = () => {
         setExpanded(!expanded);
@@ -83,6 +86,30 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                     .map(([argumentation, localTransformers]) => {
                                         return (
                                             <>
+                                                <DropTarget onAdd={(transformerId) => {
+                                                    const transformer = transformers.find(t => t.id === transformerId)
+                                                    if (!transformer) return
+
+                                                    transformer.argumentation = {
+                                                        type: 'simpleArgumentation',
+                                                        id: `arg_${v4()}`,
+                                                        conclusion: {
+                                                            id: 'concl_' + v4(),
+                                                            that: {
+                                                                id: 'that_' + v4(),
+                                                                subject: '',
+                                                                type: 'assigned',
+                                                                assigned: '',
+                                                            },
+                                                            type: 'belief',
+                                                            certainty: 'possible'
+                                                        },
+                                                    }
+
+                                                    setTransformers([
+                                                        ...transformers,
+                                                    ])
+                                                }} />
                                                 <ArgumentationCard
                                                     argumentation={argumentation}
                                                     onChange={() => {
@@ -90,8 +117,15 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                                     }}
                                                     mergeInto={mergeInto}
                                                 />
-                                                <Collapse in={true} timeout="auto" unmountOnExit>
-                                                    <List dense>
+
+                                                {(
+                                                    <List
+                                                        dense
+                                                        sx={{
+                                                            display: isDragging ? 'none' : 'block',
+                                                            visibility: isDragging ? 'hidden' : 'visible',
+                                                        }}
+                                                    >
                                                         {localTransformers.map((transformer) => {
                                                             const index = transformers.indexOf(transformer);
 
@@ -102,12 +136,20 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
                                                                     index={index}
                                                                     onSelect={() => onSelect(transformer)}
                                                                     onRemove={() => onRemove(transformer)}
+                                                                    onEdit={(options) => {
+                                                                        transformer.options = options;
+                                                                        setTransformers([...transformers]);
+                                                                    }}
+                                                                    onStateChange={(state) => {
+                                                                        console.log('state change', state)
+                                                                        setIsDragging(state.type === 'is-dragging')
+                                                                    }}
                                                                     selected={activeTransformer?.id === transformer.id}
                                                                 />
                                                             )
                                                         })}
                                                     </List>
-                                                </Collapse>
+                                                )}
                                             </>
                                         )
                                     })}

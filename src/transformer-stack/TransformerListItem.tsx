@@ -3,19 +3,22 @@ import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { Delete } from "@mui/icons-material";
+import { Delete, Edit } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemButton, ListItemText, IconButton, Tooltip } from "@mui/material";
 import { TransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import invariant from "tiny-invariant";
 import { getTransformerData } from "./transformer-data";
+import { OptionsDialog } from "./OptionsDialog";
 
 interface TransformerListItemProps {
     transformer: Transformer;
     index: number;
     onRemove: () => void;
     onSelect: () => void;
+    onEdit: (TransformationOptions: TransformationOptions) => void;
+    onStateChange: (state: TransformerState) => void;
     selected: boolean;
 }
 
@@ -49,7 +52,8 @@ const isNoteBased = (transformer: TransformationOptions): transformer is Transfo
     return 'noteid' in transformer;
 }
 
-export const TransformerListItem = ({ transformer, index, onRemove, onSelect, selected }: TransformerListItemProps) => {
+export const TransformerListItem = ({ transformer, index, onRemove, onSelect, onEdit, onStateChange, selected }: TransformerListItemProps) => {
+    const [edit, setEdit] = useState(false)
     const [state, setState] = useState<TransformerState>(idle);
     const ref = useRef<HTMLLIElement | null>(null);
 
@@ -86,14 +90,17 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, se
                     });
                 },
                 onDragStart() {
+                    console.log('onDragStart');
                     setState({ type: 'is-dragging' });
+                    onStateChange({ type: 'is-dragging' });
                 },
                 onDrop() {
                     setState(idle);
+                    onStateChange(idle);
                 },
             }),
         );
-    }, [transformer]);
+    }, [transformer, onStateChange]);
 
     useEffect(() => {
         if (selected) {
@@ -115,7 +122,17 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, se
                     onClick={onSelect}
                     selected={selected}
                 >
-                    <ListItemText primary={<span>{transformer.name} {displayText}</span>} title="test" />
+                    <ListItemText primary={<span>{transformer.name} {displayText}</span>} />
+
+                    <IconButton
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setEdit(true)
+                        }}
+                    >
+                        <Edit />
+                    </IconButton>
+
                     <IconButton
                         onClick={(e) => {
                             e.stopPropagation();
@@ -127,9 +144,19 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, se
                 </ListItemButton>
             </Tooltip>
 
+            <OptionsDialog
+                open={edit}
+                onClose={() => setEdit(false)}
+                options={transformer.options}
+                onDone={(options) => {
+                    onEdit(options);
+                    setEdit(false);
+                }}
+            />
+
             {state.type === 'preview' ? createPortal(<DragPreview transformer={transformer} />, state.container) : null}
         </ListItem>
-    );
+    )
 };
 
 

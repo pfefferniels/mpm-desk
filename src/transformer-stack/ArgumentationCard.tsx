@@ -24,7 +24,9 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto }: Argume
             canDrop({ source }) {
                 return source.data.type === 'transformer'
             },
-            onDrop({ source }) {
+            onDrop(data) {
+                const { source } = data;
+                console.log('data=', data);
                 mergeInto(source.data.transformerId as string, argumentation)
                 setDragTarget(false)
             },
