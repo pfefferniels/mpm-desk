@@ -3,14 +3,14 @@ import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { Delete, Edit } from "@mui/icons-material";
-import { ListItem, ListItemIcon, ListItemButton, ListItemText, IconButton, Tooltip } from "@mui/material";
+import { Menu, MenuItem, Tooltip } from "@mui/material";
 import { TransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import invariant from "tiny-invariant";
 import { getTransformerData } from "./transformer-data";
 import { OptionsDialog } from "./OptionsDialog";
+import { Delete, Edit } from "@mui/icons-material";
 
 interface TransformerListItemProps {
     transformer: Transformer;
@@ -40,32 +40,50 @@ type TransformerState =
 
 const idle: TransformerState = { type: 'idle' };
 
-const isRangeBased = (transformer: TransformationOptions): transformer is TransformationOptions & { from: number; to: number } => {
+export const isRangeBased = (transformer: TransformationOptions): transformer is TransformationOptions & { from: number; to: number } => {
     return 'from' in transformer && 'to' in transformer;
 }
 
-const isDateBased = (transformer: TransformationOptions): transformer is TransformationOptions & { date: number } => {
+export const isDateBased = (transformer: TransformationOptions): transformer is TransformationOptions & { date: number } => {
     return 'date' in transformer;
 }
 
-const isNoteBased = (transformer: TransformationOptions): transformer is TransformationOptions & { noteid: string } => {
+export const isNoteBased = (transformer: TransformationOptions): transformer is TransformationOptions & { noteid: string } => {
     return 'noteid' in transformer;
 }
 
 export const TransformerListItem = ({ transformer, index, onRemove, onSelect, onEdit, onStateChange, selected }: TransformerListItemProps) => {
     const [edit, setEdit] = useState(false)
     const [state, setState] = useState<TransformerState>(idle);
-    const ref = useRef<HTMLLIElement | null>(null);
+    const ref = useRef<HTMLDivElement | null>(null);
 
-    const optionsString = JSON.stringify(transformer.options);
+    const [contextMenu, setContextMenu] = useState<{
+        mouseX: number;
+        mouseY: number;
+    } | null>(null);
+
+    const handleContextMenu = (event: React.MouseEvent) => {
+        event.preventDefault();
+
+        setContextMenu(
+            contextMenu === null
+                ? {
+                    mouseX: event.clientX + 2,
+                    mouseY: event.clientY - 6,
+                }
+                : // repeated contextmenu when it is already open closes it with Chrome 84 on Ubuntu
+                // Other native context menus might behave different.
+                // With this behavior we prevent contextmenu from the backdrop to re-locale existing context menus.
+                null,
+        );
+    }
+
+
     const displayText = (
-        <span>
-            {
-                isRangeBased(transformer.options) ? `${transformer.options.from}-${transformer.options.to}`
-                    : isDateBased(transformer.options) ? `@${transformer.options.date}`
-                        : isNoteBased(transformer.options) ? `#${transformer.options.noteid}`
-                            : ''}
-        </span>
+        isRangeBased(transformer.options) ? `${transformer.options.from}-${transformer.options.to}`
+            : isDateBased(transformer.options) ? `@${transformer.options.date}`
+                : isNoteBased(transformer.options) ? `#${transformer.options.noteid}`
+                    : ''
     )
 
     useEffect(() => {
@@ -109,39 +127,30 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, on
     }, [selected])
 
     return (
-        <ListItem
+        <div
+            style={{ float: 'left' }}
             ref={ref}
             data-transformer-id={transformer.id}
-            divider
+            onContextMenu={(e) => {
+                onSelect()
+                handleContextMenu(e)
+            }}
         >
-            <ListItemIcon>
-                <span>{index}</span>
-            </ListItemIcon>
-            <Tooltip title={optionsString}>
-                <ListItemButton
+            <Tooltip title={`${transformer.name} (${displayText})`}>
+                <div
+                    style={{
+                        fontSize: 10,
+                        backgroundColor: '#ff4516ff',
+                        color: 'white',
+                        padding: '0.2rem',
+                        margin: '0.2rem', borderRadius: 4,
+                        cursor: 'pointer',
+                        border: selected ? '1px solid black' : 'inherit'
+                    }}
                     onClick={onSelect}
-                    selected={selected}
                 >
-                    <ListItemText primary={<span>{transformer.name} {displayText}</span>} />
-
-                    <IconButton
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setEdit(true)
-                        }}
-                    >
-                        <Edit />
-                    </IconButton>
-
-                    <IconButton
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onRemove();
-                        }}
-                    >
-                        <Delete />
-                    </IconButton>
-                </ListItemButton>
+                    <span>{index}</span>
+                </div>
             </Tooltip>
 
             <OptionsDialog
@@ -154,8 +163,36 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, on
                 }}
             />
 
+            <Menu
+                open={contextMenu !== null}
+                onClose={() => setContextMenu(null)}
+                anchorReference="anchorPosition"
+                anchorPosition={
+                    contextMenu !== null
+                        ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                        : undefined
+                }
+            >
+                <MenuItem
+                    onClick={() => {
+                        onRemove();
+                        setContextMenu(null);
+                    }}
+                >
+                    <Delete /> Remove
+                </MenuItem>
+                <MenuItem
+                    onClick={() => {
+                        onEdit(transformer.options);
+                        setContextMenu(null);
+                    }}
+                >
+                    <Edit /> Details
+                </MenuItem>
+            </Menu>
+
             {state.type === 'preview' ? createPortal(<DragPreview transformer={transformer} />, state.container) : null}
-        </ListItem>
+        </div>
     )
 };
 

@@ -1,5 +1,4 @@
-import { Edit } from "@mui/icons-material";
-import { ListItemButton, ListItemText, IconButton } from "@mui/material";
+import { Card } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { ArgumentationDialog } from "./ArgumentationDialog";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
@@ -9,9 +8,11 @@ interface ArgumentationCardProps {
     argumentation: Argumentation;
     onChange: (argumentation: Argumentation) => void;
     mergeInto: (transformerId: string, argumentation: Argumentation) => void;
+    isDragging: boolean
+    children: React.ReactNode;
 }
 
-export const ArgumentationCard = ({ argumentation, onChange, mergeInto }: ArgumentationCardProps) => {
+export const ArgumentationCard = ({ argumentation, onChange, mergeInto, children }: ArgumentationCardProps) => {
     const [edit, setEdit] = useState<Argumentation | null>(null);
     const [dragTarget, setDragTarget] = useState(false)
     const ref = useRef<HTMLDivElement>(null);
@@ -25,8 +26,8 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto }: Argume
                 return source.data.type === 'transformer'
             },
             onDrop(data) {
+                console.log('drop target card')
                 const { source } = data;
-                console.log('data=', data);
                 mergeInto(source.data.transformerId as string, argumentation)
                 setDragTarget(false)
             },
@@ -41,26 +42,29 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto }: Argume
 
     return (
         <>
-            <ListItemButton ref={ref} style={{
-                border: dragTarget ? '1.5px dashed black' : 'inherit',
-                borderRadius: 4,
-            }}>
-                <ListItemText
-                    primary={argumentation.conclusion.that.assigned || ''}
-                    secondary={<div>
-                        {argumentation.note}
-                        <br />{argumentation.id}
-                    </div>} />
+            <Card
+                ref={ref}
+                elevation={0}
+                style={{
+                    border: `${dragTarget ? '1.5px dashed' : '0.2px solid'} gray`,
+                    borderRadius: '10px',
+                    fontSize: 12,
+                    position: 'relative',
+                    paddingLeft: '0.2rem'
+                }}
+                onClick={(e) => {
+                    e.stopPropagation()
+                    setEdit(argumentation)
+                }}
+            >
+                <div>
+                    {argumentation.conclusion.that.assigned || ''}
+                </div>
 
-                <IconButton
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setEdit(argumentation)
-                    }}
-                >
-                    <Edit />
-                </IconButton>
-            </ListItemButton>
+                <div>
+                    {children}
+                </div>
+            </Card>
 
             {edit && (
                 <ArgumentationDialog
