@@ -26,7 +26,6 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto, children
                 return source.data.type === 'transformer'
             },
             onDrop(data) {
-                console.log('drop target card')
                 const { source } = data;
                 mergeInto(source.data.transformerId as string, argumentation)
                 setDragTarget(false)
@@ -45,23 +44,26 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto, children
             <Card
                 ref={ref}
                 elevation={0}
-                style={{
-                    border: `${dragTarget ? '1.5px dashed' : '0.2px solid'} gray`,
-                    borderRadius: '10px',
+                sx={{
+                    border: `${dragTarget ? '1.5px dashed' : '1px solid'} lightgray`,
+                    borderRadius: 1,
                     fontSize: 12,
                     position: 'relative',
-                    paddingLeft: '0.2rem'
+                    paddingLeft: '0.2rem',
+                    "&:hover": {
+                        boxShadow: 6
+                    },
                 }}
                 onClick={(e) => {
                     e.stopPropagation()
                     setEdit(argumentation)
                 }}
             >
-                <div>
+                <div style={{ cursor: 'default' }}>
                     {argumentation.conclusion.that.assigned || ''}
                 </div>
 
-                <div>
+                <div onClick={(e) => e.stopPropagation()}>
                     {children}
                 </div>
             </Card>

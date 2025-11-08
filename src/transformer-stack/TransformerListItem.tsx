@@ -4,7 +4,7 @@ import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import { Menu, MenuItem, Tooltip } from "@mui/material";
-import { TransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
+import { isDateBased, isNoteBased, isRangeBased, TransformationOptions, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import invariant from "tiny-invariant";
@@ -39,18 +39,6 @@ type TransformerState =
     };
 
 const idle: TransformerState = { type: 'idle' };
-
-export const isRangeBased = (transformer: TransformationOptions): transformer is TransformationOptions & { from: number; to: number } => {
-    return 'from' in transformer && 'to' in transformer;
-}
-
-export const isDateBased = (transformer: TransformationOptions): transformer is TransformationOptions & { date: number } => {
-    return 'date' in transformer;
-}
-
-export const isNoteBased = (transformer: TransformationOptions): transformer is TransformationOptions & { noteid: string } => {
-    return 'noteid' in transformer;
-}
 
 export const TransformerListItem = ({ transformer, index, onRemove, onSelect, onEdit, onStateChange, selected }: TransformerListItemProps) => {
     const [edit, setEdit] = useState(false)
@@ -132,6 +120,8 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, on
             ref={ref}
             data-transformer-id={transformer.id}
             onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 onSelect()
                 handleContextMenu(e)
             }}
@@ -140,14 +130,18 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, on
                 <div
                     style={{
                         fontSize: 10,
-                        backgroundColor: '#ff4516ff',
+                        backgroundColor: selected ? 'Highlight' : 'gray',
                         color: 'white',
                         padding: '0.2rem',
-                        margin: '0.2rem', borderRadius: 4,
+                        margin: '0.2rem',
+                        borderRadius: 3,
                         cursor: 'pointer',
-                        border: selected ? '1px solid black' : 'inherit'
                     }}
-                    onClick={onSelect}
+                    onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onSelect()
+                    }}
                 >
                     <span>{index}</span>
                 </div>
@@ -174,16 +168,19 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, on
                 }
             >
                 <MenuItem
-                    onClick={() => {
+                    onClick={(e) => {
+                        e.stopPropagation();
                         onRemove();
                         setContextMenu(null);
+                        console.log('e1', e)
                     }}
                 >
                     <Delete /> Remove
                 </MenuItem>
                 <MenuItem
-                    onClick={() => {
-                        onEdit(transformer.options);
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setEdit(true);
                         setContextMenu(null);
                     }}
                 >

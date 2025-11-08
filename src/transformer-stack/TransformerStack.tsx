@@ -1,29 +1,27 @@
-import { Card, Stack } from "@mui/material";
-import { Transformer } from "mpmify/lib/transformers/Transformer";
+import { Card } from "@mui/material";
+import { getRange, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useCallback, useState } from "react";
-import {
-    IconButton,
-} from "@mui/material";
-import { Clear, DeleteForever, RestartAlt } from "@mui/icons-material";
-import { isDateBased, isNoteBased, isRangeBased, TransformerListItem } from "./TransformerListItem";
+import { TransformerListItem } from "./TransformerListItem";
 import { ArgumentationCard } from "./ArgumentationCard";
 import { Argumentation } from "doubtful/inverse";
 import { DropTarget } from "./DropTarget";
 import { v4 } from "uuid";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { layoutIntervals } from "./interval";
+import { MSM } from "mpmify";
 
 interface TransformerStackProps {
     transformers: Transformer[];
     setTransformers: (transformers: Transformer[]) => void;
+    msm: MSM;
 
     onRemove: (transformer: Transformer) => void;
     onSelect: (transformer?: Transformer) => void;
-    onReset: () => void;
+
     activeTransformer?: Transformer;
 }
 
-export const TransformerStack = ({ transformers, setTransformers, onRemove, onSelect, onReset, activeTransformer }: TransformerStackProps) => {
+export const TransformerStack = ({ transformers, setTransformers, msm, onRemove, onSelect, activeTransformer }: TransformerStackProps) => {
     const [isDragging, setIsDragging] = useState(false);
 
     const stretchX = useSymbolicZoom()
@@ -32,43 +30,11 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
     const intervals = Array
         .from(argumentations)
         .map(([argumentation, localTransformers]) => {
-            const startDates = localTransformers
-                .map(t => {
-                    if (isRangeBased(t.options)) {
-                        return t.options.from
-                    }
-                    else if (isDateBased(t.options)) {
-                        return t.options.date
-                    }
-                    else if (isNoteBased(t.options)) {
-                        // TODO
-                    }
-                })
-                .filter(d => d !== undefined)
-
-            const endDates = localTransformers
-                .map(t => {
-                    if (isRangeBased(t.options)) {
-                        return t.options.to
-                    }
-                    else if (isDateBased(t.options)) {
-                        return t.options.date
-                    }
-                    else if (isNoteBased(t.options)) {
-                        // TODO
-                    }
-                })
-                .filter(d => d !== undefined)
-
-            if (startDates.length === 0 || endDates.length === 0) {
-                return null;
-            }
-
-            const start = Math.min(...startDates) * stretchX;
-            const end = Math.max(...endDates) * stretchX;
+            const range = getRange(localTransformers, msm)
+            if (!range) return null;
 
             return {
-                start, end, argumentation, localTransformers
+                start: range.from * stretchX, end: (range.to || range.from) * stretchX, argumentation, localTransformers
             }
         })
         .filter(i => i !== null)
@@ -82,112 +48,69 @@ export const TransformerStack = ({ transformers, setTransformers, onRemove, onSe
         setTransformers([...transformers]);
     }, [transformers, setTransformers]);
 
-    const options = transformers
-        .map(t => t.options)
+    const maxDate = (getRange(transformers, msm)?.to || 0) * stretchX;
+    const maxTrack = Math.max(...layout.map(({ track }) => track))
+    const trackHeight = 71
 
-    const dates = options
-        .filter(isRangeBased)
-        .map(({ to }) => to)
-        .concat(
-            ...options
-                .filter(isDateBased)
-                .map(({ date }) => date)
-        )
-    const maxDate = dates.length > 0 ? Math.max(...dates) : 100;
+    console.log('getRange(transformers, msm)?.to', getRange(transformers, msm)?.to)
 
     return (
-        <Card style={{ overflow: 'scroll', position: 'relative', height: '300px', width: '100vw', borderTop: '0.5px solid gray' }}>
-            <Stack direction="row">
-                {transformers.length > 0 && (
-                    <>
-                        <IconButton
-                            onClick={onReset}
-                        >
-                            <RestartAlt />
-                        </IconButton>
-                        <IconButton onClick={() => setTransformers([])}>
-                            <DeleteForever />
-                        </IconButton>
-                    </>
-                )}
-                {activeTransformer && (
-                    <IconButton onClick={() => onSelect(undefined)}>
-                        <Clear />
-                    </IconButton>
-                )}
-            </Stack>
+        <Card style={{
+            overflow: 'scroll',
+            position: 'relative',
+            height: '300px',
+            width: '100vw',
+            borderTop: '0.5px solid gray'
+        }}>
+            <div style={{ position: 'relative', width: maxDate, height: maxTrack * trackHeight }}>
+                <DropTarget
+                    left={0}
+                    bottom={0}
+                    width={maxDate}
+                    height={maxTrack * trackHeight}
+                    onAdd={(transformerId) => {
+                        const transformer = transformers.find(t => t.id === transformerId)
+                        if (!transformer) return
 
-            <div style={{ width: maxDate * stretchX + 100 }}>
-                <DropTarget onAdd={(transformerId) => {
-                    const transformer = transformers.find(t => t.id === transformerId)
-                    if (!transformer) return
-
-                    transformer.argumentation = {
-                        type: 'simpleArgumentation',
-                        id: `arg_${v4()}`,
-                        conclusion: {
-                            id: 'concl_' + v4(),
-                            that: {
-                                id: 'that_' + v4(),
-                                subject: '',
-                                type: 'assigned',
-                                assigned: '',
+                        transformer.argumentation = {
+                            type: 'simpleArgumentation',
+                            id: `arg_${v4()}`,
+                            conclusion: {
+                                id: 'concl_' + v4(),
+                                that: {
+                                    id: 'that_' + v4(),
+                                    subject: '',
+                                    type: 'assigned',
+                                    assigned: '',
+                                },
+                                type: 'belief',
+                                certainty: 'possible'
                             },
-                            type: 'belief',
-                            certainty: 'possible'
-                        },
-                    }
+                        }
 
-                    setTransformers([
-                        ...transformers,
-                    ])
-                }} />
+                        setTransformers([
+                            ...transformers,
+                        ])
+                    }}
+                />
 
                 {layout
                     .map(({ argumentation, localTransformers, track }) => {
-                        const startDates = localTransformers
-                            .map(t => {
-                                if (isRangeBased(t.options)) {
-                                    return t.options.from
-                                }
-                                else if (isDateBased(t.options)) {
-                                    return t.options.date
-                                }
-                                else if (isNoteBased(t.options)) {
-                                    // TODO
-                                }
-                            })
-                            .filter(d => d !== undefined)
+                        const range = getRange(localTransformers, msm);
+                        if (!range) return null;
 
-                        const endDates = localTransformers
-                            .map(t => {
-                                if (isRangeBased(t.options)) {
-                                    return t.options.to
-                                }
-                                else if (isDateBased(t.options)) {
-                                    return t.options.date
-                                }
-                                else if (isNoteBased(t.options)) {
-                                    // TODO
-                                }
-                            })
-                            .filter(d => d !== undefined)
-
-                        if (startDates.length === 0 || endDates.length === 0) {
-                            return null;
-                        }
-
-                        const start = Math.min(...startDates) * stretchX;
-                        const end = Math.max(...endDates) * stretchX;
+                        const start = range.from * stretchX;
+                        const end = (range.to || range.from) * stretchX;
 
                         return (
-                            <div style={{
+                            <div
+                                key={`argumentation_${argumentation.id}`}
+                                style={{
                                 position: 'absolute',
                                 left: start,
-                                bottom: track * 72,
+                                bottom: track * trackHeight,
                                 width: end - start,
-                                maxWidth: end - start,
-                                minHeight: '1rem',
+                                minWidth: '2rem',
                             }}>
                                 <ArgumentationCard
                                     argumentation={argumentation}
