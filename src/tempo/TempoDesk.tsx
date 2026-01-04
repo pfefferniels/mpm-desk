@@ -131,6 +131,15 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, setActive
                             </Button>
                         </Ribbon>
                         <Ribbon title='Segments'>
+                            <ToggleButton
+                                value='check'
+                                size='small'
+                                selected={mode === 'split'}
+                                onChange={() => mode === 'split' ? setMode(undefined) : setMode('split')}
+                            >
+                                Split
+                            </ToggleButton>
+
                             <Button
                                 size='small'
                                 variant='outlined'
@@ -189,7 +198,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, setActive
                     rangeY={[1, 2]}
                 />
 
-                <div style={{ width: '80vw', overflow: 'scroll' }}>
+                <div style={{ width: '100vw', overflow: 'scroll' }}>
                     {tempoCluster && (
                         <Skyline
                             part={part}
@@ -270,17 +279,6 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, setActive
                         </Skyline>
                     )}
                 </div>
-            </div>
-
-            <div>
-                <ToggleButton
-                    value='check'
-                    size='small'
-                    selected={mode === 'split'}
-                    onChange={() => mode === 'split' ? setMode(undefined) : setMode('split')}
-                >
-                    Split Segment
-                </ToggleButton>
             </div>
         </div>
     )

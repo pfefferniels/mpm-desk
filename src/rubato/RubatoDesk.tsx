@@ -75,7 +75,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, setActiveElement, a
     })
 
     return (
-        <div style={{ width: '80vw', overflow: 'scroll' }}>
+        <div style={{ width: '100vw', overflow: 'scroll' }}>
             {createPortal((
                 <Ribbon title='Rubato'>
                     <Button

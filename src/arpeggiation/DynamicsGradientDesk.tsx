@@ -61,8 +61,11 @@ export const RawGradient = ({ notes, onClick, getY }: RawGradientProps) => {
 
     const { softest, loudest } = getDynamicsExtremes(notes);
 
+    if (notes.length === 0) return null;
+
     return (
         <g
+            data-date={notes[0].date}
             onMouseEnter={() => {
                 if (notes.length === 0) return;
 
@@ -188,14 +191,15 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
 
     const height = 700
 
+    console.log('sort velocites', sortVelocities)
+
     const transform = (date: number, gradient: { from: number, to: number }) => {
         addTransformer(new InsertDynamicsGradient({
             scope: part,
             date,
             gradient,
-            sortVelocities: true
-        })
-        )
+            sortVelocities
+        }))
     }
 
     const transformDefault = () => {
@@ -203,7 +207,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
             scope: part,
             crescendo: { from: -1, to: 0 },
             decrescendo: { from: 0, to: -1 },
-            sortVelocities: true
+            sortVelocities
         }))
     }
 

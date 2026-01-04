@@ -1,9 +1,8 @@
 import { Card } from "@mui/material";
-import { getRange, Transformer } from "mpmify/lib/transformers/Transformer";
+import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useCallback, useState } from "react";
 import { TransformerListItem } from "./TransformerListItem";
 import { ArgumentationCard } from "./ArgumentationCard";
-import { Argumentation } from "doubtful/inverse";
 import { DropTarget } from "./DropTarget";
 import { v4 } from "uuid";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
@@ -52,7 +51,7 @@ export const TransformerStack = ({ transformers, setTransformers, msm, onRemove,
     const maxTrack = Math.max(...layout.map(({ track }) => track))
     const trackHeight = 71
 
-    console.log('getRange(transformers, msm)?.to', getRange(transformers, msm)?.to)
+    if (transformers.length === 0) return null;
 
     return (
         <Card style={{
@@ -77,14 +76,8 @@ export const TransformerStack = ({ transformers, setTransformers, msm, onRemove,
                             id: `arg_${v4()}`,
                             conclusion: {
                                 id: 'concl_' + v4(),
-                                that: {
-                                    id: 'that_' + v4(),
-                                    subject: '',
-                                    type: 'assigned',
-                                    assigned: '',
-                                },
-                                type: 'belief',
-                                certainty: 'possible'
+                                certainty: 'plausible',
+                                motivation: 'unknown',
                             },
                         }
 
@@ -97,7 +90,11 @@ export const TransformerStack = ({ transformers, setTransformers, msm, onRemove,
                 {layout
                     .map(({ argumentation, localTransformers, track }) => {
                         const range = getRange(localTransformers, msm);
-                        if (!range) return null;
+
+                        if (!range) {
+                            console.log('no range for', localTransformers)
+                            return null;
+                        }
 
                         const start = range.from * stretchX;
                         const end = (range.to || range.from) * stretchX;
@@ -110,7 +107,7 @@ export const TransformerStack = ({ transformers, setTransformers, msm, onRemove,
                                 left: start,
                                 bottom: track * trackHeight,
                                 width: end - start,
-                                minWidth: '2rem',
+                                minWidth: '4rem',
                             }}>
                                 <ArgumentationCard
                                     argumentation={argumentation}

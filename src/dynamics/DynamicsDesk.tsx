@@ -111,12 +111,16 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
     const handleInsert = () => {
+        console.log('handleinsert', insertOptions)
         if (!insertOptions) return
 
         addTransformer(new InsertDynamicsInstructions({
             ...insertOptions,
+            phantomVelocities,
             scope: part
         }))
+
+        setInsertOptions(undefined)
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -196,20 +200,20 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
                     scope: part,
                     aspect: 'velocity',
                     change: 0,
-                    noteids: [noteid]
+                    noteIDs: [noteid]
                 })
             }
-            else if ('noteids' in modifyOptions && e.metaKey) {
+            else if ('noteIDs' in modifyOptions && e.metaKey) {
                 // Cmd/Ctrl key adds a noteid to the existing choice.
-                modifyOptions.noteids.push(noteid)
+                modifyOptions.noteIDs.push(noteid)
                 setModifyOptions({ ...modifyOptions })
             }
             else if (e.shiftKey) {
                 // Shift key always refers to a range choice. 
                 // If the existing choice is a pure noteid choice,
                 // we convert it to a range choice.
-                if ('noteids' in modifyOptions) {
-                    const existingNotes = msm.allNotes.filter(n => modifyOptions.noteids.includes(n["xml:id"]))
+                if ('noteIDs' in modifyOptions) {
+                    const existingNotes = msm.allNotes.filter(n => modifyOptions.noteIDs.includes(n["xml:id"]))
                     const fromDate = Math.min(...existingNotes.map(n => n.date))
                     setModifyOptions({
                         from: fromDate,
@@ -364,7 +368,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
                     ].join(' ')
                 }
             >
-                <VerticalScale min={30} max={80} step={5} stretchY={stretchY} />
+                <VerticalScale min={10} max={80} step={5} stretchY={stretchY} />
                 {curves}
                 {circles}
                 {<MarkedRegion
@@ -385,8 +389,8 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, s
                     <>
                         <div>
                             Affects:
-                            {'noteids' in modifyOptions && (
-                                modifyOptions.noteids.map(id => <span key={id}>{id} </span>)
+                            {'noteIDs' in modifyOptions && (
+                                modifyOptions.noteIDs.map(id => <span key={id}>{id} </span>)
                             )}
                         </div>
                         <FormControl>

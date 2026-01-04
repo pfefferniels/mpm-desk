@@ -22,11 +22,29 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
     // Enrich the official MSM with performance information
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
 
-    const originalNotes = msmDoc.querySelectorAll('note')
+    const originalNotes = Array
+        .from(msmDoc.querySelectorAll('note'))
+        .reduce((acc, curr) => {
+            const candidate = acc.find(n => n.getAttribute('date') === curr.getAttribute('date') &&
+                n.getAttribute('midi.pitch') === curr.getAttribute('midi.pitch'))
+
+            if (candidate) {
+                if (+(curr.getAttribute('duration') || 0) > +(candidate.getAttribute('duration') || 0)) {
+                    acc[acc.indexOf(candidate)] = curr
+                }
+            }
+            else {
+                acc.push(curr)
+            }
+            return acc;
+        }, [] as Element[])
+
+
+    // Filter notes with duplicate onsets
     const msmNotes: MsmNote[] = []
     for (const note of originalNotes) {
         const noteId = note.getAttribute('xml:id')
-        console.log('trying selector', `when[data~="#${noteId}"]`)
+        // console.log('trying selector', `when[data~="#${noteId}"]`)
         const whens = meiDoc.querySelectorAll(`when[data~="#${noteId}"]`)
         if (!whens) continue
 

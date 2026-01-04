@@ -49,12 +49,14 @@ const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgPr
         stop()
     }
 
+    const max = 90 // 127
+
     return (
         <g onClick={onClick}>
             <rect
                 data-date={note.date}
                 x={isOnset * stretchX}
-                y={(127 - note["midi.pitch"]) * stretchY - (((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)) / 2}
+                y={(max - note["midi.pitch"]) * stretchY - (((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)) / 2}
                 width={Math.max(1, ((isOnset + isDuration) * stretchX) - (isOnset * stretchX))}
                 height={((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)}
                 rx={2}
@@ -72,8 +74,8 @@ const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgPr
                 stroke='black'
                 x1={(isOnset + isDuration) * stretchX}
                 x2={(isOnset + isDuration) * stretchX}
-                y1={(127 - note["midi.pitch"]) * stretchY - 2}
-                y2={(127 - note["midi.pitch"]) * stretchY + 2}
+                y1={(max - note["midi.pitch"]) * stretchY - 2}
+                y2={(max - note["midi.pitch"]) * stretchY + 2}
                 onMouseOver={handleMouseOver}
                 onMouseOut={handleMouseOut}
             />
@@ -82,8 +84,8 @@ const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgPr
                 stroke='black'
                 x1={(isOnset + shouldDuration) * stretchX}
                 x2={(isOnset + shouldDuration) * stretchX}
-                y1={(127 - note["midi.pitch"]) * stretchY - 7}
-                y2={(127 - note["midi.pitch"]) * stretchY + 7}
+                y1={(max - note["midi.pitch"]) * stretchY - 7}
+                y2={(max - note["midi.pitch"]) * stretchY + 7}
                 onMouseOver={handleMouseOver}
                 onMouseOut={handleMouseOut}
                 strokeDasharray='1 1'
@@ -92,7 +94,7 @@ const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgPr
             {hovered && (
                 <text
                     x={isOnset * stretchX + 2}
-                    y={(127 - note["midi.pitch"]) * stretchY - 13}
+                    y={(max - note["midi.pitch"]) * stretchY - 13}
                     fontSize={10}
                     fill="black"
                 >

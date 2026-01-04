@@ -2,7 +2,7 @@ import { Card } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { ArgumentationDialog } from "./ArgumentationDialog";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { Argumentation } from "doubtful/inverse";
+import { Argumentation } from "mpmify";
 
 interface ArgumentationCardProps {
     argumentation: Argumentation;
@@ -60,7 +60,7 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto, children
                 }}
             >
                 <div style={{ cursor: 'default' }}>
-                    {argumentation.conclusion.that.assigned || ''}
+                    {argumentation.conclusion.motivation || ''}
                 </div>
 
                 <div onClick={(e) => e.stopPropagation()}>

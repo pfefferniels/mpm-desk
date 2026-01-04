@@ -58,6 +58,17 @@ export const DatesRow = ({ stretchX, height, width, chords, frame, onClickTick, 
 
         dates.push((
             <>
+                {(hovered === date) && (
+                    <text
+                        key={`dateLabel_${date}`}
+                        x={date * stretchX}
+                        y={-5}
+                        fontSize={12}
+                        textAnchor="middle"
+                    >
+                        {date}
+                    </text>
+                )}
                 {(tickDate - date) !== 0 && (
                     <text
                         key={`diff_${date}`}

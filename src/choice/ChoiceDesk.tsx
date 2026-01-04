@@ -194,23 +194,23 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                 onClick={(e) => {
                     if (!e.shiftKey && !e.metaKey) {
                         const newChoice: NoteChoice = {
-                            noteids: [notes[0]['xml:id']],
+                            noteIDs: [notes[0]['xml:id']],
                         }
                         setCurrentChoice(newChoice)
                     }
-                    else if (currentChoice && e.metaKey && 'noteids' in currentChoice) {
+                    else if (currentChoice && e.metaKey && 'noteIDs' in currentChoice) {
                         const noteId = notes[0]['xml:id']
-                        if (currentChoice.noteids.includes(noteId)) {
-                            currentChoice.noteids = currentChoice.noteids.filter(id => id !== noteId)
+                        if (currentChoice.noteIDs.includes(noteId)) {
+                            currentChoice.noteIDs = currentChoice.noteIDs.filter(id => id !== noteId)
                         }
                         else {
-                            currentChoice.noteids.push(noteId)
+                            currentChoice.noteIDs.push(noteId)
                         }
                         setCurrentChoice({ ...currentChoice })
                     }
                     else if (currentChoice && e.shiftKey) {
-                        if ('noteids' in currentChoice) {
-                            const existingNotes = msm.allNotes.filter(note => currentChoice.noteids.includes(note['xml:id']))
+                        if ('noteIDs' in currentChoice) {
+                            const existingNotes = msm.allNotes.filter(note => currentChoice.noteIDs.includes(note['xml:id']))
                             const from = Math.min(...existingNotes.map(note => note.date))
                             const to = notes[0].date
                             setCurrentChoice({
@@ -231,14 +231,14 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
     // display pedals
     const groupedPedals = Object.groupBy(msm.pedals, pedal => pedal.type)
     const yStart = 70 * stretchY
-    Object.entries(groupedPedals).forEach(([, pedals], typeIndex) => {
+    Object.entries(groupedPedals).forEach(([type, pedals], typeIndex) => {
         const bySource = Object
             .entries(Object.groupBy(pedals, pedal => pedal.source || 'unknown'))
             .filter(([, pedals]) => pedals && pedals.length)
 
         const typeHeight = 20
         const sourceHeight = typeHeight / bySource.length
-        bySource.forEach(([, pedals], sourceIndex) => {
+        bySource.forEach(([source, pedals], sourceIndex) => {
             if (!pedals || !pedals.length) return
 
             for (const pedal of pedals) {
@@ -251,9 +251,11 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                 groups.push((
                     <rect
                         key={`pedal_${xmlId}`}
+                        data-type={type}
                         data-id={xmlId}
                         data-onset={onset}
                         data-duration={duration}
+                        data-soruce={source}
                         x={onset * stretchX}
                         y={yStart + typeIndex * typeHeight + sourceIndex * sourceHeight}
                         width={duration * stretchX}
@@ -281,8 +283,8 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                     >
                         Make Choice ({
                             currentChoice
-                                ? 'noteids' in currentChoice
-                                    ? currentChoice.noteids.length
+                                ? 'noteIDs' in currentChoice
+                                    ? currentChoice.noteIDs.length
                                     : `${currentChoice.from}-${currentChoice.to}`
                                 : 'Default'
                         })

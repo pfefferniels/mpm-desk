@@ -23,7 +23,6 @@
     "@types/jszip": "^3.4.0",
     "@types/uuid": "^10.0.0",
     "@types/verovio": "^5.0.0",
-    "doubtful": "file:../doubtful",
     "jszip": "^3.10.1",
     "midifile-ts": "^1.5.1",
     "mpmify": "file:../mpmify",

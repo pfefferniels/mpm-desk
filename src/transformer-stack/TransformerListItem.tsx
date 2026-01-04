@@ -70,7 +70,7 @@ export const TransformerListItem = ({ transformer, index, onRemove, onSelect, on
     const displayText = (
         isRangeBased(transformer.options) ? `${transformer.options.from}-${transformer.options.to}`
             : isDateBased(transformer.options) ? `@${transformer.options.date}`
-                : isNoteBased(transformer.options) ? `#${transformer.options.noteid}`
+                : isNoteBased(transformer.options) ? `#${transformer.options.noteIDs.join(',')}`
                     : ''
     )
 

@@ -22,7 +22,9 @@ export const VerticalScale = ({
                 x2={0}
                 y2={(127 - max) * stretchY}
                 stroke="black"
-                strokeWidth={1.5} />
+                strokeWidth={1.5}
+            />
+
             {ticks.map((val, i) => {
                 const y = (127 - val) * stretchY;
                 return (

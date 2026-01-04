@@ -39,7 +39,7 @@ export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement, activeEl
                     }}
                 />
             )}
-            <div style={{ width: '80vw', overflow: 'scroll' }}>
+            <div style={{ width: '100vw', overflow: 'scroll' }}>
                 <svg width={10000} height={400}>
                     {msm.pedals.map(p => {
                         

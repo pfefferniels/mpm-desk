@@ -7,7 +7,7 @@ import { Alert, AppBar, Button, Card, Collapse, IconButton, List, ListItemButton
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
 import { exportMPM } from '../../mpm-ts/lib';
-import { ExpandLess, ExpandMore, PauseCircle, PlayCircle, Save, UploadFile } from '@mui/icons-material';
+import { ExpandLess, ExpandMore, PauseCircle, PlayCircle, RestartAlt, Save, UploadFile } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
@@ -30,8 +30,8 @@ const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[]): str
             notesAffectedByChoice.push(...msm.allNotes.filter(n => n.date >= choice.from && n.date < choice.to))
         }
         // note
-        else if ('noteids' in choice) {
-            notesAffectedByChoice.push(...msm.allNotes.filter(n => choice.noteids.includes(n['xml:id'])))
+        else if ('noteIDs' in choice) {
+            notesAffectedByChoice.push(...msm.allNotes.filter(n => choice.noteIDs.includes(n['xml:id'])))
         }
         else {
             // default
@@ -140,7 +140,7 @@ export const App = () => {
 
         const request = {
             mpm: exportMPM(mpm),
-            mei: mei, 
+            mei: mei,
             ids: [],
         }
 
@@ -224,103 +224,186 @@ export const App = () => {
 
 
     return (
-        <div style={{ maxWidth: '100vw', overflowX: 'hidden' }}>
-            <AppBar position='static' color='transparent' elevation={1}>
-                <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
-                    <Ribbon title='File'>
-                        <Tooltip title='Import MEI/JSON file' arrow>
-                            <Button
-                                onClick={handleFileImport}
-                                startIcon={<UploadFile />}
-                            >
-                                Open
-                            </Button>
-                        </Tooltip>
+        <ZoomContext.Provider value={{
+            symbolic: {
+                stretchX: stretchX / 200
+            },
+            physical: {
+                stretchX: stretchX
+            }
+        }}>
+            <div style={{ maxWidth: '100vw' }}>
 
-                        <Tooltip title='Save Work' arrow>
-                            <IconButton
-                                disabled={transformers.length === 0 || !mei}
-                                onClick={async () => {
-                                    if (!mei) return
+                <AppBar position='static' color='transparent' elevation={1}>
+                    <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
+                        <Ribbon title='File'>
+                            <Tooltip title='Import MEI/JSON file' arrow>
+                                <Button
+                                    onClick={handleFileImport}
+                                    startIcon={<UploadFile />}
+                                >
+                                    Open
+                                </Button>
+                            </Tooltip>
 
-                                    const newMEI = injectChoices(
-                                        mei, msm, transformers
-                                            .filter((t): t is MakeChoice => t.name === 'MakeChoice')
-                                            .map(t => t.options)
-                                    )
+                            <Tooltip title='Save Work' arrow>
+                                <IconButton
+                                    disabled={transformers.length === 0 || !mei}
+                                    onClick={async () => {
+                                        if (!mei) return
 
-                                    const json = exportWork({
-                                        name: 'Reconstruction of ...',
-                                        mpm: 'performance.mpm',
-                                        mei: 'transcription.mei'
-                                    }, transformers)
+                                        const newMEI = injectChoices(
+                                            mei, msm, transformers
+                                                .filter((t): t is MakeChoice => t.name === 'MakeChoice')
+                                                .map(t => t.options)
+                                        )
 
-                                    const zip = new JSZip();
-                                    zip.file("performance.mpm", exportMPM(mpm));
-                                    zip.file("transcription.mei", newMEI);
-                                    zip.file("info.json", json);
+                                        const json = exportWork({
+                                            name: 'Reconstruction of ...',
+                                            mpm: 'performance.mpm',
+                                            mei: 'transcription.mei'
+                                        }, transformers)
 
-                                    zip.generateAsync({ type: "blob" })
-                                        .then((content) => {
-                                            downloadAsFile(content, 'export.zip', 'application/zip');
-                                        });
+                                        const zip = new JSZip();
+                                        zip.file("performance.mpm", exportMPM(mpm));
+                                        zip.file("transcription.mei", newMEI);
+                                        zip.file("info.json", json);
 
-                                }}
-                            >
-                                <Save />
-                            </IconButton>
-                        </Tooltip>
-                        <input
-                            type="file"
-                            id="fileInput"
-                            accept='application/xml,.mei,application/json'
-                            style={{ display: 'none' }}
-                            onChange={handleFileChange}
-                        />
-                    </Ribbon>
+                                        zip.generateAsync({ type: "blob" })
+                                            .then((content) => {
+                                                downloadAsFile(content, 'export.zip', 'application/zip');
+                                            });
 
-                    {(mpm.getInstructions().length > 0) && (
-                        <Ribbon title='Playback'>
-                            <IconButton
-                                onClick={() => isPlaying ? stopMPM() : playMPM()}
-                            >
-                                {isPlaying ? <PauseCircle /> : <PlayCircle />}
-                            </IconButton>
+                                    }}
+                                >
+                                    <Save />
+                                </IconButton>
+                            </Tooltip>
+                            <input
+                                type="file"
+                                id="fileInput"
+                                accept='application/xml,.mei,application/json'
+                                style={{ display: 'none' }}
+                                onChange={handleFileChange}
+                            />
                         </Ribbon>
-                    )}
 
-                    <Ribbon title='Scope'>
-                        <ToggleButtonGroup
-                            size='small'
-                            value={scope}
-                            exclusive
-                            onChange={(_, value) => setScope(value)}
-                        >
-                            <ToggleButton value='global'>
-                                Global
-                            </ToggleButton>
-                            {Array.from(msm.parts()).map(p => (
-                                <ToggleButton key={`button_${p}`} value={p}>
-                                    {p}
+                        {(mpm.getInstructions().length > 0) && (
+                            <Ribbon title='Playback'>
+                                <IconButton
+                                    onClick={() => isPlaying ? stopMPM() : playMPM()}
+                                >
+                                    {isPlaying ? <PauseCircle /> : <PlayCircle />}
+                                </IconButton>
+                            </Ribbon>
+                        )}
+
+                        <Ribbon title=' '>
+                            {transformers.length > 0 && (
+                                <>
+                                    <IconButton
+                                        onClick={() => reset(transformers)}
+                                    >
+                                        <RestartAlt />
+                                    </IconButton>
+                                </>
+                            )}
+                        </Ribbon>
+
+                        <Ribbon title='Scope'>
+                            <ToggleButtonGroup
+                                size='small'
+                                value={scope}
+                                exclusive
+                                onChange={(_, value) => setScope(value)}
+                            >
+                                <ToggleButton value='global'>
+                                    Global
                                 </ToggleButton>
-                            ))}
-                        </ToggleButtonGroup>
-                    </Ribbon>
+                                {Array.from(msm.parts()).map(p => (
+                                    <ToggleButton key={`button_${p}`} value={p}>
+                                        {p}
+                                    </ToggleButton>
+                                ))}
+                            </ToggleButtonGroup>
+                        </Ribbon>
 
-                    <Ribbon title='Zoom'>
-                        <ZoomControls
-                            stretchX={stretchX}
-                            setStretchX={setStretchX}
-                            rangeX={[1, 60]}
-                        />
-                    </Ribbon>
-                </Stack>
-            </AppBar>
+                        <Ribbon title='Zoom'>
+                            <ZoomControls
+                                stretchX={stretchX}
+                                setStretchX={setStretchX}
+                                rangeX={[1, 60]}
+                            />
+                        </Ribbon>
+                    </Stack>
+                </AppBar>
 
-            <Stack direction='row'>
+                <NotesProvider notes={msm.allNotes}>
+                    <DeskComponent
+                        appBarRef={appBarRef}
+                        msm={msm}
+                        mpm={mpm}
+                        setMSM={setMSM}
+                        setMPM={setMPM}
+                        addTransformer={(transformer: Transformer) => {
+                            const newTransformers = [...transformers, transformer].sort(compareTransformers)
+                            const messages = validate(newTransformers)
+                            if (messages.length) {
+                                setMessage(messages.map(m => m.message).join('\n'))
+                                return
+                            }
+
+                            transformer.argumentation = {
+                                note: '',
+                                id: `argumentation-${v4().slice(0, 8)}`,
+                                conclusion: {
+                                    that: {
+                                        subject: '[F31 Performance]',
+                                        assigned: '',
+                                        type: 'crm:P17_was_motivated_by',
+                                        id: `act-${v4().slice(0, 8)}`,
+                                    },
+                                    certainty: 'likely',
+                                    id: `belief-${v4().slice(0, 8)}`,
+                                    type: 'belief'
+                                },
+                                type: 'simpleArgumentation'
+                            }
+
+                            transformer.run(msm, mpm)
+                            setTransformers(newTransformers)
+                            setMSM(msm.clone())
+                            setMPM(mpm.clone())
+                        }}
+                        activeElements={activeTransformer?.created || []}
+                        setActiveElement={(element) => {
+                            if (!activeTransformer) return
+                            const correspTransformer = transformers.find(t => t.created.includes(element))
+                            if (correspTransformer) {
+                                setActiveTransformer(correspTransformer);
+                            }
+                        }}
+                        part={scope}
+                    />
+                </NotesProvider>
+
+                <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
+                    <TransformerStack
+                        transformers={transformers}
+                        setTransformers={setTransformers}
+                        msm={msm}
+                        onSelect={transformer => setActiveTransformer(transformer)}
+                        onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
+                        activeTransformer={activeTransformer}
+                    />
+                </div>
+
                 <Card
-                    elevation={1}
+                    elevation={5}
                     sx={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
                         backdropFilter: 'blur(17px)',
                         background: 'rgba(255, 255, 255, 0.6)',
                         marginTop: '1rem',
@@ -389,89 +472,18 @@ export const App = () => {
                                 })}
                     </List>
                 </Card>
-                <NotesProvider notes={msm.allNotes}>
-                    <ZoomContext.Provider value={{
-                        symbolic: {
-                            stretchX: stretchX / 200
-                        },
-                        physical: {
-                            stretchX: stretchX
-                        }
-                    }}>
-                        <DeskComponent
-                            appBarRef={appBarRef}
-                            msm={msm}
-                            mpm={mpm}
-                            setMSM={setMSM}
-                            setMPM={setMPM}
-                            addTransformer={(transformer: Transformer) => {
-                                const newTransformers = [...transformers, transformer].sort(compareTransformers)
-                                const messages = validate(newTransformers)
-                                if (messages.length) {
-                                    setMessage(messages.map(m => m.message).join('\n'))
-                                    return
-                                }
 
-                                transformer.argumentation = {
-                                    note: '',
-                                    id: `argumentation-${v4().slice(0, 8)}`,
-                                    conclusion: {
-                                        that: {
-                                            subject: '[F31 Performance]',
-                                            assigned: '',
-                                            type: 'crm:P17_was_motivated_by',
-                                            id: `act-${v4().slice(0, 8)}`,
-                                        },
-                                        certainty: 'likely',
-                                        id: `belief-${v4().slice(0, 8)}`,
-                                        type: 'belief'
-                                    },
-                                    type: 'simpleArgumentation'
-                                }
-
-                                transformer.run(msm, mpm)
-                                setTransformers(newTransformers)
-                                setMSM(msm.clone())
-                                setMPM(mpm.clone())
-                            }}
-                            activeElements={activeTransformer?.created || []}
-                            setActiveElement={(element) => {
-                                if (!activeTransformer) return
-                                const correspTransformer = transformers.find(t => t.created.includes(element))
-                                if (correspTransformer) {
-                                    setActiveTransformer(correspTransformer);
-                                }
-                            }}
-                            part={scope}
-                        />
-                    </ZoomContext.Provider>
-                </NotesProvider>
-            </Stack>
-
-
-            {transformers.length > 0 && (
-                <div style={{ position: 'absolute', top: '2rem', right: '2rem' }}>
-                    <TransformerStack
-                        transformers={transformers}
-                        setTransformers={setTransformers}
-                        onSelect={transformer => setActiveTransformer(transformer)}
-                        onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
-                        onReset={() => reset(transformers)}
-                        activeTransformer={activeTransformer}
-                    />
-                </div>
-            )}
-
-            <Snackbar open={message !== undefined} autoHideDuration={4000} onClose={() => setMessage(undefined)}>
-                <Alert
-                    onClose={() => setMessage(undefined)}
-                    severity="error"
-                    variant="filled"
-                    sx={{ width: '40%' }}
-                >
-                    {message}
-                </Alert>
-            </Snackbar>
-        </div>
+                <Snackbar open={message !== undefined} autoHideDuration={4000} onClose={() => setMessage(undefined)}>
+                    <Alert
+                        onClose={() => setMessage(undefined)}
+                        severity="error"
+                        variant="filled"
+                        sx={{ width: '40%' }}
+                    >
+                        {message}
+                    </Alert>
+                </Snackbar>
+            </div>
+        </ZoomContext.Provider>
     );
 };

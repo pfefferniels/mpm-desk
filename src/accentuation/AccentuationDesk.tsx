@@ -42,7 +42,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
+export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef, setActiveElement, activeElements }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -241,15 +241,20 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
                             stretchY={stretchY}
                             getScreenY={getScreenY}
                             denominator={msm.timeSignature?.denominator || 4}
-                            onClick={() => {
-                                if (selectedPatterns.includes(pattern)) {
-                                    setSelectedPatterns(selectedPatterns.filter(p => p !== pattern))
+                            onClick={(e) => {
+                                if (e.shiftKey) {
+                                    if (selectedPatterns.includes(pattern)) {
+                                        setSelectedPatterns(selectedPatterns.filter(p => p !== pattern))
+                                    }
+                                    else {
+                                        setSelectedPatterns([...selectedPatterns, pattern])
+                                    }
                                 }
                                 else {
-                                    setSelectedPatterns([...selectedPatterns, pattern])
+                                    setActiveElement(pattern["xml:id"])
                                 }
                             }}
-                            selected={selectedPatterns.includes(pattern)}
+                            selected={selectedPatterns.includes(pattern) || activeElements.includes(pattern["xml:id"])}
                         />
                     )
                 })}

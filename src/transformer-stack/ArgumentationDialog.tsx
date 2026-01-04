@@ -1,6 +1,5 @@
 import { Button, Dialog, DialogActions, DialogContent, MenuItem, Select, TextField } from "@mui/material";
-import { Argumentation, Certainty, certainties } from "doubtful/inverse";
-import { } from "doubtful";
+import { ActivityMotivation, activityMotivations, Argumentation, beliefValues, Certainty } from "mpmify";
 import { useEffect, useState } from "react";
 
 interface ArgumentationDialogProps {
@@ -12,14 +11,16 @@ interface ArgumentationDialogProps {
 
 export const ArgumentationDialog = ({ open, onClose, onChange, argumentation }: ArgumentationDialogProps) => {
     const [id, setID] = useState(argumentation.id);
-    const [description, setDescription] = useState(argumentation.conclusion.that.assigned);
+    const [description, setDescription] = useState(argumentation.conclusion.note || '');
+    const [motivation, setMotivation] = useState(argumentation.conclusion.motivation || '');
     const [certainty, setCertainty] = useState(argumentation.conclusion.certainty);
     const [note, setNote] = useState(argumentation.note);
 
     useEffect(() => {
         setID(argumentation.id);
         setNote(argumentation.note);
-        setDescription(argumentation.conclusion.that.assigned);
+        setDescription(argumentation.conclusion.note || '');
+        setMotivation(argumentation.conclusion.motivation || '');
         setCertainty(argumentation.conclusion.certainty);
     }, [argumentation]);
 
@@ -33,6 +34,20 @@ export const ArgumentationDialog = ({ open, onClose, onChange, argumentation }: 
                     fullWidth
                     margin="normal"
                 />
+                <Select
+                    label="Motivation"
+                    value={motivation || ''}
+                    onChange={(e) => setMotivation(e.target.value as ActivityMotivation)}
+                    fullWidth
+                >
+                    {activityMotivations.map(value => { 
+                        return (
+                            <MenuItem key={`motivation_${value}`} value={value}>
+                                {value}
+                            </MenuItem>
+                        )
+                    })}
+                </Select>
                 <TextField
                     label="Musical Gesture"
                     placeholder={`Verbally describe the musical intention of the set of instructions, i.e. the underlying musical gesture.`}
@@ -49,7 +64,7 @@ export const ArgumentationDialog = ({ open, onClose, onChange, argumentation }: 
                     onChange={(e) => setCertainty(e.target.value as Certainty)}
                     fullWidth
                 >
-                    {certainties.map(value => {
+                    {beliefValues.map(value => {
                         return (
                             <MenuItem key={`belief_${value}`} value={value}>
                                 {value}
@@ -81,7 +96,8 @@ export const ArgumentationDialog = ({ open, onClose, onChange, argumentation }: 
                         argumentation.note = note;
 
                         argumentation.conclusion.certainty = certainty
-                        argumentation.conclusion.that.assigned = description
+                        argumentation.conclusion.note = description
+                        argumentation.conclusion.motivation = motivation
 
                         onChange();
                         onClose();

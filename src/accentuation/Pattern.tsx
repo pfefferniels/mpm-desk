@@ -27,7 +27,7 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
     }
 
     return (
-        <g className="pattern" onClick={onClick}>
+        <g className="pattern" data-id={pattern["xml:id"]} data-ref={pattern["name.ref"]} onClick={onClick}>
             {pattern["name.ref"] === 'neutral' && (
                 <line
                     x1={pattern.date * stretchX}

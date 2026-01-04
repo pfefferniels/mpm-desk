@@ -11,7 +11,7 @@ export const MetadataDesk = ({ mpm, setMPM, appBarRef }: ViewProps) => {
     return (
         <div>
             {createPortal((
-                <Ribbon title='Metadata Actions'>
+                <Ribbon title='Metadata'>
                     <Stack direction='row' spacing={1}>
                         <Button
                             startIcon={<Add />}
