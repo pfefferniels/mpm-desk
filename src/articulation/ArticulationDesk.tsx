@@ -11,6 +11,7 @@ import { Articulation, ArticulationDef } from "../../../mpm-ts/lib"
 import { v4 } from "uuid"
 import { UnitDialog } from "./UnitDialog"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
+import { useSelection } from "../hooks/SelectionProvider"
 import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
 import { Add } from "@mui/icons-material"
@@ -112,7 +113,8 @@ export type UnitWithDef = {
     def?: ArticulationDef
 }
 
-export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef, activeElements, setActiveElement }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
+export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
+    const { activeElements, setActiveElement } = useSelection();
     const [currentUnit, setCurrentUnit] = useState<UnitWithDef>()
     const [unitDialogOpen, setUnitDialogOpen] = useState(false)
 

@@ -12,6 +12,7 @@ import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
+import { useSelection } from "../hooks/SelectionProvider";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
 import { Add, Clear } from "@mui/icons-material";
@@ -44,9 +45,10 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm, mpm, addTransformer, activeElements, setActiveElement, appBarRef }: ScopedTransformerViewProps<
+export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<
     InsertDynamicsInstructions | Modify
 >) => {
+    const { activeElements, setActiveElement } = useSelection();
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()

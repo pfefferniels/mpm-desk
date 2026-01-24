@@ -7,11 +7,13 @@ import { RubatoInstruction } from "./RubatoInstruction"
 import { DatesRow, Frame } from "./DatesRow"
 import { Rubato } from "../../../mpm-ts/lib"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
+import { useSelection } from "../hooks/SelectionProvider"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../Ribbon"
 import { Add } from "@mui/icons-material"
 
-export const RubatoDesk = ({ msm, mpm, addTransformer, part, setActiveElement, activeElements, appBarRef }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
+export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
+    const { activeElements, setActiveElement } = useSelection();
     const [frame, setFrame] = useState<Frame>()
     const stretchX = useSymbolicZoom()
 

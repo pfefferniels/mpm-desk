@@ -12,6 +12,7 @@ import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
 import { Tempo } from "../../../mpm-ts/lib"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
+import { useSelection } from "../hooks/SelectionProvider"
 
 export type TempoPoint = {
     date: number
@@ -26,7 +27,8 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, setActiveElement }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
+export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
+    const { setActiveElement } = useSelection();
     const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
     const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
     const [segments, setSegments] = useState<TempoSegment[]>([])

@@ -16,10 +16,13 @@ import { NotesProvider } from './hooks/NotesProvider';
 import { Ribbon } from './Ribbon';
 import { ZoomControls } from './ZoomControls';
 import { ZoomContext } from './hooks/ZoomProvider';
+import { SelectionProvider } from './hooks/SelectionProvider';
 import { downloadAsFile } from './utils/utils';
 import JSZip from 'jszip'
+import { SvgDndProvider } from './transformer-stack/svg-dnd';
+import { ExportPNG } from './ExportPng';
 
-const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[]): string => {
+const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[], removeRecordings = false): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
 
     for (const choice of choices) {
@@ -65,10 +68,11 @@ const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[]): str
         }
     }
 
-
-    const recordings = meiDoc.querySelectorAll("recording")
-    for (const recording of recordings) {
-        recording.remove()
+    if (removeRecordings) {
+        const recordings = meiDoc.querySelectorAll("recording")
+        for (const recording of recordings) {
+            recording.remove()
+        }
     }
 
     return new XMLSerializer().serializeToString(meiDoc)
@@ -233,7 +237,6 @@ export const App = () => {
             }
         }}>
             <div style={{ maxWidth: '100vw' }}>
-
                 <AppBar position='static' color='transparent' elevation={1}>
                     <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
                         <Ribbon title='File'>
@@ -279,6 +282,7 @@ export const App = () => {
                                     <Save />
                                 </IconButton>
                             </Tooltip>
+
                             <input
                                 type="file"
                                 id="fileInput"
@@ -286,6 +290,8 @@ export const App = () => {
                                 style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
+
+                            <ExportPNG transformers={transformers} msm={msm} />
                         </Ribbon>
 
                         {(mpm.getInstructions().length > 0) && (
@@ -338,65 +344,57 @@ export const App = () => {
                     </Stack>
                 </AppBar>
 
-                <NotesProvider notes={msm.allNotes}>
-                    <DeskComponent
-                        appBarRef={appBarRef}
-                        msm={msm}
-                        mpm={mpm}
-                        setMSM={setMSM}
-                        setMPM={setMPM}
-                        addTransformer={(transformer: Transformer) => {
-                            const newTransformers = [...transformers, transformer].sort(compareTransformers)
-                            const messages = validate(newTransformers)
-                            if (messages.length) {
-                                setMessage(messages.map(m => m.message).join('\n'))
-                                return
-                            }
+                <SelectionProvider
+                    activeTransformer={activeTransformer}
+                    setActiveTransformer={setActiveTransformer}
+                    transformers={transformers}
+                >
+                    <NotesProvider notes={msm.allNotes}>
+                        <DeskComponent
+                            appBarRef={appBarRef}
+                            msm={msm}
+                            mpm={mpm}
+                            setMSM={setMSM}
+                            setMPM={setMPM}
+                            addTransformer={(transformer: Transformer) => {
+                                const newTransformers = [...transformers, transformer].sort(compareTransformers)
+                                const messages = validate(newTransformers)
+                                if (messages.length) {
+                                    setMessage(messages.map(m => m.message).join('\n'))
+                                    return
+                                }
 
-                            transformer.argumentation = {
-                                note: '',
-                                id: `argumentation-${v4().slice(0, 8)}`,
-                                conclusion: {
-                                    that: {
-                                        subject: '[F31 Performance]',
-                                        assigned: '',
-                                        type: 'crm:P17_was_motivated_by',
-                                        id: `act-${v4().slice(0, 8)}`,
+                                transformer.argumentation = {
+                                    note: '',
+                                    id: `argumentation-${v4().slice(0, 8)}`,
+                                    conclusion: {
+                                        certainty: 'plausible',
+                                        id: `belief-${v4().slice(0, 8)}`,
+                                        motivation: 'unknown'
                                     },
-                                    certainty: 'likely',
-                                    id: `belief-${v4().slice(0, 8)}`,
-                                    type: 'belief'
-                                },
-                                type: 'simpleArgumentation'
-                            }
+                                    type: 'simpleArgumentation'
+                                }
 
-                            transformer.run(msm, mpm)
-                            setTransformers(newTransformers)
-                            setMSM(msm.clone())
-                            setMPM(mpm.clone())
-                        }}
-                        activeElements={activeTransformer?.created || []}
-                        setActiveElement={(element) => {
-                            if (!activeTransformer) return
-                            const correspTransformer = transformers.find(t => t.created.includes(element))
-                            if (correspTransformer) {
-                                setActiveTransformer(correspTransformer);
-                            }
-                        }}
-                        part={scope}
-                    />
-                </NotesProvider>
+                                transformer.run(msm, mpm)
+                                setTransformers(newTransformers)
+                                setMSM(msm.clone())
+                                setMPM(mpm.clone())
+                            }}
+                            part={scope}
+                        />
+                    </NotesProvider>
 
-                <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
-                    <TransformerStack
-                        transformers={transformers}
-                        setTransformers={setTransformers}
-                        msm={msm}
-                        onSelect={transformer => setActiveTransformer(transformer)}
-                        onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
-                        activeTransformer={activeTransformer}
-                    />
-                </div>
+                    <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
+                        <SvgDndProvider>
+                            <TransformerStack
+                                transformers={transformers}
+                                setTransformers={setTransformers}
+                                msm={msm}
+                                onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
+                            />
+                        </SvgDndProvider>
+                    </div>
+                </SelectionProvider>
 
                 <Card
                     elevation={5}

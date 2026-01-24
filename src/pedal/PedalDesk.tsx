@@ -4,12 +4,14 @@ import { Movement } from "../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
 import { useState } from "react"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
+import { useSelection } from "../hooks/SelectionProvider"
 import { PedalDialog } from "./PedalDialog"
 import { usePiano } from "react-pianosound"
 import { asMIDI } from "../utils/utils"
 import { MsmPedal } from "mpmify/lib/msm"
 
-export const PedalDesk = ({ msm, mpm, addTransformer, setActiveElement, activeElements }: ScopedTransformerViewProps<InsertPedal>) => {
+export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
+    const { activeElements, setActiveElement } = useSelection();
     const [currentPedal, setCurrentPedal] = useState<MsmPedal>()
 
     const stretchX = useSymbolicZoom()

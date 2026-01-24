@@ -15,6 +15,7 @@ import { CellDrawer } from "./CellDrawer";
 import { NameDialog } from "./NameDialog";
 import { Preview } from "./Preview";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
+import { useSelection } from "../hooks/SelectionProvider";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
 import { v4 } from "uuid";
@@ -42,7 +43,8 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef, setActiveElement, activeElements }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
+export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
+    const { activeElements, setActiveElement } = useSelection();
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
