@@ -1,7 +1,9 @@
 import { calculateRubatoOnDate } from "mpmify"
+import { ChordMap, MsmNote } from "mpmify/lib/msm"
 import { Rubato } from "../../../mpm-ts/lib"
 import { MouseEventHandler, useState } from "react"
-import * as Tone from "tone"
+import { MidiFile } from "midifile-ts"
+import { asMIDI } from "../utils/utils"
 
 interface RubatoInstructionProps {
     rubato: Rubato
@@ -10,29 +12,59 @@ interface RubatoInstructionProps {
     height: number
     onClick: MouseEventHandler<SVGRectElement>
     active: boolean
+    chords: ChordMap
+    play: (midi: MidiFile) => void
+    stop: () => void
 }
 
-export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretchX, height }: RubatoInstructionProps) => {
+const getHighestPitchBeforeDate = (chords: ChordMap, date: number): number => {
+    const chordDates = Array.from(chords.keys()).filter((d: number) => d <= date).sort((a: number, b: number) => b - a)
+    if (chordDates.length === 0) return 60 // C4
+
+    const lastChord = chords.get(chordDates[0])!
+    const highestNote = lastChord.reduce((max: MsmNote, note: MsmNote) =>
+        note['midi.pitch'] > max['midi.pitch'] ? note : max
+    )
+    return highestNote['midi.pitch']
+}
+
+export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretchX, height, chords, play, stop }: RubatoInstructionProps) => {
     const [hovered, setHovered] = useState(false)
     const lines: JSX.Element[] = []
 
     const handleClick = () => {
-        const transport = Tone.getTransport()
-        transport.stop()
-        transport.position = 0
-        transport.cancel()
+        const n = 4
+        const gap = 0.02
+        const notes = []
 
-        const synth = new Tone.Synth().toDestination();
-
-        const n = 8
         for (let i = 0; i < n; i++) {
-            const date = rubato.date + rubato.frameLength / n * i
-            const tickDate = calculateRubatoOnDate(date, rubato) - rubato.date
-            transport.schedule((time) => {
-                synth.triggerAttackRelease("G4", "8n", time);
-            }, tickDate / 720)
+            const symbolicDate = rubato.date + rubato.frameLength / n * i
+            const tickDate = calculateRubatoOnDate(symbolicDate, rubato) - rubato.date
+            const nextSymbolicDate = rubato.date + rubato.frameLength / n * (i + 1)
+            const nextTickDate = calculateRubatoOnDate(nextSymbolicDate, rubato) - rubato.date
+            const duration = (nextTickDate - tickDate) / 720 - gap
+            const pitch = getHighestPitchBeforeDate(chords, symbolicDate)
+
+            notes.push({
+                'xml:id': `rubato_tick_${i}`,
+                'part': 1,
+                'date': symbolicDate,
+                'duration': 180,
+                'pitchname': '',
+                'accidentals': 0,
+                'octave': 0,
+                'midi.onset': tickDate / 720,
+                'midi.duration': Math.max(duration, 0.05),
+                'midi.pitch': pitch,
+                'midi.velocity': 80
+            } as MsmNote)
         }
-        transport.start()
+
+        const midi = asMIDI(notes)
+        if (midi) {
+            stop()
+            play(midi)
+        }
     }
 
     onsetDates.forEach((date, i) => {

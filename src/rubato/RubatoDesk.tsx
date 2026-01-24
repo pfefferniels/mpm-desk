@@ -11,9 +11,11 @@ import { useSelection } from "../hooks/SelectionProvider"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../Ribbon"
 import { Add } from "@mui/icons-material"
+import { usePiano } from "react-pianosound"
 
 export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
     const { activeElements, setActiveElement } = useSelection();
+    const { play, stop } = usePiano()
     const [frame, setFrame] = useState<Frame>()
     const stretchX = useSymbolicZoom()
 
@@ -52,6 +54,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
     }
 
     const allRubatos = mpm.getInstructions<Rubato>('rubato', part)
+    const chords = msm.asChords(part)
 
     const rubatoElements = allRubatos.map(rubato => {
         const notes = msm.notesInPart(part)
@@ -69,6 +72,9 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
                 onsetDates={Array.from(affected)}
                 stretchX={stretchX}
                 height={height * stretchY}
+                chords={chords}
+                play={play}
+                stop={stop}
                 onClick={() => {
                     setActiveElement(rubato["xml:id"])
                 }}
@@ -128,7 +134,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
                         height={height * stretchY}
                         stretchX={stretchX}
                         width={svgWidth}
-                        chords={msm.asChords(part)}
+                        chords={chords}
                         onClickTick={addMarker}
                         instructions={rubatoElements}
                     />
