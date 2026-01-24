@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { WedgeModel } from "./WedgeModel";
 import { ArgumentationDialog } from "./ArgumentationDialog";
 import { packCirclesInCircle } from "../utils/packInCircles";
@@ -6,10 +6,13 @@ import { zip } from "../utils/zip";
 import { useDraggable, useDropTarget } from "./svg-dnd";
 import { Argumentation, Transformer } from "mpmify";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
+import { useSelection } from "../hooks/SelectionProvider";
 
 const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transformer: Transformer }) => {
     const { dragPoint, onPointerDown, draggableProps } = useDraggable({ id: transformer.id, type: "circle" });
+    const { setActiveTransformer } = useSelection();
     const [hovered, setHovered] = useState(false);
+    const didDragRef = useRef(false);
 
     const text = transformer.name
 
@@ -24,7 +27,18 @@ const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transf
                 onMouseOver={() => setHovered(true)}
                 onMouseOut={() => setHovered(false)}
                 {...draggableProps}
-                onPointerDown={e => onPointerDown(e, dragPoint ?? { x, y })}
+                onPointerDown={e => {
+                    didDragRef.current = false;
+                    onPointerDown(e, dragPoint ?? { x, y });
+                }}
+                onPointerMove={() => {
+                    didDragRef.current = true;
+                }}
+                onClick={() => {
+                    if (!didDragRef.current) {
+                        setActiveTransformer(transformer);
+                    }
+                }}
             />
 
             {hovered && (

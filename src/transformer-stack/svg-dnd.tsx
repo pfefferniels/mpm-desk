@@ -296,7 +296,7 @@ export function useDraggable(item: DragItem) {
 
     const draggableProps = useMemo(
         () => ({
-            style: { cursor: isDragging ? "grabbing" : "grab" } as React.CSSProperties,
+            style: { cursor: isDragging ? "grabbing" : undefined } as React.CSSProperties,
         }),
         [isDragging]
     );
