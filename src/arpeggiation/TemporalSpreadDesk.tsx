@@ -87,7 +87,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
         <div>
             {appBarRef && (
                 <>
-                    {createPortal((
+                    {appBarRef && createPortal((
                         <>
                             <Ribbon title="Temporal Spread">
                                 <Button
@@ -114,7 +114,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                                 />
                             </Ribbon>
                         </>
-                    ), appBarRef.current || document.body)}
+                    ), appBarRef?.current ?? document.body)}
                 </>
             )}
 

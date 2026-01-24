@@ -274,7 +274,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
 
     return (
         <>
-            {createPortal((
+            {appBarRef && createPortal((
                 <Ribbon title="Range Choice">
                     <Button
                         size='small'
@@ -300,7 +300,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                         Clear Choice
                     </Button>
                 </Ribbon>
-            ), appBarRef.current || document.body)}
+            ), appBarRef?.current ?? document.body)}
 
             <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
                 <svg width={10000} height={900}>

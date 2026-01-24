@@ -84,7 +84,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
                 rStretch={2}
             />
 
-            {createPortal((
+            {appBarRef && createPortal((
                 <Ribbon title='Style'>
                     <Button
                         variant='contained'
@@ -94,7 +94,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
                         Stylize Ornaments
                     </Button>
                 </Ribbon>
-            ), appBarRef.current || document.body)}
+            ), appBarRef?.current ?? document.body)}
         </div>
     )
 }

@@ -78,7 +78,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
 
     return (
         <div style={{ width: '100vw', overflow: 'scroll' }}>
-            {createPortal((
+            {appBarRef && createPortal((
                 <Ribbon title='Rubato'>
                     <Button
                         size='small'
@@ -112,7 +112,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
                         Clear Frame
                     </Button>
                 </Ribbon>
-            ), appBarRef.current || document.body)}
+            ), appBarRef?.current ?? document.body)}
 
             <h3 style={{ position: 'sticky', left: 0 }}>
                 Tick Dates

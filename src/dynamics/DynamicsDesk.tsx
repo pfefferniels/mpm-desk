@@ -289,7 +289,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         <div style={{ height: '400', overflow: 'scroll' }}>
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1} sx={{ position: 'sticky', left: 0 }}>
-                {createPortal((
+                {appBarRef && createPortal((
                     <>
                         <Ribbon title='Mode'>
                             <ToggleButtonGroup
@@ -354,7 +354,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                             </Ribbon>
                         )}
                     </>
-                ), appBarRef.current || document.body)}
+                ), appBarRef?.current ?? document.body)}
             </Stack>
 
             <svg

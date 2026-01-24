@@ -231,7 +231,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
 
     return (
         <div>
-            {createPortal((
+            {appBarRef && createPortal((
                 <Ribbon title='Dynamics Gradient'>
                     <FormControlLabel
                         control={
@@ -253,7 +253,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                         Insert Default
                     </Button>
                 </Ribbon>
-            ), appBarRef.current || document.body)}
+            ), appBarRef?.current ?? document.body)}
 
             <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
                 <svg height={height} width={100} style={{ position: 'absolute', top: 0, left: 0 }}>

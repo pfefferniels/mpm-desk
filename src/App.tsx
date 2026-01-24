@@ -17,6 +17,7 @@ import { Ribbon } from './Ribbon';
 import { ZoomControls } from './ZoomControls';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';
+import { useMode } from './hooks/ModeProvider';
 import { downloadAsFile } from './utils/utils';
 import JSZip from 'jszip'
 import { SvgDndProvider } from './transformer-stack/svg-dnd';
@@ -80,6 +81,7 @@ const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[], remo
 
 export const App = () => {
     const { play, stop } = usePiano()
+    const { isEditorMode } = useMode();
 
     const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
 
@@ -245,9 +247,42 @@ export const App = () => {
     }, [activeTransformer])
 
     useEffect(() => {
-        // prevent the user from loosing unsaved changes
-        window.onbeforeunload = () => ''
-    }, []);
+        // prevent the user from loosing unsaved changes (editor mode only)
+        if (isEditorMode) {
+            window.onbeforeunload = () => ''
+        }
+    }, [isEditorMode]);
+
+    useEffect(() => {
+        // auto-load files in view mode
+        if (isEditorMode) return;
+
+        const loadFiles = async () => {
+            try {
+                const meiResponse = await fetch('/transcription.mei');
+                if (meiResponse.ok) {
+                    const meiContent = await meiResponse.text();
+                    setMEI(meiContent);
+                    setMSM(await asMSM(meiContent));
+                    setInitialMSM(await asMSM(meiContent));
+                }
+
+                const jsonResponse = await fetch('/info.json');
+                if (jsonResponse.ok) {
+                    const jsonContent = await jsonResponse.text();
+                    const loadedTransformers = importWork(jsonContent);
+                    const messages = validate(loadedTransformers);
+                    if (messages.length === 0) {
+                        setTransformers(loadedTransformers.sort(compareTransformers));
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load files:', e);
+            }
+        };
+
+        loadFiles();
+    }, [isEditorMode]);
 
     const DeskComponent = correspondingDesks
         .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk || MetadataDesk;
@@ -265,6 +300,8 @@ export const App = () => {
             <div style={{ maxWidth: '100vw' }}>
                 <AppBar position='static' color='transparent' elevation={1}>
                     <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
+                        {isEditorMode ? (
+                        <>
                         <Ribbon title='File'>
                             <Tooltip title='Import MEI/JSON file' arrow>
                                 <Button
@@ -332,13 +369,9 @@ export const App = () => {
 
                         <Ribbon title=' '>
                             {transformers.length > 0 && (
-                                <>
-                                    <IconButton
-                                        onClick={() => reset(transformers)}
-                                    >
-                                        <RestartAlt />
-                                    </IconButton>
-                                </>
+                                <IconButton onClick={() => reset(transformers)}>
+                                    <RestartAlt />
+                                </IconButton>
                             )}
                         </Ribbon>
 
@@ -367,6 +400,51 @@ export const App = () => {
                                 rangeX={[1, 60]}
                             />
                         </Ribbon>
+                        </>
+                        ) : (
+                        <>
+                            <Ribbon title='Zoom'>
+                                <ZoomControls
+                                    stretchX={stretchX}
+                                    setStretchX={setStretchX}
+                                    rangeX={[1, 60]}
+                                />
+                            </Ribbon>
+
+                            <Tooltip title='Download ZIP' arrow>
+                                <IconButton
+                                    disabled={!mei}
+                                    onClick={async () => {
+                                        if (!mei) return
+
+                                        const newMEI = injectChoices(
+                                            mei, msm, transformers
+                                                .filter((t): t is MakeChoice => t.name === 'MakeChoice')
+                                                .map(t => t.options)
+                                        )
+
+                                        const json = exportWork({
+                                            name: 'Reconstruction of ...',
+                                            mpm: 'performance.mpm',
+                                            mei: 'transcription.mei'
+                                        }, transformers)
+
+                                        const zip = new JSZip();
+                                        zip.file("performance.mpm", exportMPM(mpm));
+                                        zip.file("transcription.mei", newMEI);
+                                        zip.file("info.json", json);
+
+                                        zip.generateAsync({ type: "blob" })
+                                            .then((content) => {
+                                                downloadAsFile(content, 'export.zip', 'application/zip');
+                                            });
+                                    }}
+                                >
+                                    <Save />
+                                </IconButton>
+                            </Tooltip>
+                        </>
+                        )}
                     </Stack>
                 </AppBar>
 
@@ -377,7 +455,7 @@ export const App = () => {
                 >
                     <NotesProvider notes={msm.allNotes}>
                         <DeskComponent
-                            appBarRef={appBarRef}
+                            appBarRef={isEditorMode ? appBarRef : null}
                             msm={msm}
                             mpm={mpm}
                             setMSM={setMSM}

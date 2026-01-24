@@ -187,7 +187,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
                         valueLabelDisplay="auto"
                     />
                 </Box>
-                {createPortal((
+                {appBarRef && createPortal((
                     <>
                         <Ribbon title='Metrical Accentuation'>
                             {selectedPatterns && (
@@ -210,7 +210,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
                             )}
                         </Ribbon>
                     </>
-                ), appBarRef.current || document.body)}
+                ), appBarRef?.current ?? document.body)}
             </Stack>
 
             <svg

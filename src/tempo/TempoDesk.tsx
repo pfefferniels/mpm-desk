@@ -111,7 +111,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
     return (
         <div>
             <Stack direction='row' spacing={1}>
-                {createPortal((
+                {appBarRef && createPortal((
                     <>
                         <Ribbon title='Tempo'>
                             <Button
@@ -190,7 +190,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
                             </Button>
                         </Ribbon>
                     </>
-                ), appBarRef.current || document.body)}
+                ), appBarRef?.current ?? document.body)}
             </Stack>
 
             <div style={{ position: 'relative' }}>

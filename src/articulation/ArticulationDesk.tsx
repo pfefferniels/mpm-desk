@@ -195,7 +195,7 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
 
     return (
         <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
-            {createPortal((
+            {appBarRef && createPortal((
                 <Ribbon title="Articulation">
                     {currentUnit && (
                         <>
@@ -227,7 +227,7 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
                         Insert Default
                     </Button>
                 </Ribbon>
-            ), appBarRef.current || document.body)}
+            ), appBarRef?.current ?? document.body)}
 
             <svg width={10000} height={900}>
                 {articulatedNotes}

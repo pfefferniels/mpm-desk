@@ -10,7 +10,7 @@ import { Ribbon } from "../Ribbon";
 export const MetadataDesk = ({ mpm, setMPM, appBarRef }: ViewProps) => {
     return (
         <div>
-            {createPortal((
+            {appBarRef && createPortal((
                 <Ribbon title='Metadata'>
                     <Stack direction='row' spacing={1}>
                         <Button
@@ -53,7 +53,7 @@ export const MetadataDesk = ({ mpm, setMPM, appBarRef }: ViewProps) => {
                         </Button>
                     </Stack>
                 </Ribbon>
-            ), appBarRef.current || document.body)}
+            ), appBarRef?.current ?? document.body)}
 
             <Stack direction='column' spacing={2} m={2}>
                 {mpm.doc.metadata.filter(field => field.type === 'author').map((field, i) => {
