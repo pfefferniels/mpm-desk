@@ -6,7 +6,7 @@ import { usePiano } from 'react-pianosound';
 import { Alert, AppBar, Button, Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
-import { exportMPM } from '../../mpm-ts/lib';
+import { Comment, exportMPM } from '../../mpm-ts/lib';
 import { ExpandLess, ExpandMore, PauseCircle, PlayCircle, RestartAlt, Save, UploadFile } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
@@ -101,6 +101,8 @@ export const App = () => {
 
     const [stretchX, setStretchX] = useState<number>(20)
 
+    const [secondary, setSecondary] = useState<Record<string, unknown>>({})
+
     const appBarRef = React.useRef<HTMLDivElement>(null);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +114,7 @@ export const App = () => {
         if (file.name.endsWith('.json')) {
             reader.onload = async (e: ProgressEvent<FileReader>) => {
                 const content = e.target?.result as string;
-                const transformers = importWork(content);
+                const { transformers, secondary: loadedSecondary } = importWork(content);
                 const messages = validate(transformers);
                 if (messages.length) {
                     setMessage(messages.map(m => m.message).join('\n'));
@@ -120,6 +122,7 @@ export const App = () => {
                 }
                 setMessage(undefined);
                 setTransformers(transformers.sort(compareTransformers));
+                setSecondary(loadedSecondary ?? {});
             };
             reader.readAsText(file);
         }
@@ -149,7 +152,7 @@ export const App = () => {
 
             if (jsonFile) {
                 const jsonContent = await jsonFile.async('string');
-                const transformers = importWork(jsonContent);
+                const { transformers, secondary: loadedSecondary } = importWork(jsonContent);
                 const messages = validate(transformers);
                 if (messages.length) {
                     setMessage(messages.map(m => m.message).join('\n'));
@@ -157,6 +160,7 @@ export const App = () => {
                 }
                 setMessage(undefined);
                 setTransformers(transformers.sort(compareTransformers));
+                setSecondary(loadedSecondary ?? {});
             }
             return;
         }
@@ -270,10 +274,11 @@ export const App = () => {
                 const jsonResponse = await fetch('/info.json');
                 if (jsonResponse.ok) {
                     const jsonContent = await jsonResponse.text();
-                    const loadedTransformers = importWork(jsonContent);
+                    const { transformers: loadedTransformers, secondary: loadedSecondary } = importWork(jsonContent);
                     const messages = validate(loadedTransformers);
                     if (messages.length === 0) {
                         setTransformers(loadedTransformers.sort(compareTransformers));
+                        setSecondary(loadedSecondary ?? {});
                     }
                 }
             } catch (e) {
@@ -322,149 +327,149 @@ export const App = () => {
                 <AppBar position='static' color='transparent' elevation={1}>
                     <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
                         {isEditorMode ? (
-                        <>
-                        <Ribbon title='File'>
-                            <Tooltip title='Import MEI/JSON file' arrow>
-                                <Button
-                                    onClick={handleFileImport}
-                                    startIcon={<UploadFile />}
-                                >
-                                    Open
-                                </Button>
-                            </Tooltip>
+                            <>
+                                <Ribbon title='File'>
+                                    <Tooltip title='Import MEI/JSON file' arrow>
+                                        <Button
+                                            onClick={handleFileImport}
+                                            startIcon={<UploadFile />}
+                                        >
+                                            Open
+                                        </Button>
+                                    </Tooltip>
 
-                            <Tooltip title='Save Work' arrow>
-                                <IconButton
-                                    disabled={transformers.length === 0 || !mei}
-                                    onClick={async () => {
-                                        if (!mei) return
+                                    <Tooltip title='Save Work' arrow>
+                                        <IconButton
+                                            disabled={transformers.length === 0 || !mei}
+                                            onClick={async () => {
+                                                if (!mei) return
 
-                                        const newMEI = injectChoices(
-                                            mei, msm, transformers
-                                                .filter((t): t is MakeChoice => t.name === 'MakeChoice')
-                                                .map(t => t.options)
-                                        )
+                                                const newMEI = injectChoices(
+                                                    mei, msm, transformers
+                                                        .filter((t): t is MakeChoice => t.name === 'MakeChoice')
+                                                        .map(t => t.options)
+                                                )
 
-                                        const json = exportWork({
-                                            name: 'Reconstruction of ...',
-                                            mpm: 'performance.mpm',
-                                            mei: 'transcription.mei'
-                                        }, transformers)
+                                                const json = exportWork({
+                                                    name: (mpm.doc.metadata.find(m => m.type === 'comment') as Comment | undefined)?.text || 'Reconstruction',
+                                                    mpm: 'performance.mpm',
+                                                    mei: 'transcription.mei'
+                                                }, transformers, secondary)
 
-                                        const zip = new JSZip();
-                                        zip.file("performance.mpm", exportMPM(mpm));
-                                        zip.file("transcription.mei", newMEI);
-                                        zip.file("info.json", json);
+                                                const zip = new JSZip();
+                                                zip.file("performance.mpm", exportMPM(mpm));
+                                                zip.file("transcription.mei", newMEI);
+                                                zip.file("info.json", json);
 
-                                        zip.generateAsync({ type: "blob" })
-                                            .then((content) => {
-                                                downloadAsFile(content, 'export.zip', 'application/zip');
-                                            });
+                                                zip.generateAsync({ type: "blob" })
+                                                    .then((content) => {
+                                                        downloadAsFile(content, 'export.zip', 'application/zip');
+                                                    });
 
-                                    }}
-                                >
-                                    <Save />
-                                </IconButton>
-                            </Tooltip>
+                                            }}
+                                        >
+                                            <Save />
+                                        </IconButton>
+                                    </Tooltip>
 
-                            <input
-                                type="file"
-                                id="fileInput"
-                                accept='application/xml,.mei,application/json,.zip'
-                                style={{ display: 'none' }}
-                                onChange={handleFileChange}
-                            />
+                                    <input
+                                        type="file"
+                                        id="fileInput"
+                                        accept='application/xml,.mei,application/json,.zip'
+                                        style={{ display: 'none' }}
+                                        onChange={handleFileChange}
+                                    />
 
-                            <ExportPNG transformers={transformers} msm={msm} />
-                        </Ribbon>
+                                    <ExportPNG transformers={transformers} msm={msm} />
+                                </Ribbon>
 
-                        {(mpm.getInstructions().length > 0) && (
-                            <Ribbon title='Playback'>
-                                <IconButton
-                                    onClick={() => isPlaying ? stopMPM() : playMPM()}
-                                >
-                                    {isPlaying ? <PauseCircle /> : <PlayCircle />}
-                                </IconButton>
-                            </Ribbon>
-                        )}
+                                {(mpm.getInstructions().length > 0) && (
+                                    <Ribbon title='Playback'>
+                                        <IconButton
+                                            onClick={() => isPlaying ? stopMPM() : playMPM()}
+                                        >
+                                            {isPlaying ? <PauseCircle /> : <PlayCircle />}
+                                        </IconButton>
+                                    </Ribbon>
+                                )}
 
-                        <Ribbon title=' '>
-                            {transformers.length > 0 && (
-                                <IconButton onClick={() => reset(transformers)}>
-                                    <RestartAlt />
-                                </IconButton>
-                            )}
-                        </Ribbon>
+                                <Ribbon title=' '>
+                                    {transformers.length > 0 && (
+                                        <IconButton onClick={() => reset(transformers)}>
+                                            <RestartAlt />
+                                        </IconButton>
+                                    )}
+                                </Ribbon>
 
-                        <Ribbon title='Scope'>
-                            <ToggleButtonGroup
-                                size='small'
-                                value={scope}
-                                exclusive
-                                onChange={(_, value) => setScope(value)}
-                            >
-                                <ToggleButton value='global'>
-                                    Global
-                                </ToggleButton>
-                                {Array.from(msm.parts()).map(p => (
-                                    <ToggleButton key={`button_${p}`} value={p}>
-                                        {p}
-                                    </ToggleButton>
-                                ))}
-                            </ToggleButtonGroup>
-                        </Ribbon>
+                                <Ribbon title='Scope'>
+                                    <ToggleButtonGroup
+                                        size='small'
+                                        value={scope}
+                                        exclusive
+                                        onChange={(_, value) => setScope(value)}
+                                    >
+                                        <ToggleButton value='global'>
+                                            Global
+                                        </ToggleButton>
+                                        {Array.from(msm.parts()).map(p => (
+                                            <ToggleButton key={`button_${p}`} value={p}>
+                                                {p}
+                                            </ToggleButton>
+                                        ))}
+                                    </ToggleButtonGroup>
+                                </Ribbon>
 
-                        <Ribbon title='Zoom'>
-                            <ZoomControls
-                                stretchX={stretchX}
-                                setStretchX={setStretchX}
-                                rangeX={[1, 60]}
-                            />
-                        </Ribbon>
-                        </>
+                                <Ribbon title='Zoom'>
+                                    <ZoomControls
+                                        stretchX={stretchX}
+                                        setStretchX={setStretchX}
+                                        rangeX={[1, 60]}
+                                    />
+                                </Ribbon>
+                            </>
                         ) : (
-                        <>
-                            <Ribbon title='Zoom'>
-                                <ZoomControls
-                                    stretchX={stretchX}
-                                    setStretchX={setStretchX}
-                                    rangeX={[1, 60]}
-                                />
-                            </Ribbon>
+                            <>
+                                <Ribbon title='Zoom'>
+                                    <ZoomControls
+                                        stretchX={stretchX}
+                                        setStretchX={setStretchX}
+                                        rangeX={[1, 60]}
+                                    />
+                                </Ribbon>
 
-                            <Tooltip title='Download ZIP' arrow>
-                                <IconButton
-                                    disabled={!mei}
-                                    onClick={async () => {
-                                        if (!mei) return
+                                <Tooltip title='Download ZIP' arrow>
+                                    <IconButton
+                                        disabled={!mei}
+                                        onClick={async () => {
+                                            if (!mei) return
 
-                                        const newMEI = injectChoices(
-                                            mei, msm, transformers
-                                                .filter((t): t is MakeChoice => t.name === 'MakeChoice')
-                                                .map(t => t.options)
-                                        )
+                                            const newMEI = injectChoices(
+                                                mei, msm, transformers
+                                                    .filter((t): t is MakeChoice => t.name === 'MakeChoice')
+                                                    .map(t => t.options)
+                                            )
 
-                                        const json = exportWork({
-                                            name: 'Reconstruction of ...',
-                                            mpm: 'performance.mpm',
-                                            mei: 'transcription.mei'
-                                        }, transformers)
+                                            const json = exportWork({
+                                                name: 'Reconstruction of ...',
+                                                mpm: 'performance.mpm',
+                                                mei: 'transcription.mei'
+                                            }, transformers, secondary)
 
-                                        const zip = new JSZip();
-                                        zip.file("performance.mpm", exportMPM(mpm));
-                                        zip.file("transcription.mei", newMEI);
-                                        zip.file("info.json", json);
+                                            const zip = new JSZip();
+                                            zip.file("performance.mpm", exportMPM(mpm));
+                                            zip.file("transcription.mei", newMEI);
+                                            zip.file("info.json", json);
 
-                                        zip.generateAsync({ type: "blob" })
-                                            .then((content) => {
-                                                downloadAsFile(content, 'export.zip', 'application/zip');
-                                            });
-                                    }}
-                                >
-                                    <Save />
-                                </IconButton>
-                            </Tooltip>
-                        </>
+                                            zip.generateAsync({ type: "blob" })
+                                                .then((content) => {
+                                                    downloadAsFile(content, 'export.zip', 'application/zip');
+                                                });
+                                        }}
+                                    >
+                                        <Save />
+                                    </IconButton>
+                                </Tooltip>
+                            </>
                         )}
                     </Stack>
                 </AppBar>
@@ -481,6 +486,8 @@ export const App = () => {
                             mpm={mpm}
                             setMSM={setMSM}
                             setMPM={setMPM}
+                            secondary={secondary}
+                            setSecondary={setSecondary}
                             addTransformer={(transformer: Transformer, override?: boolean) => {
                                 const baseTransformers = override
                                     ? transformers.filter(t => t.name !== transformer.name)

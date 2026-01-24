@@ -9,6 +9,9 @@ export interface ViewProps {
     mpm: MPM;
 
     appBarRef: React.RefObject<HTMLDivElement> | null;
+
+    secondary: Record<string, unknown>;
+    setSecondary: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
 }
 
 export interface TransformerViewProps<T extends Transformer> extends ViewProps {

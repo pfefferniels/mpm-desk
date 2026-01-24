@@ -2,17 +2,21 @@ import { Button, Stack, ToggleButton } from "@mui/material"
 import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
 import { useEffect, useState } from "react"
 import { Skyline } from "./Skyline"
-import { TempoCluster, extractTempoSegments } from "./Tempo"
-import { downloadAsFile } from "../utils/utils"
+import { TempoCluster, extractTempoSegments, TempoSegment as LocalTempoSegment } from "./Tempo"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { SyntheticLine } from "./SyntheticLine"
-import { Add, Clear, Save, UploadFile } from "@mui/icons-material"
+import { Add, Clear } from "@mui/icons-material"
 import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
 import { Tempo } from "../../../mpm-ts/lib"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
 import { useSelection } from "../hooks/SelectionProvider"
+
+export type TempoSecondaryData = {
+    tempoCluster?: LocalTempoSegment[]
+    silentOnsets?: SilentOnset[]
+}
 
 export type TempoPoint = {
     date: number
@@ -27,16 +31,48 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 // The idea:
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
-export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
+export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
     const { setActiveElement } = useSelection();
-    const [tempoCluster, setTempoCluster] = useState<TempoCluster>(new TempoCluster())
-    const [silentOnsets, setSilentOnsets] = useState<SilentOnset[]>([])
+    const tempoData = secondary?.tempo as TempoSecondaryData | undefined
+
+    const [tempoCluster, setTempoClusterState] = useState<TempoCluster>(() => {
+        if (tempoData?.tempoCluster && tempoData.tempoCluster.length > 0) {
+            return new TempoCluster(tempoData.tempoCluster)
+        }
+        return new TempoCluster()
+    })
+    const [silentOnsets, setSilentOnsetsState] = useState<SilentOnset[]>(tempoData?.silentOnsets ?? [])
     const [segments, setSegments] = useState<TempoSegment[]>([])
     const [newSegment, setNewSegment] = useState<TempoSegment>()
     const [mode, setMode] = useState<'split' | 'curve' | undefined>(undefined)
 
     const stretchX = usePhysicalZoom()
     const [stretchY, setStretchY] = useState(1)
+
+    const setTempoCluster = (newCluster: TempoCluster) => {
+        setTempoClusterState(newCluster)
+        setSecondary(prev => ({
+            ...prev,
+            tempo: {
+                ...(prev.tempo as TempoSecondaryData ?? {}),
+                tempoCluster: newCluster.segments
+            }
+        }))
+    }
+
+    const setSilentOnsets = (updater: SilentOnset[] | ((prev: SilentOnset[]) => SilentOnset[])) => {
+        setSilentOnsetsState(prev => {
+            const newOnsets = typeof updater === 'function' ? updater(prev) : updater
+            setSecondary(prevSecondary => ({
+                ...prevSecondary,
+                tempo: {
+                    ...(prevSecondary.tempo as TempoSecondaryData ?? {}),
+                    silentOnsets: newOnsets
+                }
+            }))
+            return newOnsets
+        })
+    }
 
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
@@ -56,41 +92,11 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
     useEffect(() => {
         msm.shiftToFirstOnset()
 
-        setTempoCluster((prev) => {
+        setTempoClusterState((prev) => {
             if (prev.segments.length > 0) return prev
             return new TempoCluster(extractTempoSegments(msm, part))
         })
     }, [msm, part])
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files ? event.target.files[0] : null;
-        if (!file) return
-        const reader = new FileReader();
-        reader.onload = async (e: ProgressEvent<FileReader>) => {
-            const content = e.target?.result as string;
-            // setMSM(await asMSM(content));
-            const json = JSON.parse(content)
-            if (!json.tempoCluster || !json.markers || !json.silentOnsets ||
-                !Array.isArray(json.tempoCluster) || !Array.isArray(json.markers) || !Array.isArray(json.silentOnsets)
-            ) {
-                console.log('Invalid JSON file provided.')
-                return
-            }
-
-            setTempoCluster(
-                new TempoCluster(json.tempoCluster)
-            )
-            // setMarkers(json.markers)
-            setSilentOnsets(json.silentOnsets)
-        };
-
-        reader.readAsText(file);
-    };
-
-    const handleFileImport = () => {
-        const fileInput = document.getElementById('segmentInput') as HTMLInputElement;
-        fileInput.click();
-    };
 
     const insertTempoValues = () => {
         if (!tempoCluster || !newSegment) return
@@ -141,41 +147,6 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedT
                             >
                                 Split
                             </ToggleButton>
-
-                            <Button
-                                size='small'
-                                variant='outlined'
-                                startIcon={<Save />}
-                                onClick={() => {
-                                    const json = {
-                                        tempoCluster: tempoCluster.segments,
-                                        silentOnsets
-                                    }
-
-                                    downloadAsFile(
-                                        JSON.stringify(json, null, 4),
-                                        'segments.json',
-                                        'application/json'
-                                    )
-                                }}
-                            >
-                                Export
-                            </Button>
-                            <Button
-                                variant='outlined'
-                                onClick={handleFileImport}
-                                size='small'
-                                startIcon={<UploadFile />}
-                            >
-                                Import
-                            </Button>
-                            <input
-                                type="file"
-                                id="segmentInput"
-                                accept='*.json'
-                                style={{ display: 'none' }}
-                                onChange={handleFileChange}
-                            />
 
                             <Button
                                 size='small'
