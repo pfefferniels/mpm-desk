@@ -4,10 +4,9 @@ import { DynamicsDesk } from "./dynamics/DynamicsDesk";
 import { TempoDesk } from "./tempo/TempoDesk";
 import { ArticulationDesk } from "./articulation/ArticulationDesk";
 import { RubatoDesk } from "./rubato/RubatoDesk";
-import { MetadataDesk } from "./metadata/MetadataDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
-import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MergeMetricalAccentuations, InsertArticulation, MakeChoice, InsertMetadata } from "mpmify";
+import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
 import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
 import { TemporalSpreadDesk } from "./arpeggiation/TemporalSpreadDesk";
 import { ResultDesk } from "./result/ResultDesk";
@@ -30,19 +29,12 @@ export type AnyTransformer =
     | typeof MergeMetricalAccentuations
     | typeof InsertArticulation
     | typeof MakeChoice
-    | typeof InsertMetadata
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
 
 export const correspondingDesks: { transformer?: AnyTransformer, aspect: string, desk: AnyDesk, displayName?: string, group?: string }[] = [
     // General
-    {
-        aspect: 'metadata',
-        desk: MetadataDesk,
-        transformer: InsertMetadata,
-        group: 'general'
-    },
     {
         aspect: 'source choice',
         displayName: 'Base Text',

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { asMSM } from './asMSM';
-import { compareTransformers, exportWork, importWork, MakeChoice, MakeChoiceOptions, MPM, MSM, validate } from 'mpmify';
+import { compareTransformers, exportWork, importWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM, validate } from 'mpmify';
 import { read } from 'midifile-ts'
 import { usePiano } from 'react-pianosound';
 import { Alert, AppBar, Button, Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
-import { Comment, exportMPM } from '../../mpm-ts/lib';
+import { exportMPM } from '../../mpm-ts/lib';
 import { ExpandLess, ExpandMore, PauseCircle, PlayCircle, RestartAlt, Save, UploadFile } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
@@ -22,6 +22,15 @@ import { downloadAsFile } from './utils/utils';
 import JSZip from 'jszip'
 import { SvgDndProvider } from './transformer-stack/svg-dnd';
 import { ExportPNG } from './ExportPng';
+
+const extractMetadataFromTransformers = (transformers: Transformer[]): { author: string, title: string } => {
+    const metadataTransformer = transformers.find(t => t.name === 'InsertMetadata') as InsertMetadata | undefined
+    if (!metadataTransformer) return { author: '', title: '' }
+    return {
+        author: metadataTransformer.options.authors?.[0]?.text ?? '',
+        title: metadataTransformer.options.comments?.[0]?.text ?? ''
+    }
+}
 
 const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[], removeRecordings = false): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
@@ -103,6 +112,8 @@ export const App = () => {
 
     const [secondary, setSecondary] = useState<Record<string, unknown>>({})
 
+    const [metadata, setMetadata] = useState<{ author: string, title: string }>({ author: '', title: '' })
+
     const appBarRef = React.useRef<HTMLDivElement>(null);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,8 +132,10 @@ export const App = () => {
                     return;
                 }
                 setMessage(undefined);
-                setTransformers(transformers.sort(compareTransformers));
+                const nonMetadataTransformers = transformers.filter(t => t.name !== 'InsertMetadata')
+                setTransformers(nonMetadataTransformers.sort(compareTransformers));
                 setSecondary(loadedSecondary ?? {});
+                setMetadata(extractMetadataFromTransformers(transformers));
             };
             reader.readAsText(file);
         }
@@ -159,8 +172,10 @@ export const App = () => {
                     return;
                 }
                 setMessage(undefined);
-                setTransformers(transformers.sort(compareTransformers));
+                const nonMetadataTransformers = transformers.filter(t => t.name !== 'InsertMetadata')
+                setTransformers(nonMetadataTransformers.sort(compareTransformers));
                 setSecondary(loadedSecondary ?? {});
+                setMetadata(extractMetadataFromTransformers(transformers));
             }
             return;
         }
@@ -277,8 +292,10 @@ export const App = () => {
                     const { transformers: loadedTransformers, secondary: loadedSecondary } = importWork(jsonContent);
                     const messages = validate(loadedTransformers);
                     if (messages.length === 0) {
-                        setTransformers(loadedTransformers.sort(compareTransformers));
+                        const nonMetadataTransformers = loadedTransformers.filter(t => t.name !== 'InsertMetadata')
+                        setTransformers(nonMetadataTransformers.sort(compareTransformers));
                         setSecondary(loadedSecondary ?? {});
+                        setMetadata(extractMetadataFromTransformers(loadedTransformers));
                     }
                 }
             } catch (e) {
@@ -290,10 +307,28 @@ export const App = () => {
     }, [isEditorMode]);
 
     useEffect(() => {
-        if (transformers.length === 0) return;
         if (initialMSM.allNotes.length === 0) return;
 
-        const messages = validate(transformers);
+        // Create InsertMetadata transformer from metadata state
+        const metadataTransformer = new InsertMetadata({
+            authors: metadata.author ? [{ number: 0, text: metadata.author }] : [],
+            comments: metadata.title ? [{ text: metadata.title }] : []
+        })
+        metadataTransformer.argumentation = {
+            note: '',
+            id: 'argumentation-metadata',
+            conclusion: {
+                certainty: 'authentic',
+                id: 'belief-metadata',
+                motivation: 'unknown'
+            },
+            type: 'simpleArgumentation'
+        }
+
+        // Combine with other transformers
+        const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers)
+
+        const messages = validate(allTransformers);
         if (messages.length) {
             setMessage(messages.map(m => m.message).join('\n'));
             return;
@@ -302,16 +337,17 @@ export const App = () => {
         const newMPM = new MPM();
         const newMSM = initialMSM.deepClone();
 
-        transformers.forEach(t => {
+        allTransformers.forEach(t => {
             t.run(newMSM, newMPM);
         });
 
         setMPM(newMPM);
         setMSM(newMSM);
-    }, [transformers, initialMSM]);
+    }, [transformers, initialMSM, metadata]);
 
+    const isMetadataSelected = selectedDesk === 'metadata'
     const DeskComponent = correspondingDesks
-        .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk || MetadataDesk;
+        .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk;
 
 
     return (
@@ -350,11 +386,28 @@ export const App = () => {
                                                         .map(t => t.options)
                                                 )
 
+                                                const metadataTransformer = new InsertMetadata({
+                                                    authors: metadata.author ? [{ number: 0, text: metadata.author }] : [],
+                                                    comments: metadata.title ? [{ text: metadata.title }] : []
+                                                })
+                                                metadataTransformer.argumentation = {
+                                                    note: '',
+                                                    id: 'argumentation-metadata',
+                                                    conclusion: {
+                                                        certainty: 'authentic',
+                                                        id: 'belief-metadata',
+                                                        motivation: 'unknown'
+                                                    },
+                                                    type: 'simpleArgumentation'
+                                                }
+
+                                                const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers)
+
                                                 const json = exportWork({
-                                                    name: (mpm.doc.metadata.find(m => m.type === 'comment') as Comment | undefined)?.text || 'Reconstruction',
+                                                    name: metadata.title || 'Reconstruction',
                                                     mpm: 'performance.mpm',
                                                     mei: 'transcription.mei'
-                                                }, transformers, secondary)
+                                                }, allTransformers, secondary)
 
                                                 const zip = new JSZip();
                                                 zip.file("performance.mpm", exportMPM(mpm));
@@ -449,11 +502,28 @@ export const App = () => {
                                                     .map(t => t.options)
                                             )
 
+                                            const metadataTransformer = new InsertMetadata({
+                                                authors: metadata.author ? [{ number: 0, text: metadata.author }] : [],
+                                                comments: metadata.title ? [{ text: metadata.title }] : []
+                                            })
+                                            metadataTransformer.argumentation = {
+                                                note: '',
+                                                id: 'argumentation-metadata',
+                                                conclusion: {
+                                                    certainty: 'authentic',
+                                                    id: 'belief-metadata',
+                                                    motivation: 'unknown'
+                                                },
+                                                type: 'simpleArgumentation'
+                                            }
+
+                                            const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers)
+
                                             const json = exportWork({
-                                                name: 'Reconstruction of ...',
+                                                name: metadata.title || 'Reconstruction',
                                                 mpm: 'performance.mpm',
                                                 mei: 'transcription.mei'
-                                            }, transformers, secondary)
+                                            }, allTransformers, secondary)
 
                                             const zip = new JSZip();
                                             zip.file("performance.mpm", exportMPM(mpm));
@@ -480,43 +550,49 @@ export const App = () => {
                     transformers={transformers}
                 >
                     <NotesProvider notes={msm.allNotes}>
-                        <DeskComponent
-                            appBarRef={isEditorMode ? appBarRef : null}
-                            msm={msm}
-                            mpm={mpm}
-                            setMSM={setMSM}
-                            setMPM={setMPM}
-                            secondary={secondary}
-                            setSecondary={setSecondary}
-                            addTransformer={(transformer: Transformer, override?: boolean) => {
-                                const baseTransformers = override
-                                    ? transformers.filter(t => t.name !== transformer.name)
-                                    : transformers
-                                const newTransformers = [...baseTransformers, transformer].sort(compareTransformers)
-                                const messages = validate(newTransformers)
-                                if (messages.length) {
-                                    setMessage(messages.map(m => m.message).join('\n'))
-                                    return
-                                }
+                        {isMetadataSelected ? (
+                            <MetadataDesk
+                                metadata={metadata}
+                                setMetadata={setMetadata}
+                                appBarRef={isEditorMode ? appBarRef : null}
+                                isEditorMode={isEditorMode}
+                            />
+                        ) : DeskComponent && (
+                            <DeskComponent
+                                appBarRef={isEditorMode ? appBarRef : null}
+                                msm={msm}
+                                mpm={mpm}
+                                setMSM={setMSM}
+                                setMPM={setMPM}
+                                secondary={secondary}
+                                setSecondary={setSecondary}
+                                addTransformer={(transformer: Transformer) => {
+                                    const newTransformers = [...transformers, transformer].sort(compareTransformers)
+                                    const messages = validate(newTransformers)
+                                    if (messages.length) {
+                                        setMessage(messages.map(m => m.message).join('\n'))
+                                        return
+                                    }
 
-                                transformer.argumentation = {
-                                    note: '',
-                                    id: `argumentation-${v4().slice(0, 8)}`,
-                                    conclusion: {
-                                        certainty: 'plausible',
-                                        id: `belief-${v4().slice(0, 8)}`,
-                                        motivation: 'unknown'
-                                    },
-                                    type: 'simpleArgumentation'
-                                }
+                                    transformer.argumentation = {
+                                        note: '',
+                                        id: `argumentation-${v4().slice(0, 8)}`,
+                                        conclusion: {
+                                            certainty: 'plausible',
+                                            id: `belief-${v4().slice(0, 8)}`,
+                                            motivation: 'unknown'
+                                        },
+                                        type: 'simpleArgumentation'
+                                    }
 
-                                transformer.run(msm, mpm)
-                                setTransformers(newTransformers)
-                                setMSM(msm.clone())
-                                setMPM(mpm.clone())
-                            }}
-                            part={scope}
-                        />
+                                    transformer.run(msm, mpm)
+                                    setTransformers(newTransformers)
+                                    setMSM(msm.clone())
+                                    setMPM(mpm.clone())
+                                }}
+                                part={scope}
+                            />
+                        )}
                     </NotesProvider>
 
                     <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
@@ -546,6 +622,16 @@ export const App = () => {
                     }}
                 >
                     <List>
+                        <ListItemButton
+                            selected={selectedDesk === 'metadata'}
+                            onClick={() => {
+                                setSelectedDesk('metadata')
+                                setToExpand(undefined)
+                            }}
+                        >
+                            <ListItemText>metadata</ListItemText>
+                        </ListItemButton>
+                        <Divider sx={{ my: 1 }} />
                         {(() => {
                             const aspectGroups = Array.from(
                                 Map.groupBy(correspondingDesks, desk => desk.aspect)
