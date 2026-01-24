@@ -42,6 +42,23 @@ export const TransformerStack = ({
         [transformers, setTransformers]
     );
 
+    const extractTransformer = useCallback(
+        (transformerId: string) => {
+            const transformer = transformers.find(t => t.id === transformerId);
+            if (transformer) {
+                transformer.argumentation = {
+                    id: v4(),
+                    conclusion: {
+                        certainty: 'plausible',
+                        motivation: 'unknown',
+                        id: v4()
+                    },
+                    type: 'simpleArgumentation'
+                };
+                setTransformers([...transformers]);
+            }
+        }, [transformers, setTransformers])
+
     const totalHeight = 300;
 
     const scene = useMemo(() => {
@@ -108,21 +125,11 @@ export const TransformerStack = ({
                     preserveAspectRatio="none"
                     {...svgHandlers}
                 >
-                    <Ground width={scene.width} height={scene.height} extractTransformer={(transformerId) => {
-                        const transformer = transformers.find(t => t.id === transformerId);
-                        if (transformer) {
-                            transformer.argumentation = {
-                                id: v4(),
-                                conclusion: {
-                                    certainty: 'plausible',
-                                    motivation: 'unknown',
-                                    id: v4()
-                                },
-                                type: 'simpleArgumentation'
-                            };
-                            setTransformers([...transformers]);
-                        }
-                    }} />
+                    <Ground
+                        width={scene.width}
+                        height={scene.height}
+                        extractTransformer={extractTransformer}
+                    />
 
                     {scene.wedges.map(w => {
                         return (
