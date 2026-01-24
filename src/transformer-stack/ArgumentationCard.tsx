@@ -53,6 +53,7 @@ export const ArgumentationCard = ({ argumentation, onChange, mergeInto, children
                     "&:hover": {
                         boxShadow: 6
                     },
+                    backgroundColor: 'rgba(240,240,240,0.5)',
                 }}
                 onClick={(e) => {
                     e.stopPropagation()

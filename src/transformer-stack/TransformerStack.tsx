@@ -1,149 +1,151 @@
 import { Card } from "@mui/material";
 import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
-import { useCallback, useState } from "react";
-import { TransformerListItem } from "./TransformerListItem";
-import { ArgumentationCard } from "./ArgumentationCard";
-import { DropTarget } from "./DropTarget";
-import { v4 } from "uuid";
+import { useCallback, useMemo } from "react";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
-import { layoutIntervals } from "./interval";
 import { MSM } from "mpmify";
+import { applyWedgeLevelGeometry, assignWedgeLevels, computeCurvePoints, computeWedgeModels } from "./WedgeModel";
+import { Wedge } from "./Wedge";
+import { useSvgDnd } from "./svg-dnd";
+import { Ground } from "./Ground";
+import { v4 } from "uuid";
+import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 
 interface TransformerStackProps {
     transformers: Transformer[];
     setTransformers: (transformers: Transformer[]) => void;
     msm: MSM;
-
     onRemove: (transformer: Transformer) => void;
-    onSelect: (transformer?: Transformer) => void;
-
-    activeTransformer?: Transformer;
 }
 
-export const TransformerStack = ({ transformers, setTransformers, msm, onRemove, onSelect, activeTransformer }: TransformerStackProps) => {
-    const [isDragging, setIsDragging] = useState(false);
+export const TransformerStack = ({
+    transformers,
+    setTransformers,
+    msm,
+    onRemove: _onRemove,
+}: TransformerStackProps) => {
+    const { svgRef, svgHandlers } = useSvgDnd();
 
-    const stretchX = useSymbolicZoom()
+    const stretchX = useSymbolicZoom();
+    const argumentations = Map.groupBy(transformers, t => t.argumentation);
 
-    const argumentations = Map.groupBy(transformers, t => t.argumentation)
-    const intervals = Array
-        .from(argumentations)
-        .map(([argumentation, localTransformers]) => {
-            const range = getRange(localTransformers, msm)
-            if (!range) return null;
+    const maxDate = getRange(transformers, msm)?.to || 0;
+    const maxX = maxDate * stretchX;
 
-            return {
-                start: range.from * stretchX, end: (range.to || range.from) * stretchX, argumentation, localTransformers
-            }
-        })
-        .filter(i => i !== null)
+    const scaled = negotiateIntensityCurve(argumentations, maxDate, msm);
 
-    const layout = layoutIntervals(intervals)
+    const mergeInto = useCallback(
+        (transformerId: string, argumentation: Argumentation) => {
+            const transformer = transformers.find(t => t.id === transformerId);
+            if (!transformer) return;
+            transformer.argumentation = argumentation;
+            setTransformers([...transformers]);
+        },
+        [transformers, setTransformers]
+    );
 
-    const mergeInto = useCallback((transformerId: string, argumentation: Argumentation) => {
-        const transformer = transformers.find(t => t.id === transformerId);
-        if (!transformer) return;
-        transformer.argumentation = argumentation;
-        setTransformers([...transformers]);
-    }, [transformers, setTransformers]);
+    const totalHeight = 300;
 
-    const maxDate = (getRange(transformers, msm)?.to || 0) * stretchX;
-    const maxTrack = Math.max(...layout.map(({ track }) => track))
-    const trackHeight = 71
+    const scene = useMemo(() => {
+        const curvePoints = computeCurvePoints({
+            scaled,
+            stretchX,
+            totalHeight,
+            padTop: 8,
+            padBottom: 8
+        });
+
+        let wedges = computeWedgeModels({
+            argumentations,
+            msm,
+            curvePoints,
+            baseAmplitude: 30,
+            minWidthPx: 32,
+        });
+
+        wedges = assignWedgeLevels(wedges, "above");
+        wedges = assignWedgeLevels(wedges, "below");
+
+        const gapInPixels = 40 * (stretchX + 1);
+
+        wedges = applyWedgeLevelGeometry(wedges, curvePoints, {
+            baseAmplitude: gapInPixels / 3,
+            levelSpacing: gapInPixels,
+            level0Gap: 1,
+        });
+
+        const width = maxX;
+        const height = totalHeight;
+
+        return { curvePoints, wedges, width, height };
+    }, [scaled, stretchX, totalHeight, argumentations, msm, maxX]);
+
+    const curvePathD = useMemo(() => {
+        return asPathD(scaled, stretchX, totalHeight);
+    }, [scaled, stretchX, totalHeight]);
 
     if (transformers.length === 0) return null;
 
     return (
-        <Card style={{
-            overflow: 'scroll',
-            position: 'relative',
-            height: '300px',
-            width: '100vw',
-            borderTop: '0.5px solid gray'
-        }}>
-            <div style={{ position: 'relative', width: maxDate, height: maxTrack * trackHeight }}>
-                <DropTarget
-                    left={0}
-                    bottom={0}
-                    width={maxDate}
-                    height={maxTrack * trackHeight}
-                    onAdd={(transformerId) => {
-                        const transformer = transformers.find(t => t.id === transformerId)
-                        if (!transformer) return
-
-                        transformer.argumentation = {
-                            type: 'simpleArgumentation',
-                            id: `arg_${v4()}`,
-                            conclusion: {
-                                id: 'concl_' + v4(),
-                                certainty: 'plausible',
-                                motivation: 'unknown',
-                            },
-                        }
-
-                        setTransformers([
-                            ...transformers,
-                        ])
+        <Card
+            style={{
+                overflow: "scroll",
+                position: "relative",
+                height: "300px",
+                width: "100vw",
+                borderTop: "0.5px solid gray"
+            }}
+        >
+            <div style={{ position: "relative", width: maxX, height: totalHeight }}>
+                <svg
+                    width={maxX}
+                    height={totalHeight}
+                    ref={svgRef}
+                    style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
                     }}
-                />
-
-                {layout
-                    .map(({ argumentation, localTransformers, track }) => {
-                        const range = getRange(localTransformers, msm);
-
-                        if (!range) {
-                            console.log('no range for', localTransformers)
-                            return null;
+                    viewBox={`0 0 ${maxX} ${totalHeight}`}
+                    preserveAspectRatio="none"
+                    {...svgHandlers}
+                >
+                    <Ground width={scene.width} height={scene.height} extractTransformer={(transformerId) => {
+                        const transformer = transformers.find(t => t.id === transformerId);
+                        if (transformer) {
+                            transformer.argumentation = {
+                                id: v4(),
+                                conclusion: {
+                                    certainty: 'plausible',
+                                    motivation: 'unknown',
+                                    id: v4()
+                                },
+                                type: 'simpleArgumentation'
+                            };
+                            setTransformers([...transformers]);
                         }
+                    }} />
 
-                        const start = range.from * stretchX;
-                        const end = (range.to || range.from) * stretchX;
-
+                    {scene.wedges.map(w => {
                         return (
-                            <div
-                                key={`argumentation_${argumentation.id}`}
-                                style={{
-                                position: 'absolute',
-                                left: start,
-                                bottom: track * trackHeight,
-                                width: end - start,
-                                minWidth: '4rem',
-                            }}>
-                                <ArgumentationCard
-                                    argumentation={argumentation}
-                                    onChange={() => {
-                                        // todo
-                                    }}
-                                    mergeInto={mergeInto}
-                                    isDragging={isDragging}
-                                >
-                                    {localTransformers.map((transformer) => {
-                                        const index = transformers.indexOf(transformer);
-
-                                        return (
-                                            <TransformerListItem
-                                                key={`transformer_${index}`}
-                                                transformer={transformer}
-                                                index={index}
-                                                onSelect={() => onSelect(transformer)}
-                                                onRemove={() => onRemove(transformer)}
-                                                onEdit={(options) => {
-                                                    transformer.options = options;
-                                                    setTransformers([...transformers]);
-                                                }}
-                                                onStateChange={(state) => {
-                                                    console.log('state change', state)
-                                                    setIsDragging(state.type === 'is-dragging')
-                                                }}
-                                                selected={activeTransformer?.id === transformer.id}
-                                            />
-                                        )
-                                    })}
-                                </ArgumentationCard>
-                            </div>
-                        )
+                            <Wedge
+                                key={`wedge_${w.argumentationId}`}
+                                wedge={w}
+                                mergeInto={mergeInto}
+                            />
+                        );
                     })}
+
+                    <path
+                        className="intensityCurve"
+                        d={curvePathD}
+                        fill="none"
+                        stroke="#ac1e01ff"
+                        strokeWidth={5}
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                    />
+                </svg>
             </div>
         </Card>
     );
-}; 
+};
