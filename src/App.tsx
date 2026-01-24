@@ -102,6 +102,7 @@ export const App = () => {
     const [stretchX, setStretchX] = useState<number>(20)
 
     const appBarRef = React.useRef<HTMLDivElement>(null);
+    const pipelineNeedsRun = React.useRef(false);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -120,6 +121,7 @@ export const App = () => {
                 }
                 setMessage(undefined);
                 setTransformers(transformers.sort(compareTransformers));
+                pipelineNeedsRun.current = true;
             };
             reader.readAsText(file);
         }
@@ -157,6 +159,7 @@ export const App = () => {
                 }
                 setMessage(undefined);
                 setTransformers(transformers.sort(compareTransformers));
+                pipelineNeedsRun.current = true;
             }
             return;
         }
@@ -274,6 +277,7 @@ export const App = () => {
                     const messages = validate(loadedTransformers);
                     if (messages.length === 0) {
                         setTransformers(loadedTransformers.sort(compareTransformers));
+                        pipelineNeedsRun.current = true;
                     }
                 }
             } catch (e) {
@@ -283,6 +287,30 @@ export const App = () => {
 
         loadFiles();
     }, [isEditorMode]);
+
+    useEffect(() => {
+        if (!pipelineNeedsRun.current) return;
+        if (transformers.length === 0) return;
+        if (initialMSM.allNotes.length === 0) return;
+
+        const messages = validate(transformers);
+        if (messages.length) {
+            setMessage(messages.map(m => m.message).join('\n'));
+            pipelineNeedsRun.current = false;
+            return;
+        }
+
+        const newMPM = new MPM();
+        const newMSM = initialMSM.deepClone();
+
+        transformers.forEach(t => {
+            t.run(newMSM, newMPM);
+        });
+
+        setMPM(newMPM);
+        setMSM(newMSM);
+        pipelineNeedsRun.current = false;
+    }, [transformers, initialMSM]);
 
     const DeskComponent = correspondingDesks
         .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk || MetadataDesk;
