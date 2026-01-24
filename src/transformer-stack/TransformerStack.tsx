@@ -21,7 +21,6 @@ export const TransformerStack = ({
     transformers,
     setTransformers,
     msm,
-    onRemove: _onRemove,
 }: TransformerStackProps) => {
     const { svgRef, svgHandlers } = useSvgDnd();
 
