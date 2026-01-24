@@ -34,76 +34,94 @@ export type AnyTransformer =
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
 
-export const correspondingDesks: { transformer?: AnyTransformer, aspect: string, desk: AnyDesk, displayName?: string }[] = [
+export const correspondingDesks: { transformer?: AnyTransformer, aspect: string, desk: AnyDesk, displayName?: string, group?: string }[] = [
+    // General
     {
-        transformer: InsertDynamicsInstructions,
-        aspect: 'dynamics',
-        desk: DynamicsDesk,
+        aspect: 'metadata',
+        desk: MetadataDesk,
+        group: 'general'
     },
     {
-        aspect: 'ecclecticism',
+        aspect: 'source choice',
         displayName: 'Base Text',
         desk: ChoiceDesk,
-        transformer: MakeChoice
+        transformer: MakeChoice,
+        group: 'general'
+    },
+    // Timing
+    {
+        transformer: ApproximateLogarithmicTempo,
+        desk: TempoDesk,
+        aspect: 'tempo',
+        group: 'timing'
     },
     {
-        transformer: InsertDynamicsGradient,
-        desk: DynamicsGradientDesk,
-        displayName: 'Dynamics Gradient',
-        aspect: 'arpeggiation'
+        transformer: InsertRubato,
+        desk: RubatoDesk,
+        aspect: 'rubato',
+        group: 'timing'
     },
     {
         transformer: InsertTemporalSpread,
         desk: TemporalSpreadDesk,
         displayName: 'Temporal Spread',
-        aspect: 'arpeggiation'
+        aspect: 'arpeggiation',
+        group: 'timing'
+    },
+    {
+        transformer: InsertDynamicsGradient,
+        desk: DynamicsGradientDesk,
+        displayName: 'Dynamics Gradient',
+        aspect: 'arpeggiation',
+        group: 'timing'
     },
     {
         transformer: StylizeOrnamentation,
         desk: OrnamentationStyles,
         aspect: 'arpeggiation',
-        displayName: 'Styles'
+        displayName: 'Styles',
+        group: 'timing'
     },
+    // Dynamics
     {
-        transformer: InsertRubato,
-        desk: RubatoDesk,
-        aspect: 'rubato'
-    },
-    {
-        transformer: ApproximateLogarithmicTempo,
-        desk: TempoDesk,
-        aspect: 'tempo'
+        transformer: InsertDynamicsInstructions,
+        aspect: 'dynamics',
+        desk: DynamicsDesk,
+        group: 'dynamics'
     },
     {
         transformer: InsertMetricalAccentuation,
         desk: AccentuationDesk,
         displayName: 'Metrical Accentuation',
-        aspect: 'accentuation'
+        aspect: 'accentuation',
+        group: 'dynamics'
     },
     {
         transformer: InsertArticulation,
         aspect: 'articulation',
         desk: ArticulationDesk,
-        displayName: 'Articulation'
+        displayName: 'Articulation',
+        group: 'dynamics'
     },
     {
         transformer: StylizeArticulation,
         aspect: 'articulation',
         displayName: 'Style',
-        desk: ArticulationStyles
+        desk: ArticulationStyles,
+        group: 'dynamics'
     },
+    // Pedalling
     {
         transformer: InsertPedal,
         aspect: 'pedalling',
         desk: PedalDesk,
+        group: 'pedalling'
     },
-    {
-        aspect: 'metadata',
-        desk: MetadataDesk
-    },
+    // Result
     {
         aspect: 'result',
-        desk: ResultDesk
+        desk: ResultDesk,
+        group: 'result'
     }
 ]
 
