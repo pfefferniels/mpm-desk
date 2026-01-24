@@ -1,44 +1,63 @@
 import { Check, Edit, Delete } from "@mui/icons-material"
 import { TextField, IconButton } from "@mui/material"
 import { useState, useEffect } from "react"
-import { Author } from "../../../mpm-ts/lib"
+import { useMode } from "../hooks/ModeProvider"
 
-interface AuthorDisplayProps {
-    author: Author
-    onChange: (author: Author) => void
+interface MetadataFieldDisplayProps<T extends { text: string }> {
+    label: string
+    field: T
+    onChange: (field: T) => void
     onRemove: () => void
+    multiline?: boolean
 }
 
-export const AuthorDisplay = ({ author, onChange, onRemove }: AuthorDisplayProps) => {
-    const [editMode, setEditMode] = useState(false)
-    const [text, setText] = useState(author.text)
+export const MetadataFieldDisplay = <T extends { text: string }>({
+    label,
+    field,
+    onChange,
+    onRemove,
+    multiline
+}: MetadataFieldDisplayProps<T>) => {
+    const { isEditorMode } = useMode();
+    const [editing, setEditing] = useState(false)
+    const [text, setText] = useState(field.text)
 
-    useEffect(() => setText(author.text), [author])
+    useEffect(() => setText(field.text), [field])
+
+    if (!isEditorMode) {
+        return (
+            <div>
+                <span>{field.text}</span>
+                <span style={{ marginLeft: 8, color: 'gray', fontSize: '0.8em' }}>({label})</span>
+            </div>
+        )
+    }
 
     return (
         <div>
             <TextField
-                label='Author'
+                label={label}
                 size='small'
                 variant='outlined'
                 value={text}
                 onChange={e => setText(e.target.value)}
-                disabled={!editMode}
+                disabled={!editing}
+                multiline={multiline}
             />
 
-            {editMode ? (
+            {editing ? (
                 <IconButton onClick={() => {
                     onChange({
-                        ...author,
+                        ...field,
                         text
                     })
 
-                    setEditMode(false)
+                    setEditing(false)
                 }}>
                     <Check />
                 </IconButton>
             ) : (
-                <IconButton onClick={() => setEditMode(prev => !prev)}>
+                <IconButton onClick={() => setEditing(prev => !prev)}>
                     <Edit />
                 </IconButton>
             )

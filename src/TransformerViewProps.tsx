@@ -12,7 +12,7 @@ export interface ViewProps {
 }
 
 export interface TransformerViewProps<T extends Transformer> extends ViewProps {
-    addTransformer: (transformer: T) => void;
+    addTransformer: (transformer: T, override?: boolean) => void;
 }
 
 export type Scope = number | 'global'

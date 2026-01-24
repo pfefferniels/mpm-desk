@@ -481,8 +481,11 @@ export const App = () => {
                             mpm={mpm}
                             setMSM={setMSM}
                             setMPM={setMPM}
-                            addTransformer={(transformer: Transformer) => {
-                                const newTransformers = [...transformers, transformer].sort(compareTransformers)
+                            addTransformer={(transformer: Transformer, override?: boolean) => {
+                                const baseTransformers = override
+                                    ? transformers.filter(t => t.name !== transformer.name)
+                                    : transformers
+                                const newTransformers = [...baseTransformers, transformer].sort(compareTransformers)
                                 const messages = validate(newTransformers)
                                 if (messages.length) {
                                     setMessage(messages.map(m => m.message).join('\n'))
