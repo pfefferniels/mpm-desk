@@ -101,14 +101,13 @@ export const App = () => {
 
     const appBarRef = React.useRef<HTMLDivElement>(null);
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
         if (!file) return
 
         const reader = new FileReader();
 
         if (file.name.endsWith('.json')) {
-            // open JSON-LD
             reader.onload = async (e: ProgressEvent<FileReader>) => {
                 const content = e.target?.result as string;
                 const transformers = importWork(content);
@@ -120,9 +119,9 @@ export const App = () => {
                 setMessage(undefined);
                 setTransformers(transformers.sort(compareTransformers));
             };
+            reader.readAsText(file);
         }
         else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) {
-            // 
             reader.onload = async (e: ProgressEvent<FileReader>) => {
                 const content = e.target?.result as string;
                 setMEI(content);
@@ -130,8 +129,35 @@ export const App = () => {
                 setInitialMSM(await asMSM(content));
                 document.title = `${file.name} - MPM Desk`
             };
+            reader.readAsText(file);
         }
-        reader.readAsText(file);
+        else if (file.name.endsWith('.zip')) {
+            const zip = await JSZip.loadAsync(file);
+
+            const meiFile = zip.file('transcription.mei');
+            const jsonFile = zip.file('info.json');
+
+            if (meiFile) {
+                const meiContent = await meiFile.async('string');
+                setMEI(meiContent);
+                setMSM(await asMSM(meiContent));
+                setInitialMSM(await asMSM(meiContent));
+                document.title = `${file.name} - MPM Desk`;
+            }
+
+            if (jsonFile) {
+                const jsonContent = await jsonFile.async('string');
+                const transformers = importWork(jsonContent);
+                const messages = validate(transformers);
+                if (messages.length) {
+                    setMessage(messages.map(m => m.message).join('\n'));
+                    return;
+                }
+                setMessage(undefined);
+                setTransformers(transformers.sort(compareTransformers));
+            }
+            return;
+        }
     };
 
     const handleFileImport = () => {
@@ -286,7 +312,7 @@ export const App = () => {
                             <input
                                 type="file"
                                 id="fileInput"
-                                accept='application/xml,.mei,application/json'
+                                accept='application/xml,.mei,application/json,.zip'
                                 style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
