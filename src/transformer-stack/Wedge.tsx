@@ -10,7 +10,7 @@ import { useSelection } from "../hooks/SelectionProvider";
 
 const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transformer: Transformer }) => {
     const { dragPoint, onPointerDown, draggableProps } = useDraggable({ id: transformer.id, type: "circle" });
-    const { setActiveTransformer } = useSelection();
+    const { activeTransformer, setActiveTransformer } = useSelection();
     const [hovered, setHovered] = useState(false);
     const didDragRef = useRef(false);
 
@@ -23,7 +23,7 @@ const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transf
                 cy={dragPoint?.y ?? y}
                 r={10}
                 fill="black"
-                fillOpacity={hovered ? 0.8 : 0.5}
+                fillOpacity={(hovered || activeTransformer?.id === transformer.id) ? 0.8 : 0.5}
                 onMouseOver={() => setHovered(true)}
                 onMouseOut={() => setHovered(false)}
                 {...draggableProps}
@@ -41,7 +41,7 @@ const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transf
                 }}
             />
 
-            {hovered && (
+            {(hovered || activeTransformer?.id === transformer.id) && (
                 <foreignObject
                     x={(dragPoint?.x ?? x) + 10}
                     y={(dragPoint?.y ?? y) + 10}
@@ -73,22 +73,28 @@ const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transf
 type WedgeProps = {
     wedge: WedgeModel;
     mergeInto: (transformerId: string, argumentation: Argumentation) => void;
+    isHovered: boolean;
+    onHoverChange: (hovered: boolean) => void;
 };
 
-export function Wedge({ wedge, mergeInto }: WedgeProps) {
+export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
-    const [hovered, setHovered] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);
+    const { activeTransformer } = useSelection();
 
     const stretchX = useSymbolicZoom();
     const showWedges = stretchX > 0.05;
 
+    const containsActiveTransformer = wedge.transformers.some(t => t.id === activeTransformer?.id);
+    const expanded = isHovered || isDragOver || containsActiveTransformer;
+
     const { dropRef } = useDropTarget({
         id: wedge.argumentationId,
         onDragEnter: () => {
-            setHovered(true);
+            setIsDragOver(true);
         },
         onDragLeave: () => {
-            setHovered(false);
+            setIsDragOver(false);
         },
         onDrop: (item) => {
             mergeInto(item.id, wedge.argumentation)
@@ -141,21 +147,21 @@ export function Wedge({ wedge, mergeInto }: WedgeProps) {
             )}
 
             <g
-                onMouseOver={() => setHovered(true)}
-                onMouseOut={() => setHovered(false)}
+                onMouseOver={() => onHoverChange(true)}
+                onMouseOut={() => onHoverChange(false)}
             >
                 <circle
                     cx={cx}
                     cy={cy}
-                    r={hovered ? 30 : 8}
-                    fill={hovered ? '#7bb555ff' : 'darkgray'}
-                    fillOpacity={hovered ? 0.7 : 0.1}
+                    r={expanded ? 30 : 8}
+                    fill={expanded ? '#7bb555ff' : 'darkgray'}
+                    fillOpacity={expanded ? 0.7 : 0.1}
                     onClick={() => setArgumentationDialogOpen(true)}
                     stroke='black'
                     strokeWidth={1}
                     ref={dropRef}
                 />
-                {hovered
+                {expanded
                     ? (
                         zip(wedge.transformers,
                             packCirclesInCircle(wedge.transformers.length, 30, { x: cx, y: cy })

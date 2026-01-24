@@ -1,6 +1,6 @@
 import { Card } from "@mui/material";
 import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { MSM } from "mpmify";
 import { applyWedgeLevelGeometry, assignWedgeLevels, computeCurvePoints, computeWedgeModels } from "./WedgeModel";
@@ -9,6 +9,7 @@ import { useSvgDnd } from "./svg-dnd";
 import { Ground } from "./Ground";
 import { v4 } from "uuid";
 import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
+import { useSelection } from "../hooks/SelectionProvider";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -23,6 +24,8 @@ export const TransformerStack = ({
     msm,
 }: TransformerStackProps) => {
     const { svgRef, svgHandlers } = useSvgDnd();
+    const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
+    const { activeTransformer } = useSelection();
 
     const stretchX = useSymbolicZoom();
     const argumentations = Map.groupBy(transformers, t => t.argumentation);
@@ -131,16 +134,6 @@ export const TransformerStack = ({
                         extractTransformer={extractTransformer}
                     />
 
-                    {scene.wedges.map(w => {
-                        return (
-                            <Wedge
-                                key={`wedge_${w.argumentationId}`}
-                                wedge={w}
-                                mergeInto={mergeInto}
-                            />
-                        );
-                    })}
-
                     <path
                         className="intensityCurve"
                         d={curvePathD}
@@ -150,6 +143,28 @@ export const TransformerStack = ({
                         strokeLinejoin="round"
                         strokeLinecap="round"
                     />
+
+                    {scene.wedges
+                        .map(w => ({
+                            ...w,
+                            isHovered: hoveredWedgeId === w.argumentationId,
+                            containsActive: w.transformers.some(t => t.id === activeTransformer?.id),
+                        }))
+                        .sort((a, b) => {
+                            const aExpanded = a.isHovered || a.containsActive;
+                            const bExpanded = b.isHovered || b.containsActive;
+                            if (aExpanded === bExpanded) return 0;
+                            return aExpanded ? 1 : -1; // expanded wedges render last (on top)
+                        })
+                        .map(w => (
+                            <Wedge
+                                key={`wedge_${w.argumentationId}`}
+                                wedge={w}
+                                mergeInto={mergeInto}
+                                isHovered={w.isHovered}
+                                onHoverChange={(hovered) => setHoveredWedgeId(hovered ? w.argumentationId : null)}
+                            />
+                        ))}
                 </svg>
             </div>
         </Card>
