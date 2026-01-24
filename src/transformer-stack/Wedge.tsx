@@ -97,7 +97,11 @@ export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps
             setIsDragOver(false);
         },
         onDrop: (item) => {
-            mergeInto(item.id, wedge.argumentation)
+            setIsDragOver(false);
+            const alreadyInWedge = wedge.transformers.some(t => t.id === item.id);
+            if (!alreadyInWedge) {
+                mergeInto(item.id, wedge.argumentation)
+            }
         }
     });
 
