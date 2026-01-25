@@ -186,16 +186,29 @@ export const App = () => {
         fileInput.click();
     };
 
-    const playMPM = async () => {
+    const playMPM = async (mpmIds?: string[]) => {
         if (!mpm || !mei) return
 
-        const request = {
-            mpm: exportMPM(mpm),
-            mei: mei,
-            ids: [],
+        type Request = {
+            mpm: string,
+            mei: string,
+            mpmIds?: string[],
+            exaggerate?: number,
+            exemplify?: boolean, context?: number
         }
 
-        console.log(`Converting to MIDI ...`)
+        const request: Request = {
+            mpm: exportMPM(mpm),
+            mei: mei,
+        }
+
+        if (mpmIds) {
+            request.mpmIds = mpmIds
+            request.exaggerate = 1.2
+            request.exemplify = false
+            request.context = 0
+        }
+
         const response = await fetch(`http://localhost:8080/perform`, {
             method: 'POST',
             body: JSON.stringify(request)
@@ -221,7 +234,19 @@ export const App = () => {
         const midiBuffer = bytes.buffer;
 
         const file = read(midiBuffer)
-        play(file)
+        play(file, (e) => {
+            if (e.type === 'meta' && e.subtype === 'text') {
+                const date = msm.getByID(e.text)?.date
+                if (!date) return
+
+                mpm
+                    .instructionsEffectiveAtDate(date)
+                    .filter(i => i.type === selectedDesk)
+                    .forEach(i => {
+                        setActiveTransformer(transformers.find(t => t.created.includes(i['xml:id'])))
+                    })
+            }
+        })
 
         setIsPlaying(true)
     }
@@ -404,7 +429,7 @@ export const App = () => {
                                                 const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers)
 
                                                 const json = exportWork({
-                                                    name: metadata.title || 'Reconstruction',
+                                                    name: metadata.title,
                                                     mpm: 'performance.mpm',
                                                     mei: 'transcription.mei'
                                                 }, allTransformers, secondary)
@@ -602,6 +627,8 @@ export const App = () => {
                                 setTransformers={setTransformers}
                                 msm={msm}
                                 onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
+                                onPlay={playMPM}
+                                onStop={stopMPM}
                             />
                         </SvgDndProvider>
                     </div>

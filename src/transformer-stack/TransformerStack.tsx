@@ -16,12 +16,16 @@ interface TransformerStackProps {
     setTransformers: (transformers: Transformer[]) => void;
     msm: MSM;
     onRemove: (transformer: Transformer) => void;
+    onPlay: (mpmIds: string[]) => void;
+    onStop: () => void;
 }
 
 export const TransformerStack = ({
     transformers,
     setTransformers,
     msm,
+    onPlay,
+    onStop,
 }: TransformerStackProps) => {
     const { svgRef, svgHandlers } = useSvgDnd();
     const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
@@ -61,6 +65,21 @@ export const TransformerStack = ({
                 setTransformers([...transformers]);
             }
         }, [transformers, setTransformers])
+
+    const handleWedgeHover = useCallback((wedgeId: string | null) => {
+        setHoveredWedgeId(wedgeId);
+
+        if (!wedgeId) {
+            onStop();
+            return;
+        }
+
+        const wedgeTransformers = transformers.filter(t => t.argumentation?.id === wedgeId);
+        const mpmIds = wedgeTransformers.flatMap(t => t.created);
+        if (mpmIds.length === 0) return;
+
+        onPlay(mpmIds);
+    }, [transformers, onPlay, onStop]);
 
     const totalHeight = 300;
 
@@ -162,7 +181,7 @@ export const TransformerStack = ({
                                 wedge={w}
                                 mergeInto={mergeInto}
                                 isHovered={w.isHovered}
-                                onHoverChange={(hovered) => setHoveredWedgeId(hovered ? w.argumentationId : null)}
+                                onHoverChange={(hovered) => handleWedgeHover(hovered ? w.argumentationId : null)}
                             />
                         ))}
                 </svg>

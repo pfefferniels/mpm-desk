@@ -75,7 +75,7 @@ type WedgeProps = {
     mergeInto: (transformerId: string, argumentation: Argumentation) => void;
     isHovered: boolean;
     onHoverChange: (hovered: boolean) => void;
-};
+}
 
 export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
