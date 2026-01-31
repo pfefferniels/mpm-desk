@@ -1,7 +1,8 @@
 
 import { Button } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { useState } from "react"
+import { useCallback, useState } from "react"
+import { useScrollSync } from "../hooks/ScrollSyncProvider"
 import { CombineAdjacentRubatos, InsertRubato, InsertRubatoOptions } from "mpmify/lib/transformers"
 import { RubatoInstruction } from "./RubatoInstruction"
 import { DatesRow, Frame } from "./DatesRow"
@@ -18,6 +19,16 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
     const { play, stop } = usePiano()
     const [frame, setFrame] = useState<Frame>()
     const stretchX = useSymbolicZoom()
+
+    // Scroll sync - use callback ref to register when element mounts
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('rubato-desk', element);
+        } else {
+            unregister('rubato-desk');
+        }
+    }, [register, unregister]);
 
     const svgWidth = 10000
     const svgHeight = 200
@@ -83,7 +94,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
     })
 
     return (
-        <div style={{ width: '100vw', overflow: 'scroll' }}>
+        <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
             {appBarRef && createPortal((
                 <Ribbon title='Rubato'>
                     <Button

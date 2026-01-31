@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { Dynamics } from "../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
@@ -63,6 +64,16 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     const { slice } = useNotes()
     const stretchX = useSymbolicZoom()
     const svgRef = useRef<SVGSVGElement>(null);
+
+    // Scroll sync - use callback ref to register when element mounts
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('dynamics-desk', element);
+        } else {
+            unregister('dynamics-desk');
+        }
+    }, [register, unregister]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -286,7 +297,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     })
 
     return (
-        <div style={{ height: '400', overflow: 'scroll' }}>
+        <div ref={scrollContainerRef} style={{ height: '400', overflow: 'scroll' }}>
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <Stack direction='row' spacing={1} sx={{ position: 'sticky', left: 0 }}>
                 {appBarRef && createPortal((
