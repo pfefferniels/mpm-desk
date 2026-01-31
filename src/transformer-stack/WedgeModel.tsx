@@ -171,6 +171,9 @@ export function computeWedgeModels(params: {
         const right = curvePoints[rightIndex];
         const mid = curvePoints[midIndex];
 
+        // Skip if any curve point lookup failed (e.g., invalid range indices)
+        if (!left || !right || !mid) continue;
+
         // Base interval in x (ensure min width)
         let baseX1 = Math.min(left.x, right.x);
         let baseX2 = Math.max(left.x, right.x);
@@ -309,16 +312,22 @@ export function assignWedgeLevels(
     return wedges;
 }
 
+/**
+ * Simplified wedge geometry:
+ * - Base points (polygon[0], polygon[1]) always stay ON the intensity curve
+ * - Only the tip (polygon[2]) moves away from the curve based on level
+ * - Level 0: tip at baseAmplitude distance
+ * - Level N: tip at baseAmplitude + N * levelSpacing distance
+ */
 export function applyWedgeLevelGeometry(
     wedges: WedgeModel[],
     curvePoints: CurvePoint[],
     opts: {
-        baseAmplitude: number;   // triangle "height" beyond the band
-        levelSpacing: number;    // red gap between levels
-        level0Gap?: number;      // usually 0 (level 0 may touch curve)
+        baseAmplitude: number;   // tip distance from curve for level 0
+        levelSpacing: number;    // additional tip distance per level
     }
 ): WedgeModel[] {
-    const { baseAmplitude, levelSpacing, level0Gap = 0 } = opts;
+    const { baseAmplitude, levelSpacing } = opts;
 
     return wedges.map(w => {
         const leftIdx = w.range.from;
@@ -327,36 +336,43 @@ export function applyWedgeLevelGeometry(
         const leftCurve = curvePoints[leftIdx];
         const rightCurve = curvePoints[rightIdx];
 
-        // Use midpoint normal so the whole wedge aligns with local curve direction
+        // Guard against missing curve points
+        if (!leftCurve || !rightCurve) {
+            return w;
+        }
+
+        // Base points use EXACT curve point coordinates (not adjusted baseX1/baseX2)
+        // This ensures they sit precisely on the rendered curve polyline vertices
+        const p0: Point = {
+            x: leftCurve.x,
+            y: leftCurve.y,
+        };
+
+        const p1: Point = {
+            x: rightCurve.x,
+            y: rightCurve.y,
+        };
+
+        // Calculate tip position using curve normal at midpoint
         const midIdx = Math.floor((leftIdx + rightIdx) / 2);
+        const midCurve = curvePoints[midIdx];
         const n = curveNormal(curvePoints, midIdx);
 
-        // Choose direction away from curve
+        // Direction: above = negative Y (up in SVG), below = positive Y (down)
         const dir = w.side === "above" ? -1 : 1;
         const nx = n.x * dir;
         const ny = n.y * dir;
 
-        // Band offset ensures distinct separation between levels
-        const bandOffset = level0Gap + w.level * levelSpacing;
+        // Tip distance increases with level
+        const tipDistance = baseAmplitude + w.level * levelSpacing;
 
-        // Base endpoints: offset from the curve along the wedge normal
-        const p0: Point = {
-            x: w.baseX1 + nx * bandOffset,
-            y: leftCurve.y + ny * bandOffset,
-        };
-
-        const p1: Point = {
-            x: w.baseX2 + nx * bandOffset,
-            y: rightCurve.y + ny * bandOffset,
-        };
-
-        // Tip: same normal direction, but further out by baseAmplitude
-        const tipX0 = (w.baseX1 + w.baseX2) / 2;
-        const tipY0 = w.midY;
+        // Tip starts at curve midpoint (using exact curve coordinates), then moves away
+        const tipX0 = (leftCurve.x + rightCurve.x) / 2;
+        const tipY0 = midCurve?.y ?? w.midY;
 
         const tip: Point = {
-            x: tipX0 + nx * (bandOffset + baseAmplitude),
-            y: tipY0 + ny * (bandOffset + baseAmplitude),
+            x: tipX0 + nx * tipDistance,
+            y: tipY0 + ny * tipDistance,
         };
 
         const polygon: [Point, Point, Point] = [p0, p1, tip];

@@ -2,6 +2,7 @@ import { Card } from "@mui/material";
 import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useCallback, useMemo, useState } from "react";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
+import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { MSM } from "mpmify";
 import { applyWedgeLevelGeometry, assignWedgeLevels, computeCurvePoints, computeWedgeModels } from "./WedgeModel";
 import { Wedge } from "./Wedge";
@@ -10,34 +11,49 @@ import { Ground } from "./Ground";
 import { v4 } from "uuid";
 import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
+import { usePlayback } from "../hooks/PlaybackProvider";
 
 interface TransformerStackProps {
     transformers: Transformer[];
     setTransformers: (transformers: Transformer[]) => void;
     msm: MSM;
     onRemove: (transformer: Transformer) => void;
-    onPlay: (mpmIds: string[]) => void;
-    onStop: () => void;
 }
 
 export const TransformerStack = ({
     transformers,
     setTransformers,
     msm,
-    onPlay,
-    onStop,
 }: TransformerStackProps) => {
+    const { play, stop } = usePlayback();
     const { svgRef, svgHandlers } = useSvgDnd();
-    const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
-    const { activeTransformer } = useSelection();
-
+    const { activeTransformer, setActiveTransformer } = useSelection();
     const stretchX = useSymbolicZoom();
-    const argumentations = Map.groupBy(transformers, t => t.argumentation);
+
+    const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
+
+    // Scroll sync - use callback ref to register when element mounts
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('transformer-stack', element);
+        } else {
+            unregister('transformer-stack');
+        }
+    }, [register, unregister]);
+
+    const argumentations = useMemo(() =>
+        Map.groupBy(transformers, t => t.argumentation),
+        [transformers]
+    );
 
     const maxDate = getRange(transformers, msm)?.to || 0;
     const maxX = maxDate * stretchX;
 
-    const scaled = negotiateIntensityCurve(argumentations, maxDate, msm);
+    const scaled = useMemo(() =>
+        negotiateIntensityCurve(argumentations, maxDate, msm),
+        [argumentations, maxDate, msm]
+    );
 
     const mergeInto = useCallback(
         (transformerId: string, argumentation: Argumentation) => {
@@ -70,7 +86,7 @@ export const TransformerStack = ({
         setHoveredWedgeId(wedgeId);
 
         if (!wedgeId) {
-            onStop();
+            stop();
             return;
         }
 
@@ -78,8 +94,14 @@ export const TransformerStack = ({
         const mpmIds = wedgeTransformers.flatMap(t => t.created);
         if (mpmIds.length === 0) return;
 
-        onPlay(mpmIds);
-    }, [transformers, onPlay, onStop]);
+        play({ mpmIds });
+    }, [transformers, play, stop]);
+
+    // Callback for when argumentation is changed in the dialog
+    // Creates new array reference to trigger re-render and re-memoization
+    const handleArgumentationChange = useCallback(() => {
+        setTransformers([...transformers]);
+    }, [transformers, setTransformers]);
 
     const totalHeight = 300;
 
@@ -103,12 +125,18 @@ export const TransformerStack = ({
         wedges = assignWedgeLevels(wedges, "above");
         wedges = assignWedgeLevels(wedges, "below");
 
-        const gapInPixels = 40 * (stretchX + 1);
+        // Cap gapInPixels to prevent wedges from exceeding vertical bounds
+        const maxLevelAbove = Math.max(0, ...wedges.filter(w => w.side === "above").map(w => w.level));
+        const maxLevelBelow = Math.max(0, ...wedges.filter(w => w.side === "below").map(w => w.level));
+        const maxLevel = Math.max(maxLevelAbove, maxLevelBelow, 1);
+
+        const desiredGap = 40 * (stretchX + 1);
+        const maxGap = (totalHeight / 2 - 20) / (maxLevel + 1); // ensure wedges fit in half the height
+        const gapInPixels = Math.max(Math.min(desiredGap, maxGap), 10);
 
         wedges = applyWedgeLevelGeometry(wedges, curvePoints, {
-            baseAmplitude: gapInPixels / 3,
+            baseAmplitude: gapInPixels,
             levelSpacing: gapInPixels,
-            level0Gap: 1,
         });
 
         const width = maxX;
@@ -118,13 +146,15 @@ export const TransformerStack = ({
     }, [scaled, stretchX, totalHeight, argumentations, msm, maxX]);
 
     const curvePathD = useMemo(() => {
-        return asPathD(scaled, stretchX, totalHeight);
+        // Use same padding as computeCurvePoints to ensure wedge bases align with rendered curve
+        return asPathD(scaled, stretchX, totalHeight, 8, 8);
     }, [scaled, stretchX, totalHeight]);
 
     if (transformers.length === 0) return null;
 
     return (
         <Card
+            ref={scrollContainerRef}
             style={{
                 overflow: "scroll",
                 position: "relative",
@@ -151,6 +181,7 @@ export const TransformerStack = ({
                         width={scene.width}
                         height={scene.height}
                         extractTransformer={extractTransformer}
+                        onClearSelection={() => setActiveTransformer(undefined)}
                     />
 
                     <path
@@ -165,7 +196,7 @@ export const TransformerStack = ({
 
                     {scene.wedges
                         .map(w => ({
-                            ...w,
+                            wedge: w,
                             isHovered: hoveredWedgeId === w.argumentationId,
                             containsActive: w.transformers.some(t => t.id === activeTransformer?.id),
                         }))
@@ -175,13 +206,15 @@ export const TransformerStack = ({
                             if (aExpanded === bExpanded) return 0;
                             return aExpanded ? 1 : -1; // expanded wedges render last (on top)
                         })
-                        .map(w => (
+                        .map(({ wedge, isHovered }) => (
                             <Wedge
-                                key={`wedge_${w.argumentationId}`}
-                                wedge={w}
+                                key={`wedge_${wedge.argumentationId}`}
+                                wedge={wedge}
                                 mergeInto={mergeInto}
-                                isHovered={w.isHovered}
-                                onHoverChange={(hovered) => handleWedgeHover(hovered ? w.argumentationId : null)}
+                                isHovered={isHovered}
+                                hoveredWedgeId={hoveredWedgeId}
+                                onHoverChange={handleWedgeHover}
+                                onArgumentationChange={handleArgumentationChange}
                             />
                         ))}
                 </svg>

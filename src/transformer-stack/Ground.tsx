@@ -1,6 +1,6 @@
 import { useDropTarget } from "./svg-dnd";
 
-export const Ground = ({ width, height, extractTransformer }: { width: number; height: number, extractTransformer: (transformerId: string) => void }) => {
+export const Ground = ({ width, height, extractTransformer, onClearSelection }: { width: number; height: number, extractTransformer: (transformerId: string) => void, onClearSelection: () => void }) => {
     const { isOver, dropRef } = useDropTarget({
         id: 'ground',
         onDrop: (item) => {
@@ -16,6 +16,7 @@ export const Ground = ({ width, height, extractTransformer }: { width: number; h
             height={height}
             fill={isOver ? '#e0ffe0' : '#f0f0f0'}
             ref={dropRef}
+            onClick={onClearSelection}
         />
     );
 }

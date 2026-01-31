@@ -143,7 +143,6 @@ export function SvgDndProvider({
         if (!svg) return;
 
         const entries = Array.from(dropMapRef.current.entries());
-        console.log('entries contains ground?', entries.find(([id, ]) => id === 'ground'));
 
         let nextOverId: string | null = null;
 
@@ -158,10 +157,8 @@ export function SvgDndProvider({
                 if (!spec.accept.includes(item.type)) continue;
             }
 
-            // console.log('hit testing', id, nextPoint, el);
             const { inFill, inStroke } = hitTestGeometry(svg, el, nextPoint);
             if (inFill || inStroke) {
-                console.log('hit', id);
                 nextOverId = id;
                 break;
             }

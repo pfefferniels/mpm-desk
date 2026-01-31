@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from "react";
+import { Fragment, memo, useRef, useState, useMemo } from "react";
 import { WedgeModel } from "./WedgeModel";
 import { ArgumentationDialog } from "./ArgumentationDialog";
 import { packCirclesInCircle } from "../utils/packInCircles";
@@ -74,10 +74,12 @@ type WedgeProps = {
     wedge: WedgeModel;
     mergeInto: (transformerId: string, argumentation: Argumentation) => void;
     isHovered: boolean;
-    onHoverChange: (hovered: boolean) => void;
-}
+    hoveredWedgeId: string | null;
+    onHoverChange: (wedgeId: string | null) => void;
+    onArgumentationChange: () => void;
+} & React.SVGProps<SVGGElement>;
 
-export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps) {
+export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverChange, onArgumentationChange, ...svgProps }: WedgeProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
     const { activeTransformer } = useSelection();
@@ -123,6 +125,15 @@ export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps
     const cx = wedge.tip.x;
     const cy = wedge.tip.y;
 
+    // Memoize the circle packing computation - only recompute when transformers or position changes
+    const packedTransformers = useMemo(() => {
+        if (!expanded) return [];
+        return zip(
+            wedge.transformers,
+            packCirclesInCircle(wedge.transformers.length, 30, { x: cx, y: cy })
+        );
+    }, [expanded, wedge.transformers, cx, cy]);
+
     return (
         <g>
             {showWedges && (
@@ -134,7 +145,6 @@ export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps
                         y2={wedge.polygon[2].y}
                         stroke={stroke}
                         strokeWidth={strokeWidth}
-                        strokeDasharray="5 2"
                         strokeLinejoin="round"
                     />
                     <line
@@ -144,40 +154,33 @@ export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps
                         y2={wedge.polygon[2].y}
                         stroke={stroke}
                         strokeWidth={strokeWidth}
-                        strokeDasharray="5 2"
                         strokeLinejoin="round"
                     />
                 </>
             )}
 
             <g
-                onMouseOver={() => onHoverChange(true)}
-                onMouseOut={() => onHoverChange(false)}
+                onMouseOver={() => onHoverChange(wedge.argumentationId)}
+                onMouseOut={() => onHoverChange(null)}
+                {...svgProps}
             >
                 <circle
                     cx={cx}
                     cy={cy}
                     r={expanded ? 30 : 8}
                     fill={expanded ? '#7bb555ff' : 'darkgray'}
-                    fillOpacity={expanded ? 0.7 : 0.1}
+                    fillOpacity={expanded ? 0.9 : 0.6}
                     onClick={() => setArgumentationDialogOpen(true)}
                     stroke='black'
                     strokeWidth={1}
                     ref={dropRef}
                 />
                 {expanded
-                    ? (
-                        zip(wedge.transformers,
-                            packCirclesInCircle(wedge.transformers.length, 30, { x: cx, y: cy })
-                        )
-                            .map(({ x, y, ...transformer }) => {
-                                return (
-                                    <Fragment key={`wedge_${wedge.argumentationId}_transformer_${transformer.id}`}>
-                                        <TransformerCircle x={x} y={y} transformer={transformer} />
-                                    </Fragment>
-                                )
-                            })
-                    )
+                    ? packedTransformers.map(({ x, y, ...transformer }) => (
+                        <Fragment key={`wedge_${wedge.argumentationId}_transformer_${transformer.id}`}>
+                            <TransformerCircle x={x} y={y} transformer={transformer} />
+                        </Fragment>
+                    ))
                     : (
                         <text
                             x={cx}
@@ -185,7 +188,8 @@ export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fontSize={12}
-                            fill="rgba(0,0,0,0.6)"
+                            fontWeight='bold'
+                            fill="black"
                         >
                             {label}
                         </text>
@@ -197,9 +201,25 @@ export function Wedge({ wedge, mergeInto, isHovered, onHoverChange }: WedgeProps
                     open={argumentationDialogOpen}
                     onClose={() => setArgumentationDialogOpen(false)}
                     argumentation={wedge.argumentation}
-                    onChange={() => { }}
+                    onChange={onArgumentationChange}
                 />
             </foreignObject>
         </g>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison to prevent unnecessary re-renders
+    // Only re-render if these specific things changed:
+    return (
+        prevProps.wedge.argumentationId === nextProps.wedge.argumentationId &&
+        prevProps.isHovered === nextProps.isHovered &&
+        prevProps.wedge.tip.x === nextProps.wedge.tip.x &&
+        prevProps.wedge.tip.y === nextProps.wedge.tip.y &&
+        prevProps.wedge.polygon[0].x === nextProps.wedge.polygon[0].x &&
+        prevProps.wedge.polygon[0].y === nextProps.wedge.polygon[0].y &&
+        prevProps.wedge.polygon[1].x === nextProps.wedge.polygon[1].x &&
+        prevProps.wedge.polygon[1].y === nextProps.wedge.polygon[1].y &&
+        prevProps.wedge.polygon[2].x === nextProps.wedge.polygon[2].x &&
+        prevProps.wedge.polygon[2].y === nextProps.wedge.polygon[2].y &&
+        prevProps.wedge.transformers.length === nextProps.wedge.transformers.length
+    );
+});
