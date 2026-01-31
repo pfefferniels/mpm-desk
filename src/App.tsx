@@ -1,27 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { measureTime } from './utils/performanceLogger';
 import { asMSM } from './asMSM';
-import { compareTransformers, exportWork, importWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM, validate } from 'mpmify';
-import { read } from 'midifile-ts'
-import { usePiano } from 'react-pianosound';
-import { Alert, AppBar, Button, Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { compareTransformers, importWork, InsertMetadata, MPM, MSM, validate } from 'mpmify';
+import { Alert, AppBar, Card, Collapse, Divider, List, ListItemButton, ListItemText, Snackbar, Stack } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
 import './App.css'
-import { exportMPM } from '../../mpm-ts/lib';
-import { ExpandLess, ExpandMore, PauseCircle, PlayCircle, RestartAlt, Save, UploadFile } from '@mui/icons-material';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
 import { MetadataDesk } from './metadata/MetadataDesk';
 import { NotesProvider } from './hooks/NotesProvider';
-import { Ribbon } from './Ribbon';
-import { ZoomControls } from './ZoomControls';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';
 import { useMode } from './hooks/ModeProvider';
-import { downloadAsFile } from './utils/utils';
 import JSZip from 'jszip'
 import { SvgDndProvider } from './transformer-stack/svg-dnd';
-import { ExportPNG } from './ExportPng';
+import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
+import { PlaybackProvider } from './hooks/PlaybackProvider';
+import { AppMenu } from './components/AppMenu';
 
 const extractMetadataFromTransformers = (transformers: Transformer[]): { author: string, title: string } => {
     const metadataTransformer = transformers.find(t => t.name === 'InsertMetadata') as InsertMetadata | undefined
@@ -32,64 +29,7 @@ const extractMetadataFromTransformers = (transformers: Transformer[]): { author:
     }
 }
 
-const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[], removeRecordings = false): string => {
-    const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
-
-    for (const choice of choices) {
-        const notesAffectedByChoice = []
-
-        if (('from' in choice) && ('to' in choice)) {
-            // range
-            notesAffectedByChoice.push(...msm.allNotes.filter(n => n.date >= choice.from && n.date < choice.to))
-        }
-        // note
-        else if ('noteIDs' in choice) {
-            notesAffectedByChoice.push(...msm.allNotes.filter(n => choice.noteIDs.includes(n['xml:id'])))
-        }
-        else {
-            // default
-            notesAffectedByChoice.push(...msm.allNotes)
-        }
-
-        const preferredSources = 'prefer' in choice
-            ? [choice.prefer]
-            : [choice.velocity, choice.timing]
-        const prefer = preferredSources.join(' ')
-        const recording = meiDoc.querySelector(`recording[source="${prefer}"]`)
-        if (!recording) continue
-
-        const relevantWhens = notesAffectedByChoice
-            .map(n => meiDoc.querySelector(`when[data="#${n['xml:id']}"]`))
-            .filter(when => when !== null) as Element[]
-
-
-        for (const when of relevantWhens) {
-            const data = when.getAttribute('data')!.slice(1)
-            const note = meiDoc.querySelector(`note[*|id="${data}"]`)
-            if (!note) continue
-
-            // do not overwrite existing corresp attribute
-            if (note.hasAttribute('corresp')) continue
-
-            const corresp = when.getAttribute('corresp')
-            if (!corresp) continue
-
-            note.setAttribute('corresp', corresp)
-        }
-    }
-
-    if (removeRecordings) {
-        const recordings = meiDoc.querySelectorAll("recording")
-        for (const recording of recordings) {
-            recording.remove()
-        }
-    }
-
-    return new XMLSerializer().serializeToString(meiDoc)
-}
-
 export const App = () => {
-    const { play, stop } = usePiano()
     const { isEditorMode } = useMode();
 
     const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
@@ -101,8 +41,6 @@ export const App = () => {
     const [transformers, setTransformers] = useState<Transformer[]>([])
     const [activeTransformer, setActiveTransformer] = useState<Transformer>()
     const [message, setMessage] = useState<string>()
-
-    const [isPlaying, setIsPlaying] = useState(false)
 
     const [selectedDesk, setSelectedDesk] = useState<string>('metadata')
     const [toExpand, setToExpand] = useState<string>()
@@ -185,76 +123,6 @@ export const App = () => {
         const fileInput = document.getElementById('fileInput') as HTMLInputElement;
         fileInput.click();
     };
-
-    const playMPM = async (mpmIds?: string[]) => {
-        if (!mpm || !mei) return
-
-        type Request = {
-            mpm: string,
-            mei: string,
-            mpmIds?: string[],
-            exaggerate?: number,
-            exemplify?: boolean, context?: number
-        }
-
-        const request: Request = {
-            mpm: exportMPM(mpm),
-            mei: mei,
-        }
-
-        if (mpmIds) {
-            request.mpmIds = mpmIds
-            request.exaggerate = 1.2
-            request.exemplify = false
-            request.context = 0
-        }
-
-        const response = await fetch(`http://localhost:8080/perform`, {
-            method: 'POST',
-            body: JSON.stringify(request)
-        })
-
-        if (!response.ok) {
-            setMessage(`Playback request failed: ${response.status} ${response.statusText}`);
-            return;
-        }
-
-        const payload = await response.json();
-        const b64 = payload?.midi_b64;
-        if (!b64) {
-            setMessage('No midi_b64 field in response');
-            return;
-        }
-
-        // decode base64 to ArrayBuffer
-        const binary = atob(b64);
-        const len = binary.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-        const midiBuffer = bytes.buffer;
-
-        const file = read(midiBuffer)
-        play(file, (e) => {
-            if (e.type === 'meta' && e.subtype === 'text') {
-                const date = msm.getByID(e.text)?.date
-                if (!date) return
-
-                mpm
-                    .instructionsEffectiveAtDate(date)
-                    .filter(i => i.type === selectedDesk)
-                    .forEach(i => {
-                        setActiveTransformer(transformers.find(t => t.created.includes(i['xml:id'])))
-                    })
-            }
-        })
-
-        setIsPlaying(true)
-    }
-
-    const stopMPM = () => {
-        stop()
-        setIsPlaying(false)
-    }
 
     const reset = (newTransformers: Transformer[]) => {
         const message = validate(newTransformers)
@@ -360,10 +228,12 @@ export const App = () => {
         }
 
         const newMPM = new MPM();
-        const newMSM = initialMSM.deepClone();
+        const newMSM = measureTime('initialMSM.deepClone', () => initialMSM.deepClone());
 
-        allTransformers.forEach(t => {
-            t.run(newMSM, newMPM);
+        measureTime(`run ${allTransformers.length} transformers`, () => {
+            allTransformers.forEach(t => {
+                t.run(newMSM, newMPM);
+            });
         });
 
         setMPM(newMPM);
@@ -374,265 +244,104 @@ export const App = () => {
     const DeskComponent = correspondingDesks
         .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk;
 
+    // Memoize context value to prevent unnecessary re-renders of all consumers
+    const zoomContextValue = useMemo(() => ({
+        symbolic: { stretchX: stretchX / 200 },
+        physical: { stretchX: stretchX }
+    }), [stretchX]);
 
     return (
-        <ZoomContext.Provider value={{
-            symbolic: {
-                stretchX: stretchX / 200
-            },
-            physical: {
-                stretchX: stretchX
-            }
-        }}>
+        <ZoomContext.Provider value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
-                <AppBar position='static' color='transparent' elevation={1}>
-                    <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
-                        {isEditorMode ? (
-                            <>
-                                <Ribbon title='File'>
-                                    <Tooltip title='Import MEI/JSON file' arrow>
-                                        <Button
-                                            onClick={handleFileImport}
-                                            startIcon={<UploadFile />}
-                                        >
-                                            Open
-                                        </Button>
-                                    </Tooltip>
+                <PlaybackProvider mei={mei} msm={msm} mpm={mpm}>
+                    <AppBar position='static' color='transparent' elevation={1}>
+                        <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
+                            <AppMenu
+                                isEditorMode={isEditorMode}
+                                mei={mei}
+                                msm={msm}
+                                mpm={mpm}
+                                transformers={transformers}
+                                metadata={metadata}
+                                secondary={secondary}
+                                scope={scope}
+                                setScope={setScope}
+                                stretchX={stretchX}
+                                setStretchX={setStretchX}
+                                selectedDesk={selectedDesk}
+                                setActiveTransformer={setActiveTransformer}
+                                onFileImport={handleFileImport}
+                                onFileChange={handleFileChange}
+                                onReset={() => reset(transformers)}
+                            />
+                        </Stack>
+                    </AppBar>
 
-                                    <Tooltip title='Save Work' arrow>
-                                        <IconButton
-                                            disabled={transformers.length === 0 || !mei}
-                                            onClick={async () => {
-                                                if (!mei) return
-
-                                                const newMEI = injectChoices(
-                                                    mei, msm, transformers
-                                                        .filter((t): t is MakeChoice => t.name === 'MakeChoice')
-                                                        .map(t => t.options)
-                                                )
-
-                                                const metadataTransformer = new InsertMetadata({
-                                                    authors: metadata.author ? [{ number: 0, text: metadata.author }] : [],
-                                                    comments: metadata.title ? [{ text: metadata.title }] : []
-                                                })
-                                                metadataTransformer.argumentation = {
-                                                    note: '',
-                                                    id: 'argumentation-metadata',
-                                                    conclusion: {
-                                                        certainty: 'authentic',
-                                                        id: 'belief-metadata',
-                                                        motivation: 'unknown'
-                                                    },
-                                                    type: 'simpleArgumentation'
-                                                }
-
-                                                const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers)
-
-                                                const json = exportWork({
-                                                    name: metadata.title,
-                                                    mpm: 'performance.mpm',
-                                                    mei: 'transcription.mei'
-                                                }, allTransformers, secondary)
-
-                                                const zip = new JSZip();
-                                                zip.file("performance.mpm", exportMPM(mpm));
-                                                zip.file("transcription.mei", newMEI);
-                                                zip.file("info.json", json);
-
-                                                zip.generateAsync({ type: "blob" })
-                                                    .then((content) => {
-                                                        downloadAsFile(content, 'export.zip', 'application/zip');
-                                                    });
-
-                                            }}
-                                        >
-                                            <Save />
-                                        </IconButton>
-                                    </Tooltip>
-
-                                    <input
-                                        type="file"
-                                        id="fileInput"
-                                        accept='application/xml,.mei,application/json,.zip'
-                                        style={{ display: 'none' }}
-                                        onChange={handleFileChange}
+                    <SelectionProvider
+                        activeTransformer={activeTransformer}
+                        setActiveTransformer={setActiveTransformer}
+                        transformers={transformers}
+                    >
+                        <ScrollSyncProvider>
+                            <NotesProvider notes={msm.allNotes}>
+                                {isMetadataSelected ? (
+                                    <MetadataDesk
+                                        metadata={metadata}
+                                        setMetadata={setMetadata}
+                                        appBarRef={isEditorMode ? appBarRef : null}
+                                        isEditorMode={isEditorMode}
                                     />
+                                ) : DeskComponent && (
+                                    <DeskComponent
+                                        appBarRef={isEditorMode ? appBarRef : null}
+                                        msm={msm}
+                                        mpm={mpm}
+                                        setMSM={setMSM}
+                                        setMPM={setMPM}
+                                        secondary={secondary}
+                                        setSecondary={setSecondary}
+                                        addTransformer={(transformer: Transformer) => {
+                                            const newTransformers = [...transformers, transformer].sort(compareTransformers)
+                                            const messages = validate(newTransformers)
+                                            if (messages.length) {
+                                                setMessage(messages.map(m => m.message).join('\n'))
+                                                return
+                                            }
 
-                                    <ExportPNG transformers={transformers} msm={msm} />
-                                </Ribbon>
-
-                                {(mpm.getInstructions().length > 0) && (
-                                    <Ribbon title='Playback'>
-                                        <IconButton
-                                            onClick={() => isPlaying ? stopMPM() : playMPM()}
-                                        >
-                                            {isPlaying ? <PauseCircle /> : <PlayCircle />}
-                                        </IconButton>
-                                    </Ribbon>
-                                )}
-
-                                <Ribbon title=' '>
-                                    {transformers.length > 0 && (
-                                        <IconButton onClick={() => reset(transformers)}>
-                                            <RestartAlt />
-                                        </IconButton>
-                                    )}
-                                </Ribbon>
-
-                                <Ribbon title='Scope'>
-                                    <ToggleButtonGroup
-                                        size='small'
-                                        value={scope}
-                                        exclusive
-                                        onChange={(_, value) => setScope(value)}
-                                    >
-                                        <ToggleButton value='global'>
-                                            Global
-                                        </ToggleButton>
-                                        {Array.from(msm.parts()).map(p => (
-                                            <ToggleButton key={`button_${p}`} value={p}>
-                                                {p}
-                                            </ToggleButton>
-                                        ))}
-                                    </ToggleButtonGroup>
-                                </Ribbon>
-
-                                <Ribbon title='Zoom'>
-                                    <ZoomControls
-                                        stretchX={stretchX}
-                                        setStretchX={setStretchX}
-                                        rangeX={[1, 60]}
-                                    />
-                                </Ribbon>
-                            </>
-                        ) : (
-                            <>
-                                <Ribbon title='Zoom'>
-                                    <ZoomControls
-                                        stretchX={stretchX}
-                                        setStretchX={setStretchX}
-                                        rangeX={[1, 60]}
-                                    />
-                                </Ribbon>
-
-                                <Tooltip title='Download ZIP' arrow>
-                                    <IconButton
-                                        disabled={!mei}
-                                        onClick={async () => {
-                                            if (!mei) return
-
-                                            const newMEI = injectChoices(
-                                                mei, msm, transformers
-                                                    .filter((t): t is MakeChoice => t.name === 'MakeChoice')
-                                                    .map(t => t.options)
-                                            )
-
-                                            const metadataTransformer = new InsertMetadata({
-                                                authors: metadata.author ? [{ number: 0, text: metadata.author }] : [],
-                                                comments: metadata.title ? [{ text: metadata.title }] : []
-                                            })
-                                            metadataTransformer.argumentation = {
+                                            transformer.argumentation = {
                                                 note: '',
-                                                id: 'argumentation-metadata',
+                                                id: `argumentation-${v4().slice(0, 8)}`,
                                                 conclusion: {
-                                                    certainty: 'authentic',
-                                                    id: 'belief-metadata',
+                                                    certainty: 'plausible',
+                                                    id: `belief-${v4().slice(0, 8)}`,
                                                     motivation: 'unknown'
                                                 },
                                                 type: 'simpleArgumentation'
                                             }
 
-                                            const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers)
-
-                                            const json = exportWork({
-                                                name: metadata.title || 'Reconstruction',
-                                                mpm: 'performance.mpm',
-                                                mei: 'transcription.mei'
-                                            }, allTransformers, secondary)
-
-                                            const zip = new JSZip();
-                                            zip.file("performance.mpm", exportMPM(mpm));
-                                            zip.file("transcription.mei", newMEI);
-                                            zip.file("info.json", json);
-
-                                            zip.generateAsync({ type: "blob" })
-                                                .then((content) => {
-                                                    downloadAsFile(content, 'export.zip', 'application/zip');
-                                                });
+                                            transformer.run(msm, mpm)
+                                            setTransformers(newTransformers)
+                                            setMSM(msm.clone())
+                                            setMPM(mpm.clone())
                                         }}
-                                    >
-                                        <Save />
-                                    </IconButton>
-                                </Tooltip>
-                            </>
-                        )}
-                    </Stack>
-                </AppBar>
+                                        part={scope}
+                                    />
+                                )}
+                            </NotesProvider>
 
-                <SelectionProvider
-                    activeTransformer={activeTransformer}
-                    setActiveTransformer={setActiveTransformer}
-                    transformers={transformers}
-                >
-                    <NotesProvider notes={msm.allNotes}>
-                        {isMetadataSelected ? (
-                            <MetadataDesk
-                                metadata={metadata}
-                                setMetadata={setMetadata}
-                                appBarRef={isEditorMode ? appBarRef : null}
-                                isEditorMode={isEditorMode}
-                            />
-                        ) : DeskComponent && (
-                            <DeskComponent
-                                appBarRef={isEditorMode ? appBarRef : null}
-                                msm={msm}
-                                mpm={mpm}
-                                setMSM={setMSM}
-                                setMPM={setMPM}
-                                secondary={secondary}
-                                setSecondary={setSecondary}
-                                addTransformer={(transformer: Transformer) => {
-                                    const newTransformers = [...transformers, transformer].sort(compareTransformers)
-                                    const messages = validate(newTransformers)
-                                    if (messages.length) {
-                                        setMessage(messages.map(m => m.message).join('\n'))
-                                        return
-                                    }
-
-                                    transformer.argumentation = {
-                                        note: '',
-                                        id: `argumentation-${v4().slice(0, 8)}`,
-                                        conclusion: {
-                                            certainty: 'plausible',
-                                            id: `belief-${v4().slice(0, 8)}`,
-                                            motivation: 'unknown'
-                                        },
-                                        type: 'simpleArgumentation'
-                                    }
-
-                                    transformer.run(msm, mpm)
-                                    setTransformers(newTransformers)
-                                    setMSM(msm.clone())
-                                    setMPM(mpm.clone())
-                                }}
-                                part={scope}
-                            />
-                        )}
-                    </NotesProvider>
-
-                    <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
-                        <SvgDndProvider>
-                            <TransformerStack
-                                transformers={transformers}
-                                setTransformers={setTransformers}
-                                msm={msm}
-                                onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
-                                onPlay={playMPM}
-                                onStop={stopMPM}
-                            />
-                        </SvgDndProvider>
-                    </div>
-                </SelectionProvider>
+                            <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
+                                <SvgDndProvider>
+                                    <TransformerStack
+                                        transformers={transformers}
+                                        setTransformers={setTransformers}
+                                        msm={msm}
+                                        onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
+                                    />
+                                </SvgDndProvider>
+                            </div>
+                        </ScrollSyncProvider>
+                    </SelectionProvider>
+                </PlaybackProvider>
 
                 <Card
                     elevation={5}
