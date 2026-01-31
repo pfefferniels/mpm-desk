@@ -1,6 +1,6 @@
 // NotesContext.tsx
 import { MsmNote } from 'mpmify/lib/msm';
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 
 interface NotesContextValue {
     notes: MsmNote[];
@@ -14,23 +14,39 @@ interface NotesProviderProps {
     children: ReactNode;
 }
 
-export const NotesProvider: React.FC<NotesProviderProps> = ({ notes, children }) => {
-    const slice = (start: number, end?: number) => {
-        if (end && start > end) return []
-        
-        const sortedNotes = notes
-            .slice()
-            .sort((a, b) => a.date - b.date)
-        const firstIndex = sortedNotes.findIndex(n => n.date >= start)
-        const lastIndex = end
-            ? sortedNotes.findIndex(n => n.date >= end)
-            : sortedNotes.length - 1
+// Binary search to find first index where note.date >= target
+function lowerBound(sortedNotes: MsmNote[], target: number): number {
+    let lo = 0, hi = sortedNotes.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (sortedNotes[mid].date < target) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
 
-        return sortedNotes.slice(firstIndex, lastIndex)
-    };
+export const NotesProvider: React.FC<NotesProviderProps> = ({ notes, children }) => {
+    // Sort once when notes change, not on every slice call
+    const sortedNotes = useMemo(() => {
+        return notes.slice().sort((a, b) => a.date - b.date);
+    }, [notes]);
+
+    const slice = useCallback((start: number, end?: number) => {
+        if (end && start > end) return [];
+
+        // Use binary search instead of linear findIndex
+        const firstIndex = lowerBound(sortedNotes, start);
+        const lastIndex = end !== undefined
+            ? lowerBound(sortedNotes, end)
+            : sortedNotes.length;
+
+        return sortedNotes.slice(firstIndex, lastIndex);
+    }, [sortedNotes]);
+
+    const value = useMemo(() => ({ notes, slice }), [notes, slice]);
 
     return (
-        <NotesContext.Provider value={{ notes, slice }}>
+        <NotesContext.Provider value={value}>
             {children}
         </NotesContext.Provider>
     );
