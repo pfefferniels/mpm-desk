@@ -15,8 +15,13 @@ function bridgeToZeroLinear(curve: number[]): number[] {
 
 function minMaxScale01(values: number[]): number[] {
     if (values.length === 0) return [];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    // Avoid spread operator to prevent stack overflow with large arrays
+    let min = values[0];
+    let max = values[0];
+    for (let i = 1; i < values.length; i++) {
+        if (values[i] < min) min = values[i];
+        if (values[i] > max) max = values[i];
+    }
     const r = max - min;
     if (r === 0) return values.map(() => 0);
     return values.map(v => (v - min) / r);
@@ -29,49 +34,71 @@ export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Trans
         if (!range) continue;
 
         if (argumentation.conclusion.motivation === "intensification") {
-            for (let i = range.from; i <= (range.to || range.from); i++) {
+            const start = range.from;
+            const end = range.to ?? range.from;
+            const length = end - start + 1;
+
+            if (length === 1) continue
+
+            for (let idx = 0; idx < length; idx++) {
+                const i = start + idx;
                 if (!Number.isInteger(i) || i < 0 || i >= diff.length) {
                     continue;
                 }
-                diff[i] += 1;
+
+                // normalized position 0 → 1
+                const t = idx / (length - 1);
+                const weight = Math.sin(Math.PI * t) * Math.sqrt(length);
+                diff[i] += weight;
             }
         }
 
         if (argumentation.conclusion.motivation === "relaxation") {
-            for (let i = range.from; i <= (range.to || range.from); i++) {
+            const start = range.from;
+            const end = range.to ?? range.from;
+            const length = end - start + 1;
+            
+            if (length === 1) continue
+            for (let idx = 0; idx < length; idx++) {
+                const i = start + idx;
                 if (!Number.isInteger(i) || i < 0 || i >= diff.length) {
                     continue;
                 }
-                diff[i] -= 1;
+
+                // normalized position 0 → 1
+                const t = idx / (length - 1);
+                const weight = Math.sin(Math.PI * t) * Math.sqrt(length);
+                diff[i] -= weight;
             }
         }
     }
 
-    const curve: number[] = [];
+    // Pre-allocate array for better performance
+    const curve = new Array<number>(diff.length);
     let current = 0;
     for (let i = 0; i < diff.length; i++) {
         current += diff[i];
-        curve.push(current);
+        curve[i] = current;
     }
 
     const bridged = bridgeToZeroLinear(curve);
     return minMaxScale01(bridged);
 }
 
-export const asPathD = (scaled: number[], stretchX: number, totalHeight: number): string => {
+export const asPathD = (scaled: number[], stretchX: number, totalHeight: number, padTop = 8, padBottom = 8): string => {
     if (scaled.length === 0) return "";
-    const padTop = 10;
-    const padBottom = 10;
 
     const availableHeight = Math.max(1, totalHeight - padTop - padBottom);
 
     // scaled=0 => bottom, scaled=1 => top
     const toY = (s: number) => padTop + (1 - s) * availableHeight;
 
-    let d = `M ${0} ${toY(scaled[0])}`;
+    // Use array join instead of string concatenation (O(n) vs O(n²))
+    const parts = new Array<string>(scaled.length);
+    parts[0] = `M ${0} ${toY(scaled[0])}`;
     for (let i = 1; i < scaled.length; i++) {
         const x = i * stretchX;
-        d += ` L ${x} ${toY(scaled[i])}`;
+        parts[i] = `L ${x} ${toY(scaled[i])}`;
     }
-    return d;
+    return parts.join(' ');
 }
