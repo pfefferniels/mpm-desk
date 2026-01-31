@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { PauseCircle, PlayCircle, RestartAlt, Save, UploadFile } from '@mui/icons-material';
+import { PauseCircle, PlayCircle, Save, UploadFile } from '@mui/icons-material';
 import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM } from 'mpmify';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 import { exportMPM } from '../../../mpm-ts/lib';
@@ -8,6 +8,8 @@ import { Ribbon } from '../Ribbon';
 import { ZoomControls } from '../ZoomControls';
 import { ExportPNG } from '../ExportPng';
 import { usePlayback } from '../hooks/PlaybackProvider';
+import { useMode } from '../hooks/ModeProvider';
+import { useSelection } from '../hooks/SelectionProvider';
 import { downloadAsFile } from '../utils/utils';
 import JSZip from 'jszip';
 
@@ -60,7 +62,6 @@ const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[], remo
 }
 
 interface AppMenuProps {
-    isEditorMode: boolean;
     mei: string | undefined;
     msm: MSM;
     mpm: MPM;
@@ -72,14 +73,11 @@ interface AppMenuProps {
     stretchX: number;
     setStretchX: (stretchX: number) => void;
     selectedDesk: string;
-    setActiveTransformer: (transformer: Transformer | undefined) => void;
     onFileImport: () => void;
     onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onReset: () => void;
 }
 
 export const AppMenu: React.FC<AppMenuProps> = ({
-    isEditorMode,
     mei,
     msm,
     mpm,
@@ -91,12 +89,12 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     stretchX,
     setStretchX,
     selectedDesk,
-    setActiveTransformer,
     onFileImport,
     onFileChange,
-    onReset,
 }) => {
     const { isPlaying, play, stop } = usePlayback();
+    const { isEditorMode } = useMode();
+    const { setActiveTransformer } = useSelection();
 
     // Follow behavior: update active transformer based on playback position
     const handleNoteEvent = useCallback((_noteId: string, date: number) => {
@@ -197,14 +195,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({
                         </IconButton>
                     </Ribbon>
                 )}
-
-                <Ribbon title=' '>
-                    {transformers.length > 0 && (
-                        <IconButton onClick={onReset}>
-                            <RestartAlt />
-                        </IconButton>
-                    )}
-                </Ribbon>
 
                 <Ribbon title='Scope'>
                     <ToggleButtonGroup
