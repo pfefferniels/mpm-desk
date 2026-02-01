@@ -36,7 +36,7 @@ export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Trans
         if (argumentation.conclusion.motivation === "intensification") {
             const start = range.from;
             const end = range.to ?? range.from;
-            const length = end - start + 1;
+            const length = Math.max(200, end - start + 1);
 
             if (length === 1) continue
 
