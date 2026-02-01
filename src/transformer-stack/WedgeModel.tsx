@@ -157,11 +157,10 @@ export function computeWedgeModels(params: {
         if (!r) continue;
 
         const from = clamp(r.from, 0, n - 1);
-        const to = clamp((r.to ?? r.from), 0, n - 1);
+        const to = clamp(((r.to ?? r.from) || from + 360), 0, n - 1);
 
         const motivation = argumentation.conclusion.motivation;
-        const side: Side =
-            motivation === "intensification" || motivation === "relaxation" ? "above" : "below";
+        const side: Side = motivation === "intensification" ? "above" : "below";
 
         const leftIndex = Math.min(from, to);
         const rightIndex = Math.max(from, to);
