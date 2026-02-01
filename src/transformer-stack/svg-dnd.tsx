@@ -117,10 +117,10 @@ export function SvgDndProvider({
         if (!el) {
             map.delete(spec.id);
             // if the currently-over target unmounts, clear state
-            if (overIdRef.current === spec.id) {
-                overIdRef.current = null;
-                forceTick((t) => t + 1);
-            }
+            // if (overIdRef.current === spec.id) {
+            //     overIdRef.current = null;
+            //     forceTick((t) => t + 1);
+            // }
             return;
         }
 

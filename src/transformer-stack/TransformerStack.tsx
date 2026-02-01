@@ -12,6 +12,7 @@ import { v4 } from "uuid";
 import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
 import { usePlayback } from "../hooks/PlaybackProvider";
+import { DragLayer } from "./DragLayer";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -104,20 +105,23 @@ export const TransformerStack = ({
     }, [transformers, setTransformers]);
 
     const totalHeight = 300;
+    const basePadding = 8;
 
     const scene = useMemo(() => {
-        const curvePoints = computeCurvePoints({
+        // STEP 1: Compute preliminary curve just for X positions (Y doesn't matter yet)
+        const prelimCurvePoints = computeCurvePoints({
             scaled,
             stretchX,
             totalHeight,
-            padTop: 8,
-            padBottom: 8
+            padTop: basePadding,
+            padBottom: basePadding
         });
 
+        // STEP 2: Build wedges and assign levels (only uses X intervals)
         let wedges = computeWedgeModels({
             argumentations,
             msm,
-            curvePoints,
+            curvePoints: prelimCurvePoints,
             baseAmplitude: 30,
             minWidthPx: 32,
         });
@@ -125,14 +129,61 @@ export const TransformerStack = ({
         wedges = assignWedgeLevels(wedges, "above");
         wedges = assignWedgeLevels(wedges, "below");
 
-        // Cap gapInPixels to prevent wedges from exceeding vertical bounds
+        // STEP 3: Calculate required vertical space for wedges
         const maxLevelAbove = Math.max(0, ...wedges.filter(w => w.side === "above").map(w => w.level));
         const maxLevelBelow = Math.max(0, ...wedges.filter(w => w.side === "below").map(w => w.level));
-        const maxLevel = Math.max(maxLevelAbove, maxLevelBelow, 1);
 
-        const desiredGap = 40 * (stretchX + 1);
-        const maxGap = (totalHeight / 2 - 20) / (maxLevel + 1); // ensure wedges fit in half the height
-        const gapInPixels = Math.max(Math.min(desiredGap, maxGap), 10);
+        // Base gap calculation - scale with zoom but keep reasonable bounds
+        const desiredGap = Math.min(40, 20 + 15 * stretchX);
+
+        // Space needed for wedges on each side: (maxLevel + 1) * gap
+        // +1 because level 0 also needs space
+        const spaceAbove = (maxLevelAbove + 1) * desiredGap;
+        const spaceBelow = (maxLevelBelow + 1) * desiredGap;
+
+        // Calculate padding to reserve space for wedges
+        // Ensure minimum padding for curve visibility
+        const padTop = Math.max(basePadding, spaceAbove + basePadding);
+        const padBottom = Math.max(basePadding, spaceBelow + basePadding);
+
+        // Check if we have enough room - if not, scale down the gap
+        const availableForCurve = totalHeight - padTop - padBottom;
+        const minCurveHeight = 100; // Minimum height for the curve to remain visible
+
+        let gapInPixels = desiredGap;
+        if (availableForCurve < minCurveHeight) {
+            // Scale down gap to fit everything
+            const totalLevels = maxLevelAbove + maxLevelBelow + 2; // +2 for level 0 on each side
+            const maxTotalSpace = totalHeight - minCurveHeight - 2 * basePadding;
+            gapInPixels = Math.max(10, maxTotalSpace / totalLevels);
+        }
+
+        // Recalculate padding with final gap
+        const finalSpaceAbove = (maxLevelAbove + 1) * gapInPixels;
+        const finalSpaceBelow = (maxLevelBelow + 1) * gapInPixels;
+        const finalPadTop = basePadding + finalSpaceAbove;
+        const finalPadBottom = basePadding + finalSpaceBelow;
+
+        // STEP 4: Recompute curve with proper padding
+        const curvePoints = computeCurvePoints({
+            scaled,
+            stretchX,
+            totalHeight,
+            padTop: finalPadTop,
+            padBottom: finalPadBottom
+        });
+
+        // STEP 5: Rebuild wedges with final curve positions and apply geometry
+        wedges = computeWedgeModels({
+            argumentations,
+            msm,
+            curvePoints,
+            baseAmplitude: gapInPixels,
+            minWidthPx: 32,
+        });
+
+        wedges = assignWedgeLevels(wedges, "above");
+        wedges = assignWedgeLevels(wedges, "below");
 
         wedges = applyWedgeLevelGeometry(wedges, curvePoints, {
             baseAmplitude: gapInPixels,
@@ -142,13 +193,13 @@ export const TransformerStack = ({
         const width = maxX;
         const height = totalHeight;
 
-        return { curvePoints, wedges, width, height };
+        return { curvePoints, wedges, width, height, padTop: finalPadTop, padBottom: finalPadBottom };
     }, [scaled, stretchX, totalHeight, argumentations, msm, maxX]);
 
     const curvePathD = useMemo(() => {
         // Use same padding as computeCurvePoints to ensure wedge bases align with rendered curve
-        return asPathD(scaled, stretchX, totalHeight, 8, 8);
-    }, [scaled, stretchX, totalHeight]);
+        return asPathD(scaled, stretchX, totalHeight, scene.padTop, scene.padBottom);
+    }, [scaled, stretchX, totalHeight, scene.padTop, scene.padBottom]);
 
     if (transformers.length === 0) return null;
 
@@ -217,6 +268,8 @@ export const TransformerStack = ({
                                 onArgumentationChange={handleArgumentationChange}
                             />
                         ))}
+
+                    <DragLayer transformers={transformers} />
                 </svg>
             </div>
         </Card>

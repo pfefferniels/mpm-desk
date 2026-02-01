@@ -1,73 +1,49 @@
-import { Fragment, memo, useRef, useState, useMemo } from "react";
-import { WedgeModel } from "./WedgeModel";
+import { Fragment, memo, useState, useMemo } from "react";
+import { WedgeModel, Point, Side } from "./WedgeModel";
 import { ArgumentationDialog } from "./ArgumentationDialog";
+import { TransformerCircle } from "./TransformerCircle";
 import { packCirclesInCircle } from "../utils/packInCircles";
 import { zip } from "../utils/zip";
-import { useDraggable, useDropTarget } from "./svg-dnd";
-import { Argumentation, Transformer } from "mpmify";
-import { useSymbolicZoom } from "../hooks/ZoomProvider";
+import { useDropTarget, useSvgDnd } from "./svg-dnd";
+import { Argumentation } from "mpmify";
 import { useSelection } from "../hooks/SelectionProvider";
 
-const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transformer: Transformer }) => {
-    const { dragPoint, onPointerDown, draggableProps } = useDraggable({ id: transformer.id, type: "circle" });
-    const { activeTransformer, setActiveTransformer } = useSelection();
-    const [hovered, setHovered] = useState(false);
-    const didDragRef = useRef(false);
+/**
+ * Generate an SVG path with quadratic Bezier curves for the wedge edges.
+ * Creates elegant outward-bowing curves (bellows shape) from base points to tip.
+ */
+function generateCurvedWedgePath(p0: Point, p1: Point, tip: Point, side: Side, bowFactor = 0.2): string {
+    const dir = side === "above" ? 1 : -1;
 
-    const text = transformer.name
+    // Left edge: p0 → tip
+    const leftMidX = (p0.x + tip.x) / 2;
+    const leftMidY = (p0.y + tip.y) / 2;
+    const leftDx = tip.x - p0.x;
+    const leftDy = tip.y - p0.y;
+    const leftLen = Math.hypot(leftDx, leftDy);
 
-    return (
-        <>
-            <circle
-                cx={dragPoint?.x ?? x}
-                cy={dragPoint?.y ?? y}
-                r={10}
-                fill="black"
-                fillOpacity={(hovered || activeTransformer?.id === transformer.id) ? 0.8 : 0.5}
-                onMouseOver={() => setHovered(true)}
-                onMouseOut={() => setHovered(false)}
-                {...draggableProps}
-                onPointerDown={e => {
-                    didDragRef.current = false;
-                    onPointerDown(e, dragPoint ?? { x, y });
-                }}
-                onPointerMove={() => {
-                    didDragRef.current = true;
-                }}
-                onClick={() => {
-                    if (!didDragRef.current) {
-                        setActiveTransformer(transformer);
-                    }
-                }}
-            />
+    const leftPerpX = leftLen > 0 ? (leftDy / leftLen) * dir : 0;
+    const leftPerpY = leftLen > 0 ? (-leftDx / leftLen) * dir : 0;
 
-            {(hovered || activeTransformer?.id === transformer.id) && (
-                <foreignObject
-                    x={(dragPoint?.x ?? x) + 10}
-                    y={(dragPoint?.y ?? y) + 10}
-                    width={250}
-                    height={24}
-                >
-                    <div
-                        style={{
-                            backgroundColor: 'white',
-                            border: '1px solid gray',
-                            borderRadius: '4px',
-                            padding: '2px 4px',
-                            fontSize: '12px',
-                            boxShadow: '2px 2px 5px rgba(0,0,0,0.3)',
-                            pointerEvents: 'none',
-                            userSelect: 'none',
-                            textAlign: 'center',
-                            width: 'fit-content',
-                        }}
-                    >
-                        {text}
-                    </div>
-                </foreignObject>
-            )}
-        </>
-    )
+    const leftBow = leftLen * bowFactor;
+    const ctrl1X = leftMidX + leftPerpX * leftBow;
+    const ctrl1Y = leftMidY + leftPerpY * leftBow;
+
+    // Right edge: tip → p1
+    const rightMidX = (tip.x + p1.x) / 2;
+    const rightMidY = (tip.y + p1.y) / 2;
+    const rightDx = p1.x - tip.x;
+    const rightDy = p1.y - tip.y;
+    const rightLen = Math.hypot(rightDx, rightDy);
+
+    const rightPerpX = rightLen > 0 ? (rightDy / rightLen) * dir : 0;
+    const rightPerpY = rightLen > 0 ? (-rightDx / rightLen) * dir : 0;
+
+    const rightBow = rightLen * bowFactor;
+    const ctrl2X = rightMidX + rightPerpX * rightBow;
+    const ctrl2Y = rightMidY + rightPerpY * rightBow;
+
+    return `M ${p0.x},${p0.y} Q ${ctrl1X},${ctrl1Y} ${tip.x},${tip.y} Q ${ctrl2X},${ctrl2Y} ${p1.x},${p1.y}`;
 }
 
 type WedgeProps = {
@@ -82,21 +58,37 @@ type WedgeProps = {
 export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverChange, onArgumentationChange, ...svgProps }: WedgeProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [originLeftDuringDrag, setOriginLeftDuringDrag] = useState(false);
     const { activeTransformer } = useSelection();
+    const { dragItem } = useSvgDnd();
 
-    const stretchX = useSymbolicZoom();
-    const showWedges = stretchX > 0.05;
+    // Reset originLeftDuringDrag when drag ends
+    const isDragging = dragItem !== null;
+    if (!isDragging && originLeftDuringDrag) {
+        setOriginLeftDuringDrag(false);
+    }
 
     const containsActiveTransformer = wedge.transformers.some(t => t.id === activeTransformer?.id);
-    const expanded = isHovered || isDragOver || containsActiveTransformer;
+    // Origin wedge collapses once left during drag
+    const expanded = isDragOver || (!originLeftDuringDrag && (isHovered || containsActiveTransformer));
 
     const { dropRef } = useDropTarget({
         id: wedge.argumentationId,
-        onDragEnter: () => {
+        onDragEnter: (item) => {
+            const isOrigin = wedge.transformers.some(t => t.id === item.id);
+            if (isOrigin) {
+                // Re-entering origin: allow it to expand again (abort scenario)
+                setOriginLeftDuringDrag(false);
+            }
             setIsDragOver(true);
         },
-        onDragLeave: () => {
+        onDragLeave: (item) => {
             setIsDragOver(false);
+            // If this is the origin wedge, collapse it once left
+            const isOrigin = wedge.transformers.some(t => t.id === item.id);
+            if (isOrigin) {
+                setOriginLeftDuringDrag(true);
+            }
         },
         onDrop: (item) => {
             setIsDragOver(false);
@@ -112,14 +104,11 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
     const strokeWidth = 2;
 
     let label = "";
-
-    if (showWedges) {
-        if (wedge.argumentation.conclusion.motivation === "intensification") {
-            label = "+";
-        }
-        else if (wedge.argumentation.conclusion.motivation === "relaxation") {
-            label = "–";
-        }
+    if (wedge.argumentation.conclusion.motivation === "intensification") {
+        label = "+";
+    }
+    else if (wedge.argumentation.conclusion.motivation === "relaxation") {
+        label = "–";
     }
 
     const cx = wedge.tip.x;
@@ -136,32 +125,18 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
 
     return (
         <g>
-            {showWedges && (
-                <>
-                    <line
-                        x1={wedge.polygon[0].x}
-                        y1={wedge.polygon[0].y}
-                        x2={wedge.polygon[2].x}
-                        y2={wedge.polygon[2].y}
-                        stroke={stroke}
-                        strokeWidth={strokeWidth}
-                        strokeLinejoin="round"
-                    />
-                    <line
-                        x1={wedge.polygon[1].x}
-                        y1={wedge.polygon[1].y}
-                        x2={wedge.polygon[2].x}
-                        y2={wedge.polygon[2].y}
-                        stroke={stroke}
-                        strokeWidth={strokeWidth}
-                        strokeLinejoin="round"
-                    />
-                </>
-            )}
+            <path
+                d={generateCurvedWedgePath(wedge.polygon[0], wedge.polygon[1], wedge.polygon[2], wedge.side, 0.05)}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+            />
 
             <g
-                onMouseOver={() => onHoverChange(wedge.argumentationId)}
-                onMouseOut={() => onHoverChange(null)}
+                onMouseEnter={() => onHoverChange(wedge.argumentationId)}
+                onMouseLeave={() => onHoverChange(null)}
                 {...svgProps}
             >
                 <circle
