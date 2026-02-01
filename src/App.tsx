@@ -264,6 +264,7 @@ export const App = () => {
                         activeTransformer={activeTransformer}
                         setActiveTransformer={setActiveTransformer}
                         transformers={transformers}
+                        setTransformers={setTransformers}
                     >
                         <AppBar position='static' color='transparent' elevation={1}>
                             <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
