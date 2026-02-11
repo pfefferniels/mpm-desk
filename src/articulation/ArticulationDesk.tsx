@@ -4,17 +4,19 @@ import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { MsmNote } from "mpmify/lib/msm"
-import { MouseEventHandler, SVGProps, useState } from "react"
+import { MouseEventHandler, SVGProps, useCallback, useState } from "react"
 import { asMIDI } from "../utils/utils"
 import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation } from "mpmify"
 import { Articulation, ArticulationDef } from "../../../mpm-ts/lib"
 import { v4 } from "uuid"
 import { UnitDialog } from "./UnitDialog"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
+import { useScrollSync } from "../hooks/ScrollSyncProvider"
 import { useSelection } from "../hooks/SelectionProvider"
 import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
 import { Add } from "@mui/icons-material"
+import { ArticulationOverlay } from "./ArticulationOverlay"
 
 interface ArticulatedNoteProps extends SVGProps<SVGRectElement> {
     note: MsmNote
@@ -115,8 +117,17 @@ export type UnitWithDef = {
 
 export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
     const { activeElements, setActiveElement } = useSelection();
+    const { register, unregister } = useScrollSync();
     const [currentUnit, setCurrentUnit] = useState<UnitWithDef>()
     const [unitDialogOpen, setUnitDialogOpen] = useState(false)
+
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('articulation-desk', element, 'symbolic');
+        } else {
+            unregister('articulation-desk');
+        }
+    }, [register, unregister]);
 
     const insert = (unit: UnitWithDef) => {
         addTransformer(new InsertArticulation({
@@ -193,8 +204,26 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
         }
     }
 
+    const allNotes = msm.notesInPart(part)
+
+    const overlays = artics.map(artic => {
+        const def = artic["name.ref"] ? mpm.getDefinition('articulationDef', artic["name.ref"]) as ArticulationDef | null : null
+        return (
+            <ArticulationOverlay
+                key={`overlay_${artic["xml:id"]}`}
+                instruction={artic}
+                def={def ?? undefined}
+                notes={allNotes}
+                stretchX={stretchX}
+                stretchY={stretchY}
+                active={activeElements.includes(artic["xml:id"])}
+                onClick={() => setActiveElement(artic["xml:id"])}
+            />
+        )
+    })
+
     return (
-        <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
+        <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll', position: 'relative' }}>
             {appBarRef && createPortal((
                 <Ribbon title="Articulation">
                     {currentUnit && (
@@ -230,6 +259,7 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
             ), appBarRef?.current ?? document.body)}
 
             <svg width={10000} height={900}>
+                {overlays}
                 {articulatedNotes}
             </svg>
 
