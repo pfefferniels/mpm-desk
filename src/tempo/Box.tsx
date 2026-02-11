@@ -4,6 +4,8 @@ import { TempoSegment, asBPM } from "./Tempo"
 type BoxProps = {
   segment: TempoSegment
 
+  tickToSeconds: (tick: number) => number
+  secondsToTick: (seconds: number) => number
   stretchX: number
   stretchY: number
 
@@ -22,9 +24,9 @@ type BoxProps = {
 }
 
 /**
- * Renders a single `Tempo` object into the Skyline and 
+ * Renders a single `Tempo` object into the Skyline and
  * provides a `Dialog` to modify its appearance.
- * 
+ *
  * @prop tempo - the Tempo object to be rendered
  * @prop stretchX - horizontal stretch
  * @prop stretchY - vertical stretch
@@ -34,13 +36,14 @@ type BoxProps = {
  */
 export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
-  const [splitTime, setSplitTime] = useState<number>()
+  const [splitDate, setSplitDate] = useState<number>()
 
-  const { segment, stretchX, stretchY, marker, onPlay, onStop, played, onExpand, onSelect, onRemove, splitMode, onSplit } = props
-  const { time, selected } = segment
-  const { start, end } = time
+  const { segment, tickToSeconds, secondsToTick, stretchX, stretchY, marker, onPlay, onStop, played, onExpand, onSelect, onRemove, splitMode, onSplit } = props
+  const { selected } = segment
 
-  const bpm = asBPM(time)
+  const start = tickToSeconds(segment.date.start)
+  const end = tickToSeconds(segment.date.end)
+  const bpm = asBPM(segment.date, tickToSeconds)
   const upperY = bpm * -stretchY
 
   const handleMouseMove: MouseEventHandler<SVGPolygonElement> = e => {
@@ -48,10 +51,13 @@ export const Box = (props: BoxProps) => {
 
     const margin = 75
     const x = e.clientX - (e.target as Element).closest('svg')!.getBoundingClientRect().left - margin
-    setSplitTime(x / stretchX)
+    const seconds = x / stretchX
+    setSplitDate(secondsToTick(seconds))
   }
 
   const splitBoxProps: Omit<BoxProps, 'segment'> = {
+    tickToSeconds,
+    secondsToTick,
     stretchX,
     stretchY,
     played,
@@ -67,23 +73,15 @@ export const Box = (props: BoxProps) => {
 
   let first: TempoSegment
   let second: TempoSegment
-  if (splitTime) {
+  if (splitDate) {
     first = {
-      date: {
-        start: segment.date.start,
-        end: segment.date.start + (segment.date.end - segment.date.start) / 2
-      },
-      time: { start: segment.time.start, end: splitTime },
+      date: { start: segment.date.start, end: splitDate },
       selected: false,
       silent: true
     }
 
     second = {
-      date: {
-        start: segment.date.start + (segment.date.end - segment.date.start) / 2,
-        end: segment.date.end
-      },
-      time: { start: splitTime, end: segment.time.end },
+      date: { start: splitDate, end: segment.date.end },
       selected: false,
       silent: true
     }
@@ -91,7 +89,7 @@ export const Box = (props: BoxProps) => {
 
   return (
     <g>
-      {splitTime && (
+      {splitDate && (
         <>
           <Box
             segment={first!}
@@ -160,7 +158,7 @@ export const Box = (props: BoxProps) => {
         onMouseOut={() => {
           onStop()
           setHovered(false)
-          setSplitTime(undefined)
+          setSplitDate(undefined)
         }}
         onClick={(e) => {
           if (splitMode) {

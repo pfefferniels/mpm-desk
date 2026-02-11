@@ -1,8 +1,8 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
 import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
-import { TempoCluster, extractTempoSegments, TempoSegment as LocalTempoSegment } from "./Tempo"
+import { TempoCluster, extractTempoSegments, extractOnsets, TempoSegment as LocalTempoSegment } from "./Tempo"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { SyntheticLine } from "./SyntheticLine"
@@ -12,6 +12,8 @@ import { createPortal } from "react-dom"
 import { Tempo } from "../../../mpm-ts/lib"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
 import { useSelection } from "../hooks/SelectionProvider"
+import { useScrollSync } from "../hooks/ScrollSyncProvider"
+import { useTimeMapping } from "../hooks/useTimeMapping"
 
 export type TempoSecondaryData = {
     tempoCluster?: LocalTempoSegment[]
@@ -32,7 +34,8 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 // http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
 
 export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
-    const { setActiveElement } = useSelection();
+    const { activeElements, setActiveElement } = useSelection();
+    const { tickToSeconds, secondsToTick } = useTimeMapping(msm)
     const tempoData = secondary?.tempo as TempoSecondaryData | undefined
 
     const [tempoCluster, setTempoClusterState] = useState<TempoCluster>(() => {
@@ -48,6 +51,15 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
 
     const stretchX = usePhysicalZoom()
     const [stretchY, setStretchY] = useState(1)
+
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('tempo-desk', element, 'physical');
+        } else {
+            unregister('tempo-desk');
+        }
+    }, [register, unregister]);
 
     const setTempoCluster = (newCluster: TempoCluster) => {
         setTempoClusterState(newCluster)
@@ -97,6 +109,10 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
             return new TempoCluster(extractTempoSegments(msm, part))
         })
     }, [msm, part])
+
+    // Re-derive is automatic: tickToSeconds recomputes when msm changes
+
+    const onsets = useMemo(() => extractOnsets(msm, part), [msm, part])
 
     const insertTempoValues = () => {
         if (!tempoCluster || !newSegment) return
@@ -171,12 +187,15 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                     rangeY={[1, 2]}
                 />
 
-                <div style={{ width: '100vw', overflow: 'scroll' }}>
-                    {tempoCluster && (
+                <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
+                    {tempoCluster && tickToSeconds && secondsToTick && (
                         <Skyline
                             part={part}
                             tempos={tempoCluster}
                             setTempos={setTempoCluster}
+                            onsets={onsets}
+                            tickToSeconds={tickToSeconds}
+                            secondsToTick={secondsToTick}
                             stretchX={stretchX}
                             stretchY={stretchY}
                             onAddSegment={(from, to, beatLength) => {
@@ -189,20 +208,20 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                             }}
                             mode={mode}
                             onSplit={(first, second) => {
+                                const splitOnset = tickToSeconds(second.date.start)
                                 setSilentOnsets(prev => {
                                     const existing = prev.find(o => o.date === second.date.start)
                                     if (existing) {
-                                        existing.onset = second.time.start
+                                        existing.onset = splitOnset
                                         return [...prev]
                                     }
 
                                     return [...prev, {
                                         date: second.date.start,
-                                        onset: second.time.start
+                                        onset: splitOnset
                                     }]
                                 })
 
-                                // tempoCluster.importSegments([first, second])
                                 setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
                             }}
                         >
@@ -225,6 +244,8 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
 
                                 startTime = (startTime || 0)
 
+                                const committed = mpm.getInstructions('tempo').find(t => t.date === segment.from)
+
                                 return (
                                     <SyntheticLine
                                         key={`segment_${i}`}
@@ -233,14 +254,10 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                                         startTime={startTime}
                                         stretchX={stretchX}
                                         stretchY={stretchY}
+                                        active={committed ? activeElements.includes(committed['xml:id']) : false}
                                         onClick={() => {
-                                            // if (e.altKey && e.shiftKey) {
-                                            //     setSegments(prev => prev.filter(s => s !== segment))
-                                            //     return
-                                            // }
-                                            const commited = mpm.getInstructions('tempo').find(t => t.date === segment.from)
-                                            if (commited) {
-                                                setActiveElement(commited['xml:id'])
+                                            if (committed) {
+                                                setActiveElement(committed['xml:id'])
                                             }
                                         }}
                                         onChange={(newSegment) => {

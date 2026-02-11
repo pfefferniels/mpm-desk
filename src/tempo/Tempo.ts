@@ -15,13 +15,27 @@ export const expandRange = (a: Range, b: Range) => {
 
 export type TempoSegment = {
     date: Range
-    time: Range
     selected: boolean
     silent: boolean
 }
 
-export const asBPM = (r: Range) => {
-    return 60 / (r.end - r.start)
+export const asBPM = (dateRange: Range, tickToSeconds?: (tick: number) => number) => {
+    if (tickToSeconds) {
+        return 60 / (tickToSeconds(dateRange.end) - tickToSeconds(dateRange.start))
+    }
+    return 60 / (dateRange.end - dateRange.start)
+}
+
+export type Onset = { date: number }
+
+export const extractOnsets = (msm: MSM, part: Scope): Onset[] => {
+    const chords = msm.asChords(part)
+    const onsets: Onset[] = []
+    for (const [date, notes] of chords) {
+        if (notes[0]?.['midi.onset'] === undefined) continue
+        onsets.push({ date })
+    }
+    return onsets.sort((a, b) => a.date - b.date)
 }
 
 export const extractTempoSegments = (msm: MSM, part: Scope) => {
@@ -50,10 +64,6 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
                     start: date,
                     end: longest.date + longest.duration
                 },
-                time: {
-                    start: onset,
-                    end: longest["midi.onset"] + longest["midi.duration"]
-                },
                 selected: false,
                 silent: false
             })
@@ -78,10 +88,6 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
                 start: date,
                 end: nextDate
             },
-            time: {
-                start: onset,
-                end: nextOnset
-            },
             selected: false,
             silent: false
         })
@@ -91,9 +97,9 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
 }
 
 /**
- * A wrapper around an array of `TempoSegment`s. Provides 
- * useful methods for working with segments, such as 
- * sorting by their lengthes, finding the first and the 
+ * A wrapper around an array of `TempoSegment`s. Provides
+ * useful methods for working with segments, such as
+ * sorting by their lengthes, finding the first and the
  * last onset times etc.
  */
 export class TempoCluster {
@@ -130,31 +136,12 @@ export class TempoCluster {
         this.segments.forEach(d => d.selected = false)
     }
 
-    importSegments(newSegments: TempoSegment[]) {
-        if (this.segments.length === 0) {
-            this.segments = newSegments
-            return
-        }
-
-        for (const segment of this.segments) {
-            const leftFriend = newSegments.find(s => s.date.start === segment.date.start)
-            if (leftFriend) {
-                segment.time.start = leftFriend.time.start
-            }
-
-            const rightFriend = newSegments.find(s => s.date.end === segment.date.end)
-            if (rightFriend) {
-                segment.time.end = rightFriend.time.end
-            }
-        }
-    }
-
     serialize() {
         return JSON.stringify(this.segments, null, 4)
     }
 
-    get highestBPM() {
-        return Math.max(...this.segments.map(t => asBPM(t.time)))
+    highestBPM(tickToSeconds: (tick: number) => number) {
+        return Math.max(...this.segments.map(t => asBPM(t.date, tickToSeconds)))
     }
 
     get startDate() {
@@ -165,12 +152,12 @@ export class TempoCluster {
         return Math.max(...this.segments.map(d => d.date.end))
     }
 
-    get startOnset() {
-        return Math.min(...this.segments.map(d => d.time.start))
+    startOnset(tickToSeconds: (tick: number) => number) {
+        return Math.min(...this.segments.map(d => tickToSeconds(d.date.start)))
     }
 
-    get endOnset() {
-        return Math.max(...this.segments.map(d => d.time.end))
+    endOnset(tickToSeconds: (tick: number) => number) {
+        return Math.max(...this.segments.map(d => tickToSeconds(d.date.end)))
     }
 
     get length() {
@@ -188,4 +175,3 @@ export const isShallowEqual = <T extends object,>(obj1: T, obj2: T) =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         Object.hasOwn(obj2, key) && (obj1 as any)[key] === (obj2 as any)[key]
     );
-

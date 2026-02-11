@@ -14,9 +14,10 @@ interface SyntheticLineProps {
     stretchX: number
     stretchY: number
     onClick: MouseEventHandler
+    active: boolean
 }
 
-export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, onClick, onChange }: SyntheticLineProps) => {
+export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, onClick, onChange, active }: SyntheticLineProps) => {
     const [hovered, setHovered] = useState(false)
     const [tempo, setTempo] = useState<TempoWithEndDate>()
 
@@ -140,22 +141,24 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                 </>
             )}
 
-            {curvePoints.map((p, i, arr) => {
-                if (i >= arr.length - 1) return null
+            <g className={active ? 'tempo-pulse-active' : undefined}>
+                {curvePoints.map((p, i, arr) => {
+                    if (i >= arr.length - 1) return null
 
-                return (
-                    <line
-                        key={`p_${p.date}_${i}`}
-                        x1={p.time * stretchX}
-                        y1={p.bpm * -stretchY}
-                        x2={arr[i + 1].time * stretchX}
-                        y2={arr[i + 1].bpm * -stretchY}
-                        strokeWidth={hovered ? 3 : 2}
-                        stroke={color}
-                        strokeOpacity={hovered ? 1 : 0.7}
-                    />
-                )
-            })}
+                    return (
+                        <line
+                            key={`p_${p.date}_${i}`}
+                            x1={p.time * stretchX}
+                            y1={p.bpm * -stretchY}
+                            x2={arr[i + 1].time * stretchX}
+                            y2={arr[i + 1].bpm * -stretchY}
+                            strokeWidth={hovered ? 3 : 2}
+                            stroke={color}
+                            strokeOpacity={hovered ? 1 : 0.7}
+                        />
+                    )
+                })}
+            </g>
 
             <CurveHandle
                 x={curvePoints[0].time * stretchX}
