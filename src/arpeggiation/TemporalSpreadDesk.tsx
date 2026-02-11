@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify";
 import { ChordSpread } from "./ChordSpread";
@@ -7,8 +7,12 @@ import { Ornament, OrnamentDef, TemporalSpread } from "../../../mpm-ts/lib";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../Ribbon";
 import { usePhysicalZoom } from "../hooks/ZoomProvider";
+import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { Add } from "@mui/icons-material";
 import { TempoVariance } from "./TempoVariance";
+import { TemporalSpreadInstruction } from "./TemporalSpreadInstruction";
+import { useTimeMapping } from "../hooks/useTimeMapping";
+import { useSelection } from "../hooks/SelectionProvider";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const [temporalSpreads, setTemporalSpreads] = useState<(Ornament & { def: TemporalSpread })[]>([])
@@ -23,6 +27,17 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
     const [beatLength, setBeatLength] = useState(720);
 
     const stretchX = usePhysicalZoom()
+    const { tickToSeconds } = useTimeMapping(msm)
+    const { activeElements, setActiveElement } = useSelection()
+
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('temporal-spread-desk', element, 'physical');
+        } else {
+            unregister('temporal-spread-desk');
+        }
+    }, [register, unregister]);
 
     useEffect(() => {
         const spreads = mpm
@@ -61,6 +76,9 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
     }
 
     const height = 250;
+    const instructionHeight = 40;
+
+    const tickBasedSpreads = temporalSpreads.filter(s => s.def["time.unit"] === "ticks");
 
     const chords = []
     for (const notes of msm.asChords().values()) {
@@ -118,8 +136,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                 </>
             )}
 
-            <div style={{ width: '80vw', overflow: 'scroll' }}>
-                <svg width={10000} height={height}>
+            <div ref={scrollContainerRef} style={{ width: '80vw', overflow: 'scroll' }}>
+                <svg width={10000} height={height + instructionHeight + 30}>
                     <g>
                         {chords}
                     </g>
@@ -128,6 +146,22 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                         part={part}
                         beatLength={beatLength}
                     />
+                    {tickToSeconds && tickBasedSpreads.length > 0 && (
+                        <g transform={`translate(0, ${height + 10})`}>
+                            {tickBasedSpreads.map(ornament => (
+                                <TemporalSpreadInstruction
+                                    key={`spreadInstruction_${ornament["xml:id"]}`}
+                                    ornament={ornament}
+                                    spread={ornament.def}
+                                    tickToSeconds={tickToSeconds}
+                                    stretch={stretchX}
+                                    height={instructionHeight}
+                                    active={activeElements.includes(ornament["xml:id"])}
+                                    onClick={() => setActiveElement(ornament["xml:id"])}
+                                />
+                            ))}
+                        </g>
+                    )}
                 </svg>
             </div>
             <Dialog
