@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude and OpenSpec
+.claude/
+CLAUDE.md
+AGENTS.md
+openspec/
