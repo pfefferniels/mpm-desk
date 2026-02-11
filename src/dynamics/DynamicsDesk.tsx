@@ -69,7 +69,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     const { register, unregister } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
         if (element) {
-            register('dynamics-desk', element);
+            register('dynamics-desk', element, 'symbolic');
         } else {
             unregister('dynamics-desk');
         }

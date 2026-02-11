@@ -1,8 +1,9 @@
 import { InsertDynamicsGradient, MSM } from "mpmify"
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
-import { useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
+import { useScrollSync } from "../hooks/ScrollSyncProvider"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../Ribbon"
 import { Add } from "@mui/icons-material"
@@ -189,6 +190,15 @@ export const Hull = ({ msm, part, getY }: { msm: MSM, part: Scope, getY: (veloci
 export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [sortVelocities, setSortVelocities] = useState(true)
 
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('dynamics-gradient-desk', element, 'physical');
+        } else {
+            unregister('dynamics-gradient-desk');
+        }
+    }, [register, unregister]);
+
     const height = 700
 
     console.log('sort velocites', sortVelocities)
@@ -259,7 +269,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                 <svg height={height} width={100} style={{ position: 'absolute', top: 0, left: 0 }}>
                     <VelocityScale getY={getY} />
                 </svg>
-                <div style={{ overflow: 'scroll' }}>
+                <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
                     <svg width={8000} height={height}>
                         <Hull msm={msm} part={part} getY={getY} />
                         {Array

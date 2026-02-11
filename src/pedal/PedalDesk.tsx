@@ -2,13 +2,14 @@ import { InsertPedal, InsertPedalOptions } from "mpmify/lib/transformers"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Movement } from "../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useSymbolicZoom } from "../hooks/ZoomProvider"
 import { useSelection } from "../hooks/SelectionProvider"
 import { PedalDialog } from "./PedalDialog"
 import { usePiano } from "react-pianosound"
 import { asMIDI } from "../utils/utils"
 import { MsmPedal } from "mpmify/lib/msm"
+import { useScrollSync } from "../hooks/ScrollSyncProvider"
 
 export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
     const { activeElements, setActiveElement } = useSelection();
@@ -16,6 +17,15 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
 
     const stretchX = useSymbolicZoom()
     const { play, stop } = usePiano()
+
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('pedal-desk', element, 'symbolic');
+        } else {
+            unregister('pedal-desk');
+        }
+    }, [register, unregister]);
 
     const transform = (options: InsertPedalOptions) => {
         if (!options) return
@@ -41,7 +51,7 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
                     }}
                 />
             )}
-            <div style={{ width: '100vw', overflow: 'scroll' }}>
+            <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
                 <svg width={10000} height={400}>
                     {msm.pedals.map(p => {
                         

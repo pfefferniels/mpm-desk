@@ -24,7 +24,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
     const { register, unregister } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
         if (element) {
-            register('rubato-desk', element);
+            register('rubato-desk', element, 'symbolic');
         } else {
             unregister('rubato-desk');
         }

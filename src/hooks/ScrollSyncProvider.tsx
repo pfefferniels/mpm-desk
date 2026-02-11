@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useRef, useMemo, useCallback } from 'react';
 
+export type ScrollDomain = 'symbolic' | 'physical';
+
 interface ScrollSyncContextValue {
-    register: (id: string, element: HTMLElement) => void;
+    register: (id: string, element: HTMLElement, domain: ScrollDomain) => void;
     unregister: (id: string) => void;
 }
 
@@ -9,24 +11,51 @@ const ScrollSyncContext = createContext<ScrollSyncContextValue | undefined>(unde
 
 interface ScrollSyncProviderProps {
     children: React.ReactNode;
+    symbolicZoom: number;
+    physicalZoom: number;
+    tickToSeconds: ((tick: number) => number) | null;
+    secondsToTick: ((seconds: number) => number) | null;
+}
+
+interface RegistryEntry {
+    element: HTMLElement;
+    domain: ScrollDomain;
 }
 
 /**
  * ScrollSyncProvider synchronizes horizontal scroll position between registered elements.
+ * Supports two scroll domains (symbolic/physical) with non-linear cross-domain conversion.
  *
  * PERFORMANCE: This provider uses NO React state for scroll position.
  * All synchronization happens via direct DOM manipulation to avoid re-renders
  * of heavy SVG components during scrolling.
  */
-export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({ children }) => {
-    // Registry of scrollable elements - Map<id, element>
-    const registryRef = useRef<Map<string, HTMLElement>>(new Map());
+export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
+    children,
+    symbolicZoom,
+    physicalZoom,
+    tickToSeconds,
+    secondsToTick,
+}) => {
+    // Registry of scrollable elements - Map<id, { element, domain }>
+    const registryRef = useRef<Map<string, RegistryEntry>>(new Map());
 
-    // Tracks which component initiated the current sync to prevent loops
-    const scrollingSourceRef = useRef<string | null>(null);
+    // Records the scrollLeft value we programmatically set on each element.
+    // When an echo scroll event fires, we match against this to suppress it.
+    const expectedScrollRef = useRef<Map<string, number>>(new Map());
 
     // Stores requestAnimationFrame ID for cleanup
     const rafIdRef = useRef<number | null>(null);
+
+    // Store converter props in refs so syncScroll always reads latest values
+    const symbolicZoomRef = useRef(symbolicZoom);
+    symbolicZoomRef.current = symbolicZoom;
+    const physicalZoomRef = useRef(physicalZoom);
+    physicalZoomRef.current = physicalZoom;
+    const tickToSecondsRef = useRef(tickToSeconds);
+    tickToSecondsRef.current = tickToSeconds;
+    const secondsToTickRef = useRef(secondsToTick);
+    secondsToTickRef.current = secondsToTick;
 
     // Tolerance in pixels to avoid floating-point precision issues
     const SCROLL_TOLERANCE = 2;
@@ -38,42 +67,70 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({ children
         }
 
         rafIdRef.current = requestAnimationFrame(() => {
-            registryRef.current.forEach((element, id) => {
+            const sourceEntry = registryRef.current.get(sourceId);
+            if (!sourceEntry) return;
+
+            const sourceDomain = sourceEntry.domain;
+
+            registryRef.current.forEach((entry, id) => {
                 if (id === sourceId) return;
 
+                let targetScrollLeft: number;
+
+                if (entry.domain === sourceDomain) {
+                    // Same domain: 1:1 copy
+                    targetScrollLeft = scrollLeft;
+                } else if (sourceDomain === 'symbolic' && tickToSecondsRef.current) {
+                    // Symbolic → Physical
+                    const tick = scrollLeft / symbolicZoomRef.current;
+                    const seconds = tickToSecondsRef.current(tick);
+                    targetScrollLeft = seconds * physicalZoomRef.current;
+                } else if (sourceDomain === 'physical' && secondsToTickRef.current) {
+                    // Physical → Symbolic
+                    const seconds = scrollLeft / physicalZoomRef.current;
+                    const tick = secondsToTickRef.current(seconds);
+                    targetScrollLeft = tick * symbolicZoomRef.current;
+                } else {
+                    // No converter available: skip cross-domain sync
+                    return;
+                }
+
                 // Only update if difference exceeds tolerance
-                if (Math.abs(element.scrollLeft - scrollLeft) > SCROLL_TOLERANCE) {
-                    element.scrollLeft = scrollLeft;
+                if (Math.abs(entry.element.scrollLeft - targetScrollLeft) > SCROLL_TOLERANCE) {
+                    expectedScrollRef.current.set(id, targetScrollLeft);
+                    entry.element.scrollLeft = targetScrollLeft;
                 }
             });
 
-            scrollingSourceRef.current = null;
             rafIdRef.current = null;
         });
     }, []);
 
     const handleScroll = useCallback((sourceId: string, element: HTMLElement) => {
-        // If this scroll was triggered programmatically by us, ignore it
-        if (scrollingSourceRef.current !== null) {
-            return;
+        const expected = expectedScrollRef.current.get(sourceId);
+        if (expected !== undefined) {
+            // This scroll event matches what we programmatically set — it's an echo
+            if (Math.abs(element.scrollLeft - expected) <= SCROLL_TOLERANCE) {
+                expectedScrollRef.current.delete(sourceId);
+                return;
+            }
+            // Position differs from expected — real user scroll, clear and proceed
+            expectedScrollRef.current.delete(sourceId);
         }
-
-        // Mark that we're the source of this sync
-        scrollingSourceRef.current = sourceId;
 
         syncScroll(sourceId, element.scrollLeft);
     }, [syncScroll]);
 
-    const register = useCallback((id: string, element: HTMLElement) => {
-        // If other elements are registered, sync to their scroll position
-        if (registryRef.current.size > 0) {
-            const firstElement = registryRef.current.values().next().value;
-            if (firstElement) {
-                element.scrollLeft = firstElement.scrollLeft;
+    const register = useCallback((id: string, element: HTMLElement, domain: ScrollDomain) => {
+        // If other elements in the same domain are registered, sync to their scroll position
+        for (const entry of registryRef.current.values()) {
+            if (entry.domain === domain) {
+                element.scrollLeft = entry.element.scrollLeft;
+                break;
             }
         }
 
-        registryRef.current.set(id, element);
+        registryRef.current.set(id, { element, domain });
 
         // Attach passive scroll listener
         const scrollHandler = () => handleScroll(id, element);
@@ -84,12 +141,12 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({ children
     }, [handleScroll]);
 
     const unregister = useCallback((id: string) => {
-        const element = registryRef.current.get(id);
-        if (element) {
-            const handler = (element as HTMLElement & { __scrollSyncHandler?: () => void }).__scrollSyncHandler;
+        const entry = registryRef.current.get(id);
+        if (entry) {
+            const handler = (entry.element as HTMLElement & { __scrollSyncHandler?: () => void }).__scrollSyncHandler;
             if (handler) {
-                element.removeEventListener('scroll', handler);
-                delete (element as HTMLElement & { __scrollSyncHandler?: () => void }).__scrollSyncHandler;
+                entry.element.removeEventListener('scroll', handler);
+                delete (entry.element as HTMLElement & { __scrollSyncHandler?: () => void }).__scrollSyncHandler;
             }
         }
         registryRef.current.delete(id);

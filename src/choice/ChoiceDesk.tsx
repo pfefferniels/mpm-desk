@@ -1,11 +1,12 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, MenuItem, Select, SelectChangeEvent, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MsmNote } from "mpmify/lib/msm"
-import { MouseEvent, useState } from "react"
+import { MouseEvent, useCallback, useState } from "react"
 import { MakeChoice, NoteChoice, Preference, RangeChoice } from "mpmify"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../Ribbon"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
+import { useScrollSync } from "../hooks/ScrollSyncProvider"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
 // returns <path> attribute @d.
@@ -169,7 +170,18 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
     const [insert, setInsert] = useState(false)
 
     const stretchX = usePhysicalZoom()
-    const stretchY = 10
+    const [containerHeight, setContainerHeight] = useState(600)
+    const stretchY = containerHeight / 100
+
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('choice-desk', element, 'physical');
+            setContainerHeight(element.clientHeight)
+        } else {
+            unregister('choice-desk');
+        }
+    }, [register, unregister]);
 
     const sourceIDs = Array.from(new Set(msm.allNotes.map(note => note.source || 'unknown')))
     const colorFor = (source: string) => {
@@ -302,7 +314,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                 </Ribbon>
             ), appBarRef?.current ?? document.body)}
 
-            <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
+            <div ref={scrollContainerRef} style={{ width: '80vw', overflow: 'scroll', position: 'relative', paddingBottom: 300 }}>
                 <svg width={10000} height={900}>
                     {groups}
                 </svg>
@@ -348,12 +360,14 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                                     setPrefer({
                                         velocity: e.target.value,
                                         timing: prefer.prefer,
+                                        pedalling: prefer.prefer, // TODO: just temporary
                                     })
                                 }
                                 else {
                                     setPrefer({
                                         velocity: e.target.value,
                                         timing: prefer?.timing || 'unknown',
+                                        pedalling: prefer?.timing || 'unknown', // TODO: just temporary
                                     })
                                 }
                             }}
@@ -373,12 +387,14 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                                     setPrefer({
                                         timing: e.target.value,
                                         velocity: prefer.prefer,
+                                        pedalling: prefer.prefer, // TODO: just temporary
                                     })
                                 }
                                 else {
                                     setPrefer({
                                         timing: e.target.value,
                                         velocity: prefer?.velocity || 'unknown',
+                                        pedalling: prefer?.velocity || 'unknown', // TODO: just temporary
                                     })
                                 }
                             }}

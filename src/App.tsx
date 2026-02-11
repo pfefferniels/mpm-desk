@@ -16,6 +16,7 @@ import { useMode } from './hooks/ModeProvider';
 import JSZip from 'jszip'
 import { SvgDndProvider } from './transformer-stack/svg-dnd';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
+import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { AppMenu } from './components/AppMenu';
 import { AspectSelect } from './components/AspectSelect';
@@ -52,6 +53,8 @@ export const App = () => {
     const [metadata, setMetadata] = useState<{ author: string, title: string }>({ author: '', title: '' })
 
     const appBarRef = React.useRef<HTMLDivElement>(null);
+    const activeTransformerRef = React.useRef(activeTransformer);
+    activeTransformerRef.current = activeTransformer;
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -162,6 +165,48 @@ export const App = () => {
         }
     }, [activeTransformer])
 
+    // Hash → Selection: select transformer from URL hash when transformers load
+    useEffect(() => {
+        const hash = window.location.hash.slice(1);
+        if (!hash || !transformers.length) return;
+        const match = transformers.find(t => t.id.startsWith(hash));
+        if (match && match.id !== activeTransformerRef.current?.id) {
+            setActiveTransformer(match);
+        }
+    }, [transformers]);
+
+    // Selection → Hash: update URL hash when active transformer changes
+    useEffect(() => {
+        if (!transformers.length) return;
+        const currentHash = window.location.hash.slice(1);
+        if (activeTransformer) {
+            const prefix = activeTransformer.id.slice(0, 8);
+            if (currentHash !== prefix) {
+                history.pushState(null, '', '#' + prefix);
+            }
+        } else if (currentHash) {
+            history.pushState(null, '', window.location.pathname + window.location.search);
+        }
+    }, [activeTransformer]);
+
+    // Hashchange listener: support back/forward navigation
+    useEffect(() => {
+        const onHashChange = () => {
+            const hash = window.location.hash.slice(1);
+            if (!hash) {
+                if (activeTransformerRef.current) {
+                    setActiveTransformer(undefined);
+                }
+                return;
+            }
+            if (activeTransformerRef.current?.id.startsWith(hash)) return;
+            const match = transformers.find(t => t.id.startsWith(hash));
+            if (match) setActiveTransformer(match);
+        };
+        window.addEventListener('hashchange', onHashChange);
+        return () => window.removeEventListener('hashchange', onHashChange);
+    }, [transformers]);
+
     useEffect(() => {
         // prevent the user from loosing unsaved changes (editor mode only)
         if (isEditorMode) {
@@ -256,6 +301,8 @@ export const App = () => {
         physical: { stretchX: stretchX }
     }), [stretchX]);
 
+    const { tickToSeconds, secondsToTick } = useTimeMapping(msm);
+
     return (
         <ZoomContext.Provider value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
@@ -285,7 +332,12 @@ export const App = () => {
                                 />
                             </Stack>
                         </AppBar>
-                        <ScrollSyncProvider>
+                        <ScrollSyncProvider
+                            symbolicZoom={zoomContextValue.symbolic.stretchX}
+                            physicalZoom={zoomContextValue.physical.stretchX}
+                            tickToSeconds={tickToSeconds}
+                            secondsToTick={secondsToTick}
+                        >
                             <NotesProvider notes={msm.allNotes}>
                                 {isMetadataSelected ? (
                                     <MetadataDesk

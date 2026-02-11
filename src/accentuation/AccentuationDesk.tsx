@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI } from "../utils/utils";
@@ -47,6 +48,16 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
     const { activeElements, setActiveElement } = useSelection();
     const { play, stop } = usePiano()
     const { slice } = useNotes()
+
+    // Scroll sync - use callback ref to register when element mounts
+    const { register, unregister } = useScrollSync();
+    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        if (element) {
+            register('accentuation-desk', element, 'symbolic');
+        } else {
+            unregister('accentuation-desk');
+        }
+    }, [register, unregister]);
 
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
@@ -169,7 +180,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
     const height = 300
 
     return (
-        <div style={{ height: '400', overflow: 'scroll' }}>
+        <div ref={scrollContainerRef} style={{ height: '400', overflow: 'scroll' }}>
             <Stack spacing={1} direction='column' sx={{ position: 'sticky', left: 0 }}>
                 <Box sx={{ m: 1 }}>
                     {part !== 'global' && `Part ${part + 1}`}
