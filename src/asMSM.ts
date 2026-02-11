@@ -22,6 +22,8 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
     // Enrich the official MSM with performance information
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
 
+    const discardedNoteMap = new Map<string, string>()
+
     const originalNotes = Array
         .from(msmDoc.querySelectorAll('note'))
         .reduce((acc, curr) => {
@@ -31,6 +33,13 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
             if (candidate) {
                 if (+(curr.getAttribute('duration') || 0) > +(candidate.getAttribute('duration') || 0)) {
                     acc[acc.indexOf(candidate)] = curr
+                    const discardedId = candidate.getAttribute('xml:id')
+                    const keptId = curr.getAttribute('xml:id')
+                    if (discardedId && keptId) discardedNoteMap.set(discardedId, keptId)
+                } else {
+                    const discardedId = curr.getAttribute('xml:id')
+                    const keptId = candidate.getAttribute('xml:id')
+                    if (discardedId && keptId) discardedNoteMap.set(discardedId, keptId)
                 }
             }
             else {
@@ -39,8 +48,17 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
             return acc;
         }, [] as Element[])
 
+    // Reassign performance data from discarded duplicate notes to the longer note
+    for (const [discardedId, keptId] of discardedNoteMap) {
+        const whens = meiDoc.querySelectorAll(`when[data~="#${discardedId}"]`)
+        for (const when of whens) {
+            console.warn(`Duplicate onset: reassigning performance data from #${discardedId} to #${keptId}`)
+            const currentData = when.getAttribute('data') || ''
+            when.setAttribute('data', currentData.replace(`#${discardedId}`, `#${keptId}`))
+        }
+    }
 
-    // Filter notes with duplicate onsets
+    // Collect notes with performance data
     const msmNotes: MsmNote[] = []
     for (const note of originalNotes) {
         const noteId = note.getAttribute('xml:id')
