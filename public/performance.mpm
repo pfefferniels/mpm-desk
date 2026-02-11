@@ -1,5 +1,756 @@
 
 <mpm>
-  <metadata></metadata>
-  <performance name="unknown" pulsesPerQuarter="720"></performance>
+  <metadata>
+    <author number="0">Niels Pfeffer</author>
+    <comment>Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Grünfeld spielt Robert Schumann, Träumerei</comment>
+  </metadata>
+  <performance name="unknown" pulsesPerQuarter="720">
+    <global>
+      <header>
+        <ornamentationStyles>
+          <styleDef name="performance_style">
+            <ornamentDef name="def_288f5858-7fe6-4d2b-837c-fef279e0c5f6">
+              <temporalSpread frame.start="-76" frameLength="110" noteoff.shift="false" time.unit="ticks" intensity="0.1767053977738201"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_4d92af95-ae4d-4003-a216-48199c515abe">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-68" frameLength="111" noteoff.shift="false" time.unit="ticks" intensity="0.47435942926310465"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_global_1_0">
+              <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
+              <temporalSpread frame.start="0" frameLength="88.33333333333333" noteoff.shift="false" time.unit="ticks" intensity="1.0721916987535278"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_global_2_0">
+              <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
+              <temporalSpread frame.start="-95.5" frameLength="90" noteoff.shift="false" time.unit="ticks" intensity="1.1527417906991282"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_f23262dd-4c3c-4961-b8cd-b459999ed54e">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-1" frameLength="54" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_afe73726-5009-47ed-93fd-a161c68c03fe">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-196" frameLength="193" noteoff.shift="false" time.unit="ticks" intensity="1.7201219933203724"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_5169c53f-339b-49c8-94f7-e87ba4105770">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-177" frameLength="176" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_7ed9bb03-646b-4df0-8b94-60440c616e56">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="0" frameLength="42" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_d368dee6-d43f-4232-b1ba-9c1c203ded31">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-60" frameLength="147" noteoff.shift="false" time.unit="ticks" intensity="1.2310636723300197"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_afdcf605-e4ce-4629-bd0a-c5c529821257">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-1" frameLength="14" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_3b55aed5-51db-473e-8936-22da0fefabf4">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-1" frameLength="28" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_4fd14336-e889-4e4c-90e4-73d52311af2d">
+              <temporalSpread frame.start="-88" frameLength="227" noteoff.shift="false" time.unit="ticks" intensity="2.0512945346606317"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_3c767a48-dcb8-4cdf-a07d-0289c6c8787c">
+              <temporalSpread frame.start="-56" frameLength="95" noteoff.shift="false" time.unit="ticks" intensity="0.6045863037914023"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_8f187d4e-d097-430f-9c4b-3ef3df9e4f12">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-28" frameLength="60" noteoff.shift="false" time.unit="ticks" intensity="1.2498115277135975"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_e1c528ca-2ba9-4b17-8003-d93b6326c1ac">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-33" frameLength="70" noteoff.shift="false" time.unit="ticks" intensity="1.2449425154925904"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_b9f24014-eda4-48b0-aa66-4e7329f6db00">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-82" frameLength="81" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_2996b142-3dd0-4d26-ba00-580c74a206b0">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-64" frameLength="63" noteoff.shift="false" time.unit="ticks" intensity="0.11384444092246954"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_b42f2438-aa25-4ddc-9dae-d1c47369cdf9">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-73" frameLength="182" noteoff.shift="false" time.unit="ticks" intensity="2.114875162169038"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_5724d4bd-fc44-4579-9067-15121c343e23">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-126" frameLength="125" noteoff.shift="false" time.unit="ticks" intensity="0.86906758767224"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_af5a4228-908e-42d6-a20b-c6ced7172159">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-165" frameLength="164" noteoff.shift="false" time.unit="ticks" intensity="1.9133257983614183"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_47736e1c-d012-4462-a4bf-e358e6f977d0">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="0" frameLength="82" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_bf8a0e47-5eca-4dca-aa0f-4bed55830063">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-119" frameLength="119" noteoff.shift="false" time.unit="ticks" intensity="2.9502096008828493"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_a11e2022-625c-4b5b-96eb-ce34ea8483eb">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-15" frameLength="43" noteoff.shift="false" time.unit="ticks" intensity="1.9566085229176367"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_b954f054-12e1-49b5-9998-7a4ce3d7c5bb">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-1" frameLength="112" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_7e62132e-3912-4969-bd7f-cbc3bf811be9">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-19" frameLength="41" noteoff.shift="false" time.unit="ticks" intensity="1.463227238768576"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_42a2fb12-7969-4efb-8382-a6e8faa311bf">
+              <temporalSpread frame.start="0" frameLength="94" noteoff.shift="true" time.unit="ticks" intensity="0.1000003108665233"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_15a91bc4-f816-469f-88fd-71b835f06fd3">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-46" frameLength="44" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_fd490778-a6d5-4e17-97c8-ecc63492073e">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-1" frameLength="151" noteoff.shift="true" time.unit="ticks" intensity="1.2223925617345743"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_72447474-0329-4715-a658-f263de3b8569">
+              <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
+              <temporalSpread frame.start="-79" frameLength="197" noteoff.shift="false" time.unit="ticks" intensity="1.3554219443239597"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_729ddbe5-842e-4200-990c-4bafa3da6730">
+              <temporalSpread frame.start="-54" frameLength="53" noteoff.shift="false" time.unit="ticks" intensity="0.4590328126526583"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_a92cf84c-8222-446f-8d2b-83cce62e8958">
+              <temporalSpread frame.start="-80" frameLength="79" noteoff.shift="false" time.unit="ticks" intensity="0.6102374270479378"></temporalSpread>
+            </ornamentDef>
+            <ornamentDef name="def_250b937b-f094-4d28-a270-ae3fbc4396d4">
+              <temporalSpread frame.start="-4" frameLength="93" noteoff.shift="false" time.unit="ticks" intensity="0.41037376386056423"></temporalSpread>
+            </ornamentDef>
+          </styleDef>
+        </ornamentationStyles>
+        <metricalAccentuationStyles>
+          <styleDef name="performance_style">
+            <accentuationPatternDef name="neutral" length="0.25">
+              <accentuation beat="1" value="0" transition.from="0" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="new-pattern" length="2.5">
+              <accentuation xml:id="accentuation_460d9730-6ed8-4387-8609-7caf10592704" beat="1" value="0.027887940634684298" transition.from="0.027887940634684298" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_5da94101-7472-4220-b9d7-6c98d9001691" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-386dbf6a" length="1">
+              <accentuation xml:id="accentuation_7ac50810-6745-42b8-a768-089958f6f245" beat="1" value="0.8528329324997296" transition.from="0.8528329324997296" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_321de88c-7405-4850-a2bb-50f4e2160e01" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-a56877aa" length="1">
+              <accentuation xml:id="accentuation_4b8f7bb7-d863-4ace-a852-2cacf2036f1d" beat="1" value="0" transition.from="0" transition.to="1"></accentuation>
+              <accentuation xml:id="accentuation_16ad3fcc-83f6-43d2-832a-4fbbe0fb9900" beat="1.5" value="1" transition.from="1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-34972fd4" length="1">
+              <accentuation xml:id="accentuation_431e8216-3cd0-4b56-be1d-611457f15984" beat="1" value="1" transition.from="1" transition.to="-0.6517472132879261"></accentuation>
+              <accentuation xml:id="accentuation_04dbf226-a799-4feb-81a4-034507860bca" beat="1.5" value="-0.6517472132879261" transition.from="-0.6517472132879261" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-2c41ccf7" length="2.5">
+              <accentuation xml:id="accentuation_e0898278-4600-4eef-b1f5-beda32246800" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_37b7763b-6916-4936-a10c-047ce3b81dd4" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-034da7c8" length="1.5">
+              <accentuation xml:id="accentuation_b3b2aa43-0333-4998-a58b-0198a2c6998d" beat="1" value="0.7746175276888578" transition.from="0.7746175276888578" transition.to="0.20491246674705277"></accentuation>
+              <accentuation xml:id="accentuation_c908534e-d142-4e42-84ba-419201044a4d" beat="1.5" value="0.20491246674705277" transition.from="0.20491246674705277" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_19d07521-2c32-42f0-840d-f19d6599808e" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-87f71655" length="1.5">
+              <accentuation xml:id="accentuation_cad10c95-4f11-4072-8c51-d192bbbff6e7" beat="1" value="0" transition.from="0" transition.to="-0.8950321313778294"></accentuation>
+              <accentuation xml:id="accentuation_2a2f29b8-6455-4413-a85e-7f449a33b5a7" beat="1.5" value="-0.8950321313778294" transition.from="-0.8950321313778294" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_309a1981-3c72-41c8-8af9-58de71c4f4b1" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-673326f0" length="1">
+              <accentuation xml:id="accentuation_28166bfc-6a7b-452e-bcbc-4de4c1935b71" beat="1" value="0.18368184512887348" transition.from="0.18368184512887348" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_0209d0a5-5a1f-4668-975b-2c52b1f62ad0" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-8ad209f1" length="1">
+              <accentuation xml:id="accentuation_621c06b2-fdd5-435e-b228-268f3001e3df" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_43fa9ef4-d895-462a-a252-8eb59a5f73e5" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-f60f34c6" length="2.5">
+              <accentuation xml:id="accentuation_8e9a4138-57c0-4d95-9e8d-29312ca88cf1" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_40348237-7ccd-428e-9b8d-09e3b9879cc0" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-1dc40bca" length="1">
+              <accentuation xml:id="accentuation_57709d13-1292-4b9a-9347-123869cbbb07" beat="1" value="1" transition.from="1" transition.to="-0.8408938171342015"></accentuation>
+              <accentuation xml:id="accentuation_c6b2ee40-ea75-4a23-8ee5-9add20d906d6" beat="1.5" value="-0.8408938171342015" transition.from="-0.8408938171342015" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-7de81602" length="2.5">
+              <accentuation xml:id="accentuation_d7ac2d2e-13fa-4aae-a1ff-5c015660bb56" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_1c107f24-8bc2-4d71-b477-367b023a4522" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-ca5ec607" length="1.5">
+              <accentuation xml:id="accentuation_e2467895-208d-486b-a8cf-3057ecce4d89" beat="1" value="0" transition.from="0" transition.to="-0.6638335222946684"></accentuation>
+              <accentuation xml:id="accentuation_841f9e65-b3fa-43f2-a988-3478e66a44c8" beat="1.5" value="-0.6638335222946684" transition.from="-0.6638335222946684" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_563a6511-f363-4d6b-bcc4-daf3829b8078" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-f8a5e298" length="1">
+              <accentuation xml:id="accentuation_52b359e6-bebe-4614-80b5-2ba7059d9122" beat="1" value="-0.0332256048029381" transition.from="-0.0332256048029381" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_24d2af77-d74c-489f-a970-1869273b31e6" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-189fb1c1" length="1">
+              <accentuation xml:id="accentuation_ff6b526f-5a3d-4293-9bea-963f127ce4a2" beat="1" value="-0.31049037453264333" transition.from="-0.31049037453264333" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_f62467a0-661c-4cbe-9718-d52d91f55f8e" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-f2c29cfb" length="2">
+              <accentuation xml:id="accentuation_e786d621-b529-44b6-b312-d275acb29a30" beat="1" value="0.016402392334876014" transition.from="0.016402392334876014" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_f3abf60b-489d-41fb-a7f0-0fc2ca6e527a" beat="1.5" value="-1" transition.from="-1" transition.to="-0.9136018347571386"></accentuation>
+              <accentuation xml:id="accentuation_5bb956be-db47-4e56-8781-19073687aeec" beat="2" value="-0.9136018347571386" transition.from="-0.9136018347571386" transition.to="-0.22102630034088294"></accentuation>
+              <accentuation xml:id="accentuation_cc07d4a0-835e-4ef4-b753-286e27a453d1" beat="2.5" value="-0.22102630034088294" transition.from="-0.22102630034088294" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-fa782e30" length="2.5">
+              <accentuation xml:id="accentuation_1e6a745b-da60-498b-a5ea-e9090b2afc5f" beat="1" value="0.4155312058886875" transition.from="0.4155312058886875" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_ee7738be-afb4-4f3e-bd31-becb33327897" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-060874e9" length="1.5">
+              <accentuation xml:id="accentuation_28213c60-67b2-47b0-ba3e-c9c42650b177" beat="1" value="0" transition.from="0" transition.to="-0.8998460754793352"></accentuation>
+              <accentuation xml:id="accentuation_e76bef3f-7c4b-4cfb-9882-93b03f0c70cf" beat="1.5" value="-0.8998460754793352" transition.from="-0.8998460754793352" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_41a5e2be-f84a-4331-9f73-6f868503f3f9" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-375b8da8" length="0.5">
+              <accentuation xml:id="accentuation_a67f2471-d4f0-4024-8f1b-e06f3f4b8c94" beat="1" value="1" transition.from="1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-c80601c0" length="0.5">
+              <accentuation xml:id="accentuation_6ebb8355-9b43-42b2-b18d-a8d6ec6065ae" beat="1" value="1" transition.from="1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-4658f790" length="2.5">
+              <accentuation xml:id="accentuation_2dabcec1-6aed-4121-824b-a29036b241be" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_b6974654-b0ba-434f-9677-a39ec64e7ae1" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-785c1aab" length="1.5">
+              <accentuation xml:id="accentuation_1c3df51b-7fdc-44e6-9973-f558bcf7332a" beat="1" value="0" transition.from="0" transition.to="-0.8890203894495369"></accentuation>
+              <accentuation xml:id="accentuation_cc683cd3-89d4-4b1f-a39e-4b4ed087bfe6" beat="1.5" value="-0.8890203894495369" transition.from="-0.8890203894495369" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_ab582c40-7ec3-4332-89dd-d3bb44bf79c4" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-92c767fe" length="1.5">
+              <accentuation xml:id="accentuation_8a0abf63-e99f-4446-ba2f-487734f379a6" beat="1" value="0.18391564150446163" transition.from="0.18391564150446163" transition.to="-0.7740527767167505"></accentuation>
+              <accentuation xml:id="accentuation_3c36a317-3d35-4149-92bb-006e0caade65" beat="1.5" value="-0.7740527767167505" transition.from="-0.7740527767167505" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_79907e3b-4e03-4c2a-af7a-f17953a8bd7b" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-c7ecda3c" length="2.5">
+              <accentuation xml:id="accentuation_c79aee84-a2d1-4eee-bfb6-ed0e31fc8514" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_425fd96f-3a90-47f2-8aef-cd21983c7ac4" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-f1438c65" length="1">
+              <accentuation xml:id="accentuation_02d58928-49d6-46c4-a117-c426083fe521" beat="1" value="0" transition.from="0" transition.to="-0.8386544728857706"></accentuation>
+              <accentuation xml:id="accentuation_fd0201b1-3faf-49ae-8740-3b4816389fe6" beat="1.5" value="-0.8386544728857706" transition.from="-0.8386544728857706" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-9d33a97d" length="1">
+              <accentuation xml:id="accentuation_ce24836d-8db0-4e60-9e51-4dada7c3a529" beat="1" value="0.9942051819917755" transition.from="0.9942051819917755" transition.to="-0.47746918485353446"></accentuation>
+              <accentuation xml:id="accentuation_b880ae6a-306c-4efd-a76f-d4298762f79e" beat="1.5" value="-0.47746918485353446" transition.from="-0.47746918485353446" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-02f6d74a" length="1">
+              <accentuation xml:id="accentuation_15dd334c-71ba-427b-9d4e-06c4d3c9703d" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_72dc8ead-d737-4e5b-88e1-4723ac8e5c8d" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-6e194991" length="1">
+              <accentuation xml:id="accentuation_2ca99a79-2011-4665-840e-379e66d3fff5" beat="1" value="1" transition.from="1" transition.to="-0.3818548388779163"></accentuation>
+              <accentuation xml:id="accentuation_2e89989f-fd2e-47fc-8464-6ea3c07ce223" beat="1.5" value="-0.3818548388779163" transition.from="-0.3818548388779163" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-0ee467df" length="1">
+              <accentuation xml:id="accentuation_166605df-b23f-4adf-8fc0-f465d23390d6" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_c5dc4450-10b1-47c0-916f-1b02e5ec7fc0" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-9a97ba78" length="1">
+              <accentuation xml:id="accentuation_3d02aacb-127e-4c40-88ed-a0c574ee87a9" beat="1" value="0.5" transition.from="0.5" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_3dd36dca-f026-47c3-bd84-63a7f6953a87" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-e0e283b4" length="2.5">
+              <accentuation xml:id="accentuation_835fb5be-0b8b-4d81-9574-7a1ec67b11c8" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_95051087-8ba9-43e2-ac58-691a816e3db0" beat="2" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-1a09d000" length="1">
+              <accentuation xml:id="accentuation_d66e1afb-e434-40a6-8c14-4d020a27fc08" beat="1" value="0" transition.from="0" transition.to="-0.5757168456912041"></accentuation>
+              <accentuation xml:id="accentuation_27e0f5ce-abc8-4f9d-878b-f903ec08d779" beat="1.5" value="-0.5757168456912041" transition.from="-0.5757168456912041" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-ffad3094" length="1">
+              <accentuation xml:id="accentuation_eeb7b4c9-e455-4f21-a88f-6e673bd65e9e" beat="1" value="0.7021075809081654" transition.from="0.7021075809081654" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_db2eb3fe-20c9-40bc-9041-0b4ae632c544" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-d332a90a" length="1">
+              <accentuation xml:id="accentuation_3c6d7596-c31c-4c16-a012-3718e7adfb87" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_0db1d903-728b-412d-8ad6-a98acd11f113" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-56dabc45" length="1">
+              <accentuation xml:id="accentuation_96ad5eaa-57a1-49bb-b8ba-699d3331a98b" beat="1" value="1" transition.from="1" transition.to="0"></accentuation>
+              <accentuation xml:id="accentuation_12a88fb2-5667-4dc3-8f96-57463558fb37" beat="1.5" value="0" transition.from="0" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-f4b40c72" length="1">
+              <accentuation xml:id="accentuation_dca48b22-1b9c-4a18-ac18-12b29a075b93" beat="1" value="0" transition.from="0" transition.to="-1"></accentuation>
+              <accentuation xml:id="accentuation_6ceac27e-bef1-4ae8-837f-5d49c24e1dd6" beat="1.5" value="-1" transition.from="-1" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="pattern-c976b7d3" length="1">
+              <accentuation xml:id="accentuation_cbb8d07c-a086-4f45-b19f-7f5f743cdd15" beat="1" value="0.27118625659573053" transition.from="0.27118625659573053" transition.to="0"></accentuation>
+              <accentuation xml:id="accentuation_1100226b-36c7-434a-8abc-5daece7e5ee6" beat="1.5" value="0" transition.from="0" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="good-bad-simple" length="1">
+              <accentuation xml:id="accentuation_63d5358e-23f5-4a29-8fad-b3b36fb6957d" beat="1" value="0.17230669513745403" transition.from="0.17230669513745403" transition.to="-0.8454520150438753"></accentuation>
+              <accentuation xml:id="accentuation_f242b108-2e1f-4866-b04c-d143dfd81e95" beat="1.5" value="-0.8454520150438753" transition.from="-0.8454520150438753" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="good-bad-experimental" length="1">
+              <accentuation xml:id="accentuation_fe50aeb5-a422-4ba7-a5d2-428e15753c49" beat="1" value="0.7286166745632116" transition.from="0.7286166745632116" transition.to="-0.5664990659240726"></accentuation>
+              <accentuation xml:id="accentuation_746bb65e-2c86-48c9-a772-29b27ee1936c" beat="1.5" value="-0.5664990659240726" transition.from="-0.5664990659240726" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+            <accentuationPatternDef name="good-bad-experiment2" length="1">
+              <accentuation xml:id="accentuation_5fc3f840-ca56-4236-9396-a5373e4dabee" beat="1" value="0.65625" transition.from="0.65625" transition.to="-0.5956936171278358"></accentuation>
+              <accentuation xml:id="accentuation_fbaf53a3-86ad-4179-b78c-f4ff5bfc34fe" beat="1.5" value="-0.5956936171278358" transition.from="-0.5956936171278358" transition.to="0"></accentuation>
+            </accentuationPatternDef>
+          </styleDef>
+        </metricalAccentuationStyles>
+        <articulationStyles>
+          <styleDef name="performance_style">
+            <articulationDef name="c7c6b85f-215b-4c1a-b40f-5bf791f7be5f" absoluteDuration="534.375"></articulationDef>
+            <articulationDef name="01981525-c000-4831-8ee6-d728ab4864bb" relativeDuration="0.17809951811274274"></articulationDef>
+            <articulationDef name="2226cc45-4c83-4f3c-ae49-a0cbfe1b3d2f" relativeDuration="2.32777770506307"></articulationDef>
+            <articulationDef name="shorten-by-half" relativeDuration="0.349609375"></articulationDef>
+            <articulationDef name="75b423b1-3fff-4e2d-a5ef-10284e6e9c2a" relativeDuration="1.5625"></articulationDef>
+            <articulationDef name="1addca35-efee-4dc0-852a-893b97e4f3dd" relativeDuration="0.455078125"></articulationDef>
+            <articulationDef name="bass-overlegato" relativeDuration="1.1281684660009028"></articulationDef>
+            <articulationDef name="9e330a30-3bed-4716-ba73-69a52292872b" relativeDuration="0.708984375"></articulationDef>
+            <articulationDef name="9eb7186f-111a-4ffc-9c98-d551e89e8832" relativeDuration="0.2798611111111111"></articulationDef>
+            <articulationDef name="legato" relativeDuration="1.0937933890345986"></articulationDef>
+            <articulationDef name="d641c370-f446-411a-9ea3-fd7a80d68f0f" relativeDuration="1.181684008632424"></articulationDef>
+            <articulationDef name="Überlegato" relativeDuration="1.2034090060726066"></articulationDef>
+            <articulationDef name="ae5800b5-4546-49e7-bfe7-4e7ea528bded" relativeDuration="0.24652777777777776"></articulationDef>
+            <articulationDef name="fb0d7b19-050a-4345-908a-a28d392c4061" relativeDuration="1.1222222167377853"></articulationDef>
+            <articulationDef name="5a3568bf-6dd1-4806-b0f2-24f4f47514db" relativeDuration="1.1592447911497907"></articulationDef>
+            <articulationDef name="99181797-2200-415e-97ae-7231373c2022" relativeDuration="0.2824074074074074"></articulationDef>
+            <articulationDef name="77003174-2778-4560-955b-fc83f9e98541" relativeDuration="0.20960438002063153"></articulationDef>
+            <articulationDef name="fingerpedal-2" relativeDuration="1.6383783176302436"></articulationDef>
+            <articulationDef name="fingerpedal-3" relativeDuration="2.154629629629623"></articulationDef>
+            <articulationDef name="fingerpedal-4" relativeDuration="1.584243300502971"></articulationDef>
+            <articulationDef name="b931eba3-056a-494e-8d01-aaa5f43004cd" relativeDuration="1.8916666666666666"></articulationDef>
+            <articulationDef name="8b03295c-ad2d-461e-aecc-e40539dc8dc0" relativeDuration="1.1972222222222222"></articulationDef>
+            <articulationDef name="9bd51d28-6782-4da8-98d1-7a1ee3d2c161" relativeDuration="0.9833333333333333"></articulationDef>
+            <articulationDef name="0cebf342-b10a-41c5-bf64-f9ae2d57dfb4" relativeDuration="1.1028853738132463"></articulationDef>
+          </styleDef>
+        </articulationStyles>
+      </header>
+      <dated>
+        <ornamentationMap>
+          <ornament xml:id="ornament_30960" date="30960" name.ref="def_f23262dd-4c3c-4961-b8cd-b459999ed54e" note.order="ascending pitch" corresp="b86cea25-33b2-46a9-83d4-40fb1e7747ce" scale="3"></ornament>
+          <ornament xml:id="ornament_4320" date="4320" name.ref="def_afe73726-5009-47ed-93fd-a161c68c03fe" note.order="ascending pitch" intensity="1.7201219933203724" corresp="argumentation-2076f0fc" scale="10"></ornament>
+          <ornament xml:id="ornament_720" date="720" name.ref="def_5169c53f-339b-49c8-94f7-e87ba4105770" note.order="ascending pitch" corresp="argumentation-6e0e9f20" scale="3"></ornament>
+          <ornament xml:id="ornament_1440" date="1440" name.ref="def_288f5858-7fe6-4d2b-837c-fef279e0c5f6" note.order="ascending pitch" intensity="0.1767053977738201" corresp="703f5977-4356-41dd-9d59-c8418d4640a6"></ornament>
+          <ornament xml:id="ornament_5760" date="5760" name.ref="def_global_1_0" note.order="ascending pitch" corresp="argumentation-889bb16a" scale="3"></ornament>
+          <ornament xml:id="ornament_6120" date="6120" name.ref="def_7ed9bb03-646b-4df0-8b94-60440c616e56" note.order="ascending pitch" corresp="argumentation-889bb16a" scale="1"></ornament>
+          <ornament xml:id="ornament_6480" date="6480" name.ref="def_global_1_0" note.order="ascending pitch" intensity="1.2165750962605837" corresp="arg_b364f3d0" scale="2"></ornament>
+          <ornament xml:id="ornament_7200" date="7200" name.ref="def_d368dee6-d43f-4232-b1ba-9c1c203ded31" note.order="#naq8f7d #n43bpi4 #n1hdo2gg #n1sw27dc" intensity="1.2310636723300197" corresp="80d8e0d0-7814-4566-b9a0-b700191ebc2d" scale="2"></ornament>
+          <ornament xml:id="ornament_7560" date="7560" name.ref="def_afdcf605-e4ce-4629-bd0a-c5c529821257" note.order="ascending pitch" corresp="80d8e0d0-7814-4566-b9a0-b700191ebc2d" scale="1"></ornament>
+          <ornament xml:id="ornament_7920" date="7920" name.ref="def_3b55aed5-51db-473e-8936-22da0fefabf4" note.order="ascending pitch" corresp="argumentation-49a728c0" scale="2"></ornament>
+          <ornament xml:id="ornament_10080" date="10080" name.ref="def_4fd14336-e889-4e4c-90e4-73d52311af2d" note.order="ascending pitch" intensity="2.0512945346606317" corresp="argumentation-a97a44c0" scale="5"></ornament>
+          <ornament xml:id="ornament_9360" date="9360" name.ref="def_3c767a48-dcb8-4cdf-a07d-0289c6c8787c" note.order="#n1273g3u #n1vmhu38 #n171h9f6 #n1ewgtq3" intensity="0.6045863037914023" corresp="argumentation-a97a44c0" scale="4"></ornament>
+          <ornament xml:id="ornament_9000" date="9000" name.ref="def_8f187d4e-d097-430f-9c4b-3ef3df9e4f12" note.order="ascending pitch" intensity="1.2498115277135975" corresp="argumentation-a984a12c" scale="3"></ornament>
+          <ornament xml:id="ornament_8640" date="8640" name.ref="def_e1c528ca-2ba9-4b17-8003-d93b6326c1ac" note.order="ascending pitch" intensity="1.2449425154925904" corresp="argumentation-a984a12c" scale="5"></ornament>
+          <ornament xml:id="ornament_11520" date="11520" name.ref="def_b9f24014-eda4-48b0-aa66-4e7329f6db00" note.order="ascending pitch" corresp="argumentation-4147a8a3" scale="7"></ornament>
+          <ornament xml:id="ornament_12960" date="12960" name.ref="def_2996b142-3dd0-4d26-ba00-580c74a206b0" note.order="#n1gal8jt #n6knmhg #n1wi1vv4 #n30gj7x" intensity="0.11384444092246954" corresp="arg_8c9fb33a-2056-4e0f-9188-1605e5675983" scale="1"></ornament>
+          <ornament xml:id="ornament_15840" date="15840" name.ref="def_b42f2438-aa25-4ddc-9dae-d1c47369cdf9" note.order="ascending pitch" intensity="2.114875162169038" corresp="argumentation-5a8253f7" scale="2"></ornament>
+          <ornament xml:id="ornament_18000" date="18000" name.ref="def_4d92af95-ae4d-4003-a216-48199c515abe" note.order="#n1t9pywj #n1tg2sth #nu68um5 #n1lt30h1" intensity="0.47435942926310465" corresp="argumentation-426e1be9" scale="3"></ornament>
+          <ornament xml:id="ornament_19080" date="19080" name.ref="def_5724d4bd-fc44-4579-9067-15121c343e23" note.order="ascending pitch" intensity="0.86906758767224" corresp="argumentation-5c6bd429" scale="2"></ornament>
+          <ornament xml:id="ornament_19440" date="19440" name.ref="def_af5a4228-908e-42d6-a20b-c6ced7172159" note.order="ascending pitch" intensity="1.9133257983614183" corresp="argumentation-5c6bd429" scale="3"></ornament>
+          <ornament xml:id="ornament_21600" date="21600" name.ref="def_47736e1c-d012-4462-a4bf-e358e6f977d0" note.order="ascending pitch" corresp="argumentation-cab11b85" scale="6"></ornament>
+          <ornament xml:id="ornament_20880" date="20880" name.ref="def_bf8a0e47-5eca-4dca-aa0f-4bed55830063" note.order="ascending pitch" intensity="2.9502096008828493" corresp="argumentation-cab11b85" scale="1"></ornament>
+          <ornament xml:id="ornament_20520" date="20520" name.ref="def_global_2_0" note.order="#nlus68v #n1f7pg0g #nn61gi6 #n1ynqscg" intensity="1.196760180259175" corresp="arg_99622919-e538-4bc8-8ee0-3abb2e9d719a" scale="2"></ornament>
+          <ornament xml:id="ornament_22320" date="22320" name.ref="def_a11e2022-625c-4b5b-96eb-ce34ea8483eb" note.order="#n1qu7m3y #nxj6lah #n1aq7lwx #nc05e7t" intensity="1.9566085229176367" corresp="argumentation-9ca18a93" scale="3"></ornament>
+          <ornament xml:id="ornament_23400" date="23400" name.ref="def_global_1_0" note.order="ascending pitch" corresp="argumentation-61cbc890" scale="1"></ornament>
+          <ornament xml:id="ornament_23760" date="23760" name.ref="def_b954f054-12e1-49b5-9998-7a4ce3d7c5bb" note.order="ascending pitch" corresp="argumentation-7d423e39" scale="6"></ornament>
+          <ornament xml:id="ornament_24480" date="24480" name.ref="def_7e62132e-3912-4969-bd7f-cbc3bf811be9" note.order="#n1obi0t8-rend2 #n1ubfgy0-rend2 #nd80ywu-rend2 #n1yas34a-rend2" intensity="1.463227238768576" corresp="arg_d56ba6b5-284e-493d-a394-071dcb3df020" scale="1"></ornament>
+          <ornament xml:id="ornament_27360" date="27360" name.ref="def_42a2fb12-7969-4efb-8382-a6e8faa311bf" note.order="#nh71je6-rend2 #n162mama-rend2 #ntu78d0-rend2" intensity="0.1000003108665233" corresp="argumentation-beb38a15" scale="3"></ornament>
+          <ornament xml:id="ornament_28800" date="28800" name.ref="def_15a91bc4-f816-469f-88fd-71b835f06fd3" note.order="ascending pitch" corresp="47708cdd-16c1-4466-9521-33c88680438a" scale="3"></ornament>
+          <ornament xml:id="ornament_29520" date="29520" name.ref="def_fd490778-a6d5-4e17-97c8-ecc63492073e" note.order="ascending pitch" intensity="1.2223925617345743" corresp="47708cdd-16c1-4466-9521-33c88680438a" scale="2"></ornament>
+          <ornament xml:id="ornament_30240" date="30240" name.ref="def_72447474-0329-4715-a658-f263de3b8569" note.order="ascending pitch" intensity="1.3554219443239597" corresp="argumentation-2e55a6f6" scale="3"></ornament>
+          <ornament xml:id="ornament_31680" date="31680" name.ref="def_global_2_0" note.order="ascending pitch" intensity="1.1087234011390812" corresp="ee4513f4-5a09-47b6-ae3d-50531c13397a" scale="4"></ornament>
+          <ornament xml:id="ornament_32040" date="32040" name.ref="def_729ddbe5-842e-4200-990c-4bafa3da6730" note.order="#nw4587c-rend2 #nu3c214-rend2 #nfl0rmk-rend2 #n12yqrz8-rend2" intensity="0.4590328126526583" corresp="ee4513f4-5a09-47b6-ae3d-50531c13397a"></ornament>
+          <ornament xml:id="ornament_32400" date="32400" name.ref="def_a92cf84c-8222-446f-8d2b-83cce62e8958" note.order="#n1273g3u-rend2 #n1vmhu38-rend2 #n171h9f6-rend2 #n1ewgtq3-rend2" intensity="0.6102374270479378" corresp="ee4513f4-5a09-47b6-ae3d-50531c13397a" scale="4"></ornament>
+          <ornament xml:id="ornament_33120" date="33120" name.ref="def_250b937b-f094-4d28-a270-ae3fbc4396d4" note.order="ascending pitch" intensity="0.41037376386056423" corresp="de292c8f-0d9d-469c-af87-7b6d26f840bf" scale="5"></ornament>
+          <ornament xml:id="ornament_29160" date="29160" name.ref="def_590ae6b9-93c1-4920-99ee-19b055d9353b" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_34560" date="34560" name.ref="def_5ee496a7-e3b8-4f39-a7cd-f64b59250bba" scale="6" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_38880" date="38880" name.ref="def_5fdb2f8c-3dd6-4153-b376-676c4fb0e4a2" scale="5" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_41040" date="41040" name.ref="def_72d9f7eb-ee98-41d1-84da-d4cc2575891b" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_42120" date="42120" name.ref="def_afe8c5d9-d4f5-4f6a-8170-d6186be6f727" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_42480" date="42480" name.ref="def_7d8e0632-0ca1-4c8b-bd91-5f27fe543b29" scale="4" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_43560" date="43560" name.ref="def_16868ef9-6040-4f84-9efc-2e463139fc98" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_43920" date="43920" name.ref="def_1e78c9ad-aa87-425c-b09b-e8e6321e23a3" scale="4" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_44640" date="44640" name.ref="def_d5ffd50f-7a2a-488e-8b37-172f920fc309" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_45360" date="45360" name.ref="def_096686e2-bdb2-435e-9fc7-d15ff9617704" scale="5" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_46440" date="46440" name.ref="def_b2cf045a-fa72-4d27-8664-ece63e3c614d" scale="5" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_47520" date="47520" name.ref="def_c5ec0b1d-e232-4d01-ba3a-9dc37248f821" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_50040" date="50040" name.ref="def_8f3f7b4f-0992-4bcc-9904-8af36fc45110" scale="13" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_50400" date="50400" name.ref="def_7fe24085-4ad8-4eba-8d02-7cc79d15f83b" scale="7" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_52200" date="52200" name.ref="def_04972c5d-91ff-468b-8fdc-741b48724be8" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_52560" date="52560" name.ref="def_102fde9c-8548-46ed-ae39-52779830c196" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_53640" date="53640" name.ref="def_306e7a60-9744-4be3-b5c3-67f51a23318e" scale="4" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_54000" date="54000" name.ref="def_82b211de-39a9-4660-b899-cb010156c470" scale="9" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_55080" date="55080" name.ref="def_18cf899b-8646-4cb5-b2d1-a331e619951c" scale="4" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_56520" date="56520" name.ref="def_9fabebde-2e97-430b-b7c1-78ac9ebd9e34" scale="6" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_57960" date="57960" name.ref="def_f0b15aba-ac3d-4c0c-b07c-9a121ad02d3a" scale="6" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_58320" date="58320" name.ref="def_65fcb65f-dee6-4389-97ec-821073b04b11" scale="3" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_61560" date="61560" name.ref="def_c193a210-2bf6-4f45-bca9-8ed0dddd2598" scale="12" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_61920" date="61920" name.ref="def_37a98eb9-d33f-4e5e-8e71-05e544a1ffc9" scale="15" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_63360" date="63360" name.ref="def_cb45c107-696d-4a7a-b0ce-0d0e283c3f8a" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_63720" date="63720" name.ref="def_d3c3af77-5854-4e31-8245-f3b39cd0a13c" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_64080" date="64080" name.ref="def_e5a561ab-6238-4073-a416-38f43f554e1c" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_65160" date="65160" name.ref="def_767731d8-a67c-4d7a-8579-d4783cfb5085" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_65520" date="65520" name.ref="def_37ca9ae6-4028-4b2f-9bb9-d40cfa76c7ce" scale="3" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_66960" date="66960" name.ref="def_2e7e836d-2c77-481e-b682-b72290b506f8" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_68040" date="68040" name.ref="def_540fb10f-127e-4d80-93b2-02722bb9f16b" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_68400" date="68400" name.ref="def_07aeb812-ee05-49da-8dd1-e82cb25cb73d" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_73440" date="73440" name.ref="def_68ea4ae7-29ad-4523-afea-e431c19df29d" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_74880" date="74880" name.ref="def_2b0c7be5-e992-4aec-aef9-b67e99b1cca3" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_75600" date="75600" name.ref="def_303573d4-e046-4aa9-bb60-5458c740d0ea" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_76320" date="76320" name.ref="def_76d420d8-ae78-4d71-9b19-7cd59c20de3f" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_77040" date="77040" name.ref="def_a3873e86-2fc2-40e2-a12f-7c52e8ab44c8" scale="3" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_77760" date="77760" name.ref="def_67968ac3-2de6-44e3-a337-8a1c4771dd27" scale="5" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_78120" date="78120" name.ref="def_eca35eb9-3d63-483d-9310-42db18911354" scale="5" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_78480" date="78480" name.ref="def_51e42787-92e7-4879-80ca-1af42afba55f" scale="13" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_79200" date="79200" name.ref="def_d0882169-39c7-4a8f-95d0-246b90938653" scale="8" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_80640" date="80640" name.ref="def_27b61101-ab17-4c88-99a2-8a2db539e43d" scale="6" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_84960" date="84960" name.ref="def_3461f2f5-4271-4e28-b3dd-33687fbe2056" scale="3" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_87120" date="87120" name.ref="def_b7dfece3-67b6-4ee5-97b6-3873b4ebb31e" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_87840" date="87840" name.ref="def_26584065-f94d-40b9-bb36-952470dd20ac" scale="3" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_88200" date="88200" name.ref="def_ee7c8412-c44b-41cc-bf7e-62769bc7f71e" scale="1" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_89280" date="89280" name.ref="def_11c2e1f8-8dc1-4078-8feb-b6102518caf4" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_89640" date="89640" name.ref="def_016babb5-8fcb-4c6c-a6d1-bf6b481781dd" scale="3" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_90000" date="90000" name.ref="def_8b694d4f-e24c-425d-b38a-71eb2905f68e" scale="2" corresp="decision-4e415fcc"></ornament>
+          <ornament xml:id="ornament_90720" date="90720" name.ref="def_9a58fcce-c24a-4066-a1b4-b7f794621600" scale="1" corresp="decision-4e415fcc"></ornament>
+          <style date="0" xml:id="0239dc3b-779f-4f2a-905e-9bb26a4cce25" name.ref="performance_style"></style>
+        </ornamentationMap>
+        <tempoMap>
+          <tempo xml:id="tempo_0" date="0" endDate="2160" bpm="70.7968462873908" transition.to="50.46021105564698" meanTempoAt="0.4573777423176576" beatLength="0.25" corresp="arg_029a8e58"></tempo>
+          <tempo xml:id="tempo_2160" date="2160" endDate="3600" bpm="53.59516188435953" transition.to="70.5764654766294" meanTempoAt="0.3275724482113024" beatLength="0.25" corresp="decision-9bb1a3aa"></tempo>
+          <tempo xml:id="tempo_3600" date="3600" endDate="5760" bpm="25.025449396252064" transition.to="57.21634314596963" meanTempoAt="0.21500395672599068" beatLength="0.25" corresp="argumentation-2076f0fc"></tempo>
+          <tempo xml:id="tempo_5760" date="5760" endDate="7200" bpm="66.10637880709766" transition.to="38.83121598850928" meanTempoAt="0.3717651773693432" beatLength="0.25" corresp="decision-feb51539"></tempo>
+          <tempo xml:id="tempo_7200" date="7200" endDate="9360" bpm="48.45888418276574" transition.to="52.43399862654248" meanTempoAt="0.4287123946417544" beatLength="0.25" corresp="decision-cfcd2188"></tempo>
+          <tempo xml:id="tempo_9360" date="9360" endDate="10800" bpm="57.44244706964862" transition.to="47.803048945346134" meanTempoAt="0.3807388765993023" beatLength="0.25" corresp="decision-ff5e67de"></tempo>
+          <tempo xml:id="tempo_10800" date="10800" endDate="15120" bpm="45.35006757636507" transition.to="66.05298024286769" meanTempoAt="0.1956345100702664" beatLength="0.25" corresp="07d6139b-bcd7-4ccb-ae16-d2c0c8e950b1"></tempo>
+          <tempo xml:id="tempo_15120" date="15120" endDate="17280" bpm="50.2251923121454" transition.to="47.02798186410549" meanTempoAt="0.584805888875288" beatLength="0.25" corresp="decision-bd209987"></tempo>
+          <tempo xml:id="tempo_17280" date="17280" endDate="18720" bpm="53.61309495128011" transition.to="57.90613269160212" meanTempoAt="0.3612644253543664" beatLength="0.25" corresp="d472996d-738c-4dd1-9ee4-b8c0cc37cdc5"></tempo>
+          <tempo xml:id="tempo_18720" date="18720" endDate="20880" bpm="41.97791167453623" transition.to="48.038236990713926" meanTempoAt="0.1588148976660781" beatLength="0.25" corresp="argumentation-d0c81337"></tempo>
+          <tempo xml:id="tempo_20880" date="20880" endDate="22320" bpm="54.1252597860187" transition.to="35.80447276353102" meanTempoAt="0.3640391822528453" beatLength="0.25" corresp="589cfe7d-1b64-40be-9650-be92ed976005"></tempo>
+          <tempo xml:id="tempo_22320" date="22320" endDate="23760" bpm="43.30842170502815" transition.to="38.302442192767955" meanTempoAt="0.37830198309199603" beatLength="0.25" corresp="argumentation-7b141ee5"></tempo>
+          <tempo xml:id="tempo_23760" date="23760" endDate="26640" bpm="24.572308021120087" transition.to="32.99586888331755" meanTempoAt="0.32146793190219514" beatLength="0.5" corresp="61cfb25f-8a56-4744-af8f-cad4da376dd3"></tempo>
+          <tempo xml:id="tempo_26640" date="26640" endDate="28800" bpm="57.7578384538261" transition.to="40.04345101550732" meanTempoAt="0.24946319709307765" beatLength="0.25" corresp="arg_a880b0d1-a3fd-4767-a8c1-562ce917f954"></tempo>
+          <tempo xml:id="tempo_28800" date="28800" endDate="30240" bpm="81.5188013237203" transition.to="39.913931293525735" meanTempoAt="0.3773210212725576" beatLength="0.25" corresp="argumentation-ef9abe57"></tempo>
+          <tempo xml:id="tempo_30240" date="30240" endDate="31680" bpm="50.288698139356654" transition.to="55.371932248918164" meanTempoAt="0.4035283899613546" beatLength="0.25" corresp="argumentation-be73bd91"></tempo>
+          <tempo xml:id="tempo_31680" date="31680" endDate="33120" bpm="52.81504128225105" transition.to="54.18623560919365" meanTempoAt="0.3992561848523045" beatLength="0.25" corresp="argumentation-ac14a76f"></tempo>
+          <tempo xml:id="tempo_33120" date="33120" endDate="35280" bpm="41.93093076698206" transition.to="62.8586534515557" meanTempoAt="0.2666534068672492" beatLength="0.25" corresp="argumentation-7c2bf10b"></tempo>
+          <tempo date="35280" bpm="62.8586534515557" beatLength="0.25" xml:id="tempo_0a0ed7b5-0e23-4f93-8fc0-394181ad60c2" corresp="argumentation-7c2bf10b"></tempo>
+          <tempo xml:id="tempo_38160" date="38160" endDate="40320" bpm="27.969487403685655" transition.to="48.19536562345067" meanTempoAt="0.19532512846925815" beatLength="0.25" corresp="argumentation-9847d067"></tempo>
+          <tempo xml:id="tempo_40320" date="40320" endDate="43920" bpm="65.04576091302096" transition.to="38.34022523023135" meanTempoAt="0.3350972457933449" beatLength="0.25" corresp="argumentation-d40265ea"></tempo>
+          <tempo xml:id="tempo_43920" date="43920" endDate="45360" bpm="43.621620958843884" transition.to="43.22490879398862" meanTempoAt="0.48049462192025416" beatLength="0.25" corresp="argumentation-14001e32"></tempo>
+          <tempo xml:id="tempo_45360" date="45360" endDate="46800" bpm="59.65844716225163" transition.to="37.37274632338317" meanTempoAt="0.3726235931155738" beatLength="0.25" corresp="argumentation-3407ad9c"></tempo>
+          <tempo xml:id="tempo_46800" date="46800" endDate="49680" bpm="64.43382166859662" transition.to="59.8321390121484" meanTempoAt="0.26127341170423424" beatLength="0.25" corresp="argumentation-875f433f"></tempo>
+          <tempo xml:id="tempo_49680" date="49680" endDate="51120" bpm="44.644712608782534" transition.to="71.28182441880507" meanTempoAt="0.30857627933076115" beatLength="0.25" corresp="argumentation-2742ac39"></tempo>
+          <tempo xml:id="tempo_51120" date="51120" endDate="52560" bpm="74.56243858126236" transition.to="55.45110083249853" meanTempoAt="0.3454143102359159" beatLength="0.25" corresp="argumentation-b00c2ca6"></tempo>
+          <tempo xml:id="tempo_52560" date="52560" endDate="54720" bpm="66.35194419222906" transition.to="56.227732597683854" meanTempoAt="0.1633520716307346" beatLength="0.25" corresp="arg_0649c225-8df0-41c7-a8e9-5e46f31f572a"></tempo>
+          <tempo xml:id="tempo_54720" date="54720" endDate="56880" bpm="49.736403081071686" transition.to="59.34808194726046" meanTempoAt="0.14335995946892233" beatLength="0.25" corresp="argumentation-2321f7e2"></tempo>
+          <tempo xml:id="tempo_56880" date="56880" endDate="58320" bpm="81.19162755116619" transition.to="30.416578484284546" meanTempoAt="0.3985087754756922" beatLength="0.25" corresp="argumentation-256ccb49"></tempo>
+          <tempo xml:id="tempo_58320" bpm="53.475935828877006" date="58320" endDate="59760" transition.to="53.967090045896775" meanTempoAt="0.5" beatLength="0.25" corresp="argumentation-fe5f1b3b"></tempo>
+          <tempo xml:id="tempo_59760" bpm="62.0846387118519" date="59760" endDate="60480" beatLength="0.25" corresp="argumentation-e20ad1f0"></tempo>
+          <tempo date="60480" bpm="62.0846387118519" beatLength="0.25" xml:id="tempo_73f9afd9-6283-4d4a-a550-1742fad3a3d8" corresp="argumentation-e20ad1f0"></tempo>
+          <tempo xml:id="tempo_61920" bpm="NaN" date="61920" endDate="63360" beatLength="0.25" corresp="argumentation-94145d78"></tempo>
+          <tempo xml:id="tempo_63360" date="63360" endDate="64800" bpm="51.033538892749554" transition.to="58.720171839894064" meanTempoAt="0.3615290688516631" beatLength="0.25" corresp="argumentation-140b989d"></tempo>
+          <tempo xml:id="tempo_64800" date="64800" endDate="66960" bpm="59.0167614712805" transition.to="43.63256457735675" meanTempoAt="0.3569874234144746" beatLength="0.25" corresp="argumentation-d968c29b"></tempo>
+          <tempo xml:id="tempo_66960" date="66960" endDate="69840" bpm="58.77339879829158" transition.to="28.039884831067226" meanTempoAt="0.2836837739804958" beatLength="0.25" corresp="argumentation-6ed31604"></tempo>
+          <tempo xml:id="tempo_69840" date="69840" endDate="72000" bpm="52.79754046037441" transition.to="60.0556230891665" meanTempoAt="0.35375687751622337" beatLength="0.25" corresp="argumentation-1ca5845b"></tempo>
+          <tempo xml:id="tempo_72000" date="72000" endDate="73440" bpm="66.45722962337854" transition.to="31.757056090906683" meanTempoAt="0.38478089583351127" beatLength="0.25" corresp="argumentation-0a11eb0c"></tempo>
+          <tempo xml:id="tempo_73440" date="73440" endDate="77760" bpm="58.050684023535894" transition.to="45.64982864110638" meanTempoAt="0.12109208040434752" beatLength="0.25" corresp="argumentation-e84be7d1"></tempo>
+          <tempo xml:id="tempo_77760" date="77760" endDate="79200" bpm="50.426073921966605" transition.to="43.10519607989243" meanTempoAt="0.3379896195130356" beatLength="0.25" corresp="argumentation-b9cc9254"></tempo>
+          <tempo xml:id="tempo_79200" date="79200" endDate="80640" bpm="56.335043483207954" transition.to="48.71244625723131" meanTempoAt="0.38649007183187084" beatLength="0.25" corresp="argumentation-82c74333"></tempo>
+          <tempo xml:id="tempo_80640" date="80640" endDate="83520" bpm="50.549298690774826" transition.to="58.35455391877029" meanTempoAt="0.15136859158946517" beatLength="0.25" corresp="argumentation-c18371c2"></tempo>
+          <tempo xml:id="tempo_83520" date="83520" endDate="86400" bpm="58.39020419961453" transition.to="28.582865639376095" meanTempoAt="0.09806679851848797" beatLength="0.25" corresp="argumentation-39e6b6ef"></tempo>
+          <tempo xml:id="tempo_86400" date="86400" endDate="91440" bpm="51.00539753577136" transition.to="12.895424559075096" meanTempoAt="0.41600226297700277" beatLength="0.25" corresp="argumentation-3e9d851c"></tempo>
+          <tempo date="91440" bpm="12.895424559075096" beatLength="0.25" xml:id="tempo_fb8d02f0-655a-4390-9b97-5d737d18e3e5" corresp="argumentation-3e9d851c"></tempo>
+        </tempoMap>
+        <rubatoMap>
+          <rubato xml:id="rubato_19440" date="19440" frameLength="720" intensity="1.1840591946785635" loop="false" lateStart="0.002777777777777778" corresp="argumentation-232ca7b0"></rubato>
+          <rubato xml:id="rubato_30240" date="30240" frameLength="720" intensity="0.7253240001160083" loop="false" corresp="b86cea25-33b2-46a9-83d4-40fb1e7747ce"></rubato>
+          <rubato xml:id="rubato_40320" date="40320" frameLength="720" intensity="0.8845226686666505" loop="false" corresp="3ec504f3-7d4a-4362-a15a-ca6c33d7dd93"></rubato>
+          <rubato xml:id="rubato_43920" date="43920" frameLength="720" intensity="0.9888594644473113" loop="false" corresp="5d4cc623-664f-46e9-8464-66c1442097dc"></rubato>
+          <rubato xml:id="rubato_76320" date="76320" frameLength="720" intensity="0.9913867892355843" loop="false" corresp="arg_5e26e496"></rubato>
+          <rubato xml:id="rubato_20880" date="20880" frameLength="720" intensity="0.6653045258540672" loop="false" corresp="0f72192f-7b88-49d8-8b7b-dd3b1ec79766"></rubato>
+          <rubato xml:id="rubato_720" date="720" frameLength="1440" intensity="1.1391627387091683" loop="false" lateStart="0.03333333333333333" corresp="703f5977-4356-41dd-9d59-c8418d4640a6"></rubato>
+          <rubato xml:id="rubato_5760" date="5760" frameLength="720" intensity="0.8479967182609656" loop="false" corresp="argumentation-889bb16a"></rubato>
+          <rubato xml:id="rubato_6480" date="6480" frameLength="720" intensity="0.7092206866481948" loop="false" corresp="arg_b364f3d0"></rubato>
+          <rubato xml:id="rubato_7200" date="7200" frameLength="720" intensity="0.8771433773441597" loop="false" corresp="80d8e0d0-7814-4566-b9a0-b700191ebc2d"></rubato>
+          <rubato xml:id="rubato_7920" date="7920" frameLength="720" intensity="0.8241825257305809" loop="false" corresp="argumentation-49a728c0"></rubato>
+          <rubato xml:id="rubato_9360" date="9360" frameLength="720" intensity="0.8229679430715944" loop="false" corresp="argumentation-a97a44c0"></rubato>
+          <rubato xml:id="rubato_8640" date="8640" frameLength="720" intensity="0.9857462007928459" loop="false" lateStart="0.020833333333333332" corresp="argumentation-a984a12c"></rubato>
+          <rubato xml:id="rubato_20160" date="20160" frameLength="720" intensity="1.142141739549354" loop="false" corresp="arg_99622919-e538-4bc8-8ee0-3abb2e9d719a"></rubato>
+          <rubato xml:id="rubato_28800" date="28800" frameLength="720" intensity="0.7253240001160083" loop="false" corresp="47708cdd-16c1-4466-9521-33c88680438a"></rubato>
+          <rubato xml:id="rubato_31680" date="31680" frameLength="720" intensity="1.0489097746463345" loop="false" corresp="ee4513f4-5a09-47b6-ae3d-50531c13397a"></rubato>
+          <rubato xml:id="rubato_32400" date="32400" frameLength="720" intensity="0.849999301095426" loop="false" corresp="de292c8f-0d9d-469c-af87-7b6d26f840bf"></rubato>
+          <rubato xml:id="rubato_2160" date="2160" frameLength="1440" intensity="0.9348182929890257" loop="false" corresp="decision-9bb1a3aa"></rubato>
+          <rubato xml:id="rubato_3600" date="3600" frameLength="720" intensity="1.4750446984068633" loop="false" corresp="9bcaa5b4-b7d7-4e69-a6bd-5a0c1b82777a"></rubato>
+          <rubato xml:id="rubato_16560" date="16560" frameLength="720" intensity="0.643230188959899" loop="false" corresp="8ddff2ea-7954-4cc6-a144-0fce2d666c35"></rubato>
+          <rubato xml:id="rubato_13680" date="13680" frameLength="720" intensity="0.8516081493538585" loop="false" corresp="cd3007d6-0be5-4470-b7da-5dc5e0b40377"></rubato>
+          <rubato xml:id="rubato_22320" date="22320" frameLength="720" intensity="0.8771433773441597" loop="false" corresp="c05c16d6-11be-43e7-9422-7c17cb37836d"></rubato>
+          <rubato xml:id="rubato_23040" date="23040" frameLength="720" intensity="0.9446571106047882" loop="false" lateStart="0.005555555555555556" corresp="fb00a660-2a1c-49cf-b269-e095e4b06dca"></rubato>
+          <rubato xml:id="rubato_29520" date="29520" frameLength="720" intensity="0.6213349785482779" loop="false" corresp="argumentation-83743b48"></rubato>
+          <rubato xml:id="rubato_30960" date="30960" frameLength="720" intensity="0.9036562668062794" loop="false" corresp="a164d06d-5c67-4208-b876-0388f5d2d755"></rubato>
+          <rubato xml:id="rubato_41040" date="41040" frameLength="720" intensity="0.9035745312897223" loop="false" lateStart="0.00034722222222222224" corresp="49f0d217-a891-48fc-8650-c621954282b9"></rubato>
+          <rubato xml:id="rubato_41760" date="41760" frameLength="720" intensity="1.2245087220078752" loop="false" corresp="ece08c1a-e163-434e-9291-aab3c47deb45"></rubato>
+          <rubato xml:id="rubato_42480" date="42480" frameLength="720" intensity="0.9184261527693671" loop="false" corresp="4a2bc0e9-172c-4169-934f-db4a5d22140b"></rubato>
+          <rubato xml:id="rubato_51120" date="51120" frameLength="720" intensity="0.8845226686666505" loop="false" corresp="5a6b448d-5922-4ef8-aee3-69e632fab865"></rubato>
+          <rubato xml:id="rubato_54000" date="54000" frameLength="720" intensity="0.7582533156642948" loop="false" corresp="89e962d4-b699-4bd7-bb38-eb9a757680dc"></rubato>
+          <rubato xml:id="rubato_55440" date="55440" frameLength="720" intensity="0.9065012423130765" loop="false" corresp="c358481c-0609-4222-ba34-8501b618310d"></rubato>
+          <rubato xml:id="rubato_56880" date="56880" frameLength="720" intensity="0.8808282585911072" loop="false" corresp="6078a08e-f0c5-4190-828e-b606c54cf8e2"></rubato>
+          <rubato xml:id="rubato_50400" date="50400" frameLength="720" intensity="0.9017602195142499" loop="false" corresp="a23ad8b6-7d0d-467b-b473-9aa3025b011b"></rubato>
+          <rubato xml:id="rubato_39600" date="39600" frameLength="720" intensity="0.6812814776179485" loop="false" corresp="1ba35fee-c4aa-438c-a2e6-789d4f7c0a3f"></rubato>
+          <rubato xml:id="rubato_10080" date="10080" frameLength="720" intensity="0.7329243196953428" loop="false" lateStart="0.009722222222222222" corresp="69854eb6-c123-4b2b-98fd-8faee8fc646f"></rubato>
+          <rubato xml:id="rubato_10800" date="10800" frameLength="720" intensity="1.1972321574343723" loop="false" corresp="69854eb6-c123-4b2b-98fd-8faee8fc646f"></rubato>
+          <rubato xml:id="rubato_11520" date="11520" frameLength="720" intensity="1.2602358999433974" loop="false" corresp="argumentation-c118a7a5"></rubato>
+          <rubato xml:id="rubato_18720" date="18720" frameLength="720" intensity="1.1972321574343723" loop="false" corresp="29d77598-1d45-4864-9420-55425415f0c3"></rubato>
+          <rubato xml:id="rubato_43200" date="43200" frameLength="720" intensity="1.366085871444378" loop="false" corresp="672c670d-fd25-4eb9-a3c4-c37e6816ea24"></rubato>
+          <rubato xml:id="rubato_49680" date="49680" frameLength="720" intensity="1.6307661986788926" loop="false" corresp="3b7c8605-72b6-4c70-9e4b-65a88f81cf05"></rubato>
+          <rubato xml:id="rubato_53280" date="53280" frameLength="720" intensity="1.3304828057614935" loop="false" corresp="argumentation-1a04ff8d"></rubato>
+          <rubato xml:id="rubato_54720" date="54720" frameLength="720" intensity="1.3020286210869227" loop="false" corresp="ecc57d79-1a69-4f54-8524-36f9dc3c5477"></rubato>
+          <rubato xml:id="rubato_56160" date="56160" frameLength="720" intensity="1.3410370326126135" loop="false" corresp="dd042a2c-91ef-40f2-a025-b9fbfa6a9338"></rubato>
+          <rubato xml:id="rubato_64800" date="64800" frameLength="720" intensity="1.1575797748569756" loop="false" corresp="argumentation-69279eab"></rubato>
+          <rubato xml:id="rubato_65520" date="65520" frameLength="720" intensity="0.865379066736642" loop="false" corresp="argumentation-7d80c8c4"></rubato>
+          <rubato xml:id="rubato_72000" date="72000" frameLength="720" intensity="0.8516081493538585" loop="false" corresp="argumentation-e2908ed6"></rubato>
+          <rubato xml:id="rubato_72720" date="72720" frameLength="720" intensity="0.9820534184355505" loop="false" lateStart="0.001388888888888889" corresp="argumentation-f95d85b2"></rubato>
+          <rubato xml:id="rubato_61200" date="61200" frameLength="720" intensity="1.2657793349010376" loop="false" corresp="argumentation-f2327bdd"></rubato>
+          <rubato xml:id="rubato_75600" date="75600" frameLength="720" intensity="0.8769336524054224" loop="false" corresp="argumentation-00b317cd"></rubato>
+          <rubato xml:id="rubato_77760" date="77760" frameLength="720" intensity="1.0419081781982846" loop="false" corresp="argumentation-00b317cd"></rubato>
+          <rubato xml:id="rubato_77040" date="77040" frameLength="720" intensity="0.8457401685525472" loop="false" corresp="argumentation-00b317cd"></rubato>
+          <rubato xml:id="rubato_79200" date="79200" frameLength="720" intensity="0.8764669426371238" loop="false" corresp="argumentation-00b317cd"></rubato>
+          <rubato xml:id="rubato_78480" date="78480" frameLength="720" intensity="0.9000880716634054" loop="false" corresp="6df2c962-d856-48af-a93c-b288d39ea2e2"></rubato>
+          <rubato xml:id="rubato_25200" date="25200" frameLength="720" intensity="0.9604715973207567" loop="false" corresp="arg_d06bbcb0"></rubato>
+          <rubato xml:id="rubato_48960" date="48960" frameLength="720" intensity="0.969454853746936" loop="false" lateStart="0.02638888888888889" corresp="argumentation-a2a577dc"></rubato>
+          <rubato xml:id="rubato_52560" date="52560" frameLength="720" intensity="1.0579474235693769" loop="false" lateStart="0.0004629629629663315" corresp="argumentation-ed7ec48f"></rubato>
+          <rubato xml:id="rubato_64080" date="64080" frameLength="720" intensity="0.8530338471889382" loop="false" corresp="argumentation-5a4f69a8"></rubato>
+          <rubato xml:id="rubato_60480" date="60480" frameLength="720" intensity="0.9165104260870993" loop="false" corresp="argumentation-0369dca0"></rubato>
+          <rubato xml:id="rubato_59760" date="59760" frameLength="720" intensity="1.0209580188318887" loop="false" corresp="argumentation-27b23178"></rubato>
+        </rubatoMap>
+        <dynamicsMap>
+          <dynamics xml:id="dynamics_0" date="0" endDate="2520" volume="41" transition.to="36" protraction="-0.30194405533390356" curvature="0.6926620209789613" corresp="arg_029a8e58"></dynamics>
+          <dynamics xml:id="dynamics_2520" date="2520" endDate="3600" volume="36" transition.to="44" protraction="0" curvature="0.5" corresp="decision-9bb1a3aa"></dynamics>
+          <dynamics xml:id="dynamics_3600" date="3600" endDate="5760" volume="44" transition.to="39" protraction="0" curvature="0.5" corresp="argumentation-2076f0fc"></dynamics>
+          <dynamics xml:id="dynamics_5760" date="5760" endDate="7200" volume="39" transition.to="37" protraction="-0.4313613972020824" curvature="0.4149937436589466" corresp="decision-feb51539"></dynamics>
+          <dynamics xml:id="dynamics_7200" date="7200" endDate="10080" volume="37" transition.to="40" protraction="0.6681636910537466" curvature="0" corresp="decision-cfcd2188"></dynamics>
+          <dynamics xml:id="dynamics_10080" date="10080" endDate="10800" volume="40" transition.to="37" protraction="0" curvature="0.5" corresp="decision-ff5e67de"></dynamics>
+          <dynamics xml:id="dynamics_10800" date="10800" endDate="12240" volume="37" transition.to="42" protraction="0.6221249560421725" curvature="0.4615664535464242" corresp="argumentation-4147a8a3"></dynamics>
+          <dynamics xml:id="dynamics_12240" date="12240" endDate="15120" volume="42" transition.to="46" protraction="0.844252598357309" curvature="0.006456652096647176" corresp="argumentation-b0ee5ce4"></dynamics>
+          <dynamics xml:id="dynamics_15120" date="15120" endDate="18000" volume="46" transition.to="31" protraction="-0.7310432674396193" curvature="0.20600227109353753" corresp="decision-35c68177"></dynamics>
+          <dynamics xml:id="dynamics_18000" date="18000" endDate="19440" volume="31" transition.to="39" protraction="0" curvature="0.5" corresp="arg_8fead285"></dynamics>
+          <dynamics xml:id="dynamics_19440" date="19440" endDate="20520" volume="39" transition.to="37" protraction="-1" curvature="0.14579729743388156" corresp="argumentation-7f4000be"></dynamics>
+          <dynamics xml:id="dynamics_20520" date="20520" endDate="21600" volume="37" transition.to="41" protraction="0.7710734250864317" curvature="0.5379111638456586" corresp="argumentation-7f4000be"></dynamics>
+          <dynamics xml:id="dynamics_21600" date="21600" endDate="22320" volume="41" transition.to="38" protraction="0" curvature="0.5" corresp="argumentation-9ca18a93"></dynamics>
+          <dynamics xml:id="dynamics_22320" date="22320" endDate="23760" volume="38" transition.to="41" protraction="0.40917483400708254" curvature="0.7592728653620601" corresp="argumentation-7b141ee5"></dynamics>
+          <dynamics xml:id="dynamics_23760" date="23760" endDate="26640" volume="41" transition.to="36" protraction="0.5262004224816907" curvature="0.6628424174561279" corresp="61cfb25f-8a56-4744-af8f-cad4da376dd3"></dynamics>
+          <dynamics xml:id="dynamics_26640" date="26640" endDate="28800" volume="36" transition.to="39" protraction="0" curvature="0.5" corresp="arg_a880b0d1-a3fd-4767-a8c1-562ce917f954"></dynamics>
+          <dynamics xml:id="dynamics_28800" date="28800" endDate="30240" volume="39" transition.to="36" protraction="0" curvature="0.5" corresp="argumentation-ef9abe57"></dynamics>
+          <dynamics xml:id="dynamics_30240" date="30240" endDate="31680" volume="36" transition.to="39" protraction="0" curvature="0.5" corresp="argumentation-be73bd91"></dynamics>
+          <dynamics xml:id="dynamics_31680" date="31680" endDate="33120" volume="39" transition.to="43" protraction="0.22667488726817575" curvature="0.5097917302260045" corresp="argumentation-ac14a76f"></dynamics>
+          <dynamics xml:id="dynamics_33120" date="33120" endDate="34200" volume="43" transition.to="34" protraction="0" curvature="0.5" corresp="argumentation-8e3cbc2d"></dynamics>
+          <dynamics xml:id="dynamics_34200" date="34200" endDate="35280" volume="34" transition.to="41" protraction="-0.9982743384694392" curvature="0.30553929801811314" corresp="24cec163-b039-4e8a-8533-195c661f16bd"></dynamics>
+          <dynamics xml:id="dynamics_35280" date="35280" endDate="37440" volume="41" transition.to="42" protraction="1" curvature="0.591660374668218" corresp="argumentation-c26be85d"></dynamics>
+          <dynamics xml:id="dynamics_37440" date="37440" endDate="38520" volume="42" transition.to="37" protraction="0" curvature="0.5" corresp="argumentation-ccb7b1d0"></dynamics>
+          <dynamics xml:id="dynamics_38520" date="38520" endDate="38880" volume="37" transition.to="40" corresp="argumentation-a7986d89"></dynamics>
+          <dynamics xml:id="dynamics_38880" date="38880" endDate="41040" volume="40" transition.to="34" protraction="0" curvature="0.5" corresp="arg_6f71a264-0fe8-4ddf-aa98-705352547b06"></dynamics>
+          <dynamics xml:id="dynamics_41040" date="41040" endDate="42480" volume="34" transition.to="39" protraction="0" curvature="0.5" corresp="arg_6752f97a-b4b3-4e83-acdd-7d4f84745b61"></dynamics>
+          <dynamics xml:id="dynamics_42480" date="42480" endDate="46800" volume="39" transition.to="43" protraction="1" curvature="0.5718935848999751" corresp="argumentation-d933faf7"></dynamics>
+          <dynamics xml:id="dynamics_46800" date="46800" endDate="48960" volume="43" transition.to="48" protraction="1" curvature="0.1619710972366824" corresp="argumentation-c212550c"></dynamics>
+          <dynamics xml:id="dynamics_48960" date="48960" endDate="49320" volume="48" transition.to="41" corresp="argumentation-c0448d72"></dynamics>
+          <dynamics xml:id="dynamics_49320" date="49320" endDate="50400" volume="41" transition.to="50" protraction="0" curvature="0.5" corresp="argumentation-6be54f70"></dynamics>
+          <dynamics xml:id="dynamics_50400" date="50400" endDate="52560" volume="50" transition.to="44" protraction="-0.4458512469960251" curvature="0.4347141726363597" corresp="argumentation-3e056782"></dynamics>
+          <dynamics xml:id="dynamics_52560" date="52560" endDate="53280" volume="44" transition.to="39" protraction="0" curvature="0.5" corresp="arg_678dc13a-4bc7-4869-9b04-b482dbb4f1b3"></dynamics>
+          <dynamics xml:id="dynamics_53280" date="53280" endDate="54000" volume="39" transition.to="44" protraction="0" curvature="0.5" corresp="arg_0649c225-8df0-41c7-a8e9-5e46f31f572a"></dynamics>
+          <dynamics xml:id="dynamics_54000" date="54000" endDate="55440" volume="44" transition.to="35" protraction="0.25235122580623204" curvature="0.4352282960031136" corresp="argumentation-10407ff0"></dynamics>
+          <dynamics xml:id="dynamics_55440" date="55440" endDate="56880" volume="35" transition.to="30" protraction="-0.7884783328978485" curvature="1" corresp="argumentation-10407ff0"></dynamics>
+          <dynamics xml:id="dynamics_56880" date="56880" endDate="58320" volume="30" transition.to="42" protraction="0.09259299355570863" curvature="0.3159354471751845" corresp="argumentation-99b1ddf9"></dynamics>
+          <dynamics xml:id="dynamics_58320" date="58320" endDate="61920" volume="42" transition.to="53" protraction="0.815634573186938" curvature="1" corresp="argumentation-6d50458c"></dynamics>
+          <dynamics xml:id="dynamics_61920" date="61920" endDate="64080" volume="53" transition.to="37" protraction="-1" curvature="0.9015902790373274" corresp="argumentation-6ee7176e"></dynamics>
+          <dynamics xml:id="dynamics_64080" date="64080" endDate="65520" volume="37" transition.to="40" protraction="1" curvature="0.038867174857232734" corresp="argumentation-219ed730"></dynamics>
+          <dynamics xml:id="dynamics_65520" date="65520" endDate="66600" volume="40" transition.to="37" protraction="-1" curvature="0.7993544257801979" corresp="argumentation-f073c65b"></dynamics>
+          <dynamics xml:id="dynamics_66600" date="66600" endDate="68040" volume="37" transition.to="38" protraction="1" curvature="0.7140196667853732" corresp="argumentation-855caa96"></dynamics>
+          <dynamics xml:id="dynamics_68040" date="68040" endDate="69480" volume="38" transition.to="34" protraction="0" curvature="0.5" corresp="argumentation-b17617ae"></dynamics>
+          <dynamics xml:id="dynamics_69480" date="69480" endDate="69840" volume="34" transition.to="40" corresp="argumentation-b284c0b1"></dynamics>
+          <dynamics xml:id="dynamics_69840" date="69840" endDate="73440" volume="40" transition.to="36" protraction="1" curvature="0.31656940120487215" corresp="argumentation-330aa56e"></dynamics>
+          <dynamics xml:id="dynamics_73440" date="73440" endDate="75600" volume="36" transition.to="38" protraction="0" curvature="0.5" corresp="argumentation-aac714d5"></dynamics>
+          <dynamics xml:id="dynamics_75600" date="75600" endDate="76320" volume="38" transition.to="37" protraction="0" curvature="0.5" corresp="argumentation-52174c49"></dynamics>
+          <dynamics xml:id="dynamics_76320" date="76320" endDate="78480" volume="37" transition.to="48" protraction="1" curvature="0.26431553955738474" corresp="argumentation-b9cc9254"></dynamics>
+          <dynamics xml:id="dynamics_78480" date="78480" endDate="79920" volume="48" transition.to="39" protraction="0" curvature="0.5" corresp="argumentation-e66db26d"></dynamics>
+          <dynamics xml:id="dynamics_79920" date="79920" endDate="81360" volume="39" corresp="argumentation-e66db26d"></dynamics>
+          <dynamics xml:id="dynamics_81360" date="81360" endDate="83520" volume="39" transition.to="42" protraction="0.06626415078960313" curvature="1" corresp="argumentation-effbe8cf"></dynamics>
+          <dynamics xml:id="dynamics_83520" date="83520" endDate="84960" volume="42" transition.to="38" protraction="0" curvature="0.5" corresp="argumentation-bbb2c017"></dynamics>
+          <dynamics xml:id="dynamics_84960" date="84960" endDate="86400" volume="38" transition.to="35" protraction="0" curvature="0.5" corresp="argumentation-bbb2c017"></dynamics>
+          <dynamics xml:id="dynamics_86400" date="86400" endDate="87840" volume="35" transition.to="38" protraction="-0.25126272318273185" curvature="1" corresp="argumentation-b133c9e2"></dynamics>
+          <dynamics xml:id="dynamics_87840" date="87840" endDate="88920" volume="38" transition.to="35" protraction="0" curvature="0.5" corresp="argumentation-d28eda4a"></dynamics>
+          <dynamics xml:id="dynamics_88920" date="88920" endDate="90000" volume="35" transition.to="37" protraction="-1" curvature="0.47050565901230335" corresp="argumentation-3ef12ef9"></dynamics>
+          <dynamics xml:id="dynamics_90000" date="90000" endDate="91440" volume="37" transition.to="32" protraction="-0.63995543406804" curvature="0.676240832450034" corresp="argumentation-376f87be"></dynamics>
+        </dynamicsMap>
+        <metricalAccentuationMap>
+          <accentuationPattern name.ref="new-pattern" xml:id="accentuationPattern_720" date="720" scale="4.825648307800293" corresp="arg_029a8e58"></accentuationPattern>
+          <style name.ref="performance_style" date="0" xml:id="f20360ff-e074-43c3-a42b-7fd4c8d636af"></style>
+          <accentuationPattern name.ref="good-bad-simple" xml:id="accentuationPattern_2880" date="2880" scale="3.3810806274414062" corresp="decision-9bb1a3aa"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-386dbf6a" xml:id="accentuationPattern_5760" date="5760" scale="2.345125198364258" corresp="argumentation-889bb16a"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experimental" xml:id="accentuationPattern_6480" date="6480" scale="2.1075286865234375" corresp="arg_b364f3d0"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experimental" xml:id="accentuationPattern_7200" date="7200" scale="2.8532729353755713" corresp="80d8e0d0-7814-4566-b9a0-b700191ebc2d"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experimental" xml:id="accentuationPattern_7920" date="7920" scale="2.8532729353755713" corresp="argumentation-49a728c0"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experimental" xml:id="accentuationPattern_8640" date="8640" scale="2.3802177209872752" corresp="argumentation-a984a12c"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experimental" xml:id="accentuationPattern_9360" date="9360" scale="2.13630055077374" corresp="argumentation-a97a44c0"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-a56877aa" xml:id="accentuationPattern_10080" date="10080" scale="2.5" corresp="69854eb6-c123-4b2b-98fd-8faee8fc646f"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-simple" xml:id="accentuationPattern_10800" date="10800" scale="4.08292293548584" corresp="argumentation-c118a7a5"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-34972fd4" xml:id="accentuationPattern_11520" date="11520" scale="4.08292293548584" corresp="argumentation-c118a7a5"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-2c41ccf7" xml:id="accentuationPattern_12240" date="12240" scale="5.129682655446231" corresp="arg_8c9fb33a-2056-4e0f-9188-1605e5675983"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-simple" xml:id="accentuationPattern_14400" date="14400" scale="3.4477704390883446" corresp="6be2ea68-b4c8-4e19-833e-ec7c4f6e4c32"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-034da7c8" xml:id="accentuationPattern_16920" date="16920" scale="2.1331050995213445" corresp="argumentation-94f40329"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-87f71655" xml:id="accentuationPattern_19440" date="19440" scale="6.087869750801474" corresp="argumentation-232ca7b0"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-673326f0" xml:id="accentuationPattern_20880" date="20880" scale="4.210986912250519" corresp="0f72192f-7b88-49d8-8b7b-dd3b1ec79766"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-8ad209f1" xml:id="accentuationPattern_21600" date="21600" scale="4.5" corresp="argumentation-9ca18a93"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-f60f34c6" xml:id="accentuationPattern_23760" date="23760" scale="2.8205731727648526" corresp="arg_d56ba6b5-284e-493d-a394-071dcb3df020"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-1dc40bca" xml:id="accentuationPattern_28800" date="28800" scale="2" corresp="47708cdd-16c1-4466-9521-33c88680438a"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experiment2" xml:id="accentuationPattern_29520" date="29520" scale="4" corresp="argumentation-83743b48"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experiment2" xml:id="accentuationPattern_30240" date="30240" scale="4" corresp="b86cea25-33b2-46a9-83d4-40fb1e7747ce"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experiment2" xml:id="accentuationPattern_30960" date="30960" scale="2" corresp="a164d06d-5c67-4208-b876-0388f5d2d755"></accentuationPattern>
+          <accentuationPattern name.ref="good-bad-experiment2" xml:id="accentuationPattern_31680" date="31680" scale="2" corresp="ee4513f4-5a09-47b6-ae3d-50531c13397a"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-7de81602" xml:id="accentuationPattern_35280" date="35280" scale="7.043934875400737" corresp="argumentation-915c7d64"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-ca5ec607" xml:id="accentuationPattern_42480" date="42480" scale="6.040075634678942" corresp="arg_4d03627d"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-f8a5e298" xml:id="accentuationPattern_43920" date="43920" scale="5.289279236458242" corresp="5d4cc623-664f-46e9-8464-66c1442097dc"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-189fb1c1" xml:id="accentuationPattern_44640" date="44640" scale="4.63934240990784" corresp="argumentation-70480193"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-f2c29cfb" xml:id="accentuationPattern_45360" date="45360" scale="6.238231636583805" corresp="argumentation-3407ad9c"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-fa782e30" xml:id="accentuationPattern_46800" date="46800" scale="7.219674377003685" corresp="arg_a89283d0-6eb2-46ce-9b9a-1125b591c374"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-060874e9" xml:id="accentuationPattern_54000" date="54000" scale="5.940452205017209" corresp="arg_311e8fd0-a9dc-4e8f-ab9a-cb21ceeb08c8"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-375b8da8" xml:id="accentuationPattern_55080" date="55080" scale="2.069274201989174" corresp="c61ded56-a7f1-49d0-a73f-b63279486348"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-c80601c0" xml:id="accentuationPattern_56520" date="56520" scale="5.87640380859375" corresp="addc1d4c-0693-417a-9247-c12598562d0b"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-4658f790" xml:id="accentuationPattern_58320" date="58320" scale="12.16620120801963" corresp="arg_76caf28c-c77a-4d9f-8205-402ee443860e"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-785c1aab" xml:id="accentuationPattern_65520" date="65520" scale="4.131804626202211" corresp="arg_43ee7a5e"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-92c767fe" xml:id="accentuationPattern_66960" date="66960" scale="5.309557909145951" corresp="arg_f042db2c"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-c7ecda3c" xml:id="accentuationPattern_69840" date="69840" scale="6.941134522669017" corresp="arg_5a60f53a"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-f1438c65" xml:id="accentuationPattern_76320" date="76320" scale="2.516716370591894" corresp="arg_5e26e496"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-9d33a97d" xml:id="accentuationPattern_77040" date="77040" scale="2.531385287642479" loop="true" corresp="argumentation-524ce4cd"></accentuationPattern>
+          <accentuationPattern name.ref="neutral" date="78480" xml:id="accentuationPattern_78480" scale="6.045362902805209" corresp="argumentation-524ce4cd"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-6e194991" xml:id="accentuationPattern_79200" date="79200" scale="2.5" corresp="argumentation-36604f19"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-0ee467df" xml:id="accentuationPattern_79920" date="79920" scale="2" corresp="argumentation-36604f19"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-9a97ba78" xml:id="accentuationPattern_80640" date="80640" scale="4" corresp="argumentation-36604f19"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-e0e283b4" xml:id="accentuationPattern_81360" date="81360" scale="6.183147445321083" corresp="argumentation-4e456c1e"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-1a09d000" xml:id="accentuationPattern_83520" date="83520" scale="1" corresp="argumentation-64b22ad0"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-ffad3094" xml:id="accentuationPattern_84240" date="84240" scale="1.424283154308796" corresp="argumentation-64b22ad0"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-d332a90a" xml:id="accentuationPattern_86400" date="86400" scale="2.9166317135095596" loop="true" corresp="argumentation-e2c6579a"></accentuationPattern>
+          <accentuationPattern name.ref="neutral" date="87840" xml:id="accentuationPattern_87840" scale="0.39290523529052734" corresp="argumentation-e2c6579a"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-56dabc45" xml:id="accentuationPattern_87120" date="87120" scale="0.5713384598493576" corresp="argumentation-e2c6579a"></accentuationPattern>
+          <accentuationPattern name.ref="pattern-c976b7d3" xml:id="accentuationPattern_88560" date="88560" scale="1.4488390386104584" corresp="argumentation-e2c6579a"></accentuationPattern>
+        </metricalAccentuationMap>
+        <articulationMap>
+          <articulation xml:id="articulation_1440" date="1440" noteid="#n1obi0t8 #nd80ywu" name.ref="c7c6b85f-215b-4c1a-b40f-5bf791f7be5f" corresp="arg_029a8e58"></articulation>
+          <articulation xml:id="articulation_36000" date="36000" noteid="#n1wi1vv4-rend2 #n6knmhg-rend2" name.ref="01981525-c000-4831-8ee6-d728ab4864bb" corresp="argumentation-915c7d64"></articulation>
+          <articulation xml:id="articulation_21240" date="21240" noteid="#negi5d2" name.ref="2226cc45-4c83-4f3c-ae49-a0cbfe1b3d2f" corresp="0f72192f-7b88-49d8-8b7b-dd3b1ec79766"></articulation>
+          <articulation xml:id="articulation_6480" date="6480" noteid="#n116bigf #n1ml02qv" name.ref="shorten-by-half" corresp="arg_b364f3d0"></articulation>
+          <articulation xml:id="articulation_7920" date="7920" noteid="#n1ix0t3p" name.ref="75b423b1-3fff-4e2d-a5ef-10284e6e9c2a" corresp="argumentation-49a728c0"></articulation>
+          <articulation xml:id="articulation_9360" date="9360" noteid="#n1vmhu38 #n1273g3u" name.ref="1addca35-efee-4dc0-852a-893b97e4f3dd" corresp="argumentation-a97a44c0"></articulation>
+          <articulation xml:id="articulation_8640" date="8640" noteid="#ncr5i92" name.ref="bass-overlegato" corresp="argumentation-a984a12c"></articulation>
+          <articulation xml:id="articulation_9000" date="9000" noteid="#nw4587c" name.ref="bass-overlegato" corresp="argumentation-a984a12c"></articulation>
+          <articulation xml:id="articulation_8640_1" date="8640" noteid="#n1h9lqkp" name.ref="9e330a30-3bed-4716-ba73-69a52292872b" corresp="argumentation-a984a12c"></articulation>
+          <articulation xml:id="articulation_9000_1" date="9000" noteid="#nu3c214" name.ref="9e330a30-3bed-4716-ba73-69a52292872b" corresp="argumentation-a984a12c"></articulation>
+          <articulation xml:id="articulation_24480" date="24480" noteid="#nd80ywu-rend2 #n1obi0t8-rend2" name.ref="9eb7186f-111a-4ffc-9c98-d551e89e8832" corresp="arg_d56ba6b5-284e-493d-a394-071dcb3df020"></articulation>
+          <articulation xml:id="articulation_2880" date="2880" noteid="#n1ogvejs" name.ref="legato" corresp="decision-9bb1a3aa"></articulation>
+          <articulation xml:id="articulation_3240" date="3240" noteid="#n1qzl4hr" name.ref="legato" corresp="decision-9bb1a3aa"></articulation>
+          <articulation xml:id="articulation_3600" date="3600" noteid="#n10g2bbj" name.ref="legato" corresp="decision-9bb1a3aa"></articulation>
+          <articulation xml:id="articulation_3960" date="3960" noteid="#nv84jxp" name.ref="legato" corresp="decision-9bb1a3aa"></articulation>
+          <articulation xml:id="articulation_17280" date="17280" noteid="#nblqaln" name.ref="d641c370-f446-411a-9ea3-fd7a80d68f0f" corresp="d472996d-738c-4dd1-9ee4-b8c0cc37cdc5"></articulation>
+          <articulation xml:id="articulation_17640" date="17640" noteid="#ndk2f5a" name.ref="d641c370-f446-411a-9ea3-fd7a80d68f0f" corresp="d472996d-738c-4dd1-9ee4-b8c0cc37cdc5"></articulation>
+          <articulation xml:id="articulation_18000" date="18000" noteid="#nu68um5" name.ref="d641c370-f446-411a-9ea3-fd7a80d68f0f" corresp="d472996d-738c-4dd1-9ee4-b8c0cc37cdc5"></articulation>
+          <articulation xml:id="articulation_18360" date="18360" noteid="#n1wnssb3" name.ref="d641c370-f446-411a-9ea3-fd7a80d68f0f" corresp="d472996d-738c-4dd1-9ee4-b8c0cc37cdc5"></articulation>
+          <articulation xml:id="articulation_18720" date="18720" noteid="#n9bflex" name.ref="d641c370-f446-411a-9ea3-fd7a80d68f0f" corresp="d472996d-738c-4dd1-9ee4-b8c0cc37cdc5"></articulation>
+          <articulation xml:id="articulation_19080" date="19080" noteid="#n1szwl1m" name.ref="d641c370-f446-411a-9ea3-fd7a80d68f0f" corresp="d472996d-738c-4dd1-9ee4-b8c0cc37cdc5"></articulation>
+          <articulation xml:id="articulation_10080" date="10080" noteid="#n1pkbpqe" name.ref="Überlegato" corresp="argumentation-c118a7a5"></articulation>
+          <articulation xml:id="articulation_10800" date="10800" noteid="#n18s8imu" name.ref="Überlegato" corresp="argumentation-c118a7a5"></articulation>
+          <articulation xml:id="articulation_11160" date="11160" noteid="#n1rj5zce" name.ref="Überlegato" corresp="argumentation-c118a7a5"></articulation>
+          <articulation xml:id="articulation_11520" date="11520" noteid="#nrjozf4" name.ref="Überlegato" corresp="argumentation-c118a7a5"></articulation>
+          <articulation xml:id="articulation_11880" date="11880" noteid="#n7e8ajb" name.ref="Überlegato" corresp="argumentation-c118a7a5"></articulation>
+          <articulation xml:id="articulation_47520" date="47520" noteid="#n1gojfmr #n5nysb5" name.ref="ae5800b5-4546-49e7-bfe7-4e7ea528bded" corresp="arg_a89283d0-6eb2-46ce-9b9a-1125b591c374"></articulation>
+          <articulation xml:id="articulation_25560" date="25560" noteid="#nrbga5m-rend2" name.ref="fb0d7b19-050a-4345-908a-a28d392c4061" corresp="argumentation-77980e25"></articulation>
+          <articulation xml:id="articulation_25920" date="25920" noteid="#n1ogvejs-rend2" name.ref="fb0d7b19-050a-4345-908a-a28d392c4061" corresp="argumentation-77980e25"></articulation>
+          <articulation xml:id="articulation_26280" date="26280" noteid="#n1qzl4hr-rend2" name.ref="fb0d7b19-050a-4345-908a-a28d392c4061" corresp="argumentation-77980e25"></articulation>
+          <articulation xml:id="articulation_26640" date="26640" noteid="#n10g2bbj-rend2" name.ref="fb0d7b19-050a-4345-908a-a28d392c4061" corresp="argumentation-77980e25"></articulation>
+          <articulation xml:id="articulation_27000" date="27000" noteid="#nv84jxp-rend2" name.ref="fb0d7b19-050a-4345-908a-a28d392c4061" corresp="argumentation-77980e25"></articulation>
+          <articulation xml:id="articulation_48600" date="48600" noteid="#n31oyt7" name.ref="5a3568bf-6dd1-4806-b0f2-24f4f47514db" corresp="57963b03-acd8-4fd2-87b8-d250d1fce5f1"></articulation>
+          <articulation xml:id="articulation_48960" date="48960" noteid="#n4pgv9b" name.ref="5a3568bf-6dd1-4806-b0f2-24f4f47514db" corresp="57963b03-acd8-4fd2-87b8-d250d1fce5f1"></articulation>
+          <articulation xml:id="articulation_49320" date="49320" noteid="#nicjai7" name.ref="5a3568bf-6dd1-4806-b0f2-24f4f47514db" corresp="57963b03-acd8-4fd2-87b8-d250d1fce5f1"></articulation>
+          <articulation xml:id="articulation_49680" date="49680" noteid="#nap2mb5" name.ref="5a3568bf-6dd1-4806-b0f2-24f4f47514db" corresp="57963b03-acd8-4fd2-87b8-d250d1fce5f1"></articulation>
+          <articulation xml:id="articulation_59040" date="59040" noteid="#n9e28c5 #n1oj565h #njmdnew #nukoobp" name.ref="99181797-2200-415e-97ae-7231373c2022" corresp="07d93501-7fe3-4c4b-9faa-2be4d0a118d5"></articulation>
+          <articulation xml:id="articulation_91440" date="91440" noteid="#n1qurr9w #n8biwve #n1wgljx2 #n1ennzqw" name.ref="77003174-2778-4560-955b-fc83f9e98541" corresp="d0c6a809-f8fc-4436-b260-5b7bd28fa5cc"></articulation>
+          <articulation xml:id="articulation_79560" date="79560" noteid="#n1kr29sz" name.ref="fingerpedal-2" corresp="58fcd8d7-5307-4336-80b6-341cd045e6a5"></articulation>
+          <articulation xml:id="articulation_52560" date="52560" noteid="#nel8wtc" name.ref="fingerpedal-3" corresp="argumentation-a1f193fa"></articulation>
+          <articulation xml:id="articulation_54360" date="54360" noteid="#n12kv12s" name.ref="fingerpedal-4" corresp="0f5b980a-652c-4911-89ad-a7ba55a41abc"></articulation>
+          <articulation xml:id="articulation_33480" date="33480" noteid="#n8cacvt-rend2" name.ref="b931eba3-056a-494e-8d01-aaa5f43004cd" corresp="argumentation-b9ff6229"></articulation>
+          <articulation xml:id="articulation_33120" date="33120" noteid="#n1pkbpqe-rend2" name.ref="8b03295c-ad2d-461e-aecc-e40539dc8dc0" corresp="argumentation-b9ff6229"></articulation>
+          <articulation xml:id="articulation_33840" date="33840" noteid="#n18s8imu-rend2" name.ref="9bd51d28-6782-4da8-98d1-7a1ee3d2c161" corresp="argumentation-b9ff6229"></articulation>
+          <articulation xml:id="articulation_34560" date="34560" noteid="#nrjozf4-rend2 #n3x6yrh-rend2" name.ref="0cebf342-b10a-41c5-bf64-f9ae2d57dfb4" corresp="argumentation-3afe3771"></articulation>
+        </articulationMap>
+        <movementMap>
+          <movement xml:id="sustain-1440_start" date="736" position="0" transition.to="1" controller="sustain" corresp="arg_029a8e58"></movement>
+          <movement xml:id="sustain-1440_moveDown" date="936" position="1" controller="sustain" corresp="arg_029a8e58"></movement>
+          <movement xml:id="sustain-1440_moveUp" date="2607" position="1" transition.to="0" controller="sustain" corresp="arg_029a8e58"></movement>
+          <movement xml:id="sustain-1440_end" date="3027" position="0" controller="sustain" corresp="arg_029a8e58"></movement>
+          <movement xml:id="sustain-36000_start" date="35319.54621066245" position="0" transition.to="1" controller="sustain" corresp="argumentation-915c7d64"></movement>
+          <movement xml:id="sustain-36000_moveDown" date="35519.54621066245" position="1" controller="sustain" corresp="argumentation-915c7d64"></movement>
+          <movement xml:id="sustain-45720_start" date="45338" position="0" transition.to="0.55" controller="sustain" corresp="argumentation-3407ad9c"></movement>
+          <movement xml:id="sustain-45720_moveDown" date="45638" position="0.55" controller="sustain" corresp="argumentation-3407ad9c"></movement>
+          <movement xml:id="sustain-45720_moveUp" date="46288" position="0.55" transition.to="0" controller="sustain" corresp="argumentation-3407ad9c"></movement>
+          <movement xml:id="sustain-45720_end" date="46788" position="0" controller="sustain" corresp="argumentation-3407ad9c"></movement>
+          <movement xml:id="sustain-6840_start" date="6619" position="0" transition.to="0.7" controller="sustain" corresp="arg_b364f3d0"></movement>
+          <movement xml:id="sustain-6840_moveDown" date="6819" position="0.7" controller="sustain" corresp="arg_b364f3d0"></movement>
+          <movement xml:id="sustain-8280_start" date="7936" position="0" transition.to="1" controller="sustain" corresp="argumentation-49a728c0"></movement>
+          <movement xml:id="sustain-8280_moveDown" date="8136" position="1" controller="sustain" corresp="argumentation-49a728c0"></movement>
+          <movement xml:id="sustain-8280_moveUp" date="8561" position="1" transition.to="0" controller="sustain" corresp="argumentation-49a728c0"></movement>
+          <movement xml:id="sustain-8280_end" date="8961" position="0" controller="sustain" corresp="argumentation-49a728c0"></movement>
+          <movement xml:id="sustain-9720_start" date="9424" position="0" transition.to="1" controller="sustain" corresp="argumentation-a97a44c0"></movement>
+          <movement xml:id="sustain-9720_moveDown" date="9624" position="1" controller="sustain" corresp="argumentation-a97a44c0"></movement>
+          <movement xml:id="sustain-9720_moveUp" date="9941" position="1" transition.to="0" controller="sustain" corresp="argumentation-a97a44c0"></movement>
+          <movement xml:id="sustain-9720_end" date="10341" position="0" controller="sustain" corresp="argumentation-a97a44c0"></movement>
+          <movement xml:id="sustain-12960_start" date="12321" position="0" transition.to="1" controller="sustain" corresp="arg_8c9fb33a-2056-4e0f-9188-1605e5675983"></movement>
+          <movement xml:id="sustain-12960_moveDown" date="12521" position="1" controller="sustain" corresp="arg_8c9fb33a-2056-4e0f-9188-1605e5675983"></movement>
+          <movement xml:id="sustain-12960_moveUp" date="14065" position="1" transition.to="0" controller="sustain" corresp="arg_8c9fb33a-2056-4e0f-9188-1605e5675983"></movement>
+          <movement xml:id="sustain-12960_end" date="14365" position="0" controller="sustain" corresp="arg_8c9fb33a-2056-4e0f-9188-1605e5675983"></movement>
+          <movement xml:id="sustain-21240_moveUp" date="21406" position="1" transition.to="0" controller="sustain" corresp="argumentation-cab11b85"></movement>
+          <movement xml:id="sustain-21240_end" date="21606" position="0" controller="sustain" corresp="argumentation-cab11b85"></movement>
+          <movement xml:id="sustain-21240_start" date="20908" position="0" transition.to="1" controller="sustain" corresp="argumentation-cab11b85"></movement>
+          <movement xml:id="sustain-21240_moveDown" date="21108" position="1" controller="sustain" corresp="argumentation-cab11b85"></movement>
+          <movement xml:id="sustain-21960_start" date="21828" position="0" transition.to="1" controller="sustain" corresp="argumentation-9ca18a93"></movement>
+          <movement xml:id="sustain-21960_moveDown" date="22028" position="1" controller="sustain" corresp="argumentation-9ca18a93"></movement>
+          <movement xml:id="sustain-21960_moveUp" date="22141" position="1" transition.to="0" controller="sustain" corresp="argumentation-9ca18a93"></movement>
+          <movement xml:id="sustain-21960_end" date="22341" position="0" controller="sustain" corresp="argumentation-9ca18a93"></movement>
+          <movement xml:id="sustain-24480_start" date="23871" position="0" transition.to="1" controller="sustain" corresp="arg_d56ba6b5-284e-493d-a394-071dcb3df020"></movement>
+          <movement xml:id="sustain-24480_moveDown" date="24071" position="1" controller="sustain" corresp="arg_d56ba6b5-284e-493d-a394-071dcb3df020"></movement>
+          <movement xml:id="sustain-24480_moveUp" date="25367" position="1" transition.to="0" controller="sustain" corresp="arg_d56ba6b5-284e-493d-a394-071dcb3df020"></movement>
+          <movement xml:id="sustain-24480_end" date="25677" position="0" controller="sustain" corresp="arg_d56ba6b5-284e-493d-a394-071dcb3df020"></movement>
+          <movement xml:id="sustain-6840_moveUp" date="6985" position="0.7" transition.to="0" controller="sustain" corresp="decision-feb51539"></movement>
+          <movement xml:id="sustain-6840_end" date="7425" position="0" controller="sustain" corresp="decision-feb51539"></movement>
+          <movement xml:id="sustain-16920_start" date="16010" position="0" transition.to="1" controller="sustain" corresp="8ddff2ea-7954-4cc6-a144-0fce2d666c35"></movement>
+          <movement xml:id="sustain-16920_moveDown" date="16210" position="1" controller="sustain" corresp="8ddff2ea-7954-4cc6-a144-0fce2d666c35"></movement>
+          <movement xml:id="sustain-16920_moveUp" date="16924" position="1" transition.to="0" controller="sustain" corresp="8ddff2ea-7954-4cc6-a144-0fce2d666c35"></movement>
+          <movement xml:id="sustain-16920_end" date="17124" position="0" controller="sustain" corresp="8ddff2ea-7954-4cc6-a144-0fce2d666c35"></movement>
+          <movement xml:id="sustain-47520_start" date="46813" position="0" transition.to="1" controller="sustain" corresp="arg_a89283d0-6eb2-46ce-9b9a-1125b591c374"></movement>
+          <movement xml:id="sustain-47520_moveDown" date="47013" position="1" controller="sustain" corresp="arg_a89283d0-6eb2-46ce-9b9a-1125b591c374"></movement>
+          <movement xml:id="sustain-47520_moveUp" date="48613" position="1" transition.to="0" controller="sustain" corresp="arg_a89283d0-6eb2-46ce-9b9a-1125b591c374"></movement>
+          <movement xml:id="sustain-47520_end" date="49013" position="0" controller="sustain" corresp="arg_a89283d0-6eb2-46ce-9b9a-1125b591c374"></movement>
+          <movement xml:id="soft-0_start" date="-100" position="0" transition.to="1" controller="soft" corresp="821fda57-7ea5-4a05-ab4f-2b221a141996"></movement>
+          <movement xml:id="soft-0_moveDown" date="100" position="1" controller="soft" corresp="821fda57-7ea5-4a05-ab4f-2b221a141996"></movement>
+          <movement xml:id="sustain-18720_moveUp" date="18776" position="1" transition.to="0" controller="sustain" corresp="8170e741-21ce-4b5b-8c76-28b261f11bd0"></movement>
+          <movement xml:id="sustain-18720_end" date="18976" position="0" controller="sustain" corresp="8170e741-21ce-4b5b-8c76-28b261f11bd0"></movement>
+          <movement xml:id="sustain-18720_start" date="18320" position="0" transition.to="1" controller="sustain" corresp="8170e741-21ce-4b5b-8c76-28b261f11bd0"></movement>
+          <movement xml:id="sustain-18720_moveDown" date="18520" position="1" controller="sustain" corresp="8170e741-21ce-4b5b-8c76-28b261f11bd0"></movement>
+          <movement xml:id="sustain-36000_moveUp" date="36997.65631135261" position="1" transition.to="0" controller="sustain" corresp="b2755a92-d226-4609-8751-bb73689a06af"></movement>
+          <movement xml:id="sustain-36000_end" date="37297.65631135261" position="0" controller="sustain" corresp="b2755a92-d226-4609-8751-bb73689a06af"></movement>
+          <movement xml:id="sustain-18000_moveUp" date="17892" position="1" transition.to="0" controller="sustain" corresp="db7807f1-dd58-4a86-8cd9-9f022a2dfd3a"></movement>
+          <movement xml:id="sustain-18000_end" date="18092" position="0" controller="sustain" corresp="db7807f1-dd58-4a86-8cd9-9f022a2dfd3a"></movement>
+          <movement xml:id="sustain-18000_start" date="17549" position="0" transition.to="1" controller="sustain" corresp="db7807f1-dd58-4a86-8cd9-9f022a2dfd3a"></movement>
+          <movement xml:id="sustain-18000_moveDown" date="17749" position="1" controller="sustain" corresp="db7807f1-dd58-4a86-8cd9-9f022a2dfd3a"></movement>
+          <movement xml:id="soft-0_moveUp" date="46355" position="1" transition.to="0" controller="soft" corresp="argumentation-5bca80cd"></movement>
+          <movement xml:id="soft-0_end" date="53355" position="0" controller="soft" corresp="argumentation-5bca80cd"></movement>
+        </movementMap>
+      </dated>
+    </global>
+  </performance>
 </mpm>
