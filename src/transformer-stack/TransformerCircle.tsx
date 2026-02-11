@@ -4,10 +4,12 @@ import { OptionsDialog } from "./OptionsDialog";
 import { useDraggable } from "./svg-dnd";
 import { Transformer } from "mpmify";
 import { useSelection } from "../hooks/SelectionProvider";
+import { useWedgeScale } from "../hooks/useWedgeScale";
 
 export const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transformer: Transformer }) => {
     const { dragPoint, onPointerDown, draggableProps, isDragging } = useDraggable({ id: transformer.id, type: "circle" });
     const { activeTransformer, setActiveTransformer, removeTransformer, replaceTransformer } = useSelection();
+    const { transformerRadius } = useWedgeScale();
     const [hovered, setHovered] = useState(false);
     const didDragRef = useRef(false);
     const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -40,7 +42,7 @@ export const TransformerCircle = ({ x, y, transformer }: { x: number, y: number,
             <circle
                 cx={x}
                 cy={y}
-                r={10}
+                r={transformerRadius}
                 fill="black"
                 fillOpacity={isDragging ? 0 : (hovered || activeTransformer?.id === transformer.id) ? 0.8 : 0.5}
                 onMouseOver={() => setHovered(true)}

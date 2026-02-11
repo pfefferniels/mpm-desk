@@ -13,6 +13,7 @@ import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
 import { usePlayback } from "../hooks/PlaybackProvider";
 import { DragLayer } from "./DragLayer";
+import { BarLines } from "./BarLines";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -37,7 +38,7 @@ export const TransformerStack = ({
     const { register, unregister } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
         if (element) {
-            register('transformer-stack', element);
+            register('transformer-stack', element, 'symbolic');
         } else {
             unregister('transformer-stack');
         }
@@ -233,6 +234,12 @@ export const TransformerStack = ({
                         height={scene.height}
                         extractTransformer={extractTransformer}
                         onClearSelection={() => setActiveTransformer(undefined)}
+                    />
+
+                    <BarLines
+                        maxDate={maxDate}
+                        stretchX={stretchX}
+                        height={totalHeight}
                     />
 
                     <path

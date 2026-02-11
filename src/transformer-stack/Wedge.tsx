@@ -7,6 +7,7 @@ import { zip } from "../utils/zip";
 import { useDropTarget, useSvgDnd } from "./svg-dnd";
 import { Argumentation } from "mpmify";
 import { useSelection } from "../hooks/SelectionProvider";
+import { useWedgeScale } from "../hooks/useWedgeScale";
 
 /**
  * Generate an SVG path with quadratic Bezier curves for the wedge edges.
@@ -61,6 +62,7 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
     const [originLeftDuringDrag, setOriginLeftDuringDrag] = useState(false);
     const { activeTransformer } = useSelection();
     const { dragItem } = useSvgDnd();
+    const { bellowsStroke, tipRadius, tipRadiusExpanded, tipStroke } = useWedgeScale();
 
     // Reset originLeftDuringDrag when drag ends
     const isDragging = dragItem !== null;
@@ -101,7 +103,6 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
 
 
     const stroke = "rgba(0,0,0,0.35)";
-    const strokeWidth = 2;
 
     let label = "";
     if (wedge.argumentation.conclusion.motivation === "intensification") {
@@ -119,16 +120,16 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
         if (!expanded) return [];
         return zip(
             wedge.transformers,
-            packCirclesInCircle(wedge.transformers.length, 30, { x: cx, y: cy })
+            packCirclesInCircle(wedge.transformers.length, tipRadiusExpanded, { x: cx, y: cy })
         );
-    }, [expanded, wedge.transformers, cx, cy]);
+    }, [expanded, wedge.transformers, cx, cy, tipRadiusExpanded]);
 
     return (
         <g>
             <path
                 d={generateCurvedWedgePath(wedge.polygon[0], wedge.polygon[1], wedge.polygon[2], wedge.side, 0.05)}
                 stroke={stroke}
-                strokeWidth={strokeWidth}
+                strokeWidth={bellowsStroke}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 fill="none"
@@ -142,12 +143,12 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
                 <circle
                     cx={cx}
                     cy={cy}
-                    r={expanded ? 30 : 8}
+                    r={expanded ? tipRadiusExpanded : tipRadius}
                     fill={expanded ? '#7bb555ff' : 'darkgray'}
                     fillOpacity={expanded ? 0.9 : 0.6}
                     onClick={() => setArgumentationDialogOpen(true)}
                     stroke='black'
-                    strokeWidth={1}
+                    strokeWidth={tipStroke}
                     ref={dropRef}
                 />
                 {expanded

@@ -5,6 +5,7 @@ import { Transform } from "@mui/icons-material";
 import { getRange, MSM, Transformer } from "mpmify";
 import { asPathD, negotiateIntensityCurve } from "./utils/intensityCurve";
 import { useSymbolicZoom } from "./hooks/ZoomProvider";
+import { BarLines } from "./transformer-stack/BarLines";
 
 interface ExportPngProps {
     transformers: Transformer[];
@@ -40,15 +41,16 @@ export function ExportPNG({ transformers, msm }: ExportPngProps) {
         return asPathD(scaled, stretchX, 300);
     }, [scaled, stretchX]);
 
-    const barNumbers = [];
-    for (let i = 720; i <= maxDate; i += 4 * 720) {
-        barNumbers.push(i);
-    }
-
     return (
         <>
             <div style={{ display: 'none' }}>
                 <svg ref={svgRef} width={maxDate * stretchX} height="300" viewBox={`0 0 ${maxDate * stretchX} 300`}>
+                    <BarLines
+                        maxDate={maxDate}
+                        stretchX={stretchX}
+                        height={300}
+                    />
+
                     <path
                         className="intensityCurve"
                         d={path}
@@ -58,31 +60,6 @@ export function ExportPNG({ transformers, msm }: ExportPngProps) {
                         strokeLinejoin="round"
                         strokeLinecap="round"
                     />
-
-                    {barNumbers.map((bn, i) => (
-                        <>
-                            <line
-                                key={bn}
-                                x1={bn * stretchX}
-                                y1={0}
-                                x2={bn * stretchX}
-                                y2={300}
-                                stroke="black"
-                                strokeWidth={5}
-                                strokeDasharray="4 4"
-                            />
-
-                            <text
-                                x={bn * stretchX + 4}
-                                y={280}
-                                fontSize={40}
-                                fill="black"
-                                fontWeight='black'
-                            >
-                                b. {i}
-                            </text>
-                        </>
-                    ))}
                 </svg>
             </div>
 

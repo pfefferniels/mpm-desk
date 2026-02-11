@@ -1,5 +1,6 @@
 import { Transformer } from "mpmify";
 import { useSvgDnd } from "./svg-dnd";
+import { useWedgeScale } from "../hooks/useWedgeScale";
 
 interface DragLayerProps {
     transformers: Transformer[];
@@ -12,6 +13,7 @@ interface DragLayerProps {
  */
 export function DragLayer({ transformers }: DragLayerProps) {
     const { dragItem, dragPoint } = useSvgDnd();
+    const { transformerRadius } = useWedgeScale();
 
     if (!dragItem || !dragPoint) return null;
 
@@ -23,7 +25,7 @@ export function DragLayer({ transformers }: DragLayerProps) {
             <circle
                 cx={dragPoint.x}
                 cy={dragPoint.y}
-                r={10}
+                r={transformerRadius}
                 fill="black"
                 fillOpacity={0.8}
             />
