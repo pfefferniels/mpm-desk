@@ -5,14 +5,14 @@ import { useNotes } from "../hooks/NotesProvider";
 import { asMIDI } from "../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
 import { MSM, MsmNote } from "mpmify/lib/msm";
-import { Box, Button, Slider, Stack, Typography } from "@mui/material";
+import { Box, Button, Stack } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { InsertMetricalAccentuation, InsertMetricalAccentuationOptions, MergeMetricalAccentuations } from "mpmify";
 import { Accentuation, AccentuationPattern, AccentuationPatternDef } from "../../../mpm-ts/lib";
 import { Pattern } from "./Pattern";
-import { Delete } from "@mui/icons-material";
-import { CellDrawer } from "./CellDrawer";
+import { Add, Delete } from "@mui/icons-material";
+import { AccentuationDialog } from "./AccentuationDialog";
 import { NameDialog } from "./NameDialog";
 import { Preview } from "./Preview";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
@@ -68,10 +68,11 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
     // creating a new metrical accentuation
     const [candidate, setCandidate] = useState<Omit<InsertMetricalAccentuationOptions, 'scope'>>()
 
-    const [scaleTolerance, setScaleTolerance] = useState(1.5)
+    const [scaleTolerance, setScaleTolerance] = useState(0)
     const stretchX = useSymbolicZoom()
 
     const [nameDialogOpen, setNameDialogOpen] = useState(false)
+    const [insertDialogOpen, setInsertDialogOpen] = useState(false)
 
     const stretchY = 10
     const margin = 20
@@ -100,14 +101,16 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
         setPatterns(patterns)
     }, [mpm, part])
 
-    const handleInsert = (candidate: Omit<InsertMetricalAccentuationOptions, 'scope'>) => {
+    const handleInsert = (candidate: Omit<InsertMetricalAccentuationOptions, 'scope'>, newScaleTolerance: number) => {
         if (!candidate) return
         addTransformer(new InsertMetricalAccentuation({
             ...candidate,
-            scaleTolerance,
+            scaleTolerance: newScaleTolerance,
             scope: part,
         }))
+        setScaleTolerance(newScaleTolerance)
         setCandidate(undefined)
+        setInsertDialogOpen(false)
     }
 
     const handleMerge = (name: string) => {
@@ -176,7 +179,7 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
         )
     })
 
-    const width = 8000
+    const width = msm.end * stretchX
     const height = 300
 
     return (
@@ -184,19 +187,6 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
             <Stack spacing={1} direction='column' sx={{ position: 'sticky', left: 0 }}>
                 <Box sx={{ m: 1 }}>
                     {part !== 'global' && `Part ${part + 1}`}
-                </Box>
-                <Box sx={{ maxWidth: '50%' }}>
-                    <Typography gutterBottom>
-                        Loop Tolerance
-                    </Typography>
-                    <Slider
-                        value={scaleTolerance}
-                        onChange={(_, newValue) => setScaleTolerance(newValue as number)}
-                        step={0.25}
-                        min={0}
-                        max={5}
-                        valueLabelDisplay="auto"
-                    />
                 </Box>
                 {appBarRef && createPortal((
                     <>
@@ -211,13 +201,24 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
                                 </Button>
                             )}
                             {candidate && (
-                                <Button
-                                    variant='outlined'
-                                    onClick={() => setCandidate(undefined)}
-                                    startIcon={<Delete />}
-                                >
-                                    Clear Candidate
-                                </Button>
+                                <>
+                                    <Button
+                                        size='small'
+                                        variant='outlined'
+                                        onClick={() => setInsertDialogOpen(true)}
+                                        startIcon={<Add />}
+                                    >
+                                        Insert
+                                    </Button>
+                                    <Button
+                                        size='small'
+                                        variant='outlined'
+                                        onClick={() => setCandidate(undefined)}
+                                        startIcon={<Delete />}
+                                    >
+                                        Clear Candidate
+                                    </Button>
+                                </>
                             )}
                         </Ribbon>
                     </>
@@ -273,33 +274,31 @@ export const AccentuationDesk = ({ part, msm, mpm, addTransformer, appBarRef }: 
                 })}
 
                 {circles}
+
+                {candidate && (
+                    <Preview
+                        cell={candidate}
+                        segments={segments}
+                        stretchX={stretchX}
+                        getScreenY={getScreenY}
+                        onClick={(e) => {
+                            if (e.shiftKey && e.altKey) {
+                                setCandidate(undefined)
+                            }
+                        }}
+                    />
+                )}
             </svg>
 
-            {
-                candidate && (
-                    <>
-                        <CellDrawer
-                            cell={candidate}
-                            open={true}
-                            onClose={() => setCandidate(undefined)}
-                            onDone={(candidate) => {
-                                handleInsert(candidate)
-                            }}
-                        />
-                        <Preview
-                            cell={candidate}
-                            segments={segments}
-                            stretchX={stretchX}
-                            getScreenY={getScreenY}
-                            onClick={(e) => {
-                                if (e.shiftKey && e.altKey) {
-                                    setCandidate(undefined)
-                                }
-                            }}
-                        />
-                    </>
-                )
-            }
+            {candidate && (
+                <AccentuationDialog
+                    open={insertDialogOpen}
+                    onClose={() => setInsertDialogOpen(false)}
+                    cell={candidate}
+                    scaleTolerance={scaleTolerance}
+                    onDone={handleInsert}
+                />
+            )}
 
             {
                 nameDialogOpen && (
