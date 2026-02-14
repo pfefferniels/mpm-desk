@@ -1,6 +1,6 @@
 import { approximateTempo, computeMillisecondsAt, computeTotalError, getTempoAt, Point, TempoSegment, TempoWithEndDate } from "mpmify"
 import { TempoPoint } from "./TempoDesk"
-import { MouseEventHandler, useCallback, useEffect, useState } from "react"
+import { MouseEventHandler, useCallback, useEffect, useRef, useState } from "react"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { asMIDI } from "../utils/utils"
@@ -13,13 +13,23 @@ interface SyntheticLineProps {
     onChange: (newSegment: TempoSegment) => void
     stretchX: number
     stretchY: number
+    chartHeight: number
     onClick: MouseEventHandler
     active: boolean
 }
 
-export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, onClick, onChange, active }: SyntheticLineProps) => {
+export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, chartHeight, onClick, onChange, active }: SyntheticLineProps) => {
     const [hovered, setHovered] = useState(false)
     const [tempo, setTempo] = useState<TempoWithEndDate>()
+    const [flashKey, setFlashKey] = useState(0)
+    const prevActive = useRef(false)
+
+    useEffect(() => {
+        if (active && !prevActive.current) {
+            setFlashKey(k => k + 1)
+        }
+        prevActive.current = active
+    }, [active])
 
     const { play, stop } = usePiano()
     const { slice } = useNotes()
@@ -141,7 +151,22 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                 </>
             )}
 
-            <g className={active ? 'tempo-pulse-active' : undefined}>
+            {flashKey > 0 && (
+                <rect
+                    key={`flash_${flashKey}`}
+                    x={curvePoints[0].time * stretchX}
+                    y={chartHeight}
+                    width={(curvePoints[curvePoints.length - 1].time - curvePoints[0].time) * stretchX}
+                    height={-chartHeight}
+                    fill="steelblue"
+                    pointerEvents="none"
+                    style={{
+                        animation: 'tempo-highlight-fade 3.5s ease-out forwards',
+                    }}
+                />
+            )}
+
+            <g>
                 {curvePoints.map((p, i, arr) => {
                     if (i >= arr.length - 1) return null
 
@@ -159,6 +184,13 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                     )
                 })}
             </g>
+
+            <style>{`
+                @keyframes tempo-highlight-fade {
+                    from { opacity: 0.2; }
+                    to { opacity: 0; }
+                }
+            `}</style>
 
             <CurveHandle
                 x={curvePoints[0].time * stretchX}

@@ -113,6 +113,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     // Re-derive is automatic: tickToSeconds recomputes when msm changes
 
     const onsets = useMemo(() => extractOnsets(msm, part), [msm, part])
+    const chartHeight = tempoCluster && tickToSeconds ? -stretchY * tempoCluster.highestBPM(tickToSeconds) : 0
 
     const insertTempoValues = () => {
         if (!tempoCluster || !newSegment) return
@@ -254,6 +255,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                                         startTime={startTime}
                                         stretchX={stretchX}
                                         stretchY={stretchY}
+                                        chartHeight={chartHeight}
                                         active={committed ? activeElements.includes(committed['xml:id']) : false}
                                         onClick={() => {
                                             if (committed) {

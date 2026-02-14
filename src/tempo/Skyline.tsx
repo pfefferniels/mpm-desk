@@ -230,16 +230,6 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
       })}
 
       {children}
-
-      <style>{`
-        @keyframes tempo-pulse {
-          from { stroke-width: 2; }
-          to { stroke-width: 5; }
-        }
-        .tempo-pulse-active line {
-          animation: tempo-pulse 1.5s ease-in-out infinite alternate !important;
-        }
-      `}</style>
     </svg>
   )
 }
