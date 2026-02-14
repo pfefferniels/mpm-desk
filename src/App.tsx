@@ -20,6 +20,7 @@ import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { AppMenu } from './components/AppMenu';
 import { AspectSelect } from './components/AspectSelect';
+import { FloatingZoom } from './components/FloatingZoom';
 
 const extractMetadataFromTransformers = (transformers: Transformer[]): { author: string, title: string } => {
     const metadataTransformer = transformers.find(t => t.name === 'InsertMetadata') as InsertMetadata | undefined
@@ -298,7 +299,8 @@ export const App = () => {
     // Memoize context value to prevent unnecessary re-renders of all consumers
     const zoomContextValue = useMemo(() => ({
         symbolic: { stretchX: stretchX / 200 },
-        physical: { stretchX: stretchX }
+        physical: { stretchX: stretchX },
+        setStretchX
     }), [stretchX]);
 
     const { tickToSeconds, secondsToTick } = useTimeMapping(msm);
@@ -324,8 +326,6 @@ export const App = () => {
                                     secondary={secondary}
                                     scope={scope}
                                     setScope={setScope}
-                                    stretchX={stretchX}
-                                    setStretchX={setStretchX}
                                     selectedDesk={selectedDesk}
                                     onFileImport={handleFileImport}
                                     onFileChange={handleFileChange}
@@ -384,6 +384,7 @@ export const App = () => {
                                 )}
                             </NotesProvider>
 
+                            <FloatingZoom />
                             <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
                                 <SvgDndProvider>
                                     <TransformerStack

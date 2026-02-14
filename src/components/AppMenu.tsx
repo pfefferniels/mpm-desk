@@ -5,8 +5,6 @@ import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoice
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 import { exportMPM } from '../../../mpm-ts/lib';
 import { Ribbon } from '../Ribbon';
-import { ZoomControls } from '../ZoomControls';
-import { ExportPNG } from '../ExportPng';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useMode } from '../hooks/ModeProvider';
 import { useSelection } from '../hooks/SelectionProvider';
@@ -70,8 +68,6 @@ interface AppMenuProps {
     secondary: Record<string, unknown>;
     scope: 'global' | number;
     setScope: (scope: 'global' | number) => void;
-    stretchX: number;
-    setStretchX: (stretchX: number) => void;
     selectedDesk: string;
     onFileImport: () => void;
     onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -86,8 +82,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     secondary,
     scope,
     setScope,
-    stretchX,
-    setStretchX,
     selectedDesk,
     onFileImport,
     onFileChange,
@@ -185,7 +179,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({
                         onChange={onFileChange}
                     />
 
-                    <ExportPNG transformers={transformers} msm={msm} />
                 </Ribbon>
 
                 {(mpm.getInstructions().length > 0) && (
@@ -213,14 +206,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({
                         ))}
                     </ToggleButtonGroup>
                 </Ribbon>
-
-                <Ribbon title='Zoom'>
-                    <ZoomControls
-                        stretchX={stretchX}
-                        setStretchX={setStretchX}
-                        rangeX={[1, 60]}
-                    />
-                </Ribbon>
             </>
         );
     }
@@ -235,14 +220,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({
                     </IconButton>
                 </Ribbon>
             )}
-
-            <Ribbon title='Zoom'>
-                <ZoomControls
-                    stretchX={stretchX}
-                    setStretchX={setStretchX}
-                    rangeX={[1, 60]}
-                />
-            </Ribbon>
 
             <Tooltip title='Download ZIP' arrow>
                 <IconButton
