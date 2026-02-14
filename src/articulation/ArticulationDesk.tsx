@@ -258,7 +258,7 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
                 </Ribbon>
             ), appBarRef?.current ?? document.body)}
 
-            <svg width={10000} height={900}>
+            <svg width={msm.end * stretchX} height={900}>
                 {overlays}
                 {articulatedNotes}
             </svg>

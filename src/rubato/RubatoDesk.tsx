@@ -30,7 +30,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
         }
     }, [register, unregister]);
 
-    const svgWidth = 10000
+    const svgWidth = msm.end * stretchX
     const svgHeight = 200
     const marginLeft = 200
     const stretchY = 5

@@ -314,8 +314,8 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                 </Ribbon>
             ), appBarRef?.current ?? document.body)}
 
-            <div ref={scrollContainerRef} style={{ width: '80vw', overflow: 'scroll', position: 'relative', paddingBottom: 300 }}>
-                <svg width={10000} height={900}>
+            <div ref={scrollContainerRef} style={{ width: '80vw', height: 'calc(100vh - 370px)', overflowX: 'scroll', overflowY: 'hidden', position: 'relative' }}>
+                <svg width={Math.max(...msm.allNotes.map(n => n['midi.onset'] + n['midi.duration'])) * stretchX} height={containerHeight}>
                     {groups}
                 </svg>
             </div>

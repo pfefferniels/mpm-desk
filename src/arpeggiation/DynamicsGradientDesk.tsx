@@ -189,6 +189,8 @@ export const Hull = ({ msm, part, getY }: { msm: MSM, part: Scope, getY: (veloci
 
 export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [sortVelocities, setSortVelocities] = useState(true)
+    const stretchX = usePhysicalZoom()
+    const physicalEnd = Math.max(...msm.allNotes.map(n => n['midi.onset'] + n['midi.duration']))
 
     const { register, unregister } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
@@ -270,7 +272,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                     <VelocityScale getY={getY} />
                 </svg>
                 <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
-                    <svg width={8000} height={height}>
+                    <svg width={physicalEnd * stretchX} height={height}>
                         <Hull msm={msm} part={part} getY={getY} />
                         {Array
                             .from(msm.asChords())

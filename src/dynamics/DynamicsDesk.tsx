@@ -370,13 +370,13 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
 
             <svg
                 ref={svgRef}
-                width={8000 + margin}
+                width={msm.end * stretchX + margin}
                 height={300 + margin}
                 viewBox={
                     [
                         -margin,
                         -0,
-                        8000 + margin,
+                        msm.end * stretchX + margin,
                         300 + margin
                     ].join(' ')
                 }

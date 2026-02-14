@@ -52,7 +52,7 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
                 />
             )}
             <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
-                <svg width={10000} height={400}>
+                <svg width={msm.end * stretchX} height={400}>
                     {msm.pedals.map(p => {
                         
                         console.log(p)
