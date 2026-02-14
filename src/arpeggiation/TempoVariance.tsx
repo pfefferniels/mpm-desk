@@ -1,7 +1,7 @@
 import { MSM } from "mpmify";
 import { usePhysicalZoom } from "../hooks/ZoomProvider";
 import { Scope } from "../TransformerViewProps";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 
 export const TempoVariance = ({ msm, part, beatLength }: { msm: MSM; part: Scope; beatLength: number }) => {
     const [hover, setHover] = useState<number | null>(null);
@@ -44,27 +44,16 @@ export const TempoVariance = ({ msm, part, beatLength }: { msm: MSM; part: Scope
         <g>
             {[20, 40, 60, 80, 100].map(bpm => {
                 const y = height - bpm;
-                const x = (Math.min(...msm.allNotes.map(n => n["midi.onset"])) || 10) * stretchX - 20
                 return (
-                    <Fragment key={`tick_${bpm}`}>
-                        <line
-                            key={bpm}
-                            x1={x}
-                            x2={msm.lastDate() * stretchX}
-                            y1={y}
-                            y2={y}
-                            stroke="black"
-                            strokeWidth={0.2}
-                        />
-                        <text
-                            x={x - 20}
-                            y={y + 4}
-                            fill="black"
-                            fontSize={12}
-                        >
-                            {bpm}
-                        </text>
-                    </Fragment>
+                    <line
+                        key={`gridline_${bpm}`}
+                        x1={0}
+                        x2={msm.lastDate() * stretchX}
+                        y1={y}
+                        y2={y}
+                        stroke="black"
+                        strokeWidth={0.2}
+                    />
                 );
             })}
             {bpms.map(({ date, onset, bpm }, i, arr) => {

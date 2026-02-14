@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify";
 import { ChordSpread } from "./ChordSpread";
@@ -29,6 +29,17 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
     const stretchX = usePhysicalZoom()
     const { tickToSeconds } = useTimeMapping(msm)
     const { activeElements, setActiveElement } = useSelection()
+
+    const averageBPM = useMemo(() => {
+        const notes = msm.allNotes
+        if (notes.length < 2) return 120
+        const firstNote = notes.reduce((a, b) => a.date < b.date ? a : b)
+        const lastNote = notes.reduce((a, b) => a.date > b.date ? a : b)
+        const totalTicks = lastNote.date - firstNote.date
+        const totalSeconds = lastNote["midi.onset"] - firstNote["midi.onset"]
+        if (totalSeconds <= 0 || totalTicks <= 0) return 120
+        return (totalTicks / beatLength) / (totalSeconds / 60)
+    }, [msm, beatLength])
 
     const { register, unregister } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
@@ -79,6 +90,15 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
     const instructionHeight = 40;
 
     const tickBasedSpreads = temporalSpreads.filter(s => s.def["time.unit"] === "ticks");
+
+    const chordsByDate = useMemo(() => {
+        const map = new Map<number, typeof msm.allNotes>();
+        for (const notes of msm.asChords().values()) {
+            if (!notes.length) continue;
+            map.set(notes[0].date, notes);
+        }
+        return map;
+    }, [msm]);
 
     const chords = []
     for (const notes of msm.asChords().values()) {
@@ -136,33 +156,43 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                 </>
             )}
 
-            <div ref={scrollContainerRef} style={{ width: '80vw', overflow: 'scroll' }}>
-                <svg width={10000} height={height + instructionHeight + 30}>
-                    <g>
-                        {chords}
-                    </g>
-                    <TempoVariance
-                        msm={msm}
-                        part={part}
-                        beatLength={beatLength}
-                    />
-                    {tickToSeconds && tickBasedSpreads.length > 0 && (
-                        <g transform={`translate(0, ${height + 10})`}>
-                            {tickBasedSpreads.map(ornament => (
-                                <TemporalSpreadInstruction
-                                    key={`spreadInstruction_${ornament["xml:id"]}`}
-                                    ornament={ornament}
-                                    spread={ornament.def}
-                                    tickToSeconds={tickToSeconds}
-                                    stretch={stretchX}
-                                    height={instructionHeight}
-                                    active={activeElements.includes(ornament["xml:id"])}
-                                    onClick={() => setActiveElement(ornament["xml:id"])}
-                                />
-                            ))}
-                        </g>
-                    )}
+            <div style={{ position: 'relative', width: '80vw' }}>
+                <svg style={{ position: 'absolute', left: 0, top: 0, width: 30, height: height, pointerEvents: 'none', zIndex: 1 }}>
+                    {[20, 40, 60, 80, 100].map(bpm => (
+                        <text key={`label_${bpm}`} x={4} y={height - bpm + 4} fill="black" fontSize={12}>{bpm}</text>
+                    ))}
                 </svg>
+                <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
+                    <svg width={Math.max(...msm.allNotes.map(n => n['midi.onset'] + n['midi.duration'])) * stretchX} height={height + instructionHeight + 30}>
+                        <g>
+                            {chords}
+                        </g>
+                        <TempoVariance
+                            msm={msm}
+                            part={part}
+                            beatLength={beatLength}
+                        />
+                        {tickToSeconds && tickBasedSpreads.length > 0 && (
+                            <g transform={`translate(0, ${height + 10})`}>
+                                {tickBasedSpreads.map(ornament => (
+                                    <TemporalSpreadInstruction
+                                        key={`spreadInstruction_${ornament["xml:id"]}`}
+                                        ornament={ornament}
+                                        spread={ornament.def}
+                                        notes={chordsByDate.get(ornament.date) ?? []}
+                                        tickToSeconds={tickToSeconds}
+                                        stretch={stretchX}
+                                        height={instructionHeight}
+                                        active={activeElements.includes(ornament["xml:id"])}
+                                        onClick={() => setActiveElement(ornament["xml:id"])}
+                                        beatLength={beatLength}
+                                        refBPM={averageBPM}
+                                    />
+                                ))}
+                            </g>
+                        )}
+                    </svg>
+                </div>
             </div>
             <Dialog
                 open={insert}
