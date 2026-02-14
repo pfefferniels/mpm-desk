@@ -14,6 +14,7 @@ import { useSelection } from "../hooks/SelectionProvider";
 import { usePlayback } from "../hooks/PlaybackProvider";
 import { DragLayer } from "./DragLayer";
 import { BarLines } from "./BarLines";
+import { ExportPNG } from "../ExportPng";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -215,6 +216,27 @@ export const TransformerStack = ({
                 borderTop: "0.5px solid gray"
             }}
         >
+            <div style={{
+                position: "sticky",
+                left: 0,
+                width: "100%",
+                height: 0,
+                zIndex: 1,
+                pointerEvents: "none",
+            }}>
+                <div style={{
+                    position: "absolute",
+                    top: 4,
+                    left: 4,
+                    pointerEvents: "auto",
+                }}>
+                    <ExportPNG
+                        curvePathD={curvePathD}
+                        maxDate={maxDate}
+                        stretchX={stretchX}
+                    />
+                </div>
+            </div>
             <div style={{ position: "relative", width: maxX, height: totalHeight }}>
                 <svg
                     width={maxX}

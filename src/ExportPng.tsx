@@ -1,24 +1,17 @@
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import { svgElementToPngBlob } from "./utils/exportPng";
 import { IconButton, Tooltip } from "@mui/material";
-import { Transform } from "@mui/icons-material";
-import { getRange, MSM, Transformer } from "mpmify";
-import { asPathD, negotiateIntensityCurve } from "./utils/intensityCurve";
-import { useSymbolicZoom } from "./hooks/ZoomProvider";
+import { Download } from "@mui/icons-material";
 import { BarLines } from "./transformer-stack/BarLines";
 
 interface ExportPngProps {
-    transformers: Transformer[];
-    msm: MSM;
+    curvePathD: string;
+    maxDate: number;
+    stretchX: number;
 }
 
-export function ExportPNG({ transformers, msm }: ExportPngProps) {
+export function ExportPNG({ curvePathD, maxDate, stretchX }: ExportPngProps) {
     const svgRef = useRef<SVGSVGElement | null>(null);
-
-    const stretchX = useSymbolicZoom();
-    const argumentations = Map.groupBy(transformers, t => t.argumentation);
-
-    const maxDate = getRange(transformers, msm)?.to || 0;
 
     const exportPng = async () => {
         if (!svgRef.current) return;
@@ -36,11 +29,6 @@ export function ExportPNG({ transformers, msm }: ExportPngProps) {
         URL.revokeObjectURL(url);
     };
 
-    const scaled = negotiateIntensityCurve(argumentations, maxDate, msm);
-    const path = useMemo(() => {
-        return asPathD(scaled, stretchX, 300);
-    }, [scaled, stretchX]);
-
     return (
         <>
             <div style={{ display: 'none' }}>
@@ -53,7 +41,7 @@ export function ExportPNG({ transformers, msm }: ExportPngProps) {
 
                     <path
                         className="intensityCurve"
-                        d={path}
+                        d={curvePathD}
                         fill="none"
                         stroke="#ac1e01ff"
                         strokeWidth={10}
@@ -64,8 +52,8 @@ export function ExportPNG({ transformers, msm }: ExportPngProps) {
             </div>
 
             <Tooltip title="Export as PNG">
-                <IconButton onClick={exportPng}>
-                    <Transform />
+                <IconButton onClick={exportPng} size="small">
+                    <Download />
                 </IconButton>
             </Tooltip>
         </>
