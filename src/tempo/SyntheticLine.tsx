@@ -166,24 +166,13 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                 />
             )}
 
-            <g>
-                {curvePoints.map((p, i, arr) => {
-                    if (i >= arr.length - 1) return null
-
-                    return (
-                        <line
-                            key={`p_${p.date}_${i}`}
-                            x1={p.time * stretchX}
-                            y1={p.bpm * -stretchY}
-                            x2={arr[i + 1].time * stretchX}
-                            y2={arr[i + 1].bpm * -stretchY}
-                            strokeWidth={hovered ? 3 : 2}
-                            stroke={color}
-                            strokeOpacity={hovered ? 1 : 0.7}
-                        />
-                    )
-                })}
-            </g>
+            <polyline
+                points={curvePoints.map(p => `${p.time * stretchX},${p.bpm * -stretchY}`).join(' ')}
+                fill="none"
+                strokeWidth={hovered ? 3 : 2}
+                stroke={color}
+                strokeOpacity={hovered ? 1 : 0.7}
+            />
 
             <style>{`
                 @keyframes tempo-highlight-fade {
