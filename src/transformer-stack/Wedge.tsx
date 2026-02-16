@@ -105,11 +105,20 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
     const stroke = "rgba(0,0,0,0.35)";
 
     let label = "";
-    if (wedge.argumentation.conclusion.motivation === "intensification") {
+    let bold = false;
+    if (wedge.argumentation.conclusion.motivation === "move") {
         label = "+";
     }
-    else if (wedge.argumentation.conclusion.motivation === "relaxation") {
-        label = "–";
+    else if (wedge.argumentation.conclusion.motivation === "intensify") {
+        label = "+";
+        bold = true;
+    }
+    else if (wedge.argumentation.conclusion.motivation === "relax") {
+        label = "-";
+        bold = true;
+    }
+    else if (wedge.argumentation.conclusion.motivation === "calm") {
+        label = "-";
     }
 
     const cx = wedge.tip.x;
@@ -164,7 +173,7 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fontSize={12}
-                            fontWeight='bold'
+                            fontWeight={bold ? 'bold' : 'normal'}
                             fill="black"
                         >
                             {label}

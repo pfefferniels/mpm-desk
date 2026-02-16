@@ -33,43 +33,35 @@ export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Trans
         const range = getRange(localTransformers, msm);
         if (!range) continue;
 
-        if (argumentation.conclusion.motivation === "intensification") {
-            const start = range.from;
-            const end = range.to ?? range.from;
-            const length = Math.max(200, end - start + 1);
+        const motivation = argumentation.conclusion.motivation;
 
-            if (length === 1) continue
-
-            for (let idx = 0; idx < length; idx++) {
-                const i = start + idx;
-                if (!Number.isInteger(i) || i < 0 || i >= diff.length) {
-                    continue;
-                }
-
-                // normalized position 0 → 1
-                const t = idx / (length - 1);
-                const weight = Math.sin(Math.PI * t) * Math.sqrt(length);
-                diff[i] += weight;
-            }
+        // sign: positive = increase, negative = decrease
+        // gain: strong (1.0) vs gentle (0.5)
+        let sign: number;
+        let gain: number;
+        switch (motivation) {
+            case "intensify": sign = +1; gain = 1.0; break;
+            case "move":      sign = +1; gain = 0.5; break;
+            case "relax":     sign = -1; gain = 1.0; break;
+            case "calm":      sign = -1; gain = 0.5; break;
+            default: continue;
         }
 
-        if (argumentation.conclusion.motivation === "relaxation") {
-            const start = range.from;
-            const end = range.to ?? range.from;
-            const length = end - start + 1;
-            
-            if (length === 1) continue
-            for (let idx = 0; idx < length; idx++) {
-                const i = start + idx;
-                if (!Number.isInteger(i) || i < 0 || i >= diff.length) {
-                    continue;
-                }
+        const start = range.from;
+        const end = range.to ?? range.from;
+        const length = Math.max(200, end - start + 1);
 
-                // normalized position 0 → 1
-                const t = idx / (length - 1);
-                const weight = Math.sin(Math.PI * t) * Math.sqrt(length);
-                diff[i] -= weight;
+        if (length === 1) continue;
+
+        for (let idx = 0; idx < length; idx++) {
+            const i = start + idx;
+            if (!Number.isInteger(i) || i < 0 || i >= diff.length) {
+                continue;
             }
+
+            const t = idx / (length - 1);
+            const weight = Math.sin(Math.PI * t) * Math.sqrt(length) * gain;
+            diff[i] += sign * weight;
         }
     }
 
