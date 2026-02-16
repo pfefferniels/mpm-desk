@@ -8,7 +8,7 @@ import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Range } from "../tempo/Tempo";
 import { DynamicsWithEndDate, InsertDynamicsInstructions, InsertDynamicsInstructionsOptions, Modify, ModifyOptions } from "mpmify/lib/transformers";
-import { Box, Button, Drawer, FormControl, FormLabel, Input, Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, Drawer, FormControl, FormLabel, Input, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
@@ -297,99 +297,114 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     })
 
     return (
-        <div ref={scrollContainerRef} style={{ height: '400', overflow: 'scroll' }}>
+        <div>
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
-            <Stack direction='row' spacing={1} sx={{ position: 'sticky', left: 0 }}>
-                {appBarRef && createPortal((
-                    <>
-                        <Ribbon title='Mode'>
-                            <ToggleButtonGroup
-                                value={mode}
-                                exclusive
-                                onChange={(_, newMode) => {
-                                    if (newMode !== null) {
-                                        setMode(newMode)
-                                    }
-                                }}
-                                size='small'
-                            >
-                                <ToggleButton size='small' value='insert'>Insert</ToggleButton>
-                                <ToggleButton size='small' value='modify'>Modify</ToggleButton>
-                                <ToggleButton size='small' value='phantom'>Phantom</ToggleButton>
-                            </ToggleButtonGroup>
-                        </Ribbon>
+            {appBarRef && createPortal((
+                <>
+                    <Ribbon title='Mode'>
+                        <ToggleButtonGroup
+                            value={mode}
+                            exclusive
+                            onChange={(_, newMode) => {
+                                if (newMode !== null) {
+                                    setMode(newMode)
+                                }
+                            }}
+                            size='small'
+                        >
+                            <ToggleButton size='small' value='insert'>Insert</ToggleButton>
+                            <ToggleButton size='small' value='modify'>Modify</ToggleButton>
+                            <ToggleButton size='small' value='phantom'>Phantom</ToggleButton>
+                        </ToggleButtonGroup>
+                    </Ribbon>
 
-                        {mode === 'modify' && (
-                            <Ribbon title='Modification'>
+                    {mode === 'modify' && (
+                        <Ribbon title='Modification'>
+                            <Button
+                                size='small'
+                                variant='contained'
+                                disabled={!modifyOptions}
+                                startIcon={<Add />}
+                                onClick={() => {
+                                    if (!modifyOptions) return
+
+                                    addTransformer(new Modify(modifyOptions))
+                                    setModifyOptions(undefined)
+                                }}
+                            >
+                                Modify
+                            </Button>
+                        </Ribbon>
+                    )}
+                    {mode === 'insert' && (
+                        <>
+                            <Ribbon title='Dynamics'>
                                 <Button
+                                    startIcon={<Add />}
                                     size='small'
                                     variant='contained'
-                                    disabled={!modifyOptions}
-                                    startIcon={<Add />}
-                                    onClick={() => {
-                                        if (!modifyOptions) return
-
-                                        addTransformer(new Modify(modifyOptions))
-                                        setModifyOptions(undefined)
-                                    }}
+                                    onClick={handleInsert}
                                 >
-                                    Modify
+                                    Insert
                                 </Button>
                             </Ribbon>
-                        )}
-                        {mode === 'insert' && (
-                            <>
-                                <Ribbon title='Dynamics'>
-                                    <Button
-                                        startIcon={<Add />}
-                                        size='small'
-                                        variant='contained'
-                                        onClick={handleInsert}
-                                    >
-                                        Insert
-                                    </Button>
-                                </Ribbon>
-                            </>
-                        )}
+                        </>
+                    )}
 
-                        {mode === 'phantom' && (
-                            <Ribbon title='Phantoms'>
-                                <Button
-                                    size='small'
-                                    variant='outlined'
-                                    onClick={() => setPhantomVelocities(new Map())}
-                                    startIcon={<Clear />}
-                                >
-                                    Clear
-                                </Button>
-                            </Ribbon>
-                        )}
-                    </>
-                ), appBarRef?.current ?? document.body)}
-            </Stack>
+                    {mode === 'phantom' && (
+                        <Ribbon title='Phantoms'>
+                            <Button
+                                size='small'
+                                variant='outlined'
+                                onClick={() => setPhantomVelocities(new Map())}
+                                startIcon={<Clear />}
+                            >
+                                Clear
+                            </Button>
+                        </Ribbon>
+                    )}
+                </>
+            ), appBarRef?.current ?? document.body)}
 
-            <svg
-                ref={svgRef}
-                width={msm.end * stretchX + margin}
-                height={300 + margin}
-                viewBox={
-                    [
-                        -margin,
-                        -0,
-                        msm.end * stretchX + margin,
-                        300 + margin
-                    ].join(' ')
-                }
-            >
-                <VerticalScale min={10} max={80} step={5} stretchY={stretchY} />
-                {curves}
-                {circles}
-                {<MarkedRegion
-                    from={insertOptions?.from || ((modifyOptions && ('from' in modifyOptions)) ? modifyOptions.from : undefined)}
-                    to={insertOptions?.to || ((modifyOptions && ('to' in modifyOptions)) ? modifyOptions.to : undefined)}
-                    svgRef={svgRef}
-                />}
-            </svg>
+            <div style={{ position: 'relative' }}>
+                <svg style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    width: 40,
+                    height: 300 + margin,
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                }}
+                    viewBox={`-30 0 35 ${300 + margin}`}
+                >
+                    <VerticalScale min={10} max={80} step={5} stretchY={stretchY} />
+                </svg>
+
+                <div ref={scrollContainerRef} style={{ height: '400', overflow: 'scroll' }}>
+                    <svg
+                        ref={svgRef}
+                        width={msm.end * stretchX + margin}
+                        height={300 + margin}
+                        viewBox={
+                            [
+                                -margin,
+                                -0,
+                                msm.end * stretchX + margin,
+                                300 + margin
+                            ].join(' ')
+                        }
+                    >
+                        {curves}
+                        {circles}
+                        {<MarkedRegion
+                            from={insertOptions?.from || ((modifyOptions && ('from' in modifyOptions)) ? modifyOptions.from : undefined)}
+                            to={insertOptions?.to || ((modifyOptions && ('to' in modifyOptions)) ? modifyOptions.to : undefined)}
+                            svgRef={svgRef}
+                        />}
+                    </svg>
+                </div>
+            </div>
 
             <Drawer
                 open={modifyOptions !== undefined}
