@@ -5,7 +5,6 @@ import { TempoDeskMode } from "./TempoDesk"
 import { asMIDI } from "../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
-import { VerticalScale } from "./VerticalScale"
 import HorizontalScale from "./HorizontalScale"
 import { MarkerLine } from "./MarkerLine"
 import { Scope } from "../TransformerViewProps"
@@ -39,13 +38,12 @@ interface SkylineProps {
   onsets: Onset[]
 
   tickToSeconds: (tick: number) => number
-  secondsToTick: (seconds: number) => number
   stretchX: number
   stretchY: number
 
   onAddSegment: (fromDate: number, toDate: number, beatLength: number) => void
 
-  onSplit: (first: TempoSegment, second: TempoSegment) => void
+  onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
 
   children: React.ReactNode
 }
@@ -56,7 +54,7 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  *
  */
-export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToSeconds, secondsToTick, stretchX, stretchY, mode, onSplit, children }: SkylineProps) {
+export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToSeconds, stretchX, stretchY, mode, onSplit, children }: SkylineProps) {
   const { play, stop } = usePiano()
   const { slice } = useNotes()
 
@@ -148,11 +146,6 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
         -height + margin * 2 // height
       ].join(' ')}
     >
-      <VerticalScale
-        stretchY={stretchY}
-        maxTempo={Math.max(...tempos.sort().map(t => asBPM(t.date, tickToSeconds)))}
-      />
-
       <HorizontalScale
         stretchX={stretchX}
         offset={Math.max(...(tempos.sort().map(t => tickToSeconds(t.date.end)))) || 0}
@@ -178,7 +171,6 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
             key={`box${index}`}
             segment={tempo}
             tickToSeconds={tickToSeconds}
-            secondsToTick={secondsToTick}
             stretchX={stretchX || 0}
             stretchY={stretchY || 0}
             onPlay={handlePlay}

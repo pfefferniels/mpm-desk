@@ -5,7 +5,6 @@ type BoxProps = {
   segment: TempoSegment
 
   tickToSeconds: (tick: number) => number
-  secondsToTick: (seconds: number) => number
   stretchX: number
   stretchY: number
 
@@ -20,7 +19,7 @@ type BoxProps = {
   onRemove: () => void
 
   splitMode: boolean
-  onSplit: (first: TempoSegment, second: TempoSegment) => void
+  onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
 }
 
 /**
@@ -36,9 +35,9 @@ type BoxProps = {
  */
 export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
-  const [splitDate, setSplitDate] = useState<number>()
+  const [splitSeconds, setSplitSeconds] = useState<number>()
 
-  const { segment, tickToSeconds, secondsToTick, stretchX, stretchY, marker, onPlay, onStop, played, onExpand, onSelect, onRemove, splitMode, onSplit } = props
+  const { segment, tickToSeconds, stretchX, stretchY, marker, onPlay, onStop, played, onExpand, onSelect, onRemove, splitMode, onSplit } = props
   const { selected } = segment
 
   const start = tickToSeconds(segment.date.start)
@@ -51,56 +50,49 @@ export const Box = (props: BoxProps) => {
 
     const margin = 75
     const x = e.clientX - (e.target as Element).closest('svg')!.getBoundingClientRect().left - margin
-    const seconds = x / stretchX
-    setSplitDate(secondsToTick(seconds))
-  }
-
-  const splitBoxProps: Omit<BoxProps, 'segment'> = {
-    tickToSeconds,
-    secondsToTick,
-    stretchX,
-    stretchY,
-    played,
-    onPlay: () => { },
-    onStop: () => { },
-    onExpand: () => { },
-    marker,
-    onRemove: () => { },
-    onSelect: () => { },
-    splitMode: false,
-    onSplit: () => { }
-  }
-
-  let first: TempoSegment
-  let second: TempoSegment
-  if (splitDate) {
-    first = {
-      date: { start: segment.date.start, end: splitDate },
-      selected: false,
-      silent: true
-    }
-
-    second = {
-      date: { start: splitDate, end: segment.date.end },
-      selected: false,
-      silent: true
-    }
+    setSplitSeconds(x / stretchX)
   }
 
   return (
     <g>
-      {splitDate && (
-        <>
-          <Box
-            segment={first!}
-            {...splitBoxProps}
-          />
-          <Box
-            segment={second!}
-            {...splitBoxProps}
-          />
-        </>
-      )}
+      {splitSeconds && (() => {
+        const firstBpm = 60 / (splitSeconds - start)
+        const secondBpm = 60 / (end - splitSeconds)
+        const firstUpperY = firstBpm * -stretchY
+        const secondUpperY = secondBpm * -stretchY
+        return (
+          <>
+            <polygon
+              className='box'
+              points={[
+                [start * stretchX, 0].join(','),
+                [start * stretchX, firstUpperY].join(','),
+                [splitSeconds * stretchX, firstUpperY].join(','),
+                [splitSeconds * stretchX, 0].join(',')
+              ].join(' ')}
+              fill='white'
+              fillOpacity={0.4}
+              stroke='black'
+              strokeDasharray='1 1'
+              strokeWidth={1}
+            />
+            <polygon
+              className='box'
+              points={[
+                [splitSeconds * stretchX, 0].join(','),
+                [splitSeconds * stretchX, secondUpperY].join(','),
+                [end * stretchX, secondUpperY].join(','),
+                [end * stretchX, 0].join(',')
+              ].join(' ')}
+              fill='white'
+              fillOpacity={0.4}
+              stroke='black'
+              strokeDasharray='1 1'
+              strokeWidth={1}
+            />
+          </>
+        )
+      })()}
 
       {splitMode && marker}
 
@@ -158,11 +150,22 @@ export const Box = (props: BoxProps) => {
         onMouseOut={() => {
           onStop()
           setHovered(false)
-          setSplitDate(undefined)
+          setSplitSeconds(undefined)
         }}
         onClick={(e) => {
-          if (splitMode) {
-            onSplit(first, second)
+          if (splitMode && splitSeconds) {
+            const mid = (segment.date.start + segment.date.end) / 2
+            const first: TempoSegment = {
+              date: { start: segment.date.start, end: mid },
+              selected: false,
+              silent: true
+            }
+            const second: TempoSegment = {
+              date: { start: mid, end: segment.date.end },
+              selected: false,
+              silent: true
+            }
+            onSplit(first, second, splitSeconds)
           }
           else {
             if (e.shiftKey && e.altKey) onRemove()

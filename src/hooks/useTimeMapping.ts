@@ -6,7 +6,7 @@ type TimeMapping = {
     secondsToTick: ((seconds: number) => number) | null;
 };
 
-export const useTimeMapping = (msm: MSM | null | undefined): TimeMapping => {
+export const useTimeMapping = (msm: MSM | null | undefined, extraPairs?: [number, number][]): TimeMapping => {
     const lookupTable = useMemo(() => {
         if (!msm || msm.allNotes.length === 0) return null;
 
@@ -20,11 +20,19 @@ export const useTimeMapping = (msm: MSM | null | undefined): TimeMapping => {
             pairs.push([note.date, note['midi.onset']]);
         }
 
+        if (extraPairs) {
+            for (const [date, onset] of extraPairs) {
+                if (seen.has(date)) continue;
+                seen.add(date);
+                pairs.push([date, onset]);
+            }
+        }
+
         if (pairs.length === 0) return null;
 
         pairs.sort((a, b) => a[0] - b[0]);
         return pairs;
-    }, [msm]);
+    }, [msm, extraPairs]);
 
     const tickToSeconds = useCallback((tick: number): number => {
         if (!lookupTable || lookupTable.length === 0) return 0;

@@ -3,6 +3,7 @@ import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSeg
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, TempoSegment as LocalTempoSegment } from "./Tempo"
+import { VerticalScale } from "./VerticalScale"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { SyntheticLine } from "./SyntheticLine"
@@ -35,7 +36,6 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 
 export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
     const { activeElements, setActiveElement } = useSelection();
-    const { tickToSeconds, secondsToTick } = useTimeMapping(msm)
     const tempoData = secondary?.tempo as TempoSecondaryData | undefined
 
     const [tempoCluster, setTempoClusterState] = useState<TempoCluster>(() => {
@@ -44,7 +44,15 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         }
         return new TempoCluster()
     })
-    const [silentOnsets, setSilentOnsetsState] = useState<SilentOnset[]>(tempoData?.silentOnsets ?? [])
+    const [silentOnsets, setSilentOnsetsState] = useState<Map<number, number>>(
+        () => new Map((tempoData?.silentOnsets ?? []).map(o => [o.date, o.onset]))
+    )
+
+    const silentOnsetPairs = useMemo<[number, number][]>(
+        () => [...silentOnsets],
+        [silentOnsets]
+    )
+    const { tickToSeconds, secondsToTick } = useTimeMapping(msm, silentOnsetPairs)
     const [segments, setSegments] = useState<TempoSegment[]>([])
     const [newSegment, setNewSegment] = useState<TempoSegment>()
     const [mode, setMode] = useState<'split' | 'curve' | undefined>(undefined)
@@ -72,17 +80,18 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         }))
     }
 
-    const setSilentOnsets = (updater: SilentOnset[] | ((prev: SilentOnset[]) => SilentOnset[])) => {
+    const setSilentOnset = (date: number, onset: number) => {
         setSilentOnsetsState(prev => {
-            const newOnsets = typeof updater === 'function' ? updater(prev) : updater
+            const next = new Map(prev)
+            next.set(date, onset)
             setSecondary(prevSecondary => ({
                 ...prevSecondary,
                 tempo: {
                     ...(prevSecondary.tempo as TempoSecondaryData ?? {}),
-                    silentOnsets: newOnsets
+                    silentOnsets: [...next].map(([date, onset]) => ({ date, onset }))
                 }
             }))
-            return newOnsets
+            return next
         })
     }
 
@@ -121,7 +130,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         addTransformer(new ApproximateLogarithmicTempo({
             ...newSegment,
             scope: part,
-            silentOnsets
+            silentOnsets: [...silentOnsets].map(([date, onset]) => ({ date, onset }))
         }))
     }
 
@@ -188,6 +197,22 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                     rangeY={[1, 2]}
                 />
 
+                {tempoCluster && tickToSeconds && (
+                    <svg style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: '3rem',
+                        width: 40,
+                        height: -chartHeight + 100,
+                        pointerEvents: 'none',
+                        zIndex: 1,
+                    }}
+                        viewBox={`-30 ${chartHeight - 50} 30 ${-chartHeight + 100}`}
+                    >
+                        <VerticalScale stretchY={stretchY} maxTempo={tempoCluster.highestBPM(tickToSeconds)} />
+                    </svg>
+                )}
+
                 <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
                     {tempoCluster && tickToSeconds && secondsToTick && (
                         <Skyline
@@ -196,11 +221,9 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                             setTempos={setTempoCluster}
                             onsets={onsets}
                             tickToSeconds={tickToSeconds}
-                            secondsToTick={secondsToTick}
                             stretchX={stretchX}
                             stretchY={stretchY}
                             onAddSegment={(from, to, beatLength) => {
-                                console.log('onaddsegment', from, to, beatLength)
                                 setNewSegment({
                                     from,
                                     to,
@@ -208,20 +231,8 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                                 })
                             }}
                             mode={mode}
-                            onSplit={(first, second) => {
-                                const splitOnset = tickToSeconds(second.date.start)
-                                setSilentOnsets(prev => {
-                                    const existing = prev.find(o => o.date === second.date.start)
-                                    if (existing) {
-                                        existing.onset = splitOnset
-                                        return [...prev]
-                                    }
-
-                                    return [...prev, {
-                                        date: second.date.start,
-                                        onset: splitOnset
-                                    }]
-                                })
+                            onSplit={(first, second, onset) => {
+                                setSilentOnset(second.date.start, onset)
 
                                 setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
                             }}
@@ -232,15 +243,12 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                                 const segmentWithPoints = pointsWithinSegment(
                                     segment,
                                     msm.notesInPart(part),
-                                    silentOnsets.map(o => ({
-                                        ...o,
-                                        onset: o.onset
-                                    }))
+                                    [...silentOnsets].map(([date, onset]) => ({ date, onset }))
                                 )
 
                                 let startTime: number | undefined = msm.notesAtDate(segment.from, part)[0]?.['midi.onset']
                                 if (startTime === undefined) {
-                                    startTime = silentOnsets.find(o => o.date === segment.from)?.onset
+                                    startTime = silentOnsets.get(segment.from)
                                 }
 
                                 startTime = (startTime || 0)
