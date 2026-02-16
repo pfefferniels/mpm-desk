@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { PauseCircle, PlayCircle, Save, UploadFile } from '@mui/icons-material';
+import { Pause, PlayArrow, Save, UploadFile } from '@mui/icons-material';
 import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM } from 'mpmify';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 import { exportMPM } from '../../../mpm-ts/lib';
@@ -8,6 +8,8 @@ import { Ribbon } from '../Ribbon';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useMode } from '../hooks/ModeProvider';
 import { useSelection } from '../hooks/SelectionProvider';
+import { useScrollSync } from '../hooks/ScrollSyncProvider';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { downloadAsFile } from '../utils/utils';
 import JSZip from 'jszip';
 
@@ -88,9 +90,10 @@ export const AppMenu: React.FC<AppMenuProps> = ({
 }) => {
     const { isPlaying, play, stop } = usePlayback();
     const { isEditorMode } = useMode();
-    const { setActiveTransformer } = useSelection();
+    const { activeTransformer, setActiveTransformer, removeTransformer } = useSelection();
+    const { scrollToDate } = useScrollSync();
 
-    // Follow behavior: update active transformer based on playback position
+    // Follow behavior: update active transformer and scroll position based on playback position
     const handleNoteEvent = useCallback((_noteId: string, date: number) => {
         mpm
             .instructionsEffectiveAtDate(date)
@@ -98,7 +101,8 @@ export const AppMenu: React.FC<AppMenuProps> = ({
             .forEach(i => {
                 setActiveTransformer(transformers.find(t => t.created.includes(i['xml:id'])));
             });
-    }, [setActiveTransformer, mpm, selectedDesk, transformers]);
+        scrollToDate(date);
+    }, [setActiveTransformer, mpm, selectedDesk, transformers, scrollToDate]);
 
     const handlePlay = useCallback(() => {
         if (isPlaying) {
@@ -107,6 +111,11 @@ export const AppMenu: React.FC<AppMenuProps> = ({
             play({ onNoteEvent: handleNoteEvent });
         }
     }, [isPlaying, play, stop, handleNoteEvent]);
+
+    useHotkeys('space', () => handlePlay(), { preventDefault: true }, [handlePlay]);
+    useHotkeys('meta+s', () => handleSave(), { preventDefault: true });
+    useHotkeys('meta+o', () => onFileImport(), { preventDefault: true }, [onFileImport]);
+    useHotkeys('backspace', () => { if (activeTransformer) removeTransformer(activeTransformer); }, [activeTransformer, removeTransformer]);
 
     const handleSave = async () => {
         if (!mei) return;
@@ -182,9 +191,9 @@ export const AppMenu: React.FC<AppMenuProps> = ({
                 </Ribbon>
 
                 {(mpm.getInstructions().length > 0) && (
-                    <Ribbon title='Playback'>
+                    <Ribbon title=' '>
                         <IconButton onClick={handlePlay}>
-                            {isPlaying ? <PauseCircle /> : <PlayCircle />}
+                            {isPlaying ? <Pause /> : <PlayArrow />}
                         </IconButton>
                     </Ribbon>
                 )}
@@ -214,9 +223,9 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     return (
         <>
             {(mpm.getInstructions().length > 0) && (
-                <Ribbon title='Playback'>
+                <Ribbon title="">
                     <IconButton onClick={handlePlay}>
-                        {isPlaying ? <PauseCircle /> : <PlayCircle />}
+                        {isPlaying ? <Pause /> : <PlayArrow />}
                     </IconButton>
                 </Ribbon>
             )}
