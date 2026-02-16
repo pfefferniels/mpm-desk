@@ -315,29 +315,29 @@ export const App = () => {
                         transformers={transformers}
                         setTransformers={setTransformers}
                     >
-                        <AppBar position='static' color='transparent' elevation={1}>
-                            <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
-                                <AppMenu
-                                    mei={mei}
-                                    msm={msm}
-                                    mpm={mpm}
-                                    transformers={transformers}
-                                    metadata={metadata}
-                                    secondary={secondary}
-                                    scope={scope}
-                                    setScope={setScope}
-                                    selectedDesk={selectedDesk}
-                                    onFileImport={handleFileImport}
-                                    onFileChange={handleFileChange}
-                                />
-                            </Stack>
-                        </AppBar>
                         <ScrollSyncProvider
                             symbolicZoom={zoomContextValue.symbolic.stretchX}
                             physicalZoom={zoomContextValue.physical.stretchX}
                             tickToSeconds={tickToSeconds}
                             secondsToTick={secondsToTick}
                         >
+                            <AppBar position='static' color='transparent' elevation={1}>
+                                <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
+                                    <AppMenu
+                                        mei={mei}
+                                        msm={msm}
+                                        mpm={mpm}
+                                        transformers={transformers}
+                                        metadata={metadata}
+                                        secondary={secondary}
+                                        scope={scope}
+                                        setScope={setScope}
+                                        selectedDesk={selectedDesk}
+                                        onFileImport={handleFileImport}
+                                        onFileChange={handleFileChange}
+                                    />
+                                </Stack>
+                            </AppBar>
                             <NotesProvider notes={msm.allNotes}>
                                 {isMetadataSelected ? (
                                     <MetadataDesk

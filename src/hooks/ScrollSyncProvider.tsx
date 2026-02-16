@@ -5,6 +5,7 @@ export type ScrollDomain = 'symbolic' | 'physical';
 interface ScrollSyncContextValue {
     register: (id: string, element: HTMLElement, domain: ScrollDomain) => void;
     unregister: (id: string) => void;
+    scrollToDate: (date: number) => void;
 }
 
 const ScrollSyncContext = createContext<ScrollSyncContextValue | undefined>(undefined);
@@ -121,6 +122,36 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
         syncScroll(sourceId, element.scrollLeft);
     }, [syncScroll]);
 
+    const scrollToDate = useCallback((date: number) => {
+        if (rafIdRef.current !== null) {
+            cancelAnimationFrame(rafIdRef.current);
+        }
+
+        rafIdRef.current = requestAnimationFrame(() => {
+            registryRef.current.forEach((entry, id) => {
+                let targetScrollLeft: number;
+
+                if (entry.domain === 'symbolic') {
+                    targetScrollLeft = date * symbolicZoomRef.current - entry.element.clientWidth / 2;
+                } else if (tickToSecondsRef.current) {
+                    const seconds = tickToSecondsRef.current(date);
+                    targetScrollLeft = seconds * physicalZoomRef.current - entry.element.clientWidth / 2;
+                } else {
+                    return;
+                }
+
+                targetScrollLeft = Math.max(0, targetScrollLeft);
+
+                if (Math.abs(entry.element.scrollLeft - targetScrollLeft) > SCROLL_TOLERANCE) {
+                    expectedScrollRef.current.set(id, targetScrollLeft);
+                    entry.element.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+                }
+            });
+
+            rafIdRef.current = null;
+        });
+    }, []);
+
     const register = useCallback((id: string, element: HTMLElement, domain: ScrollDomain) => {
         // If other elements in the same domain are registered, sync to their scroll position
         for (const entry of registryRef.current.values()) {
@@ -156,7 +187,8 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
     const contextValue = useMemo(() => ({
         register,
         unregister,
-    }), [register, unregister]);
+        scrollToDate,
+    }), [register, unregister, scrollToDate]);
 
     return (
         <ScrollSyncContext.Provider value={contextValue}>
