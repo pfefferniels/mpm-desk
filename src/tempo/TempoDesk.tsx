@@ -7,7 +7,7 @@ import { VerticalScale } from "./VerticalScale"
 import { ZoomControls } from "../ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { SyntheticLine } from "./SyntheticLine"
-import { Add, Clear } from "@mui/icons-material"
+import { Add, Merge } from "@mui/icons-material"
 import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
 import { Tempo } from "../../../mpm-ts/lib"
@@ -175,14 +175,25 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                             <Button
                                 size='small'
                                 variant='outlined'
-                                color='error'
+                                startIcon={<Merge />}
+                                disabled={tempoCluster.segments.filter(s => s.selected).length < 2}
                                 onClick={() => {
-                                    setSegments([])
+                                    const selected = tempoCluster.segments.filter(s => s.selected)
+                                    if (selected.length < 2) return
+                                    const fromDate = Math.min(...selected.map(s => s.date.start))
+                                    const toDate = Math.max(...selected.map(s => s.date.end))
+                                    const combined = {
+                                        date: { start: fromDate, end: toDate },
+                                        selected: false,
+                                        silent: false
+                                    }
+                                    tempoCluster.unselectAll()
+                                    setTempoCluster(new TempoCluster([...tempoCluster.segments, combined]))
                                 }}
-                                startIcon={<Clear />}
                             >
-                                Clear
+                                Combine
                             </Button>
+
                         </Ribbon>
                     </>
                 ), appBarRef?.current ?? document.body)}
@@ -229,6 +240,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                                 })
                             }}
                             mode={mode}
+                            onToggleSplitMode={() => setMode(prev => prev === 'split' ? undefined : 'split')}
                             onSplit={(first, second, onset) => {
                                 setSilentOnset(second.date.start, onset)
 
