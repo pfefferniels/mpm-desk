@@ -231,7 +231,7 @@ export const App = () => {
             conclusion: {
                 certainty: 'authentic',
                 id: 'belief-metadata',
-                motivation: 'unknown'
+                motivation: 'calm'
             },
             type: 'simpleArgumentation'
         }
@@ -333,7 +333,7 @@ export const App = () => {
                                                 conclusion: {
                                                     certainty: 'plausible',
                                                     id: `belief-${v4().slice(0, 8)}`,
-                                                    motivation: 'unknown'
+                                                    motivation: 'calm'
                                                 },
                                                 type: 'simpleArgumentation'
                                             }

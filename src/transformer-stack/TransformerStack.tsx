@@ -88,7 +88,7 @@ export const TransformerStack = ({
                     id: v4(),
                     conclusion: {
                         certainty: 'plausible',
-                        motivation: 'unknown',
+                        motivation: 'calm',
                         id: v4()
                     },
                     type: 'simpleArgumentation'
