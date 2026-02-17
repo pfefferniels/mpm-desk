@@ -14,7 +14,7 @@ type BoxProps = {
 
   marker: JSX.Element | false
 
-  onExpand: () => void
+  onToggleSelect: () => void
   onSelect: () => void
   onRemove: () => void
 
@@ -29,7 +29,7 @@ type BoxProps = {
  * @prop tempo - the Tempo object to be rendered
  * @prop stretchX - horizontal stretch
  * @prop stretchY - vertical stretch
- * @prop onExpand - function called when a box is clicked with the alt key pressed
+ * @prop onToggleSelect - function called when a box is shift-clicked (multi-select toggle)
  * @prop onSelect - function called when a box is clicked
  * @prop onRemove - function called when a box is clicked with alt and shift pressed
  */
@@ -37,7 +37,7 @@ export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [splitSeconds, setSplitSeconds] = useState<number>()
 
-  const { segment, tickToSeconds, stretchX, stretchY, marker, onPlay, onStop, played, onExpand, onSelect, onRemove, splitMode, onSplit } = props
+  const { segment, tickToSeconds, stretchX, stretchY, marker, onPlay, onStop, played, onToggleSelect, onSelect, onRemove, splitMode, onSplit } = props
   const { selected } = segment
 
   const start = tickToSeconds(segment.date.start)
@@ -169,7 +169,7 @@ export const Box = (props: BoxProps) => {
           }
           else {
             if (e.shiftKey && e.altKey) onRemove()
-            else if (e.shiftKey) onExpand()
+            else if (e.shiftKey) onToggleSelect()
             else onSelect()
           }
         }} />

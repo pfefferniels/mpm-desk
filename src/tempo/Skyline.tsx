@@ -44,6 +44,7 @@ interface SkylineProps {
   onAddSegment: (fromDate: number, toDate: number, beatLength: number) => void
 
   onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
+  onToggleSplitMode: () => void
 
   children: React.ReactNode
 }
@@ -54,7 +55,7 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  *
  */
-export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToSeconds, stretchX, stretchY, mode, onSplit, children }: SkylineProps) {
+export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, children }: SkylineProps) {
   const { play, stop } = usePiano()
   const { slice } = useNotes()
 
@@ -66,7 +67,24 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
       tempos.unselectAll()
       setTempos(new TempoCluster(tempos.segments))
     }
-  }, [tempos, setTempos])
+    if (event.key === 'c') {
+      const selected = tempos.segments.filter(s => s.selected)
+      if (selected.length >= 2) {
+        const fromDate = Math.min(...selected.map(s => s.date.start))
+        const toDate = Math.max(...selected.map(s => s.date.end))
+        const combined: TempoSegment = {
+          date: { start: fromDate, end: toDate },
+          selected: false,
+          silent: false
+        }
+        tempos.unselectAll()
+        setTempos(new TempoCluster([...tempos.segments, combined]))
+      }
+    }
+    if (event.key === 's') {
+      onToggleSplitMode()
+    }
+  }, [tempos, setTempos, onToggleSplitMode])
 
   const handlePlay = (from: number, to?: number) => {
     let notes = slice(from, to)
@@ -176,7 +194,7 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
         />
       ))}
 
-      {tempos?.sort(!!startMarker).map((tempo: TempoSegment, index: number) => {
+      {tempos?.sort(tickToSeconds).map((tempo: TempoSegment, index: number) => {
         return (
           <Box
             key={`box${index}`}
@@ -223,18 +241,12 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
             }
             onSelect={() => {
               tempos.unselectAll()
-              const tempoClone = structuredClone(tempo)
-              tempoClone.selected = true
-              const newTempos = [...tempos.segments, tempoClone]
-              setTempos(new TempoCluster(newTempos))
+              tempo.selected = true
+              setTempos(new TempoCluster(tempos.segments))
             }}
-            onExpand={() => {
-              const newTempos = [...tempos.segments]
-              const selected = newTempos.find((d: TempoSegment) => d.selected)
-              if (selected) {
-                selected.date.end = tempo.date.end
-                setTempos(new TempoCluster(newTempos))
-              }
+            onToggleSelect={() => {
+              tempo.selected = !tempo.selected
+              setTempos(new TempoCluster(tempos.segments))
             }}
             onRemove={() => {
               tempos.removeTempo(tempo)
