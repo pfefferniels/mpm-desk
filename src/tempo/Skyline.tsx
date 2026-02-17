@@ -61,11 +61,38 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
 
   const [datePlayed, setDatePlayed] = useState<number>()
   const [startMarker, setStartMarker] = useState<{ date: number, beatLength: number }>()
+  const [dragFromOnset, setDragFromOnset] = useState<Onset>()
+  const [dragToOnset, setDragToOnset] = useState<Onset>()
+
+  const clientToSvgX = (clientX: number, svg: SVGSVGElement) => {
+    const point = svg.createSVGPoint()
+    point.x = clientX
+    point.y = 0
+    const ctm = svg.getScreenCTM()
+    if (!ctm) return 0
+    return point.matrixTransform(ctm.inverse()).x
+  }
+
+  const findNearestOnset = (svgX: number): Onset | undefined => {
+    let best: Onset | undefined
+    let bestDist = Infinity
+    for (const onset of onsets) {
+      const onsetX = tickToSeconds(onset.date) * stretchX
+      const dist = Math.abs(svgX - onsetX)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = onset
+      }
+    }
+    return best
+  }
 
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       tempos.unselectAll()
       setTempos(new TempoCluster(tempos.segments))
+      setDragFromOnset(undefined)
+      setDragToOnset(undefined)
     }
     if (event.key === 'c') {
       const selected = tempos.segments.filter(s => s.selected)
@@ -109,36 +136,6 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
     }
   }
 
-  const handleTickClick = (onset: Onset, index: number) => {
-    const isBoundary = tempos.segments.some(
-      s => s.date.start === onset.date || s.date.end === onset.date
-    )
-    if (isBoundary) return
-
-    const newSegments: TempoSegment[] = []
-
-    if (index > 0) {
-      const prev = onsets[index - 1]
-      newSegments.push({
-        date: { start: prev.date, end: onset.date },
-        selected: false,
-        silent: false
-      })
-    }
-
-    if (index < onsets.length - 1) {
-      const next = onsets[index + 1]
-      newSegments.push({
-        date: { start: onset.date, end: next.date },
-        selected: false,
-        silent: false
-      })
-    }
-
-    if (newSegments.length > 0) {
-      setTempos(new TempoCluster([...tempos.segments, ...newSegments]))
-    }
-  }
 
   useEffect(() => {
     document.addEventListener('keydown', escFunction, false);
@@ -156,6 +153,29 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
       className='skyline'
       tabIndex={-1}
       onMouseDown={(e) => e.currentTarget.focus()}
+      onMouseMove={(e) => {
+        if (!dragFromOnset) return
+        const svgX = clientToSvgX(e.clientX, e.currentTarget as SVGSVGElement)
+        const nearest = findNearestOnset(svgX)
+        setDragToOnset(nearest && nearest.date !== dragFromOnset.date ? nearest : undefined)
+      }}
+      onMouseUp={() => {
+        if (dragFromOnset && dragToOnset) {
+          const start = Math.min(dragFromOnset.date, dragToOnset.date)
+          const end = Math.max(dragFromOnset.date, dragToOnset.date)
+          setTempos(new TempoCluster([...tempos.segments, {
+            date: { start, end },
+            selected: false,
+            silent: false
+          }]))
+        }
+        setDragFromOnset(undefined)
+        setDragToOnset(undefined)
+      }}
+      onMouseLeave={() => {
+        setDragFromOnset(undefined)
+        setDragToOnset(undefined)
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Backspace') {
           const selected = tempos.segments.filter(s => s.selected)
@@ -180,19 +200,27 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
         offset={Math.max(...(tempos.segments.map(t => tickToSeconds(t.date.end)))) || 0}
       />
 
-      {onsets.map((onset, i) => (
-        <line
-          key={`tick_${onset.date}`}
-          x1={tickToSeconds(onset.date) * stretchX}
-          x2={tickToSeconds(onset.date) * stretchX}
-          y1={0}
-          y2={10}
-          stroke="gray"
-          strokeWidth={0.5}
-          style={{ cursor: 'pointer' }}
-          onClick={() => handleTickClick(onset, i)}
-        />
-      ))}
+      {onsets.map((onset) => {
+        const isDragFrom = dragFromOnset?.date === onset.date
+        const isDragTo = dragToOnset?.date === onset.date
+        const highlighted = isDragFrom || isDragTo
+        return (
+          <line
+            key={`tick_${onset.date}`}
+            x1={tickToSeconds(onset.date) * stretchX}
+            x2={tickToSeconds(onset.date) * stretchX}
+            y1={highlighted ? -10 : 0}
+            y2={10}
+            stroke={highlighted ? 'gold' : 'gray'}
+            strokeWidth={highlighted ? 1.5 : 0.5}
+            style={{ cursor: dragFromOnset ? 'grabbing' : 'grab' }}
+            onMouseDown={(e) => {
+              if (e.button !== 0) return
+              setDragFromOnset(onset)
+            }}
+          />
+        )
+      })}
 
       {tempos?.sort(tickToSeconds).map((tempo: TempoSegment, index: number) => {
         return (
@@ -257,6 +285,31 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
           />
         )
       })}
+
+      {dragFromOnset && dragToOnset && (() => {
+        const start = Math.min(dragFromOnset.date, dragToOnset.date)
+        const end = Math.max(dragFromOnset.date, dragToOnset.date)
+        const x1 = tickToSeconds(start) * stretchX
+        const x2 = tickToSeconds(end) * stretchX
+        const bpm = asBPM({ start, end }, tickToSeconds)
+        const upperY = bpm * -stretchY
+        return (
+          <polygon
+            points={[
+              [x1, 0].join(','),
+              [x1, upperY].join(','),
+              [x2, upperY].join(','),
+              [x2, 0].join(',')
+            ].join(' ')}
+            fill='gold'
+            fillOpacity={0.2}
+            stroke='gold'
+            strokeDasharray='4 2'
+            strokeWidth={1}
+            pointerEvents='none'
+          />
+        )
+      })()}
 
       {children}
     </svg>
