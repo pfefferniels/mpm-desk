@@ -16,7 +16,7 @@ type OptionPair<P extends string, T> =
         [K in `range${Capitalize<P>}`]?: undefined;
     });
 
-export type ZoomControlsProps = OptionPair<'x', number> & OptionPair<'y', number>;
+type ZoomControlsProps = OptionPair<'x', number> & OptionPair<'y', number>;
 
 export const ZoomControls = ({ stretchX, setStretchX, rangeX, stretchY, setStretchY, rangeY }: ZoomControlsProps) => {
     return (

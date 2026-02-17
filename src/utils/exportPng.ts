@@ -1,5 +1,4 @@
-// svgToPng.ts
-export async function svgElementToPngDataUrl(
+async function svgElementToPngDataUrl(
     svgEl: SVGSVGElement,
     opts?: {
         width?: number;

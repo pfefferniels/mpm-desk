@@ -6,13 +6,6 @@ export type Range = {
     end: number
 }
 
-export const expandRange = (a: Range, b: Range) => {
-    return {
-        start: Math.min(a.start, b.start),
-        end: Math.max(a.end, b.end)
-    }
-}
-
 export type TempoSegment = {
     date: Range
     selected: boolean
@@ -167,9 +160,3 @@ export const isWithinSegment = (date: number, segment: TempoSegment) => {
     return (date >= segment.date.start) && (date < segment.date.end)
 }
 
-export const isShallowEqual = <T extends object,>(obj1: T, obj2: T) =>
-    Object.keys(obj1).length === Object.keys(obj2).length &&
-    Object.keys(obj1).every(key =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        Object.hasOwn(obj2, key) && (obj1 as any)[key] === (obj2 as any)[key]
-    );

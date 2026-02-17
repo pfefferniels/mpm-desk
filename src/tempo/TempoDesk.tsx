@@ -1,5 +1,5 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
+import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSegment, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, TempoSegment as LocalTempoSegment } from "./Tempo"
@@ -26,8 +26,6 @@ export type TempoPoint = {
     time: number
     bpm: number
 }
-
-export type TempoCurve = TempoWithEndDate & { startMs: number }
 
 export type TempoDeskMode = 'split' | 'curve' | undefined
 

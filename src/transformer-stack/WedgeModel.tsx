@@ -71,15 +71,11 @@ export type WedgeModel = {
     bbox: BBox;
 };
 
-export function pointsToSvg(points: Array<Point>): string {
-    return points.map(p => `${p.x},${p.y}`).join(" ");
-}
-
 function clamp(n: number, lo: number, hi: number) {
     return Math.max(lo, Math.min(hi, n));
 }
 
-export function bboxFromPoints(points: Array<Point>): BBox {
+function bboxFromPoints(points: Array<Point>): BBox {
     const xs = points.map(p => p.x);
     const ys = points.map(p => p.y);
     const minX = Math.min(...xs);

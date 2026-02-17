@@ -14,7 +14,7 @@ import { OrnamentationStyles } from "./styles/OrnamentationStyles";
 import { ArticulationStyles } from "./styles/ArticulationStyles";
 import { ChoiceDesk } from "./choice/ChoiceDesk";
 
-export type AnyTransformer =
+type AnyTransformer =
     | typeof InsertDynamicsInstructions
     | typeof InsertTemporalSpread
     | typeof InsertDynamicsGradient
@@ -31,7 +31,7 @@ export type AnyTransformer =
     | typeof MakeChoice
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
+type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
 
 export const correspondingDesks: { transformer?: AnyTransformer, aspect: string, desk: AnyDesk, displayName?: string, group?: string }[] = [
     // General
