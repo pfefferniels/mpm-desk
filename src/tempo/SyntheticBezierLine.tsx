@@ -63,8 +63,6 @@ export const SyntheticLine = ({ curve, stretchX, stretchY }: SyntheticLineProps)
         })
     }
 
-    // console.log('points', points)
-
     return (
         <g
             className='syntheticLine'

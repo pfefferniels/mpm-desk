@@ -55,7 +55,6 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
             const longest = notes.sort((a, b) => b.duration - a.duration)[0]
 
             if (longest.duration === 0 || longest['midi.duration'] === 0) {
-                console.log('duration not defined')
                 break
             }
 
@@ -75,7 +74,6 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
 
         const nextOnset = nextNotes[0]['midi.onset']
         if (onset === undefined || nextOnset === undefined) {
-            console.log('MIDI onset not defined')
             continue
         }
 
@@ -123,7 +121,7 @@ export class TempoCluster {
     }
 
     sort(backwards?: boolean) {
-        return this.segments.sort((a, b) => {
+        return [...this.segments].sort((a, b) => {
             if (a.selected !== b.selected) {
                 return a.selected ? 1 : -1
             }

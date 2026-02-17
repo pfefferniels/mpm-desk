@@ -136,7 +136,18 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
   return (
     <svg
       className='skyline'
-      style={{ margin: '3rem' }}
+      tabIndex={-1}
+      onMouseDown={(e) => e.currentTarget.focus()}
+      onKeyDown={(e) => {
+        if (e.key === 'Backspace') {
+          const selected = tempos.segments.filter(s => s.selected)
+          if (selected.length > 0) {
+            for (const s of selected) tempos.removeTempo(s)
+            setTempos(new TempoCluster(tempos.segments))
+          }
+        }
+      }}
+      style={{ margin: '3rem', outline: 'none' }}
       width={width + margin * 2}
       height={-height + margin * 2}
       viewBox={[
@@ -148,7 +159,7 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
     >
       <HorizontalScale
         stretchX={stretchX}
-        offset={Math.max(...(tempos.sort().map(t => tickToSeconds(t.date.end)))) || 0}
+        offset={Math.max(...(tempos.segments.map(t => tickToSeconds(t.date.end)))) || 0}
       />
 
       {onsets.map((onset, i) => (
@@ -177,24 +188,38 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
             onStop={stop}
             played={datePlayed ? isWithinSegment(datePlayed, tempo) : false}
             marker={
-              <MarkerLine
-                x={((startMarker === undefined || startMarker.date === tempo.date.start) ? tickToSeconds(tempo.date.start) : tickToSeconds(tempo.date.end)) * stretchX}
-                height={asBPM(tempo.date, tickToSeconds) * -stretchY}
-                dashed={tempo.silent}
-                active={startMarker?.date === tempo.date.start}
-                onClick={e => {
-                  if (e.shiftKey && e.altKey) setStartMarker(undefined)
-                  else {
-                    if (startMarker) {
+              <>
+                <MarkerLine
+                  x={((startMarker === undefined || startMarker.date === tempo.date.start) ? tickToSeconds(tempo.date.start) : tickToSeconds(tempo.date.end)) * stretchX}
+                  height={asBPM(tempo.date, tickToSeconds) * -stretchY}
+                  dashed={tempo.silent}
+                  active={startMarker?.date === tempo.date.start}
+                  onClick={e => {
+                    if (e.shiftKey && e.altKey) setStartMarker(undefined)
+                    else {
+                      if (startMarker) {
+                        onAddSegment(startMarker.date, tempo.date.end, startMarker.beatLength)
+                        setStartMarker(undefined)
+                      }
+                      else {
+                        setStartMarker({ date: tempo.date.start, beatLength: tempo.date.end - tempo.date.start })
+                      }
+                    }
+                  }}
+                />
+                {startMarker?.date === tempo.date.start && (
+                  <MarkerLine
+                    x={tickToSeconds(tempo.date.end) * stretchX}
+                    height={asBPM(tempo.date, tickToSeconds) * -stretchY}
+                    dashed={tempo.silent}
+                    active={false}
+                    onClick={() => {
                       onAddSegment(startMarker.date, tempo.date.end, startMarker.beatLength)
                       setStartMarker(undefined)
-                    }
-                    else {
-                      setStartMarker({ date: tempo.date.start, beatLength: tempo.date.end - tempo.date.start })
-                    }
-                  }
-                }}
-              />
+                    }}
+                  />
+                )}
+              </>
             }
             onSelect={() => {
               tempos.unselectAll()

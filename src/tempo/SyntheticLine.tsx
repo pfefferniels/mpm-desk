@@ -67,11 +67,7 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
         const midi = asMIDI(notes)
         if (midi) {
             stop()
-            play(midi, (/*e*/) => {
-                // if (e.type === 'meta' && e.subtype === 'text') {
-                //     setDatePlayed(+e.text)
-                // }
-            })
+            play(midi)
         }
     }, [tempo, play, stop, slice])
 
@@ -181,28 +177,32 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                 }
             `}</style>
 
-            <CurveHandle
-                x={curvePoints[0].time * stretchX}
-                y={-stretchY * curvePoints[0].bpm}
-                onDrag={(newY) => {
-                    const newBPM = -newY / stretchY
-                    onChange({
-                        ...segment,
-                        startBPM: newBPM
-                    })
-                }}
-            />
-            <CurveHandle
-                x={curvePoints[curvePoints.length - 1].time * stretchX}
-                y={-stretchY * curvePoints[curvePoints.length - 1].bpm}
-                onDrag={(newY) => {
-                    const newBPM = -newY / stretchY
-                    onChange({
-                        ...segment,
-                        endBPM: newBPM
-                    })
-                }}
-            />
+            {tempo["transition.to"] && (
+                <>
+                    <CurveHandle
+                        x={curvePoints[0].time * stretchX}
+                        y={-stretchY * curvePoints[0].bpm}
+                        onDrag={(newY) => {
+                            const newBPM = -newY / stretchY
+                            onChange({
+                                ...segment,
+                                startBPM: newBPM
+                            })
+                        }}
+                    />
+                    <CurveHandle
+                        x={curvePoints[curvePoints.length - 1].time * stretchX}
+                        y={-stretchY * curvePoints[curvePoints.length - 1].bpm}
+                        onDrag={(newY) => {
+                            const newBPM = -newY / stretchY
+                            onChange({
+                                ...segment,
+                                endBPM: newBPM
+                            })
+                        }}
+                    />
+                </>
+            )}
         </g>
     )
 }
