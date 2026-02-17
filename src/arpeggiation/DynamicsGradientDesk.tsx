@@ -126,19 +126,6 @@ const RawGradient =({ notes, onClick, getY }: RawGradientProps) => {
     )
 }
 
-type MPMGradientProps = {
-    notes: MsmNote[]
-    gradient?: { from: number; to: number; scale?: number }
-}
-
-const MPMGradient =({ notes: _notes, gradient: _gradient }: MPMGradientProps) => {
-    return (
-        <g>
-
-        </g>
-    )
-}
-
 const getDynamicsExtremes = (notes: MsmNote[]) => {
     const softestNote = notes.reduce(
         (prev, curr) => curr["midi.velocity"] < prev["midi.velocity"] ? curr : prev,
@@ -275,12 +262,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                             .map(([date, notes]) => {
                                 const mpmGradient = getMPMGradient(date);
                                 if (mpmGradient) {
-                                    return (
-                                        <MPMGradient
-                                            notes={notes}
-                                            gradient={mpmGradient}
-                                        />
-                                    )
+                                    return <g key={`mpm_gradient_${date}`} />
                                 }
                                 else {
                                     return (
