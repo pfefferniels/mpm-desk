@@ -36,7 +36,7 @@ export type TempoDeskMode = 'split' | 'curve' | undefined
 
 export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
     const { activeElements, setActiveElement } = useSelection();
-    const tempoData = secondary?.tempo as TempoSecondaryData | undefined
+    const tempoData = secondary?.tempo
 
     const [tempoCluster, setTempoClusterState] = useState<TempoCluster>(() => {
         if (tempoData?.tempoCluster && tempoData.tempoCluster.length > 0) {
@@ -74,7 +74,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         setSecondary(prev => ({
             ...prev,
             tempo: {
-                ...(prev.tempo as TempoSecondaryData ?? {}),
+                ...prev.tempo,
                 tempoCluster: newCluster.segments
             }
         }))
@@ -87,7 +87,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
             setSecondary(prevSecondary => ({
                 ...prevSecondary,
                 tempo: {
-                    ...(prevSecondary.tempo as TempoSecondaryData ?? {}),
+                    ...prevSecondary.tempo,
                     silentOnsets: [...next].map(([date, onset]) => ({ date, onset }))
                 }
             }))

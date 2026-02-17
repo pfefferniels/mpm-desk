@@ -1,5 +1,10 @@
 import { MPM, MSM } from "mpmify";
 import { Transformer } from "mpmify/lib/transformers/Transformer";
+import { TempoSecondaryData } from "./tempo/TempoDesk";
+
+export interface SecondaryData {
+    tempo?: TempoSecondaryData;
+}
 
 export interface ViewProps {
     setMSM: (newMSM: MSM) => void;
@@ -10,8 +15,8 @@ export interface ViewProps {
 
     appBarRef: React.RefObject<HTMLDivElement> | null;
 
-    secondary: Record<string, unknown>;
-    setSecondary: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+    secondary: SecondaryData;
+    setSecondary: React.Dispatch<React.SetStateAction<SecondaryData>>;
 }
 
 export interface TransformerViewProps<T extends Transformer> extends ViewProps {
