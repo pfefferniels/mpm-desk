@@ -113,13 +113,14 @@ export class TempoCluster {
         }
     }
 
-    sort(backwards?: boolean) {
+    sort(tickToSeconds?: (tick: number) => number) {
         return [...this.segments].sort((a, b) => {
             if (a.selected !== b.selected) {
                 return a.selected ? 1 : -1
             }
-            if (backwards) return (b.date.start - a.date.start) || asBPM(b.date) - asBPM(a.date)
-            return (a.date.start - b.date.start) || asBPM(b.date) - asBPM(a.date)
+            // Tallest boxes (highest BPM) rendered first (behind),
+            // shortest boxes last (in front) so they stay clickable
+            return asBPM(b.date, tickToSeconds) - asBPM(a.date, tickToSeconds)
         })
     }
 
