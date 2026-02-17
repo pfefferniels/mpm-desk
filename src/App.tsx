@@ -214,7 +214,7 @@ export const App = () => {
         };
 
         loadFiles();
-    }, [isEditorMode]);
+    }, [isEditorMode, loadWorkFromJson]);
 
     // Reconciliation: rebuild MSM/MPM whenever transformers or metadata change
     useEffect(() => {
