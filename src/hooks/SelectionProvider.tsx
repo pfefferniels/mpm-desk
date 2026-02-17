@@ -1,52 +1,77 @@
-import { createContext, useContext, useMemo, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useMemo, useCallback, ReactNode, SetStateAction } from 'react';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 
 interface SelectionContextValue {
-    activeTransformer: Transformer | undefined;
+    activeTransformerIds: Set<string>;
     activeElements: string[];
-    setActiveTransformer: (transformer: Transformer | undefined) => void;
+    setActiveTransformerIds: (ids: SetStateAction<Set<string>>) => void;
+    toggleActiveTransformer: (id: string) => void;
     setActiveElement: (elementId: string) => void;
     removeTransformer: (transformer: Transformer) => void;
+    removeActiveTransformers: () => void;
     replaceTransformer: (transformer: Transformer) => void;
+    focusTransformer: (id: string) => void;
 }
 
 const SelectionContext = createContext<SelectionContextValue | null>(null);
 
 interface SelectionProviderProps {
     children: ReactNode;
-    activeTransformer: Transformer | undefined;
-    setActiveTransformer: (transformer: Transformer | undefined) => void;
+    activeTransformerIds: Set<string>;
+    setActiveTransformerIds: (ids: SetStateAction<Set<string>>) => void;
     transformers: Transformer[];
     setTransformers: (transformers: Transformer[]) => void;
+    focusTransformer: (id: string) => void;
 }
 
 export const SelectionProvider = ({
     children,
-    activeTransformer,
-    setActiveTransformer,
+    activeTransformerIds,
+    setActiveTransformerIds,
     transformers,
     setTransformers,
+    focusTransformer,
 }: SelectionProviderProps) => {
     const activeElements = useMemo(() => {
-        return activeTransformer?.created || [];
-    }, [activeTransformer]);
+        if (activeTransformerIds.size === 0) return [];
+        return transformers
+            .filter(t => activeTransformerIds.has(t.id))
+            .flatMap(t => t.created);
+    }, [activeTransformerIds, transformers]);
 
-    const setActiveElement = useMemo(() => {
-        return (elementId: string) => {
-            const correspondingTransformer = transformers.find(t => t.created.includes(elementId));
-            if (correspondingTransformer) {
-                setActiveTransformer(correspondingTransformer);
-            }
-        };
-    }, [transformers, setActiveTransformer]);
+    const toggleActiveTransformer = useCallback((id: string) => {
+        const next = new Set(activeTransformerIds);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        setActiveTransformerIds(next);
+    }, [activeTransformerIds, setActiveTransformerIds]);
+
+    const setActiveElement = useCallback((elementId: string) => {
+        const correspondingTransformer = transformers.find(t => t.created.includes(elementId));
+        if (correspondingTransformer) {
+            setActiveTransformerIds(new Set([correspondingTransformer.id]));
+        }
+    }, [transformers, setActiveTransformerIds]);
 
     const removeTransformer = useCallback((transformer: Transformer) => {
         const filtered = transformers.filter(t => t.id !== transformer.id);
         setTransformers(filtered);
-        if (activeTransformer?.id === transformer.id) {
-            setActiveTransformer(undefined);
+        if (activeTransformerIds.has(transformer.id)) {
+            const next = new Set(activeTransformerIds);
+            next.delete(transformer.id);
+            setActiveTransformerIds(next);
         }
-    }, [transformers, setTransformers, activeTransformer, setActiveTransformer]);
+    }, [transformers, setTransformers, activeTransformerIds, setActiveTransformerIds]);
+
+    const removeActiveTransformers = useCallback(() => {
+        if (activeTransformerIds.size === 0) return;
+        const filtered = transformers.filter(t => !activeTransformerIds.has(t.id));
+        setTransformers(filtered);
+        setActiveTransformerIds(new Set());
+    }, [transformers, setTransformers, activeTransformerIds, setActiveTransformerIds]);
 
     const replaceTransformer = useCallback((transformer: Transformer) => {
         const index = transformers.findIndex(t => t.id === transformer.id);
@@ -57,13 +82,16 @@ export const SelectionProvider = ({
     }, [transformers, setTransformers]);
 
     const value = useMemo(() => ({
-        activeTransformer,
+        activeTransformerIds,
         activeElements,
-        setActiveTransformer,
+        setActiveTransformerIds,
+        toggleActiveTransformer,
         setActiveElement,
         removeTransformer,
+        removeActiveTransformers,
         replaceTransformer,
-    }), [activeTransformer, activeElements, setActiveTransformer, setActiveElement, removeTransformer, replaceTransformer]);
+        focusTransformer,
+    }), [activeTransformerIds, activeElements, setActiveTransformerIds, toggleActiveTransformer, setActiveElement, removeTransformer, removeActiveTransformers, replaceTransformer, focusTransformer]);
 
     return (
         <SelectionContext.Provider value={value}>

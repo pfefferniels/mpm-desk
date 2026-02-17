@@ -3,7 +3,7 @@ import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Tr
 import { useCallback, useMemo, useState } from "react";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
-import { MSM } from "mpmify";
+import { MPM, MSM } from "mpmify";
 import { applyWedgeLevelGeometry, assignWedgeLevels, computeCurvePoints, computeWedgeModels } from "./WedgeModel";
 import { Wedge } from "./Wedge";
 import { useSvgDnd } from "./svg-dnd";
@@ -20,17 +20,18 @@ interface TransformerStackProps {
     transformers: Transformer[];
     setTransformers: (transformers: Transformer[]) => void;
     msm: MSM;
-    onRemove: (transformer: Transformer) => void;
+    mpm: MPM;
 }
 
 export const TransformerStack = ({
     transformers,
     setTransformers,
     msm,
+    mpm,
 }: TransformerStackProps) => {
     const { play, stop } = usePlayback();
     const { svgRef, svgHandlers } = useSvgDnd();
-    const { activeTransformer, setActiveTransformer } = useSelection();
+    const { activeTransformerIds, setActiveTransformerIds, removeActiveTransformers } = useSelection();
     const stretchX = useSymbolicZoom();
 
     const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
@@ -49,6 +50,17 @@ export const TransformerStack = ({
         Map.groupBy(transformers, t => t.argumentation),
         [transformers]
     );
+
+    const elementTypesByTransformer = useMemo(() => {
+        const allInstructions = mpm.getInstructions();
+        const idToType = new Map(allInstructions.map(i => [i['xml:id'], i.type]));
+        return new Map(
+            transformers.map(t => [
+                t.id,
+                [...new Set(t.created.map(id => idToType.get(id)).filter(Boolean))] as string[]
+            ])
+        );
+    }, [mpm, transformers]);
 
     const maxDate = getRange(transformers, msm)?.to || 0;
     const maxX = maxDate * stretchX;
@@ -97,7 +109,7 @@ export const TransformerStack = ({
         const mpmIds = wedgeTransformers.flatMap(t => t.created);
         if (mpmIds.length === 0) return;
 
-        play({ mpmIds });
+        play({ mpmIds, isolate: true });
     }, [transformers, play, stop]);
 
     // Callback for when argumentation is changed in the dialog
@@ -208,12 +220,20 @@ export const TransformerStack = ({
     return (
         <Card
             ref={scrollContainerRef}
+            tabIndex={-1}
+            onMouseDown={(e) => e.currentTarget.focus()}
+            onKeyDown={(e) => {
+                if (e.key === 'Backspace' && activeTransformerIds.size > 0) {
+                    removeActiveTransformers();
+                }
+            }}
             style={{
                 overflow: "scroll",
                 position: "relative",
                 height: "300px",
                 width: "100vw",
-                borderTop: "0.5px solid gray"
+                borderTop: "0.5px solid gray",
+                outline: "none",
             }}
         >
             <div style={{
@@ -255,7 +275,14 @@ export const TransformerStack = ({
                         width={scene.width}
                         height={scene.height}
                         extractTransformer={extractTransformer}
-                        onClearSelection={() => setActiveTransformer(undefined)}
+                        onClearSelection={() => {
+                            setActiveTransformerIds(new Set());
+                            // Clear URL hash
+                            const currentHash = window.location.hash.slice(1);
+                            if (currentHash) {
+                                history.pushState(null, '', window.location.pathname + window.location.search);
+                            }
+                        }}
                     />
 
                     <BarLines
@@ -278,7 +305,7 @@ export const TransformerStack = ({
                         .map(w => ({
                             wedge: w,
                             isHovered: hoveredWedgeId === w.argumentationId,
-                            containsActive: w.transformers.some(t => t.id === activeTransformer?.id),
+                            containsActive: w.transformers.some(t => activeTransformerIds.has(t.id)),
                         }))
                         .sort((a, b) => {
                             const aExpanded = a.isHovered || a.containsActive;
@@ -295,6 +322,7 @@ export const TransformerStack = ({
                                 hoveredWedgeId={hoveredWedgeId}
                                 onHoverChange={handleWedgeHover}
                                 onArgumentationChange={handleArgumentationChange}
+                                elementTypesByTransformer={elementTypesByTransformer}
                             />
                         ))}
 

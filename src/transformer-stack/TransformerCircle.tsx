@@ -6,16 +6,19 @@ import { Transformer } from "mpmify";
 import { useSelection } from "../hooks/SelectionProvider";
 import { useWedgeScale } from "../hooks/useWedgeScale";
 
-export const TransformerCircle = ({ x, y, transformer }: { x: number, y: number, transformer: Transformer }) => {
+export const TransformerCircle = ({ x, y, transformer, elementTypes }: { x: number, y: number, transformer: Transformer, elementTypes: string[] }) => {
     const { dragPoint, onPointerDown, draggableProps, isDragging } = useDraggable({ id: transformer.id, type: "circle" });
-    const { activeTransformer, setActiveTransformer, removeTransformer, replaceTransformer } = useSelection();
+    const { activeTransformerIds, toggleActiveTransformer, removeTransformer, replaceTransformer, focusTransformer } = useSelection();
     const { transformerRadius } = useWedgeScale();
     const [hovered, setHovered] = useState(false);
     const didDragRef = useRef(false);
     const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-    const text = transformer.name
+    const hasElements = elementTypes.length > 0;
+    const primaryLabel = hasElements
+        ? elementTypes.map(t => `<${t}>`).join(', ')
+        : transformer.name;
 
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -44,7 +47,7 @@ export const TransformerCircle = ({ x, y, transformer }: { x: number, y: number,
                 cy={y}
                 r={transformerRadius}
                 fill="black"
-                fillOpacity={isDragging ? 0 : (hovered || activeTransformer?.id === transformer.id) ? 0.8 : 0.5}
+                fillOpacity={isDragging ? 0 : (hovered || activeTransformerIds.has(transformer.id)) ? 0.8 : 0.5}
                 onMouseOver={() => setHovered(true)}
                 onMouseOut={() => setHovered(false)}
                 onContextMenu={handleContextMenu}
@@ -56,19 +59,23 @@ export const TransformerCircle = ({ x, y, transformer }: { x: number, y: number,
                 onPointerMove={() => {
                     didDragRef.current = true;
                 }}
-                onClick={() => {
+                onClick={(e) => {
                     if (!didDragRef.current) {
-                        setActiveTransformer(transformer);
+                        if (e.metaKey || e.ctrlKey) {
+                            toggleActiveTransformer(transformer.id);
+                        } else {
+                            focusTransformer(transformer.id);
+                        }
                     }
                 }}
             />
 
-            {!isDragging && (hovered || activeTransformer?.id === transformer.id) && (
+            {!isDragging && (hovered || activeTransformerIds.has(transformer.id)) && (
                 <foreignObject
                     x={x + 10}
                     y={y + 10}
                     width={250}
-                    height={24}
+                    height={hasElements ? 40 : 24}
                 >
                     <div
                         style={{
@@ -84,7 +91,12 @@ export const TransformerCircle = ({ x, y, transformer }: { x: number, y: number,
                             width: 'fit-content',
                         }}
                     >
-                        {text}
+                        {primaryLabel}
+                        {hasElements && (
+                            <div style={{ fontSize: '10px', color: 'gray' }}>
+                                {transformer.name}
+                            </div>
+                        )}
                     </div>
                 </foreignObject>
             )}

@@ -3,6 +3,7 @@ import { Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@m
 import { Pause, PlayArrow, Save, UploadFile } from '@mui/icons-material';
 import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM } from 'mpmify';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
+import { SecondaryData } from '../TransformerViewProps';
 import { exportMPM } from '../../../mpm-ts/lib';
 import { Ribbon } from '../Ribbon';
 import { usePlayback } from '../hooks/PlaybackProvider';
@@ -67,10 +68,9 @@ interface AppMenuProps {
     mpm: MPM;
     transformers: Transformer[];
     metadata: { author: string; title: string };
-    secondary: Record<string, unknown>;
+    secondary: SecondaryData;
     scope: 'global' | number;
     setScope: (scope: 'global' | number) => void;
-    selectedDesk: string;
     onFileImport: () => void;
     onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -84,25 +84,30 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     secondary,
     scope,
     setScope,
-    selectedDesk,
     onFileImport,
     onFileChange,
 }) => {
     const { isPlaying, play, stop } = usePlayback();
     const { isEditorMode } = useMode();
-    const { activeTransformer, setActiveTransformer, removeTransformer } = useSelection();
+    const { setActiveTransformerIds } = useSelection();
     const { scrollToDate } = useScrollSync();
 
-    // Follow behavior: update active transformer and scroll position based on playback position
+    // Follow behavior: update active transformers and scroll position based on playback position.
+    // Calls instructionsEffectiveAtDate per type to work around a bug in mpm-ts where calling
+    // without a type parameter uses incorrect instruction filtering (line 44: `type` vs `instructionType`).
     const handleNoteEvent = useCallback((_noteId: string, date: number) => {
-        mpm
-            .instructionsEffectiveAtDate(date)
-            .filter(i => i.type === selectedDesk)
-            .forEach(i => {
-                setActiveTransformer(transformers.find(t => t.created.includes(i['xml:id'])));
-            });
+        const types = ['tempo', 'dynamics', 'rubato', 'articulation', 'asynchrony', 'movement', 'ornament', 'accentuationPattern'] as const;
+        const ids = new Set<string>();
+        for (const type of types) {
+            const instructions = mpm.instructionsEffectiveAtDate(date, type);
+            for (const instruction of instructions) {
+                const t = transformers.find(t => t.created.includes(instruction['xml:id']));
+                if (t) ids.add(t.id);
+            }
+        }
+        if (ids.size > 0) setActiveTransformerIds(ids);
         scrollToDate(date);
-    }, [setActiveTransformer, mpm, selectedDesk, transformers, scrollToDate]);
+    }, [setActiveTransformerIds, mpm, transformers, scrollToDate]);
 
     const handlePlay = useCallback(() => {
         if (isPlaying) {
@@ -115,7 +120,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     useHotkeys('space', () => handlePlay(), { preventDefault: true }, [handlePlay]);
     useHotkeys('meta+s', () => handleSave(), { preventDefault: true });
     useHotkeys('meta+o', () => onFileImport(), { preventDefault: true }, [onFileImport]);
-    useHotkeys('backspace', () => { if (activeTransformer) removeTransformer(activeTransformer); }, [activeTransformer, removeTransformer]);
 
     const handleSave = async () => {
         if (!mei) return;
@@ -136,7 +140,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({
             conclusion: {
                 certainty: 'authentic',
                 id: 'belief-metadata',
-                motivation: 'unknown'
+                motivation: 'calm'
             },
             type: 'simpleArgumentation'
         };
@@ -147,7 +151,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({
             name: metadata.title || 'Reconstruction',
             mpm: 'performance.mpm',
             mei: 'transcription.mei'
-        }, allTransformers, secondary);
+        }, allTransformers, secondary as Record<string, unknown>);
 
         const zip = new JSZip();
         zip.file("performance.mpm", exportMPM(mpm));

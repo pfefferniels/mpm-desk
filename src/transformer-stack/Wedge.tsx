@@ -54,13 +54,14 @@ type WedgeProps = {
     hoveredWedgeId: string | null;
     onHoverChange: (wedgeId: string | null) => void;
     onArgumentationChange: () => void;
+    elementTypesByTransformer: Map<string, string[]>;
 } & React.SVGProps<SVGGElement>;
 
-export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverChange, onArgumentationChange, ...svgProps }: WedgeProps) {
+export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverChange, onArgumentationChange, elementTypesByTransformer, ...svgProps }: WedgeProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
     const [originLeftDuringDrag, setOriginLeftDuringDrag] = useState(false);
-    const { activeTransformer } = useSelection();
+    const { activeTransformerIds } = useSelection();
     const { dragItem } = useSvgDnd();
     const { bellowsStroke, tipRadius, tipRadiusExpanded, tipStroke } = useWedgeScale();
 
@@ -70,7 +71,7 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
         setOriginLeftDuringDrag(false);
     }
 
-    const containsActiveTransformer = wedge.transformers.some(t => t.id === activeTransformer?.id);
+    const containsActiveTransformer = wedge.transformers.some(t => activeTransformerIds.has(t.id));
     // Origin wedge collapses once left during drag
     const expanded = isDragOver || (!originLeftDuringDrag && (isHovered || containsActiveTransformer));
 
@@ -163,7 +164,7 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
                 {expanded
                     ? packedTransformers.map(({ x, y, ...transformer }) => (
                         <Fragment key={`wedge_${wedge.argumentationId}_transformer_${transformer.id}`}>
-                            <TransformerCircle x={x} y={y} transformer={transformer} />
+                            <TransformerCircle x={x} y={y} transformer={transformer} elementTypes={elementTypesByTransformer.get(transformer.id) || []} />
                         </Fragment>
                     ))
                     : (
@@ -205,6 +206,7 @@ export const Wedge = memo(function Wedge({ wedge, mergeInto, isHovered, onHoverC
         prevProps.wedge.polygon[1].y === nextProps.wedge.polygon[1].y &&
         prevProps.wedge.polygon[2].x === nextProps.wedge.polygon[2].x &&
         prevProps.wedge.polygon[2].y === nextProps.wedge.polygon[2].y &&
-        prevProps.wedge.transformers.length === nextProps.wedge.transformers.length
+        prevProps.wedge.transformers.length === nextProps.wedge.transformers.length &&
+        prevProps.elementTypesByTransformer === nextProps.elementTypesByTransformer
     );
 });

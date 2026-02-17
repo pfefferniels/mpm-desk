@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { measureTime } from './utils/performanceLogger';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { asMSM } from './asMSM';
 import { compareTransformers, importWork, InsertMetadata, MPM, MSM, validate } from 'mpmify';
 import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
 import { correspondingDesks } from './DeskSwitch';
+import { SecondaryData } from './TransformerViewProps';
 import './App.css'
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
@@ -41,7 +41,10 @@ export const App = () => {
     const [mei, setMEI] = useState<string>()
 
     const [transformers, setTransformers] = useState<Transformer[]>([])
-    const [activeTransformer, setActiveTransformer] = useState<Transformer>()
+    const [secondary, setSecondary] = useState<SecondaryData>({})
+    const [metadata, setMetadata] = useState<{ author: string, title: string }>({ author: '', title: '' })
+
+    const [activeTransformerIds, setActiveTransformerIds] = useState<Set<string>>(new Set())
     const [message, setMessage] = useState<string>()
 
     const [selectedDesk, setSelectedDesk] = useState<string>('metadata')
@@ -49,13 +52,25 @@ export const App = () => {
 
     const [stretchX, setStretchX] = useState<number>(20)
 
-    const [secondary, setSecondary] = useState<Record<string, unknown>>({})
-
-    const [metadata, setMetadata] = useState<{ author: string, title: string }>({ author: '', title: '' })
-
     const appBarRef = React.useRef<HTMLDivElement>(null);
-    const activeTransformerRef = React.useRef(activeTransformer);
-    activeTransformerRef.current = activeTransformer;
+    const transformersRef = useRef(transformers);
+    transformersRef.current = transformers;
+    const activeTransformerIdsRef = useRef(activeTransformerIds);
+    activeTransformerIdsRef.current = activeTransformerIds;
+
+    const loadWorkFromJson = useCallback((content: string) => {
+        const { transformers: loaded, secondary: loadedSecondary } = importWork(content);
+        const messages = validate(loaded);
+        if (messages.length) {
+            setMessage(messages.map(m => m.message).join('\n'));
+            return;
+        }
+        setMessage(undefined);
+        const nonMetadata = loaded.filter(t => t.name !== 'InsertMetadata')
+        setTransformers(nonMetadata.sort(compareTransformers));
+        setSecondary(loadedSecondary ?? {});
+        setMetadata(extractMetadataFromTransformers(loaded));
+    }, [])
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -66,17 +81,7 @@ export const App = () => {
         if (file.name.endsWith('.json')) {
             reader.onload = async (e: ProgressEvent<FileReader>) => {
                 const content = e.target?.result as string;
-                const { transformers, secondary: loadedSecondary } = importWork(content);
-                const messages = validate(transformers);
-                if (messages.length) {
-                    setMessage(messages.map(m => m.message).join('\n'));
-                    return;
-                }
-                setMessage(undefined);
-                const nonMetadataTransformers = transformers.filter(t => t.name !== 'InsertMetadata')
-                setTransformers(nonMetadataTransformers.sort(compareTransformers));
-                setSecondary(loadedSecondary ?? {});
-                setMetadata(extractMetadataFromTransformers(transformers));
+                loadWorkFromJson(content)
             };
             reader.readAsText(file);
         }
@@ -96,10 +101,7 @@ export const App = () => {
             const meiFile = zip.file('transcription.mei');
             const jsonFile = zip.file('info.json');
 
-            console.log('Processing ZIP file:', file.name);
-
             if (meiFile) {
-                console.log('Found MEI file in ZIP:', meiFile.name);
                 const meiContent = await meiFile.async('string');
                 setMEI(meiContent);
                 setMSM(await asMSM(meiContent));
@@ -108,19 +110,8 @@ export const App = () => {
             }
 
             if (jsonFile) {
-                console.log('Found JSON file in ZIP:', jsonFile.name);
                 const jsonContent = await jsonFile.async('string');
-                const { transformers, secondary: loadedSecondary } = importWork(jsonContent);
-                const messages = validate(transformers);
-                if (messages.length) {
-                    setMessage(messages.map(m => m.message).join('\n'));
-                    return;
-                }
-                setMessage(undefined);
-                const nonMetadataTransformers = transformers.filter(t => t.name !== 'InsertMetadata')
-                setTransformers(nonMetadataTransformers.sort(compareTransformers));
-                setSecondary(loadedSecondary ?? {});
-                setMetadata(extractMetadataFromTransformers(transformers));
+                loadWorkFromJson(jsonContent)
             }
             return;
         }
@@ -131,82 +122,65 @@ export const App = () => {
         fileInput.click();
     };
 
-    const reset = (newTransformers: Transformer[]) => {
-        console.log('resetting', newTransformers)
-        const message = validate(newTransformers)
-        if (message.length) {
-            setMessage(message.map(m => m.message).join('\n'))
-            return
-        }
-
-        const newMPM = new MPM()
-        const newMSM = initialMSM ? initialMSM.deepClone() : new MSM()
-
-        newTransformers.forEach(t => {
-            t.run(newMSM, newMPM)
-        })
-
-        setMPM(newMPM)
-        setMSM(newMSM)
-        setTransformers(newTransformers)
-    }
-
-    useEffect(() => {
-        if (!activeTransformer) return
+    // Manual click: switch desk, update scope, update hash, set selection to single transformer
+    const focusTransformer = useCallback((id: string) => {
+        const transformer = transformersRef.current.find(t => t.id === id);
+        if (!transformer) return;
 
         const entry = correspondingDesks
             .filter(entry => !!entry.transformer)
-            .find(({ transformer }) => transformer!.name === activeTransformer.name)
+            .find(({ transformer: t }) => t!.name === transformer.name);
 
-        if (!entry) return
-        setSelectedDesk(entry.displayName || entry.aspect)
-
-        if ('scope' in activeTransformer.options) {
-            setScope((activeTransformer.options as ScopedTransformationOptions).scope)
+        if (entry) {
+            setSelectedDesk(entry.displayName || entry.aspect);
         }
-    }, [activeTransformer])
+
+        if ('scope' in transformer.options) {
+            setScope((transformer.options as ScopedTransformationOptions).scope);
+        }
+
+        // Update URL hash
+        const prefix = transformer.id.slice(0, 8);
+        const currentHash = window.location.hash.slice(1);
+        if (currentHash !== prefix) {
+            history.pushState(null, '', '#' + prefix);
+        }
+
+        setActiveTransformerIds(new Set([id]));
+    }, []);
 
     // Hash → Selection: select transformer from URL hash when transformers load
     useEffect(() => {
         const hash = window.location.hash.slice(1);
         if (!hash || !transformers.length) return;
         const match = transformers.find(t => t.id.startsWith(hash));
-        if (match && match.id !== activeTransformerRef.current?.id) {
-            setActiveTransformer(match);
+        if (match && !activeTransformerIdsRef.current.has(match.id)) {
+            setActiveTransformerIds(new Set([match.id]));
         }
     }, [transformers]);
-
-    // Selection → Hash: update URL hash when active transformer changes
-    useEffect(() => {
-        if (!transformers.length) return;
-        const currentHash = window.location.hash.slice(1);
-        if (activeTransformer) {
-            const prefix = activeTransformer.id.slice(0, 8);
-            if (currentHash !== prefix) {
-                history.pushState(null, '', '#' + prefix);
-            }
-        } else if (currentHash) {
-            history.pushState(null, '', window.location.pathname + window.location.search);
-        }
-    }, [activeTransformer]);
 
     // Hashchange listener: support back/forward navigation
     useEffect(() => {
         const onHashChange = () => {
             const hash = window.location.hash.slice(1);
             if (!hash) {
-                if (activeTransformerRef.current) {
-                    setActiveTransformer(undefined);
+                if (activeTransformerIdsRef.current.size > 0) {
+                    setActiveTransformerIds(new Set());
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
                 }
                 return;
             }
-            if (activeTransformerRef.current?.id.startsWith(hash)) return;
-            const match = transformers.find(t => t.id.startsWith(hash));
-            if (match) setActiveTransformer(match);
+            const currentIds = activeTransformerIdsRef.current;
+            if (currentIds.size === 1) {
+                const [onlyId] = currentIds;
+                if (onlyId.startsWith(hash)) return;
+            }
+            const match = transformersRef.current.find(t => t.id.startsWith(hash));
+            if (match) setActiveTransformerIds(new Set([match.id]));
         };
         window.addEventListener('hashchange', onHashChange);
         return () => window.removeEventListener('hashchange', onHashChange);
-    }, [transformers]);
+    }, []);
 
     useEffect(() => {
         // prevent the user from loosing unsaved changes (editor mode only)
@@ -232,14 +206,7 @@ export const App = () => {
                 const jsonResponse = await fetch('/info.json');
                 if (jsonResponse.ok) {
                     const jsonContent = await jsonResponse.text();
-                    const { transformers: loadedTransformers, secondary: loadedSecondary } = importWork(jsonContent);
-                    const messages = validate(loadedTransformers);
-                    if (messages.length === 0) {
-                        const nonMetadataTransformers = loadedTransformers.filter(t => t.name !== 'InsertMetadata')
-                        setTransformers(nonMetadataTransformers.sort(compareTransformers));
-                        setSecondary(loadedSecondary ?? {});
-                        setMetadata(extractMetadataFromTransformers(loadedTransformers));
-                    }
+                    loadWorkFromJson(jsonContent)
                 }
             } catch (e) {
                 console.error('Failed to load files:', e);
@@ -249,9 +216,8 @@ export const App = () => {
         loadFiles();
     }, [isEditorMode]);
 
+    // Reconciliation: rebuild MSM/MPM whenever transformers or metadata change
     useEffect(() => {
-        console.log('Recomputing MSM and MPM from transformers');
-        console.log('Initial MSM has', initialMSM.allNotes.length, 'notes');
         if (initialMSM.allNotes.length === 0) return;
 
         // Create InsertMetadata transformer from metadata state
@@ -280,12 +246,10 @@ export const App = () => {
         }
 
         const newMPM = new MPM();
-        const newMSM = measureTime('initialMSM.deepClone', () => initialMSM.deepClone());
+        const newMSM = initialMSM.deepClone();
 
-        measureTime(`run ${allTransformers.length} transformers`, () => {
-            allTransformers.forEach(t => {
-                t.run(newMSM, newMPM);
-            });
+        allTransformers.forEach(t => {
+            t.run(newMSM, newMPM);
         });
 
         setMPM(newMPM);
@@ -310,10 +274,11 @@ export const App = () => {
             <div style={{ maxWidth: '100vw' }}>
                 <PlaybackProvider mei={mei} msm={msm} mpm={mpm}>
                     <SelectionProvider
-                        activeTransformer={activeTransformer}
-                        setActiveTransformer={setActiveTransformer}
+                        activeTransformerIds={activeTransformerIds}
+                        setActiveTransformerIds={setActiveTransformerIds}
                         transformers={transformers}
                         setTransformers={setTransformers}
+                        focusTransformer={focusTransformer}
                     >
                         <ScrollSyncProvider
                             symbolicZoom={zoomContextValue.symbolic.stretchX}
@@ -332,7 +297,6 @@ export const App = () => {
                                         secondary={secondary}
                                         scope={scope}
                                         setScope={setScope}
-                                        selectedDesk={selectedDesk}
                                         onFileImport={handleFileImport}
                                         onFileChange={handleFileChange}
                                     />
@@ -374,10 +338,7 @@ export const App = () => {
                                                 type: 'simpleArgumentation'
                                             }
 
-                                            transformer.run(msm, mpm)
                                             setTransformers(newTransformers)
-                                            setMSM(msm.clone())
-                                            setMPM(mpm.clone())
                                         }}
                                         part={scope}
                                     />
@@ -391,7 +352,7 @@ export const App = () => {
                                         transformers={transformers}
                                         setTransformers={setTransformers}
                                         msm={msm}
-                                        onRemove={transformer => reset(transformers.filter(t => t !== transformer))}
+                                        mpm={mpm}
                                     />
                                 </SvgDndProvider>
                             </div>
