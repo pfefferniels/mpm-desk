@@ -7,7 +7,7 @@ import { useSelection } from "../hooks/SelectionProvider";
 import { useWedgeScale } from "../hooks/useWedgeScale";
 
 export const TransformerCircle = ({ x, y, transformer, elementTypes }: { x: number, y: number, transformer: Transformer, elementTypes: string[] }) => {
-    const { dragPoint, onPointerDown, draggableProps, isDragging } = useDraggable({ id: transformer.id, type: "circle" });
+    const { onPointerDown, draggableProps, isDragging } = useDraggable({ id: transformer.id, type: "circle" });
     const { activeTransformerIds, toggleActiveTransformer, removeTransformer, replaceTransformer, focusTransformer } = useSelection();
     const { transformerRadius } = useWedgeScale();
     const [hovered, setHovered] = useState(false);

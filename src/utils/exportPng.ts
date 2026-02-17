@@ -44,7 +44,7 @@ async function svgElementToPngDataUrl(
         // Setting crossOrigin helps only if the remote server sends proper CORS headers.
         i.crossOrigin = "anonymous";
         i.onload = () => resolve(i);
-        i.onerror = (e) => reject(new Error("Failed to load SVG as image"));
+        i.onerror = () => reject(new Error("Failed to load SVG as image"));
         i.src = svgDataUrl;
     });
 
