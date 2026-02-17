@@ -131,9 +131,7 @@ type MPMGradientProps = {
     gradient?: { from: number; to: number; scale?: number }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const MPMGradient = ({ notes, gradient }: MPMGradientProps) => {
-    console.log(notes, gradient)
+export const MPMGradient = ({ notes: _notes, gradient: _gradient }: MPMGradientProps) => {
     return (
         <g>
 
@@ -201,9 +199,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
         }
     }, [register, unregister]);
 
-    const height = 700
-
-    console.log('sort velocites', sortVelocities)
+    const height = 400
 
     const transform = (date: number, gradient: { from: number, to: number }) => {
         addTransformer(new InsertDynamicsGradient({
@@ -267,7 +263,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                 </Ribbon>
             ), appBarRef?.current ?? document.body)}
 
-            <div style={{ width: '80vw', overflow: 'scroll', position: 'relative' }}>
+            <div style={{ overflow: 'scroll', position: 'relative', paddingBottom: 320 }}>
                 <svg height={height} width={100} style={{ position: 'absolute', top: 0, left: 0 }}>
                     <VelocityScale getY={getY} />
                 </svg>
