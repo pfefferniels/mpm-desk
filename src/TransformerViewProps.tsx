@@ -19,7 +19,7 @@ export interface ViewProps {
     setSecondary: React.Dispatch<React.SetStateAction<SecondaryData>>;
 }
 
-export interface TransformerViewProps<T extends Transformer> extends ViewProps {
+interface TransformerViewProps<T extends Transformer> extends ViewProps {
     addTransformer: (transformer: T, override?: boolean) => void;
 }
 

@@ -30,7 +30,7 @@ export type Side = "above" | "below";
 
 export type Point = { x: number; y: number };
 
-export type CurvePoint = { x: number; y: number; i: number };
+type CurvePoint ={ x: number; y: number; i: number };
 
 export type BBox = { x: number; y: number; w: number; h: number };
 

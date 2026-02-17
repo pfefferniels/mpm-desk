@@ -15,7 +15,7 @@ const WEDGE_SCALE_CONFIG = {
     transformerRadius: { base: 10, min: 4 },
 };
 
-export interface WedgeScale {
+interface WedgeScale {
     /** Current scale factor (0 to 1) */
     scale: number;
     /** Bellows path stroke width */

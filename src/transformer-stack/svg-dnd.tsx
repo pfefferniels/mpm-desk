@@ -9,12 +9,12 @@ import React, {
 
 type Pt = { x: number; y: number };
 
-export type DragItem = {
+type DragItem = {
     id: string;
     type?: string; // optional kind for accept filtering
 };
 
-export type DropSpec = {
+type DropSpec = {
     id: string;
     accept?: string[]; // omit => accept all
     onDragEnter?: (item: DragItem) => void;

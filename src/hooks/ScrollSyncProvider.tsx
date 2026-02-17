@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef, useMemo, useCallback } from 'react';
 
-export type ScrollDomain = 'symbolic' | 'physical';
+type ScrollDomain ='symbolic' | 'physical';
 
 interface ScrollSyncContextValue {
     register: (id: string, element: HTMLElement, domain: ScrollDomain) => void;

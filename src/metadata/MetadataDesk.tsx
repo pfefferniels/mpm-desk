@@ -1,7 +1,7 @@
 import { Card, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 
-export interface MetadataDeskProps {
+interface MetadataDeskProps {
     metadata: { author: string, title: string }
     setMetadata: React.Dispatch<React.SetStateAction<{ author: string, title: string }>>
     appBarRef: React.RefObject<HTMLDivElement> | null

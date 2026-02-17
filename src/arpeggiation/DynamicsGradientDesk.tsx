@@ -52,7 +52,7 @@ type RawGradientProps = {
     getY: (velocity: number) => number
 }
 
-export const RawGradient = ({ notes, onClick, getY }: RawGradientProps) => {
+const RawGradient =({ notes, onClick, getY }: RawGradientProps) => {
     const { play, stop } = usePiano();
     const { slice } = useNotes()
 
@@ -131,7 +131,7 @@ type MPMGradientProps = {
     gradient?: { from: number; to: number; scale?: number }
 }
 
-export const MPMGradient = ({ notes: _notes, gradient: _gradient }: MPMGradientProps) => {
+const MPMGradient =({ notes: _notes, gradient: _gradient }: MPMGradientProps) => {
     return (
         <g>
 
@@ -155,7 +155,7 @@ const getDynamicsExtremes = (notes: MsmNote[]) => {
 };
 
 
-export const Hull = ({ msm, part, getY }: { msm: MSM, part: Scope, getY: (velocity: number) => void }) => {
+const Hull =({ msm, part, getY }: { msm: MSM, part: Scope, getY: (velocity: number) => void }) => {
     const stretchX = usePhysicalZoom()
 
     return Array

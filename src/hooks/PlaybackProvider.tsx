@@ -4,7 +4,7 @@ import { read } from 'midifile-ts';
 import { MPM, MSM } from 'mpmify';
 import { exportMPM } from '../../../mpm-ts/lib';
 
-export interface PlayOptions {
+interface PlayOptions {
     mpmIds?: string[];
     isolate?: boolean;
     onNoteEvent?: (noteId: string, date: number) => void;
