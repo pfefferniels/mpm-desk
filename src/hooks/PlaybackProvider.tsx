@@ -6,6 +6,7 @@ import { exportMPM } from '../../../mpm-ts/lib';
 
 export interface PlayOptions {
     mpmIds?: string[];
+    isolate?: boolean;
     onNoteEvent?: (noteId: string, date: number) => void;
 }
 
@@ -57,7 +58,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
 
         if (!currentMpm || !currentMei) return;
 
-        const { mpmIds, onNoteEvent } = options || {};
+        const { mpmIds, isolate, onNoteEvent } = options || {};
 
         type Request = {
             mpm: string;
@@ -66,6 +67,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
             exaggerate?: number;
             exemplify?: boolean;
             context?: number;
+            isolate?: boolean;
         };
 
         const request: Request = {
@@ -78,6 +80,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
             request.exaggerate = 1.2;
             request.exemplify = false;
             request.context = 0;
+            request.isolate = isolate;
         }
 
         try {
