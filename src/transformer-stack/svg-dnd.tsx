@@ -79,7 +79,6 @@ function hitTestGeometry(svg: SVGSVGElement, el: SVGGeometryElement, pSvg: Pt) {
     const elToScreen = el.getScreenCTM();
     if (!elToScreen) return { inFill: false, inStroke: false };
 
-    //const screenToEl = elToScreen.inverse();
     const pEl = svgPoint
 
     return {
@@ -116,11 +115,6 @@ export function SvgDndProvider({
 
         if (!el) {
             map.delete(spec.id);
-            // if the currently-over target unmounts, clear state
-            // if (overIdRef.current === spec.id) {
-            //     overIdRef.current = null;
-            //     forceTick((t) => t + 1);
-            // }
             return;
         }
 

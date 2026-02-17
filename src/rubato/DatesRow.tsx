@@ -109,9 +109,7 @@ export const DatesRow = ({ stretchX, height, width, chords, frame, onClickTick, 
             frame={frame}
             stretchX={stretchX}
             height={height}
-            onRemove={() => {
-                // ...                
-            }}
+            onRemove={() => {}}
             onClick={() => {
                 if (frame.length) playFrame(frame)
             }}

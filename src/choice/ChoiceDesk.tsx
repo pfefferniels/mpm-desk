@@ -258,7 +258,6 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                 const duration = pedal["midi.duration"]
                 const xmlId = pedal['xml:id']
                 const color = colorFor(pedal.source || 'unknown')
-                console.log('pedal source=', pedal.source, color)
 
                 groups.push((
                     <rect

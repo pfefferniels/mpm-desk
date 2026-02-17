@@ -66,7 +66,6 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
 
     const transform = () => {
         if (currentDate) {
-            console.log('current date', currentDate)
             // This is a single temporal spread
             addTransformer(new InsertTemporalSpread({
                 scope: part,

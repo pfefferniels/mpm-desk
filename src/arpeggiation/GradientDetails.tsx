@@ -11,8 +11,6 @@ interface GradientDetailsProps {
 }
 
 const GradientDetails: React.FC<GradientDetailsProps> = ({ gradient, open, onChange, onClose, onDone }) => {
-    console.log('gradient', gradient)
-    
     return (
         <Dialog open={open} onClose={onClose}>
             <DialogContent>

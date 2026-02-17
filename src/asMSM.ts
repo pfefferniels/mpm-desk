@@ -17,8 +17,6 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
     const json = await response.json()
     const msmDoc = new DOMParser().parseFromString(json.msm, 'application/xml')
 
-    // console.log('All elements', msmDoc.querySelectorAll('*'))
-
     // Enrich the official MSM with performance information
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
 
@@ -62,7 +60,6 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
     const msmNotes: MsmNote[] = []
     for (const note of originalNotes) {
         const noteId = note.getAttribute('xml:id')
-        // console.log('trying selector', `when[data~="#${noteId}"]`)
         const whens = meiDoc.querySelectorAll(`when[data~="#${noteId}"]`)
         if (!whens) continue
 
@@ -127,6 +124,5 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
     })
     newMSM.pedals = msmPedals
 
-    console.log('newmsm', newMSM)
     return newMSM
 }

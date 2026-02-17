@@ -54,8 +54,6 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
             <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
                 <svg width={msm.end * stretchX} height={400}>
                     {msm.pedals.map(p => {
-                        
-                        console.log(p)
                         if (p.tickDate === undefined || !p.tickDuration) return null
 
                         return (

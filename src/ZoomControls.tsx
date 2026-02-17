@@ -27,7 +27,7 @@ export const ZoomControls = ({ stretchX, setStretchX, rangeX, stretchY, setStret
                         aria-label="Horizontal Stretch"
                         valueLabelDisplay="auto"
                         defaultValue={rangeX[0] + (rangeX[1] - rangeX[0]) / 2}
-                        step={/*(rangeX[1] - rangeX[0]) / 20*/ 0.5}
+                        step={0.5}
                         min={rangeX[0]} max={rangeX[1]}
                         marks
                         value={stretchX}

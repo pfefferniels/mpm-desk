@@ -124,7 +124,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
     const handleInsert = () => {
-        console.log('handleinsert', insertOptions)
         if (!insertOptions) return
 
         addTransformer(new InsertDynamicsInstructions({
@@ -183,16 +182,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         }
     }
 
-    // const removeMarker = (date: number) => {
-    //     setMarkers(prev => {
-    //         const index = prev.indexOf(date)
-    //         if (index !== -1) {
-    //             prev.splice(index, 1)
-    //         }
-    //         return [...prev]
-    //     })
-    // }
-
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
         if (mode === 'phantom') {
             phantomVelocities.set(segment.date.start, segment.velocity)
@@ -203,7 +192,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         else if (mode === 'modify') {
             const noteid = msm.allNotes.find(n => n["midi.velocity"] === segment.velocity && n.date === segment.date.start)?.["xml:id"]
             if (!noteid) {
-                console.log('No note found for segment', segment)
                 return
             }
 

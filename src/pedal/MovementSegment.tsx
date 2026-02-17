@@ -34,8 +34,6 @@ export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: Mo
             })
         }
 
-        console.log(instructionWithControlPoints, newPoints)
-
         setPoints(newPoints)
     }, [instruction])
 

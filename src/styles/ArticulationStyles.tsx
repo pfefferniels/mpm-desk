@@ -20,8 +20,6 @@ export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransfor
         volumeTolerance
     }).generateClusters(mpm.getInstructions('articulation', part))
 
-    console.log('points', articulationPoints, mpm.getInstructions('articulation', part))
-
     return (
         <div>
             <Stack direction='row' spacing={1}>

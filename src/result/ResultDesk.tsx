@@ -15,7 +15,6 @@ export const ResultDesk = ({ mpm, msm }: ViewProps) => {
             mpm: exportMPM(mpm)
         }
 
-        console.log(`Converting to MIDI ...`)
         const response = await fetch(`http://localhost:8080/convert`, {
             method: 'POST',
             body: JSON.stringify(request)
@@ -28,9 +27,8 @@ export const ResultDesk = ({ mpm, msm }: ViewProps) => {
     const copyToClipboard = async (text: string) => {
         try {
             await navigator.clipboard.writeText(text);
-            console.log("Content copied to clipboard successfully!");
-        } catch (error) {
-            console.error("Failed to copy content to clipboard: ", error);
+        } catch {
+            // clipboard write failed silently
         }
     };
 
