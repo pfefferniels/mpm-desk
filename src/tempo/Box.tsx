@@ -12,8 +12,6 @@ type BoxProps = {
   onStop: () => void
   played: boolean
 
-  marker: JSX.Element | false
-
   onToggleSelect: () => void
   onSelect: () => void
   onRemove: () => void
@@ -37,7 +35,7 @@ export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [splitSeconds, setSplitSeconds] = useState<number>()
 
-  const { segment, tickToSeconds, stretchX, stretchY, marker, onPlay, onStop, played, onToggleSelect, onSelect, onRemove, splitMode, onSplit } = props
+  const { segment, tickToSeconds, stretchX, stretchY, onPlay, onStop, played, onToggleSelect, onSelect, onRemove, splitMode, onSplit } = props
   const { selected } = segment
 
   const start = tickToSeconds(segment.date.start)
@@ -93,8 +91,6 @@ export const Box = (props: BoxProps) => {
           </>
         )
       })()}
-
-      {splitMode && marker}
 
       {hovered && (
         <>
@@ -173,8 +169,6 @@ export const Box = (props: BoxProps) => {
             else onSelect()
           }
         }} />
-
-      {!splitMode && marker}
     </g>
   )
 }

@@ -29,7 +29,7 @@
     "certainty": "crminf:J5_holds_to_be"
   },
   "@type": "Reconstruction",
-  "name": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Grünfeld spielt Robert Schumann, Träumerei",
+  "name": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Gr\u00fcnfeld spielt Robert Schumann, Tr\u00e4umerei",
   "mpm": "performance.mpm",
   "mei": "transcription.mei",
   "creation": {
@@ -60,7 +60,7 @@
               ],
               "comments": [
                 {
-                  "text": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Grünfeld spielt Robert Schumann, Träumerei"
+                  "text": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Gr\u00fcnfeld spielt Robert Schumann, Tr\u00e4umerei"
                 }
               ]
             }
@@ -117,9 +117,6 @@
               "tempo_e15b2d6e-dcfe-45e2-be79-d95d841587a4"
             ],
             "options": {
-              "from": 0,
-              "to": 2160,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -133,6 +130,13 @@
                 {
                   "date": 13680,
                   "onset": 21.365853658536587
+                }
+              ],
+              "segments": [
+                {
+                  "from": 0,
+                  "to": 2160,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -227,9 +231,9 @@
         "conclusion": {
           "certainty": "possible",
           "motivation": "relaxation",
-          "note": "Bewegung zum d-Moll hin stark zurücknehmen"
+          "note": "Bewegung zum d-Moll hin stark zur\u00fccknehmen"
         },
-        "note": "Die Dynamik unterschreitet hier vermutlich den Rahmen des Welte-Systems. Sie wurde daher an die Pegelverhältnisse der akustischen Aufnahme (1913) angepasst.",
+        "note": "Die Dynamik unterschreitet hier vermutlich den Rahmen des Welte-Systems. Sie wurde daher an die Pegelverh\u00e4ltnisse der akustischen Aufnahme (1913) angepasst.",
         "id": "decision-35c68177",
         "calls": [
           {
@@ -619,9 +623,6 @@
               "tempo_1805e6bc-059d-46f9-ae3e-1a54994dbddd"
             ],
             "options": {
-              "from": 3600,
-              "to": 5760,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -631,6 +632,13 @@
                 {
                   "date": 5040,
                   "onset": 7.7
+                }
+              ],
+              "segments": [
+                {
+                  "from": 3600,
+                  "to": 5760,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -804,9 +812,6 @@
               "tempo_a6bc7182-9754-4d75-a95b-5aee19b2a4a9"
             ],
             "options": {
-              "from": 45360,
-              "to": 46800,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -820,6 +825,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 45360,
+                  "to": 46800,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -1233,7 +1245,7 @@
           "id": "concl_c5f4b467-5da3-488e-8827-0a10fbd651d2",
           "certainty": "possible",
           "motivation": "forward-lilt",
-          "note": "Inegalité"
+          "note": "Inegalit\u00e9"
         },
         "calls": [
           {
@@ -1279,7 +1291,7 @@
         ]
       },
       {
-        "note": "[todo: Lässt sich das irgendwie aus früheren Fassungen belegen?]",
+        "note": "[todo: L\u00e4sst sich das irgendwie aus fr\u00fcheren Fassungen belegen?]",
         "id": "argumentation-26cfa284",
         "conclusion": {
           "certainty": "likely",
@@ -1621,7 +1633,7 @@
           "motivation": "shading",
           "note": "pauschale werte"
         },
-        "note": "[Pauschale Werte, vorläufig]",
+        "note": "[Pauschale Werte, vorl\u00e4ufig]",
         "id": "decision-4e415fcc",
         "calls": [
           {
@@ -1808,7 +1820,7 @@
           "certainty": "plausible",
           "id": "belief-ce2aa932",
           "motivation": "relaxation",
-          "note": "Tenor führt"
+          "note": "Tenor f\u00fchrt"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -1875,7 +1887,7 @@
           "id": "concl_b0c4e2d0-be13-42fc-9014-9ad52f33a36c",
           "certainty": "possible",
           "motivation": "relaxation",
-          "note": "Klang öffnen"
+          "note": "Klang \u00f6ffnen"
         },
         "calls": [
           {
@@ -1956,7 +1968,7 @@
             }
           }
         ],
-        "note": "Könnte auch zusätzlich relaxation sein ..."
+        "note": "K\u00f6nnte auch zus\u00e4tzlich relaxation sein ..."
       },
       {
         "id": "80d8e0d0-7814-4566-b9a0-b700191ebc2d",
@@ -2135,7 +2147,7 @@
           "certainty": "likely",
           "id": "belief-cbc53590",
           "motivation": "relaxation",
-          "note": "Klang öffnen"
+          "note": "Klang \u00f6ffnen"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -2253,7 +2265,7 @@
           "certainty": "likely",
           "id": "belief-2a6dd064",
           "motivation": "intensification",
-          "note": "Bass überlegato, Tenor mit Luft"
+          "note": "Bass \u00fcberlegato, Tenor mit Luft"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -2679,7 +2691,7 @@
           "certainty": "likely",
           "id": "belief-b7f8caaa",
           "motivation": "relaxation",
-          "note": "wieder zurück"
+          "note": "wieder zur\u00fcck"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -3153,9 +3165,6 @@
               "tempo_2dbf8372-6268-4305-8ec6-0aaca4f4cb49"
             ],
             "options": {
-              "from": 2160,
-              "to": 3600,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3169,6 +3178,13 @@
                 {
                   "date": 13680,
                   "onset": 21.365853658536587
+                }
+              ],
+              "segments": [
+                {
+                  "from": 2160,
+                  "to": 3600,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3247,7 +3263,7 @@
         ]
       },
       {
-        "note": "Verlängerung der Phase durch erneutes, überlagerndes Ritardando. Betonungsschema erfolgt wieder auf regulärer Zeit.",
+        "note": "Verl\u00e4ngerung der Phase durch erneutes, \u00fcberlagerndes Ritardando. Betonungsschema erfolgt wieder auf regul\u00e4rer Zeit.",
         "conclusion": {
           "certainty": "possible",
           "motivation": "relaxation",
@@ -3262,9 +3278,6 @@
               "tempo_7cab7e19-d70f-4d21-abc7-1369af6171f4"
             ],
             "options": {
-              "from": 5760,
-              "to": 7200,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3274,6 +3287,13 @@
                 {
                   "date": 5040,
                   "onset": 7.513812154696133
+                }
+              ],
+              "segments": [
+                {
+                  "from": 5760,
+                  "to": 7200,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3330,7 +3350,7 @@
         "conclusion": {
           "certainty": "possible",
           "motivation": "intensification",
-          "note": "Hinspielen zur nächsten Phrase"
+          "note": "Hinspielen zur n\u00e4chsten Phrase"
         },
         "id": "decision-cfcd2188",
         "calls": [
@@ -3341,9 +3361,6 @@
               "tempo_cd750a3b-ddf5-4aa7-b51d-23ec50687259"
             ],
             "options": {
-              "from": 7200,
-              "to": 9360,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3353,6 +3370,13 @@
                 {
                   "date": 5040,
                   "onset": 7.513812154696133
+                }
+              ],
+              "segments": [
+                {
+                  "from": 7200,
+                  "to": 9360,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3405,9 +3429,6 @@
               "tempo_d146a4df-8cd1-4774-b4ff-efde3603ae62"
             ],
             "options": {
-              "from": 9360,
-              "to": 10800,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3425,6 +3446,13 @@
                 {
                   "date": 16380,
                   "onset": 25.58011049723757
+                }
+              ],
+              "segments": [
+                {
+                  "from": 9360,
+                  "to": 10800,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3470,9 +3498,6 @@
               "tempo_914e07a2-91c1-442b-bea5-789a659e5654"
             ],
             "options": {
-              "from": 10800,
-              "to": 15120,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3490,6 +3515,13 @@
                 {
                   "date": 16380,
                   "onset": 25.58011049723757
+                }
+              ],
+              "segments": [
+                {
+                  "from": 10800,
+                  "to": 15120,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3513,9 +3545,6 @@
               "tempo_19ad1c3a-62cf-4c74-9dab-f5e50d99143c"
             ],
             "options": {
-              "from": 15120,
-              "to": 17280,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3537,6 +3566,13 @@
                 {
                   "date": 16560,
                   "onset": 25.646408839779006
+                }
+              ],
+              "segments": [
+                {
+                  "from": 15120,
+                  "to": 17280,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3561,14 +3597,18 @@
               "tempo_02729b09-4273-4ea9-a8cb-1409e00b3d35"
             ],
             "options": {
-              "from": 17280,
-              "to": 18720,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 25200,
                   "onset": 40.9908332824707
+                }
+              ],
+              "segments": [
+                {
+                  "from": 17280,
+                  "to": 18720,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3613,7 +3653,7 @@
           "certainty": "likely",
           "id": "belief-14817a9f",
           "motivation": "relaxation",
-          "note": "immer weiter verlangsamen …"
+          "note": "immer weiter verlangsamen \u2026"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -3624,14 +3664,18 @@
               "tempo_9d370181-d22d-41d1-8f90-abdc3f829f7c"
             ],
             "options": {
-              "from": 18720,
-              "to": 20880,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 25200,
                   "onset": 40.9908332824707
+                }
+              ],
+              "segments": [
+                {
+                  "from": 18720,
+                  "to": 20880,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3656,14 +3700,18 @@
               "tempo_7f7f3917-c40d-4912-892d-dc04993886d3"
             ],
             "options": {
-              "from": 20880,
-              "to": 22320,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 25200,
                   "onset": 40.9908332824707
+                }
+              ],
+              "segments": [
+                {
+                  "from": 20880,
+                  "to": 22320,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3689,14 +3737,18 @@
               "tempo_e34b90bf-6226-4a71-91fe-b4a3da3dff61"
             ],
             "options": {
-              "from": 22320,
-              "to": 23760,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 25200,
                   "onset": 40.9908332824707
+                }
+              ],
+              "segments": [
+                {
+                  "from": 22320,
+                  "to": 23760,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3737,9 +3789,6 @@
               "tempo_9dec4676-6f33-4169-8b22-dc48c8fe124e"
             ],
             "options": {
-              "from": 23760,
-              "to": 26640,
-              "beatLength": 0.5,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3749,6 +3798,13 @@
                 {
                   "date": 25200,
                   "onset": 41.016260162601625
+                }
+              ],
+              "segments": [
+                {
+                  "from": 23760,
+                  "to": 26640,
+                  "beatLength": 0.5
                 }
               ]
             },
@@ -3802,9 +3858,6 @@
               "tempo_91b172c3-a8d4-414b-8e4a-e186bc867319"
             ],
             "options": {
-              "from": 26640,
-              "to": 28800,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -3814,6 +3867,13 @@
                 {
                   "date": 25200,
                   "onset": 41.016260162601625
+                }
+              ],
+              "segments": [
+                {
+                  "from": 26640,
+                  "to": 28800,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -3868,11 +3928,15 @@
               "tempo_b58ce058-2c28-46e5-ab18-9d6edab585e2"
             ],
             "options": {
-              "from": 28800,
-              "to": 30240,
-              "beatLength": 0.25,
               "scope": "global",
-              "silentOnsets": []
+              "silentOnsets": [],
+              "segments": [
+                {
+                  "from": 28800,
+                  "to": 30240,
+                  "beatLength": 0.25
+                }
+              ]
             },
             "name": "ApproximateLogarithmicTempo"
           },
@@ -3925,11 +3989,15 @@
               "tempo_a5b27aae-3a7c-4407-8953-e354e73651cf"
             ],
             "options": {
-              "from": 30240,
-              "to": 31680,
-              "beatLength": 0.25,
               "scope": "global",
-              "silentOnsets": []
+              "silentOnsets": [],
+              "segments": [
+                {
+                  "from": 30240,
+                  "to": 31680,
+                  "beatLength": 0.25
+                }
+              ]
             },
             "name": "ApproximateLogarithmicTempo"
           },
@@ -3982,11 +4050,15 @@
               "tempo_294f1905-7bf4-4183-ab41-5a51a4fb486e"
             ],
             "options": {
-              "from": 31680,
-              "to": 33120,
-              "beatLength": 0.25,
               "scope": "global",
-              "silentOnsets": []
+              "silentOnsets": [],
+              "segments": [
+                {
+                  "from": 31680,
+                  "to": 33120,
+                  "beatLength": 0.25
+                }
+              ]
             },
             "name": "ApproximateLogarithmicTempo"
           },
@@ -4028,7 +4100,7 @@
           "certainty": "likely",
           "id": "belief-72f5bb5b",
           "motivation": "intensification",
-          "note": "Hinspielen auf nächste 1"
+          "note": "Hinspielen auf n\u00e4chste 1"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -4039,11 +4111,15 @@
               "tempo_0a0ed7b5-0e23-4f93-8fc0-394181ad60c2"
             ],
             "options": {
-              "from": 33120,
-              "to": 35280,
-              "beatLength": 0.25,
               "scope": "global",
-              "silentOnsets": []
+              "silentOnsets": [],
+              "segments": [
+                {
+                  "from": 33120,
+                  "to": 35280,
+                  "beatLength": 0.25
+                }
+              ]
             },
             "name": "ApproximateLogarithmicTempo"
           }
@@ -4067,9 +4143,6 @@
               "tempo_3748aca3-fdae-476d-a490-85bab579d2bd"
             ],
             "options": {
-              "from": 38160,
-              "to": 40320,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4087,6 +4160,13 @@
                 {
                   "date": 39600,
                   "onset": 63.877499389648435
+                }
+              ],
+              "segments": [
+                {
+                  "from": 38160,
+                  "to": 40320,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4112,9 +4192,6 @@
               "tempo_f7134929-7584-49df-a4e5-ac3654c70fc8"
             ],
             "options": {
-              "from": 40320,
-              "to": 43920,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4128,6 +4205,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 40320,
+                  "to": 43920,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4153,9 +4237,6 @@
               "tempo_fd695bc1-a010-4734-873c-c79cd30aed3c"
             ],
             "options": {
-              "from": 43920,
-              "to": 45360,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4169,6 +4250,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 43920,
+                  "to": 45360,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4194,9 +4282,6 @@
               "tempo_8f1e894a-f1db-4daa-b75a-d30efff6189c"
             ],
             "options": {
-              "from": 46800,
-              "to": 49680,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4210,6 +4295,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 46800,
+                  "to": 49680,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4235,9 +4327,6 @@
               "tempo_a31d27b6-aff9-47b1-bf12-fa37ce82b8e5"
             ],
             "options": {
-              "from": 49680,
-              "to": 51120,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4251,6 +4340,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 49680,
+                  "to": 51120,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4276,9 +4372,6 @@
               "tempo_fa76f151-0be9-4d57-809d-4a09467680cb"
             ],
             "options": {
-              "from": 51120,
-              "to": 52560,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4292,6 +4385,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 51120,
+                  "to": 52560,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4316,9 +4416,6 @@
               "tempo_b2ac33c6-40d2-4f24-ab07-0f8b3d6c4f95"
             ],
             "options": {
-              "from": 52560,
-              "to": 54720,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4332,6 +4429,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 52560,
+                  "to": 54720,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4386,9 +4490,6 @@
               "tempo_d136abb3-ae05-4481-b8a9-11d0418d2a02"
             ],
             "options": {
-              "from": 54720,
-              "to": 56880,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4402,6 +4503,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 54720,
+                  "to": 56880,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4427,9 +4535,6 @@
               "tempo_644325b9-854a-400a-8b5f-d6cd865da8da"
             ],
             "options": {
-              "from": 56880,
-              "to": 58320,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4443,6 +4548,13 @@
                 {
                   "date": 48240,
                   "onset": 78.98373983739837
+                }
+              ],
+              "segments": [
+                {
+                  "from": 56880,
+                  "to": 58320,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4468,14 +4580,18 @@
               "tempo_15811582-bca0-4f70-91e1-3d1d5b1873a9"
             ],
             "options": {
-              "from": 58320,
-              "to": 59760,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 59760,
                   "onset": 95.75057736720555
+                }
+              ],
+              "segments": [
+                {
+                  "from": 58320,
+                  "to": 59760,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4501,14 +4617,18 @@
               "tempo_73f9afd9-6283-4d4a-a550-1742fad3a3d8"
             ],
             "options": {
-              "from": 59760,
-              "to": 61200,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 59760,
                   "onset": 95.75057736720555
+                }
+              ],
+              "segments": [
+                {
+                  "from": 59760,
+                  "to": 61200,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4534,14 +4654,18 @@
               "tempo_59f11b0c-351c-45dc-980d-ff31b0f00267"
             ],
             "options": {
-              "from": 61200,
-              "to": 63360,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 59760,
                   "onset": 95.75057736720555
+                }
+              ],
+              "segments": [
+                {
+                  "from": 61200,
+                  "to": 63360,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4567,14 +4691,18 @@
               "tempo_f6d60f87-26ed-4efc-abaa-e6b7ce2b74af"
             ],
             "options": {
-              "from": 63360,
-              "to": 64800,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 59760,
                   "onset": 95.75057736720555
+                }
+              ],
+              "segments": [
+                {
+                  "from": 63360,
+                  "to": 64800,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4600,14 +4728,18 @@
               "tempo_8a30bf9c-c5ef-4d33-b3bb-68997d0236d9"
             ],
             "options": {
-              "from": 64800,
-              "to": 66960,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 59760,
                   "onset": 95.75057736720555
+                }
+              ],
+              "segments": [
+                {
+                  "from": 64800,
+                  "to": 66960,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4633,14 +4765,18 @@
               "tempo_fa1463e4-4953-43d4-9aae-73652a1add26"
             ],
             "options": {
-              "from": 66960,
-              "to": 69840,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
                   "date": 59760,
                   "onset": 95.75057736720555
+                }
+              ],
+              "segments": [
+                {
+                  "from": 66960,
+                  "to": 69840,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4666,9 +4802,6 @@
               "tempo_c6098eee-7e8b-4f98-af9f-eb67a8169342"
             ],
             "options": {
-              "from": 69840,
-              "to": 72000,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4690,6 +4823,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 69840,
+                  "to": 72000,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4715,9 +4855,6 @@
               "tempo_5b23b3dc-22a3-4cee-b8e6-b6fb755ace39"
             ],
             "options": {
-              "from": 72000,
-              "to": 73440,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4739,6 +4876,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 72000,
+                  "to": 73440,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4764,9 +4908,6 @@
               "tempo_ab04e289-873b-4162-a24e-da4d70529d32"
             ],
             "options": {
-              "from": 73440,
-              "to": 77760,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4788,6 +4929,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 73440,
+                  "to": 77760,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4813,9 +4961,6 @@
               "tempo_af84dbf8-1bca-42b1-ab5c-b77a4beff188"
             ],
             "options": {
-              "from": 77760,
-              "to": 79200,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4837,6 +4982,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 77760,
+                  "to": 79200,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4899,9 +5051,6 @@
               "tempo_597004f2-f58e-426a-a785-2a1d6e32b09a"
             ],
             "options": {
-              "from": 79200,
-              "to": 80640,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4923,6 +5072,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 79200,
+                  "to": 80640,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4948,9 +5104,6 @@
               "tempo_7115853c-08ff-43d6-9e4a-48a7bf66dc8e"
             ],
             "options": {
-              "from": 80640,
-              "to": 83520,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -4972,6 +5125,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 80640,
+                  "to": 83520,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -4997,9 +5157,6 @@
               "tempo_5e4d6b02-4f5c-4bc5-8a49-f2708d2adce5"
             ],
             "options": {
-              "from": 83520,
-              "to": 86400,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -5021,6 +5178,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 83520,
+                  "to": 86400,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -5046,9 +5210,6 @@
               "tempo_fb8d02f0-655a-4390-9b97-5d737d18e3e5"
             ],
             "options": {
-              "from": 86400,
-              "to": 91440,
-              "beatLength": 0.25,
               "scope": "global",
               "silentOnsets": [
                 {
@@ -5070,6 +5231,13 @@
                 {
                   "date": 74160,
                   "onset": 119.9769053117783
+                }
+              ],
+              "segments": [
+                {
+                  "from": 86400,
+                  "to": 91440,
+                  "beatLength": 0.25
                 }
               ]
             },
@@ -5543,7 +5711,7 @@
           "certainty": "plausible",
           "motivation": "intensification",
           "id": "ffaa3a6a-b1cc-4e7d-a564-77f5c76cbf3d",
-          "note": "Das verlängerte Warten erhöht die Spannung "
+          "note": "Das verl\u00e4ngerte Warten erh\u00f6ht die Spannung "
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -5693,7 +5861,7 @@
                   "relativeDuration"
                 ]
               },
-              "name": "Überlegato"
+              "name": "\u00dcberlegato"
             }
           }
         ]
@@ -5776,7 +5944,7 @@
           "certainty": "likely",
           "id": "belief-eeedb08d",
           "motivation": "unknown",
-          "note": "Wichtige Harmonien etwas zu früh"
+          "note": "Wichtige Harmonien etwas zu fr\u00fch"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -6056,7 +6224,7 @@
           "id": "concl_108a554e-8f9f-4b6c-b27e-fc3f0674d442",
           "certainty": "possible",
           "motivation": "intensification",
-          "note": "Verkürzung"
+          "note": "Verk\u00fcrzung"
         },
         "calls": [
           {
@@ -6072,7 +6240,7 @@
             }
           }
         ],
-        "note": "Durch den verspäteten Eintritt wird die Spannung wieder gesteigert"
+        "note": "Durch den versp\u00e4teten Eintritt wird die Spannung wieder gesteigert"
       },
       {
         "note": "",
@@ -6206,7 +6374,7 @@
           "certainty": "likely",
           "id": "belief-e087ae51",
           "motivation": "intensification",
-          "note": "Hinspielen zum nächsten Takt"
+          "note": "Hinspielen zum n\u00e4chsten Takt"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -6375,7 +6543,7 @@
           "certainty": "likely",
           "id": "belief-c9cc3b36",
           "motivation": "relaxation",
-          "note": "als Dreiklang aufwärts entspannen"
+          "note": "als Dreiklang aufw\u00e4rts entspannen"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -6748,7 +6916,7 @@
         ]
       },
       {
-        "note": "der dynamische Verlauf folgt dem Tonhöhenverlauf",
+        "note": "der dynamische Verlauf folgt dem Tonh\u00f6henverlauf",
         "id": "argumentation-10407ff0",
         "conclusion": {
           "certainty": "likely",
@@ -8018,7 +8186,7 @@
           "certainty": "likely",
           "id": "belief-838fbbf1",
           "motivation": "unknown",
-          "note": "Inegalité"
+          "note": "Inegalit\u00e9"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -8259,7 +8427,7 @@
           "certainty": "likely",
           "id": "belief-feb4c18a",
           "motivation": "intensification",
-          "note": "Überlegato"
+          "note": "\u00dcberlegato"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -8430,7 +8598,7 @@
         ]
       },
       {
-        "note": "Die Notenlänge wird beinahe verdoppelt.",
+        "note": "Die Notenl\u00e4nge wird beinahe verdoppelt.",
         "id": "argumentation-a1f193fa",
         "conclusion": {
           "certainty": "likely",
@@ -8743,7 +8911,7 @@
           "certainty": "speculative",
           "id": "belief-2fa45c56",
           "motivation": "intensification",
-          "note": "Klang langsam öffnen"
+          "note": "Klang langsam \u00f6ffnen"
         },
         "type": "simpleArgumentation",
         "calls": [

@@ -6,7 +6,6 @@ import { asMIDI } from "../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import HorizontalScale from "./HorizontalScale"
-import { MarkerLine } from "./MarkerLine"
 import { Scope } from "../TransformerViewProps"
 
 const silentSegmentToNote = (s: TempoSegment, tickToSeconds: (tick: number) => number) => {
@@ -43,6 +42,9 @@ interface SkylineProps {
 
   onAddSegment: (fromDate: number, toDate: number, beatLength: number) => void
 
+  chainEndpoint?: { date: number, beatLength: number, bpm: number }
+  onChainSegment?: (fromDate: number, toDate: number, beatLength: number) => void
+
   onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
   onToggleSplitMode: () => void
 
@@ -55,44 +57,57 @@ interface SkylineProps {
  * to combine durations and change their appearances.
  *
  */
-export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, children }: SkylineProps) {
+export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEndpoint, onChainSegment, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, children }: SkylineProps) {
   const { play, stop } = usePiano()
   const { slice } = useNotes()
 
   const [datePlayed, setDatePlayed] = useState<number>()
-  const [startMarker, setStartMarker] = useState<{ date: number, beatLength: number }>()
-  const [dragFromOnset, setDragFromOnset] = useState<Onset>()
-  const [dragToOnset, setDragToOnset] = useState<Onset>()
+  const [hoveredKey, setHoveredKey] = useState<string>()
+  const [dragFrom, setDragFrom] = useState<{ date: number, beatLength: number, isChain?: boolean }>()
+  const [dragMouse, setDragMouse] = useState<{ x: number, y: number }>()
+  const [dragSnapEdge, setDragSnapEdge] = useState<{ date: number, beatLength: number, x: number, y: number }>()
 
-  const clientToSvgX = (clientX: number, svg: SVGSVGElement) => {
+  const clientToSvg = (clientX: number, clientY: number, svg: SVGSVGElement) => {
     const point = svg.createSVGPoint()
     point.x = clientX
-    point.y = 0
+    point.y = clientY
     const ctm = svg.getScreenCTM()
-    if (!ctm) return 0
-    return point.matrixTransform(ctm.inverse()).x
+    if (!ctm) return { x: 0, y: 0 }
+    const p = point.matrixTransform(ctm.inverse())
+    return { x: p.x, y: p.y }
   }
 
-  const findNearestOnset = (svgX: number): Onset | undefined => {
-    let best: Onset | undefined
+  const findNearestRightEdge = (svgX: number, snapThreshold: number, beatLength: number) => {
+    let best: { date: number, beatLength: number, x: number, y: number } | undefined
     let bestDist = Infinity
-    for (const onset of onsets) {
-      const onsetX = tickToSeconds(onset.date) * stretchX
-      const dist = Math.abs(svgX - onsetX)
+    for (const segment of tempos.segments) {
+      const segBeatLength = segment.date.end - segment.date.start
+      const edgeX = tickToSeconds(segment.date.end) * stretchX
+      const dist = Math.abs(svgX - edgeX)
       if (dist < bestDist) {
         bestDist = dist
-        best = onset
+        best = {
+          date: segment.date.end,
+          beatLength: segBeatLength,
+          x: edgeX,
+          y: asBPM({ start: segment.date.end - beatLength, end: segment.date.end }, tickToSeconds) * -stretchY
+        }
       }
     }
-    return best
+    return bestDist <= snapThreshold ? best : undefined
+  }
+
+  const cancelDrag = () => {
+    setDragFrom(undefined)
+    setDragMouse(undefined)
+    setDragSnapEdge(undefined)
   }
 
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       tempos.unselectAll()
       setTempos(new TempoCluster(tempos.segments))
-      setDragFromOnset(undefined)
-      setDragToOnset(undefined)
+      cancelDrag()
     }
     if (event.key === 'c') {
       const selected = tempos.segments.filter(s => s.selected)
@@ -154,28 +169,25 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
       tabIndex={-1}
       onMouseDown={(e) => e.currentTarget.focus()}
       onMouseMove={(e) => {
-        if (!dragFromOnset) return
-        const svgX = clientToSvgX(e.clientX, e.currentTarget as SVGSVGElement)
-        const nearest = findNearestOnset(svgX)
-        setDragToOnset(nearest && nearest.date !== dragFromOnset.date ? nearest : undefined)
+        if (!dragFrom) return
+        const svg = e.currentTarget as SVGSVGElement
+        const svgPt = clientToSvg(e.clientX, e.clientY, svg)
+        setDragMouse(svgPt)
+        const ctm = svg.getScreenCTM()
+        const snapThreshold = ctm ? 15 / ctm.a : 25
+        setDragSnapEdge(findNearestRightEdge(svgPt.x, snapThreshold, dragFrom.beatLength))
       }}
       onMouseUp={() => {
-        if (dragFromOnset && dragToOnset) {
-          const start = Math.min(dragFromOnset.date, dragToOnset.date)
-          const end = Math.max(dragFromOnset.date, dragToOnset.date)
-          setTempos(new TempoCluster([...tempos.segments, {
-            date: { start, end },
-            selected: false,
-            silent: false
-          }]))
+        if (dragFrom && dragSnapEdge) {
+          if (dragFrom.isChain) {
+            onChainSegment?.(dragFrom.date, dragSnapEdge.date, dragFrom.beatLength)
+          } else {
+            onAddSegment(dragFrom.date, dragSnapEdge.date, dragFrom.beatLength)
+          }
         }
-        setDragFromOnset(undefined)
-        setDragToOnset(undefined)
+        cancelDrag()
       }}
-      onMouseLeave={() => {
-        setDragFromOnset(undefined)
-        setDragToOnset(undefined)
-      }}
+      onMouseLeave={() => cancelDrag()}
       onKeyDown={(e) => {
         if (e.key === 'Backspace') {
           const selected = tempos.segments.filter(s => s.selected)
@@ -200,112 +212,123 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, tickToS
         offset={Math.max(...(tempos.segments.map(t => tickToSeconds(t.date.end)))) || 0}
       />
 
-      {onsets.map((onset) => {
-        const isDragFrom = dragFromOnset?.date === onset.date
-        const isDragTo = dragToOnset?.date === onset.date
-        const highlighted = isDragFrom || isDragTo
-        return (
-          <line
-            key={`tick_${onset.date}`}
-            x1={tickToSeconds(onset.date) * stretchX}
-            x2={tickToSeconds(onset.date) * stretchX}
-            y1={highlighted ? -10 : 0}
-            y2={10}
-            stroke={highlighted ? 'gold' : 'gray'}
-            strokeWidth={highlighted ? 1.5 : 0.5}
-            style={{ cursor: dragFromOnset ? 'grabbing' : 'grab' }}
-            onMouseDown={(e) => {
-              if (e.button !== 0) return
-              setDragFromOnset(onset)
-            }}
-          />
-        )
-      })}
+      {onsets.map((onset) => (
+        <line
+          key={`tick_${onset.date}`}
+          x1={tickToSeconds(onset.date) * stretchX}
+          x2={tickToSeconds(onset.date) * stretchX}
+          y1={0}
+          y2={10}
+          stroke="gray"
+          strokeWidth={0.5}
+        />
+      ))}
 
       {tempos?.sort(tickToSeconds).map((tempo: TempoSegment, index: number) => {
+        const beatLength = tempo.date.end - tempo.date.start
+        const boxKey = `${tempo.date.start}_${tempo.date.end}`
+        const leftX = tickToSeconds(tempo.date.start) * stretchX
+        const rightX = tickToSeconds(tempo.date.end) * stretchX
+        const topY = asBPM(tempo.date, tickToSeconds) * -stretchY
+        const isDragStart = dragFrom?.date === tempo.date.start && dragFrom?.beatLength === beatLength
+        const isSnapTarget = dragSnapEdge?.date === tempo.date.end && dragSnapEdge?.beatLength === beatLength
+        const isHovered = hoveredKey === boxKey
+        const showEdges = isHovered || isDragStart || isSnapTarget
         return (
-          <Box
+          <g
             key={`box${index}`}
-            segment={tempo}
-            tickToSeconds={tickToSeconds}
-            stretchX={stretchX || 0}
-            stretchY={stretchY || 0}
-            onPlay={handlePlay}
-            onStop={stop}
-            played={datePlayed ? isWithinSegment(datePlayed, tempo) : false}
-            marker={
-              <>
-                <MarkerLine
-                  x={((startMarker === undefined || startMarker.date === tempo.date.start) ? tickToSeconds(tempo.date.start) : tickToSeconds(tempo.date.end)) * stretchX}
-                  height={asBPM(tempo.date, tickToSeconds) * -stretchY}
-                  dashed={tempo.silent}
-                  active={startMarker?.date === tempo.date.start}
-                  onClick={e => {
-                    if (e.shiftKey && e.altKey) setStartMarker(undefined)
-                    else {
-                      if (startMarker) {
-                        onAddSegment(startMarker.date, tempo.date.end, startMarker.beatLength)
-                        setStartMarker(undefined)
-                      }
-                      else {
-                        setStartMarker({ date: tempo.date.start, beatLength: tempo.date.end - tempo.date.start })
-                      }
-                    }
-                  }}
-                />
-                {startMarker?.date === tempo.date.start && (
-                  <MarkerLine
-                    x={tickToSeconds(tempo.date.end) * stretchX}
-                    height={asBPM(tempo.date, tickToSeconds) * -stretchY}
-                    dashed={tempo.silent}
-                    active={false}
-                    onClick={() => {
-                      onAddSegment(startMarker.date, tempo.date.end, startMarker.beatLength)
-                      setStartMarker(undefined)
-                    }}
-                  />
-                )}
-              </>
-            }
-            onSelect={() => {
-              tempos.unselectAll()
-              tempo.selected = true
-              setTempos(new TempoCluster(tempos.segments))
-            }}
-            onToggleSelect={() => {
-              tempo.selected = !tempo.selected
-              setTempos(new TempoCluster(tempos.segments))
-            }}
-            onRemove={() => {
-              tempos.removeTempo(tempo)
-              setTempos(new TempoCluster(tempos.segments))
-            }}
-            splitMode={mode === 'split'}
-            onSplit={onSplit}
-          />
+            onMouseEnter={() => setHoveredKey(boxKey)}
+            onMouseLeave={() => setHoveredKey(k => k === boxKey ? undefined : k)}
+          >
+            <Box
+              segment={tempo}
+              tickToSeconds={tickToSeconds}
+              stretchX={stretchX || 0}
+              stretchY={stretchY || 0}
+              onPlay={handlePlay}
+              onStop={stop}
+              played={datePlayed ? isWithinSegment(datePlayed, tempo) : false}
+              onSelect={() => {
+                tempos.unselectAll()
+                tempo.selected = true
+                setTempos(new TempoCluster(tempos.segments))
+              }}
+              onToggleSelect={() => {
+                tempo.selected = !tempo.selected
+                setTempos(new TempoCluster(tempos.segments))
+              }}
+              onRemove={() => {
+                tempos.removeTempo(tempo)
+                setTempos(new TempoCluster(tempos.segments))
+              }}
+              splitMode={mode === 'split'}
+              onSplit={onSplit}
+            />
+            <circle
+              cx={leftX} cy={topY} r={3}
+              fill={isDragStart ? 'gold' : 'transparent'}
+              stroke={isDragStart ? 'gold' : 'black'}
+              strokeWidth={1}
+              opacity={showEdges ? 1 : 0}
+              pointerEvents="all"
+              style={{ cursor: dragFrom ? 'default' : 'grab' }}
+              onMouseDown={(e) => {
+                if (e.button !== 0) return
+                setDragFrom({ date: tempo.date.start, beatLength })
+              }}
+            />
+            <circle
+              cx={rightX} cy={isSnapTarget ? (dragSnapEdge?.y ?? topY) : topY} r={3}
+              fill={isSnapTarget ? 'gold' : 'transparent'}
+              stroke={isSnapTarget ? 'gold' : 'black'}
+              strokeWidth={1}
+              opacity={showEdges ? 1 : 0}
+              pointerEvents="all"
+            />
+          </g>
         )
       })}
 
-      {dragFromOnset && dragToOnset && (() => {
-        const start = Math.min(dragFromOnset.date, dragToOnset.date)
-        const end = Math.max(dragFromOnset.date, dragToOnset.date)
-        const x1 = tickToSeconds(start) * stretchX
-        const x2 = tickToSeconds(end) * stretchX
-        const bpm = asBPM({ start, end }, tickToSeconds)
-        const upperY = bpm * -stretchY
+      {/* Chain handle */}
+      {chainEndpoint && !dragFrom && (() => {
+        const cx = tickToSeconds(chainEndpoint.date) * stretchX
+        const cy = chainEndpoint.bpm * -stretchY
         return (
-          <polygon
-            points={[
-              [x1, 0].join(','),
-              [x1, upperY].join(','),
-              [x2, upperY].join(','),
-              [x2, 0].join(',')
-            ].join(' ')}
-            fill='gold'
-            fillOpacity={0.2}
-            stroke='gold'
-            strokeDasharray='4 2'
-            strokeWidth={1}
+          <circle
+            cx={cx} cy={cy} r={4}
+            fill='transparent'
+            stroke='hsl(220, 60%, 40%)'
+            strokeWidth={1.5}
+            style={{ cursor: 'grab' }}
+            onMouseDown={(e) => {
+              if (e.button !== 0) return
+              setDragFrom({ date: chainEndpoint.date, beatLength: chainEndpoint.beatLength, isChain: true })
+            }}
+          />
+        )
+      })()}
+
+      {/* Drag preview line */}
+      {dragFrom && dragMouse && (() => {
+        let fromX: number
+        let fromY: number
+        if (dragFrom.isChain && chainEndpoint) {
+          fromX = tickToSeconds(chainEndpoint.date) * stretchX
+          fromY = chainEndpoint.bpm * -stretchY
+        } else {
+          const fromSegment = tempos.segments.find(s => s.date.start === dragFrom.date && s.date.end - s.date.start === dragFrom.beatLength)
+          if (!fromSegment) return null
+          fromX = tickToSeconds(fromSegment.date.start) * stretchX
+          fromY = asBPM(fromSegment.date, tickToSeconds) * -stretchY
+        }
+        const toX = dragSnapEdge ? dragSnapEdge.x : dragMouse.x
+        const toY = dragSnapEdge ? dragSnapEdge.y : dragMouse.y
+        return (
+          <line
+            x1={fromX} y1={fromY}
+            x2={toX} y2={toY}
+            stroke='gold' strokeWidth={2}
+            strokeDasharray='6 4'
             pointerEvents='none'
           />
         )

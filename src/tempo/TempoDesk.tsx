@@ -1,5 +1,6 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { ApproximateLogarithmicTempo, pointsWithinSegment, SilentOnset, TempoSegment, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
+import { ApproximateLogarithmicTempo, SilentOnset, TempoSegment, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
+import { TempoWithEndDate } from "mpmify"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, TempoSegment as LocalTempoSegment } from "./Tempo"
@@ -51,8 +52,8 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         [silentOnsets]
     )
     const { tickToSeconds, secondsToTick } = useTimeMapping(msm, silentOnsetPairs)
-    const [segments, setSegments] = useState<TempoSegment[]>([])
-    const [newSegment, setNewSegment] = useState<TempoSegment>()
+    const [committedTempos, setCommittedTempos] = useState<TempoWithEndDate[]>([])
+    const [newSegments, setNewSegments] = useState<TempoSegment[]>([])
     const [mode, setMode] = useState<'split' | 'curve' | undefined>(undefined)
 
     const stretchX = usePhysicalZoom()
@@ -95,17 +96,13 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
 
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
-        setSegments(tempos
+        setCommittedTempos(tempos
             .map((tempo, i) => {
                 const next = tempos[i + 1]
                 if (!next) return null
-                return {
-                    from: tempo.date,
-                    to: next.date,
-                    beatLength: tempo.beatLength,
-                }
+                return { ...tempo, endDate: next.date }
             })
-            .filter(segment => segment !== null) as TempoSegment[])
+            .filter((t): t is TempoWithEndDate => t !== null))
     }, [mpm, part])
 
     useEffect(() => {
@@ -122,11 +119,31 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     const onsets = useMemo(() => extractOnsets(msm, part), [msm, part])
     const chartHeight = tempoCluster && tickToSeconds ? -stretchY * tempoCluster.highestBPM(tickToSeconds) : 0
 
+    const previewTempos = useMemo(() => {
+        if (newSegments.length === 0) return []
+        return ApproximateLogarithmicTempo.preview({
+            segments: newSegments,
+            scope: part,
+            silentOnsets: [...silentOnsets].map(([date, onset]) => ({ date, onset }))
+        }, msm)
+    }, [newSegments, part, silentOnsets, msm])
+
+    const chainEndpoint = useMemo(() => {
+        if (previewTempos.length === 0 || newSegments.length === 0) return undefined
+        const last = previewTempos[previewTempos.length - 1]
+        const lastSeg = newSegments[newSegments.length - 1]
+        return {
+            date: last.endDate,
+            beatLength: lastSeg.beatLength * 4 * 720,
+            bpm: last['transition.to'] || last.bpm
+        }
+    }, [previewTempos, newSegments])
+
     const insertTempoValues = () => {
-        if (!tempoCluster || !newSegment) return
+        if (!tempoCluster || newSegments.length === 0) return
 
         addTransformer(new ApproximateLogarithmicTempo({
-            ...newSegment,
+            segments: newSegments,
             scope: part,
             silentOnsets: [...silentOnsets].map(([date, onset]) => ({ date, onset }))
         }))
@@ -233,11 +250,19 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                             stretchX={stretchX}
                             stretchY={stretchY}
                             onAddSegment={(from, to, beatLength) => {
-                                setNewSegment({
+                                setNewSegments([{
                                     from,
                                     to,
                                     beatLength: beatLength / 4 / 720,
-                                })
+                                }])
+                            }}
+                            chainEndpoint={chainEndpoint}
+                            onChainSegment={(from, to, beatLength) => {
+                                setNewSegments(prev => [...prev, {
+                                    from,
+                                    to,
+                                    beatLength: beatLength / 4 / 720,
+                                }])
                             }}
                             mode={mode}
                             onToggleSplitMode={() => setMode(prev => prev === 'split' ? undefined : 'split')}
@@ -247,42 +272,42 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                                 setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
                             }}
                         >
-                            {[...segments, newSegment].map((segment, i) => {
-                                if (!segment) return
-
-                                const segmentWithPoints = pointsWithinSegment(
-                                    segment,
-                                    msm.notesInPart(part),
-                                    [...silentOnsets].map(([date, onset]) => ({ date, onset }))
-                                )
-
-                                let startTime: number | undefined = msm.notesAtDate(segment.from, part)[0]?.['midi.onset']
+                            {committedTempos.map((t, i) => {
+                                let startTime: number | undefined = msm.notesAtDate(t.date, part)[0]?.['midi.onset']
                                 if (startTime === undefined) {
-                                    startTime = silentOnsets.get(segment.from)
+                                    startTime = silentOnsets.get(t.date)
                                 }
-
-                                startTime = (startTime || 0)
-
-                                const committed = mpm.getInstructions('tempo').find(t => t.date === segment.from)
 
                                 return (
                                     <SyntheticLine
-                                        key={`segment_${i}`}
-                                        points={segmentWithPoints.points}
-                                        segment={segment}
-                                        startTime={startTime}
+                                        key={`committed_${i}`}
+                                        tempo={t}
+                                        startTime={startTime || 0}
                                         stretchX={stretchX}
                                         stretchY={stretchY}
                                         chartHeight={chartHeight}
-                                        active={committed ? activeElements.includes(committed['xml:id']) : false}
-                                        onClick={() => {
-                                            if (committed) {
-                                                setActiveElement(committed['xml:id'])
-                                            }
-                                        }}
-                                        onChange={(newSegment) => {
-                                            setNewSegment(newSegment)
-                                        }}
+                                        active={activeElements.includes(t['xml:id'])}
+                                        onClick={() => setActiveElement(t['xml:id'])}
+                                    />
+                                )
+                            })}
+
+                            {previewTempos.map((previewTempo, i) => {
+                                let startTime: number | undefined = msm.notesAtDate(previewTempo.date, part)[0]?.['midi.onset']
+                                if (startTime === undefined) {
+                                    startTime = silentOnsets.get(previewTempo.date)
+                                }
+
+                                return (
+                                    <SyntheticLine
+                                        key={`preview_${i}`}
+                                        tempo={previewTempo}
+                                        startTime={startTime || 0}
+                                        stretchX={stretchX}
+                                        stretchY={stretchY}
+                                        chartHeight={chartHeight}
+                                        active={false}
+                                        onClick={() => {}}
                                     />
                                 )
                             })}

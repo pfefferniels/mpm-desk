@@ -1,16 +1,13 @@
-import { approximateTempo, computeMillisecondsAt, computeTotalError, getTempoAt, Point, TempoSegment, TempoWithEndDate } from "mpmify"
+import { computeMillisecondsAt, getTempoAt, TempoWithEndDate } from "mpmify"
 import { TempoPoint } from "./TempoDesk"
 import { MouseEventHandler, useCallback, useEffect, useRef, useState } from "react"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../hooks/NotesProvider"
 import { asMIDI } from "../utils/utils"
-import { CurveHandle } from "./CurveHandle"
 
 interface SyntheticLineProps {
-    points: Point[]
+    tempo: TempoWithEndDate
     startTime: number
-    segment: TempoSegment
-    onChange: (newSegment: TempoSegment) => void
     stretchX: number
     stretchY: number
     chartHeight: number
@@ -18,9 +15,8 @@ interface SyntheticLineProps {
     active: boolean
 }
 
-export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, chartHeight, onClick, onChange, active }: SyntheticLineProps) => {
+export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeight, onClick, active }: SyntheticLineProps) => {
     const [hovered, setHovered] = useState(false)
-    const [tempo, setTempo] = useState<TempoWithEndDate>()
     const [flashKey, setFlashKey] = useState(0)
     const prevActive = useRef(false)
 
@@ -35,8 +31,6 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
     const { slice } = useNotes()
 
     const handlePlay = useCallback(() => {
-        if (!tempo) return
-
         const notes = structuredClone(slice(tempo.date, tempo.endDate))
         // TODO: filter by part
 
@@ -71,22 +65,6 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
         }
     }, [tempo, play, stop, slice])
 
-    useEffect(() => {
-        if (points.length <= 1) return
-
-        setTempo(
-            approximateTempo(
-                points,
-                segment.startBPM,
-                segment.endBPM,
-                segment.meanTempoAt,
-                segment.beatLength
-            )
-        )
-    }, [points, segment])
-
-    if (!tempo) return null
-
     const step = 20
     const curvePoints: TempoPoint[] = []
     for (let i = tempo.date; i <= tempo.endDate; i += step) {
@@ -98,17 +76,12 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
     }
 
     if (curvePoints.length === 0) return null
-    if (points.length === 0) return null
 
     const meanTempoDate = (tempo.endDate - tempo.date) * (tempo.meanTempoAt || 0.5)
-    const meanTempoMs = (points[0][0] * 1000) + computeMillisecondsAt(tempo.date + meanTempoDate, tempo)
+    const meanTempoMs = startTime + computeMillisecondsAt(tempo.date + meanTempoDate, tempo) / 1000
     const meanTempo = (tempo["transition.to"] || tempo.bpm) + 0.5 * (tempo.bpm - (tempo["transition.to"] || tempo.bpm))
 
-    const totalError = computeTotalError(tempo, points)
-    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
-    const t = clamp((totalError - 200) / (1000 - 200), 0, 1)
-    const hue = (1 - t) * 120  // 120 => green, 0 => red
-    const color = `hsl(${hue}, 85%, 30%)`
+    const color = 'hsl(220, 60%, 40%)'
 
     return (
         <g
@@ -129,7 +102,7 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                     </text>
 
                     <circle
-                        cx={(meanTempoMs / 1000) * stretchX}
+                        cx={meanTempoMs * stretchX}
                         cy={meanTempo * -stretchY}
                         r={5}
                         fill="lightcoral"
@@ -137,7 +110,7 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
 
                     {tempo.meanTempoAt && (
                         <text
-                            x={(meanTempoMs / 1000) * stretchX}
+                            x={meanTempoMs * stretchX}
                             y={meanTempo * -stretchY - 10}
                             fontSize={12}
                         >
@@ -176,33 +149,6 @@ export const SyntheticLine = ({ points, startTime, segment, stretchX, stretchY, 
                     to { opacity: 0; }
                 }
             `}</style>
-
-            {tempo["transition.to"] && (
-                <>
-                    <CurveHandle
-                        x={curvePoints[0].time * stretchX}
-                        y={-stretchY * curvePoints[0].bpm}
-                        onDrag={(newY) => {
-                            const newBPM = -newY / stretchY
-                            onChange({
-                                ...segment,
-                                startBPM: newBPM
-                            })
-                        }}
-                    />
-                    <CurveHandle
-                        x={curvePoints[curvePoints.length - 1].time * stretchX}
-                        y={-stretchY * curvePoints[curvePoints.length - 1].bpm}
-                        onDrag={(newY) => {
-                            const newBPM = -newY / stretchY
-                            onChange({
-                                ...segment,
-                                endBPM: newBPM
-                            })
-                        }}
-                    />
-                </>
-            )}
         </g>
     )
 }
