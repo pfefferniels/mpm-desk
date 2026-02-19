@@ -14,7 +14,6 @@ import { ZoomContext } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';
 import { useMode } from './hooks/ModeProvider';
 import JSZip from 'jszip'
-import { SvgDndProvider } from './transformer-stack/svg-dnd';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
@@ -347,14 +346,12 @@ export const App = () => {
 
                             <FloatingZoom />
                             <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
-                                <SvgDndProvider>
-                                    <TransformerStack
-                                        transformers={transformers}
-                                        setTransformers={setTransformers}
-                                        msm={msm}
-                                        mpm={mpm}
-                                    />
-                                </SvgDndProvider>
+                                <TransformerStack
+                                    transformers={transformers}
+                                    setTransformers={setTransformers}
+                                    msm={msm}
+                                    mpm={mpm}
+                                />
                             </div>
                         </ScrollSyncProvider>
                     </SelectionProvider>

@@ -1,20 +1,17 @@
 import { Card } from "@mui/material";
 import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { MPM, MSM } from "mpmify";
-import { applyWedgeLevelGeometry, assignWedgeLevels, computeCurvePoints, computeWedgeModels } from "./WedgeModel";
-import { Wedge } from "./Wedge";
-import { useSvgDnd } from "./svg-dnd";
-import { Ground } from "./Ground";
 import { v4 } from "uuid";
 import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
 import { usePlayback } from "../hooks/PlaybackProvider";
-import { DragLayer } from "./DragLayer";
 import { BarLines } from "./BarLines";
 import { ExportPNG } from "../ExportPng";
+import { buildRegions, computeCurvePoints, OnionDragState, OnionSubregion } from "./OnionModel";
+import { RegionOnion } from "./RegionOnion";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -30,13 +27,14 @@ export const TransformerStack = ({
     mpm,
 }: TransformerStackProps) => {
     const { play, stop } = usePlayback();
-    const { svgRef, svgHandlers } = useSvgDnd();
     const { activeTransformerIds, setActiveTransformerIds, removeActiveTransformers } = useSelection();
     const stretchX = useSymbolicZoom();
 
-    const [hoveredWedgeId, setHoveredWedgeId] = useState<string | null>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const [hoveredRegionId, setHoveredRegionId] = useState<string | null>(null);
+    const [dragState, setDragState] = useState<OnionDragState | null>(null);
 
-    // Scroll sync - use callback ref to register when element mounts
+    // Scroll sync
     const { register, unregister } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
         if (element) {
@@ -70,6 +68,34 @@ export const TransformerStack = ({
         [argumentations, maxDate, msm]
     );
 
+    const totalHeight = 300;
+    const padTop = 40;
+    const padBottom = 40;
+
+    const curvePoints = useMemo(
+        () => computeCurvePoints({ scaled, stretchX, totalHeight, padTop, padBottom }),
+        [scaled, stretchX, totalHeight],
+    );
+
+    const curvePathD = useMemo(
+        () => asPathD(scaled, stretchX, totalHeight, padTop, padBottom),
+        [scaled, stretchX, totalHeight],
+    );
+
+    const regions = useMemo(
+        () => buildRegions(argumentations, msm, elementTypesByTransformer),
+        [argumentations, msm, elementTypesByTransformer],
+    );
+
+    const sizeFactors = useMemo(() => {
+        const maxSpan = Math.max(1, ...regions.map(r => r.to - r.from));
+        const map = new Map<string, number>();
+        for (const r of regions) {
+            map.set(r.id, (r.to - r.from) / maxSpan);
+        }
+        return map;
+    }, [regions]);
+
     const mergeInto = useCallback(
         (transformerId: string, argumentation: Argumentation) => {
             const transformer = transformers.find(t => t.id === transformerId);
@@ -95,125 +121,150 @@ export const TransformerStack = ({
                 };
                 setTransformers([...transformers]);
             }
-        }, [transformers, setTransformers])
+        }, [transformers, setTransformers]);
 
-    const handleWedgeHover = useCallback((wedgeId: string | null) => {
-        setHoveredWedgeId(wedgeId);
+    // During drag, force source region (and drop target) to stay hovered
+    const effectiveHoveredId = dragState ? dragState.sourceRegionId : hoveredRegionId;
+    const handleHoverChange = dragState ? () => {} : (regionId: string | null) => {
+        setHoveredRegionId(regionId);
 
-        if (!wedgeId) {
+        if (!regionId) {
             stop();
             return;
         }
 
-        const wedgeTransformers = transformers.filter(t => t.argumentation?.id === wedgeId);
-        const mpmIds = wedgeTransformers.flatMap(t => t.created);
+        const regionTransformers = transformers.filter(t => t.argumentation?.id === regionId);
+        const mpmIds = regionTransformers.flatMap(t => t.created);
         if (mpmIds.length === 0) return;
 
         play({ mpmIds, isolate: true });
-    }, [transformers, play, stop]);
+    };
 
-    // Callback for when argumentation is changed in the dialog
-    // Creates new array reference to trigger re-render and re-memoization
     const handleArgumentationChange = useCallback(() => {
         setTransformers([...transformers]);
     }, [transformers, setTransformers]);
 
-    const totalHeight = 300;
-    const basePadding = 8;
+    // Mask gap for intensity curve under hovered region
+    const maskId = useId();
+    const maskGap = useMemo(() => {
+        if (!effectiveHoveredId || curvePoints.length === 0) return null;
+        const hr = regions.find(r => r.id === effectiveHoveredId);
+        if (!hr) return null;
+        const f = Math.max(0, Math.min(hr.from, curvePoints.length - 1));
+        const t = Math.max(0, Math.min(hr.to, curvePoints.length - 1));
+        if (t <= f) return null;
+        return { x1: curvePoints[f].x, x2: curvePoints[t].x };
+    }, [effectiveHoveredId, regions, curvePoints]);
 
-    const scene = useMemo(() => {
-        // STEP 1: Compute preliminary curve just for X positions (Y doesn't matter yet)
-        const prelimCurvePoints = computeCurvePoints({
-            scaled,
-            stretchX,
-            totalHeight,
-            padTop: basePadding,
-            padBottom: basePadding
-        });
+    // --- Drag-and-drop via window listeners ---
 
-        // STEP 2: Build wedges and assign levels (only uses X intervals)
-        let wedges = computeWedgeModels({
-            argumentations,
-            msm,
-            curvePoints: prelimCurvePoints,
-            baseAmplitude: 30,
-            minWidthPx: 32,
-        });
+    const screenToSvg = useCallback(
+        (clientX: number, clientY: number): { x: number; y: number } => {
+            const svg = svgRef.current;
+            if (!svg) return { x: 0, y: 0 };
+            const ctm = svg.getScreenCTM();
+            if (!ctm) return { x: 0, y: 0 };
+            const inv = ctm.inverse();
+            return {
+                x: inv.a * clientX + inv.c * clientY + inv.e,
+                y: inv.b * clientX + inv.d * clientY + inv.f,
+            };
+        },
+        [],
+    );
 
-        wedges = assignWedgeLevels(wedges, "above");
-        wedges = assignWedgeLevels(wedges, "below");
+    const findDropTarget = useCallback(
+        (svgX: number, sourceRegionId: string): string | null => {
+            if (curvePoints.length === 0) return null;
+            for (const r of regions) {
+                if (r.id === sourceRegionId) continue;
+                const f = Math.max(0, Math.min(r.from, curvePoints.length - 1));
+                const t = Math.max(0, Math.min(r.to, curvePoints.length - 1));
+                if (t <= f) continue;
+                const x1 = curvePoints[f].x;
+                const x2 = curvePoints[t].x;
+                if (svgX >= x1 && svgX <= x2) return r.id;
+            }
+            return null;
+        },
+        [regions, curvePoints],
+    );
 
-        // STEP 3: Calculate required vertical space for wedges
-        const maxLevelAbove = Math.max(0, ...wedges.filter(w => w.side === "above").map(w => w.level));
-        const maxLevelBelow = Math.max(0, ...wedges.filter(w => w.side === "below").map(w => w.level));
+    const handleDragStart = useCallback(
+        (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const pos = screenToSvg(e.clientX, e.clientY);
+            setDragState({
+                subregion,
+                sourceRegionId,
+                svgX: pos.x,
+                svgY: pos.y,
+                laneColor,
+                dropTargetRegionId: null,
+            });
+        },
+        [screenToSvg],
+    );
 
-        // Base gap calculation - scale with zoom but keep reasonable bounds
-        const desiredGap = Math.min(40, 20 + 15 * stretchX);
+    // Keep latest callbacks in refs so window listeners don't churn
+    const findDropTargetRef = useRef(findDropTarget);
+    findDropTargetRef.current = findDropTarget;
+    const mergeIntoRef = useRef(mergeInto);
+    mergeIntoRef.current = mergeInto;
+    const extractTransformerRef = useRef(extractTransformer);
+    extractTransformerRef.current = extractTransformer;
+    const regionsRef = useRef(regions);
+    regionsRef.current = regions;
 
-        // Space needed for wedges on each side: (maxLevel + 1) * gap
-        // +1 because level 0 also needs space
-        const spaceAbove = (maxLevelAbove + 1) * desiredGap;
-        const spaceBelow = (maxLevelBelow + 1) * desiredGap;
+    const isDragging = dragState !== null;
 
-        // Calculate padding to reserve space for wedges
-        // Ensure minimum padding for curve visibility
-        const padTop = Math.max(basePadding, spaceAbove + basePadding);
-        const padBottom = Math.max(basePadding, spaceBelow + basePadding);
+    useEffect(() => {
+        if (!isDragging) return;
 
-        // Check if we have enough room - if not, scale down the gap
-        const availableForCurve = totalHeight - padTop - padBottom;
-        const minCurveHeight = 100; // Minimum height for the curve to remain visible
+        const onMouseMove = (e: MouseEvent) => {
+            const pos = screenToSvg(e.clientX, e.clientY);
+            setDragState(prev => {
+                if (!prev) return null;
+                const dropTarget = findDropTargetRef.current(pos.x, prev.sourceRegionId);
+                return { ...prev, svgX: pos.x, svgY: pos.y, dropTargetRegionId: dropTarget };
+            });
+        };
 
-        let gapInPixels = desiredGap;
-        if (availableForCurve < minCurveHeight) {
-            // Scale down gap to fit everything
-            const totalLevels = maxLevelAbove + maxLevelBelow + 2; // +2 for level 0 on each side
-            const maxTotalSpace = totalHeight - minCurveHeight - 2 * basePadding;
-            gapInPixels = Math.max(10, maxTotalSpace / totalLevels);
+        const onMouseUp = (e: MouseEvent) => {
+            const pos = screenToSvg(e.clientX, e.clientY);
+            setDragState(prev => {
+                if (!prev) return null;
+                const dropTarget = findDropTargetRef.current(pos.x, prev.sourceRegionId);
+                if (dropTarget) {
+                    // Merge: move transformer into target region's argumentation
+                    const targetRegion = regionsRef.current.find(r => r.id === dropTarget);
+                    if (targetRegion) {
+                        mergeIntoRef.current(prev.subregion.id, targetRegion.argumentation);
+                    }
+                } else {
+                    // Extract: create new argumentation for this transformer
+                    extractTransformerRef.current(prev.subregion.id);
+                }
+                return null;
+            });
+        };
+
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        return () => {
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+        };
+    }, [isDragging, screenToSvg]);
+
+    const handleClearSelection = useCallback(() => {
+        setActiveTransformerIds(new Set());
+        const currentHash = window.location.hash.slice(1);
+        if (currentHash) {
+            history.pushState(null, '', window.location.pathname + window.location.search);
         }
-
-        // Recalculate padding with final gap
-        const finalSpaceAbove = (maxLevelAbove + 1) * gapInPixels;
-        const finalSpaceBelow = (maxLevelBelow + 1) * gapInPixels;
-        const finalPadTop = basePadding + finalSpaceAbove;
-        const finalPadBottom = basePadding + finalSpaceBelow;
-
-        // STEP 4: Recompute curve with proper padding
-        const curvePoints = computeCurvePoints({
-            scaled,
-            stretchX,
-            totalHeight,
-            padTop: finalPadTop,
-            padBottom: finalPadBottom
-        });
-
-        // STEP 5: Rebuild wedges with final curve positions and apply geometry
-        wedges = computeWedgeModels({
-            argumentations,
-            msm,
-            curvePoints,
-            baseAmplitude: gapInPixels,
-            minWidthPx: 32,
-        });
-
-        wedges = assignWedgeLevels(wedges, "above");
-        wedges = assignWedgeLevels(wedges, "below");
-
-        wedges = applyWedgeLevelGeometry(wedges, curvePoints, {
-            baseAmplitude: gapInPixels,
-            levelSpacing: gapInPixels,
-        });
-
-        const width = maxX;
-        const height = totalHeight;
-
-        return { curvePoints, wedges, width, height, padTop: finalPadTop, padBottom: finalPadBottom };
-    }, [scaled, stretchX, totalHeight, argumentations, msm, maxX]);
-
-    const curvePathD = useMemo(() => {
-        // Use same padding as computeCurvePoints to ensure wedge bases align with rendered curve
-        return asPathD(scaled, stretchX, totalHeight, scene.padTop, scene.padBottom);
-    }, [scaled, stretchX, totalHeight, scene.padTop, scene.padBottom]);
+    }, [setActiveTransformerIds]);
 
     if (transformers.length === 0) return null;
 
@@ -266,23 +317,19 @@ export const TransformerStack = ({
                         position: "absolute",
                         left: 0,
                         top: 0,
+                        cursor: dragState ? "grabbing" : undefined,
                     }}
                     viewBox={`0 0 ${maxX} ${totalHeight}`}
                     preserveAspectRatio="none"
-                    {...svgHandlers}
                 >
-                    <Ground
-                        width={scene.width}
-                        height={scene.height}
-                        extractTransformer={extractTransformer}
-                        onClearSelection={() => {
-                            setActiveTransformerIds(new Set());
-                            // Clear URL hash
-                            const currentHash = window.location.hash.slice(1);
-                            if (currentHash) {
-                                history.pushState(null, '', window.location.pathname + window.location.search);
-                            }
-                        }}
+                    {/* Background rect for click-to-clear-selection */}
+                    <rect
+                        x={0}
+                        y={0}
+                        width={maxX}
+                        height={totalHeight}
+                        fill="white"
+                        onClick={handleClearSelection}
                     />
 
                     <BarLines
@@ -291,42 +338,92 @@ export const TransformerStack = ({
                         height={totalHeight}
                     />
 
+                    {maskGap && (
+                        <defs>
+                            <mask id={maskId}>
+                                <rect x="0" y="0" width={maxX} height={totalHeight} fill="white" />
+                                <rect
+                                    x={maskGap.x1}
+                                    y="0"
+                                    width={maskGap.x2 - maskGap.x1}
+                                    height={totalHeight}
+                                    fill="black"
+                                />
+                            </mask>
+                        </defs>
+                    )}
+
+                    {/* Region onions — largest first so smaller ones render on top */}
+                    {[...regions]
+                        .sort((a, b) => {
+                            const sizeA = a.to - a.from;
+                            const sizeB = b.to - b.from;
+                            return sizeB - sizeA;
+                        })
+                        .map(region => (
+                            <RegionOnion
+                                key={region.id}
+                                region={region}
+                                curvePoints={curvePoints}
+                                sizeFactor={sizeFactors.get(region.id) ?? 1}
+                                isHovered={
+                                    effectiveHoveredId === region.id ||
+                                    (dragState?.dropTargetRegionId === region.id)
+                                }
+                                isDropTarget={dragState?.dropTargetRegionId === region.id}
+                                onHoverChange={handleHoverChange}
+                                onDragStart={handleDragStart}
+                                draggingSubregionId={
+                                    dragState?.sourceRegionId === region.id
+                                        ? dragState.subregion.id
+                                        : null
+                                }
+                                onArgumentationChange={handleArgumentationChange}
+                            />
+                        ))}
+
+                    {/* Intensity curve on top, masked under hovered region */}
                     <path
                         className="intensityCurve"
                         d={curvePathD}
                         fill="none"
-                        stroke="#ac1e01ff"
-                        strokeWidth={5}
+                        stroke="#888"
+                        strokeWidth={1.3}
+                        strokeOpacity={0.5}
+                        strokeDasharray="2.6 3.9"
                         strokeLinejoin="round"
                         strokeLinecap="round"
+                        pointerEvents="none"
+                        mask={maskGap ? `url(#${maskId})` : undefined}
                     />
 
-                    {scene.wedges
-                        .map(w => ({
-                            wedge: w,
-                            isHovered: hoveredWedgeId === w.argumentationId,
-                            containsActive: w.transformers.some(t => activeTransformerIds.has(t.id)),
-                        }))
-                        .sort((a, b) => {
-                            const aExpanded = a.isHovered || a.containsActive;
-                            const bExpanded = b.isHovered || b.containsActive;
-                            if (aExpanded === bExpanded) return 0;
-                            return aExpanded ? 1 : -1; // expanded wedges render last (on top)
-                        })
-                        .map(({ wedge, isHovered }) => (
-                            <Wedge
-                                key={`wedge_${wedge.argumentationId}`}
-                                wedge={wedge}
-                                mergeInto={mergeInto}
-                                isHovered={isHovered}
-                                hoveredWedgeId={hoveredWedgeId}
-                                onHoverChange={handleWedgeHover}
-                                onArgumentationChange={handleArgumentationChange}
-                                elementTypesByTransformer={elementTypesByTransformer}
+                    {/* Drag label following the cursor */}
+                    {dragState && (
+                        <g pointerEvents="none">
+                            <rect
+                                x={dragState.svgX - dragState.subregion.type.length * 3.2 - 5}
+                                y={dragState.svgY - 20}
+                                width={dragState.subregion.type.length * 6.4 + 10}
+                                height={16}
+                                rx={4}
+                                fill="white"
+                                fillOpacity={0.92}
+                                stroke={dragState.laneColor}
+                                strokeWidth={1}
+                                strokeOpacity={0.4}
                             />
-                        ))}
-
-                    <DragLayer transformers={transformers} />
+                            <text
+                                x={dragState.svgX}
+                                y={dragState.svgY - 8}
+                                textAnchor="middle"
+                                fontSize={10}
+                                fill={dragState.laneColor}
+                                fontWeight="600"
+                            >
+                                {dragState.subregion.type}
+                            </text>
+                        </g>
+                    )}
                 </svg>
             </div>
         </Card>
