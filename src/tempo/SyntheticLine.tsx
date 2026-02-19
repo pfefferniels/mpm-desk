@@ -1,9 +1,6 @@
 import { computeMillisecondsAt, getTempoAt, TempoWithEndDate } from "mpmify"
 import { TempoPoint } from "./TempoDesk"
-import { MouseEventHandler, useCallback, useEffect, useRef, useState } from "react"
-import { usePiano } from "react-pianosound"
-import { useNotes } from "../hooks/NotesProvider"
-import { asMIDI } from "../utils/utils"
+import { MouseEventHandler, useEffect, useRef, useState } from "react"
 
 interface SyntheticLineProps {
     tempo: TempoWithEndDate
@@ -13,9 +10,11 @@ interface SyntheticLineProps {
     chartHeight: number
     onClick: MouseEventHandler
     active: boolean
+    onPlay: () => void
+    onStop: () => void
 }
 
-export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeight, onClick, active }: SyntheticLineProps) => {
+export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeight, onClick, active, onPlay, onStop }: SyntheticLineProps) => {
     const [hovered, setHovered] = useState(false)
     const [flashKey, setFlashKey] = useState(0)
     const prevActive = useRef(false)
@@ -26,44 +25,6 @@ export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeigh
         }
         prevActive.current = active
     }, [active])
-
-    const { play, stop } = usePiano()
-    const { slice } = useNotes()
-
-    const handlePlay = useCallback(() => {
-        const notes = structuredClone(slice(tempo.date, tempo.endDate))
-        // TODO: filter by part
-
-        for (const note of notes) {
-            note["midi.onset"] = computeMillisecondsAt(note.date, tempo) / 1000
-            note["midi.duration"] = computeMillisecondsAt(note.date + note.duration, tempo) / 1000 - note["midi.onset"]
-        }
-
-        // emulating a metronome by inserting very high-pitched notes
-        for (let i = tempo.date; i <= tempo.endDate; i += (tempo.beatLength * 4 * 720) / 2) {
-            notes.push({
-                date: i,
-                duration: 5,
-                'midi.pitch': i === tempo.endDate ? 120 : 127,
-                'xml:id': `metronome-${i}`,
-                part: 0,
-                pitchname: 'C',
-                accidentals: 0,
-                octave: 4,
-                'midi.onset': computeMillisecondsAt(i, tempo) / 1000,
-                'midi.duration': 0.01,
-                'midi.velocity': 80
-            })
-        }
-
-        notes.sort((a, b) => a.date - b.date)
-
-        const midi = asMIDI(notes)
-        if (midi) {
-            stop()
-            play(midi)
-        }
-    }, [tempo, play, stop, slice])
 
     const step = 20
     const curvePoints: TempoPoint[] = []
@@ -89,8 +50,8 @@ export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeigh
             onMouseOver={() => setHovered(true)}
             onMouseOut={() => setHovered(false)}
             onClick={onClick}
-            onMouseEnter={handlePlay}
-            onMouseLeave={stop}
+            onMouseEnter={onPlay}
+            onMouseLeave={onStop}
         >
             {hovered && (
                 <>
