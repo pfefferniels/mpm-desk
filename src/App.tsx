@@ -215,44 +215,76 @@ export const App = () => {
         loadFiles();
     }, [isEditorMode, loadWorkFromJson]);
 
+    // Pipeline worker for off-main-thread transformation
+    const workerRef = useRef<Worker>();
+    const requestIdRef = useRef(0);
+
+    useEffect(() => {
+        workerRef.current = new Worker(
+            new URL('./pipeline.worker.ts', import.meta.url),
+            { type: 'module' }
+        );
+        return () => workerRef.current?.terminate();
+    }, []);
+
     // Reconciliation: rebuild MSM/MPM whenever transformers or metadata change
     useEffect(() => {
         if (initialMSM.allNotes.length === 0) return;
+        if (!workerRef.current) return;
 
-        // Create InsertMetadata transformer from metadata state
-        const metadataTransformer = new InsertMetadata({
-            authors: metadata.author ? [{ number: 0, text: metadata.author }] : [],
-            comments: metadata.title ? [{ text: metadata.title }] : []
-        })
-        metadataTransformer.argumentation = {
-            note: '',
-            id: 'argumentation-metadata',
-            conclusion: {
-                certainty: 'authentic',
-                id: 'belief-metadata',
-                motivation: 'calm'
+        const requestId = ++requestIdRef.current;
+
+        workerRef.current.postMessage({
+            type: 'run-pipeline',
+            requestId,
+            transformers: transformers.map(t => ({
+                id: t.id,
+                name: t.name,
+                options: t.options,
+                created: t.created,
+                argumentation: t.argumentation
+            })),
+            msm: {
+                allNotes: initialMSM.allNotes,
+                pedals: initialMSM.pedals,
+                timeSignature: initialMSM.timeSignature
             },
-            type: 'simpleArgumentation'
-        }
-
-        // Combine with other transformers
-        const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers)
-
-        const messages = validate(allTransformers);
-        if (messages.length) {
-            setMessage(messages.map(m => m.message).join('\n'));
-            return;
-        }
-
-        const newMPM = new MPM();
-        const newMSM = initialMSM.deepClone();
-
-        allTransformers.forEach(t => {
-            t.run(newMSM, newMPM);
+            metadata
         });
 
-        setMPM(newMPM);
-        setMSM(newMSM);
+        const handler = (event: MessageEvent) => {
+            const data = event.data;
+            if (data.requestId !== requestIdRef.current) return;
+            workerRef.current?.removeEventListener('message', handler);
+
+            if (data.type === 'pipeline-result') {
+                const newMSM = new MSM();
+                newMSM.allNotes = data.msm.allNotes;
+                newMSM.pedals = data.msm.pedals;
+                newMSM.timeSignature = data.msm.timeSignature;
+
+                const newMPM = new MPM();
+                newMPM.doc = data.mpmDoc;
+
+                // Sync created arrays back to main-thread transformer instances
+                for (const t of transformers) {
+                    if (data.created[t.id]) {
+                        t.created = data.created[t.id];
+                    }
+                }
+
+                setMPM(newMPM);
+                setMSM(newMSM);
+                setMessage(undefined);
+            } else if (data.type === 'validation-error') {
+                setMessage(data.messages.join('\n'));
+            } else if (data.type === 'pipeline-error') {
+                setMessage(data.error);
+            }
+        };
+
+        workerRef.current.addEventListener('message', handler);
+        return () => workerRef.current?.removeEventListener('message', handler);
     }, [transformers, initialMSM, metadata]);
 
     const isMetadataSelected = selectedDesk === 'metadata'
