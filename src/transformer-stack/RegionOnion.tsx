@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Menu, MenuItem } from "@mui/material";
 import type { CurvePoint, OnionRegion, OnionSubregion } from "./OnionModel";
 import { ArgumentationDialog } from "./ArgumentationDialog";
@@ -122,7 +122,7 @@ interface RegionOnionProps {
     isHovered: boolean;
     isDropTarget?: boolean;
     onHoverChange: (regionId: string | null) => void;
-    onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: React.MouseEvent) => void;
+    onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
     onArgumentationChange: () => void;
 }
@@ -243,13 +243,14 @@ interface SubregionLanesProps {
     regionTo: number;
     amplitude: number;
     regionId: string;
-    onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: React.MouseEvent) => void;
+    onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
 }
 
 const LANE_STROKE_WIDTH = 3;
 const LANE_STROKE_WIDTH_ACTIVE = 5;
 const LANE_HIT_WIDTH = 12;
+const DRAG_THRESHOLD = 5;
 
 const SubregionLanes = memo(function SubregionLanes({
     subregions,
@@ -274,6 +275,49 @@ const SubregionLanes = memo(function SubregionLanes({
         removeTransformer,
         replaceTransformer,
     } = useSelection();
+
+    // Pending drag: distinguish click from drag via threshold
+    const [pendingDrag, setPendingDrag] = useState(false);
+    const pendingDragRef = useRef<{
+        subregion: OnionSubregion;
+        startX: number;
+        startY: number;
+        color: string;
+    } | null>(null);
+
+    useEffect(() => {
+        if (!pendingDrag) return;
+
+        const onMouseMove = (e: MouseEvent) => {
+            const pending = pendingDragRef.current;
+            if (!pending) return;
+            if (Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY) >= DRAG_THRESHOLD) {
+                onDragStart?.(pending.subregion, regionId, pending.color, e);
+                pendingDragRef.current = null;
+                setPendingDrag(false);
+            }
+        };
+
+        const onMouseUp = (e: MouseEvent) => {
+            const pending = pendingDragRef.current;
+            if (pending) {
+                if (e.metaKey || e.ctrlKey) {
+                    toggleActiveTransformer(pending.subregion.id);
+                } else {
+                    focusTransformer(pending.subregion.id);
+                }
+            }
+            pendingDragRef.current = null;
+            setPendingDrag(false);
+        };
+
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        return () => {
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+        };
+    }, [pendingDrag, onDragStart, regionId, toggleActiveTransformer, focusTransformer]);
 
     const lanes = useMemo(() => {
         const typeOrder: string[] = [];
@@ -356,20 +400,20 @@ const SubregionLanes = memo(function SubregionLanes({
                             stroke="transparent"
                             strokeWidth={LANE_HIT_WIDTH}
                             pointerEvents="stroke"
-                            style={{ cursor: isDragging ? "grabbing" : "grab" }}
+                            style={{ cursor: isDragging ? "grabbing" : "default" }}
                             onMouseEnter={() => setHoveredId(subregion.id)}
                             onMouseLeave={() => setHoveredId(null)}
                             onMouseDown={e => {
                                 if (e.button === 0) {
-                                    onDragStart?.(subregion, regionId, color, e);
-                                }
-                            }}
-                            onClick={e => {
-                                e.stopPropagation();
-                                if (e.metaKey || e.ctrlKey) {
-                                    toggleActiveTransformer(subregion.id);
-                                } else {
-                                    focusTransformer(subregion.id);
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    pendingDragRef.current = {
+                                        subregion,
+                                        startX: e.clientX,
+                                        startY: e.clientY,
+                                        color,
+                                    };
+                                    setPendingDrag(true);
                                 }
                             }}
                             onContextMenu={e => handleContextMenu(e, subregion)}

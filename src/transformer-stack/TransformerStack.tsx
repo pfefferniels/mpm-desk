@@ -191,9 +191,7 @@ export const TransformerStack = ({
     );
 
     const handleDragStart = useCallback(
-        (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: React.MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
+        (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => {
             const pos = screenToSvg(e.clientX, e.clientY);
             setDragState({
                 subregion,
