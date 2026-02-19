@@ -23,20 +23,23 @@ export function BarLines({ maxDate, stretchX, height }: BarLinesProps) {
                     <g key={tick}>
                         <line
                             x1={x}
-                            y1={0}
+                            y1={height - 6}
                             x2={x}
                             y2={height}
                             stroke="gray"
                             strokeWidth={1}
                         />
-                        <text
-                            x={x + 4}
-                            y={height - 8}
-                            fontSize={12}
-                            fill="gray"
-                        >
-                            b. {index}
-                        </text>
+                        {index % 2 === 0 && (
+                            <text
+                                x={x}
+                                y={height - 8}
+                                fontSize={12}
+                                fill="gray"
+                                textAnchor="middle"
+                            >
+                                {index}
+                            </text>
+                        )}
                     </g>
                 );
             })}
