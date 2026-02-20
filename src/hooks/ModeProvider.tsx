@@ -14,9 +14,9 @@ export const ModeProvider = ({ children }: ModeProviderProps) => {
     const isEditorMode = window.location.pathname === '/editor';
 
     return (
-        <ModeContext.Provider value={{ isEditorMode }}>
+        <ModeContext value={{ isEditorMode }}>
             {children}
-        </ModeContext.Provider>
+        </ModeContext>
     );
 };
 

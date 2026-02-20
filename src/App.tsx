@@ -87,8 +87,9 @@ export const App = () => {
             reader.onload = async (e: ProgressEvent<FileReader>) => {
                 const content = e.target?.result as string;
                 setMEI(content);
-                setMSM(await asMSM(content));
-                setInitialMSM(await asMSM(content));
+                const result = await asMSM(content);
+                setMSM(result);
+                setInitialMSM(result);
                 document.title = `${file.name} - MPM Desk`
             };
             reader.readAsText(file);
@@ -102,8 +103,9 @@ export const App = () => {
             if (meiFile) {
                 const meiContent = await meiFile.async('string');
                 setMEI(meiContent);
-                setMSM(await asMSM(meiContent));
-                setInitialMSM(await asMSM(meiContent));
+                const result = await asMSM(meiContent);
+                setMSM(result);
+                setInitialMSM(result);
                 document.title = `${file.name} - MPM Desk`;
             }
 
@@ -197,8 +199,9 @@ export const App = () => {
                 if (meiResponse.ok) {
                     const meiContent = await meiResponse.text();
                     setMEI(meiContent);
-                    setMSM(await asMSM(meiContent));
-                    setInitialMSM(await asMSM(meiContent));
+                    const result = await asMSM(meiContent);
+                    setMSM(result);
+                    setInitialMSM(result);
                 }
 
                 const jsonResponse = await fetch('/info.json');
@@ -250,7 +253,6 @@ export const App = () => {
             },
             metadata
         });
-
         const handler = (event: MessageEvent) => {
             const data = event.data;
             if (data.requestId !== requestIdRef.current) return;
@@ -300,7 +302,7 @@ export const App = () => {
     const { tickToSeconds, secondsToTick } = useTimeMapping(msm);
 
     return (
-        <ZoomContext.Provider value={zoomContextValue}>
+        <ZoomContext value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
                 <PlaybackProvider mei={mei} msm={msm} mpm={mpm}>
                     <SelectionProvider
@@ -350,13 +352,6 @@ export const App = () => {
                                         secondary={secondary}
                                         setSecondary={setSecondary}
                                         addTransformer={(transformer: Transformer) => {
-                                            const newTransformers = [...transformers, transformer].sort(compareTransformers)
-                                            const messages = validate(newTransformers)
-                                            if (messages.length) {
-                                                setMessage(messages.map(m => m.message).join('\n'))
-                                                return
-                                            }
-
                                             transformer.argumentation = {
                                                 note: '',
                                                 id: `argumentation-${v4().slice(0, 8)}`,
@@ -368,7 +363,15 @@ export const App = () => {
                                                 type: 'simpleArgumentation'
                                             }
 
-                                            setTransformers(newTransformers)
+                                            setTransformers(prev => {
+                                                const newTransformers = [...prev, transformer].sort(compareTransformers)
+                                                const messages = validate(newTransformers)
+                                                if (messages.length) {
+                                                    setMessage(messages.map(m => m.message).join('\n'))
+                                                    return prev
+                                                }
+                                                return newTransformers
+                                            })
                                         }}
                                         part={scope}
                                     />
@@ -404,6 +407,6 @@ export const App = () => {
                     </Alert>
                 </Snackbar>
             </div>
-        </ZoomContext.Provider>
+        </ZoomContext>
     );
 };

@@ -188,9 +188,9 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
     }), [register, unregister, scrollToDate]);
 
     return (
-        <ScrollSyncContext.Provider value={contextValue}>
+        <ScrollSyncContext value={contextValue}>
             {children}
-        </ScrollSyncContext.Provider>
+        </ScrollSyncContext>
     );
 };
 

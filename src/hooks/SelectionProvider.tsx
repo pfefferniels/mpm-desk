@@ -94,9 +94,9 @@ export const SelectionProvider = ({
     }), [activeTransformerIds, activeElements, setActiveTransformerIds, toggleActiveTransformer, setActiveElement, removeTransformer, removeActiveTransformers, replaceTransformer, focusTransformer]);
 
     return (
-        <SelectionContext.Provider value={value}>
+        <SelectionContext value={value}>
             {children}
-        </SelectionContext.Provider>
+        </SelectionContext>
     );
 };
 

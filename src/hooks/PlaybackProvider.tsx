@@ -131,9 +131,9 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
     }), [isPlaying, play, stop]);
 
     return (
-        <PlaybackContext.Provider value={value}>
+        <PlaybackContext value={value}>
             {children}
-        </PlaybackContext.Provider>
+        </PlaybackContext>
     );
 };
 

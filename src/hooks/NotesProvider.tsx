@@ -46,9 +46,9 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ notes, children })
     const value = useMemo(() => ({ notes, slice }), [notes, slice]);
 
     return (
-        <NotesContext.Provider value={value}>
+        <NotesContext value={value}>
             {children}
-        </NotesContext.Provider>
+        </NotesContext>
     );
 };
 

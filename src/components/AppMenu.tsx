@@ -176,12 +176,14 @@ export const AppMenu: React.FC<AppMenuProps> = ({
                     </Tooltip>
 
                     <Tooltip title='Save Work' arrow>
-                        <IconButton
-                            disabled={transformers.length === 0 || !mei}
-                            onClick={handleSave}
-                        >
-                            <Save />
-                        </IconButton>
+                        <span>
+                            <IconButton
+                                disabled={transformers.length === 0 || !mei}
+                                onClick={handleSave}
+                            >
+                                <Save />
+                            </IconButton>
+                        </span>
                     </Tooltip>
 
                     <input
@@ -235,12 +237,14 @@ export const AppMenu: React.FC<AppMenuProps> = ({
             )}
 
             <Tooltip title='Download ZIP' arrow>
-                <IconButton
-                    disabled={!mei}
-                    onClick={handleSave}
-                >
-                    <Save />
-                </IconButton>
+                <span>
+                    <IconButton
+                        disabled={!mei}
+                        onClick={handleSave}
+                    >
+                        <Save />
+                    </IconButton>
+                </span>
             </Tooltip>
         </>
     );
