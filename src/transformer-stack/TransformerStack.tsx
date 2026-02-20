@@ -32,8 +32,11 @@ export const TransformerStack = ({
     const stretchX = useSymbolicZoom();
 
     const svgRef = useRef<SVGSVGElement>(null);
+    const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [hoveredRegionId, setHoveredRegionId] = useState<string | null>(null);
     const [dragState, setDragState] = useState<OnionDragState | null>(null);
+    const dragStateRef = useLatest(dragState);
+    const transformersRef = useLatest(transformers);
 
     // Scroll sync
     const { register, unregister } = useScrollSync();
@@ -126,20 +129,23 @@ export const TransformerStack = ({
 
     // During drag, force source region (and drop target) to stay hovered
     const effectiveHoveredId = dragState ? dragState.sourceRegionId : hoveredRegionId;
-    const handleHoverChange = dragState ? () => {} : (regionId: string | null) => {
+    const handleHoverChange = useCallback((regionId: string | null) => {
+        if (dragStateRef.current) return;
         setHoveredRegionId(regionId);
+
+        if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
 
         if (!regionId) {
             stop();
             return;
         }
 
-        const regionTransformers = transformers.filter(t => t.argumentation?.id === regionId);
-        const mpmIds = regionTransformers.flatMap(t => t.created);
-        if (mpmIds.length === 0) return;
-
-        play({ mpmIds, isolate: true });
-    };
+        playTimeoutRef.current = setTimeout(() => {
+            const ts = transformersRef.current;
+            const mpmIds = ts.filter(t => t.argumentation?.id === regionId).flatMap(t => t.created);
+            if (mpmIds.length > 0) play({ mpmIds, isolate: true });
+        }, 150);
+    }, [stop, play]);
 
     const handleArgumentationChange = useCallback(() => {
         setTransformers([...transformers]);
@@ -225,7 +231,6 @@ export const TransformerStack = ({
     const mergeIntoRef = useLatest(mergeInto);
     const extractTransformerRef = useLatest(extractTransformer);
     const regionsRef = useLatest(regions);
-    const dragStateRef = useLatest(dragState);
     const isDragging = dragState !== null;
 
     useEffect(() => {
@@ -272,6 +277,12 @@ export const TransformerStack = ({
             history.pushState(null, '', window.location.pathname + window.location.search);
         }
     }, [setActiveTransformerIds]);
+
+    useEffect(() => {
+        return () => {
+            if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
+        };
+    }, []);
 
     if (transformers.length === 0) return null;
 
@@ -377,6 +388,7 @@ export const TransformerStack = ({
                                     effectiveHoveredId === region.id ||
                                     (dragState?.dropTargetRegionId === region.id)
                                 }
+                                isAnyHovered={effectiveHoveredId !== null}
                                 isDropTarget={dragState?.dropTargetRegionId === region.id}
                                 onHoverChange={handleHoverChange}
                                 onDragStart={handleDragStart}

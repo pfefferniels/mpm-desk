@@ -120,6 +120,7 @@ interface RegionOnionProps {
     curvePoints: CurvePoint[];
     sizeFactor: number;
     isHovered: boolean;
+    isAnyHovered: boolean;
     isDropTarget?: boolean;
     onHoverChange: (regionId: string | null) => void;
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
@@ -132,6 +133,7 @@ export const RegionOnion = memo(function RegionOnion({
     curvePoints,
     sizeFactor,
     isHovered,
+    isAnyHovered,
     isDropTarget,
     onHoverChange,
     onDragStart,
@@ -142,7 +144,7 @@ export const RegionOnion = memo(function RegionOnion({
 
     const from = Math.max(0, Math.min(region.from, curvePoints.length - 1));
     const to = Math.max(0, Math.min(region.to, curvePoints.length - 1));
-    if (to <= from) return null;
+    const valid = to > from;
 
     const color = isDropTarget ? "#3498db" : REGION_COLOR;
 
@@ -150,11 +152,12 @@ export const RegionOnion = memo(function RegionOnion({
     const amplitude = isHovered ? baseAmp + HOVER_EXTRA : baseAmp;
 
     const onionPath = useMemo(
-        () => buildOnionPath(curvePoints, from, to, amplitude),
-        [curvePoints, from, to, amplitude],
+        () => valid ? buildOnionPath(curvePoints, from, to, amplitude) : "",
+        [curvePoints, from, to, amplitude, valid],
     );
 
     const hitPath = useMemo(() => {
+        if (!valid) return "";
         const step = Math.max(1, Math.floor((to - from) / 80));
         const pts: string[] = [];
         for (let i = from; i <= to; i += step) {
@@ -166,7 +169,9 @@ export const RegionOnion = memo(function RegionOnion({
             pts.push(`L ${p.x} ${p.y}`);
         }
         return pts.join(" ");
-    }, [curvePoints, from, to]);
+    }, [curvePoints, from, to, valid]);
+
+    if (!valid) return null;
 
     return (
         <g
@@ -198,13 +203,13 @@ export const RegionOnion = memo(function RegionOnion({
                 />
             )}
 
-            {/* Thin hit path along the curve — always present for initial hover detection */}
+            {/* Thin hit path along the curve — disabled when another region is open */}
             <path
                 d={hitPath}
                 fill="none"
                 stroke="transparent"
                 strokeWidth={20}
-                pointerEvents="stroke"
+                pointerEvents={isAnyHovered && !isHovered ? "none" : "stroke"}
                 style={{ cursor: "pointer" }}
             />
 
@@ -251,6 +256,7 @@ const LANE_STROKE_WIDTH = 3;
 const LANE_STROKE_WIDTH_ACTIVE = 5;
 const LANE_HIT_WIDTH = 12;
 const DRAG_THRESHOLD = 5;
+const LANE_GAP_TICKS = 2;
 
 const SubregionLanes = memo(function SubregionLanes({
     subregions,
@@ -336,8 +342,11 @@ const SubregionLanes = memo(function SubregionLanes({
 
         return subregions.map(sr => {
             const laneOffset = laneOffsets.get(sr.type) ?? 0;
-            const clampedFrom = Math.max(regionFrom, Math.min(sr.from, curvePoints.length - 1));
-            const clampedTo = Math.max(regionFrom, Math.min(sr.to, curvePoints.length - 1));
+            const halfGap = Math.min(LANE_GAP_TICKS, Math.floor((sr.to - sr.from) / 4));
+            const gappedFrom = sr.from + halfGap;
+            const gappedTo = sr.to - halfGap;
+            const clampedFrom = Math.max(regionFrom, Math.min(gappedFrom, curvePoints.length - 1));
+            const clampedTo = Math.max(regionFrom, Math.min(gappedTo, curvePoints.length - 1));
             const mid = Math.floor((clampedFrom + clampedTo) / 2);
             const pt = curvePoints[mid];
             const n = curveNormal(curvePoints, mid);
@@ -347,7 +356,7 @@ const SubregionLanes = memo(function SubregionLanes({
 
             return {
                 subregion: sr,
-                path: buildLanePath(curvePoints, regionFrom, regionTo, sr.from, sr.to, amplitude, laneOffset),
+                path: buildLanePath(curvePoints, regionFrom, regionTo, gappedFrom, gappedTo, amplitude, laneOffset),
                 color: getLaneColor(sr.type),
                 labelX: pt ? pt.x + n.x * off : 0,
                 labelY: pt ? pt.y + n.y * off : 0,
