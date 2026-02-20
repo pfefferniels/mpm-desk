@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useRef, useMemo, useCallback } from 'react';
+import { useLatest } from './useLatest';
 
 type ScrollDomain ='symbolic' | 'physical';
 
@@ -49,14 +50,10 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
     const rafIdRef = useRef<number | null>(null);
 
     // Store converter props in refs so syncScroll always reads latest values
-    const symbolicZoomRef = useRef(symbolicZoom);
-    symbolicZoomRef.current = symbolicZoom;
-    const physicalZoomRef = useRef(physicalZoom);
-    physicalZoomRef.current = physicalZoom;
-    const tickToSecondsRef = useRef(tickToSeconds);
-    tickToSecondsRef.current = tickToSeconds;
-    const secondsToTickRef = useRef(secondsToTick);
-    secondsToTickRef.current = secondsToTick;
+    const symbolicZoomRef = useLatest(symbolicZoom);
+    const physicalZoomRef = useLatest(physicalZoom);
+    const tickToSecondsRef = useLatest(tickToSeconds);
+    const secondsToTickRef = useLatest(secondsToTick);
 
     // Tolerance in pixels to avoid floating-point precision issues
     const SCROLL_TOLERANCE = 2;

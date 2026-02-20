@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLatest } from './hooks/useLatest';
 import { asMSM } from './asMSM';
 import { compareTransformers, importWork, InsertMetadata, MPM, MSM, validate } from 'mpmify';
 import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
@@ -52,10 +53,8 @@ export const App = () => {
     const [stretchX, setStretchX] = useState<number>(20)
 
     const appBarRef = React.useRef<HTMLDivElement>(null);
-    const transformersRef = useRef(transformers);
-    transformersRef.current = transformers;
-    const activeTransformerIdsRef = useRef(activeTransformerIds);
-    activeTransformerIdsRef.current = activeTransformerIds;
+    const transformersRef = useLatest(transformers);
+    const activeTransformerIdsRef = useLatest(activeTransformerIds);
 
     const loadWorkFromJson = useCallback((content: string) => {
         const { transformers: loaded, secondary: loadedSecondary } = importWork(content);
