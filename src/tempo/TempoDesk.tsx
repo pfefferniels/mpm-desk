@@ -11,7 +11,7 @@ import { SyntheticLine } from "./SyntheticLine"
 import { Add, Merge } from "@mui/icons-material"
 import { Ribbon } from "../Ribbon"
 import { createPortal } from "react-dom"
-import { Tempo } from "../../../mpm-ts/lib"
+import { MPM, Tempo } from "../../../mpm-ts/lib"
 import { usePhysicalZoom } from "../hooks/ZoomProvider"
 import { useSelection } from "../hooks/SelectionProvider"
 import { useScrollSync } from "../hooks/ScrollSyncProvider"
@@ -229,11 +229,40 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
 
     const previewTempos = useMemo(() => {
         if (newSegments.length === 0) return []
-        return ApproximateLogarithmicTempo.preview({
-            segments: newSegments,
-            scope: part,
-            silentOnsets: [...silentOnsets].map(([date, onset]) => ({ date, onset }))
-        }, msm)
+
+        const silentOnsetArray = [...silentOnsets].map(([date, onset]) => ({ date, onset }))
+
+        if (newSegments.length === 1) {
+            return ApproximateLogarithmicTempo.preview({
+                ...newSegments[0],
+                scope: part,
+                silentOnsets: silentOnsetArray
+            }, msm)
+        }
+
+        // Simulate the pipeline: each segment's preview feeds into a scratch MPM
+        // so the next segment's reconstructChain finds the prior chain.
+        const scratchMPM = new MPM()
+        let result: TempoWithEndDate[] = []
+
+        for (let i = 0; i < newSegments.length; i++) {
+            result = ApproximateLogarithmicTempo.preview({
+                ...newSegments[i],
+                scope: part,
+                silentOnsets: silentOnsetArray,
+                continue: i > 0
+            }, msm, i > 0 ? scratchMPM : undefined)
+
+            // Replace scratch MPM tempo instructions for next iteration
+            for (const t of scratchMPM.getInstructions<Tempo>('tempo', part)) {
+                scratchMPM.removeInstruction(t)
+            }
+            for (const t of result) {
+                scratchMPM.insertInstruction(t, part, true)
+            }
+        }
+
+        return result
     }, [newSegments, part, silentOnsets, msm])
 
     const chainEndpoint = useMemo(() => {
@@ -255,11 +284,14 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     const insertTempoValues = () => {
         if (!tempoCluster || newSegments.length === 0) return
 
-        addTransformer(new ApproximateLogarithmicTempo({
-            segments: newSegments,
-            scope: part,
-            silentOnsets: [...silentOnsets].map(([date, onset]) => ({ date, onset }))
-        }))
+        for (let i = 0; i < newSegments.length; i++) {
+            addTransformer(new ApproximateLogarithmicTempo({
+                ...newSegments[i],
+                scope: part,
+                silentOnsets: [...silentOnsets].map(([date, onset]) => ({ date, onset })),
+                continue: i > 0
+            }))
+        }
         setNewSegments([])
     }
 
