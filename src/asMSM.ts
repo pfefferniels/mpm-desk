@@ -22,37 +22,61 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
 
     const discardedNoteMap = new Map<string, string>()
 
-    const originalNotes = Array
-        .from(msmDoc.querySelectorAll('note'))
-        .reduce((acc, curr) => {
-            const candidate = acc.find(n => n.getAttribute('date') === curr.getAttribute('date') &&
-                n.getAttribute('midi.pitch') === curr.getAttribute('midi.pitch'))
+    // O(N) duplicate detection using a Map keyed by "date-midiPitch"
+    const notesByKey = new Map<string, Element>()
+    const originalNotes: Element[] = []
+    for (const note of msmDoc.querySelectorAll('note')) {
+        const key = `${note.getAttribute('date')}-${note.getAttribute('midi.pitch')}`
+        const candidate = notesByKey.get(key)
 
-            if (candidate) {
-                if (+(curr.getAttribute('duration') || 0) > +(candidate.getAttribute('duration') || 0)) {
-                    acc[acc.indexOf(candidate)] = curr
-                    const discardedId = candidate.getAttribute('xml:id')
-                    const keptId = curr.getAttribute('xml:id')
-                    if (discardedId && keptId) discardedNoteMap.set(discardedId, keptId)
-                } else {
-                    const discardedId = curr.getAttribute('xml:id')
-                    const keptId = candidate.getAttribute('xml:id')
-                    if (discardedId && keptId) discardedNoteMap.set(discardedId, keptId)
+        if (candidate) {
+            if (+(note.getAttribute('duration') || 0) > +(candidate.getAttribute('duration') || 0)) {
+                originalNotes[originalNotes.indexOf(candidate)] = note
+                notesByKey.set(key, note)
+                const discardedId = candidate.getAttribute('xml:id')
+                const keptId = note.getAttribute('xml:id')
+                if (discardedId && keptId) discardedNoteMap.set(discardedId, keptId)
+            } else {
+                const discardedId = note.getAttribute('xml:id')
+                const keptId = candidate.getAttribute('xml:id')
+                if (discardedId && keptId) discardedNoteMap.set(discardedId, keptId)
+            }
+        } else {
+            notesByKey.set(key, note)
+            originalNotes.push(note)
+        }
+    }
+
+    // Pre-index all when[data] elements by referenced ID for O(1) lookup
+    const whensByRefId = new Map<string, Element[]>()
+    for (const when of meiDoc.querySelectorAll('when[data]')) {
+        const data = when.getAttribute('data') || ''
+        for (const token of data.split(/\s+/)) {
+            if (token.startsWith('#')) {
+                const refId = token.slice(1)
+                let list = whensByRefId.get(refId)
+                if (!list) {
+                    list = []
+                    whensByRefId.set(refId, list)
                 }
+                list.push(when)
             }
-            else {
-                acc.push(curr)
-            }
-            return acc;
-        }, [] as Element[])
+        }
+    }
 
     // Reassign performance data from discarded duplicate notes to the longer note
     for (const [discardedId, keptId] of discardedNoteMap) {
-        const whens = meiDoc.querySelectorAll(`when[data~="#${discardedId}"]`)
+        const whens = whensByRefId.get(discardedId) || []
         for (const when of whens) {
             console.warn(`Duplicate onset: reassigning performance data from #${discardedId} to #${keptId}`)
             const currentData = when.getAttribute('data') || ''
             when.setAttribute('data', currentData.replace(`#${discardedId}`, `#${keptId}`))
+        }
+        // Update index: move entries from discardedId to keptId
+        if (whens.length) {
+            const existing = whensByRefId.get(keptId) || []
+            whensByRefId.set(keptId, existing.concat(whens))
+            whensByRefId.delete(discardedId)
         }
     }
 
@@ -60,8 +84,8 @@ export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
     const msmNotes: MsmNote[] = []
     for (const note of originalNotes) {
         const noteId = note.getAttribute('xml:id')
-        const whens = meiDoc.querySelectorAll(`when[data~="#${noteId}"]`)
-        if (!whens) continue
+        const whens = noteId ? (whensByRefId.get(noteId) || []) : []
+        if (whens.length === 0) continue
 
         for (const when of whens) {
             const source = when.closest('recording')?.getAttribute('source') || undefined
