@@ -80,7 +80,7 @@ export function buildRegions(
         const to = range.to ?? range.from;
 
         const subregions: OnionSubregion[] = localTransformers.map(t => {
-            const tRange = getRange(t, msm);
+            const tRange = getRange(t.options, msm);
             const types = elementTypesByTransformer.get(t.id) ?? [];
             return {
                 id: t.id,
