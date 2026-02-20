@@ -1,6 +1,7 @@
 import { Card } from "@mui/material";
 import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { MPM, MSM } from "mpmify";
@@ -173,8 +174,10 @@ export const TransformerStack = ({
         [],
     );
 
+    const DROP_Y_TOLERANCE = 40;
+
     const findDropTarget = useCallback(
-        (svgX: number, sourceRegionId: string): string | null => {
+        (svgX: number, svgY: number, sourceRegionId: string): string | null => {
             if (curvePoints.length === 0) return null;
             for (const r of regions) {
                 if (r.id === sourceRegionId) continue;
@@ -183,7 +186,19 @@ export const TransformerStack = ({
                 if (t <= f) continue;
                 const x1 = curvePoints[f].x;
                 const x2 = curvePoints[t].x;
-                if (svgX >= x1 && svgX <= x2) return r.id;
+                if (svgX < x1 || svgX > x2) continue;
+                // Find the curve's y at this x by interpolating between nearest points
+                let curveY = curvePoints[f].y;
+                for (let i = f; i < t; i++) {
+                    const p0 = curvePoints[i];
+                    const p1 = curvePoints[i + 1];
+                    if (svgX >= p0.x && svgX <= p1.x) {
+                        const ratio = p1.x === p0.x ? 0 : (svgX - p0.x) / (p1.x - p0.x);
+                        curveY = p0.y + ratio * (p1.y - p0.y);
+                        break;
+                    }
+                }
+                if (Math.abs(svgY - curveY) <= DROP_Y_TOLERANCE) return r.id;
             }
             return null;
         },
@@ -205,16 +220,12 @@ export const TransformerStack = ({
         [screenToSvg],
     );
 
-    // Keep latest callbacks in refs so window listeners don't churn
-    const findDropTargetRef = useRef(findDropTarget);
-    findDropTargetRef.current = findDropTarget;
-    const mergeIntoRef = useRef(mergeInto);
-    mergeIntoRef.current = mergeInto;
-    const extractTransformerRef = useRef(extractTransformer);
-    extractTransformerRef.current = extractTransformer;
-    const regionsRef = useRef(regions);
-    regionsRef.current = regions;
-
+    // Keep latest values in refs so window listeners don't churn
+    const findDropTargetRef = useLatest(findDropTarget);
+    const mergeIntoRef = useLatest(mergeInto);
+    const extractTransformerRef = useLatest(extractTransformer);
+    const regionsRef = useLatest(regions);
+    const dragStateRef = useLatest(dragState);
     const isDragging = dragState !== null;
 
     useEffect(() => {
@@ -224,28 +235,26 @@ export const TransformerStack = ({
             const pos = screenToSvg(e.clientX, e.clientY);
             setDragState(prev => {
                 if (!prev) return null;
-                const dropTarget = findDropTargetRef.current(pos.x, prev.sourceRegionId);
+                const dropTarget = findDropTargetRef.current(pos.x, pos.y, prev.sourceRegionId);
                 return { ...prev, svgX: pos.x, svgY: pos.y, dropTargetRegionId: dropTarget };
             });
         };
 
         const onMouseUp = (e: MouseEvent) => {
+            const prev = dragStateRef.current;
+            setDragState(null);
+            if (!prev) return;
+
             const pos = screenToSvg(e.clientX, e.clientY);
-            setDragState(prev => {
-                if (!prev) return null;
-                const dropTarget = findDropTargetRef.current(pos.x, prev.sourceRegionId);
-                if (dropTarget) {
-                    // Merge: move transformer into target region's argumentation
-                    const targetRegion = regionsRef.current.find(r => r.id === dropTarget);
-                    if (targetRegion) {
-                        mergeIntoRef.current(prev.subregion.id, targetRegion.argumentation);
-                    }
-                } else {
-                    // Extract: create new argumentation for this transformer
-                    extractTransformerRef.current(prev.subregion.id);
+            const dropTarget = findDropTargetRef.current(pos.x, pos.y, prev.sourceRegionId);
+            if (dropTarget) {
+                const targetRegion = regionsRef.current.find(r => r.id === dropTarget);
+                if (targetRegion) {
+                    mergeIntoRef.current(prev.subregion.id, targetRegion.argumentation);
                 }
-                return null;
-            });
+            } else {
+                extractTransformerRef.current(prev.subregion.id);
+            }
         };
 
         window.addEventListener("mousemove", onMouseMove);
