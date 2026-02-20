@@ -32,7 +32,7 @@ export function ExportPNG({ curvePathD, maxDate, stretchX }: ExportPngProps) {
     return (
         <>
             <div style={{ display: 'none' }}>
-                <svg ref={svgRef} width={maxDate * stretchX} height="300" viewBox={`0 0 ${maxDate * stretchX} 300`}>
+                <svg ref={svgRef} width={maxDate * stretchX} height="300" viewBox={`0 0 ${maxDate} 300`} preserveAspectRatio="none">
                     <BarLines
                         maxDate={maxDate}
                         stretchX={stretchX}
@@ -47,6 +47,7 @@ export function ExportPNG({ curvePathD, maxDate, stretchX }: ExportPngProps) {
                         strokeWidth={10}
                         strokeLinejoin="round"
                         strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
                     />
                 </svg>
             </div>

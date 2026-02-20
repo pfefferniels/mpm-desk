@@ -1,5 +1,6 @@
 import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
 import { MSM } from "mpmify";
+import type { IntensityCurve } from "../utils/intensityCurve";
 
 export type CurvePoint = { x: number; y: number; i: number };
 
@@ -30,33 +31,38 @@ export type OnionDragState = {
 };
 
 /**
- * Convert scaled intensity values (0..1) to SVG curve points.
+ * Convert downsampled intensity curve to SVG curve points.
+ * The `i` field stores the original tick index (not the array index).
  */
 export function computeCurvePoints(params: {
-    scaled: number[];
-    stretchX: number;
+    curve: IntensityCurve;
     totalHeight: number;
     padTop?: number;
     padBottom?: number;
 }): CurvePoint[] {
     const {
-        scaled,
-        stretchX,
+        curve,
         totalHeight,
         padTop = 8,
         padBottom = 8,
     } = params;
 
-    if (scaled.length === 0) return [];
+    const { values, step } = curve;
+    if (values.length === 0) return [];
 
     const availableHeight = Math.max(1, totalHeight - padTop - padBottom);
     const toY = (s: number) => padTop + (1 - s) * availableHeight;
 
-    return scaled.map((s, i) => ({
-        i,
-        x: i * stretchX,
+    return values.map((s, idx) => ({
+        i: idx * step,
+        x: idx * step,
         y: toY(s),
     }));
+}
+
+/** Map a tick index to the nearest downsampled curve point index. */
+export function tickToCurveIndex(tick: number, step: number): number {
+    return Math.round(tick / step);
 }
 
 /**

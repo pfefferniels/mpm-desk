@@ -27,7 +27,36 @@ function minMaxScale01(values: number[]): number[] {
     return values.map(v => (v - min) / r);
 }
 
-export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Transformer[]>, maxDate: number, msm: MSM) => {
+/**
+ * Downsample an array by picking every step-th element,
+ * always including the first and last elements.
+ */
+function downsample(values: number[], maxPoints: number): { values: number[]; step: number } {
+    if (values.length <= maxPoints) return { values, step: 1 };
+    const step = Math.ceil(values.length / maxPoints);
+    const result: number[] = [];
+    for (let i = 0; i < values.length; i += step) {
+        result.push(values[i]);
+    }
+    // Always include the very last point
+    if ((values.length - 1) % step !== 0) {
+        result.push(values[values.length - 1]);
+    }
+    return { values: result, step };
+}
+
+const MAX_CURVE_POINTS = 2000;
+
+export type IntensityCurve = {
+    /** Downsampled 0..1 intensity values for rendering */
+    values: number[];
+    /** Step size used for downsampling (1 = no downsampling) */
+    step: number;
+    /** Original full-resolution length (= maxDate) */
+    fullLength: number;
+};
+
+export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Transformer[]>, maxDate: number, msm: MSM): IntensityCurve => {
     const diff: number[] = new Array(maxDate).fill(0);
     for (const [argumentation, localTransformers] of argumentations) {
         const range = getRange(localTransformers, msm);
@@ -74,11 +103,14 @@ export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Trans
     }
 
     const bridged = bridgeToZeroLinear(curve);
-    return minMaxScale01(bridged);
+    const scaled = minMaxScale01(bridged);
+    const { values, step } = downsample(scaled, MAX_CURVE_POINTS);
+    return { values, step, fullLength: scaled.length };
 }
 
-export const asPathD = (scaled: number[], stretchX: number, totalHeight: number, padTop = 8, padBottom = 8): string => {
-    if (scaled.length === 0) return "";
+export const asPathD = (curve: IntensityCurve, totalHeight: number, padTop = 8, padBottom = 8): string => {
+    const { values, step } = curve;
+    if (values.length === 0) return "";
 
     const availableHeight = Math.max(1, totalHeight - padTop - padBottom);
 
@@ -86,11 +118,11 @@ export const asPathD = (scaled: number[], stretchX: number, totalHeight: number,
     const toY = (s: number) => padTop + (1 - s) * availableHeight;
 
     // Use array join instead of string concatenation (O(n) vs O(n²))
-    const parts = new Array<string>(scaled.length);
-    parts[0] = `M ${0} ${toY(scaled[0])}`;
-    for (let i = 1; i < scaled.length; i++) {
-        const x = i * stretchX;
-        parts[i] = `L ${x} ${toY(scaled[i])}`;
+    const parts = new Array<string>(values.length);
+    parts[0] = `M ${0} ${toY(values[0])}`;
+    for (let i = 1; i < values.length; i++) {
+        const x = i * step;
+        parts[i] = `L ${x} ${toY(values[i])}`;
     }
     return parts.join(' ');
 }

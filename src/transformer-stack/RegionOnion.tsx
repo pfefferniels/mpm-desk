@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Menu, MenuItem } from "@mui/material";
 import type { CurvePoint, OnionRegion, OnionSubregion } from "./OnionModel";
+import { tickToCurveIndex } from "./OnionModel";
 import { ArgumentationDialog } from "./ArgumentationDialog";
 import { OptionsDialog } from "./OptionsDialog";
 import { useSelection } from "../hooks/SelectionProvider";
@@ -118,6 +119,7 @@ const HOVER_EXTRA = 12;
 interface RegionOnionProps {
     region: OnionRegion;
     curvePoints: CurvePoint[];
+    curveStep: number;
     sizeFactor: number;
     isHovered: boolean;
     isAnyHovered: boolean;
@@ -131,6 +133,7 @@ interface RegionOnionProps {
 export const RegionOnion = memo(function RegionOnion({
     region,
     curvePoints,
+    curveStep,
     sizeFactor,
     isHovered,
     isAnyHovered,
@@ -142,8 +145,8 @@ export const RegionOnion = memo(function RegionOnion({
 }: RegionOnionProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
 
-    const from = Math.max(0, Math.min(region.from, curvePoints.length - 1));
-    const to = Math.max(0, Math.min(region.to, curvePoints.length - 1));
+    const from = Math.max(0, Math.min(tickToCurveIndex(region.from, curveStep), curvePoints.length - 1));
+    const to = Math.max(0, Math.min(tickToCurveIndex(region.to, curveStep), curvePoints.length - 1));
     const valid = to > from;
 
     const color = isDropTarget ? "#3498db" : REGION_COLOR;
@@ -187,6 +190,7 @@ export const RegionOnion = memo(function RegionOnion({
                     strokeWidth={isDropTarget ? 1.5 : isHovered ? 0.5 : 1.5 - sizeFactor * 0.5}
                     strokeOpacity={isDropTarget ? 0.6 : isHovered ? 0.25 : 0.5 - sizeFactor * 0.2}
                     pointerEvents="none"
+                    vectorEffect="non-scaling-stroke"
                     style={{ transition: "fill 0.15s, fill-opacity 0.15s, stroke 0.15s, stroke-opacity 0.15s, stroke-width 0.15s" }}
                 />
             )}
@@ -209,6 +213,7 @@ export const RegionOnion = memo(function RegionOnion({
                 fill="none"
                 stroke="transparent"
                 strokeWidth={20}
+                vectorEffect="non-scaling-stroke"
                 pointerEvents={isAnyHovered && !isHovered ? "none" : "stroke"}
                 style={{ cursor: "pointer" }}
             />
@@ -218,6 +223,7 @@ export const RegionOnion = memo(function RegionOnion({
                 <SubregionLanes
                     subregions={region.subregions}
                     curvePoints={curvePoints}
+                    curveStep={curveStep}
                     regionFrom={from}
                     regionTo={to}
                     amplitude={amplitude}
@@ -244,6 +250,7 @@ export const RegionOnion = memo(function RegionOnion({
 interface SubregionLanesProps {
     subregions: OnionSubregion[];
     curvePoints: CurvePoint[];
+    curveStep: number;
     regionFrom: number;
     regionTo: number;
     amplitude: number;
@@ -261,6 +268,7 @@ const LANE_GAP_TICKS = 2;
 const SubregionLanes = memo(function SubregionLanes({
     subregions,
     curvePoints,
+    curveStep,
     regionFrom,
     regionTo,
     amplitude,
@@ -342,9 +350,11 @@ const SubregionLanes = memo(function SubregionLanes({
 
         return subregions.map(sr => {
             const laneOffset = laneOffsets.get(sr.type) ?? 0;
-            const halfGap = Math.min(LANE_GAP_TICKS, Math.floor((sr.to - sr.from) / 4));
-            const gappedFrom = sr.from + halfGap;
-            const gappedTo = sr.to - halfGap;
+            const srFrom = tickToCurveIndex(sr.from, curveStep);
+            const srTo = tickToCurveIndex(sr.to, curveStep);
+            const halfGap = Math.min(LANE_GAP_TICKS, Math.floor((srTo - srFrom) / 4));
+            const gappedFrom = srFrom + halfGap;
+            const gappedTo = srTo - halfGap;
             const clampedFrom = Math.max(regionFrom, Math.min(gappedFrom, curvePoints.length - 1));
             const clampedTo = Math.max(regionFrom, Math.min(gappedTo, curvePoints.length - 1));
             const mid = Math.floor((clampedFrom + clampedTo) / 2);
@@ -362,7 +372,7 @@ const SubregionLanes = memo(function SubregionLanes({
                 labelY: pt ? pt.y + n.y * off : 0,
             };
         });
-    }, [subregions, curvePoints, regionFrom, regionTo, amplitude]);
+    }, [subregions, curvePoints, curveStep, regionFrom, regionTo, amplitude]);
 
     const handleContextMenu = (e: React.MouseEvent, sr: OnionSubregion) => {
         e.preventDefault();
@@ -408,6 +418,7 @@ const SubregionLanes = memo(function SubregionLanes({
                             fill="none"
                             stroke="transparent"
                             strokeWidth={LANE_HIT_WIDTH}
+                            vectorEffect="non-scaling-stroke"
                             pointerEvents="stroke"
                             style={{ cursor: isDragging ? "grabbing" : "default" }}
                             onMouseEnter={() => setHoveredId(subregion.id)}
@@ -437,6 +448,7 @@ const SubregionLanes = memo(function SubregionLanes({
                             strokeOpacity={isDragging ? 0.3 : isActive ? 1 : hoveredId === subregion.id ? 1 : 0.85}
                             strokeDasharray={isDragging ? "4 3" : undefined}
                             pointerEvents="none"
+                            vectorEffect="non-scaling-stroke"
                             style={{ transition: "stroke-opacity 0.15s" }}
                         />
                         {/* Type label on hover */}

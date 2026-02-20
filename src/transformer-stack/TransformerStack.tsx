@@ -11,7 +11,7 @@ import { useSelection } from "../hooks/SelectionProvider";
 import { usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
 import { ExportPNG } from "../ExportPng";
-import { buildRegions, computeCurvePoints, OnionDragState, OnionSubregion } from "./OnionModel";
+import { buildRegions, computeCurvePoints, OnionDragState, OnionSubregion, tickToCurveIndex } from "./OnionModel";
 import { RegionOnion } from "./RegionOnion";
 
 interface TransformerStackProps {
@@ -37,6 +37,8 @@ export const TransformerStack = ({
     const [dragState, setDragState] = useState<OnionDragState | null>(null);
     const dragStateRef = useLatest(dragState);
     const transformersRef = useLatest(transformers);
+    const playRef = useLatest(play);
+    const stopRef = useLatest(stop);
 
     // Scroll sync
     const { register, unregister } = useScrollSync();
@@ -67,9 +69,9 @@ export const TransformerStack = ({
     const maxDate = getRange(transformers, msm)?.to || 0;
     const maxX = maxDate * stretchX;
 
-    const scaled = useMemo(() =>
-        negotiateIntensityCurve(argumentations, maxDate, msm),
-        [argumentations, maxDate, msm]
+    const scaled = useMemo(
+        () => negotiateIntensityCurve(argumentations, maxDate, msm),
+        [argumentations, maxDate, msm],
     );
 
     const totalHeight = 300;
@@ -77,13 +79,13 @@ export const TransformerStack = ({
     const padBottom = 40;
 
     const curvePoints = useMemo(
-        () => computeCurvePoints({ scaled, stretchX, totalHeight, padTop, padBottom }),
-        [scaled, stretchX, totalHeight],
+        () => computeCurvePoints({ curve: scaled, totalHeight, padTop, padBottom }),
+        [scaled, totalHeight],
     );
 
     const curvePathD = useMemo(
-        () => asPathD(scaled, stretchX, totalHeight, padTop, padBottom),
-        [scaled, stretchX, totalHeight],
+        () => asPathD(scaled, totalHeight, padTop, padBottom),
+        [scaled, totalHeight],
     );
 
     const regions = useMemo(
@@ -136,16 +138,16 @@ export const TransformerStack = ({
         if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
 
         if (!regionId) {
-            stop();
+            stopRef.current();
             return;
         }
 
         playTimeoutRef.current = setTimeout(() => {
             const ts = transformersRef.current;
             const mpmIds = ts.filter(t => t.argumentation?.id === regionId).flatMap(t => t.created);
-            if (mpmIds.length > 0) play({ mpmIds, isolate: true });
+            if (mpmIds.length > 0) playRef.current({ mpmIds, isolate: true });
         }, 150);
-    }, [stop, play]);
+    }, []);
 
     const handleArgumentationChange = useCallback(() => {
         setTransformers([...transformers]);
@@ -153,15 +155,17 @@ export const TransformerStack = ({
 
     // Mask gap for intensity curve under hovered region
     const maskId = useId();
+    const curveStep = scaled.step;
+
     const maskGap = useMemo(() => {
         if (!effectiveHoveredId || curvePoints.length === 0) return null;
         const hr = regions.find(r => r.id === effectiveHoveredId);
         if (!hr) return null;
-        const f = Math.max(0, Math.min(hr.from, curvePoints.length - 1));
-        const t = Math.max(0, Math.min(hr.to, curvePoints.length - 1));
+        const f = Math.max(0, Math.min(tickToCurveIndex(hr.from, curveStep), curvePoints.length - 1));
+        const t = Math.max(0, Math.min(tickToCurveIndex(hr.to, curveStep), curvePoints.length - 1));
         if (t <= f) return null;
         return { x1: curvePoints[f].x, x2: curvePoints[t].x };
-    }, [effectiveHoveredId, regions, curvePoints]);
+    }, [effectiveHoveredId, regions, curvePoints, curveStep]);
 
     // --- Drag-and-drop via window listeners ---
 
@@ -187,8 +191,8 @@ export const TransformerStack = ({
             if (curvePoints.length === 0) return null;
             for (const r of regions) {
                 if (r.id === sourceRegionId) continue;
-                const f = Math.max(0, Math.min(r.from, curvePoints.length - 1));
-                const t = Math.max(0, Math.min(r.to, curvePoints.length - 1));
+                const f = Math.max(0, Math.min(tickToCurveIndex(r.from, curveStep), curvePoints.length - 1));
+                const t = Math.max(0, Math.min(tickToCurveIndex(r.to, curveStep), curvePoints.length - 1));
                 if (t <= f) continue;
                 const x1 = curvePoints[f].x;
                 const x2 = curvePoints[t].x;
@@ -208,7 +212,7 @@ export const TransformerStack = ({
             }
             return null;
         },
-        [regions, curvePoints],
+        [regions, curvePoints, curveStep],
     );
 
     const handleDragStart = useCallback(
@@ -337,14 +341,14 @@ export const TransformerStack = ({
                         top: 0,
                         cursor: dragState ? "grabbing" : undefined,
                     }}
-                    viewBox={`0 0 ${maxX} ${totalHeight}`}
+                    viewBox={`0 0 ${maxDate} ${totalHeight}`}
                     preserveAspectRatio="none"
                 >
                     {/* Background rect for click-to-clear-selection */}
                     <rect
                         x={0}
                         y={0}
-                        width={maxX}
+                        width={maxDate}
                         height={totalHeight}
                         fill="white"
                         onClick={handleClearSelection}
@@ -359,7 +363,7 @@ export const TransformerStack = ({
                     {maskGap && (
                         <defs>
                             <mask id={maskId}>
-                                <rect x="0" y="0" width={maxX} height={totalHeight} fill="white" />
+                                <rect x="0" y="0" width={maxDate} height={totalHeight} fill="white" />
                                 <rect
                                     x={maskGap.x1}
                                     y="0"
@@ -383,6 +387,7 @@ export const TransformerStack = ({
                                 key={region.id}
                                 region={region}
                                 curvePoints={curvePoints}
+                                curveStep={curveStep}
                                 sizeFactor={sizeFactors.get(region.id) ?? 1}
                                 isHovered={
                                     effectiveHoveredId === region.id ||
@@ -413,15 +418,16 @@ export const TransformerStack = ({
                         strokeLinejoin="round"
                         strokeLinecap="round"
                         pointerEvents="none"
+                        vectorEffect="non-scaling-stroke"
                         mask={maskGap ? `url(#${maskId})` : undefined}
                     />
 
                     {/* Drag label following the cursor */}
                     {dragState && (
-                        <g pointerEvents="none">
+                        <g pointerEvents="none" transform={`translate(${dragState.svgX}, ${dragState.svgY}) scale(${1 / stretchX}, 1)`}>
                             <rect
-                                x={dragState.svgX - dragState.subregion.type.length * 3.2 - 5}
-                                y={dragState.svgY - 20}
+                                x={-dragState.subregion.type.length * 3.2 - 5}
+                                y={-20}
                                 width={dragState.subregion.type.length * 6.4 + 10}
                                 height={16}
                                 rx={4}
@@ -430,10 +436,11 @@ export const TransformerStack = ({
                                 stroke={dragState.laneColor}
                                 strokeWidth={1}
                                 strokeOpacity={0.4}
+                                vectorEffect="non-scaling-stroke"
                             />
                             <text
-                                x={dragState.svgX}
-                                y={dragState.svgY - 8}
+                                x={0}
+                                y={-8}
                                 textAnchor="middle"
                                 fontSize={10}
                                 fill={dragState.laneColor}
