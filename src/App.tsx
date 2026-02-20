@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useLatest } from './hooks/useLatest';
 import { asMSM } from './asMSM';
 import { compareTransformers, importWork, InsertMetadata, MPM, MSM, validate } from 'mpmify';
@@ -54,7 +54,6 @@ export const App = () => {
 
     const appBarRef = React.useRef<HTMLDivElement>(null);
     const transformersRef = useLatest(transformers);
-    const activeTransformerIdsRef = useLatest(activeTransformerIds);
 
     const loadWorkFromJson = useCallback((content: string) => {
         const { transformers: loaded, secondary: loadedSecondary } = importWork(content);
@@ -154,30 +153,30 @@ export const App = () => {
         const hash = window.location.hash.slice(1);
         if (!hash || !transformers.length) return;
         const match = transformers.find(t => t.id.startsWith(hash));
-        if (match && !activeTransformerIdsRef.current.has(match.id)) {
+        if (match && !activeTransformerIds.has(match.id)) {
             setActiveTransformerIds(new Set([match.id]));
         }
-    }, [transformers]);
+    }, [transformers, activeTransformerIds]);
+
+    const onHashChange = useEffectEvent(() => {
+        const hash = window.location.hash.slice(1);
+        if (!hash) {
+            if (activeTransformerIds.size > 0) {
+                setActiveTransformerIds(new Set());
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+            return;
+        }
+        if (activeTransformerIds.size === 1) {
+            const [onlyId] = activeTransformerIds;
+            if (onlyId.startsWith(hash)) return;
+        }
+        const match = transformers.find(t => t.id.startsWith(hash));
+        if (match) setActiveTransformerIds(new Set([match.id]));
+    });
 
     // Hashchange listener: support back/forward navigation
     useEffect(() => {
-        const onHashChange = () => {
-            const hash = window.location.hash.slice(1);
-            if (!hash) {
-                if (activeTransformerIdsRef.current.size > 0) {
-                    setActiveTransformerIds(new Set());
-                    history.replaceState(null, '', window.location.pathname + window.location.search);
-                }
-                return;
-            }
-            const currentIds = activeTransformerIdsRef.current;
-            if (currentIds.size === 1) {
-                const [onlyId] = currentIds;
-                if (onlyId.startsWith(hash)) return;
-            }
-            const match = transformersRef.current.find(t => t.id.startsWith(hash));
-            if (match) setActiveTransformerIds(new Set([match.id]));
-        };
         window.addEventListener('hashchange', onHashChange);
         return () => window.removeEventListener('hashchange', onHashChange);
     }, []);

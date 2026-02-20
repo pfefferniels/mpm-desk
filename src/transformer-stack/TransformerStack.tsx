@@ -1,6 +1,6 @@
 import { Card } from "@mui/material";
 import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
@@ -230,49 +230,43 @@ export const TransformerStack = ({
         [screenToSvg],
     );
 
-    // Keep latest values in refs so window listeners don't churn
-    const findDropTargetRef = useLatest(findDropTarget);
-    const mergeIntoRef = useLatest(mergeInto);
-    const extractTransformerRef = useLatest(extractTransformer);
-    const regionsRef = useLatest(regions);
     const isDragging = dragState !== null;
+
+    const onDragMouseMove = useEffectEvent((e: MouseEvent) => {
+        const pos = screenToSvg(e.clientX, e.clientY);
+        setDragState(prev => {
+            if (!prev) return null;
+            const dropTarget = findDropTarget(pos.x, pos.y, prev.sourceRegionId);
+            return { ...prev, svgX: pos.x, svgY: pos.y, dropTargetRegionId: dropTarget };
+        });
+    });
+
+    const onDragMouseUp = useEffectEvent((e: MouseEvent) => {
+        const prev = dragState;
+        setDragState(null);
+        if (!prev) return;
+
+        const pos = screenToSvg(e.clientX, e.clientY);
+        const dropTarget = findDropTarget(pos.x, pos.y, prev.sourceRegionId);
+        if (dropTarget) {
+            const targetRegion = regions.find(r => r.id === dropTarget);
+            if (targetRegion) {
+                mergeInto(prev.subregion.id, targetRegion.argumentation);
+            }
+        } else {
+            extractTransformer(prev.subregion.id);
+        }
+    });
 
     useEffect(() => {
         if (!isDragging) return;
-
-        const onMouseMove = (e: MouseEvent) => {
-            const pos = screenToSvg(e.clientX, e.clientY);
-            setDragState(prev => {
-                if (!prev) return null;
-                const dropTarget = findDropTargetRef.current(pos.x, pos.y, prev.sourceRegionId);
-                return { ...prev, svgX: pos.x, svgY: pos.y, dropTargetRegionId: dropTarget };
-            });
-        };
-
-        const onMouseUp = (e: MouseEvent) => {
-            const prev = dragStateRef.current;
-            setDragState(null);
-            if (!prev) return;
-
-            const pos = screenToSvg(e.clientX, e.clientY);
-            const dropTarget = findDropTargetRef.current(pos.x, pos.y, prev.sourceRegionId);
-            if (dropTarget) {
-                const targetRegion = regionsRef.current.find(r => r.id === dropTarget);
-                if (targetRegion) {
-                    mergeIntoRef.current(prev.subregion.id, targetRegion.argumentation);
-                }
-            } else {
-                extractTransformerRef.current(prev.subregion.id);
-            }
-        };
-
-        window.addEventListener("mousemove", onMouseMove);
-        window.addEventListener("mouseup", onMouseUp);
+        window.addEventListener("mousemove", onDragMouseMove);
+        window.addEventListener("mouseup", onDragMouseUp);
         return () => {
-            window.removeEventListener("mousemove", onMouseMove);
-            window.removeEventListener("mouseup", onMouseUp);
+            window.removeEventListener("mousemove", onDragMouseMove);
+            window.removeEventListener("mouseup", onDragMouseUp);
         };
-    }, [isDragging, screenToSvg]);
+    }, [isDragging]);
 
     const handleClearSelection = useCallback(() => {
         setActiveTransformerIds(new Set());
