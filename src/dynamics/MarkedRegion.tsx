@@ -4,7 +4,7 @@ import { useSymbolicZoom } from "../hooks/ZoomProvider"
 interface MarkedRegionProps {
     from?: number
     to?: number
-    svgRef: RefObject<SVGElement>
+    svgRef: RefObject<SVGElement | null>
 }
 
 export const MarkedRegion = ({ from, to, svgRef }: MarkedRegionProps) => {

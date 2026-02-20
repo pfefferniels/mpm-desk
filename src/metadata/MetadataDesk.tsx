@@ -4,7 +4,7 @@ import { useState } from "react";
 interface MetadataDeskProps {
     metadata: { author: string, title: string }
     setMetadata: React.Dispatch<React.SetStateAction<{ author: string, title: string }>>
-    appBarRef: React.RefObject<HTMLDivElement> | null
+    appBarRef: React.RefObject<HTMLDivElement | null> | null
     isEditorMode: boolean
 }
 

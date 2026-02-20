@@ -215,7 +215,7 @@ export const App = () => {
     }, [isEditorMode, loadWorkFromJson]);
 
     // Pipeline worker for off-main-thread transformation
-    const workerRef = useRef<Worker>();
+    const workerRef = useRef<Worker>(null);
     const requestIdRef = useRef(0);
 
     useEffect(() => {

@@ -13,7 +13,7 @@ export interface ViewProps {
     setMPM: (newMPM: MPM) => void;
     mpm: MPM;
 
-    appBarRef: React.RefObject<HTMLDivElement> | null;
+    appBarRef: React.RefObject<HTMLDivElement | null> | null;
 
     secondary: SecondaryData;
     setSecondary: React.Dispatch<React.SetStateAction<SecondaryData>>;
