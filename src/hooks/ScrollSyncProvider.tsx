@@ -102,7 +102,7 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
 
             rafIdRef.current = null;
         });
-    }, []);
+    }, [physicalZoomRef, secondsToTickRef, symbolicZoomRef, tickToSecondsRef]);
 
     const handleScroll = useCallback((sourceId: string, element: HTMLElement) => {
         const expected = expectedScrollRef.current.get(sourceId);
@@ -147,7 +147,7 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
 
             rafIdRef.current = null;
         });
-    }, []);
+    }, [physicalZoomRef, symbolicZoomRef, tickToSecondsRef]);
 
     const register = useCallback((id: string, element: HTMLElement, domain: ScrollDomain) => {
         // If other elements in the same domain are registered, sync to their scroll position

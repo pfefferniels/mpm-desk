@@ -78,7 +78,7 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
         if (isPlaying) {
             play({ exaggerate: v });
         }
-    }, [isPlaying, play]);
+    }, [isPlaying, play, setExaggeration]);
 
     const hasMetadata = metadata?.title || metadata?.author;
 
