@@ -12,7 +12,19 @@ module.exports = {
   rules: {
     'react-refresh/only-export-components': [
       'warn',
-      { allowConstantExport: true },
+      {
+        allowConstantExport: true,
+        allowExportNames: [
+          'useMode',
+          'useNotes',
+          'usePlayback',
+          'useScrollSync',
+          'useSelection',
+          'useSymbolicZoom',
+          'usePhysicalZoom',
+          'useZoom',
+        ],
+      },
     ],
   },
 }

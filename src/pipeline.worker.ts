@@ -33,8 +33,9 @@ function reconstructTransformer(t: SerializedTransformer): Transformer | null {
     let transformer: Transformer | null = null;
 
     if (t.name === 'MakeChoice') transformer = new MakeChoice();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    else if (t.name === 'Modify') transformer = new Modify(t.options as any);
+    else if (t.name === 'Modify') transformer = new Modify(
+        t.options as ConstructorParameters<typeof Modify>[0]
+    );
     else if (t.name === 'InsertDynamicsInstructions') transformer = new InsertDynamicsInstructions();
     else if (t.name === 'InsertDynamicsGradient') transformer = new InsertDynamicsGradient();
     else if (t.name === 'InsertTemporalSpread') transformer = new InsertTemporalSpread();

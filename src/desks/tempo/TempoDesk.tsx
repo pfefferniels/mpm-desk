@@ -21,6 +21,8 @@ import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
 import { MidiFile } from "midifile-ts"
 
+type TempoWithOptionalEndDate = Tempo & { endDate?: number }
+
 export type TempoSecondaryData = {
     tempoCluster?: LocalTempoSegment[]
     silentOnsets?: SilentOnset[]
@@ -105,7 +107,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         setCommittedTempos(tempos
             .map((tempo, i) => {
                 const next = tempos[i + 1]
-                const storedEndDate = (tempo as any).endDate as number | undefined
+                const storedEndDate = (tempo as TempoWithOptionalEndDate).endDate
                 const endDate = next
                     ? Math.min(next.date, storedEndDate ?? next.date)
                     : storedEndDate
@@ -471,5 +473,4 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         </div>
     )
 }
-
 
