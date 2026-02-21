@@ -13,6 +13,8 @@ import { BarLines } from "./BarLines";
 import { ExportPNG } from "../ExportPng";
 import { buildRegions, computeCurvePoints, OnionDragState, OnionSubregion, tickToCurveIndex } from "./OnionModel";
 import { RegionOnion } from "./RegionOnion";
+import { CounterScaledXGroup } from "./CounterScaledXGroup";
+import { TypeLabel } from "./TypeLabel";
 
 interface TransformerStackProps {
     transformers: Transformer[];
@@ -382,6 +384,7 @@ export const TransformerStack = ({
                                 region={region}
                                 curvePoints={curvePoints}
                                 curveStep={curveStep}
+                                stretchX={stretchX}
                                 sizeFactor={sizeFactors.get(region.id) ?? 1}
                                 isHovered={
                                     effectiveHoveredId === region.id ||
@@ -418,31 +421,19 @@ export const TransformerStack = ({
 
                     {/* Drag label following the cursor */}
                     {dragState && (
-                        <g pointerEvents="none" transform={`translate(${dragState.svgX}, ${dragState.svgY}) scale(${1 / stretchX}, 1)`}>
-                            <rect
-                                x={-dragState.subregion.type.length * 3.2 - 5}
-                                y={-20}
-                                width={dragState.subregion.type.length * 6.4 + 10}
-                                height={16}
-                                rx={4}
-                                fill="white"
-                                fillOpacity={0.92}
-                                stroke={dragState.laneColor}
-                                strokeWidth={1}
-                                strokeOpacity={0.4}
-                                vectorEffect="non-scaling-stroke"
+                        <CounterScaledXGroup
+                            x={dragState.svgX}
+                            y={dragState.svgY}
+                            stretchX={stretchX}
+                            pointerEvents="none"
+                        >
+                            <TypeLabel
+                                text={dragState.subregion.type}
+                                color={dragState.laneColor}
+                                boxY={-20}
+                                textY={-8}
                             />
-                            <text
-                                x={0}
-                                y={-8}
-                                textAnchor="middle"
-                                fontSize={10}
-                                fill={dragState.laneColor}
-                                fontWeight="600"
-                            >
-                                {dragState.subregion.type}
-                            </text>
-                        </g>
+                        </CounterScaledXGroup>
                     )}
                 </svg>
             </div>

@@ -6,6 +6,8 @@ import { ArgumentationDialog } from "./ArgumentationDialog";
 import { OptionsDialog } from "./OptionsDialog";
 import { useSelection } from "../hooks/SelectionProvider";
 import { Transformer } from "mpmify";
+import { CounterScaledXGroup } from "./CounterScaledXGroup";
+import { TypeLabel } from "./TypeLabel";
 
 const REGION_COLOR = "#999";
 
@@ -120,6 +122,7 @@ interface RegionOnionProps {
     region: OnionRegion;
     curvePoints: CurvePoint[];
     curveStep: number;
+    stretchX: number;
     sizeFactor: number;
     isHovered: boolean;
     isAnyHovered: boolean;
@@ -134,6 +137,7 @@ export const RegionOnion = memo(function RegionOnion({
     region,
     curvePoints,
     curveStep,
+    stretchX,
     sizeFactor,
     isHovered,
     isAnyHovered,
@@ -224,6 +228,7 @@ export const RegionOnion = memo(function RegionOnion({
                     subregions={region.subregions}
                     curvePoints={curvePoints}
                     curveStep={curveStep}
+                    stretchX={stretchX}
                     regionFrom={from}
                     regionTo={to}
                     amplitude={amplitude}
@@ -251,6 +256,7 @@ interface SubregionLanesProps {
     subregions: OnionSubregion[];
     curvePoints: CurvePoint[];
     curveStep: number;
+    stretchX: number;
     regionFrom: number;
     regionTo: number;
     amplitude: number;
@@ -269,6 +275,7 @@ const SubregionLanes = memo(function SubregionLanes({
     subregions,
     curvePoints,
     curveStep,
+    stretchX,
     regionFrom,
     regionTo,
     amplitude,
@@ -453,30 +460,19 @@ const SubregionLanes = memo(function SubregionLanes({
                         />
                         {/* Type label on hover */}
                         {hoveredId === subregion.id && !isDragging && (
-                            <g pointerEvents="none">
-                                <rect
-                                    x={labelX - subregion.type.length * 3.2 - 5}
-                                    y={labelY - 21}
-                                    width={subregion.type.length * 6.4 + 10}
-                                    height={16}
-                                    rx={4}
-                                    fill="white"
-                                    fillOpacity={0.92}
-                                    stroke={color}
-                                    strokeWidth={1}
-                                    strokeOpacity={0.4}
+                            <CounterScaledXGroup
+                                x={labelX}
+                                y={labelY}
+                                stretchX={stretchX}
+                                pointerEvents="none"
+                            >
+                                <TypeLabel
+                                    text={subregion.type}
+                                    color={color}
+                                    boxY={-21}
+                                    textY={-9}
                                 />
-                                <text
-                                    x={labelX}
-                                    y={labelY - 9}
-                                    textAnchor="middle"
-                                    fontSize={10}
-                                    fill={color}
-                                    fontWeight="600"
-                                >
-                                    {subregion.type}
-                                </text>
-                            </g>
+                            </CounterScaledXGroup>
                         )}
                     </g>
                 ) : null;
