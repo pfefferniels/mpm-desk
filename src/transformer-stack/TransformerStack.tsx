@@ -16,6 +16,20 @@ import { RegionOnion } from "./RegionOnion";
 import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
 
+/** Check whether [from, to] is fully covered by the union of the given intervals. */
+function isRangeFullyCovered(from: number, to: number, intervals: { from: number; to: number }[]): boolean {
+    const relevant = intervals
+        .filter(i => i.from < to && i.to > from)
+        .sort((a, b) => a.from - b.from);
+    let cursor = from;
+    for (const i of relevant) {
+        if (i.from > cursor) return false;
+        cursor = Math.max(cursor, i.to);
+        if (cursor >= to) return true;
+    }
+    return cursor >= to;
+}
+
 interface TransformerStackProps {
     transformers: Transformer[];
     setTransformers: (transformers: Transformer[]) => void;
@@ -103,6 +117,35 @@ export const TransformerStack = ({
         }
         return map;
     }, [regions]);
+
+    const LOD_MIN_PX = 30;
+    const LOD_FADE_PX = 60;
+
+    const lodOpacities = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const r of regions) {
+            const pixelWidth = (r.to - r.from) * stretchX;
+            const opacity = Math.min(1, Math.max(0, (pixelWidth - LOD_MIN_PX) / (LOD_FADE_PX - LOD_MIN_PX)));
+            map.set(r.id, opacity);
+        }
+
+        // Ensure gap-free coverage: force the largest hidden regions visible
+        // so every part of the timeline covered by any region stays filled.
+        const sorted = [...regions].sort((a, b) => (b.to - b.from) - (a.to - a.from));
+        const covered: { from: number; to: number }[] = [];
+        for (const r of sorted) {
+            if ((map.get(r.id) ?? 0) > 0) covered.push({ from: r.from, to: r.to });
+        }
+        for (const r of sorted) {
+            if ((map.get(r.id) ?? 0) > 0) continue;
+            if (!isRangeFullyCovered(r.from, r.to, covered)) {
+                map.set(r.id, 1);
+                covered.push({ from: r.from, to: r.to });
+            }
+        }
+
+        return map;
+    }, [regions, stretchX]);
 
     const mergeInto = useCallback(
         (transformerId: string, argumentation: Argumentation) => {
@@ -378,6 +421,7 @@ export const TransformerStack = ({
                             const sizeB = b.to - b.from;
                             return sizeB - sizeA;
                         })
+                        .filter(region => (lodOpacities.get(region.id) ?? 0) > 0)
                         .map(region => (
                             <RegionOnion
                                 key={region.id}
@@ -386,6 +430,7 @@ export const TransformerStack = ({
                                 curveStep={curveStep}
                                 stretchX={stretchX}
                                 sizeFactor={sizeFactors.get(region.id) ?? 1}
+                                lodOpacity={lodOpacities.get(region.id) ?? 1}
                                 isHovered={
                                     effectiveHoveredId === region.id ||
                                     (dragState?.dropTargetRegionId === region.id)

@@ -126,6 +126,7 @@ interface RegionOnionProps {
     sizeFactor: number;
     isHovered: boolean;
     isAnyHovered: boolean;
+    lodOpacity: number;
     isDropTarget?: boolean;
     onHoverChange: (regionId: string | null) => void;
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
@@ -139,6 +140,7 @@ export const RegionOnion = memo(function RegionOnion({
     curveStep,
     stretchX,
     sizeFactor,
+    lodOpacity,
     isHovered,
     isAnyHovered,
     isDropTarget,
@@ -189,10 +191,10 @@ export const RegionOnion = memo(function RegionOnion({
                 <path
                     d={onionPath}
                     fill={color}
-                    fillOpacity={isDropTarget ? 0.35 : isHovered ? 0.28 : 0.18 - sizeFactor * 0.1}
+                    fillOpacity={(isDropTarget ? 0.35 : isHovered ? 0.28 : 0.18 - sizeFactor * 0.1) * lodOpacity}
                     stroke={color}
                     strokeWidth={isDropTarget ? 1.5 : isHovered ? 0.5 : 1.5 - sizeFactor * 0.5}
-                    strokeOpacity={isDropTarget ? 0.6 : isHovered ? 0.25 : 0.5 - sizeFactor * 0.2}
+                    strokeOpacity={(isDropTarget ? 0.6 : isHovered ? 0.25 : 0.5 - sizeFactor * 0.2) * lodOpacity}
                     pointerEvents="none"
                     vectorEffect="non-scaling-stroke"
                     style={{ transition: "fill 0.15s, fill-opacity 0.15s, stroke 0.15s, stroke-opacity 0.15s, stroke-width 0.15s" }}
