@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useLatest } from './hooks/useLatest';
-import { asMSM } from './asMSM';
+import { asMSM } from './utils/asMSM';
 import { compareTransformers, importWork, InsertMetadata, MPM, MSM, validate } from 'mpmify';
 import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
-import { correspondingDesks } from './DeskSwitch';
-import { SecondaryData } from './TransformerViewProps';
+import { correspondingDesks } from './desks/DeskSwitch';
+import { SecondaryData } from './desks/TransformerViewProps';
 import './App.css'
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
-import { MetadataDesk } from './metadata/MetadataDesk';
+import { MetadataDesk } from './desks/metadata/MetadataDesk';
 import { NotesProvider } from './hooks/NotesProvider';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';

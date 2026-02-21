@@ -3,9 +3,9 @@ import { Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@m
 import { Pause, PlayArrow, Save, UploadFile } from '@mui/icons-material';
 import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM } from 'mpmify';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
-import { SecondaryData } from '../TransformerViewProps';
+import { SecondaryData } from '../desks/TransformerViewProps';
 import { exportMPM } from '../../../mpm-ts/lib';
-import { Ribbon } from '../Ribbon';
+import { Ribbon } from './Ribbon';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useMode } from '../hooks/ModeProvider';
 import { useSelection } from '../hooks/SelectionProvider';

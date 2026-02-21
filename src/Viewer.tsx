@@ -3,7 +3,7 @@ import { compareTransformers, exportWork, importWork, InsertMetadata, MPM, MSM }
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 import { exportMPM } from '../../mpm-ts/lib';
 import JSZip from 'jszip';
-import { asMSM } from './asMSM';
+import { asMSM } from './utils/asMSM';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';

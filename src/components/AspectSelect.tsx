@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Collapse, Divider, List, ListItemButton, ListItemText } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { correspondingDesks } from '../DeskSwitch';
+import { correspondingDesks } from '../desks/DeskSwitch';
 
 interface AspectSelectProps {
     selectedDesk: string;
