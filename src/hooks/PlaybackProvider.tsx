@@ -7,6 +7,7 @@ import { exportMPM } from '../../../mpm-ts/lib';
 interface PlayOptions {
     mpmIds?: string[];
     isolate?: boolean;
+    exaggerate?: number;
     onNoteEvent?: (noteId: string, date: number) => void;
 }
 
@@ -52,13 +53,15 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
     }, [stopPiano]);
 
     const play = useCallback(async (options?: PlayOptions) => {
+        stopPiano();
+
         const currentMei = meiRef.current;
         const currentMsm = msmRef.current;
         const currentMpm = mpmRef.current;
 
         if (!currentMpm || !currentMei) return;
 
-        const { mpmIds, isolate, onNoteEvent } = options || {};
+        const { mpmIds, isolate, exaggerate, onNoteEvent } = options || {};
 
         type Request = {
             mpm: string;
@@ -75,9 +78,13 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
             mei: currentMei,
         };
 
+        if (exaggerate !== undefined) {
+            request.exaggerate = exaggerate;
+        }
+
         if (mpmIds) {
             request.mpmIds = mpmIds;
-            request.exaggerate = 1.2;
+            if (request.exaggerate === undefined) request.exaggerate = 1.2;
             request.exemplify = false;
             request.context = 0;
             request.isolate = isolate;
@@ -122,7 +129,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [playPiano]);
+    }, [playPiano, stopPiano]);
 
     const value = useMemo(() => ({
         isPlaying,
