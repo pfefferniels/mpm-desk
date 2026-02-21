@@ -109,34 +109,3 @@ export function buildRegions(
 
     return regions;
 }
-
-/**
- * Assign stacking levels to regions so overlapping ones get different offsets.
- * Greedy sweep-line: sort by start, reuse the lowest free level whose
- * previous interval has ended.
- */
-export function assignRegionLevels(regions: OnionRegion[]): Map<string, number> {
-    const sorted = [...regions].sort((a, b) => a.from - b.from || a.to - b.to);
-
-    // active[level] = end of current interval on that level
-    const active: number[] = [];
-    const levels = new Map<string, number>();
-
-    for (const r of sorted) {
-        let assigned = -1;
-        for (let l = 0; l < active.length; l++) {
-            if (active[l] <= r.from) {
-                assigned = l;
-                break;
-            }
-        }
-        if (assigned === -1) {
-            assigned = active.length;
-            active.push(0);
-        }
-        active[assigned] = r.to;
-        levels.set(r.id, assigned);
-    }
-
-    return levels;
-}
