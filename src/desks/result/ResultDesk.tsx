@@ -3,6 +3,7 @@ import { ViewProps } from "../TransformerViewProps"
 import { downloadAsFile } from "../../utils/utils"
 import { exportMPM } from "../../../../mpm-ts/lib"
 import { CopyAll, Download } from "@mui/icons-material"
+import { convertMpmToMidi } from "../../utils/backendApi"
 
 // todo rename to debugdesk
 export const ResultDesk = ({ mpm, msm }: ViewProps) => {
@@ -11,17 +12,12 @@ export const ResultDesk = ({ mpm, msm }: ViewProps) => {
     }
 
     const handleDownloadMIDI = async () => {
-        const request = {
-            mpm: exportMPM(mpm)
+        try {
+            const midiBuffer = await convertMpmToMidi(exportMPM(mpm))
+            downloadAsFile(midiBuffer, 'export.midi', 'audio/midi')
+        } catch (error) {
+            console.error('Failed to export MIDI:', error)
         }
-
-        const response = await fetch(`http://localhost:8080/convert`, {
-            method: 'POST',
-            body: JSON.stringify(request)
-        })
-
-        const midiBuffer = await response.arrayBuffer()
-        downloadAsFile(midiBuffer, 'export.midi', 'audio/midi')
     }
 
     const copyToClipboard = async (text: string) => {

@@ -3,6 +3,7 @@ import { usePiano } from 'react-pianosound';
 import { read } from 'midifile-ts';
 import { MPM, MSM } from 'mpmify';
 import { exportMPM } from '../../../mpm-ts/lib';
+import { performMpm, PerformRequest } from '../utils/backendApi';
 
 interface PlayOptions {
     mpmIds?: string[];
@@ -66,17 +67,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
 
         const { mpmIds, isolate, exaggerate, onNoteEvent } = options || {};
 
-        type Request = {
-            mpm: string;
-            mei: string;
-            mpmIds?: string[];
-            exaggerate?: number;
-            exemplify?: boolean;
-            context?: number;
-            isolate?: boolean;
-        };
-
-        const request: Request = {
+        const request: PerformRequest = {
             mpm: exportMPM(currentMpm),
             mei: currentMei,
         };
@@ -94,22 +85,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         }
 
         try {
-            const response = await fetch(`http://localhost:8080/perform`, {
-                method: 'POST',
-                body: JSON.stringify(request)
-            });
-
-            if (!response.ok) {
-                console.error(`Playback request failed: ${response.status} ${response.statusText}`);
-                return;
-            }
-
-            const payload = await response.json();
-            const b64 = payload?.midi_b64;
-            if (!b64) {
-                console.error('No midi_b64 field in response');
-                return;
-            }
+            const b64 = await performMpm(request);
 
             // decode base64 to ArrayBuffer
             const binary = atob(b64);

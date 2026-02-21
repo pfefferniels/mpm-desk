@@ -1,21 +1,11 @@
 import { MSM } from "mpmify"
 import { MsmNote, MsmPedal } from "mpmify/lib/msm";
 import { v4 } from "uuid";
+import { convertMeiToMsm } from "./backendApi";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const asMSM = async (mei: string, _voicesAsParts: boolean = false) => {
-    const response = await fetch(`http://localhost:8080/convert`, {
-        method: 'POST',
-        body: JSON.stringify({
-            mei
-        })
-    })
-    if (!response.ok) {
-        throw new Error(`Failed to convert MEI to MSM: ${response.statusText}`)
-    }
-
-    const json = await response.json()
-    const msmDoc = new DOMParser().parseFromString(json.msm, 'application/xml')
+export const asMSM = async (mei: string) => {
+    const msmXml = await convertMeiToMsm(mei)
+    const msmDoc = new DOMParser().parseFromString(msmXml, 'application/xml')
 
     // Enrich the official MSM with performance information
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
