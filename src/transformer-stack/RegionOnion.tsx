@@ -131,6 +131,7 @@ interface RegionOnionProps {
     onHoverChange: (regionId: string | null) => void;
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
+    onLaneClick?: (subregionId: string) => void;
     onArgumentationChange: () => void;
 }
 
@@ -147,6 +148,7 @@ export const RegionOnion = memo(function RegionOnion({
     onHoverChange,
     onDragStart,
     draggingSubregionId,
+    onLaneClick,
     onArgumentationChange,
 }: RegionOnionProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
@@ -237,6 +239,7 @@ export const RegionOnion = memo(function RegionOnion({
                     regionId={region.id}
                     onDragStart={onDragStart}
                     draggingSubregionId={draggingSubregionId}
+                    onLaneClick={onLaneClick}
                 />
             )}
 
@@ -265,6 +268,7 @@ interface SubregionLanesProps {
     regionId: string;
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
+    onLaneClick?: (subregionId: string) => void;
 }
 
 const LANE_STROKE_WIDTH = 3;
@@ -284,6 +288,7 @@ const SubregionLanes = memo(function SubregionLanes({
     regionId,
     onDragStart,
     draggingSubregionId,
+    onLaneClick,
 }: SubregionLanesProps) {
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -329,6 +334,7 @@ const SubregionLanes = memo(function SubregionLanes({
                 } else {
                     focusTransformer(pending.subregion.id);
                 }
+                onLaneClick?.(pending.subregion.id);
             }
             pendingDragRef.current = null;
             setPendingDrag(false);
@@ -340,7 +346,7 @@ const SubregionLanes = memo(function SubregionLanes({
             window.removeEventListener("mousemove", onMouseMove);
             window.removeEventListener("mouseup", onMouseUp);
         };
-    }, [pendingDrag, onDragStart, regionId, toggleActiveTransformer, focusTransformer]);
+    }, [pendingDrag, onDragStart, regionId, toggleActiveTransformer, focusTransformer, onLaneClick]);
 
     const lanes = useMemo(() => {
         const typeOrder: string[] = [];
@@ -450,6 +456,7 @@ const SubregionLanes = memo(function SubregionLanes({
                                         } else {
                                             focusTransformer(subregion.id);
                                         }
+                                        onLaneClick?.(subregion.id);
                                     }
                                 }
                             }}

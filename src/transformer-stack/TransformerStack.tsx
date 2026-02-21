@@ -45,7 +45,7 @@ export const TransformerStack = ({
     mpm,
     draggable = false,
 }: TransformerStackProps) => {
-    const { play, stop } = usePlayback();
+    const { play, stop, exaggeration } = usePlayback();
     const { activeTransformerIds, setActiveTransformerIds, removeActiveTransformers } = useSelection();
     const stretchX = useSymbolicZoom();
 
@@ -57,6 +57,7 @@ export const TransformerStack = ({
     const transformersRef = useLatest(transformers);
     const playRef = useLatest(play);
     const stopRef = useLatest(stop);
+    const exaggerationRef = useLatest(exaggeration);
 
     // Scroll sync
     const { register, unregister } = useScrollSync();
@@ -195,8 +196,16 @@ export const TransformerStack = ({
         playTimeoutRef.current = setTimeout(() => {
             const ts = transformersRef.current;
             const mpmIds = ts.filter(t => t.argumentation?.id === regionId).flatMap(t => t.created);
-            if (mpmIds.length > 0) playRef.current({ mpmIds, isolate: true });
+            if (mpmIds.length > 0) playRef.current({ mpmIds, exaggerate: exaggerationRef.current });
         }, 150);
+    }, []);
+
+    const handleLaneClick = useCallback((subregionId: string) => {
+        const ts = transformersRef.current;
+        const t = ts.find(t => t.id === subregionId);
+        if (t) {
+            playRef.current({ mpmIds: t.created, isolate: true, exaggerate: exaggerationRef.current });
+        }
     }, []);
 
     const handleArgumentationChange = useCallback(() => {
@@ -451,6 +460,7 @@ export const TransformerStack = ({
                                         ? dragState.subregion.id
                                         : null
                                 }
+                                onLaneClick={handleLaneClick}
                                 onArgumentationChange={handleArgumentationChange}
                             />
                         ))}
