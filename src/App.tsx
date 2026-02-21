@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useLatest } from './hooks/useLatest';
 import { asMSM } from './utils/asMSM';
-import { compareTransformers, importWork, InsertMetadata, MPM, MSM, validate } from 'mpmify';
+import { compareTransformers, MPM, MSM, validate } from 'mpmify';
 import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
 import { correspondingDesks } from './desks/DeskSwitch';
 import { SecondaryData } from './desks/TransformerViewProps';
@@ -21,15 +21,9 @@ import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { AppMenu } from './components/AppMenu';
 import { AspectSelect } from './components/AspectSelect';
 import { FloatingZoom } from './components/FloatingZoom';
-
-const extractMetadataFromTransformers = (transformers: Transformer[]): { author: string, title: string } => {
-    const metadataTransformer = transformers.find(t => t.name === 'InsertMetadata') as InsertMetadata | undefined
-    if (!metadataTransformer) return { author: '', title: '' }
-    return {
-        author: metadataTransformer.options.authors?.[0]?.text ?? '',
-        title: metadataTransformer.options.comments?.[0]?.text ?? ''
-    }
-}
+import { parseWork } from './utils/workImport';
+import { usePipelineRunner } from './hooks/usePipelineRunner';
+import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
 
 export const App = () => {
     const { isEditorMode } = useMode();
@@ -56,18 +50,23 @@ export const App = () => {
     const transformersRef = useLatest(transformers);
 
     const loadWorkFromJson = useCallback((content: string) => {
-        const { transformers: loaded, secondary: loadedSecondary } = importWork(content);
-        const messages = validate(loaded);
-        if (messages.length) {
-            setMessage(messages.map(m => m.message).join('\n'));
+        const parsed = parseWork(content);
+        if (parsed.validationMessages.length) {
+            setMessage(parsed.validationMessages.join('\n'));
             return;
         }
         setMessage(undefined);
-        const nonMetadata = loaded.filter(t => t.name !== 'InsertMetadata')
-        setTransformers(nonMetadata.sort(compareTransformers));
-        setSecondary(loadedSecondary ?? {});
-        setMetadata(extractMetadataFromTransformers(loaded));
+        setTransformers(parsed.transformers);
+        setSecondary(parsed.secondary);
+        setMetadata(parsed.metadata);
     }, [])
+
+    const handleMeiLoaded = useCallback(async (meiContent: string) => {
+        setMEI(meiContent);
+        const result = await asMSM(meiContent);
+        setMSM(result);
+        setInitialMSM(result);
+    }, []);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files ? event.target.files[0] : null;
@@ -146,7 +145,7 @@ export const App = () => {
         }
 
         setActiveTransformerIds(new Set([id]));
-    }, []);
+    }, [transformersRef]);
 
     // Hash → Selection: select transformer from URL hash when transformers load
     useEffect(() => {
@@ -179,7 +178,7 @@ export const App = () => {
     useEffect(() => {
         window.addEventListener('hashchange', onHashChange);
         return () => window.removeEventListener('hashchange', onHashChange);
-    }, []);
+    }, [onHashChange]);
 
     useEffect(() => {
         // prevent the user from loosing unsaved changes (editor mode only)
@@ -188,104 +187,24 @@ export const App = () => {
         }
     }, [isEditorMode]);
 
-    useEffect(() => {
-        // auto-load files in view mode
-        if (isEditorMode) return;
+    usePublicWorkLoader({
+        enabled: !isEditorMode,
+        onMeiLoaded: handleMeiLoaded,
+        onWorkLoaded: loadWorkFromJson,
+        onError: (error) => console.error('Failed to load files:', error),
+    });
 
-        const loadFiles = async () => {
-            try {
-                const meiResponse = await fetch('/transcription.mei');
-                if (meiResponse.ok) {
-                    const meiContent = await meiResponse.text();
-                    setMEI(meiContent);
-                    const result = await asMSM(meiContent);
-                    setMSM(result);
-                    setInitialMSM(result);
-                }
-
-                const jsonResponse = await fetch('/info.json');
-                if (jsonResponse.ok) {
-                    const jsonContent = await jsonResponse.text();
-                    loadWorkFromJson(jsonContent)
-                }
-            } catch (e) {
-                console.error('Failed to load files:', e);
-            }
-        };
-
-        loadFiles();
-    }, [isEditorMode, loadWorkFromJson]);
-
-    // Pipeline worker for off-main-thread transformation
-    const workerRef = useRef<Worker>(null);
-    const requestIdRef = useRef(0);
-
-    useEffect(() => {
-        workerRef.current = new Worker(
-            new URL('./pipeline.worker.ts', import.meta.url),
-            { type: 'module' }
-        );
-        return () => workerRef.current?.terminate();
-    }, []);
-
-    // Reconciliation: rebuild MSM/MPM whenever transformers or metadata change
-    useEffect(() => {
-        if (initialMSM.allNotes.length === 0) return;
-        if (!workerRef.current) return;
-
-        const requestId = ++requestIdRef.current;
-
-        workerRef.current.postMessage({
-            type: 'run-pipeline',
-            requestId,
-            transformers: transformers.map(t => ({
-                id: t.id,
-                name: t.name,
-                options: t.options,
-                created: t.created,
-                argumentation: t.argumentation
-            })),
-            msm: {
-                allNotes: initialMSM.allNotes,
-                pedals: initialMSM.pedals,
-                timeSignature: initialMSM.timeSignature
-            },
-            metadata
-        });
-        const handler = (event: MessageEvent) => {
-            const data = event.data;
-            if (data.requestId !== requestIdRef.current) return;
-            workerRef.current?.removeEventListener('message', handler);
-
-            if (data.type === 'pipeline-result') {
-                const newMSM = new MSM();
-                newMSM.allNotes = data.msm.allNotes;
-                newMSM.pedals = data.msm.pedals;
-                newMSM.timeSignature = data.msm.timeSignature;
-
-                const newMPM = new MPM();
-                newMPM.doc = data.mpmDoc;
-
-                // Sync created arrays back to main-thread transformer instances
-                for (const t of transformers) {
-                    if (data.created[t.id]) {
-                        t.created = data.created[t.id];
-                    }
-                }
-
-                setMPM(newMPM);
-                setMSM(newMSM);
-                setMessage(undefined);
-            } else if (data.type === 'validation-error') {
-                setMessage(data.messages.join('\n'));
-            } else if (data.type === 'pipeline-error') {
-                setMessage(data.error);
-            }
-        };
-
-        workerRef.current.addEventListener('message', handler);
-        return () => workerRef.current?.removeEventListener('message', handler);
-    }, [transformers, initialMSM, metadata]);
+    usePipelineRunner({
+        initialMSM,
+        transformers,
+        metadata,
+        setTransformers,
+        setMSM,
+        setMPM,
+        onValidationError: messages => setMessage(messages.join('\n')),
+        onPipelineError: error => setMessage(error),
+        onPipelineSuccess: () => setMessage(undefined),
+    });
 
     const isMetadataSelected = selectedDesk === 'metadata'
     const DeskComponent = correspondingDesks
@@ -351,19 +270,25 @@ export const App = () => {
                                         secondary={secondary}
                                         setSecondary={setSecondary}
                                         addTransformer={(transformer: Transformer) => {
-                                            transformer.argumentation = {
-                                                note: '',
-                                                id: `argumentation-${v4().slice(0, 8)}`,
-                                                conclusion: {
-                                                    certainty: 'plausible',
-                                                    id: `belief-${v4().slice(0, 8)}`,
-                                                    motivation: 'calm'
-                                                },
-                                                type: 'simpleArgumentation'
-                                            }
+                                            const transformerWithArgumentation = Object.assign(
+                                                Object.create(Object.getPrototypeOf(transformer)),
+                                                transformer,
+                                                {
+                                                    argumentation: {
+                                                        note: '',
+                                                        id: `argumentation-${v4().slice(0, 8)}`,
+                                                        conclusion: {
+                                                            certainty: 'plausible',
+                                                            id: `belief-${v4().slice(0, 8)}`,
+                                                            motivation: 'calm'
+                                                        },
+                                                        type: 'simpleArgumentation'
+                                                    }
+                                                }
+                                            ) as Transformer
 
                                             setTransformers(prev => {
-                                                const newTransformers = [...prev, transformer].sort(compareTransformers)
+                                                const newTransformers = [...prev, transformerWithArgumentation].sort(compareTransformers)
                                                 const messages = validate(newTransformers)
                                                 if (messages.length) {
                                                     setMessage(messages.map(m => m.message).join('\n'))
