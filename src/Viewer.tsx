@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { compareTransformers, importWork, MPM, MSM } from 'mpmify';
+import { compareTransformers, exportWork, importWork, InsertMetadata, MPM, MSM } from 'mpmify';
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
+import { exportMPM } from '../../mpm-ts/lib';
+import JSZip from 'jszip';
 import { asMSM } from './asMSM';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ZoomContext } from './hooks/ZoomProvider';
@@ -9,6 +11,8 @@ import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { PianoContextProvider } from 'react-pianosound';
 import { useTimeMapping } from './hooks/useTimeMapping';
+import { ViewerToolbar } from './components/ViewerToolbar';
+import { downloadAsFile } from './utils/utils';
 
 const ViewerInner = () => {
     const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
@@ -18,9 +22,17 @@ const ViewerInner = () => {
     const [transformers, setTransformers] = useState<Transformer[]>([]);
     const [activeTransformerIds, setActiveTransformerIds] = useState<Set<string>>(new Set());
     const [stretchX, setStretchX] = useState<number>(20);
+    const [metadata, setMetadata] = useState<{ title: string; author: string }>({ title: '', author: '' });
 
     const loadWorkFromJson = useCallback((content: string) => {
         const { transformers: loaded } = importWork(content);
+        const meta = loaded.find(t => t.name === 'InsertMetadata') as InsertMetadata | undefined;
+        if (meta) {
+            setMetadata({
+                title: meta.options.comments?.[0]?.text ?? '',
+                author: meta.options.authors?.[0]?.text ?? '',
+            });
+        }
         const nonMetadata = loaded.filter(t => t.name !== 'InsertMetadata');
         setTransformers(nonMetadata.sort(compareTransformers));
     }, []);
@@ -117,6 +129,24 @@ const ViewerInner = () => {
 
     const focusTransformer = useCallback((_id: string) => {}, []);
 
+    const handleDownload = useCallback(async () => {
+        if (!mei) return;
+
+        const json = exportWork({
+            name: 'Reconstruction',
+            mpm: 'performance.mpm',
+            mei: 'transcription.mei',
+        }, transformers, {});
+
+        const zip = new JSZip();
+        zip.file('performance.mpm', exportMPM(mpm));
+        zip.file('transcription.mei', mei);
+        zip.file('info.json', json);
+
+        const content = await zip.generateAsync({ type: 'blob' });
+        downloadAsFile(content, 'export.zip', 'application/zip');
+    }, [mei, mpm, transformers]);
+
     const zoomContextValue = useMemo(() => ({
         symbolic: { stretchX: stretchX / 200 },
         physical: { stretchX },
@@ -128,6 +158,7 @@ const ViewerInner = () => {
     return (
         <ZoomContext value={zoomContextValue}>
             <PlaybackProvider mei={mei} msm={msm} mpm={mpm}>
+                <ViewerToolbar onDownload={handleDownload} metadata={metadata} />
                 <SelectionProvider
                     activeTransformerIds={activeTransformerIds}
                     setActiveTransformerIds={setActiveTransformerIds}
@@ -141,12 +172,19 @@ const ViewerInner = () => {
                         tickToSeconds={tickToSeconds}
                         secondsToTick={secondsToTick}
                     >
-                        <TransformerStack
-                            transformers={transformers}
-                            setTransformers={setTransformers}
-                            msm={msm}
-                            mpm={mpm}
-                        />
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100vh',
+                        }}>
+                            <TransformerStack
+                                transformers={transformers}
+                                setTransformers={setTransformers}
+                                msm={msm}
+                                mpm={mpm}
+                            />
+                        </div>
                     </ScrollSyncProvider>
                 </SelectionProvider>
             </PlaybackProvider>
