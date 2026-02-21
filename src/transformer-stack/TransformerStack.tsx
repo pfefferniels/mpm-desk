@@ -35,6 +35,7 @@ interface TransformerStackProps {
     setTransformers: (transformers: Transformer[]) => void;
     msm: MSM;
     mpm: MPM;
+    draggable?: boolean;
 }
 
 export const TransformerStack = ({
@@ -42,6 +43,7 @@ export const TransformerStack = ({
     setTransformers,
     msm,
     mpm,
+    draggable = false,
 }: TransformerStackProps) => {
     const { play, stop } = usePlayback();
     const { activeTransformerIds, setActiveTransformerIds, removeActiveTransformers } = useSelection();
@@ -356,18 +358,20 @@ export const TransformerStack = ({
                 zIndex: 1,
                 pointerEvents: "none",
             }}>
-                <div style={{
-                    position: "absolute",
-                    top: 4,
-                    left: 4,
-                    pointerEvents: "auto",
-                }}>
-                    <ExportPNG
-                        curvePathD={curvePathD}
-                        maxDate={maxDate}
-                        stretchX={stretchX}
-                    />
-                </div>
+                {draggable && (
+                    <div style={{
+                        position: "absolute",
+                        top: 4,
+                        left: 4,
+                        pointerEvents: "auto",
+                    }}>
+                        <ExportPNG
+                            curvePathD={curvePathD}
+                            maxDate={maxDate}
+                            stretchX={stretchX}
+                        />
+                    </div>
+                )}
             </div>
             <div style={{ position: "relative", width: maxX, height: totalHeight }}>
                 <svg
@@ -438,9 +442,9 @@ export const TransformerStack = ({
                                 isAnyHovered={effectiveHoveredId !== null}
                                 isDropTarget={dragState?.dropTargetRegionId === region.id}
                                 onHoverChange={handleHoverChange}
-                                onDragStart={handleDragStart}
+                                onDragStart={draggable ? handleDragStart : undefined}
                                 draggingSubregionId={
-                                    dragState?.sourceRegionId === region.id
+                                    draggable && dragState?.sourceRegionId === region.id
                                         ? dragState.subregion.id
                                         : null
                                 }

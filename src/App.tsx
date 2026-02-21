@@ -384,6 +384,7 @@ export const App = () => {
                                     setTransformers={setTransformers}
                                     msm={msm}
                                     mpm={mpm}
+                                    draggable
                                 />
                             </div>
                         </ScrollSyncProvider>

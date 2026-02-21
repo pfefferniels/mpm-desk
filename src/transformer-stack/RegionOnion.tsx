@@ -436,13 +436,21 @@ const SubregionLanes = memo(function SubregionLanes({
                                 if (e.button === 0) {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    pendingDragRef.current = {
-                                        subregion,
-                                        startX: e.clientX,
-                                        startY: e.clientY,
-                                        color,
-                                    };
-                                    setPendingDrag(true);
+                                    if (onDragStart) {
+                                        pendingDragRef.current = {
+                                            subregion,
+                                            startX: e.clientX,
+                                            startY: e.clientY,
+                                            color,
+                                        };
+                                        setPendingDrag(true);
+                                    } else {
+                                        if (e.metaKey || e.ctrlKey) {
+                                            toggleActiveTransformer(subregion.id);
+                                        } else {
+                                            focusTransformer(subregion.id);
+                                        }
+                                    }
                                 }
                             }}
                             onContextMenu={e => handleContextMenu(e, subregion)}
