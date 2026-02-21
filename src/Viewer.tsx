@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { exportWork, MPM, MSM } from 'mpmify';
-import { Transformer } from 'mpmify/lib/transformers/Transformer';
+import { getRange, Transformer } from 'mpmify/lib/transformers/Transformer';
 import { exportMPM } from '../../mpm-ts/lib';
 import JSZip from 'jszip';
 import { asMSM } from './utils/asMSM';
@@ -26,6 +26,17 @@ const ViewerInner = () => {
     const [activeTransformerIds, setActiveTransformerIds] = useState<Set<string>>(new Set());
     const [stretchX, setStretchX] = useState<number>(20);
     const [metadata, setMetadata] = useState<{ title: string; author: string }>({ title: '', author: '' });
+    const hasSetInitialZoom = useRef(false);
+
+    // Fit piece to viewport width on first load
+    useEffect(() => {
+        if (hasSetInitialZoom.current || transformers.length === 0) return;
+        const maxDate = getRange(transformers, msm)?.to;
+        if (!maxDate) return;
+        const fitStretch = Math.min(60, Math.max(1, (window.innerWidth * 200) / maxDate));
+        setStretchX(fitStretch);
+        hasSetInitialZoom.current = true;
+    }, [transformers, msm]);
 
     const loadWorkFromJson = useCallback((content: string) => {
         const parsed = parseWork(content);
