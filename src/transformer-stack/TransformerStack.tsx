@@ -131,15 +131,18 @@ export const TransformerStack = ({
             map.set(r.id, opacity);
         }
 
-        // Ensure gap-free coverage: force the largest hidden regions visible
+        // Ensure gap-free coverage: force the largest regions visible
         // so every part of the timeline covered by any region stays filled.
+        // Only count fully-opaque regions as reliable coverage — regions with
+        // partial LOD opacity (barely above threshold) render nearly invisible
+        // and must not block the gap-fill from showing a proper region.
         const sorted = [...regions].sort((a, b) => (b.to - b.from) - (a.to - a.from));
         const covered: { from: number; to: number }[] = [];
         for (const r of sorted) {
-            if ((map.get(r.id) ?? 0) > 0) covered.push({ from: r.from, to: r.to });
+            if ((map.get(r.id) ?? 0) >= 1) covered.push({ from: r.from, to: r.to });
         }
         for (const r of sorted) {
-            if ((map.get(r.id) ?? 0) > 0) continue;
+            if ((map.get(r.id) ?? 0) >= 1) continue;
             if (!isRangeFullyCovered(r.from, r.to, covered)) {
                 map.set(r.id, 1);
                 covered.push({ from: r.from, to: r.to });
