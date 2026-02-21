@@ -459,6 +459,7 @@ export const TransformerStack = ({
                                     (dragState?.dropTargetRegionId === region.id)
                                 }
                                 isAnyHovered={effectiveHoveredId !== null}
+                                hasActiveSubregion={region.subregions.some(sr => activeTransformerIds.has(sr.id))}
                                 isDropTarget={dragState?.dropTargetRegionId === region.id}
                                 onHoverChange={handleHoverChange}
                                 onDragStart={draggable ? handleDragStart : undefined}

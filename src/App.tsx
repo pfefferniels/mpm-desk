@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useLatest } from './hooks/useLatest';
 import { asMSM } from './utils/asMSM';
 import { compareTransformers, MPM, MSM, validate } from 'mpmify';
@@ -147,15 +147,18 @@ export const App = () => {
         setActiveTransformerIds(new Set([id]));
     }, [transformersRef]);
 
-    // Hash → Selection: select transformer from URL hash when transformers load
+    // Hash → Selection: select transformer from URL hash on initial load
+    const initialHashSynced = useRef(false);
     useEffect(() => {
+        if (initialHashSynced.current || !transformers.length) return;
         const hash = window.location.hash.slice(1);
-        if (!hash || !transformers.length) return;
+        initialHashSynced.current = true;
+        if (!hash) return;
         const match = transformers.find(t => t.id.startsWith(hash));
-        if (match && !activeTransformerIds.has(match.id)) {
+        if (match) {
             setActiveTransformerIds(new Set([match.id]));
         }
-    }, [transformers, activeTransformerIds]);
+    }, [transformers]);
 
     const onHashChange = useEffectEvent(() => {
         const hash = window.location.hash.slice(1);

@@ -126,6 +126,7 @@ interface RegionOnionProps {
     sizeFactor: number;
     isHovered: boolean;
     isAnyHovered: boolean;
+    hasActiveSubregion: boolean;
     lodOpacity: number;
     isDropTarget?: boolean;
     onHoverChange: (regionId: string | null) => void;
@@ -144,6 +145,7 @@ export const RegionOnion = memo(function RegionOnion({
     lodOpacity,
     isHovered,
     isAnyHovered,
+    hasActiveSubregion,
     isDropTarget,
     onHoverChange,
     onDragStart,
@@ -159,8 +161,9 @@ export const RegionOnion = memo(function RegionOnion({
 
     const color = isDropTarget ? "#3498db" : REGION_COLOR;
 
+    const expanded = isHovered || hasActiveSubregion;
     const baseAmp = MIN_AMPLITUDE + (BASE_AMPLITUDE - MIN_AMPLITUDE) * sizeFactor;
-    const amplitude = isHovered ? baseAmp + HOVER_EXTRA : baseAmp;
+    const amplitude = expanded ? baseAmp + HOVER_EXTRA : baseAmp;
 
     const onionPath = useMemo(
         () => valid ? buildOnionPath(curvePoints, from, to, amplitude) : "",
@@ -193,10 +196,10 @@ export const RegionOnion = memo(function RegionOnion({
                 <path
                     d={onionPath}
                     fill={color}
-                    fillOpacity={(isDropTarget ? 0.35 : isHovered ? 0.28 : 0.18 - sizeFactor * 0.1) * lodOpacity}
+                    fillOpacity={(isDropTarget ? 0.35 : expanded ? 0.28 : 0.18 - sizeFactor * 0.1) * lodOpacity}
                     stroke={color}
-                    strokeWidth={isDropTarget ? 1.5 : isHovered ? 0.5 : 1.5 - sizeFactor * 0.5}
-                    strokeOpacity={(isDropTarget ? 0.6 : isHovered ? 0.25 : 0.5 - sizeFactor * 0.2) * lodOpacity}
+                    strokeWidth={isDropTarget ? 1.5 : expanded ? 0.5 : 1.5 - sizeFactor * 0.5}
+                    strokeOpacity={(isDropTarget ? 0.6 : expanded ? 0.25 : 0.5 - sizeFactor * 0.2) * lodOpacity}
                     pointerEvents="none"
                     vectorEffect="non-scaling-stroke"
                     style={{ transition: "fill 0.15s, fill-opacity 0.15s, stroke 0.15s, stroke-opacity 0.15s, stroke-width 0.15s" }}
@@ -226,8 +229,8 @@ export const RegionOnion = memo(function RegionOnion({
                 style={{ cursor: "pointer" }}
             />
 
-            {/* Subregion lanes on hover */}
-            {isHovered && region.subregions.length > 0 && (
+            {/* Subregion lanes on hover or when containing active transformer */}
+            {expanded && region.subregions.length > 0 && (
                 <SubregionLanes
                     subregions={region.subregions}
                     curvePoints={curvePoints}
