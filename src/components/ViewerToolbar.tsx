@@ -26,7 +26,7 @@ const ExpandableRow = ({ icon, tooltip, expanded, onExpandChange, onClick, child
         onMouseLeave={() => onExpandChange(false)}
         sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}
     >
-        <Tooltip title={tooltip} placement="right">
+        <Tooltip title={tooltip} placement="bottom">
             <IconButton onClick={onClick} size="medium" sx={{ color: 'text.secondary' }}>
                 {icon}
             </IconButton>
@@ -44,7 +44,7 @@ const ExpandableRow = ({ icon, tooltip, expanded, onExpandChange, onClick, child
             background: expanded ? 'rgba(255, 255, 255, 1)' : glassStyle.background,
             width: expanded ? 156 : 0,
             opacity: expanded ? 1 : 0,
-            overflow: 'hidden',
+            overflow: expanded ? 'visible' : 'hidden',
             transition: 'width 200ms ease, opacity 200ms ease, background 200ms ease',
             pointerEvents: expanded ? 'auto' : 'none',
         }}>
@@ -116,7 +116,7 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                     />
                 </ExpandableRow>
 
-                <Tooltip title="Download" placement="right">
+                <Tooltip title="Download" placement="bottom">
                     <IconButton onClick={onDownload} size="medium" sx={{ color: 'text.secondary' }}>
                         <Download />
                     </IconButton>
