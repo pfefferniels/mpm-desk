@@ -16,6 +16,12 @@ import { RegionOnion } from "./RegionOnion";
 import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
 
+const cloneTransformerWithArgumentation = (transformer: Transformer, argumentation: Argumentation): Transformer => {
+    const clone = Object.create(Object.getPrototypeOf(transformer)) as Transformer;
+    Object.assign(clone, transformer, { argumentation });
+    return clone;
+};
+
 /** Check whether [from, to] is fully covered by the union of the given intervals. */
 function isRangeFullyCovered(from: number, to: number, intervals: { from: number; to: number }[]): boolean {
     const relevant = intervals
@@ -155,29 +161,30 @@ export const TransformerStack = ({
 
     const mergeInto = useCallback(
         (transformerId: string, argumentation: Argumentation) => {
-            const transformer = transformers.find(t => t.id === transformerId);
-            if (!transformer) return;
-            transformer.argumentation = argumentation;
-            setTransformers([...transformers]);
+            setTransformers(transformers.map(transformer =>
+                transformer.id === transformerId
+                    ? cloneTransformerWithArgumentation(transformer, argumentation)
+                    : transformer
+            ));
         },
         [transformers, setTransformers]
     );
 
     const extractTransformer = useCallback(
         (transformerId: string) => {
-            const transformer = transformers.find(t => t.id === transformerId);
-            if (transformer) {
-                transformer.argumentation = {
-                    id: v4(),
-                    conclusion: {
-                        certainty: 'plausible',
-                        motivation: 'calm',
-                        id: v4()
-                    },
-                    type: 'simpleArgumentation'
-                };
-                setTransformers([...transformers]);
-            }
+            setTransformers(transformers.map(transformer =>
+                transformer.id === transformerId
+                    ? cloneTransformerWithArgumentation(transformer, {
+                        id: v4(),
+                        conclusion: {
+                            certainty: 'plausible',
+                            motivation: 'calm',
+                            id: v4()
+                        },
+                        type: 'simpleArgumentation'
+                    })
+                    : transformer
+            ));
         }, [transformers, setTransformers]);
 
     // During drag, force source region (and drop target) to stay hovered
@@ -198,7 +205,7 @@ export const TransformerStack = ({
             const mpmIds = ts.filter(t => t.argumentation?.id === regionId).flatMap(t => t.created);
             if (mpmIds.length > 0) playRef.current({ mpmIds, exaggerate: exaggerationRef.current });
         }, 150);
-    }, []);
+    }, [dragStateRef, exaggerationRef, playRef, stopRef, transformersRef]);
 
     const handleLaneClick = useCallback((subregionId: string) => {
         const ts = transformersRef.current;
@@ -206,7 +213,7 @@ export const TransformerStack = ({
         if (t) {
             playRef.current({ mpmIds: t.created, isolate: true, exaggerate: exaggerationRef.current });
         }
-    }, []);
+    }, [exaggerationRef, playRef, transformersRef]);
 
     const handleArgumentationChange = useCallback(() => {
         setTransformers([...transformers]);
@@ -325,7 +332,7 @@ export const TransformerStack = ({
             window.removeEventListener("mousemove", onDragMouseMove);
             window.removeEventListener("mouseup", onDragMouseUp);
         };
-    }, [isDragging]);
+    }, [isDragging, onDragMouseMove, onDragMouseUp]);
 
     const handleClearSelection = useCallback(() => {
         setActiveTransformerIds(new Set());
