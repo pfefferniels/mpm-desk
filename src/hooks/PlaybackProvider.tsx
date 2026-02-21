@@ -15,6 +15,8 @@ interface PlaybackContextValue {
     isPlaying: boolean;
     play: (options?: PlayOptions) => Promise<void>;
     stop: () => void;
+    exaggeration: number;
+    setExaggeration: (value: number) => void;
 }
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
@@ -29,6 +31,7 @@ interface PlaybackProviderProps {
 export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderProps) => {
     const { play: playPiano, stop: stopPiano } = usePiano();
     const [isPlaying, setIsPlaying] = useState(false);
+    const [exaggeration, setExaggeration] = useState(1.0);
 
     // Store props in refs so play() callback stays stable
     const meiRef = useRef(mei);
@@ -135,7 +138,9 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         isPlaying,
         play,
         stop,
-    }), [isPlaying, play, stop]);
+        exaggeration,
+        setExaggeration,
+    }), [isPlaying, play, stop, exaggeration]);
 
     return (
         <PlaybackContext value={value}>

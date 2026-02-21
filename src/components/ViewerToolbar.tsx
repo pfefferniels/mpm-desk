@@ -27,7 +27,7 @@ const ExpandableRow = ({ icon, tooltip, expanded, onExpandChange, onClick, child
         sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}
     >
         <Tooltip title={tooltip} placement="right">
-            <IconButton onClick={onClick} size="small" sx={{ color: 'text.secondary' }}>
+            <IconButton onClick={onClick} size="medium" sx={{ color: 'text.secondary' }}>
                 {icon}
             </IconButton>
         </Tooltip>
@@ -41,10 +41,11 @@ const ExpandableRow = ({ icon, tooltip, expanded, onExpandChange, onClick, child
             pl: 2,
             pr: 1.5,
             ...glassStyle,
+            background: expanded ? 'rgba(255, 255, 255, 1)' : glassStyle.background,
             width: expanded ? 156 : 0,
             opacity: expanded ? 1 : 0,
             overflow: 'hidden',
-            transition: 'width 200ms ease, opacity 200ms ease',
+            transition: 'width 200ms ease, opacity 200ms ease, background 200ms ease',
             pointerEvents: expanded ? 'auto' : 'none',
         }}>
             {children}
@@ -59,9 +60,9 @@ interface ViewerToolbarProps {
 
 export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
     const { stretchX, setStretchX } = useZoom();
-    const { play, stop, isPlaying } = usePlayback();
+    const { play, stop, isPlaying, exaggeration, setExaggeration } = usePlayback();
     const [zoomHovered, setZoomHovered] = useState(false);
-    const [exaggeration, setExaggeration] = useState(1.0);
+    const [playHovered, setPlayHovered] = useState(false);
 
     const handlePlayToggle = useCallback(() => {
         if (isPlaying) {
@@ -99,7 +100,7 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                 flexShrink: 0,
             }}>
                 <ExpandableRow
-                    icon={<ZoomIn fontSize="small" />}
+                    icon={<ZoomIn />}
                     tooltip="Zoom"
                     expanded={zoomHovered}
                     onExpandChange={setZoomHovered}
@@ -116,16 +117,16 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                 </ExpandableRow>
 
                 <Tooltip title="Download" placement="right">
-                    <IconButton onClick={onDownload} size="small" sx={{ color: 'text.secondary' }}>
-                        <Download fontSize="small" />
+                    <IconButton onClick={onDownload} size="medium" sx={{ color: 'text.secondary' }}>
+                        <Download />
                     </IconButton>
                 </Tooltip>
 
                 <ExpandableRow
-                    icon={isPlaying ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />}
+                    icon={isPlaying ? <Stop /> : <PlayArrow />}
                     tooltip={isPlaying ? 'Stop' : 'Play'}
-                    expanded={isPlaying}
-                    onExpandChange={() => {}}
+                    expanded={playHovered}
+                    onExpandChange={setPlayHovered}
                     onClick={handlePlayToggle}
                 >
                     <Slider
@@ -134,6 +135,8 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                         min={1}
                         max={3}
                         step={0.1}
+                        valueLabelDisplay="auto"
+                        valueLabelFormat={v => `${v.toFixed(1)}x`}
                         onChange={(_, v) => setExaggeration(v as number)}
                         onChangeCommitted={handleExaggerationCommit}
                     />
