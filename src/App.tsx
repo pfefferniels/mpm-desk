@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useLatest } from './hooks/useLatest';
 import { asMSM } from './utils/asMSM';
-import { compareTransformers, MPM, MSM, validate } from 'mpmify';
+import { compareTransformers, getRange, MPM, MSM, ScopedTransformationOptions, Transformer, validate } from 'mpmify';
 import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
 import { correspondingDesks } from './desks/DeskSwitch';
 import { SecondaryData } from './desks/TransformerViewProps';
 import './App.css'
 import { TransformerStack } from './transformer-stack/TransformerStack';
-import { ScopedTransformationOptions, Transformer } from 'mpmify/lib/transformers/Transformer';
 import { v4 } from 'uuid';
 import { MetadataDesk } from './desks/metadata/MetadataDesk';
 import { NotesProvider } from './hooks/NotesProvider';
@@ -25,6 +24,7 @@ import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { parseWork } from './utils/workImport';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
 import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
+import { findMatchingArgumentation, mergeOverlappingArgumentations } from './utils/mergeArgumentations';
 
 export const App = () => {
     const { isEditorMode } = useMode();
@@ -210,6 +210,14 @@ export const App = () => {
         onPipelineSuccess: () => setMessage(undefined),
     });
 
+    // Auto-merge argumentations that share identical (from, to) bounds
+    useEffect(() => {
+        setTransformers(prev => {
+            const merged = mergeOverlappingArgumentations(prev, msm);
+            return merged === prev ? prev : merged;
+        });
+    }, [transformers, msm]);
+
     const isMetadataSelected = selectedDesk === 'metadata'
     const DeskComponent = correspondingDesks
         .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk;
@@ -274,31 +282,36 @@ export const App = () => {
                                         secondary={secondary}
                                         setSecondary={setSecondary}
                                         addTransformer={(transformer: Transformer) => {
-                                            const transformerWithArgumentation = Object.assign(
-                                                Object.create(Object.getPrototypeOf(transformer)),
-                                                transformer,
-                                                {
-                                                    argumentation: {
-                                                        note: '',
-                                                        id: `argumentation-${v4().slice(0, 8)}`,
-                                                        conclusion: {
-                                                            certainty: 'plausible',
-                                                            id: `belief-${v4().slice(0, 8)}`,
-                                                            motivation: 'calm'
-                                                        },
-                                                        type: 'simpleArgumentation'
-                                                    }
-                                                }
-                                            ) as Transformer
-
                                             setTransformers(prev => {
-                                                const newTransformers = [...prev, transformerWithArgumentation].sort(compareTransformers)
-                                                const messages = validate(newTransformers)
+                                                const newRange = getRange(transformer.options, msm);
+                                                const existingArg = newRange
+                                                    ? findMatchingArgumentation(prev, newRange, msm)
+                                                    : undefined;
+
+                                                const argumentation = existingArg ?? {
+                                                    note: '',
+                                                    id: `argumentation-${v4().slice(0, 8)}`,
+                                                    conclusion: {
+                                                        certainty: 'plausible' as const,
+                                                        id: `belief-${v4().slice(0, 8)}`,
+                                                        motivation: 'calm' as const,
+                                                    },
+                                                    type: 'simpleArgumentation',
+                                                };
+
+                                                const transformerWithArgumentation = Object.assign(
+                                                    Object.create(Object.getPrototypeOf(transformer)),
+                                                    transformer,
+                                                    { argumentation }
+                                                ) as Transformer;
+
+                                                const newTransformers = [...prev, transformerWithArgumentation].sort(compareTransformers);
+                                                const messages = validate(newTransformers);
                                                 if (messages.length) {
-                                                    setMessage(messages.map(m => m.message).join('\n'))
-                                                    return prev
+                                                    setMessage(messages.map(m => m.message).join('\n'));
+                                                    return prev;
                                                 }
-                                                return newTransformers
+                                                return newTransformers;
                                             })
                                         }}
                                         part={scope}

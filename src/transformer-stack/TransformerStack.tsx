@@ -1,10 +1,9 @@
 import { Card } from "@mui/material";
-import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
 import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
-import { MPM, MSM } from "mpmify";
+import { Argumentation, getRange, MPM, MSM, Transformer } from "mpmify";
 import { v4 } from "uuid";
 import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
@@ -15,12 +14,7 @@ import { buildRegions, computeCurvePoints, OnionDragState, OnionSubregion, tickT
 import { RegionOnion } from "./RegionOnion";
 import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
-
-const cloneTransformerWithArgumentation = (transformer: Transformer, argumentation: Argumentation): Transformer => {
-    const clone = Object.create(Object.getPrototypeOf(transformer)) as Transformer;
-    Object.assign(clone, transformer, { argumentation });
-    return clone;
-};
+import { cloneTransformerWithArgumentation } from "./cloneTransformer";
 
 /** Check whether [from, to] is fully covered by the union of the given intervals. */
 function isRangeFullyCovered(from: number, to: number, intervals: { from: number; to: number }[]): boolean {
