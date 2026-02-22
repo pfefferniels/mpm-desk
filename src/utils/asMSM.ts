@@ -1,5 +1,4 @@
-import { MSM } from "mpmify"
-import { MsmNote, MsmPedal } from "mpmify/lib/msm";
+import { MSM, MsmNote, MsmPedal } from "mpmify"
 import { v4 } from "uuid";
 import { convertMeiToMsm } from "./backendApi";
 

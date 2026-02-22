@@ -5,10 +5,9 @@ import { usePiano } from "react-pianosound";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
-import { MSM, MsmNote } from "mpmify/lib/msm";
+import { DynamicsWithEndDate, InsertDynamicsInstructions, Modify, ModifyOptions, MSM, MsmNote } from "mpmify";
 import { Range } from "../tempo/Tempo";
-import { DynamicsWithEndDate, InsertDynamicsInstructions, Modify, ModifyOptions } from "mpmify/lib/transformers";
-import { Box, Button, Drawer, FormControl, FormLabel, Input, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
@@ -64,6 +63,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     const [dragSnapDate, setDragSnapDate] = useState<number>()
     const [pendingInsert, setPendingInsert] = useState<{ from: number, to: number }>()
     const [modifyOptions, setModifyOptions] = useState<ModifyOptions>()
+    const [pendingCommitOptions, setPendingCommitOptions] = useState<ModifyOptions>()
+    const [modifyDrag, setModifyDrag] = useState<{ startSvgY: number }>()
+    const [modifyDragDelta, setModifyDragDelta] = useState(0)
 
     const { play, stop } = usePiano()
     const { slice } = useNotes()
@@ -143,10 +145,32 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 }
             }
         }
-        return deltas
-    }, [transformers, msm, part])
 
-    useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
+        // Subtract pending commit delta — it's in the transformer list but not yet
+        // reflected in the MSM, so including it would flip the committed ghost direction
+        if (pendingCommitOptions && pendingCommitOptions.aspect === 'velocity') {
+            const applyDelta = (nid: string) => {
+                const cur = deltas.get(nid) ?? 0
+                const adjusted = cur - pendingCommitOptions.change
+                if (adjusted === 0) deltas.delete(nid)
+                else deltas.set(nid, adjusted)
+            }
+            if ('noteIDs' in pendingCommitOptions) {
+                for (const nid of pendingCommitOptions.noteIDs) applyDelta(nid)
+            } else if ('from' in pendingCommitOptions && 'to' in pendingCommitOptions) {
+                for (const note of msm.notesInRange(pendingCommitOptions.from, pendingCommitOptions.to, part)) {
+                    applyDelta(note['xml:id'])
+                }
+            }
+        }
+
+        return deltas
+    }, [transformers, msm, part, pendingCommitOptions])
+
+    useEffect(() => {
+        setSegments(extractDynamicsSegments(msm, part))
+        setPendingCommitOptions(undefined)
+    }, [msm, part])
 
     const clientToSvg = (clientX: number, clientY: number, svg: SVGSVGElement) => {
         const point = svg.createSVGPoint()
@@ -176,6 +200,73 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         setDragFrom(undefined)
         setDragMouse(undefined)
         setDragSnapDate(undefined)
+    }
+
+    const isNoteAffectedBy = (noteID: string | undefined, options: ModifyOptions | undefined) => {
+        if (!noteID || !options) return false
+        if ('noteIDs' in options) return options.noteIDs.includes(noteID)
+        if ('from' in options && 'to' in options) {
+            return msm.notesInRange(options.from, options.to, part)
+                .some(n => n['xml:id'] === noteID)
+        }
+        return false
+    }
+
+    const isNoteAffected = (noteID: string | undefined) => isNoteAffectedBy(noteID, modifyOptions)
+
+    const handleModifyDragStart = (segment: DynamicsSegment, clientY: number) => {
+        if (mode !== 'modify') return
+        const svg = svgRef.current
+        if (!svg) return
+
+        const noteid = msm.allNotes.find(n => n["midi.velocity"] === segment.velocity && n.date === segment.date.start)?.["xml:id"]
+        if (!noteid) return
+
+        // If dragged circle is not in current selection, replace selection with just this note
+        if (!modifyOptions || !isNoteAffected(noteid)) {
+            setModifyOptions({
+                scope: part,
+                aspect: 'velocity',
+                change: 0,
+                noteIDs: [noteid]
+            })
+        }
+
+        const pt = clientToSvg(0, clientY, svg)
+        setModifyDrag({ startSvgY: pt.y })
+        setModifyDragDelta(0)
+    }
+
+    const handleModifyMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        if (!modifyDrag) return
+        const svg = e.currentTarget
+        const pt = clientToSvg(e.clientX, e.clientY, svg)
+        let delta = Math.round((modifyDrag.startSvgY - pt.y) / stretchY)
+
+        // Clamp: ensure no selected note goes below 0 or above 127
+        const affectedSegments = segments.filter(s => isNoteAffected(s.noteID))
+        for (const seg of affectedSegments) {
+            const newVel = seg.velocity + delta
+            if (newVel > 127) delta = 127 - seg.velocity
+            if (newVel < 0) delta = -seg.velocity
+        }
+
+        setModifyDragDelta(delta)
+    }
+
+    const handleModifyMouseUp = () => {
+        if (!modifyDrag) return
+        if (modifyOptions) {
+            setModifyOptions({ ...modifyOptions, change: modifyDragDelta })
+        }
+        setModifyDrag(undefined)
+    }
+
+    const handleModifyMouseLeave = () => {
+        if (modifyDrag) {
+            setModifyDrag(undefined)
+            setModifyDragDelta(0)
+        }
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -273,9 +364,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     })
 
     segments.forEach((segment, i) => {
-        const delta = segment.noteID ? modifyDeltas.get(segment.noteID) : undefined
-        if (delta && delta !== 0) {
-            const originalVelocity = segment.velocity - delta
+        const committedDelta = segment.noteID ? modifyDeltas.get(segment.noteID) : undefined
+        if (committedDelta && committedDelta !== 0) {
+            const originalVelocity = segment.velocity - committedDelta
             const curX = segment.date.start * stretchX
             const curY = (127 - segment.velocity) * stretchY
             const origY = (127 - originalVelocity) * stretchY
@@ -305,6 +396,56 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 />
             )
         }
+
+        // Compute yOffset for pending modification preview
+        const affected = isNoteAffected(segment.noteID)
+        const affectedByPendingCommit = isNoteAffectedBy(segment.noteID, pendingCommitOptions)
+        let yOffset = 0
+        if (affected) {
+            if (modifyDrag) {
+                // During active drag
+                yOffset = -modifyDragDelta * stretchY
+            } else if (modifyOptions && modifyOptions.change !== 0) {
+                // After drag release, pending commit
+                yOffset = -modifyOptions.change * stretchY
+            }
+        }
+        if (affectedByPendingCommit && pendingCommitOptions) {
+            // Waiting for pipeline to process committed transformer
+            yOffset = -pendingCommitOptions.change * stretchY
+        }
+
+        // Pending modification ghost indicators (distinct from committed ghosts)
+        if ((affected || affectedByPendingCommit) && yOffset !== 0) {
+            const curX = segment.date.start * stretchX
+            const origY = (127 - segment.velocity) * stretchY
+            circles.push(
+                <line
+                    key={`pending_ghost_line_${segment.date}_${i}`}
+                    x1={curX}
+                    y1={origY}
+                    x2={curX}
+                    y2={origY + yOffset}
+                    stroke="hsl(220, 60%, 50%)"
+                    strokeWidth={1}
+                    strokeDasharray="3 2"
+                    strokeOpacity={0.6}
+                />
+            )
+            circles.push(
+                <circle
+                    key={`pending_ghost_dot_${segment.date}_${i}`}
+                    cx={curX}
+                    cy={origY}
+                    r={3}
+                    fill="none"
+                    stroke="hsl(220, 60%, 50%)"
+                    strokeWidth={1.5}
+                    strokeOpacity={0.7}
+                />
+            )
+        }
+
         circles.push(
             <DynamicsCircle
                 key={`velocity_segment_${segment.date}_${i}`}
@@ -314,7 +455,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 screenY={(velocity: number) => (127 - velocity) * stretchY}
                 handlePlay={handlePlay}
                 handleClick={handleClick}
-                cursor={mode === 'insert' ? 'crosshair' : undefined}
+                cursor={mode === 'insert' ? 'crosshair' : mode === 'modify' ? 'ns-resize' : undefined}
+                onDragStart={mode === 'modify' ? handleModifyDragStart : undefined}
+                yOffset={yOffset}
             />
         )
     })
@@ -360,16 +503,20 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                             <Button
                                 size='small'
                                 variant='contained'
-                                disabled={!modifyOptions}
+                                disabled={!modifyOptions || modifyOptions.change === 0}
                                 startIcon={<Add />}
                                 onClick={() => {
                                     if (!modifyOptions) return
 
                                     addTransformer(new Modify(modifyOptions))
+                                    setPendingCommitOptions(modifyOptions)
                                     setModifyOptions(undefined)
+                                    setModifyDragDelta(0)
                                 }}
                             >
-                                Modify
+                                {modifyOptions && modifyOptions.change !== 0
+                                    ? `Modify ${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change}`
+                                    : 'Modify'}
                             </Button>
                         </Ribbon>
                     )}
@@ -435,7 +582,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                             const threshold = ctm ? 20 / ctm.a : 30
                             const snap = findNearestDate(pt.x, threshold)
                             setDragSnapDate(snap !== undefined && snap > dragFrom.date ? snap : undefined)
-                        } : undefined}
+                        } : mode === 'modify' ? handleModifyMouseMove : undefined}
                         onMouseUp={mode === 'insert' ? () => {
                             if (dragFrom && dragSnapDate) {
                                 setPendingInsert({ from: dragFrom.date, to: dragSnapDate })
@@ -447,8 +594,8 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                                 }))
                             }
                             cancelDrag()
-                        } : undefined}
-                        onMouseLeave={mode === 'insert' ? () => cancelDrag() : undefined}
+                        } : mode === 'modify' ? handleModifyMouseUp : undefined}
+                        onMouseLeave={mode === 'insert' ? () => cancelDrag() : mode === 'modify' ? handleModifyMouseLeave : undefined}
                     >
                         {curves}
                         {circles}
@@ -518,39 +665,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 </div>
             </div>
 
-            <Drawer
-                open={modifyOptions !== undefined}
-                onClose={() => setModifyOptions(undefined)}
-                anchor='right'
-                sx={{ width: 300 }}
-                variant='persistent'
-            >
-                {modifyOptions && (
-                    <>
-                        <div>
-                            Affects:
-                            {'noteIDs' in modifyOptions && (
-                                modifyOptions.noteIDs.map(id => <span key={id}>{id} </span>)
-                            )}
-                        </div>
-                        <FormControl>
-                            <FormLabel>Relative Change</FormLabel>
-                            <Input
-                                type='number'
-                                value={modifyOptions?.change || 0}
-                                onChange={(e) => {
-                                    if (!modifyOptions) return
-                                    setModifyOptions({
-                                        ...modifyOptions,
-                                        change: parseFloat(e.target.value)
-                                    })
-                                }}
-                            />
-                        </FormControl>
-
-                    </>
-                )}
-            </Drawer>
         </div>
     )
 }

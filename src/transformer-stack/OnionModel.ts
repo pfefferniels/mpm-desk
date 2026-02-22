@@ -1,5 +1,4 @@
-import { Argumentation, getRange, Transformer } from "mpmify/lib/transformers/Transformer";
-import { MSM } from "mpmify";
+import { Argumentation, getRange, MSM, Transformer } from "mpmify";
 import type { IntensityCurve } from "../utils/intensityCurve";
 
 export type CurvePoint = { x: number; y: number; i: number };

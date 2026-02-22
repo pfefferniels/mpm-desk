@@ -7,7 +7,7 @@ import {
     MergeMetricalAccentuations, InsertArticulation, MakeChoice, Modify,
     compareTransformers, validate
 } from 'mpmify';
-import type { Transformer, Argumentation, TransformationOptions } from 'mpmify/lib/transformers/Transformer';
+import type { Transformer, Argumentation, TransformationOptions } from 'mpmify';
 
 interface SerializedTransformer {
     id: string;

@@ -1,4 +1,4 @@
-import { computeInnerControlPointsXPositions, DynamicsWithEndDate, volumeAtDate } from "mpmify/lib/transformers"
+import { computeInnerControlPointsXPositions, DynamicsWithEndDate, volumeAtDate } from "mpmify"
 import { useEffect, useState } from "react"
 
 interface CurveSegmentProps {

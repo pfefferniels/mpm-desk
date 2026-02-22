@@ -1,5 +1,4 @@
-import { MPM, MSM } from 'mpmify';
-import { Argumentation, Transformer } from 'mpmify/lib/transformers/Transformer';
+import { Argumentation, MPM, MSM, Transformer } from 'mpmify';
 import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { useLatest } from './useLatest';
 

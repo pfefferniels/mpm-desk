@@ -1,6 +1,5 @@
-import { compareTransformers, importWork, InsertMetadata, validate } from 'mpmify';
+import { compareTransformers, importWork, InsertMetadata, Transformer, validate } from 'mpmify';
 import { SecondaryData } from '../desks/TransformerViewProps';
-import { Transformer } from 'mpmify/lib/transformers/Transformer';
 
 interface WorkMetadata {
     author: string;

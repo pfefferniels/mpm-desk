@@ -1,8 +1,7 @@
 import React, { useCallback } from 'react';
 import { Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { Pause, PlayArrow, Save, UploadFile } from '@mui/icons-material';
-import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM } from 'mpmify';
-import { Transformer } from 'mpmify/lib/transformers/Transformer';
+import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM, Transformer } from 'mpmify';
 import { SecondaryData } from '../desks/TransformerViewProps';
 import { exportMPM } from '../../../mpm-ts/lib';
 import { Ribbon } from './Ribbon';

@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useCallback, ReactNode, SetStateAction } from 'react';
-import { Transformer } from 'mpmify/lib/transformers/Transformer';
+import { Transformer } from 'mpmify';
 
 interface SelectionContextValue {
     transformers: Transformer[];

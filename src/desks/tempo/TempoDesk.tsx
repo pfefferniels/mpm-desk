@@ -1,6 +1,5 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { ApproximateLogarithmicTempo, SilentOnset, TempoSegment, TranslatePhyiscalTimeToTicks } from "mpmify/lib/transformers"
-import { computeMillisecondsAt, TempoWithEndDate } from "mpmify"
+import { ApproximateLogarithmicTempo, computeMillisecondsAt, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Skyline } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, TempoSegment as LocalTempoSegment } from "./Tempo"

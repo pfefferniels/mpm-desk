@@ -1,5 +1,4 @@
-import { ChordMap } from "mpmify/lib/msm"
-import { InsertRubatoOptions } from "mpmify/lib/transformers"
+import { ChordMap, InsertRubatoOptions } from "mpmify"
 import { asMIDI, PartialBy } from "../../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"

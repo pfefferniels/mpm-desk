@@ -1,4 +1,4 @@
-import { InsertPedal, InsertPedalOptions } from "mpmify/lib/transformers"
+import { InsertPedal, InsertPedalOptions, MsmPedal } from "mpmify"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Movement } from "../../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
@@ -8,7 +8,6 @@ import { useSelection } from "../../hooks/SelectionProvider"
 import { PedalDialog } from "./PedalDialog"
 import { usePiano } from "react-pianosound"
 import { asMIDI } from "../../utils/utils"
-import { MsmPedal } from "mpmify/lib/msm"
 import { useScrollSync } from "../../hooks/ScrollSyncProvider"
 
 export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {

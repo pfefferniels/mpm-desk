@@ -1,5 +1,4 @@
-import { calculateRubatoOnDate } from "mpmify"
-import { ChordMap, MsmNote } from "mpmify/lib/msm"
+import { calculateRubatoOnDate, ChordMap, MsmNote } from "mpmify"
 import { Rubato } from "../../../../mpm-ts/lib"
 import { MouseEventHandler, useState } from "react"
 import { MidiFile } from "midifile-ts"

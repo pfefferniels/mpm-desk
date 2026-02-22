@@ -1,5 +1,4 @@
-import { MPM, MSM } from "mpmify";
-import { Transformer } from "mpmify/lib/transformers/Transformer";
+import { MPM, MSM, Transformer } from "mpmify";
 import { TempoSecondaryData } from "./tempo/TempoDesk";
 
 export interface SecondaryData {

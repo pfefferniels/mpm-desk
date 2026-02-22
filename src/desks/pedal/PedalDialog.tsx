@@ -1,7 +1,6 @@
 import { ArrowDownward, ArrowUpward } from "@mui/icons-material";
 import { Stack, Box, Slider, Dialog, DialogContent, DialogActions, Button, ToggleButtonGroup, ToggleButton } from "@mui/material";
-import { InsertPedalOptions } from "mpmify";
-import { MsmPedal } from "mpmify/lib/msm";
+import { InsertPedalOptions, MsmPedal } from "mpmify";
 import { useState } from "react";
 
 interface PedalDialogProps {

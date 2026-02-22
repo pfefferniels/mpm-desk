@@ -1,5 +1,5 @@
 import { AnyEvent, MidiFile } from "midifile-ts";
-import { MsmNote } from "mpmify/lib/msm";
+import { MsmNote } from "mpmify";
 
 export const downloadAsFile = (
     content: string | ArrayBuffer | Blob,

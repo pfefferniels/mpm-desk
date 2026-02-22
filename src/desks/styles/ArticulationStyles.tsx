@@ -1,5 +1,5 @@
 import { Button, Slider, Stack, Typography } from "@mui/material";
-import { StylizeArticulation } from "mpmify/lib/transformers";
+import { StylizeArticulation } from "mpmify";
 import { useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { Plot } from "./Plot";

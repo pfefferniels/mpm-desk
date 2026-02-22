@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Ornament, TemporalSpread } from "../../../../mpm-ts/lib";
-import { MsmNote } from "mpmify/lib/msm";
+import { MsmNote } from "mpmify";
 import { usePiano } from "react-pianosound";
 import { asMIDI, PartialBy } from "../../utils/utils";
 import * as Tone from "tone";

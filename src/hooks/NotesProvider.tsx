@@ -1,5 +1,5 @@
 // NotesContext.tsx
-import { MsmNote } from 'mpmify/lib/msm';
+import { MsmNote } from 'mpmify';
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 
 interface NotesContextValue {

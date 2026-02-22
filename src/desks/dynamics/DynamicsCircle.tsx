@@ -9,11 +9,13 @@ interface DynamicsCircleProps {
     handlePlay: (from: number, to?: number) => void;
     handleClick: (e: MouseEvent, segment: DynamicsSegment) => void;
     cursor?: string;
+    onDragStart?: (segment: DynamicsSegment, clientY: number) => void;
+    yOffset?: number;
 }
-export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handlePlay, handleClick, cursor }: DynamicsCircleProps) => {
+export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handlePlay, handleClick, cursor, onDragStart, yOffset = 0 }: DynamicsCircleProps) => {
     const [hovered, setHovered] = useState(false);
 
-    const y = screenY(segment.velocity);
+    const y = screenY(segment.velocity) + yOffset;
 
     return (
         <>
@@ -26,7 +28,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                         y2={screenY(0)}
                         stroke='gray'
                         strokeWidth={1} />
-                    <line 
+                    <line
                         x1={0}
                         x2={segment.date.start * stretchX}
                         y1={y}
@@ -64,6 +66,10 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                 stroke={'black'}
                 strokeWidth={segment.active ? 3 : 1}
                 style={cursor ? { cursor } : undefined}
+                onMouseDown={onDragStart ? (e) => {
+                    e.preventDefault();
+                    onDragStart(segment, e.clientY);
+                } : undefined}
                 onMouseOver={() => {
                     setHovered(true);
                     handlePlay(segment.date.start, segment.date.start + 1);

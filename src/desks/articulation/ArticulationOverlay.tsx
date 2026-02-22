@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { MsmNote } from "mpmify/lib/msm"
+import { MsmNote } from "mpmify"
 import { Articulation, ArticulationDef } from "../../../../mpm-ts/lib"
 import { convexHull } from "../../utils/convexHull"
 
