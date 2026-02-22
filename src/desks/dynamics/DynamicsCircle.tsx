@@ -8,8 +8,9 @@ interface DynamicsCircleProps {
     screenY: (velocity: number) => number;
     handlePlay: (from: number, to?: number) => void;
     handleClick: (e: MouseEvent, segment: DynamicsSegment) => void;
+    cursor?: string;
 }
-export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handlePlay, handleClick }: DynamicsCircleProps) => {
+export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handlePlay, handleClick, cursor }: DynamicsCircleProps) => {
     const [hovered, setHovered] = useState(false);
 
     const y = screenY(segment.velocity);
@@ -62,6 +63,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                 fillOpacity={0.4}
                 stroke={'black'}
                 strokeWidth={segment.active ? 3 : 1}
+                style={cursor ? { cursor } : undefined}
                 onMouseOver={() => {
                     setHovered(true);
                     handlePlay(segment.date.start, segment.date.start + 1);

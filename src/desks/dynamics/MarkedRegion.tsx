@@ -33,9 +33,14 @@ export const MarkedRegion = ({ from, to, svgRef }: MarkedRegionProps) => {
     return (
         <rect
             x={from * stretchX}
-            y={300}
+            y={0}
             width={(newTo - from) * stretchX}
-            height={600}
+            height={127 * 3 + 20}
+            fill="steelblue"
+            fillOpacity={0.1}
+            stroke="steelblue"
+            strokeWidth={1}
+            strokeDasharray="4 2"
         />
     )
 }

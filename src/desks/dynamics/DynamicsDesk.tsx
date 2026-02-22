@@ -7,7 +7,7 @@ import { asMIDI } from "../../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
 import { MSM, MsmNote } from "mpmify/lib/msm";
 import { Range } from "../tempo/Tempo";
-import { DynamicsWithEndDate, InsertDynamicsInstructions, InsertDynamicsInstructionsOptions, Modify, ModifyOptions } from "mpmify/lib/transformers";
+import { DynamicsWithEndDate, InsertDynamicsInstructions, Modify, ModifyOptions } from "mpmify/lib/transformers";
 import { Box, Button, Drawer, FormControl, FormLabel, Input, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
@@ -59,7 +59,10 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
 
     const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
-    const [insertOptions, setInsertOptions] = useState<InsertDynamicsInstructionsOptions>()
+    const [dragFrom, setDragFrom] = useState<{ date: number, x: number, y: number }>()
+    const [dragMouse, setDragMouse] = useState<{ x: number, y: number }>()
+    const [dragSnapDate, setDragSnapDate] = useState<number>()
+    const [pendingInsert, setPendingInsert] = useState<{ from: number, to: number }>()
     const [modifyOptions, setModifyOptions] = useState<ModifyOptions>()
 
     const { play, stop } = usePiano()
@@ -101,8 +104,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     }, [currentPhantomDate, mode]);
 
     useEffect(() => {
-        setInsertOptions(undefined)
-
         const dynamics = mpm.getInstructions<Dynamics>('dynamics', part)
         const withEndDate = []
         for (let i = 0; i < dynamics.length; i++) {
@@ -118,6 +119,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
             })
         }
         setInstructions(withEndDate)
+        setPendingInsert(undefined)
     }, [mpm, part])
 
     const stretchY = 3
@@ -146,16 +148,34 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
-    const handleInsert = () => {
-        if (!insertOptions) return
+    const clientToSvg = (clientX: number, clientY: number, svg: SVGSVGElement) => {
+        const point = svg.createSVGPoint()
+        point.x = clientX
+        point.y = clientY
+        const ctm = svg.getScreenCTM()
+        if (!ctm) return { x: 0, y: 0 }
+        const p = point.matrixTransform(ctm.inverse())
+        return { x: p.x, y: p.y }
+    }
 
-        addTransformer(new InsertDynamicsInstructions({
-            ...insertOptions,
-            phantomVelocities,
-            scope: part
-        }))
+    const findNearestDate = (svgX: number, snapThreshold: number) => {
+        let bestDate: number | undefined
+        let bestDist = Infinity
+        for (const seg of segments) {
+            const edgeX = seg.date.start * stretchX
+            const dist = Math.abs(svgX - edgeX)
+            if (dist < bestDist) {
+                bestDist = dist
+                bestDate = seg.date.start
+            }
+        }
+        return bestDist <= snapThreshold ? bestDate : undefined
+    }
 
-        setInsertOptions(undefined)
+    const cancelDrag = () => {
+        setDragFrom(undefined)
+        setDragMouse(undefined)
+        setDragSnapDate(undefined)
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -175,32 +195,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 if (e.type === 'meta' && e.subtype === 'text') {
                     setDatePlayed(+e.text)
                 }
-            })
-        }
-    }
-
-    const insertMarker = (date: number) => {
-        if (!insertOptions) {
-            setInsertOptions({
-                scope: part,
-                phantomVelocities,
-                from: date,
-                to: date
-            })
-            return
-        }
-
-        if (insertOptions.from !== undefined) {
-            setInsertOptions({
-                ...insertOptions,
-                to: date
-            })
-        }
-        else if (insertOptions.to !== undefined) {
-            setInsertOptions({
-                ...insertOptions,
-                from: date,
-                to: date
             })
         }
     }
@@ -253,7 +247,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 }
             }
         }
-        insertMarker(segment.date.start)
     }
 
     const circles: JSX.Element[] = []
@@ -321,6 +314,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 screenY={(velocity: number) => (127 - velocity) * stretchY}
                 handlePlay={handlePlay}
                 handleClick={handleClick}
+                cursor={mode === 'insert' ? 'crosshair' : undefined}
             />
         )
     })
@@ -379,21 +373,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                             </Button>
                         </Ribbon>
                     )}
-                    {mode === 'insert' && (
-                        <>
-                            <Ribbon title='Dynamics'>
-                                <Button
-                                    startIcon={<Add />}
-                                    size='small'
-                                    variant='contained'
-                                    onClick={handleInsert}
-                                >
-                                    Insert
-                                </Button>
-                            </Ribbon>
-                        </>
-                    )}
-
                     {mode === 'phantom' && (
                         <Ribbon title='Phantoms'>
                             <Button
@@ -437,14 +416,104 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                                 300 + margin
                             ].join(' ')
                         }
+                        onMouseDown={mode === 'insert' ? (e) => {
+                            const svg = e.currentTarget
+                            const pt = clientToSvg(e.clientX, e.clientY, svg)
+                            const ctm = svg.getScreenCTM()
+                            const threshold = ctm ? 20 / ctm.a : 30
+                            const snapDate = findNearestDate(pt.x, threshold)
+                            if (snapDate !== undefined) {
+                                setDragFrom({ date: snapDate, x: snapDate * stretchX, y: pt.y })
+                            }
+                        } : undefined}
+                        onMouseMove={mode === 'insert' ? (e) => {
+                            if (!dragFrom) return
+                            const svg = e.currentTarget as SVGSVGElement
+                            const pt = clientToSvg(e.clientX, e.clientY, svg)
+                            setDragMouse(pt)
+                            const ctm = svg.getScreenCTM()
+                            const threshold = ctm ? 20 / ctm.a : 30
+                            const snap = findNearestDate(pt.x, threshold)
+                            setDragSnapDate(snap !== undefined && snap > dragFrom.date ? snap : undefined)
+                        } : undefined}
+                        onMouseUp={mode === 'insert' ? () => {
+                            if (dragFrom && dragSnapDate) {
+                                setPendingInsert({ from: dragFrom.date, to: dragSnapDate })
+                                addTransformer(new InsertDynamicsInstructions({
+                                    from: dragFrom.date,
+                                    to: dragSnapDate,
+                                    phantomVelocities,
+                                    scope: part
+                                }))
+                            }
+                            cancelDrag()
+                        } : undefined}
+                        onMouseLeave={mode === 'insert' ? () => cancelDrag() : undefined}
                     >
                         {curves}
                         {circles}
-                        {<MarkedRegion
-                            from={insertOptions?.from || ((modifyOptions && ('from' in modifyOptions)) ? modifyOptions.from : undefined)}
-                            to={insertOptions?.to || ((modifyOptions && ('to' in modifyOptions)) ? modifyOptions.to : undefined)}
+
+                        {/* Drag preview line */}
+                        {dragFrom && dragMouse && (
+                            <line
+                                x1={dragFrom.x}
+                                y1={dragFrom.y}
+                                x2={dragSnapDate !== undefined ? dragSnapDate * stretchX : dragMouse.x}
+                                y2={dragMouse.y}
+                                stroke="gold"
+                                strokeWidth={2}
+                                strokeDasharray="6 4"
+                                pointerEvents="none"
+                            />
+                        )}
+
+                        {/* Snap indicator circles */}
+                        {dragFrom && (
+                            <circle
+                                cx={dragFrom.x} cy={dragFrom.y} r={4}
+                                fill="gold" stroke="gold" strokeWidth={1}
+                                pointerEvents="none"
+                            />
+                        )}
+                        {dragFrom && dragSnapDate !== undefined && dragMouse && (
+                            <circle
+                                cx={dragSnapDate * stretchX} cy={dragMouse.y} r={4}
+                                fill="gold" stroke="gold" strokeWidth={1}
+                                pointerEvents="none"
+                            />
+                        )}
+
+                        {/* Optimistic preview while transformer processes */}
+                        {pendingInsert && (() => {
+                            const pts = segments
+                                .filter(s => s.date.start >= pendingInsert.from && s.date.start <= pendingInsert.to)
+                                .sort((a, b) => a.date.start - b.date.start)
+                            if (pts.length === 0) return null
+                            const baselineY = 127 * stretchY
+                            let path = `M ${pts[0].date.start * stretchX} ${baselineY} `
+                            for (const p of pts) {
+                                path += `L ${p.date.start * stretchX} ${(127 - p.velocity) * stretchY} `
+                            }
+                            path += `L ${pts[pts.length - 1].date.start * stretchX} ${baselineY} Z`
+                            return (
+                                <path
+                                    d={path}
+                                    fill="gray"
+                                    fillOpacity={0.2}
+                                    stroke="gray"
+                                    strokeWidth={1}
+                                    pointerEvents="none"
+                                >
+                                    <animate attributeName="fill-opacity" values="0.2;0.08;0.2" dur="1s" repeatCount="indefinite" />
+                                </path>
+                            )
+                        })()}
+
+                        <MarkedRegion
+                            from={(modifyOptions && ('from' in modifyOptions)) ? modifyOptions.from : undefined}
+                            to={(modifyOptions && ('to' in modifyOptions)) ? modifyOptions.to : undefined}
                             svgRef={svgRef}
-                        />}
+                        />
                     </svg>
                 </div>
             </div>
