@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { Ribbon } from "../../components/Ribbon";
 import { usePhysicalZoom } from "../../hooks/ZoomProvider";
 import { useScrollSync } from "../../hooks/ScrollSyncProvider";
-import { Add } from "@mui/icons-material";
+import { Add, DeleteOutline } from "@mui/icons-material";
 import { TempoVariance } from "./TempoVariance";
 import { TemporalSpreadInstruction } from "./TemporalSpreadInstruction";
 import { useTimeMapping } from "../../hooks/useTimeMapping";
@@ -28,7 +28,11 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
 
     const stretchX = usePhysicalZoom()
     const { tickToSeconds } = useTimeMapping(msm)
-    const { activeElements, setActiveElement } = useSelection()
+    const { transformers, activeElements, setActiveElement, removeTransformer } = useSelection()
+
+    const defaultTransformer = transformers.find(
+        t => t.name === 'InsertTemporalSpread' && !('date' in t.options)
+    )
 
     const averageBPM = useMemo(() => {
         const notes = msm.allNotes
@@ -127,16 +131,25 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                     {appBarRef && createPortal((
                         <>
                             <Ribbon title="Temporal Spread">
-                                <Button
-                                    size='small'
-                                    variant='outlined'
-                                    onClick={() => {
-                                        setInsert(true)
-                                    }}
-                                    startIcon={<Add />}
-                                >
-                                    Insert {!currentDate && 'Default'}
-                                </Button>
+                                {!currentDate && defaultTransformer ? (
+                                    <Button
+                                        size='small'
+                                        variant='outlined'
+                                        onClick={() => removeTransformer(defaultTransformer)}
+                                        startIcon={<DeleteOutline />}
+                                    >
+                                        Remove Default
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        size='small'
+                                        variant='outlined'
+                                        onClick={() => setInsert(true)}
+                                        startIcon={<Add />}
+                                    >
+                                        Insert {!currentDate && 'Default'}
+                                    </Button>
+                                )}
                             </Ribbon>
                             <Ribbon title='Tempo Curve'>
                                 <TextField

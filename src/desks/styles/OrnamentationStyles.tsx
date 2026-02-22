@@ -5,8 +5,12 @@ import { Stack, Box, Typography, Slider, Button } from "@mui/material";
 import { Plot } from "./Plot";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../../components/Ribbon";
+import { DeleteOutline } from "@mui/icons-material";
+import { useSelection } from "../../hooks/SelectionProvider";
 
 export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
+    const { transformers, removeTransformer } = useSelection()
+    const existingTransformer = transformers.find(t => t.name === 'StylizeOrnamentation')
     const [tickTolerance, setTickTolerance] = useState(10)
     const [intensityTolerance, setIntensityTolerance] = useState(0.2)
     const [gradientTolerance, setGradientTolerance] = useState(0.2)
@@ -86,13 +90,24 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
 
             {appBarRef && createPortal((
                 <Ribbon title='Style'>
-                    <Button
-                        variant='contained'
-                        onClick={transformOrnaments}
-                        size='small'
-                    >
-                        Stylize Ornaments
-                    </Button>
+                    {existingTransformer ? (
+                        <Button
+                            variant='outlined'
+                            onClick={() => removeTransformer(existingTransformer)}
+                            size='small'
+                            startIcon={<DeleteOutline />}
+                        >
+                            Remove Style
+                        </Button>
+                    ) : (
+                        <Button
+                            variant='contained'
+                            onClick={transformOrnaments}
+                            size='small'
+                        >
+                            Stylize Ornaments
+                        </Button>
+                    )}
                 </Ribbon>
             ), appBarRef?.current ?? document.body)}
         </div>

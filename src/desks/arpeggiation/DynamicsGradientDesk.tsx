@@ -1,17 +1,18 @@
 import { InsertDynamicsGradient, MSM } from "mpmify"
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useScrollSync } from "../../hooks/ScrollSyncProvider"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../../components/Ribbon"
-import { Add } from "@mui/icons-material"
+import { Add, DeleteOutline } from "@mui/icons-material"
 import { MsmNote } from "mpmify/lib/msm"
 import { Ornament } from "../../../../mpm-ts/lib"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
+import { useSelection } from "../../hooks/SelectionProvider"
 
 const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
     return (
@@ -110,7 +111,7 @@ const RawGradient =({ notes, onClick, getY }: RawGradientProps) => {
                 <circle
                     cx={softest.onset * stretchX}
                     cy={getY((loudest.vel - softest.vel) * ratio + softest.vel)}
-                    r={2}
+                    r={6}
                     fill='red'
                     onClick={() => {
                         const lower = -ratio
@@ -172,10 +173,66 @@ const Hull =({ msm, part, getY }: { msm: MSM, part: Scope, getY: (velocity: numb
         })
 }
 
+type GradientInstructionProps = {
+    notes: MsmNote[]
+    ornament: Ornament
+    getY: (velocity: number) => number
+    active: boolean
+    onClick: () => void
+}
+
+const GradientInstruction = ({ notes, ornament, getY, active, onClick }: GradientInstructionProps) => {
+    const [hovered, setHovered] = useState(false)
+    const stretchX = usePhysicalZoom()
+
+    const from = ornament["transition.from"]!
+    const to = ornament["transition.to"]!
+    const scale = ornament.scale || 1
+
+    // Post-transformation, all notes share the same "standard" velocity
+    const standard = notes[0]["midi.velocity"]
+    const avgOnset = notes.reduce((sum, n) => sum + n["midi.onset"], 0) / notes.length
+
+    const lowVel = standard + Math.min(from, to) * scale
+    const highVel = standard + Math.max(from, to) * scale
+
+    const x = avgOnset * stretchX
+
+    return (
+        <g
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onClick={onClick}
+            style={{ cursor: "pointer" }}
+        >
+            <line
+                x1={x}
+                x2={x}
+                y1={getY(lowVel)}
+                y2={getY(highVel)}
+                stroke={active ? "blue" : "gray"}
+                strokeWidth={4}
+                strokeOpacity={hovered ? 1 : 0.6}
+            />
+            <circle
+                cx={x}
+                cy={getY(standard)}
+                r={3}
+                fill={active ? "blue" : "gray"}
+            />
+        </g>
+    )
+}
+
 export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [sortVelocities, setSortVelocities] = useState(true)
     const stretchX = usePhysicalZoom()
     const physicalEnd = Math.max(...msm.allNotes.map(n => n['midi.onset'] + n['midi.duration']))
+    const { transformers, activeElements, setActiveElement, removeTransformer } = useSelection()
+
+    const defaultTransformer = transformers.find(
+        t => t.name === 'InsertDynamicsGradient' && !('date' in t.options)
+    )
 
     const { register, unregister } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
@@ -187,8 +244,14 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
     }, [register, unregister]);
 
     const height = 400
+    const [pendingDates, setPendingDates] = useState<Set<number>>(new Set())
+
+    useEffect(() => {
+        setPendingDates(new Set())
+    }, [mpm])
 
     const transform = (date: number, gradient: { from: number, to: number }) => {
+        setPendingDates(prev => new Set(prev).add(date))
         addTransformer(new InsertDynamicsGradient({
             scope: part,
             date,
@@ -210,17 +273,13 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
         return height - (velocity / 100) * height
     }
 
-    const getMPMGradient = (date: number): { from: number, to: number, scale: number } | undefined => {
+    const getMPMGradient = (date: number): Ornament | undefined => {
         const instruction = mpm.getInstructions('ornament', part)
             .find(i => i.date === date) as Ornament | undefined;
         if (!instruction) return
 
         if (instruction["transition.from"] !== undefined && instruction["transition.to"] !== undefined) {
-            return {
-                from: instruction["transition.from"],
-                to: instruction["transition.to"],
-                scale: instruction.scale || 1
-            }
+            return instruction
         }
     }
 
@@ -241,11 +300,17 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                     />
                     <Button
                         size='small'
-                        onClick={transformDefault}
-                        startIcon={<Add />}
+                        onClick={() => {
+                            if (defaultTransformer) {
+                                removeTransformer(defaultTransformer)
+                            } else {
+                                transformDefault()
+                            }
+                        }}
+                        startIcon={defaultTransformer ? <DeleteOutline /> : <Add />}
                         variant='outlined'
                     >
-                        Insert Default
+                        {defaultTransformer ? 'Remove Default' : 'Insert Default'}
                     </Button>
                 </Ribbon>
             ), appBarRef?.current ?? document.body)}
@@ -262,7 +327,32 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                             .map(([date, notes]) => {
                                 const mpmGradient = getMPMGradient(date);
                                 if (mpmGradient) {
-                                    return <g key={`mpm_gradient_${date}`} />
+                                    return (
+                                        <GradientInstruction
+                                            key={`mpm_gradient_${date}`}
+                                            notes={notes}
+                                            ornament={mpmGradient}
+                                            getY={getY}
+                                            active={activeElements.includes(mpmGradient["xml:id"])}
+                                            onClick={() => setActiveElement(mpmGradient["xml:id"])}
+                                        />
+                                    )
+                                }
+                                else if (pendingDates.has(date)) {
+                                    const { softest, loudest } = getDynamicsExtremes(notes);
+                                    const x = ((softest.onset + loudest.onset) / 2) * stretchX;
+                                    return (
+                                        <line
+                                            key={`pending_${date}`}
+                                            x1={x}
+                                            x2={x}
+                                            y1={getY(softest.vel)}
+                                            y2={getY(loudest.vel)}
+                                            stroke="orange"
+                                            strokeWidth={4}
+                                            strokeOpacity={0.6}
+                                        />
+                                    )
                                 }
                                 else {
                                     return (

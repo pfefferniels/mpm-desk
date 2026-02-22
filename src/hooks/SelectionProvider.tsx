@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useCallback, ReactNode, SetStateAct
 import { Transformer } from 'mpmify/lib/transformers/Transformer';
 
 interface SelectionContextValue {
+    transformers: Transformer[];
     activeTransformerIds: Set<string>;
     activeElements: string[];
     setActiveTransformerIds: (ids: SetStateAction<Set<string>>) => void;
@@ -82,6 +83,7 @@ export const SelectionProvider = ({
     }, [transformers, setTransformers]);
 
     const value = useMemo(() => ({
+        transformers,
         activeTransformerIds,
         activeElements,
         setActiveTransformerIds,
@@ -91,7 +93,7 @@ export const SelectionProvider = ({
         removeActiveTransformers,
         replaceTransformer,
         focusTransformer,
-    }), [activeTransformerIds, activeElements, setActiveTransformerIds, toggleActiveTransformer, setActiveElement, removeTransformer, removeActiveTransformers, replaceTransformer, focusTransformer]);
+    }), [transformers, activeTransformerIds, activeElements, setActiveTransformerIds, toggleActiveTransformer, setActiveElement, removeTransformer, removeActiveTransformers, replaceTransformer, focusTransformer]);
 
     return (
         <SelectionContext value={value}>
