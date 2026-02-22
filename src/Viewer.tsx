@@ -16,6 +16,7 @@ import { downloadAsFile } from './utils/utils';
 import { parseWork } from './utils/workImport';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
 import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
+import { PinchZoomHandler } from './hooks/usePinchZoom';
 
 const ViewerInner = () => {
     const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
@@ -117,6 +118,7 @@ const ViewerInner = () => {
                         tickToSeconds={tickToSeconds}
                         secondsToTick={secondsToTick}
                     >
+                        <PinchZoomHandler />
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',

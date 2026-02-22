@@ -7,6 +7,7 @@ interface ScrollSyncContextValue {
     register: (id: string, element: HTMLElement, domain: ScrollDomain) => void;
     unregister: (id: string) => void;
     scrollToDate: (date: number) => void;
+    adjustScrollForZoom: (clientX: number, ratio: number) => void;
 }
 
 const ScrollSyncContext = createContext<ScrollSyncContextValue | undefined>(undefined);
@@ -149,6 +150,16 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
         });
     }, [physicalZoomRef, symbolicZoomRef, tickToSecondsRef]);
 
+    const adjustScrollForZoom = useCallback((clientX: number, ratio: number) => {
+        registryRef.current.forEach((entry, id) => {
+            const rect = entry.element.getBoundingClientRect();
+            const localX = clientX - rect.left;
+            const newScrollLeft = (entry.element.scrollLeft + localX) * ratio - localX;
+            expectedScrollRef.current.set(id, newScrollLeft);
+            entry.element.scrollLeft = newScrollLeft;
+        });
+    }, []);
+
     const register = useCallback((id: string, element: HTMLElement, domain: ScrollDomain) => {
         // If other elements in the same domain are registered, sync to their scroll position
         for (const entry of registryRef.current.values()) {
@@ -185,7 +196,8 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
         register,
         unregister,
         scrollToDate,
-    }), [register, unregister, scrollToDate]);
+        adjustScrollForZoom,
+    }), [register, unregister, scrollToDate, adjustScrollForZoom]);
 
     return (
         <ScrollSyncContext value={contextValue}>

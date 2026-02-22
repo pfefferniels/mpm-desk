@@ -21,6 +21,7 @@ import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { AppMenu } from './components/AppMenu';
 import { AspectSelect } from './components/AspectSelect';
 import { FloatingZoom } from './components/FloatingZoom';
+import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { parseWork } from './utils/workImport';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
 import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
@@ -305,6 +306,7 @@ export const App = () => {
                                 )}
                             </NotesProvider>
 
+                            <PinchZoomHandler />
                             <FloatingZoom />
                             <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
                                 <TransformerStack
