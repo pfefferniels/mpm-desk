@@ -56,7 +56,29 @@ export type IntensityCurve = {
     fullLength: number;
 };
 
-export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Transformer[]>, maxDate: number, msm: MSM): IntensityCurve => {
+export const negotiateIntensityCurve = (
+    argumentations: Map<Argumentation, Transformer[]>,
+    maxDate: number,
+    msm: MSM,
+    elementTypesByTransformer: Map<string, string[]>,
+): IntensityCurve => {
+    // Build index: element type → sorted start dates of point-based transformers
+    const startsByType = new Map<string, number[]>();
+    for (const [, localTransformers] of argumentations) {
+        for (const t of localTransformers) {
+            const tRange = getRange(t.options, msm);
+            if (!tRange) continue;
+            for (const type of elementTypesByTransformer.get(t.id) ?? []) {
+                let starts = startsByType.get(type);
+                if (!starts) { starts = []; startsByType.set(type, starts); }
+                starts.push(tRange.from);
+            }
+        }
+    }
+    for (const starts of startsByType.values()) {
+        starts.sort((a, b) => a - b);
+    }
+
     const diff: number[] = new Array(maxDate).fill(0);
     for (const [argumentation, localTransformers] of argumentations) {
         const range = getRange(localTransformers, msm);
@@ -78,7 +100,25 @@ export const negotiateIntensityCurve = (argumentations: Map<Argumentation, Trans
 
         const start = range.from;
         const end = range.to ?? range.from;
-        const length = Math.max(200, end - start + 1);
+        let length = Math.max(200, end - start + 1);
+
+        // For point-based transformers (no explicit range), clamp to end before
+        // the next same-type transformer starts
+        if (range.to === undefined || range.to === range.from) {
+            const types = localTransformers.flatMap(t => elementTypesByTransformer.get(t.id) ?? []);
+            let nextStart = Infinity;
+            for (const type of types) {
+                const starts = startsByType.get(type);
+                if (!starts) continue;
+                // Find first start strictly after current start
+                for (const s of starts) {
+                    if (s > start && s < nextStart) { nextStart = s; break; }
+                }
+            }
+            if (nextStart < start + length) {
+                length = nextStart - start;
+            }
+        }
 
         if (length === 1) continue;
 

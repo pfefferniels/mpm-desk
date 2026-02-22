@@ -95,8 +95,8 @@ export const TransformerStack = ({
     const maxX = maxDate * stretchX;
 
     const scaled = useMemo(
-        () => negotiateIntensityCurve(argumentations, maxDate, msm),
-        [argumentations, maxDate, msm],
+        () => negotiateIntensityCurve(argumentations, maxDate, msm, elementTypesByTransformer),
+        [argumentations, maxDate, msm, elementTypesByTransformer],
     );
 
     const totalHeight = 300;
