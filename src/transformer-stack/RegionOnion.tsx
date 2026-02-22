@@ -24,6 +24,8 @@ const SUBREGION_COLORS: Record<string, string> = {
     AddArticulation: "#2c3e50",
     AddRubato: "#e74c3c",
     AddAccentuationPattern: "#2980b9",
+    Modify: "#e67e22",
+    MakeChoice: "#27ae60",
 };
 
 function getLaneColor(type: string): string {

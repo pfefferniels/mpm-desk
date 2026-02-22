@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useScrollSync } from "../../hooks/ScrollSyncProvider";
 import { Dynamics } from "../../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
@@ -23,6 +23,7 @@ export interface DynamicsSegment {
     date: Range
     velocity: number
     active: boolean
+    noteID?: string
 }
 
 const extractDynamicsSegments = (msm: MSM, part: Scope) => {
@@ -38,7 +39,8 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
                     end: date
                 },
                 velocity: note['midi.velocity'],
-                active: false
+                active: false,
+                noteID: note['xml:id']
             })
         }
     })
@@ -49,7 +51,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
 export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<
     InsertDynamicsInstructions | Modify
 >) => {
-    const { activeElements, setActiveElement } = useSelection();
+    const { activeElements, setActiveElement, transformers } = useSelection();
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
@@ -120,6 +122,27 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
 
     const stretchY = 3
     const margin = 20
+
+    const modifyDeltas = useMemo(() => {
+        const deltas = new Map<string, number>()
+        for (const t of transformers) {
+            if (t.name !== 'Modify') continue
+            const opts = t.options as ModifyOptions
+            if (opts.aspect !== 'velocity') continue
+            if (opts.scope !== undefined && opts.scope !== 'global' && opts.scope !== part) continue
+            if ('noteIDs' in opts) {
+                for (const nid of opts.noteIDs) {
+                    deltas.set(nid, (deltas.get(nid) ?? 0) + opts.change)
+                }
+            } else if ('from' in opts && 'to' in opts) {
+                for (const note of msm.notesInRange(opts.from, opts.to, part)) {
+                    const nid = note['xml:id']
+                    deltas.set(nid, (deltas.get(nid) ?? 0) + opts.change)
+                }
+            }
+        }
+        return deltas
+    }, [transformers, msm, part])
 
     useEffect(() => setSegments(extractDynamicsSegments(msm, part)), [msm, part])
 
@@ -257,6 +280,38 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     })
 
     segments.forEach((segment, i) => {
+        const delta = segment.noteID ? modifyDeltas.get(segment.noteID) : undefined
+        if (delta && delta !== 0) {
+            const originalVelocity = segment.velocity - delta
+            const curX = segment.date.start * stretchX
+            const curY = (127 - segment.velocity) * stretchY
+            const origY = (127 - originalVelocity) * stretchY
+            circles.push(
+                <line
+                    key={`ghost_line_${segment.date}_${i}`}
+                    x1={curX}
+                    y1={origY}
+                    x2={curX}
+                    y2={curY}
+                    stroke="#999"
+                    strokeWidth={1}
+                    strokeDasharray="3 2"
+                    strokeOpacity={0.5}
+                />
+            )
+            circles.push(
+                <circle
+                    key={`ghost_dot_${segment.date}_${i}`}
+                    cx={curX}
+                    cy={origY}
+                    r={3}
+                    fill="none"
+                    stroke="#999"
+                    strokeWidth={1.5}
+                    strokeOpacity={0.6}
+                />
+            )
+        }
         circles.push(
             <DynamicsCircle
                 key={`velocity_segment_${segment.date}_${i}`}
