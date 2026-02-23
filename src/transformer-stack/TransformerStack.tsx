@@ -5,9 +5,9 @@ import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { Argumentation, getRange, MPM, MSM, Transformer } from "mpmify";
 import { v4 } from "uuid";
-import { asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
+import { applyExaggeration, asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
-import { usePlayback } from "../hooks/PlaybackProvider";
+import { EXAGGERATION_MAX, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
 import { ExportPNG } from "../components/ExportPng";
 import { buildRegions, computeCurvePoints, OnionDragState, OnionSubregion, tickToCurveIndex } from "./OnionModel";
@@ -15,6 +15,20 @@ import { RegionOnion } from "./RegionOnion";
 import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
 import { cloneTransformerWithArgumentation } from "./cloneTransformer";
+
+function lerpHexColor(a: string, b: string, t: number): string {
+    const parse = (hex: string) => [
+        parseInt(hex.slice(1, 3), 16),
+        parseInt(hex.slice(3, 5), 16),
+        parseInt(hex.slice(5, 7), 16),
+    ];
+    const [ar, ag, ab] = parse(a);
+    const [br, bg, bb] = parse(b);
+    const r = Math.round(ar + (br - ar) * t);
+    const g = Math.round(ag + (bg - ag) * t);
+    const bl = Math.round(ab + (bb - ab) * t);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
+}
 
 /** Check whether [from, to] is fully covered by the union of the given intervals. */
 function isRangeFullyCovered(from: number, to: number, intervals: { from: number; to: number }[]): boolean {
@@ -97,20 +111,37 @@ export const TransformerStack = ({
     const padTop = 40;
     const padBottom = 40;
 
+    const exaggeratedCurve = useMemo(
+        () => applyExaggeration(scaled, exaggeration),
+        [scaled, exaggeration],
+    );
+
     const curvePoints = useMemo(
-        () => computeCurvePoints({ curve: scaled, totalHeight, padTop, padBottom }),
-        [scaled, totalHeight],
+        () => computeCurvePoints({ curve: exaggeratedCurve, totalHeight, padTop, padBottom }),
+        [exaggeratedCurve, totalHeight],
     );
 
     const curvePathD = useMemo(
-        () => asPathD(scaled, totalHeight, padTop, padBottom),
-        [scaled, totalHeight],
+        () => asPathD(exaggeratedCurve, totalHeight, padTop, padBottom),
+        [exaggeratedCurve, totalHeight],
     );
 
     const regions = useMemo(
         () => buildRegions(argumentations, msm, elementTypesByTransformer),
         [argumentations, msm, elementTypesByTransformer],
     );
+
+    const regionColors = useMemo(() => {
+        const t = Math.min(1, (exaggeration - 1) / (EXAGGERATION_MAX - 1));
+        const map = new Map<string, string>();
+        for (const r of regions) {
+            const mot = r.argumentation.conclusion.motivation;
+            const warm = mot === 'intensify' || mot === 'move';
+            const target = warm ? '#c0392b' : '#2980b9';
+            map.set(r.id, lerpHexColor('#999999', target, t));
+        }
+        return map;
+    }, [regions, exaggeration]);
 
     const sizeFactors = useMemo(() => {
         const maxSpan = Math.max(1, ...regions.map(r => r.to - r.from));
@@ -446,6 +477,7 @@ export const TransformerStack = ({
                                 curvePoints={curvePoints}
                                 curveStep={curveStep}
                                 stretchX={stretchX}
+                                regionColor={regionColors.get(region.id) ?? '#999999'}
                                 sizeFactor={sizeFactors.get(region.id) ?? 1}
                                 lodOpacity={lodOpacities.get(region.id) ?? 1}
                                 isHovered={

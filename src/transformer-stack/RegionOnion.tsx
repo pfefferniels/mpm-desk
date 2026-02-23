@@ -9,8 +9,6 @@ import { Transformer } from "mpmify";
 import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
 
-const REGION_COLOR = "#999";
-
 const SUBREGION_COLORS: Record<string, string> = {
     dynamics: "#8e44ad",
     tempo: "#16a085",
@@ -125,6 +123,7 @@ interface RegionOnionProps {
     curvePoints: CurvePoint[];
     curveStep: number;
     stretchX: number;
+    regionColor: string;
     sizeFactor: number;
     isHovered: boolean;
     isAnyHovered: boolean;
@@ -143,6 +142,7 @@ export const RegionOnion = memo(function RegionOnion({
     curvePoints,
     curveStep,
     stretchX,
+    regionColor,
     sizeFactor,
     lodOpacity,
     isHovered,
@@ -161,7 +161,7 @@ export const RegionOnion = memo(function RegionOnion({
     const to = Math.max(0, Math.min(tickToCurveIndex(region.to, curveStep), curvePoints.length - 1));
     const valid = to > from;
 
-    const color = isDropTarget ? "#3498db" : REGION_COLOR;
+    const color = isDropTarget ? "#3498db" : regionColor;
 
     const expanded = isHovered || hasActiveSubregion;
     const baseAmp = MIN_AMPLITUDE + (BASE_AMPLITUDE - MIN_AMPLITUDE) * sizeFactor;

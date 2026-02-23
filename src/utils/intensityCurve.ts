@@ -148,6 +148,20 @@ export const negotiateIntensityCurve = (
     return { values, step, fullLength: scaled.length };
 }
 
+export function applyExaggeration(curve: IntensityCurve, exag: number): IntensityCurve {
+    if (exag === 1.0) return curve;
+    const invExag = 1 / exag;
+    return {
+        ...curve,
+        values: curve.values.map(v => {
+            const d = v - 0.5;
+            if (d === 0) return 0.5;
+            const sign = d > 0 ? 1 : -1;
+            return 0.5 + sign * Math.pow(Math.abs(d), invExag);
+        }),
+    };
+}
+
 export const asPathD = (curve: IntensityCurve, totalHeight: number, padTop = 8, padBottom = 8): string => {
     const { values, step } = curve;
     if (values.length === 0) return "";

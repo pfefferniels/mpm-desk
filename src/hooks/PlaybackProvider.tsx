@@ -5,6 +5,8 @@ import { MPM, MSM } from 'mpmify';
 import { exportMPM } from '../../../mpm-ts/lib';
 import { performMpm, PerformRequest } from '../utils/backendApi';
 
+export const EXAGGERATION_MAX = 2.0;
+
 interface PlayOptions {
     mpmIds?: string[];
     isolate?: boolean;

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
 import { ZoomIn, Download, PlayArrow, Stop } from '@mui/icons-material';
 import { useZoom } from '../hooks/ZoomProvider';
-import { usePlayback } from '../hooks/PlaybackProvider';
+import { EXAGGERATION_MAX, usePlayback } from '../hooks/PlaybackProvider';
 
 const glassStyle = {
     backdropFilter: 'blur(20px) saturate(180%)',
@@ -133,7 +133,7 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                         size="small"
                         value={exaggeration}
                         min={1}
-                        max={3}
+                        max={EXAGGERATION_MAX}
                         step={0.1}
                         valueLabelDisplay="auto"
                         valueLabelFormat={v => `${v.toFixed(1)}x`}
