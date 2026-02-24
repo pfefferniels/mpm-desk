@@ -1,0 +1,64 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout mpm-desk
+        uses: actions/checkout@v4
+        with:
+          path: mpm-desk
+
+      - name: Checkout mpm-ts
+        uses: actions/checkout@v4
+        with:
+          repository: pfefferniels/mpm-ts
+          path: mpm-ts
+
+      - name: Checkout mpmify
+        uses: actions/checkout@v4
+        with:
+          repository: pfefferniels/mpmify
+          path: mpmify
+
+      - name: Checkout react-pianosound
+        uses: actions/checkout@v4
+        with:
+          repository: pfefferniels/react-pianosound
+          path: react-pianosound
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build mpm-ts
+        working-directory: mpm-ts
+        run: npm ci && npm run build
+
+      - name: Build mpmify
+        working-directory: mpmify
+        run: npm ci && npm run build
+
+      - name: Build react-pianosound
+        working-directory: react-pianosound
+        run: npm ci && npm run build
+
+      - name: Install and build mpm-desk
+        working-directory: mpm-desk
+        run: npm ci && npm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=mpm-desk
+          workingDirectory: mpm-desk
