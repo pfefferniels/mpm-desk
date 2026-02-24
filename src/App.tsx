@@ -21,6 +21,7 @@ import { AppMenu } from './components/AppMenu';
 import { AspectSelect } from './components/AspectSelect';
 import { FloatingZoom } from './components/FloatingZoom';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
+import { StartScreen } from './components/StartScreen';
 import { parseWork } from './utils/workImport';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
 import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
@@ -69,50 +70,44 @@ export const App = () => {
         setInitialMSM(result);
     }, []);
 
+    const handleOpenMei = useCallback(async (file: File) => {
+        const content = await file.text();
+        setMEI(content);
+        const result = await asMSM(content);
+        setMSM(result);
+        setInitialMSM(result);
+        document.title = `${file.name} - MPM Desk`;
+    }, []);
+
+    const handleOpenZip = useCallback(async (file: File) => {
+        const zip = await JSZip.loadAsync(file);
+
+        const meiFile = zip.file('transcription.mei');
+        const jsonFile = zip.file('info.json');
+
+        if (meiFile) {
+            const meiContent = await meiFile.async('string');
+            setMEI(meiContent);
+            const result = await asMSM(meiContent);
+            setMSM(result);
+            setInitialMSM(result);
+            document.title = `${file.name} - MPM Desk`;
+        }
+
+        if (jsonFile) {
+            const jsonContent = await jsonFile.async('string');
+            loadWorkFromJson(jsonContent);
+        }
+    }, [loadWorkFromJson]);
+
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files ? event.target.files[0] : null;
-        if (!file) return
+        const file = event.target.files?.[0];
+        if (!file) return;
 
-        const reader = new FileReader();
-
-        if (file.name.endsWith('.json')) {
-            reader.onload = async (e: ProgressEvent<FileReader>) => {
-                const content = e.target?.result as string;
-                loadWorkFromJson(content)
-            };
-            reader.readAsText(file);
-        }
-        else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) {
-            reader.onload = async (e: ProgressEvent<FileReader>) => {
-                const content = e.target?.result as string;
-                setMEI(content);
-                const result = await asMSM(content);
-                setMSM(result);
-                setInitialMSM(result);
-                document.title = `${file.name} - MPM Desk`
-            };
-            reader.readAsText(file);
-        }
-        else if (file.name.endsWith('.zip')) {
-            const zip = await JSZip.loadAsync(file);
-
-            const meiFile = zip.file('transcription.mei');
-            const jsonFile = zip.file('info.json');
-
-            if (meiFile) {
-                const meiContent = await meiFile.async('string');
-                setMEI(meiContent);
-                const result = await asMSM(meiContent);
-                setMSM(result);
-                setInitialMSM(result);
-                document.title = `${file.name} - MPM Desk`;
-            }
-
-            if (jsonFile) {
-                const jsonContent = await jsonFile.async('string');
-                loadWorkFromJson(jsonContent)
-            }
-            return;
+        if (file.name.endsWith('.zip')) {
+            handleOpenZip(file);
+        } else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) {
+            handleOpenMei(file);
         }
     };
 
@@ -230,6 +225,10 @@ export const App = () => {
     }), [stretchX]);
 
     const { tickToSeconds, secondsToTick } = useTimeMapping(msm);
+
+    if (isEditorMode && !mei) {
+        return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
+    }
 
     return (
         <ZoomContext value={zoomContextValue}>

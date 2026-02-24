@@ -165,7 +165,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({
         return (
             <>
                 <Ribbon title='File'>
-                    <Tooltip title='Import MEI/JSON file' arrow>
+                    <Tooltip title='Open ZIP or MEI file' arrow>
                         <Button
                             onClick={onFileImport}
                             startIcon={<UploadFile />}
@@ -188,7 +188,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({
                     <input
                         type="file"
                         id="fileInput"
-                        accept='application/xml,.mei,application/json,.zip'
+                        accept='application/xml,.mei,.zip'
                         style={{ display: 'none' }}
                         onChange={onFileChange}
                     />
