@@ -15,6 +15,7 @@ import { RegionOnion } from "./RegionOnion";
 import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
 import { cloneTransformerWithArgumentation } from "./cloneTransformer";
+import { InstructionPopover } from "./InstructionPopover";
 
 function lerpHexColor(a: string, b: string, t: number): string {
     const parse = (hex: string) => [
@@ -381,7 +382,9 @@ export const TransformerStack = ({
             tabIndex={-1}
             onMouseDown={(e) => e.currentTarget.focus()}
             onKeyDown={(e) => {
-                if (e.key === 'Backspace' && activeTransformerIds.size > 0) {
+                if (e.key === 'Escape') {
+                    handleClearSelection();
+                } else if (e.key === 'Backspace' && draggable && activeTransformerIds.size > 0) {
                     removeActiveTransformers();
                 }
             }}
@@ -533,6 +536,14 @@ export const TransformerStack = ({
                     )}
                 </svg>
             </div>
+            {!draggable && activeTransformerIds.size === 1 && (
+                <InstructionPopover
+                    mpm={mpm}
+                    transformers={transformers}
+                    activeTransformerIds={activeTransformerIds}
+                    svgRef={svgRef}
+                />
+            )}
         </Card>
     );
 };
