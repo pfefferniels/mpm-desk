@@ -10,12 +10,13 @@ import { useSelection } from "../hooks/SelectionProvider";
 import { EXAGGERATION_MAX, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
 import { ExportPNG } from "../components/ExportPng";
-import { buildRegions, computeCurvePoints, OnionDragState, OnionSubregion, tickToCurveIndex } from "./OnionModel";
+import { buildChains, buildRegions, ChainInfo, computeCurvePoints, OnionDragState, OnionSubregion, tickToCurveIndex } from "./OnionModel";
 import { RegionOnion } from "./RegionOnion";
 import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
 import { cloneTransformerWithArgumentation } from "./cloneTransformer";
 import { InstructionPopover } from "./InstructionPopover";
+import { MergeOrChainDialog } from "./MergeOrChainDialog";
 
 function lerpHexColor(a: string, b: string, t: number): string {
     const parse = (hex: string) => [
@@ -68,6 +69,10 @@ export const TransformerStack = ({
     const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [hoveredRegionId, setHoveredRegionId] = useState<string | null>(null);
     const [dragState, setDragState] = useState<OnionDragState | null>(null);
+    const [pendingRegionDrop, setPendingRegionDrop] = useState<{
+        sourceRegionId: string;
+        targetRegionId: string;
+    } | null>(null);
     const dragStateRef = useLatest(dragState);
     const transformersRef = useLatest(transformers);
     const playRef = useLatest(play);
@@ -132,6 +137,33 @@ export const TransformerStack = ({
         [argumentations, msm, elementTypesByTransformer],
     );
 
+    const chains = useMemo(() => buildChains(regions), [regions]);
+    const chainsRef = useLatest(chains);
+
+    const chainNeighborBounds = useMemo(() => {
+        const map = new Map<string, { prevTo?: number; nextFrom?: number }>();
+        const regionById = new Map(regions.map(r => [r.id, r]));
+        const seen = new Set<ChainInfo>();
+        for (const chain of chains.values()) {
+            if (seen.has(chain)) continue;
+            seen.add(chain);
+            for (let i = 0; i < chain.memberIds.length; i++) {
+                const id = chain.memberIds[i];
+                const bounds: { prevTo?: number; nextFrom?: number } = {};
+                if (i > 0) {
+                    const prev = regionById.get(chain.memberIds[i - 1]);
+                    if (prev) bounds.prevTo = prev.to;
+                }
+                if (i < chain.memberIds.length - 1) {
+                    const next = regionById.get(chain.memberIds[i + 1]);
+                    if (next) bounds.nextFrom = next.from;
+                }
+                map.set(id, bounds);
+            }
+        }
+        return map;
+    }, [regions, chains]);
+
     const regionColors = useMemo(() => {
         const t = Math.min(1, (exaggeration - 1) / (EXAGGERATION_MAX - 1));
         const map = new Map<string, string>();
@@ -145,13 +177,19 @@ export const TransformerStack = ({
     }, [regions, exaggeration]);
 
     const sizeFactors = useMemo(() => {
-        const maxSpan = Math.max(1, ...regions.map(r => r.to - r.from));
-        const map = new Map<string, number>();
+        // For chained regions, use the chain's total span
+        const effectiveSpans = new Map<string, number>();
         for (const r of regions) {
-            map.set(r.id, (r.to - r.from) / maxSpan);
+            const chain = chains.get(r.id);
+            effectiveSpans.set(r.id, chain ? chain.chainTo - chain.chainFrom : r.to - r.from);
+        }
+        const maxSpan = Math.max(1, ...effectiveSpans.values());
+        const map = new Map<string, number>();
+        for (const [id, span] of effectiveSpans) {
+            map.set(id, span / maxSpan);
         }
         return map;
-    }, [regions]);
+    }, [regions, chains]);
 
     const LOD_MIN_PX = 30;
     const LOD_FADE_PX = 60;
@@ -214,7 +252,15 @@ export const TransformerStack = ({
         }, [transformers, setTransformers]);
 
     // During drag, force source region (and drop target) to stay hovered
-    const effectiveHoveredId = dragState ? dragState.sourceRegionId : hoveredRegionId;
+    // Expand to all chain members when hovering a chained region
+    const effectiveHoveredIds = useMemo(() => {
+        const baseId = dragState ? dragState.sourceRegionId : hoveredRegionId;
+        if (!baseId) return new Set<string>();
+        const chain = chains.get(baseId);
+        if (chain) return new Set(chain.memberIds);
+        return new Set([baseId]);
+    }, [dragState, hoveredRegionId, chains]);
+
     const handleHoverChange = useCallback((regionId: string | null) => {
         if (dragStateRef.current) return;
         setHoveredRegionId(regionId);
@@ -228,10 +274,13 @@ export const TransformerStack = ({
 
         playTimeoutRef.current = setTimeout(() => {
             const ts = transformersRef.current;
-            const mpmIds = ts.filter(t => t.argumentation?.id === regionId).flatMap(t => t.created);
+            // Collect mpmIds from all chain members
+            const chain = chainsRef.current.get(regionId);
+            const ids = chain ? chain.memberIds : [regionId];
+            const mpmIds = ts.filter(t => ids.includes(t.argumentation?.id)).flatMap(t => t.created);
             if (mpmIds.length > 0) playRef.current({ mpmIds, exaggerate: exaggerationRef.current });
         }, 150);
-    }, [dragStateRef, exaggerationRef, playRef, stopRef, transformersRef]);
+    }, [dragStateRef, exaggerationRef, playRef, stopRef, transformersRef, chainsRef]);
 
     const handleLaneClick = useCallback((subregionId: string) => {
         const ts = transformersRef.current;
@@ -250,14 +299,23 @@ export const TransformerStack = ({
     const curveStep = scaled.step;
 
     const maskGap = useMemo(() => {
-        if (!effectiveHoveredId || curvePoints.length === 0) return null;
-        const hr = regions.find(r => r.id === effectiveHoveredId);
-        if (!hr) return null;
-        const f = Math.max(0, Math.min(tickToCurveIndex(hr.from, curveStep), curvePoints.length - 1));
-        const t = Math.max(0, Math.min(tickToCurveIndex(hr.to, curveStep), curvePoints.length - 1));
+        if (effectiveHoveredIds.size === 0 || curvePoints.length === 0) return null;
+        // Span the full range of all hovered regions (chain-expanded)
+        let minFrom = Infinity;
+        let maxTo = -Infinity;
+        for (const id of effectiveHoveredIds) {
+            const r = regions.find(r => r.id === id);
+            if (r) {
+                minFrom = Math.min(minFrom, r.from);
+                maxTo = Math.max(maxTo, r.to);
+            }
+        }
+        if (minFrom === Infinity) return null;
+        const f = Math.max(0, Math.min(tickToCurveIndex(minFrom, curveStep), curvePoints.length - 1));
+        const t = Math.max(0, Math.min(tickToCurveIndex(maxTo, curveStep), curvePoints.length - 1));
         if (t <= f) return null;
         return { x1: curvePoints[f].x, x2: curvePoints[t].x };
-    }, [effectiveHoveredId, regions, curvePoints, curveStep]);
+    }, [effectiveHoveredIds, regions, curvePoints, curveStep]);
 
     // --- Drag-and-drop via window listeners ---
 
@@ -322,6 +380,21 @@ export const TransformerStack = ({
         [screenToSvg],
     );
 
+    const handleRegionDragStart = useCallback(
+        (sourceRegionId: string, regionColor: string, e: { clientX: number; clientY: number }) => {
+            const pos = screenToSvg(e.clientX, e.clientY);
+            setDragState({
+                subregion: null,
+                sourceRegionId,
+                svgX: pos.x,
+                svgY: pos.y,
+                laneColor: regionColor,
+                dropTargetRegionId: null,
+            });
+        },
+        [screenToSvg],
+    );
+
     const isDragging = dragState !== null;
 
     const onDragMouseMove = useEffectEvent((e: MouseEvent) => {
@@ -333,6 +406,30 @@ export const TransformerStack = ({
         });
     });
 
+    const mergeRegions = useCallback(
+        (sourceId: string, targetId: string) => {
+            const sourceRegion = regions.find(r => r.id === sourceId);
+            const targetRegion = regions.find(r => r.id === targetId);
+            if (!sourceRegion || !targetRegion) return;
+            setTransformers(transformers.map(t =>
+                sourceRegion.transformers.some(st => st.id === t.id)
+                    ? cloneTransformerWithArgumentation(t, targetRegion.argumentation)
+                    : t
+            ));
+        },
+        [regions, transformers, setTransformers],
+    );
+
+    const chainRegions = useCallback(
+        (sourceId: string, targetId: string) => {
+            const sourceRegion = regions.find(r => r.id === sourceId);
+            if (!sourceRegion) return;
+            sourceRegion.argumentation.continue = targetId;
+            setTransformers([...transformers]);
+        },
+        [regions, transformers, setTransformers],
+    );
+
     const onDragMouseUp = useEffectEvent((e: MouseEvent) => {
         const prev = dragState;
         setDragState(null);
@@ -340,13 +437,25 @@ export const TransformerStack = ({
 
         const pos = screenToSvg(e.clientX, e.clientY);
         const dropTarget = findDropTarget(pos.x, pos.y, prev.sourceRegionId);
-        if (dropTarget) {
-            const targetRegion = regions.find(r => r.id === dropTarget);
-            if (targetRegion) {
-                mergeInto(prev.subregion.id, targetRegion.argumentation);
+
+        if (prev.subregion !== null) {
+            // Lane drag — existing behavior
+            if (dropTarget) {
+                const targetRegion = regions.find(r => r.id === dropTarget);
+                if (targetRegion) {
+                    mergeInto(prev.subregion.id, targetRegion.argumentation);
+                }
+            } else {
+                extractTransformer(prev.subregion.id);
             }
         } else {
-            extractTransformer(prev.subregion.id);
+            // Region drag — show merge/chain dialog
+            if (dropTarget) {
+                setPendingRegionDrop({
+                    sourceRegionId: prev.sourceRegionId,
+                    targetRegionId: dropTarget,
+                });
+            }
         }
     });
 
@@ -484,21 +593,26 @@ export const TransformerStack = ({
                                 sizeFactor={sizeFactors.get(region.id) ?? 1}
                                 lodOpacity={lodOpacities.get(region.id) ?? 1}
                                 isHovered={
-                                    effectiveHoveredId === region.id ||
+                                    effectiveHoveredIds.has(region.id) ||
                                     (dragState?.dropTargetRegionId === region.id)
                                 }
-                                isAnyHovered={effectiveHoveredId !== null}
+                                isAnyHovered={effectiveHoveredIds.size > 0}
                                 hasActiveSubregion={region.subregions.some(sr => activeTransformerIds.has(sr.id))}
                                 isDropTarget={dragState?.dropTargetRegionId === region.id}
+                                chainFrom={chains.get(region.id)?.chainFrom}
+                                chainTo={chains.get(region.id)?.chainTo}
+                                prevChainMemberTo={chainNeighborBounds.get(region.id)?.prevTo}
+                                nextChainMemberFrom={chainNeighborBounds.get(region.id)?.nextFrom}
                                 onHoverChange={handleHoverChange}
                                 onDragStart={draggable ? handleDragStart : undefined}
                                 draggingSubregionId={
-                                    draggable && dragState?.sourceRegionId === region.id
+                                    draggable && dragState?.sourceRegionId === region.id && dragState.subregion
                                         ? dragState.subregion.id
                                         : null
                                 }
                                 onLaneClick={handleLaneClick}
                                 onArgumentationChange={handleArgumentationChange}
+                                onRegionDragStart={draggable ? handleRegionDragStart : undefined}
                             />
                         ))}
 
@@ -527,7 +641,9 @@ export const TransformerStack = ({
                             pointerEvents="none"
                         >
                             <TypeLabel
-                                text={dragState.subregion.type}
+                                text={dragState.subregion?.type
+                                    ?? regions.find(r => r.id === dragState.sourceRegionId)?.argumentation.conclusion.motivation
+                                    ?? "region"}
                                 color={dragState.laneColor}
                                 boxY={-20}
                                 textY={-8}
@@ -542,6 +658,20 @@ export const TransformerStack = ({
                     transformers={transformers}
                     activeTransformerIds={activeTransformerIds}
                     svgRef={svgRef}
+                />
+            )}
+            {pendingRegionDrop && (
+                <MergeOrChainDialog
+                    open
+                    onMerge={() => {
+                        mergeRegions(pendingRegionDrop.sourceRegionId, pendingRegionDrop.targetRegionId);
+                        setPendingRegionDrop(null);
+                    }}
+                    onChain={() => {
+                        chainRegions(pendingRegionDrop.sourceRegionId, pendingRegionDrop.targetRegionId);
+                        setPendingRegionDrop(null);
+                    }}
+                    onClose={() => setPendingRegionDrop(null)}
                 />
             )}
         </Card>

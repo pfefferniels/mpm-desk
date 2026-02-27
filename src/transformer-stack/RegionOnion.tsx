@@ -53,13 +53,42 @@ function buildOnionPath(
     from: number,
     to: number,
     amplitude: number,
+    chainFrom?: number,
+    chainTo?: number,
+    prevMemberTo?: number,
+    nextMemberFrom?: number,
 ): string {
     if (to <= from || from < 0 || to >= curvePoints.length) return "";
 
-    const step = Math.max(1, Math.floor((to - from) / 120));
+    // Gap insets at chain boundaries (between members, not at chain edges)
+    const GAP_INSET = 1;
+    let drawFrom = from;
+    let drawTo = to;
+    if (chainFrom !== undefined && chainTo !== undefined) {
+        if (prevMemberTo !== undefined) {
+            // Has a predecessor — split at midpoint if overlapping
+            const boundary = from < prevMemberTo
+                ? Math.floor((from + prevMemberTo) / 2)
+                : from;
+            drawFrom = boundary + GAP_INSET;
+        }
+        if (nextMemberFrom !== undefined) {
+            // Has a successor — split at midpoint if overlapping
+            const boundary = to > nextMemberFrom
+                ? Math.ceil((nextMemberFrom + to) / 2)
+                : to;
+            drawTo = boundary - GAP_INSET;
+        }
+        if (drawTo <= drawFrom) return "";
+    }
+
+    const envelopeFrom = chainFrom ?? from;
+    const envelopeSpan = (chainTo ?? to) - envelopeFrom;
+
+    const step = Math.max(1, Math.floor((drawTo - drawFrom) / 120));
     const indices: number[] = [];
-    for (let i = from; i <= to; i += step) indices.push(i);
-    if (indices[indices.length - 1] !== to) indices.push(to);
+    for (let i = drawFrom; i <= drawTo; i += step) indices.push(i);
+    if (indices[indices.length - 1] !== drawTo) indices.push(drawTo);
 
     const upperPoints: string[] = [];
     const lowerPoints: string[] = [];
@@ -67,7 +96,7 @@ function buildOnionPath(
     for (const i of indices) {
         const pt = curvePoints[i];
         const n = curveNormal(curvePoints, i);
-        const t = (i - from) / (to - from);
+        const t = (i - envelopeFrom) / envelopeSpan;
         const envelope = Math.sin(Math.PI * t);
         const offset = amplitude * envelope;
 
@@ -89,10 +118,19 @@ function buildLanePath(
     subTo: number,
     amplitude: number,
     laneOffset: number,
+    chainFrom?: number,
+    chainTo?: number,
+    regionDrawFrom?: number,
+    regionDrawTo?: number,
 ): string {
-    const clampedFrom = Math.max(regionFrom, Math.min(subFrom, curvePoints.length - 1));
-    const clampedTo = Math.max(regionFrom, Math.min(subTo, curvePoints.length - 1));
+    const effectiveFrom = regionDrawFrom ?? regionFrom;
+    const effectiveTo = regionDrawTo ?? regionTo;
+    const clampedFrom = Math.max(effectiveFrom, Math.min(subFrom, curvePoints.length - 1));
+    const clampedTo = Math.max(effectiveFrom, Math.min(subTo, effectiveTo));
     if (clampedTo <= clampedFrom) return "";
+
+    const envelopeFrom = chainFrom ?? regionFrom;
+    const envelopeSpan = (chainTo ?? regionTo) - envelopeFrom;
 
     const step = Math.max(1, Math.floor((clampedTo - clampedFrom) / 60));
     const indices: number[] = [];
@@ -100,12 +138,11 @@ function buildLanePath(
     if (indices[indices.length - 1] !== clampedTo) indices.push(clampedTo);
 
     const points: string[] = [];
-    const regionSpan = regionTo - regionFrom;
 
     for (const i of indices) {
         const pt = curvePoints[i];
         const n = curveNormal(curvePoints, i);
-        const t = (i - regionFrom) / regionSpan;
+        const t = (i - envelopeFrom) / envelopeSpan;
         const envelope = Math.sin(Math.PI * t);
         const offset = amplitude * envelope * laneOffset;
         points.push(`${pt.x + n.x * offset},${pt.y + n.y * offset}`);
@@ -130,11 +167,16 @@ interface RegionOnionProps {
     hasActiveSubregion: boolean;
     lodOpacity: number;
     isDropTarget?: boolean;
+    chainFrom?: number;  // tick space — earliest tick in the chain
+    chainTo?: number;    // tick space — latest tick in the chain
     onHoverChange: (regionId: string | null) => void;
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
     onLaneClick?: (subregionId: string) => void;
     onArgumentationChange: () => void;
+    onRegionDragStart?: (sourceRegionId: string, regionColor: string, e: { clientX: number; clientY: number }) => void;
+    prevChainMemberTo?: number;   // tick space — previous chain member's `to`
+    nextChainMemberFrom?: number; // tick space — next chain member's `from`
 }
 
 export const RegionOnion = memo(function RegionOnion({
@@ -149,17 +191,73 @@ export const RegionOnion = memo(function RegionOnion({
     isAnyHovered,
     hasActiveSubregion,
     isDropTarget,
+    chainFrom: chainFromTick,
+    chainTo: chainToTick,
     onHoverChange,
     onDragStart,
     draggingSubregionId,
     onLaneClick,
     onArgumentationChange,
+    onRegionDragStart,
+    prevChainMemberTo: prevChainMemberToTick,
+    nextChainMemberFrom: nextChainMemberFromTick,
 }: RegionOnionProps) {
     const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
+
+    // Pending region drag: distinguish click from drag via threshold
+    const [pendingRegionDrag, setPendingRegionDrag] = useState(false);
+    const pendingRegionDragRef = useRef<{
+        startX: number;
+        startY: number;
+    } | null>(null);
+
+    useEffect(() => {
+        if (!pendingRegionDrag) return;
+
+        const onMouseMove = (e: MouseEvent) => {
+            const pending = pendingRegionDragRef.current;
+            if (!pending) return;
+            if (Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY) >= DRAG_THRESHOLD) {
+                onRegionDragStart?.(region.id, regionColor, e);
+                pendingRegionDragRef.current = null;
+                setPendingRegionDrag(false);
+            }
+        };
+
+        const onMouseUp = () => {
+            if (pendingRegionDragRef.current) {
+                // Below threshold → click → open ArgumentationDialog
+                setArgumentationDialogOpen(true);
+            }
+            pendingRegionDragRef.current = null;
+            setPendingRegionDrag(false);
+        };
+
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        return () => {
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+        };
+    }, [pendingRegionDrag, onRegionDragStart, region.id, regionColor]);
 
     const from = Math.max(0, Math.min(tickToCurveIndex(region.from, curveStep), curvePoints.length - 1));
     const to = Math.max(0, Math.min(tickToCurveIndex(region.to, curveStep), curvePoints.length - 1));
     const valid = to > from;
+
+    const chainFromIdx = chainFromTick !== undefined
+        ? Math.max(0, Math.min(tickToCurveIndex(chainFromTick, curveStep), curvePoints.length - 1))
+        : undefined;
+    const chainToIdx = chainToTick !== undefined
+        ? Math.max(0, Math.min(tickToCurveIndex(chainToTick, curveStep), curvePoints.length - 1))
+        : undefined;
+
+    const prevMemberToIdx = prevChainMemberToTick !== undefined
+        ? Math.max(0, Math.min(tickToCurveIndex(prevChainMemberToTick, curveStep), curvePoints.length - 1))
+        : undefined;
+    const nextMemberFromIdx = nextChainMemberFromTick !== undefined
+        ? Math.max(0, Math.min(tickToCurveIndex(nextChainMemberFromTick, curveStep), curvePoints.length - 1))
+        : undefined;
 
     const color = isDropTarget ? "#3498db" : regionColor;
 
@@ -168,8 +266,8 @@ export const RegionOnion = memo(function RegionOnion({
     const amplitude = expanded ? baseAmp + HOVER_EXTRA : baseAmp;
 
     const onionPath = useMemo(
-        () => valid ? buildOnionPath(curvePoints, from, to, amplitude) : "",
-        [curvePoints, from, to, amplitude, valid],
+        () => valid ? buildOnionPath(curvePoints, from, to, amplitude, chainFromIdx, chainToIdx, prevMemberToIdx, nextMemberFromIdx) : "",
+        [curvePoints, from, to, amplitude, valid, chainFromIdx, chainToIdx, prevMemberToIdx, nextMemberFromIdx],
     );
 
     const hitPath = useMemo(() => {
@@ -208,15 +306,25 @@ export const RegionOnion = memo(function RegionOnion({
                 />
             )}
 
-            {/* Full onion hit area when hovered — click body opens ArgumentationDialog */}
+            {/* Full onion hit area when hovered — click or drag the body */}
             {isHovered && onionPath && (
                 <path
                     d={onionPath}
                     fill="transparent"
                     stroke="transparent"
                     pointerEvents="fill"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => setArgumentationDialogOpen(true)}
+                    style={{ cursor: onRegionDragStart ? "grab" : "pointer" }}
+                    onClick={onRegionDragStart ? undefined : () => setArgumentationDialogOpen(true)}
+                    onMouseDown={onRegionDragStart ? (e) => {
+                        if (e.button === 0) {
+                            e.preventDefault();
+                            pendingRegionDragRef.current = {
+                                startX: e.clientX,
+                                startY: e.clientY,
+                            };
+                            setPendingRegionDrag(true);
+                        }
+                    } : undefined}
                 />
             )}
 
@@ -242,6 +350,10 @@ export const RegionOnion = memo(function RegionOnion({
                     regionTo={to}
                     amplitude={amplitude}
                     regionId={region.id}
+                    chainFrom={chainFromIdx}
+                    chainTo={chainToIdx}
+                    prevMemberTo={prevMemberToIdx}
+                    nextMemberFrom={nextMemberFromIdx}
                     onDragStart={onDragStart}
                     draggingSubregionId={draggingSubregionId}
                     onLaneClick={onLaneClick}
@@ -271,6 +383,10 @@ interface SubregionLanesProps {
     regionTo: number;
     amplitude: number;
     regionId: string;
+    chainFrom?: number;  // curve index space
+    chainTo?: number;    // curve index space
+    prevMemberTo?: number;   // curve index space
+    nextMemberFrom?: number; // curve index space
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
     onLaneClick?: (subregionId: string) => void;
@@ -291,6 +407,10 @@ const SubregionLanes = memo(function SubregionLanes({
     regionTo,
     amplitude,
     regionId,
+    chainFrom,
+    chainTo,
+    prevMemberTo,
+    nextMemberFrom,
     onDragStart,
     draggingSubregionId,
     onLaneClick,
@@ -366,7 +486,27 @@ const SubregionLanes = memo(function SubregionLanes({
             laneOffsets.set(typeOrder[i], offset);
         }
 
-        const regionSpan = regionTo - regionFrom;
+        const envelopeFrom = chainFrom ?? regionFrom;
+        const envelopeSpan = (chainTo ?? regionTo) - envelopeFrom;
+
+        // Compute effective draw boundaries (same logic as buildOnionPath)
+        const GAP_INSET = 1;
+        let regionDrawFrom = regionFrom;
+        let regionDrawTo = regionTo;
+        if (chainFrom !== undefined && chainTo !== undefined) {
+            if (prevMemberTo !== undefined) {
+                const boundary = regionFrom < prevMemberTo
+                    ? Math.floor((regionFrom + prevMemberTo) / 2)
+                    : regionFrom;
+                regionDrawFrom = boundary + GAP_INSET;
+            }
+            if (nextMemberFrom !== undefined) {
+                const boundary = regionTo > nextMemberFrom
+                    ? Math.ceil((nextMemberFrom + regionTo) / 2)
+                    : regionTo;
+                regionDrawTo = boundary - GAP_INSET;
+            }
+        }
 
         return subregions.map(sr => {
             const laneOffset = laneOffsets.get(sr.type) ?? 0;
@@ -375,24 +515,24 @@ const SubregionLanes = memo(function SubregionLanes({
             const halfGap = Math.min(LANE_GAP_TICKS, Math.floor((srTo - srFrom) / 4));
             const gappedFrom = srFrom + halfGap;
             const gappedTo = srTo - halfGap;
-            const clampedFrom = Math.max(regionFrom, Math.min(gappedFrom, curvePoints.length - 1));
-            const clampedTo = Math.max(regionFrom, Math.min(gappedTo, curvePoints.length - 1));
+            const clampedFrom = Math.max(regionDrawFrom, Math.min(gappedFrom, curvePoints.length - 1));
+            const clampedTo = Math.max(regionDrawFrom, Math.min(gappedTo, regionDrawTo));
             const mid = Math.floor((clampedFrom + clampedTo) / 2);
             const pt = curvePoints[mid];
-            const n = curveNormal(curvePoints, mid);
-            const t = (mid - regionFrom) / regionSpan;
+            const norm = curveNormal(curvePoints, mid);
+            const t = (mid - envelopeFrom) / envelopeSpan;
             const envelope = Math.sin(Math.PI * t);
             const off = amplitude * envelope * laneOffset;
 
             return {
                 subregion: sr,
-                path: buildLanePath(curvePoints, regionFrom, regionTo, gappedFrom, gappedTo, amplitude, laneOffset),
+                path: buildLanePath(curvePoints, regionFrom, regionTo, gappedFrom, gappedTo, amplitude, laneOffset, chainFrom, chainTo, regionDrawFrom, regionDrawTo),
                 color: getLaneColor(sr.type),
-                labelX: pt ? pt.x + n.x * off : 0,
-                labelY: pt ? pt.y + n.y * off : 0,
+                labelX: pt ? pt.x + norm.x * off : 0,
+                labelY: pt ? pt.y + norm.y * off : 0,
             };
         });
-    }, [subregions, curvePoints, curveStep, regionFrom, regionTo, amplitude]);
+    }, [subregions, curvePoints, curveStep, regionFrom, regionTo, amplitude, chainFrom, chainTo, prevMemberTo, nextMemberFrom]);
 
     const handleContextMenu = (e: React.MouseEvent, sr: OnionSubregion) => {
         e.preventDefault();

@@ -21,7 +21,7 @@ export type OnionRegion = {
 };
 
 export type OnionDragState = {
-    subregion: OnionSubregion;
+    subregion: OnionSubregion | null;  // null = region drag
     sourceRegionId: string;
     svgX: number;
     svgY: number;
@@ -70,6 +70,73 @@ export function tickToCurveIndex(tick: number, step: number): number {
  * Each subregion corresponds to one transformer within that group,
  * typed by its primary MPM element type.
  */
+export type ChainInfo = {
+    chainFrom: number;   // earliest tick in the chain
+    chainTo: number;     // latest tick in the chain
+    memberIds: string[]; // ordered argumentation ids in the chain
+};
+
+/**
+ * Walk `continue` links to group regions into chains.
+ * Returns a map from region id → ChainInfo for chained regions only.
+ */
+export function buildChains(regions: OnionRegion[]): Map<string, ChainInfo> {
+    const byId = new Map<string, OnionRegion>();
+    for (const r of regions) byId.set(r.id, r);
+
+    // successorOf[predId] = region whose argumentation.continue === predId
+    const successorOf = new Map<string, OnionRegion>();
+    for (const r of regions) {
+        const predId = r.argumentation.continue;
+        if (predId && byId.has(predId)) {
+            successorOf.set(predId, r);
+        }
+    }
+
+    const visited = new Set<string>();
+    const result = new Map<string, ChainInfo>();
+
+    for (const r of regions) {
+        if (visited.has(r.id)) continue;
+
+        // Walk back to find root
+        let root = r;
+        const seen = new Set<string>([r.id]);
+        for (;;) {
+            const predId = root.argumentation.continue;
+            if (!predId || !byId.has(predId) || seen.has(predId)) break;
+            root = byId.get(predId)!;
+            seen.add(root.id);
+        }
+
+        // Walk forward from root
+        const members: OnionRegion[] = [root];
+        visited.add(root.id);
+        let current = root;
+        while (successorOf.has(current.id)) {
+            const next = successorOf.get(current.id)!;
+            if (visited.has(next.id)) break;
+            members.push(next);
+            visited.add(next.id);
+            current = next;
+        }
+
+        if (members.length < 2) continue;
+
+        members.sort((a, b) => a.from - b.from);
+        const chainFrom = Math.min(...members.map(m => m.from));
+        const chainTo = Math.max(...members.map(m => m.to));
+        const memberIds = members.map(m => m.id);
+
+        const info: ChainInfo = { chainFrom, chainTo, memberIds };
+        for (const m of members) {
+            result.set(m.id, info);
+        }
+    }
+
+    return result;
+}
+
 export function buildRegions(
     argumentations: Map<Argumentation, Transformer[]>,
     msm: MSM,
