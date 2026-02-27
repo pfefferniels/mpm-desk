@@ -152,7 +152,7 @@ function buildLanePath(
 }
 
 const MIN_AMPLITUDE = 6;
-const BASE_AMPLITUDE = 20;
+const BASE_AMPLITUDE = 30;
 const HOVER_EXTRA = 12;
 
 interface RegionOnionProps {
@@ -270,21 +270,6 @@ export const RegionOnion = memo(function RegionOnion({
         [curvePoints, from, to, amplitude, valid, chainFromIdx, chainToIdx, prevMemberToIdx, nextMemberFromIdx],
     );
 
-    const hitPath = useMemo(() => {
-        if (!valid) return "";
-        const step = Math.max(1, Math.floor((to - from) / 80));
-        const pts: string[] = [];
-        for (let i = from; i <= to; i += step) {
-            const p = curvePoints[i];
-            pts.push(`${i === from ? "M" : "L"} ${p.x} ${p.y}`);
-        }
-        if ((to - from) % step !== 0) {
-            const p = curvePoints[to];
-            pts.push(`L ${p.x} ${p.y}`);
-        }
-        return pts.join(" ");
-    }, [curvePoints, from, to, valid]);
-
     if (!valid) return null;
 
     return (
@@ -328,16 +313,16 @@ export const RegionOnion = memo(function RegionOnion({
                 />
             )}
 
-            {/* Thin hit path along the curve — disabled when another region is open */}
-            <path
-                d={hitPath}
-                fill="none"
-                stroke="transparent"
-                strokeWidth={20}
-                vectorEffect="non-scaling-stroke"
-                pointerEvents={isAnyHovered && !isHovered ? "none" : "stroke"}
-                style={{ cursor: "pointer" }}
-            />
+            {/* Onion-shaped hit area — background regions peek further from the curve */}
+            {onionPath && (
+                <path
+                    d={onionPath}
+                    fill="transparent"
+                    stroke="transparent"
+                    pointerEvents={isAnyHovered && !isHovered ? "none" : "fill"}
+                    style={{ cursor: "pointer" }}
+                />
+            )}
 
             {/* Subregion lanes on hover or when containing active transformer */}
             {expanded && region.subregions.length > 0 && (
