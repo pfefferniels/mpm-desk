@@ -255,13 +255,15 @@ export const TransformerStack = ({
 
     // During drag, force source region (and drop target) to stay hovered
     // Expand to all chain members when hovering a chained region
+    const baseHoveredId = dragState ? dragState.sourceRegionId : hoveredRegionId;
     const effectiveHoveredIds = useMemo(() => {
-        const baseId = dragState ? dragState.sourceRegionId : hoveredRegionId;
-        if (!baseId) return new Set<string>();
-        const chain = chains.get(baseId);
+        if (!baseHoveredId) return new Set<string>();
+        const chain = chains.get(baseHoveredId);
         if (chain) return new Set(chain.memberIds);
-        return new Set([baseId]);
-    }, [dragState, hoveredRegionId, chains]);
+        return new Set([baseHoveredId]);
+    }, [baseHoveredId, chains]);
+
+    const hoveredSizeFactor = baseHoveredId !== null ? (sizeFactors.get(baseHoveredId) ?? null) : null;
 
     const handleHoverChange = useCallback((regionId: string | null) => {
         if (dragStateRef.current) return;
@@ -598,7 +600,7 @@ export const TransformerStack = ({
                                     effectiveHoveredIds.has(region.id) ||
                                     (dragState?.dropTargetRegionId === region.id)
                                 }
-                                isAnyHovered={effectiveHoveredIds.size > 0}
+                                hoveredSizeFactor={hoveredSizeFactor}
                                 hasActiveSubregion={region.subregions.some(sr => activeTransformerIds.has(sr.id))}
                                 isDropTarget={dragState?.dropTargetRegionId === region.id}
                                 chainFrom={chains.get(region.id)?.chainFrom}
