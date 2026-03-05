@@ -1,11 +1,42 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { usePiano } from 'react-pianosound';
-import { read } from 'midifile-ts';
+import { read, MidiFile } from 'midifile-ts';
 import { MPM, MSM } from 'mpmify';
 import { exportMPM } from '../../../mpm-ts/lib';
 import { performMpm, PerformRequest } from '../utils/backendApi';
+import { useZoom } from './ZoomProvider';
 
 export const EXAGGERATION_MAX = 2.0;
+
+const SKETCH_THRESHOLD = 10;
+const SKETCH_MAX = 1.5;
+
+function computeSketchiness(stretchX: number): number {
+    if (stretchX >= SKETCH_THRESHOLD) return 1.0;
+    const t = (SKETCH_THRESHOLD - stretchX) / SKETCH_THRESHOLD;
+    return 1 + (SKETCH_MAX - 1) * t * t;
+}
+
+function findNoteIdTime(file: MidiFile, noteId: string): number | null {
+    for (const track of file.tracks) {
+        let abs = 0;
+        for (const event of track) {
+            abs += event.deltaTime;
+            if (event.type === 'meta' && event.subtype === 'text' && event.text === noteId) {
+                return abs; // ticks = milliseconds in meico output
+            }
+        }
+    }
+    return null;
+}
+
+function decodeMidiBase64(b64: string): ArrayBuffer {
+    const binary = atob(b64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+}
 
 interface PlayOptions {
     mpmIds?: string[];
@@ -32,7 +63,8 @@ interface PlaybackProviderProps {
 }
 
 export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderProps) => {
-    const { play: playPiano, stop: stopPiano } = usePiano();
+    const { play: playPiano, stop: stopPiano, jumpTo } = usePiano();
+    const { stretchX } = useZoom();
     const [isPlaying, setIsPlaying] = useState(false);
     const [exaggeration, setExaggeration] = useState(1.0);
 
@@ -53,14 +85,25 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         mpmRef.current = mpm;
     }, [mpm]);
 
+    // Track playback state for mid-playback re-rendering
+    const lastNoteIdRef = useRef<string | null>(null);
+    const playOptionsRef = useRef<PlayOptions | undefined>(undefined);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isPlayingRef = useRef(false);
+
     const stop = useCallback(() => {
         stopPiano();
         setIsPlaying(false);
+        isPlayingRef.current = false;
+        lastNoteIdRef.current = null;
+        playOptionsRef.current = undefined;
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
     }, [stopPiano]);
 
-    const play = useCallback(async (options?: PlayOptions) => {
-        stopPiano();
-
+    const startPlayback = useCallback(async (options: PlayOptions | undefined, resumeFromNoteId: string | null) => {
         const currentMei = meiRef.current;
         const currentMsm = msmRef.current;
         const currentMpm = mpmRef.current;
@@ -72,6 +115,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         const request: PerformRequest = {
             mpm: exportMPM(currentMpm),
             mei: currentMei,
+            sketchiness: computeSketchiness(stretchX),
         };
 
         if (exaggerate !== undefined) {
@@ -88,29 +132,64 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
 
         try {
             const b64 = await performMpm(request);
-
-            // decode base64 to ArrayBuffer
-            const binary = atob(b64);
-            const len = binary.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-            const midiBuffer = bytes.buffer;
-
+            const midiBuffer = decodeMidiBase64(b64);
             const file = read(midiBuffer);
+
+            // Find resume position if we're re-rendering mid-playback
+            let resumeMs: number | null = null;
+            if (resumeFromNoteId) {
+                resumeMs = findNoteIdTime(file, resumeFromNoteId);
+            }
+
             playPiano(file, (e) => {
-                if (e.type === 'meta' && e.subtype === 'text' && onNoteEvent) {
-                    const date = currentMsm.getByID(e.text)?.date;
-                    if (date !== undefined) {
-                        onNoteEvent(e.text, date);
+                if (e.type === 'meta' && e.subtype === 'text') {
+                    lastNoteIdRef.current = e.text;
+                    if (onNoteEvent) {
+                        const date = currentMsm.getByID(e.text)?.date;
+                        if (date !== undefined) {
+                            onNoteEvent(e.text, date);
+                        }
                     }
                 }
             });
 
+            if (resumeMs !== null) {
+                jumpTo(resumeMs / 1000);
+            }
+
             setIsPlaying(true);
+            isPlayingRef.current = true;
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [playPiano, stopPiano]);
+    }, [playPiano, jumpTo, stretchX]);
+
+    const play = useCallback(async (options?: PlayOptions) => {
+        stopPiano();
+        lastNoteIdRef.current = null;
+        playOptionsRef.current = options;
+        await startPlayback(options, null);
+    }, [stopPiano, startPlayback]);
+
+    // Re-render on zoom change during playback (debounced)
+    const stretchXRef = useRef(stretchX);
+    useEffect(() => {
+        const prev = stretchXRef.current;
+        stretchXRef.current = stretchX;
+
+        if (!isPlayingRef.current) return;
+        // Skip if sketchiness didn't actually change
+        if (computeSketchiness(prev) === computeSketchiness(stretchX)) return;
+
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            debounceTimerRef.current = null;
+            if (!isPlayingRef.current) return;
+            const noteId = lastNoteIdRef.current;
+            stopPiano();
+            startPlayback(playOptionsRef.current, noteId);
+        }, 300);
+    }, [stretchX, stopPiano, startPlayback]);
 
     const value = useMemo(() => ({
         isPlaying,

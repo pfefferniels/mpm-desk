@@ -36,6 +36,7 @@ export interface PerformRequest {
     mei: string;
     mpmIds?: string[];
     exaggerate?: number;
+    sketchiness?: number;
     exemplify?: boolean;
     context?: number;
     isolate?: boolean;
