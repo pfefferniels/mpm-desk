@@ -1,34 +1,19 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Box } from "./Box"
-import { TempoSegment, TempoCluster, isWithinSegment, asBPM, Onset } from "./Tempo"
-import { TempoDeskMode } from "./TempoDesk"
-import { asMIDI } from "../../utils/utils"
-import { usePiano } from "react-pianosound"
-import { useNotes } from "../../hooks/NotesProvider"
+import { TempoCluster } from "./Tempo"
+import type { TempoSegment, Onset, DrawnLine } from "./Tempo"
+import { inferBeatLength, beatLengthLabel, findOnsetTick } from "./Tempo"
+import { fitMeanTempoAt, optimizeForElapsedTime } from "mpmify"
+import { TempoLine } from "./TempoLine"
 import HorizontalScale from "./HorizontalScale"
-import { Scope } from "../TransformerViewProps"
+import type { TempoWithEndDate, MSM } from "mpmify"
+import type { MidiFile } from "midifile-ts"
+import type { Scope } from "../TransformerViewProps"
 
-const silentSegmentToNote = (s: TempoSegment, tickToSeconds: (tick: number) => number) => {
-  const timeStart = tickToSeconds(s.date.start)
-  const timeEnd = tickToSeconds(s.date.end)
-  return ({
-    date: s.date.start,
-    duration: s.date.end - s.date.start,
-    'midi.pitch': 10,
-    'midi.onset': timeStart,
-    'midi.duration': timeEnd - timeStart,
-    'midi.velocity': 0,
-    'xml:id': '',
-    pitchname: '',
-    part: 0,
-    accidentals: 0,
-    octave: 0,
-    relativeVolume: 0
-  })
-}
+export type SkylineMode = 'split' | 'draw' | undefined
 
 interface SkylineProps {
-  mode: TempoDeskMode
+  mode: SkylineMode
 
   part: Scope
   tempos: TempoCluster
@@ -40,32 +25,57 @@ interface SkylineProps {
   stretchX: number
   stretchY: number
 
-  onAddSegment: (fromDate: number, toDate: number, beatLength: number) => void
+  committedTempos: TempoWithEndDate[]
+  silentOnsets: Map<number, number>
+  msm: MSM
 
-  chainEndpoint?: { date: number, beatLength: number, bpm: number }
-  onChainSegment?: (fromDate: number, toDate: number, beatLength: number) => void
+  drawnLines: DrawnLine[]
+  onDrawLine: (line: DrawnLine) => void
 
   onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
   onToggleSplitMode: () => void
 
-  children: React.ReactNode
+  onPlaySegment?: (from: number, to: number) => void
+  onStopSegment?: () => void
+
+  activeElements?: string[]
+  onActivateElement?: (elementId: string) => void
+
+  onPlayChain?: (chain: TempoWithEndDate[], midi: MidiFile | undefined) => void
+  onStopChain?: () => void
+
+  committedChains: TempoWithEndDate[][]
+  committedChainMidis: (MidiFile | undefined)[]
+  tempoToChainIndex: Map<TempoWithEndDate, number>
 }
 
-/**
- * This component sorts the `Duration` objects by their length,
- * renders them as `Box` components, provides functionalities
- * to combine durations and change their appearances.
- *
- */
-export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEndpoint, onChainSegment, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, children }: SkylineProps) {
-  const { play, stop } = usePiano()
-  const { slice } = useNotes()
+export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLine, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, onPlaySegment, onStopSegment, activeElements, onActivateElement, committedTempos, silentOnsets, msm, onPlayChain, onStopChain, committedChains, committedChainMidis, tempoToChainIndex }: SkylineProps) {
+  const [, setHoveredKey] = useState<string>()
+  const [drawStart, setDrawStart] = useState<{ x: number, y: number }>()
+  const [drawEnd, setDrawEnd] = useState<{ x: number, y: number }>()
+  const [drawTrail, setDrawTrail] = useState<{ seconds: number, bpm: number }[]>([])
+  const [hoveredEndpoint, setHoveredEndpoint] = useState<number>()
+  const [connectingFrom, setConnectingFrom] = useState<number>()
 
-  const [datePlayed, setDatePlayed] = useState<number>()
-  const [hoveredKey, setHoveredKey] = useState<string>()
-  const [dragFrom, setDragFrom] = useState<{ date: number, beatLength: number, isChain?: boolean }>()
-  const [dragMouse, setDragMouse] = useState<{ x: number, y: number }>()
-  const [dragSnapEdge, setDragSnapEdge] = useState<{ date: number, beatLength: number, x: number, y: number }>()
+  const isDrawMode = mode === 'draw'
+
+  const onsetXPositions = useMemo(
+    () => onsets.map(o => tickToSeconds(o.date) * stretchX),
+    [onsets, tickToSeconds, stretchX]
+  )
+
+  const snapX = (svgX: number): number => {
+    let best = svgX
+    let bestDist = Infinity
+    for (const ox of onsetXPositions) {
+      const dist = Math.abs(svgX - ox)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = ox
+      }
+    }
+    return best
+  }
 
   const clientToSvg = (clientX: number, clientY: number, svg: SVGSVGElement) => {
     const point = svg.createSVGPoint()
@@ -77,37 +87,18 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEn
     return { x: p.x, y: p.y }
   }
 
-  const findNearestRightEdge = (svgX: number, snapThreshold: number, beatLength: number) => {
-    let best: { date: number, beatLength: number, x: number, y: number } | undefined
-    let bestDist = Infinity
-    for (const segment of tempos.segments) {
-      const segBeatLength = segment.date.end - segment.date.start
-      const edgeX = tickToSeconds(segment.date.end) * stretchX
-      const dist = Math.abs(svgX - edgeX)
-      if (dist < bestDist) {
-        bestDist = dist
-        best = {
-          date: segment.date.end,
-          beatLength: segBeatLength,
-          x: edgeX,
-          y: asBPM({ start: segment.date.end - beatLength, end: segment.date.end }, tickToSeconds) * -stretchY
-        }
-      }
-    }
-    return bestDist <= snapThreshold ? best : undefined
-  }
-
-  const cancelDrag = () => {
-    setDragFrom(undefined)
-    setDragMouse(undefined)
-    setDragSnapEdge(undefined)
+  const cancelDraw = () => {
+    setDrawStart(undefined)
+    setDrawEnd(undefined)
+    setDrawTrail([])
+    setConnectingFrom(undefined)
   }
 
   const escFunction = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       tempos.unselectAll()
       setTempos(new TempoCluster(tempos.segments))
-      cancelDrag()
+      cancelDraw()
     }
     if (event.key === 'c') {
       const selected = tempos.segments.filter(s => s.selected)
@@ -128,30 +119,6 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEn
     }
   }, [tempos, setTempos, onToggleSplitMode])
 
-  const handlePlay = (from: number, to?: number) => {
-    let notes = slice(from, to)
-    if (typeof part === 'number') notes = notes.filter(n => n.part - 1 === part)
-    const silentNotes = tempos.segments
-      .filter(s => {
-        if (!s.silent) return false
-        return s.date.start >= from
-      })
-      .map(s => silentSegmentToNote(s, tickToSeconds))
-
-    const all = [...notes, ...silentNotes].sort((a, b) => a.date - b.date)
-
-    const midi = asMIDI(all)
-    if (midi) {
-      stop()
-      play(midi, (e) => {
-        if (e.type === 'meta' && e.subtype === 'text') {
-          setDatePlayed(+e.text)
-        }
-      })
-    }
-  }
-
-
   useEffect(() => {
     document.addEventListener('keydown', escFunction, false);
     return () => document.removeEventListener('keydown', escFunction, false)
@@ -167,27 +134,58 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEn
     <svg
       className='skyline'
       tabIndex={-1}
-      onMouseDown={(e) => e.currentTarget.focus()}
-      onMouseMove={(e) => {
-        if (!dragFrom) return
+      style={{ margin: '3rem', outline: 'none', cursor: isDrawMode ? 'crosshair' : undefined }}
+      onMouseDown={(e) => {
+        e.currentTarget.focus()
+        if (!isDrawMode || e.button !== 0) return
         const svg = e.currentTarget as SVGSVGElement
-        const svgPt = clientToSvg(e.clientX, e.clientY, svg)
-        setDragMouse(svgPt)
-        const ctm = svg.getScreenCTM()
-        const snapThreshold = ctm ? 15 / ctm.a : 25
-        setDragSnapEdge(findNearestRightEdge(svgPt.x, snapThreshold, dragFrom.beatLength))
+        const pt = clientToSvg(e.clientX, e.clientY, svg)
+        const snapped = { x: snapX(pt.x), y: pt.y }
+        setDrawStart(snapped)
+        setDrawEnd(snapped)
+        setDrawTrail([])
+      }}
+      onMouseMove={(e) => {
+        if (!drawStart) return
+        const svg = e.currentTarget as SVGSVGElement
+        const pt = clientToSvg(e.clientX, e.clientY, svg)
+        setDrawEnd({ x: snapX(pt.x), y: pt.y })
+        setDrawTrail(prev => [...prev, { seconds: pt.x / stretchX, bpm: -pt.y / stretchY }])
       }}
       onMouseUp={() => {
-        if (dragFrom && dragSnapEdge) {
-          if (dragFrom.isChain) {
-            onChainSegment?.(dragFrom.date, dragSnapEdge.date, dragFrom.beatLength)
+        if (drawStart && drawEnd && drawStart.x !== drawEnd.x) {
+          const from = { seconds: drawStart.x / stretchX, bpm: -drawStart.y / stretchY }
+          const to = { seconds: drawEnd.x / stretchX, bpm: -drawEnd.y / stretchY }
+          const meanTempoAt = fitMeanTempoAt(from, to, drawTrail)
+          const beatLen = connectingFrom !== undefined
+            ? drawnLines[connectingFrom].beatLength
+            : inferBeatLength(from.seconds, from.bpm, onsets, tickToSeconds)
+
+          const startTick = findOnsetTick(from.seconds, onsets, tickToSeconds)
+          const endTick = findOnsetTick(to.seconds, onsets, tickToSeconds)
+
+          if (startTick !== undefined && endTick !== undefined && startTick !== endTick) {
+            const targetMs = Math.abs(to.seconds - from.seconds) * 1000
+            const opt = optimizeForElapsedTime(
+              from.bpm, to.bpm, meanTempoAt, beatLen,
+              startTick, endTick, targetMs
+            )
+            onDrawLine({
+              from: { seconds: from.seconds, bpm: opt.startBpm },
+              to: { seconds: to.seconds, bpm: opt.endBpm },
+              meanTempoAt: opt.meanTempoAt,
+              beatLength: beatLen,
+              bpmScaled: opt.bpmScaled,
+              startTick,
+              endTick
+            })
           } else {
-            onAddSegment(dragFrom.date, dragSnapEdge.date, dragFrom.beatLength)
+            onDrawLine({ from, to, meanTempoAt, beatLength: beatLen, startTick, endTick })
           }
         }
-        cancelDrag()
+        cancelDraw()
       }}
-      onMouseLeave={() => cancelDrag()}
+      onMouseLeave={() => cancelDraw()}
       onKeyDown={(e) => {
         if (e.key === 'Backspace') {
           const selected = tempos.segments.filter(s => s.selected)
@@ -197,7 +195,6 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEn
           }
         }
       }}
-      style={{ margin: '3rem', outline: 'none' }}
       width={width + margin * 2}
       height={-height + margin * 2}
       viewBox={[
@@ -225,15 +222,7 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEn
       ))}
 
       {tempos?.sort(tickToSeconds).map((tempo: TempoSegment, index: number) => {
-        const beatLength = tempo.date.end - tempo.date.start
         const boxKey = `${tempo.date.start}_${tempo.date.end}`
-        const leftX = tickToSeconds(tempo.date.start) * stretchX
-        const rightX = tickToSeconds(tempo.date.end) * stretchX
-        const topY = asBPM(tempo.date, tickToSeconds) * -stretchY
-        const isDragStart = dragFrom?.date === tempo.date.start && dragFrom?.beatLength === beatLength
-        const isSnapTarget = dragSnapEdge?.date === tempo.date.end && dragSnapEdge?.beatLength === beatLength
-        const isHovered = hoveredKey === boxKey
-        const showEdges = isHovered || isDragStart || isSnapTarget
         return (
           <g
             key={`box${index}`}
@@ -245,15 +234,16 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEn
               tickToSeconds={tickToSeconds}
               stretchX={stretchX || 0}
               stretchY={stretchY || 0}
-              onPlay={handlePlay}
-              onStop={stop}
-              played={datePlayed ? isWithinSegment(datePlayed, tempo) : false}
+              onPlay={onPlaySegment}
+              onStop={onStopSegment}
               onSelect={() => {
+                if (isDrawMode) return
                 tempos.unselectAll()
                 tempo.selected = true
                 setTempos(new TempoCluster(tempos.segments))
               }}
               onToggleSelect={() => {
+                if (isDrawMode) return
                 tempo.selected = !tempo.selected
                 setTempos(new TempoCluster(tempos.segments))
               }}
@@ -263,78 +253,195 @@ export function Skyline({ part, tempos, setTempos, onsets, onAddSegment, chainEn
               }}
               splitMode={mode === 'split'}
               onSplit={onSplit}
-            />
-            <circle
-              cx={leftX} cy={topY} r={3}
-              fill={isDragStart ? 'gold' : 'transparent'}
-              stroke={isDragStart ? 'gold' : 'black'}
-              strokeWidth={1}
-              opacity={showEdges ? 1 : 0}
-              pointerEvents="all"
-              style={{ cursor: dragFrom ? 'default' : 'grab' }}
-              onMouseDown={(e) => {
-                if (e.button !== 0) return
-                setDragFrom({ date: tempo.date.start, beatLength })
-              }}
-            />
-            <circle
-              cx={rightX} cy={isSnapTarget ? (dragSnapEdge?.y ?? topY) : topY} r={3}
-              fill={isSnapTarget ? 'gold' : 'transparent'}
-              stroke={isSnapTarget ? 'gold' : 'black'}
-              strokeWidth={1}
-              opacity={showEdges ? 1 : 0}
-              pointerEvents="all"
+              drawMode={isDrawMode}
             />
           </g>
         )
       })}
 
-      {/* Chain handle */}
-      {chainEndpoint && !dragFrom && (() => {
-        const cx = tickToSeconds(chainEndpoint.date) * stretchX
-        const cy = chainEndpoint.bpm * -stretchY
-        return (
-          <circle
-            cx={cx} cy={cy} r={4}
-            fill='transparent'
-            stroke='hsl(220, 60%, 40%)'
-            strokeWidth={1.5}
-            style={{ cursor: 'grab' }}
-            onMouseDown={(e) => {
-              if (e.button !== 0) return
-              setDragFrom({ date: chainEndpoint.date, beatLength: chainEndpoint.beatLength, isChain: true })
-            }}
-          />
-        )
-      })()}
-
-      {/* Drag preview line */}
-      {dragFrom && dragMouse && (() => {
-        let fromX: number
-        let fromY: number
-        if (dragFrom.isChain && chainEndpoint) {
-          fromX = tickToSeconds(chainEndpoint.date) * stretchX
-          fromY = chainEndpoint.bpm * -stretchY
-        } else {
-          const fromSegment = tempos.segments.find(s => s.date.start === dragFrom.date && s.date.end - s.date.start === dragFrom.beatLength)
-          if (!fromSegment) return null
-          fromX = tickToSeconds(fromSegment.date.start) * stretchX
-          fromY = asBPM(fromSegment.date, tickToSeconds) * -stretchY
+      {/* Committed tempo curves */}
+      {committedTempos.map((t, i) => {
+        let startTime: number | undefined = msm.notesAtDate(t.date, part)[0]?.['midi.onset']
+        if (startTime === undefined) {
+          startTime = silentOnsets.get(t.date)
         }
-        const toX = dragSnapEdge ? dragSnapEdge.x : dragMouse.x
-        const toY = dragSnapEdge ? dragSnapEdge.y : dragMouse.y
+
+        const chainIndex = tempoToChainIndex.get(t)
+        const chain = chainIndex !== undefined ? committedChains[chainIndex] : undefined
+
         return (
-          <line
-            x1={fromX} y1={fromY}
-            x2={toX} y2={toY}
-            stroke='gold' strokeWidth={2}
-            strokeDasharray='6 4'
-            pointerEvents='none'
+          <TempoLine
+            key={`tempo_${i}`}
+            tempo={t}
+            startTime={startTime || 0}
+            stretchX={stretchX}
+            stretchY={stretchY}
+            active={activeElements?.includes(t['xml:id'])}
+            onClick={onActivateElement ? () => onActivateElement(t['xml:id']) : undefined}
+            onMouseEnter={chain && onPlayChain ? () => onPlayChain(chain, committedChainMidis[chainIndex!]) : undefined}
+            onMouseLeave={onStopChain}
           />
         )
-      })()}
+      })}
 
-      {children}
+      {/* Committed drawn curves */}
+      {drawnLines.map((dl, i) => {
+        const p = Math.log(0.5) / Math.log(dl.meanTempoAt)
+        const numSamples = 50
+        const points: string[] = []
+        for (let j = 0; j <= numSamples; j++) {
+          const x = j / numSamples
+          const seconds = dl.from.seconds + x * (dl.to.seconds - dl.from.seconds)
+          const bpm = dl.from.bpm + Math.pow(x, p) * (dl.to.bpm - dl.from.bpm)
+          points.push(`${seconds * stretchX},${bpm * -stretchY}`)
+        }
+        const startX2 = dl.from.seconds * stretchX
+        const startY = dl.from.bpm * -stretchY
+        const endX2 = dl.to.seconds * stretchX
+        const endY = dl.to.bpm * -stretchY
+        const isEndHovered = hoveredEndpoint === i
+        const midSeconds = (dl.from.seconds + dl.to.seconds) / 2
+        const midBpm = dl.from.bpm + Math.pow(0.5, p) * (dl.to.bpm - dl.from.bpm)
+        const prev = drawnLines[i - 1]
+        const isConnected = prev && prev.to.seconds === dl.from.seconds && prev.to.bpm === dl.from.bpm
+        return (
+          <g key={`drawn_${i}`}>
+            <polyline
+              points={points.join(' ')}
+              fill='none'
+              stroke='hsl(220, 60%, 40%)' strokeWidth={2}
+              pointerEvents='none'
+            />
+            {/* Beat length label */}
+            <text
+              x={midSeconds * stretchX}
+              y={midBpm * -stretchY - 8}
+              fontSize={8}
+              textAnchor='middle'
+              fill='hsl(220, 60%, 40%)'
+              pointerEvents='none'
+            >
+              {beatLengthLabel(dl.beatLength)}
+            </text>
+            {/* BPM labels at start and end (skip start if connected to previous curve) */}
+            {!isConnected && <text
+              x={startX2}
+              y={startY - 8}
+              fontSize={7}
+              textAnchor='start'
+              fill={dl.bpmScaled ? 'hsl(30, 80%, 45%)' : 'hsl(220, 60%, 40%)'}
+              opacity={0.7}
+              pointerEvents='none'
+            >
+              {dl.bpmScaled ? '~' : ''}{dl.from.bpm.toFixed(1)}
+            </text>}
+            <text
+              x={endX2}
+              y={endY - 8}
+              fontSize={7}
+              textAnchor='end'
+              fill={dl.bpmScaled ? 'hsl(30, 80%, 45%)' : 'hsl(220, 60%, 40%)'}
+              opacity={0.7}
+              pointerEvents='none'
+            >
+              {dl.bpmScaled ? '~' : ''}{dl.to.bpm.toFixed(1)}
+            </text>
+            {/* Continuation handle at endpoint */}
+            {isDrawMode && !drawStart && (
+              <circle
+                cx={endX2} cy={endY} r={4}
+                fill={isEndHovered ? 'gold' : 'transparent'}
+                stroke={isEndHovered ? 'gold' : 'hsl(220, 60%, 40%)'}
+                strokeWidth={1.5}
+                opacity={isEndHovered ? 1 : 0.6}
+                style={{ cursor: 'grab' }}
+                pointerEvents="all"
+                onMouseEnter={() => setHoveredEndpoint(i)}
+                onMouseLeave={() => setHoveredEndpoint(undefined)}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return
+                  e.stopPropagation()
+                  const start = { x: endX2, y: endY }
+                  setDrawStart(start)
+                  setDrawEnd(start)
+                  setDrawTrail([])
+                  setConnectingFrom(i)
+                }}
+              />
+            )}
+          </g>
+        )
+      })}
+
+      {/* Draw preview curve (with live optimizer) */}
+      {drawStart && drawEnd && drawStart.x !== drawEnd.x && (() => {
+        const rawFrom = { seconds: drawStart.x / stretchX, bpm: -drawStart.y / stretchY }
+        const rawTo = { seconds: drawEnd.x / stretchX, bpm: -drawEnd.y / stretchY }
+        const im = fitMeanTempoAt(rawFrom, rawTo, drawTrail)
+        const beatLen = connectingFrom !== undefined
+          ? drawnLines[connectingFrom].beatLength
+          : inferBeatLength(rawFrom.seconds, rawFrom.bpm, onsets, tickToSeconds)
+        const sTick = findOnsetTick(rawFrom.seconds, onsets, tickToSeconds)
+        const eTick = findOnsetTick(rawTo.seconds, onsets, tickToSeconds)
+
+        let from = rawFrom, to = rawTo, finalIm = im, scaled = false
+        if (sTick !== undefined && eTick !== undefined && sTick !== eTick) {
+          const targetMs = Math.abs(rawTo.seconds - rawFrom.seconds) * 1000
+          const opt = optimizeForElapsedTime(rawFrom.bpm, rawTo.bpm, im, beatLen, sTick, eTick, targetMs)
+          from = { seconds: rawFrom.seconds, bpm: opt.startBpm }
+          to = { seconds: rawTo.seconds, bpm: opt.endBpm }
+          finalIm = opt.meanTempoAt
+          scaled = opt.bpmScaled
+        }
+
+        const p = Math.log(0.5) / Math.log(finalIm)
+        const numSamples = 50
+        const points: string[] = []
+        for (let j = 0; j <= numSamples; j++) {
+          const x = j / numSamples
+          const seconds = from.seconds + x * (to.seconds - from.seconds)
+          const bpm = from.bpm + Math.pow(x, p) * (to.bpm - from.bpm)
+          points.push(`${seconds * stretchX},${bpm * -stretchY}`)
+        }
+        return (
+          <g>
+            <polyline
+              points={points.join(' ')}
+              fill='none'
+              stroke='gold' strokeWidth={2}
+              strokeDasharray='6 4'
+              pointerEvents='none'
+            />
+            <text
+              x={from.seconds * stretchX}
+              y={from.bpm * -stretchY - 8}
+              fontSize={7} textAnchor='start'
+              fill={scaled ? 'hsl(30, 80%, 45%)' : 'gold'}
+              pointerEvents='none'
+            >
+              {scaled ? '~' : ''}{from.bpm.toFixed(1)}
+            </text>
+            <text
+              x={to.seconds * stretchX}
+              y={to.bpm * -stretchY - 8}
+              fontSize={7} textAnchor='end'
+              fill={scaled ? 'hsl(30, 80%, 45%)' : 'gold'}
+              pointerEvents='none'
+            >
+              {scaled ? '~' : ''}{to.bpm.toFixed(1)}
+            </text>
+            <text
+              x={(from.seconds + to.seconds) / 2 * stretchX}
+              y={(from.bpm + Math.pow(0.5, p) * (to.bpm - from.bpm)) * -stretchY - 8}
+              fontSize={8} textAnchor='middle'
+              fill='gold'
+              pointerEvents='none'
+            >
+              {beatLengthLabel(beatLen)}
+            </text>
+          </g>
+        )
+      })()}
     </svg>
   )
 }

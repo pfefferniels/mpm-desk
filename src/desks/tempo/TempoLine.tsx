@@ -1,20 +1,19 @@
-import { computeMillisecondsAt, getTempoAt, TempoWithEndDate } from "mpmify"
-import { TempoPoint } from "./TempoDesk"
 import { MouseEventHandler, useEffect, useRef, useState } from "react"
+import { computeMillisecondsAt, getTempoAt } from "mpmify"
+import type { TempoWithEndDate } from "mpmify"
 
-interface SyntheticLineProps {
+interface TempoLineProps {
     tempo: TempoWithEndDate
     startTime: number
     stretchX: number
     stretchY: number
-    chartHeight: number
-    onClick: MouseEventHandler
-    active: boolean
-    onPlay: () => void
-    onStop: () => void
+    active?: boolean
+    onClick?: MouseEventHandler
+    onMouseEnter?: () => void
+    onMouseLeave?: () => void
 }
 
-export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeight, onClick, active, onPlay, onStop }: SyntheticLineProps) => {
+export const TempoLine = ({ tempo, startTime, stretchX, stretchY, active, onClick, onMouseEnter, onMouseLeave }: TempoLineProps) => {
     const [hovered, setHovered] = useState(false)
     const [flashKey, setFlashKey] = useState(0)
     const prevActive = useRef(false)
@@ -23,35 +22,30 @@ export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeigh
         if (active && !prevActive.current) {
             setFlashKey(k => k + 1)
         }
-        prevActive.current = active
+        prevActive.current = !!active
     }, [active])
 
     const step = 20
-    const curvePoints: TempoPoint[] = []
+    const curvePoints: { time: number, bpm: number }[] = []
     for (let i = tempo.date; i <= tempo.endDate; i += step) {
         curvePoints.push({
-            date: i,
-            time: startTime + (computeMillisecondsAt(i, tempo)) / 1000,
+            time: startTime + computeMillisecondsAt(i, tempo) / 1000,
             bpm: getTempoAt(i, tempo)
         })
     }
 
     if (curvePoints.length === 0) return null
 
-    const meanTempoDate = (tempo.endDate - tempo.date) * (tempo.meanTempoAt || 0.5)
-    const meanTempoMs = startTime + computeMillisecondsAt(tempo.date + meanTempoDate, tempo) / 1000
-    const meanTempo = (tempo["transition.to"] || tempo.bpm) + 0.5 * (tempo.bpm - (tempo["transition.to"] || tempo.bpm))
-
     const color = 'hsl(220, 60%, 40%)'
 
     return (
         <g
-            className='syntheticLine'
+            className='tempoLine'
             onMouseOver={() => setHovered(true)}
             onMouseOut={() => setHovered(false)}
             onClick={onClick}
-            onMouseEnter={onPlay}
-            onMouseLeave={onStop}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
         >
             {hovered && (
                 <>
@@ -61,23 +55,6 @@ export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeigh
                     <text x={curvePoints[curvePoints.length - 1].time * stretchX} y={-stretchY * curvePoints[curvePoints.length - 1].bpm - 10} fontSize={12}>
                         {tempo["transition.to"]?.toFixed(2)}
                     </text>
-
-                    <circle
-                        cx={meanTempoMs * stretchX}
-                        cy={meanTempo * -stretchY}
-                        r={5}
-                        fill="lightcoral"
-                    />
-
-                    {tempo.meanTempoAt && (
-                        <text
-                            x={meanTempoMs * stretchX}
-                            y={meanTempo * -stretchY - 10}
-                            fontSize={12}
-                        >
-                            {tempo.meanTempoAt.toFixed(2)}
-                        </text>
-                    )}
                 </>
             )}
 
@@ -85,9 +62,9 @@ export const SyntheticLine = ({ tempo, startTime, stretchX, stretchY, chartHeigh
                 <rect
                     key={`flash_${flashKey}`}
                     x={curvePoints[0].time * stretchX}
-                    y={chartHeight}
+                    y={Math.min(...curvePoints.map(p => p.bpm * -stretchY)) - 10}
                     width={(curvePoints[curvePoints.length - 1].time - curvePoints[0].time) * stretchX}
-                    height={-chartHeight}
+                    height={Math.abs(Math.min(...curvePoints.map(p => p.bpm * -stretchY))) + 10}
                     fill="steelblue"
                     pointerEvents="none"
                     style={{

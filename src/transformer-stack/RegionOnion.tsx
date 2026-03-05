@@ -320,7 +320,18 @@ export const RegionOnion = memo(function RegionOnion({
                     fill="transparent"
                     stroke="transparent"
                     pointerEvents={isAnyHovered && !isHovered ? "none" : "fill"}
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: onRegionDragStart ? "grab" : "pointer" }}
+                    onClick={onRegionDragStart ? undefined : () => setArgumentationDialogOpen(true)}
+                    onMouseDown={onRegionDragStart ? (e) => {
+                        if (e.button === 0) {
+                            e.preventDefault();
+                            pendingRegionDragRef.current = {
+                                startX: e.clientX,
+                                startY: e.clientY,
+                            };
+                            setPendingRegionDrag(true);
+                        }
+                    } : undefined}
                 />
             )}
 

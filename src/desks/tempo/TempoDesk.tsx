@@ -1,12 +1,14 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { ApproximateLogarithmicTempo, computeMillisecondsAt, SilentOnset, TempoSegment, TempoWithEndDate, TranslatePhyiscalTimeToTicks } from "mpmify"
+import { computeMillisecondsAt, SilentOnset, TranslatePhyiscalTimeToTicks } from "mpmify"
+import type { TempoWithEndDate } from "mpmify"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Skyline } from "./Skyline"
-import { TempoCluster, extractTempoSegments, extractOnsets, TempoSegment as LocalTempoSegment } from "./Tempo"
+import type { SkylineMode } from "./Skyline"
+import { TempoCluster, extractTempoSegments, extractOnsets, resolveOverlaps } from "./Tempo"
+import type { TempoSegment as LocalTempoSegment, DrawnLine } from "./Tempo"
 import { VerticalScale } from "./VerticalScale"
 import { ZoomControls } from "../../components/ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { SyntheticLine } from "./SyntheticLine"
 import { Add, Merge } from "@mui/icons-material"
 import { Ribbon } from "../../components/Ribbon"
 import { createPortal } from "react-dom"
@@ -19,27 +21,26 @@ import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
 import { MidiFile } from "midifile-ts"
+import { InsertTempo } from "../../transformers/InsertTempo"
 
 type TempoWithOptionalEndDate = Tempo & { endDate?: number }
 
 export type TempoSecondaryData = {
     tempoCluster?: LocalTempoSegment[]
     silentOnsets?: SilentOnset[]
+    drawnLines?: DrawnLine[]
 }
 
-export type TempoPoint = {
+type TempoPoint = {
     date: number
     time: number
     bpm: number
 }
 
-export type TempoDeskMode = 'split' | 'curve' | undefined
+type TempoDeskMode = SkylineMode
 
-// The idea:
-// http://fusehime.c.u-tokyo.ac.jp/gottschewski/doc/dissgraphics/35(S.305).JPG
-
-export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<ApproximateLogarithmicTempo | TranslatePhyiscalTimeToTicks>) => {
-    const { activeElements, setActiveElement } = useSelection();
+export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhyiscalTimeToTicks | InsertTempo>) => {
+    const { activeElements, setActiveElement } = useSelection()
     const tempoData = secondary?.tempo
 
     const [tempoCluster, setTempoClusterState] = useState<TempoCluster>(() => {
@@ -58,8 +59,8 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     )
     const { tickToSeconds, secondsToTick } = useTimeMapping(msm, silentOnsetPairs)
     const [committedTempos, setCommittedTempos] = useState<TempoWithEndDate[]>([])
-    const [newSegments, setNewSegments] = useState<TempoSegment[]>([])
-    const [mode, setMode] = useState<'split' | 'curve' | undefined>(undefined)
+    const [drawnLines, setDrawnLines] = useState<DrawnLine[]>(tempoData?.drawnLines ?? [])
+    const [mode, setMode] = useState<SkylineMode>(undefined)
 
     const stretchX = usePhysicalZoom()
     const [stretchY, setStretchY] = useState(1)
@@ -99,6 +100,17 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         })
     }
 
+    const updateDrawnLines = (newLines: DrawnLine[]) => {
+        setDrawnLines(newLines)
+        setSecondary(prev => ({
+            ...prev,
+            tempo: {
+                ...prev.tempo,
+                drawnLines: newLines
+            }
+        }))
+    }
+
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
             .slice()
@@ -125,21 +137,76 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         })
     }, [msm, part])
 
-    // Re-derive is automatic: tickToSeconds recomputes when msm changes
-
     const onsets = useMemo(() => extractOnsets(msm, part), [msm, part])
     const chartHeight = tempoCluster && tickToSeconds ? -stretchY * tempoCluster.highestBPM(tickToSeconds) : 0
 
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
-    // Group committed tempos into chains by contiguity (prev.endDate === curr.date)
+    // Local preview: run InsertTempo transformers for drawn lines to produce preview tempos
+    const previewTempos = useMemo<TempoWithEndDate[]>(() => {
+        if (drawnLines.length === 0) return []
+
+        const scratchMPM = new MPM()
+
+        // First, apply all existing committed tempos to the scratch MPM
+        for (const ct of committedTempos) {
+            const tempo: Tempo = {
+                type: 'tempo',
+                'xml:id': ct['xml:id'],
+                date: ct.date,
+                bpm: ct.bpm,
+                beatLength: ct.beatLength,
+                ...(ct['transition.to'] !== undefined ? {
+                    'transition.to': ct['transition.to'],
+                    meanTempoAt: ct.meanTempoAt
+                } : {})
+            }
+            scratchMPM.insertInstruction(tempo, part, true)
+        }
+
+        // Then apply drawn lines as InsertTempo transformers
+        for (const line of drawnLines) {
+            if (line.startTick === undefined || line.endTick === undefined) continue
+            const isTransition = Math.abs(line.from.bpm - line.to.bpm) > 0.01
+            const transformer = new InsertTempo({
+                from: line.startTick,
+                to: line.endTick,
+                bpm: line.from.bpm,
+                beatLength: line.beatLength,
+                scope: part,
+                ...(isTransition ? {
+                    transitionTo: line.to.bpm,
+                    meanTempoAt: line.meanTempoAt
+                } : {})
+            })
+            transformer.run(msm, scratchMPM)
+        }
+
+        const tempos = scratchMPM.getInstructions<Tempo>('tempo', part)
+            .slice()
+            .sort((a, b) => a.date - b.date)
+
+        return tempos
+            .map((tempo, i) => {
+                const next = tempos[i + 1]
+                const endDate = next ? next.date : (tempo as TempoWithOptionalEndDate).endDate
+                if (!endDate || endDate <= tempo.date) return null
+                return { ...tempo, endDate }
+            })
+            .filter((t): t is TempoWithEndDate => t !== null)
+    }, [drawnLines, committedTempos, msm, part])
+
+    // Use preview tempos if there are drawn lines, otherwise committed tempos
+    const displayTempos = drawnLines.length > 0 ? previewTempos : committedTempos
+
+    // Group displayed tempos into chains by contiguity (prev.endDate === curr.date)
     const committedChains = useMemo<TempoWithEndDate[][]>(() => {
-        if (committedTempos.length === 0) return []
-        const chains: TempoWithEndDate[][] = [[committedTempos[0]]]
-        for (let i = 1; i < committedTempos.length; i++) {
-            const prev = committedTempos[i - 1]
-            const curr = committedTempos[i]
+        if (displayTempos.length === 0) return []
+        const chains: TempoWithEndDate[][] = [[displayTempos[0]]]
+        for (let i = 1; i < displayTempos.length; i++) {
+            const prev = displayTempos[i - 1]
+            const curr = displayTempos[i]
             if (prev.endDate === curr.date) {
                 chains[chains.length - 1].push(curr)
             } else {
@@ -147,7 +214,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
             }
         }
         return chains
-    }, [committedTempos])
+    }, [displayTempos])
 
     const buildChainMidi = useCallback((chain: TempoWithEndDate[]): MidiFile | undefined => {
         const chainStart = chain[0].date
@@ -228,72 +295,34 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         }, 50)
     }, [stop])
 
-    const previewTempos = useMemo(() => {
-        if (newSegments.length === 0) return []
-
-        const silentOnsetArray = [...silentOnsets].map(([date, onset]) => ({ date, onset }))
-
-        if (newSegments.length === 1) {
-            return ApproximateLogarithmicTempo.preview({
-                ...newSegments[0],
-                scope: part,
-                silentOnsets: silentOnsetArray
-            }, msm)
+    const handleSegmentPlay = useCallback((from: number, to: number) => {
+        const notes = slice(from, to)
+        const midi = asMIDI(notes)
+        if (midi) {
+            stop()
+            play(midi)
         }
-
-        // Simulate the pipeline: each segment's preview feeds into a scratch MPM
-        // so the next segment's reconstructChain finds the prior chain.
-        const scratchMPM = new MPM()
-        let result: TempoWithEndDate[] = []
-
-        for (let i = 0; i < newSegments.length; i++) {
-            result = ApproximateLogarithmicTempo.preview({
-                ...newSegments[i],
-                scope: part,
-                silentOnsets: silentOnsetArray,
-                continue: i > 0
-            }, msm, i > 0 ? scratchMPM : undefined)
-
-            // Replace scratch MPM tempo instructions for next iteration
-            for (const t of scratchMPM.getInstructions<Tempo>('tempo', part)) {
-                scratchMPM.removeInstruction(t)
-            }
-            for (const t of result) {
-                scratchMPM.insertInstruction(t, part, true)
-            }
-        }
-
-        return result
-    }, [newSegments, part, silentOnsets, msm])
-
-    const chainEndpoint = useMemo(() => {
-        if (previewTempos.length === 0 || newSegments.length === 0) return undefined
-        const last = previewTempos[previewTempos.length - 1]
-        const lastSeg = newSegments[newSegments.length - 1]
-        return {
-            date: last.endDate,
-            beatLength: lastSeg.beatLength * 4 * 720,
-            bpm: last['transition.to'] || last.bpm
-        }
-    }, [previewTempos, newSegments])
-
-    const previewChainMidi = useMemo(
-        () => previewTempos.length > 0 ? buildChainMidi(previewTempos) : undefined,
-        [previewTempos, buildChainMidi]
-    )
+    }, [slice, play, stop])
 
     const insertTempoValues = () => {
-        if (!tempoCluster || newSegments.length === 0) return
+        if (!tempoCluster || drawnLines.length === 0) return
 
-        for (let i = 0; i < newSegments.length; i++) {
-            addTransformer(new ApproximateLogarithmicTempo({
-                ...newSegments[i],
+        for (const line of drawnLines) {
+            if (line.startTick === undefined || line.endTick === undefined) continue
+            const isTransition = Math.abs(line.from.bpm - line.to.bpm) > 0.01
+            addTransformer(new InsertTempo({
+                from: line.startTick,
+                to: line.endTick,
+                bpm: line.from.bpm,
+                beatLength: line.beatLength,
                 scope: part,
-                silentOnsets: [...silentOnsets].map(([date, onset]) => ({ date, onset })),
-                continue: i > 0
+                ...(isTransition ? {
+                    transitionTo: line.to.bpm,
+                    meanTempoAt: line.meanTempoAt
+                } : {})
             }))
         }
-        setNewSegments([])
+        updateDrawnLines([])
     }
 
     const translate = () => {
@@ -313,6 +342,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                                 startIcon={<Add />}
                                 variant='contained'
                                 onClick={insertTempoValues}
+                                disabled={drawnLines.length === 0}
                             >
                                 Insert
                             </Button>
@@ -325,6 +355,16 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                             >
                                 Translate To Ticks
                             </Button>
+                        </Ribbon>
+                        <Ribbon title='Mode'>
+                            <ToggleButton
+                                value='draw'
+                                size='small'
+                                selected={mode === 'draw'}
+                                onChange={() => setMode(prev => prev === 'draw' ? undefined : 'draw')}
+                            >
+                                Draw
+                            </ToggleButton>
                         </Ribbon>
                         <Ribbon title='Segments'>
                             <ToggleButton
@@ -396,80 +436,30 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                             tickToSeconds={tickToSeconds}
                             stretchX={stretchX}
                             stretchY={stretchY}
-                            onAddSegment={(from, to, beatLength) => {
-                                setNewSegments([{
-                                    from,
-                                    to,
-                                    beatLength: beatLength / 4 / 720,
-                                }])
-                            }}
-                            chainEndpoint={chainEndpoint}
-                            onChainSegment={(from, to, beatLength) => {
-                                setNewSegments(prev => [...prev, {
-                                    from,
-                                    to,
-                                    beatLength: beatLength / 4 / 720,
-                                }])
-                            }}
                             mode={mode}
+                            committedTempos={mode !== 'draw' ? displayTempos : []}
+                            silentOnsets={silentOnsets}
+                            msm={msm}
+                            drawnLines={drawnLines}
+                            onDrawLine={(line) => updateDrawnLines([...resolveOverlaps(drawnLines, line), line])}
                             onToggleSplitMode={() => setMode(prev => prev === 'split' ? undefined : 'split')}
                             onSplit={(first, second, onset) => {
                                 setSilentOnset(second.date.start, onset)
-
                                 setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))
                             }}
-                        >
-                            {committedTempos.map((t, i) => {
-                                let startTime: number | undefined = msm.notesAtDate(t.date, part)[0]?.['midi.onset']
-                                if (startTime === undefined) {
-                                    startTime = silentOnsets.get(t.date)
-                                }
-
-                                const chainIndex = tempoToChainIndex.get(t)!
-                                const chain = committedChains[chainIndex]
-
-                                return (
-                                    <SyntheticLine
-                                        key={`committed_${i}`}
-                                        tempo={t}
-                                        startTime={startTime || 0}
-                                        stretchX={stretchX}
-                                        stretchY={stretchY}
-                                        chartHeight={chartHeight}
-                                        active={activeElements.includes(t['xml:id'])}
-                                        onClick={() => setActiveElement(t['xml:id'])}
-                                        onPlay={() => handleChainPlay(chain, committedChainMidis[chainIndex])}
-                                        onStop={handleChainStop}
-                                    />
-                                )
-                            })}
-
-                            {previewTempos.map((previewTempo, i) => {
-                                let startTime: number | undefined = msm.notesAtDate(previewTempo.date, part)[0]?.['midi.onset']
-                                if (startTime === undefined) {
-                                    startTime = silentOnsets.get(previewTempo.date)
-                                }
-
-                                return (
-                                    <SyntheticLine
-                                        key={`preview_${i}`}
-                                        tempo={previewTempo}
-                                        startTime={startTime || 0}
-                                        stretchX={stretchX}
-                                        stretchY={stretchY}
-                                        chartHeight={chartHeight}
-                                        active={false}
-                                        onClick={() => {}}
-                                        onPlay={() => handleChainPlay(previewTempos, previewChainMidi)}
-                                        onStop={handleChainStop}
-                                    />
-                                )
-                            })}
-                        </Skyline>
+                            onPlaySegment={handleSegmentPlay}
+                            onStopSegment={stop}
+                            activeElements={activeElements}
+                            onActivateElement={setActiveElement}
+                            onPlayChain={handleChainPlay}
+                            onStopChain={handleChainStop}
+                            committedChains={committedChains}
+                            committedChainMidis={committedChainMidis}
+                            tempoToChainIndex={tempoToChainIndex}
+                        />
                     )}
                 </div>
             </div>
         </div>
     )
 }
-

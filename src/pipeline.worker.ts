@@ -8,6 +8,7 @@ import {
     compareTransformers, validate
 } from 'mpmify';
 import type { Transformer, Argumentation, TransformationOptions } from 'mpmify';
+import { InsertTempo } from './transformers/InsertTempo';
 
 interface SerializedTransformer {
     id: string;
@@ -49,6 +50,7 @@ function reconstructTransformer(t: SerializedTransformer): Transformer | null {
     else if (t.name === 'TranslatePhyiscalTimeToTicks') transformer = new TranslatePhyiscalTimeToTicks();
     else if (t.name === 'MergeMetricalAccentuations') transformer = new MergeMetricalAccentuations();
     else if (t.name === 'InsertArticulation') transformer = new InsertArticulation();
+    else if (t.name === 'InsertTempo') transformer = new InsertTempo();
     else if (t.name === 'InsertMetadata') transformer = new InsertMetadata();
     else {
         console.warn(`Unknown transformer: ${t.name}`);

@@ -1,5 +1,6 @@
 import { MouseEventHandler, useState } from "react"
-import { TempoSegment, asBPM } from "./Tempo"
+import { asBPM } from "./Tempo"
+import type { TempoSegment } from "./Tempo"
 
 type BoxProps = {
   segment: TempoSegment
@@ -8,9 +9,8 @@ type BoxProps = {
   stretchX: number
   stretchY: number
 
-  onPlay: (start: number, end?: number) => void
-  onStop: () => void
-  played: boolean
+  onPlay?: (start: number, end: number) => void
+  onStop?: () => void
 
   onToggleSelect: () => void
   onSelect: () => void
@@ -18,6 +18,7 @@ type BoxProps = {
 
   splitMode: boolean
   onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
+  drawMode?: boolean
 }
 
 /**
@@ -35,7 +36,7 @@ export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [splitSeconds, setSplitSeconds] = useState<number>()
 
-  const { segment, tickToSeconds, stretchX, stretchY, onPlay, onStop, played, onToggleSelect, onSelect, onRemove, splitMode, onSplit } = props
+  const { segment, tickToSeconds, stretchX, stretchY, onPlay, onStop, onToggleSelect, onSelect, onRemove, splitMode, onSplit, drawMode } = props
   const { selected } = segment
 
   const start = tickToSeconds(segment.date.start)
@@ -133,18 +134,19 @@ export const Box = (props: BoxProps) => {
           [end * stretchX, upperY].join(','), // move left
           [end * stretchX, 0].join(',')  // move down
         ].join(' ')}
-        fill={played ? 'blue' : (hovered ? 'lightgray' : 'white')}
+        fill={hovered ? 'lightgray' : 'white'}
         fillOpacity={0.4}
         stroke='black'
         strokeDasharray={segment.silent ? '1 1' : undefined}
         strokeWidth={selected ? 2 : 1}
+        pointerEvents={drawMode ? 'none' : undefined}
         onMouseMove={handleMouseMove}
         onMouseOver={() => {
-          onPlay(segment.date.start, segment.date.end)
+          onPlay?.(segment.date.start, segment.date.end)
           setHovered(true)
         }}
         onMouseOut={() => {
-          onStop()
+          onStop?.()
           setHovered(false)
           setSplitSeconds(undefined)
         }}

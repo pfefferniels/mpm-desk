@@ -8,6 +8,7 @@ export type Range = {
 
 export type TempoSegment = {
     date: Range
+    time?: Range
     selected: boolean
     silent: boolean
 }
@@ -157,7 +158,136 @@ export class TempoCluster {
     }
 }
 
-export const isWithinSegment = (date: number, segment: TempoSegment) => {
-    return (date >= segment.date.start) && (date < segment.date.end)
+export type DrawnLine = {
+    from: { seconds: number, bpm: number }
+    to: { seconds: number, bpm: number }
+    meanTempoAt: number
+    beatLength: number
+    bpmScaled?: boolean
+    startTick?: number
+    endTick?: number
 }
 
+const STANDARD_BEAT_LENGTHS = [0.0625, 0.125, 0.25, 0.375, 0.5, 0.75, 1.0]
+
+export function inferBeatLength(
+    seconds: number,
+    bpm: number,
+    onsets: Onset[],
+    tickToSeconds: (tick: number) => number
+): number {
+    let closestIdx = 0
+    let closestDist = Infinity
+    for (let i = 0; i < onsets.length; i++) {
+        const dist = Math.abs(tickToSeconds(onsets[i].date) - seconds)
+        if (dist < closestDist) {
+            closestDist = dist
+            closestIdx = i
+        }
+    }
+
+    const nextIdx = closestIdx + 1 < onsets.length ? closestIdx + 1 : closestIdx - 1
+    if (nextIdx < 0 || nextIdx >= onsets.length) return 0.25
+
+    const deltaTicks = Math.abs(onsets[nextIdx].date - onsets[closestIdx].date)
+    const deltaSeconds = Math.abs(tickToSeconds(onsets[nextIdx].date) - tickToSeconds(onsets[closestIdx].date))
+    if (deltaTicks === 0 || deltaSeconds === 0) return 0.25
+
+    const secondsPerTick = deltaSeconds / deltaTicks
+    const secondsPerBeat = 60 / bpm
+    const ticksPerBeat = secondsPerBeat / secondsPerTick
+    const rawBeatLength = ticksPerBeat / 2880
+
+    let best = 0.25
+    let bestDist2 = Infinity
+    for (const bl of STANDARD_BEAT_LENGTHS) {
+        const d = Math.abs(rawBeatLength - bl)
+        if (d < bestDist2) {
+            bestDist2 = d
+            best = bl
+        }
+    }
+
+    return best
+}
+
+export function beatLengthLabel(beatLength: number): string {
+    switch (beatLength) {
+        case 0.0625: return '1/16'
+        case 0.125: return '1/8'
+        case 0.25: return '1/4'
+        case 0.375: return '3/8'
+        case 0.5: return '1/2'
+        case 0.75: return '3/4'
+        case 1.0: return '1/1'
+        default: return beatLength.toFixed(3)
+    }
+}
+
+export function findOnsetTick(
+    seconds: number,
+    onsets: Onset[],
+    tickToSeconds: (tick: number) => number
+): number | undefined {
+    let bestTick: number | undefined
+    let bestDist = Infinity
+    for (const onset of onsets) {
+        const dist = Math.abs(tickToSeconds(onset.date) - seconds)
+        if (dist < bestDist) {
+            bestDist = dist
+            bestTick = onset.date
+        }
+    }
+    return bestTick
+}
+
+function interpolateBpm(line: DrawnLine, atSeconds: number): number {
+    const x = (atSeconds - line.from.seconds) / (line.to.seconds - line.from.seconds)
+    const p = Math.log(0.5) / Math.log(line.meanTempoAt)
+    return line.from.bpm + Math.pow(x, p) * (line.to.bpm - line.from.bpm)
+}
+
+export function resolveOverlaps(existing: DrawnLine[], newLine: DrawnLine): DrawnLine[] {
+    const newStart = Math.min(newLine.from.seconds, newLine.to.seconds)
+    const newEnd = Math.max(newLine.from.seconds, newLine.to.seconds)
+
+    const result: DrawnLine[] = []
+
+    for (const old of existing) {
+        const oldStart = Math.min(old.from.seconds, old.to.seconds)
+        const oldEnd = Math.max(old.from.seconds, old.to.seconds)
+
+        // No overlap — keep as-is
+        if (oldEnd <= newStart || oldStart >= newEnd) {
+            result.push(old)
+            continue
+        }
+
+        // Completely covered — remove
+        if (oldStart >= newStart && oldEnd <= newEnd) {
+            continue
+        }
+
+        const leftToRight = old.from.seconds <= old.to.seconds
+
+        // Old extends before new — keep the part before newStart
+        if (oldStart < newStart) {
+            const bpmAtTrim = interpolateBpm(old, newStart)
+            const trimmed = leftToRight
+                ? { from: old.from, to: { seconds: newStart, bpm: bpmAtTrim } }
+                : { from: { seconds: newStart, bpm: bpmAtTrim }, to: old.to }
+            result.push({ ...trimmed, meanTempoAt: old.meanTempoAt, beatLength: old.beatLength })
+        }
+
+        // Old extends after new — keep the part after newEnd
+        if (oldEnd > newEnd) {
+            const bpmAtTrim = interpolateBpm(old, newEnd)
+            const trimmed = leftToRight
+                ? { from: { seconds: newEnd, bpm: bpmAtTrim }, to: old.to }
+                : { from: old.from, to: { seconds: newEnd, bpm: bpmAtTrim } }
+            result.push({ ...trimmed, meanTempoAt: old.meanTempoAt, beatLength: old.beatLength })
+        }
+    }
+
+    return result
+}

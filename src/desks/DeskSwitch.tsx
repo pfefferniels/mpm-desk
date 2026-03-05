@@ -6,7 +6,8 @@ import { ArticulationDesk } from "./articulation/ArticulationDesk";
 import { RubatoDesk } from "./rubato/RubatoDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
-import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRubato, ApproximateLogarithmicTempo, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
+import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRubato, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
+import { InsertTempo } from "../transformers/InsertTempo";
 import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
 import { TemporalSpreadDesk } from "./arpeggiation/TemporalSpreadDesk";
 import { ResultDesk } from "./result/ResultDesk";
@@ -19,7 +20,6 @@ type AnyTransformer =
     | typeof InsertTemporalSpread
     | typeof InsertDynamicsGradient
     | typeof InsertRubato
-    | typeof ApproximateLogarithmicTempo
     | typeof InsertMetricalAccentuation
     | typeof InsertPedal
     | typeof CombineAdjacentRubatos
@@ -29,6 +29,7 @@ type AnyTransformer =
     | typeof MergeMetricalAccentuations
     | typeof InsertArticulation
     | typeof MakeChoice
+    | typeof InsertTempo
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
@@ -44,7 +45,7 @@ export const correspondingDesks: { transformer?: AnyTransformer, aspect: string,
     },
     // Timing
     {
-        transformer: ApproximateLogarithmicTempo,
+        transformer: InsertTempo,
         desk: TempoDesk,
         aspect: 'tempo',
         group: 'timing'
