@@ -61,6 +61,7 @@ export const negotiateIntensityCurve = (
     maxDate: number,
     msm: MSM,
     elementTypesByTransformer: Map<string, string[]>,
+    lodWeights?: Map<string, number>,
 ): IntensityCurve => {
     // Build index: element type → sorted start dates of point-based transformers
     const startsByType = new Map<string, number[]>();
@@ -81,6 +82,9 @@ export const negotiateIntensityCurve = (
 
     const diff: number[] = new Array(maxDate).fill(0);
     for (const [argumentation, localTransformers] of argumentations) {
+        const lodWeight = lodWeights?.get(argumentation.id) ?? 1;
+        if (lodWeight === 0) continue;
+
         const range = getRange(localTransformers, msm);
         if (!range) continue;
 
@@ -130,7 +134,7 @@ export const negotiateIntensityCurve = (
 
             const t = idx / (length - 1);
             const weight = Math.sin(Math.PI * t) * Math.sqrt(length) * gain;
-            diff[i] += sign * weight;
+            diff[i] += sign * weight * lodWeight;
         }
     }
 

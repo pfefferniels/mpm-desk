@@ -1,5 +1,5 @@
 import { Card } from "@mui/material";
-import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
@@ -108,29 +108,9 @@ export const TransformerStack = ({
     const maxDate = getRange(transformers, msm)?.to || 0;
     const maxX = maxDate * stretchX;
 
-    const scaled = useMemo(
-        () => negotiateIntensityCurve(argumentations, maxDate, msm, elementTypesByTransformer),
-        [argumentations, maxDate, msm, elementTypesByTransformer],
-    );
-
     const totalHeight = 300;
     const padTop = 40;
     const padBottom = 40;
-
-    const exaggeratedCurve = useMemo(
-        () => applyExaggeration(scaled, exaggeration),
-        [scaled, exaggeration],
-    );
-
-    const curvePoints = useMemo(
-        () => computeCurvePoints({ curve: exaggeratedCurve, totalHeight, padTop, padBottom }),
-        [exaggeratedCurve, totalHeight],
-    );
-
-    const curvePathD = useMemo(
-        () => asPathD(exaggeratedCurve, totalHeight, padTop, padBottom),
-        [exaggeratedCurve, totalHeight],
-    );
 
     const regions = useMemo(
         () => buildRegions(argumentations, msm, elementTypesByTransformer),
@@ -222,6 +202,28 @@ export const TransformerStack = ({
 
         return map;
     }, [regions, stretchX]);
+
+    const deferredLodOpacities = useDeferredValue(lodOpacities);
+
+    const scaled = useMemo(
+        () => negotiateIntensityCurve(argumentations, maxDate, msm, elementTypesByTransformer, deferredLodOpacities),
+        [argumentations, maxDate, msm, elementTypesByTransformer, deferredLodOpacities],
+    );
+
+    const exaggeratedCurve = useMemo(
+        () => applyExaggeration(scaled, exaggeration),
+        [scaled, exaggeration],
+    );
+
+    const curvePoints = useMemo(
+        () => computeCurvePoints({ curve: exaggeratedCurve, totalHeight, padTop, padBottom }),
+        [exaggeratedCurve, totalHeight],
+    );
+
+    const curvePathD = useMemo(
+        () => asPathD(exaggeratedCurve, totalHeight, padTop, padBottom),
+        [exaggeratedCurve, totalHeight],
+    );
 
     const mergeInto = useCallback(
         (transformerId: string, argumentation: Argumentation) => {
