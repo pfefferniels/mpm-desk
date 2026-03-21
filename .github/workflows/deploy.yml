@@ -53,6 +53,8 @@ jobs:
 
       - name: Install and build mpm-desk
         working-directory: mpm-desk
+        env:
+          VITE_MPM_BACKEND_URL: https://api.welte225.org
         run: npm ci && npm run build
 
       - name: Deploy to Cloudflare Pages
