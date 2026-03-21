@@ -31,14 +31,6 @@ export type TempoSecondaryData = {
     drawnLines?: DrawnLine[]
 }
 
-type TempoPoint = {
-    date: number
-    time: number
-    bpm: number
-}
-
-type TempoDeskMode = SkylineMode
-
 export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhyiscalTimeToTicks | InsertTempo>) => {
     const { activeElements, setActiveElement } = useSelection()
     const tempoData = secondary?.tempo
