@@ -519,6 +519,15 @@ export const TransformerStack = ({
         handleClearSelection();
     }, [stopRef, handleClearSelection]);
 
+    // Lock the parent region when a single transformer is selected (e.g. from a desk click)
+    useEffect(() => {
+        if (activeTransformerIds.size === 1) {
+            const [id] = activeTransformerIds;
+            const regionId = subregionToRegion.get(id);
+            if (regionId) setLockedRegionId(regionId);
+        }
+    }, [activeTransformerIds, subregionToRegion]);
+
     // Clear lock if the locked region no longer exists
     useEffect(() => {
         if (lockedRegionId && !regions.some(r => r.id === lockedRegionId)) {
