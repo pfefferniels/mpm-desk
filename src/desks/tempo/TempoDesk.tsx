@@ -1,7 +1,7 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
 import { computeMillisecondsAt, SilentOnset, TranslatePhyiscalTimeToTicks } from "mpmify"
 import type { TempoWithEndDate } from "mpmify"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import type { SkylineMode } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, resolveOverlaps } from "./Tempo"
@@ -192,100 +192,46 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     // Use preview tempos if there are drawn lines, otherwise committed tempos
     const displayTempos = drawnLines.length > 0 ? previewTempos : committedTempos
 
-    // Group displayed tempos into chains by contiguity (prev.endDate === curr.date)
-    const committedChains = useMemo<TempoWithEndDate[][]>(() => {
-        if (displayTempos.length === 0) return []
-        const chains: TempoWithEndDate[][] = [[displayTempos[0]]]
-        for (let i = 1; i < displayTempos.length; i++) {
-            const prev = displayTempos[i - 1]
-            const curr = displayTempos[i]
-            if (prev.endDate === curr.date) {
-                chains[chains.length - 1].push(curr)
-            } else {
-                chains.push([curr])
+    const buildTempoMidi = useCallback((tempo: TempoWithEndDate): MidiFile | undefined => {
+        const notes = structuredClone(slice(tempo.date, tempo.endDate))
+
+        for (const note of notes) {
+            if (note.date >= tempo.date && note.date < tempo.endDate) {
+                note["midi.onset"] = computeMillisecondsAt(note.date, tempo) / 1000
+                const noteEnd = Math.min(note.date + note.duration, tempo.endDate)
+                note["midi.duration"] = computeMillisecondsAt(noteEnd, tempo) / 1000 - note["midi.onset"]
             }
         }
-        return chains
-    }, [displayTempos])
 
-    const buildChainMidi = useCallback((chain: TempoWithEndDate[]): MidiFile | undefined => {
-        const chainStart = chain[0].date
-        const chainEnd = chain[chain.length - 1].endDate
-        const notes = structuredClone(slice(chainStart, chainEnd))
-
-        let accumulatedMs = 0
-        for (const seg of chain) {
-            const segDurationMs = computeMillisecondsAt(seg.endDate, seg)
-
-            for (const note of notes) {
-                if (note.date >= seg.date && note.date < seg.endDate) {
-                    note["midi.onset"] = (accumulatedMs + computeMillisecondsAt(note.date, seg)) / 1000
-                    const noteEnd = Math.min(note.date + note.duration, seg.endDate)
-                    note["midi.duration"] = (accumulatedMs + computeMillisecondsAt(noteEnd, seg)) / 1000 - note["midi.onset"]
-                }
-            }
-
-            // Metronome clicks for this segment
-            for (let i = seg.date; i <= seg.endDate; i += (seg.beatLength * 4 * 720) / 2) {
-                notes.push({
-                    date: i,
-                    duration: 5,
-                    'midi.pitch': i === seg.endDate ? 120 : 127,
-                    'xml:id': `metronome-${i}`,
-                    part: 0,
-                    pitchname: 'C',
-                    accidentals: 0,
-                    octave: 4,
-                    'midi.onset': (accumulatedMs + computeMillisecondsAt(i, seg)) / 1000,
-                    'midi.duration': 0.01,
-                    'midi.velocity': 80
-                })
-            }
-
-            accumulatedMs += segDurationMs
+        for (let i = tempo.date; i <= tempo.endDate; i += (tempo.beatLength * 4 * 720) / 2) {
+            notes.push({
+                date: i,
+                duration: 5,
+                'midi.pitch': i === tempo.endDate ? 120 : 127,
+                'xml:id': `metronome-${i}`,
+                part: 0,
+                pitchname: 'C',
+                accidentals: 0,
+                octave: 4,
+                'midi.onset': computeMillisecondsAt(i, tempo) / 1000,
+                'midi.duration': 0.01,
+                'midi.velocity': 80
+            })
         }
 
         notes.sort((a, b) => (a["midi.onset"] ?? 0) - (b["midi.onset"] ?? 0))
         return asMIDI(notes)
     }, [slice])
 
-    const committedChainMidis = useMemo(
-        () => committedChains.map(buildChainMidi),
-        [committedChains, buildChainMidi]
+    const committedTempoMidis = useMemo(
+        () => displayTempos.map(buildTempoMidi),
+        [displayTempos, buildTempoMidi]
     )
 
-    // Map each tempo to its chain index for render lookup
-    const tempoToChainIndex = useMemo(() => {
-        const map = new Map<TempoWithEndDate, number>()
-        committedChains.forEach((chain, idx) => {
-            for (const t of chain) map.set(t, idx)
-        })
-        return map
-    }, [committedChains])
-
-    // Debounced play/stop to prevent restart when moving between segments in the same chain
-    const playingChainRef = useRef<TempoWithEndDate[] | null>(null)
-    const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    const handleChainPlay = useCallback((chain: TempoWithEndDate[], midi: MidiFile | undefined) => {
-        if (stopTimeoutRef.current) {
-            clearTimeout(stopTimeoutRef.current)
-            stopTimeoutRef.current = null
-        }
-        if (playingChainRef.current === chain) return
+    const handleTempoPlay = useCallback((midi: MidiFile | undefined) => {
         stop()
-        playingChainRef.current = chain
         if (midi) play(midi)
     }, [play, stop])
-
-    const handleChainStop = useCallback(() => {
-        if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current)
-        stopTimeoutRef.current = setTimeout(() => {
-            stop()
-            playingChainRef.current = null
-            stopTimeoutRef.current = null
-        }, 50)
-    }, [stop])
 
     const handleSegmentPlay = useCallback((from: number, to: number) => {
         const notes = slice(from, to)
@@ -443,11 +389,9 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                             onStopSegment={stop}
                             activeElements={activeElements}
                             onActivateElement={setActiveElement}
-                            onPlayChain={handleChainPlay}
-                            onStopChain={handleChainStop}
-                            committedChains={committedChains}
-                            committedChainMidis={committedChainMidis}
-                            tempoToChainIndex={tempoToChainIndex}
+                            onPlayTempo={handleTempoPlay}
+                            onStopTempo={stop}
+                            committedTempoMidis={committedTempoMidis}
                         />
                     )}
                 </div>

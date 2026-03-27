@@ -67,6 +67,14 @@ const cloneTransformerWithCreated = (transformer: Transformer, created: string[]
     return clone;
 };
 
+/**
+ * Build a fingerprint of the pipeline-relevant transformer fields (excluding
+ * `created`, which is an *output* of the pipeline). When only `created`
+ * changes (e.g. after a pipeline result), we skip re-posting to the worker.
+ */
+const pipelineFingerprint = (transformers: Transformer[]): string =>
+    transformers.map(t => `${t.id}|${t.name}|${JSON.stringify(t.options)}|${t.argumentation?.id ?? ''}`).join(';');
+
 export const usePipelineRunner = ({
     initialMSM,
     transformers,
@@ -80,6 +88,7 @@ export const usePipelineRunner = ({
 }: UsePipelineRunnerParams) => {
     const workerRef = useRef<Worker>(null);
     const requestIdRef = useRef(0);
+    const lastFingerprintRef = useRef('');
     const onValidationErrorRef = useLatest(onValidationError);
     const onPipelineErrorRef = useLatest(onPipelineError);
     const onPipelineSuccessRef = useLatest(onPipelineSuccess);
@@ -92,6 +101,12 @@ export const usePipelineRunner = ({
     useEffect(() => {
         if (initialMSM.allNotes.length === 0) return;
         if (!workerRef.current) return;
+
+        // Skip re-running the pipeline when only `created` arrays changed
+        // (which happens when the pipeline itself updates them).
+        const fp = pipelineFingerprint(transformers);
+        if (fp === lastFingerprintRef.current) return;
+        lastFingerprintRef.current = fp;
 
         const requestId = ++requestIdRef.current;
         const serialized: SerializedTransformer[] = transformers.map(transformer => ({

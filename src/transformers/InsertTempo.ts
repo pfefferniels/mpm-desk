@@ -15,6 +15,7 @@ interface InsertTempoOptions extends ScopedTransformationOptions {
 export class InsertTempo extends AbstractTransformer<InsertTempoOptions> {
     readonly name = 'InsertTempo'
     readonly requires = []
+    private _boundaryId?: string
 
     constructor(options?: InsertTempoOptions) {
         super()
@@ -29,6 +30,14 @@ export class InsertTempo extends AbstractTransformer<InsertTempoOptions> {
                     certainty: 'authentic'
                 }
             }
+        }
+    }
+
+    public run(msm: MSM, mpm: MPM) {
+        this._boundaryId = undefined
+        super.run(msm, mpm)
+        if (this._boundaryId) {
+            this.created = this.created.filter(id => id !== this._boundaryId)
         }
     }
 
@@ -74,6 +83,7 @@ export class InsertTempo extends AbstractTransformer<InsertTempoOptions> {
                         beatLength: effectiveTempo.beatLength,
                         bpm: effectiveTempo.bpm
                     }
+                    this._boundaryId = restore['xml:id']
                     for (const t of existing) {
                         if (isCovered(t.date)) mpm.removeInstruction(t)
                     }

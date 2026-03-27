@@ -16,6 +16,7 @@ import { CounterScaledXGroup } from "./CounterScaledXGroup";
 import { TypeLabel } from "./TypeLabel";
 import { cloneTransformerWithArgumentation } from "./cloneTransformer";
 import { InstructionPopover } from "./InstructionPopover";
+import { ArgumentationPopover } from "./ArgumentationPopover";
 import { MergeOrChainDialog } from "./MergeOrChainDialog";
 
 function lerpHexColor(a: string, b: string, t: number): string {
@@ -66,14 +67,15 @@ export const TransformerStack = ({
     const stretchX = useSymbolicZoom();
 
     const svgRef = useRef<SVGSVGElement>(null);
-    const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [hoveredRegionId, setHoveredRegionId] = useState<string | null>(null);
+    const [lockedRegionId, setLockedRegionId] = useState<string | null>(null);
     const [dragState, setDragState] = useState<OnionDragState | null>(null);
     const [pendingRegionDrop, setPendingRegionDrop] = useState<{
         sourceRegionId: string;
         targetRegionId: string;
     } | null>(null);
     const dragStateRef = useLatest(dragState);
+    const lockedRegionIdRef = useLatest(lockedRegionId);
     const transformersRef = useLatest(transformers);
     const playRef = useLatest(play);
     const stopRef = useLatest(stop);
@@ -144,18 +146,6 @@ export const TransformerStack = ({
         return map;
     }, [regions, chains]);
 
-    const regionColors = useMemo(() => {
-        const t = Math.min(1, (exaggeration - 1) / (EXAGGERATION_MAX - 1));
-        const map = new Map<string, string>();
-        for (const r of regions) {
-            const mot = r.argumentation.conclusion.motivation;
-            const warm = mot === 'intensify' || mot === 'move';
-            const target = warm ? '#c0392b' : '#2980b9';
-            map.set(r.id, lerpHexColor('#999999', target, t));
-        }
-        return map;
-    }, [regions, exaggeration]);
-
     const sizeFactors = useMemo(() => {
         // For chained regions, use the chain's total span
         const effectiveSpans = new Map<string, number>();
@@ -170,6 +160,16 @@ export const TransformerStack = ({
         }
         return map;
     }, [regions, chains]);
+
+    const subregionToRegion = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const r of regions) {
+            for (const sr of r.subregions) {
+                map.set(sr.id, r.id);
+            }
+        }
+        return map;
+    }, [regions]);
 
     const LOD_MIN_PX = 30;
     const LOD_FADE_PX = 60;
@@ -215,6 +215,33 @@ export const TransformerStack = ({
         [scaled, exaggeration],
     );
 
+    const regionColors = useMemo(() => {
+        const globalT = Math.min(1, (exaggeration - 1) / (EXAGGERATION_MAX - 1));
+        const { values, step } = exaggeratedCurve;
+        const map = new Map<string, string>();
+        for (const r of regions) {
+            const mot = r.argumentation.conclusion.motivation;
+            const warm = mot === 'intensify' || mot === 'move';
+            const target = warm ? '#c0392b' : '#2980b9';
+
+            // Per-region saturation: how far the exaggerated curve deviates
+            // from the midline within this region's tick range
+            const fromIdx = Math.max(0, Math.min(tickToCurveIndex(r.from, step), values.length - 1));
+            const toIdx = Math.max(0, Math.min(tickToCurveIndex(r.to, step), values.length - 1));
+            let sumDev = 0;
+            let count = 0;
+            for (let i = fromIdx; i <= toIdx; i++) {
+                sumDev += Math.abs(values[i] - 0.5);
+                count++;
+            }
+            const meanDev = count > 0 ? sumDev / count : 0;
+            const localIntensity = Math.min(1, meanDev * 2);
+
+            map.set(r.id, lerpHexColor('#999999', target, globalT * localIntensity));
+        }
+        return map;
+    }, [regions, exaggeration, exaggeratedCurve]);
+
     const curvePoints = useMemo(
         () => computeCurvePoints({ curve: exaggeratedCurve, totalHeight, padTop, padBottom }),
         [exaggeratedCurve, totalHeight],
@@ -255,7 +282,7 @@ export const TransformerStack = ({
 
     // During drag, force source region (and drop target) to stay hovered
     // Expand to all chain members when hovering a chained region
-    const baseHoveredId = dragState ? dragState.sourceRegionId : hoveredRegionId;
+    const baseHoveredId = lockedRegionId ?? (dragState ? dragState.sourceRegionId : hoveredRegionId);
     const effectiveHoveredIds = useMemo(() => {
         if (!baseHoveredId) return new Set<string>();
         const chain = chains.get(baseHoveredId);
@@ -267,36 +294,41 @@ export const TransformerStack = ({
 
     const handleHoverChange = useCallback((regionId: string | null) => {
         if (dragStateRef.current) return;
+        if (lockedRegionIdRef.current !== null) return;
         setHoveredRegionId(regionId);
+    }, [dragStateRef, lockedRegionIdRef]);
 
-        if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
-
-        if (!regionId) {
-            stopRef.current();
+    const handleLock = useCallback((regionId: string) => {
+        if (lockedRegionIdRef.current === regionId) {
+            // Already locked — clear transformer selection (back to argumentation popover)
+            setActiveTransformerIds(new Set());
             return;
         }
+        setLockedRegionId(regionId);
+        setActiveTransformerIds(new Set());
 
-        playTimeoutRef.current = setTimeout(() => {
-            const ts = transformersRef.current;
-            // Collect mpmIds from all chain members
-            const chain = chainsRef.current.get(regionId);
-            const ids = chain ? chain.memberIds : [regionId];
-            const mpmIds = ts.filter(t => ids.includes(t.argumentation?.id)).flatMap(t => t.created);
-            if (mpmIds.length > 0) playRef.current({ mpmIds, exaggerate: exaggerationRef.current });
-        }, 150);
-    }, [dragStateRef, exaggerationRef, playRef, stopRef, transformersRef, chainsRef]);
+        // Play audio for the locked region
+        const ts = transformersRef.current;
+        const chain = chainsRef.current.get(regionId);
+        const ids = chain ? chain.memberIds : [regionId];
+        const mpmIds = ts.filter(t => ids.includes(t.argumentation?.id)).flatMap(t => t.created);
+        if (mpmIds.length > 0) playRef.current({ mpmIds, isolate: true, exaggerate: exaggerationRef.current });
+    }, [lockedRegionIdRef, setActiveTransformerIds, transformersRef, chainsRef, playRef, exaggerationRef]);
 
     const handleLaneClick = useCallback((subregionId: string) => {
+        const regionId = subregionToRegion.get(subregionId);
+        if (regionId) setLockedRegionId(regionId);
+
         const ts = transformersRef.current;
         const t = ts.find(t => t.id === subregionId);
         if (t) {
             playRef.current({ mpmIds: t.created, isolate: true, exaggerate: exaggerationRef.current });
         }
-    }, [exaggerationRef, playRef, transformersRef]);
+    }, [subregionToRegion, exaggerationRef, playRef, transformersRef]);
 
     const handleArgumentationChange = useCallback(() => {
-        setTransformers([...transformers]);
-    }, [transformers, setTransformers]);
+        setTransformers([...transformersRef.current]);
+    }, [setTransformers, transformersRef]);
 
     // Mask gap for intensity curve under hovered region
     const maskId = useId();
@@ -481,11 +513,47 @@ export const TransformerStack = ({
         }
     }, [setActiveTransformerIds]);
 
+    const handleUnlock = useCallback(() => {
+        setLockedRegionId(null);
+        stopRef.current();
+        handleClearSelection();
+    }, [stopRef, handleClearSelection]);
+
+    // Clear lock if the locked region no longer exists
     useEffect(() => {
-        return () => {
-            if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
+        if (lockedRegionId && !regions.some(r => r.id === lockedRegionId)) {
+            setLockedRegionId(null);
+        }
+    }, [lockedRegionId, regions]);
+
+    const lockedRegion = useMemo(() => {
+        if (!lockedRegionId) return null;
+        return regions.find(r => r.id === lockedRegionId) ?? null;
+    }, [lockedRegionId, regions]);
+
+    const lockAnchorEl = useMemo(() => {
+        if (!lockedRegion || curvePoints.length === 0) return null;
+        const from = lockedRegion.from;
+        const to = lockedRegion.to;
+
+        // Estimate onion top: curve y at center minus expanded amplitude
+        const sf = sizeFactors.get(lockedRegion.id) ?? 1;
+        const amplitude = (6 + (30 - 6) * sf) + 12; // MIN + (BASE-MIN)*sf + HOVER_EXTRA
+        const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
+        const onionTopY = curvePoints[centerIdx].y - amplitude;
+
+        return {
+            getBoundingClientRect: () => {
+                const ctm = svgRef.current?.getScreenCTM();
+                if (!ctm) return new DOMRect(0, 0, 0, 0);
+                const x1 = ctm.a * from + ctm.e;
+                const x2 = ctm.a * to + ctm.e;
+                const y = ctm.d * onionTopY + ctm.f;
+                return new DOMRect(x1, y, x2 - x1, 0);
+            },
+            contextElement: svgRef.current ?? undefined,
         };
-    }, []);
+    }, [lockedRegion, sizeFactors, curvePoints, curveStep, svgRef]);
 
     if (transformers.length === 0) return null;
 
@@ -496,7 +564,7 @@ export const TransformerStack = ({
             onMouseDown={(e) => e.currentTarget.focus()}
             onKeyDown={(e) => {
                 if (e.key === 'Escape') {
-                    handleClearSelection();
+                    handleUnlock();
                 } else if (e.key === 'Backspace' && draggable && activeTransformerIds.size > 0) {
                     removeActiveTransformers();
                 }
@@ -554,7 +622,7 @@ export const TransformerStack = ({
                         width={maxDate}
                         height={totalHeight}
                         fill="white"
-                        onClick={handleClearSelection}
+                        onClick={handleUnlock}
                     />
 
                     <BarLines
@@ -581,6 +649,8 @@ export const TransformerStack = ({
                     {/* Region onions — largest first so smaller ones render on top */}
                     {[...regions]
                         .sort((a, b) => {
+                            if (a.id === lockedRegionId) return 1;
+                            if (b.id === lockedRegionId) return -1;
                             const sizeA = a.to - a.from;
                             const sizeB = b.to - b.from;
                             return sizeB - sizeA;
@@ -600,7 +670,7 @@ export const TransformerStack = ({
                                     effectiveHoveredIds.has(region.id) ||
                                     (dragState?.dropTargetRegionId === region.id)
                                 }
-                                hoveredSizeFactor={hoveredSizeFactor}
+                                hoveredSizeFactor={lockedRegionId !== null ? null : hoveredSizeFactor}
                                 hasActiveSubregion={region.subregions.some(sr => activeTransformerIds.has(sr.id))}
                                 isDropTarget={dragState?.dropTargetRegionId === region.id}
                                 chainFrom={chains.get(region.id)?.chainFrom}
@@ -615,8 +685,9 @@ export const TransformerStack = ({
                                         : null
                                 }
                                 onLaneClick={handleLaneClick}
-                                onArgumentationChange={handleArgumentationChange}
                                 onRegionDragStart={draggable ? handleRegionDragStart : undefined}
+                                isLocked={lockedRegionId === region.id}
+                                onLock={handleLock}
                             />
                         ))}
 
@@ -656,6 +727,13 @@ export const TransformerStack = ({
                     )}
                 </svg>
             </div>
+            {lockedRegion && lockAnchorEl && (draggable || activeTransformerIds.size === 0) && (
+                <ArgumentationPopover
+                    argumentation={lockedRegion.argumentation}
+                    anchorEl={lockAnchorEl}
+                    onArgumentationChange={handleArgumentationChange}
+                />
+            )}
             {!draggable && activeTransformerIds.size === 1 && (
                 <InstructionPopover
                     mpm={mpm}

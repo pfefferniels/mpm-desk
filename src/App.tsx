@@ -116,14 +116,21 @@ export const App = () => {
         fileInput.click();
     };
 
+    // Legacy transformer names that should map to their current desk entry
+    const TRANSFORMER_ALIASES: Record<string, string> = {
+        'ApproximateLogarithmicTempo': 'InsertTempo',
+        'TranslatePhyiscalTimeToTicks': 'InsertTempo',
+    };
+
     // Manual click: switch desk, update scope, update hash, set selection to single transformer
     const focusTransformer = useCallback((id: string) => {
         const transformer = transformersRef.current.find(t => t.id === id);
         if (!transformer) return;
 
+        const transformerName = TRANSFORMER_ALIASES[transformer.name] ?? transformer.name;
         const entry = correspondingDesks
             .filter(entry => !!entry.transformer)
-            .find(({ transformer: t }) => t!.name === transformer.name);
+            .find(({ transformer: t }) => t!.name === transformerName);
 
         if (entry) {
             setSelectedDesk(entry.displayName || entry.aspect);
@@ -205,13 +212,18 @@ export const App = () => {
         onPipelineSuccess: () => setMessage(undefined),
     });
 
-    // Auto-merge argumentations that share identical (from, to) bounds
+    // Auto-merge argumentations that share identical (from, to) bounds.
+    // Only re-run when msm changes (range calculations depend on it).
+    // The functional updater reads latest transformers via `prev`, so
+    // `transformers` is intentionally excluded to avoid a cascade where
+    // transformers → merge → setTransformers → pipeline → setTransformers → merge …
     useEffect(() => {
         setTransformers(prev => {
             const merged = mergeOverlappingArgumentations(prev, msm);
             return merged === prev ? prev : merged;
         });
-    }, [transformers, msm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [msm]);
 
     const isMetadataSelected = selectedDesk === 'metadata'
     const DeskComponent = correspondingDesks

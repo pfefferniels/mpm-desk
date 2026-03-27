@@ -2,7 +2,6 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Menu, MenuItem } from "@mui/material";
 import type { CurvePoint, OnionRegion, OnionSubregion } from "./OnionModel";
 import { tickToCurveIndex } from "./OnionModel";
-import { ArgumentationDialog } from "./ArgumentationDialog";
 import { OptionsDialog } from "./OptionsDialog";
 import { useSelection } from "../hooks/SelectionProvider";
 import { Transformer } from "mpmify";
@@ -173,8 +172,9 @@ interface RegionOnionProps {
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
     onLaneClick?: (subregionId: string) => void;
-    onArgumentationChange: () => void;
     onRegionDragStart?: (sourceRegionId: string, regionColor: string, e: { clientX: number; clientY: number }) => void;
+    isLocked: boolean;
+    onLock: (regionId: string) => void;
     prevChainMemberTo?: number;   // tick space — previous chain member's `to`
     nextChainMemberFrom?: number; // tick space — next chain member's `from`
 }
@@ -197,13 +197,12 @@ export const RegionOnion = memo(function RegionOnion({
     onDragStart,
     draggingSubregionId,
     onLaneClick,
-    onArgumentationChange,
     onRegionDragStart,
+    isLocked,
+    onLock,
     prevChainMemberTo: prevChainMemberToTick,
     nextChainMemberFrom: nextChainMemberFromTick,
 }: RegionOnionProps) {
-    const [argumentationDialogOpen, setArgumentationDialogOpen] = useState(false);
-
     // Pending region drag: distinguish click from drag via threshold
     const [pendingRegionDrag, setPendingRegionDrag] = useState(false);
     const pendingRegionDragRef = useRef<{
@@ -226,8 +225,8 @@ export const RegionOnion = memo(function RegionOnion({
 
         const onMouseUp = () => {
             if (pendingRegionDragRef.current) {
-                // Below threshold → click → open ArgumentationDialog
-                setArgumentationDialogOpen(true);
+                // Below threshold → click → lock the region
+                onLock(region.id);
             }
             pendingRegionDragRef.current = null;
             setPendingRegionDrag(false);
@@ -239,7 +238,7 @@ export const RegionOnion = memo(function RegionOnion({
             window.removeEventListener("mousemove", onMouseMove);
             window.removeEventListener("mouseup", onMouseUp);
         };
-    }, [pendingRegionDrag, onRegionDragStart, region.id, regionColor]);
+    }, [pendingRegionDrag, onRegionDragStart, region.id, regionColor, onLock]);
 
     const from = Math.max(0, Math.min(tickToCurveIndex(region.from, curveStep), curvePoints.length - 1));
     const to = Math.max(0, Math.min(tickToCurveIndex(region.to, curveStep), curvePoints.length - 1));
@@ -261,7 +260,7 @@ export const RegionOnion = memo(function RegionOnion({
 
     const color = isDropTarget ? "#3498db" : regionColor;
 
-    const expanded = isHovered || hasActiveSubregion;
+    const expanded = isHovered || hasActiveSubregion || isLocked;
     const baseAmp = MIN_AMPLITUDE + (BASE_AMPLITUDE - MIN_AMPLITUDE) * sizeFactor;
     const amplitude = expanded ? baseAmp + HOVER_EXTRA : baseAmp;
 
@@ -283,23 +282,23 @@ export const RegionOnion = memo(function RegionOnion({
                     fill={color}
                     fillOpacity={(isDropTarget ? 0.35 : expanded ? 0.28 : 0.18 - sizeFactor * 0.1) * lodOpacity}
                     stroke={color}
-                    strokeWidth={isDropTarget ? 1.5 : expanded ? 0.5 : 1.5 - sizeFactor * 0.5}
-                    strokeOpacity={(isDropTarget ? 0.6 : expanded ? 0.25 : 0.5 - sizeFactor * 0.2) * lodOpacity}
+                    strokeWidth={isDropTarget ? 1.5 : isLocked ? 1.2 : expanded ? 0.5 : 1.5 - sizeFactor * 0.5}
+                    strokeOpacity={(isDropTarget ? 0.6 : isLocked ? 0.5 : expanded ? 0.25 : 0.5 - sizeFactor * 0.2) * lodOpacity}
                     pointerEvents="none"
                     vectorEffect="non-scaling-stroke"
                     style={{ transition: "fill 0.15s, fill-opacity 0.15s, stroke 0.15s, stroke-opacity 0.15s, stroke-width 0.15s" }}
                 />
             )}
 
-            {/* Full onion hit area when hovered — click or drag the body */}
-            {isHovered && onionPath && (
+            {/* Full onion hit area when expanded — click or drag the body */}
+            {(isHovered || isLocked) && onionPath && (
                 <path
                     d={onionPath}
                     fill="transparent"
                     stroke="transparent"
                     pointerEvents="fill"
                     style={{ cursor: onRegionDragStart ? "grab" : "pointer" }}
-                    onClick={onRegionDragStart ? undefined : () => setArgumentationDialogOpen(true)}
+                    onClick={onRegionDragStart ? undefined : () => onLock(region.id)}
                     onMouseDown={onRegionDragStart ? (e) => {
                         if (e.button === 0) {
                             e.preventDefault();
@@ -321,7 +320,7 @@ export const RegionOnion = memo(function RegionOnion({
                     stroke="transparent"
                     pointerEvents={hoveredSizeFactor !== null && !isHovered && sizeFactor >= hoveredSizeFactor ? "none" : "fill"}
                     style={{ cursor: onRegionDragStart ? "grab" : "pointer" }}
-                    onClick={onRegionDragStart ? undefined : () => setArgumentationDialogOpen(true)}
+                    onClick={onRegionDragStart ? undefined : () => onLock(region.id)}
                     onMouseDown={onRegionDragStart ? (e) => {
                         if (e.button === 0) {
                             e.preventDefault();
@@ -356,14 +355,6 @@ export const RegionOnion = memo(function RegionOnion({
                 />
             )}
 
-            <foreignObject>
-                <ArgumentationDialog
-                    open={argumentationDialogOpen}
-                    onClose={() => setArgumentationDialogOpen(false)}
-                    argumentation={region.argumentation}
-                    onChange={onArgumentationChange}
-                />
-            </foreignObject>
         </g>
     );
 });

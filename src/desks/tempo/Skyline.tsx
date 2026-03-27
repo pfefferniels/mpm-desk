@@ -41,15 +41,12 @@ interface SkylineProps {
   activeElements?: string[]
   onActivateElement?: (elementId: string) => void
 
-  onPlayChain?: (chain: TempoWithEndDate[], midi: MidiFile | undefined) => void
-  onStopChain?: () => void
-
-  committedChains: TempoWithEndDate[][]
-  committedChainMidis: (MidiFile | undefined)[]
-  tempoToChainIndex: Map<TempoWithEndDate, number>
+  onPlayTempo?: (midi: MidiFile | undefined) => void
+  onStopTempo?: () => void
+  committedTempoMidis: (MidiFile | undefined)[]
 }
 
-export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLine, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, onPlaySegment, onStopSegment, activeElements, onActivateElement, committedTempos, silentOnsets, msm, onPlayChain, onStopChain, committedChains, committedChainMidis, tempoToChainIndex }: SkylineProps) {
+export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLine, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, onPlaySegment, onStopSegment, activeElements, onActivateElement, committedTempos, silentOnsets, msm, onPlayTempo, onStopTempo, committedTempoMidis }: SkylineProps) {
   const [, setHoveredKey] = useState<string>()
   const [drawStart, setDrawStart] = useState<{ x: number, y: number }>()
   const [drawEnd, setDrawEnd] = useState<{ x: number, y: number }>()
@@ -266,9 +263,6 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
           startTime = silentOnsets.get(t.date)
         }
 
-        const chainIndex = tempoToChainIndex.get(t)
-        const chain = chainIndex !== undefined ? committedChains[chainIndex] : undefined
-
         return (
           <TempoLine
             key={`tempo_${i}`}
@@ -278,8 +272,8 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
             stretchY={stretchY}
             active={activeElements?.includes(t['xml:id'])}
             onClick={onActivateElement ? () => onActivateElement(t['xml:id']) : undefined}
-            onMouseEnter={chain && onPlayChain ? () => onPlayChain(chain, committedChainMidis[chainIndex!]) : undefined}
-            onMouseLeave={onStopChain}
+            onMouseEnter={onPlayTempo ? () => onPlayTempo(committedTempoMidis[i]) : undefined}
+            onMouseLeave={onStopTempo}
           />
         )
       })}

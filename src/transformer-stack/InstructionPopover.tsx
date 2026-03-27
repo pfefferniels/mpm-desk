@@ -123,9 +123,9 @@ export const InstructionPopover = ({
         <Popper
             open
             anchorEl={virtualElement}
-            placement="bottom"
+            placement="top"
             modifiers={[
-                { name: "offset", options: { offset: [0, 8] } },
+                { name: "offset", options: { offset: [0, 16] } },
                 { name: "preventOverflow", options: { padding: 8 } },
             ]}
             style={{ zIndex: 10 }}
