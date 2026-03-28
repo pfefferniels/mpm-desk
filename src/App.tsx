@@ -22,6 +22,7 @@ import { AspectSelect } from './components/AspectSelect';
 import { FloatingZoom } from './components/FloatingZoom';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { StartScreen } from './components/StartScreen';
+import { LoadingScreen } from './components/LoadingScreen';
 import { parseWork } from './utils/workImport';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
 import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
@@ -239,6 +240,10 @@ export const App = () => {
 
     if (isEditorMode && !mei) {
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
+    }
+
+    if (initialMSM.allNotes.length === 0) {
+        return <LoadingScreen />;
     }
 
     return (

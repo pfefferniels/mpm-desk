@@ -16,6 +16,7 @@ import { parseWork } from './utils/workImport';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
 import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
+import { LoadingScreen } from './components/LoadingScreen';
 
 const ViewerInner = () => {
     const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
@@ -99,6 +100,10 @@ const ViewerInner = () => {
     }), [stretchX]);
 
     const { tickToSeconds, secondsToTick } = useTimeMapping(msm);
+
+    if (initialMSM.allNotes.length === 0) {
+        return <LoadingScreen />;
+    }
 
     return (
         <ZoomContext value={zoomContextValue}>
