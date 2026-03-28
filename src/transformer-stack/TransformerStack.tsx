@@ -17,6 +17,7 @@ import { TypeLabel } from "./TypeLabel";
 import { cloneTransformerWithArgumentation } from "./cloneTransformer";
 import { InstructionPopover } from "./InstructionPopover";
 import { ArgumentationPopover } from "./ArgumentationPopover";
+import { ArgumentationTooltip } from "./ArgumentationTooltip";
 import { MergeOrChainDialog } from "./MergeOrChainDialog";
 
 function lerpHexColor(a: string, b: string, t: number): string {
@@ -460,6 +461,18 @@ export const TransformerStack = ({
         (sourceId: string, targetId: string) => {
             const sourceRegion = regions.find(r => r.id === sourceId);
             if (!sourceRegion) return;
+
+            // Prevent cycle: walk target's predecessor chain; abort if we reach source
+            const regionById = new Map(regions.map(r => [r.id, r]));
+            const visited = new Set<string>();
+            let cur = targetId;
+            while (cur) {
+                if (cur === sourceId) return;
+                if (visited.has(cur)) break;
+                visited.add(cur);
+                cur = regionById.get(cur)?.argumentation.continue ?? "";
+            }
+
             sourceRegion.argumentation.continue = targetId;
             setTransformers([...transformers]);
         },
@@ -563,6 +576,34 @@ export const TransformerStack = ({
             contextElement: svgRef.current ?? undefined,
         };
     }, [lockedRegion, sizeFactors, curvePoints, curveStep, svgRef]);
+
+    const hoveredRegion = useMemo(() => {
+        if (!hoveredRegionId || lockedRegionId) return null;
+        return regions.find(r => r.id === hoveredRegionId) ?? null;
+    }, [hoveredRegionId, lockedRegionId, regions]);
+
+    const hoverAnchorEl = useMemo(() => {
+        if (!hoveredRegion || curvePoints.length === 0) return null;
+        const from = hoveredRegion.from;
+        const to = hoveredRegion.to;
+
+        const sf = sizeFactors.get(hoveredRegion.id) ?? 1;
+        const amplitude = (6 + (30 - 6) * sf) + 12;
+        const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
+        const onionTopY = curvePoints[centerIdx].y - amplitude;
+
+        return {
+            getBoundingClientRect: () => {
+                const ctm = svgRef.current?.getScreenCTM();
+                if (!ctm) return new DOMRect(0, 0, 0, 0);
+                const x1 = ctm.a * from + ctm.e;
+                const x2 = ctm.a * to + ctm.e;
+                const y = ctm.d * onionTopY + ctm.f;
+                return new DOMRect(x1, y, x2 - x1, 0);
+            },
+            contextElement: svgRef.current ?? undefined,
+        };
+    }, [hoveredRegion, sizeFactors, curvePoints, curveStep, svgRef]);
 
     if (transformers.length === 0) return null;
 
@@ -741,6 +782,12 @@ export const TransformerStack = ({
                     argumentation={lockedRegion.argumentation}
                     anchorEl={lockAnchorEl}
                     onArgumentationChange={handleArgumentationChange}
+                />
+            )}
+            {hoveredRegion && hoverAnchorEl && (
+                <ArgumentationTooltip
+                    argumentation={hoveredRegion.argumentation}
+                    anchorEl={hoverAnchorEl}
                 />
             )}
             {!draggable && activeTransformerIds.size === 1 && (
