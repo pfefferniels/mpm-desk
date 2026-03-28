@@ -222,7 +222,6 @@ export const App = () => {
             const merged = mergeOverlappingArgumentations(prev, msm);
             return merged === prev ? prev : merged;
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [msm]);
 
     const isMetadataSelected = selectedDesk === 'metadata'
