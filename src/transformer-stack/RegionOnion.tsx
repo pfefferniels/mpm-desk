@@ -78,7 +78,11 @@ function buildOnionPath(
                 : to;
             drawTo = boundary - GAP_INSET;
         }
-        if (drawTo <= drawFrom) return "";
+        if (drawTo <= drawFrom) {
+            // Boundary split left no visible room — fall back to unsplit bounds
+            drawFrom = from;
+            drawTo = to;
+        }
     }
 
     const envelopeFrom = chainFrom ?? from;
@@ -334,8 +338,8 @@ export const RegionOnion = memo(function RegionOnion({
                 />
             )}
 
-            {/* Subregion lanes on hover or when containing active transformer */}
-            {expanded && region.subregions.length > 0 && (
+            {/* Subregion lanes only when locked or containing active transformer */}
+            {(isLocked || hasActiveSubregion) && region.subregions.length > 0 && (
                 <SubregionLanes
                     subregions={region.subregions}
                     curvePoints={curvePoints}
@@ -493,15 +497,26 @@ const SubregionLanes = memo(function SubregionLanes({
                     : regionTo;
                 regionDrawTo = boundary - GAP_INSET;
             }
+            if (regionDrawTo <= regionDrawFrom) {
+                // Boundary split left no visible room — fall back to unsplit bounds
+                regionDrawFrom = regionFrom;
+                regionDrawTo = regionTo;
+            }
         }
 
         return subregions.map(sr => {
             const laneOffset = laneOffsets.get(sr.type) ?? 0;
             const srFrom = tickToCurveIndex(sr.from, curveStep);
             const srTo = tickToCurveIndex(sr.to, curveStep);
-            const halfGap = Math.min(LANE_GAP_TICKS, Math.floor((srTo - srFrom) / 4));
-            const gappedFrom = srFrom + halfGap;
+            const visibleFrom = Math.max(regionDrawFrom, srFrom);
+            const visibleTo = Math.min(regionDrawTo, srTo);
+            const halfGap = Math.min(LANE_GAP_TICKS, Math.floor((visibleTo - visibleFrom) / 4));
+            let gappedFrom = srFrom + halfGap;
             const gappedTo = srTo - halfGap;
+            if (gappedTo <= gappedFrom) {
+                const minExtent = Math.max(3, Math.ceil((regionDrawTo - regionDrawFrom) * 0.15));
+                gappedFrom = Math.max(regionDrawFrom, gappedTo - minExtent);
+            }
             const clampedFrom = Math.max(regionDrawFrom, Math.min(gappedFrom, curvePoints.length - 1));
             const clampedTo = Math.max(regionDrawFrom, Math.min(gappedTo, regionDrawTo));
             const mid = Math.floor((clampedFrom + clampedTo) / 2);

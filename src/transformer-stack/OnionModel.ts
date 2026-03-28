@@ -144,19 +144,12 @@ export function buildRegions(
 ): OnionRegion[] {
     const regions: OnionRegion[] = [];
 
-    // Minimum span for point-like regions (e.g. date-based transformers with no `to`)
-    const notes = msm.allNotes;
-    const totalSpan = notes.length > 1
-        ? Math.max(...notes.map(n => n.date)) - Math.min(...notes.map(n => n.date))
-        : 0;
-    const minRegionSpan = Math.max(1, Math.round(totalSpan / 100));
-
     for (const [argumentation, localTransformers] of argumentations) {
         const range = getRange(localTransformers, msm);
         if (!range) continue;
 
         const from = range.from;
-        const to = Math.max(range.to ?? range.from, from + minRegionSpan);
+        const to = range.to ?? range.from;
 
         const subregions: OnionSubregion[] = localTransformers.map(t => {
             const tRange = getRange(t.options, msm);
