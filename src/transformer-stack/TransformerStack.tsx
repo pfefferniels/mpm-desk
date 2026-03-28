@@ -5,7 +5,7 @@ import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import { Argumentation, getRange, MPM, MSM, Transformer } from "mpmify";
 import { v4 } from "uuid";
-import { applyExaggeration, asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
+import { applyExaggeration, applyLocalRenormalization, asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
 import { EXAGGERATION_MAX, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
@@ -216,9 +216,18 @@ export const TransformerStack = ({
         [scaled, exaggeration],
     );
 
+    // Defer stretchX for renormalization so the zoom itself stays responsive
+    // while the curve normalization catches up between interactions.
+    const deferredStretchX = useDeferredValue(stretchX);
+
+    const displayCurve = useMemo(
+        () => applyLocalRenormalization(exaggeratedCurve, deferredStretchX),
+        [exaggeratedCurve, deferredStretchX],
+    );
+
     const regionColors = useMemo(() => {
         const globalT = Math.min(1, (exaggeration - 1) / (EXAGGERATION_MAX - 1));
-        const { values, step } = exaggeratedCurve;
+        const { values, step } = displayCurve;
         const map = new Map<string, string>();
         for (const r of regions) {
             const mot = r.argumentation.conclusion.motivation;
@@ -241,16 +250,16 @@ export const TransformerStack = ({
             map.set(r.id, lerpHexColor('#999999', target, globalT * localIntensity));
         }
         return map;
-    }, [regions, exaggeration, exaggeratedCurve]);
+    }, [regions, exaggeration, displayCurve]);
 
     const curvePoints = useMemo(
-        () => computeCurvePoints({ curve: exaggeratedCurve, totalHeight, padTop, padBottom }),
-        [exaggeratedCurve, totalHeight],
+        () => computeCurvePoints({ curve: displayCurve, totalHeight, padTop, padBottom }),
+        [displayCurve, totalHeight],
     );
 
     const curvePathD = useMemo(
-        () => asPathD(exaggeratedCurve, totalHeight, padTop, padBottom),
-        [exaggeratedCurve, totalHeight],
+        () => asPathD(displayCurve, totalHeight, padTop, padBottom),
+        [displayCurve, totalHeight],
     );
 
     const mergeInto = useCallback(

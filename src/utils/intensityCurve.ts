@@ -166,6 +166,94 @@ export function applyExaggeration(curve: IntensityCurve, exag: number): Intensit
     };
 }
 
+/**
+ * Zoom-dependent local renormalization: amplifies local curve variations as the
+ * user zooms in. Each point is renormalized relative to a local neighborhood
+ * whose size shrinks with zoom. This is scroll-independent — the same tick
+ * always maps to the same value for a given stretchX.
+ *
+ * stretchX here is the symbolic zoom (physicalSlider / 200), typically 0.005–0.3.
+ * Below NO_EFFECT_STRETCH the window covers the full curve (= global normalization).
+ * Above it, the window shrinks proportionally and a blend factor increases.
+ *
+ * Uses an O(n) monotone-deque sliding window for min/max computation.
+ */
+export function applyLocalRenormalization(curve: IntensityCurve, stretchX: number): IntensityCurve {
+    const { values } = curve;
+    const n = values.length;
+    if (n === 0) return curve;
+
+    // At/below this symbolic stretchX (≈ slider position 5), the window covers
+    // the full curve so local = global = no visible change.
+    const NO_EFFECT_STRETCH = 0.025;
+    const windowFraction = Math.min(1, NO_EFFECT_STRETCH / stretchX);
+    const W = Math.max(Math.floor(n * 0.05), Math.floor(n * windowFraction));
+
+    // If window covers the full curve, local = global → skip
+    if (W >= n) return curve;
+
+    // Blend: 0 when W=n (fully global), caps at 0.9 to preserve some global context.
+    const blend = Math.min(0.9, 1 - W / n);
+
+    // O(n) sliding window min/max using monotone deques.
+    // For a centered window [i-W, i+W], we split into two half-windows and combine:
+    //   - "right min/max": sliding min/max over [i, i+W] computed right-to-left
+    //   - "left min/max": sliding min/max over [i-W, i] computed left-to-right
+    //   - centered min = min(left_min, right_min), same for max
+    const leftMin = new Float64Array(n);
+    const leftMax = new Float64Array(n);
+    const rightMin = new Float64Array(n);
+    const rightMax = new Float64Array(n);
+
+    // Right pass: for each i, compute min/max of values[i..min(n-1, i+W)]
+    // Process right-to-left with a deque of size W+1
+    {
+        const dqMin: number[] = []; // indices, front = index of minimum
+        const dqMax: number[] = [];
+        for (let i = n - 1; i >= 0; i--) {
+            // Remove elements outside window [i, i+W]
+            while (dqMin.length && dqMin[0] > i + W) dqMin.shift();
+            while (dqMax.length && dqMax[0] > i + W) dqMax.shift();
+            // Maintain monotonicity
+            while (dqMin.length && values[dqMin[dqMin.length - 1]] >= values[i]) dqMin.pop();
+            while (dqMax.length && values[dqMax[dqMax.length - 1]] <= values[i]) dqMax.pop();
+            dqMin.push(i);
+            dqMax.push(i);
+            rightMin[i] = values[dqMin[0]];
+            rightMax[i] = values[dqMax[0]];
+        }
+    }
+
+    // Left pass: for each i, compute min/max of values[max(0, i-W)..i]
+    // Process left-to-right with a deque of size W+1
+    {
+        const dqMin: number[] = [];
+        const dqMax: number[] = [];
+        for (let i = 0; i < n; i++) {
+            while (dqMin.length && dqMin[0] < i - W) dqMin.shift();
+            while (dqMax.length && dqMax[0] < i - W) dqMax.shift();
+            while (dqMin.length && values[dqMin[dqMin.length - 1]] >= values[i]) dqMin.pop();
+            while (dqMax.length && values[dqMax[dqMax.length - 1]] <= values[i]) dqMax.pop();
+            dqMin.push(i);
+            dqMax.push(i);
+            leftMin[i] = values[dqMin[0]];
+            leftMax[i] = values[dqMax[0]];
+        }
+    }
+
+    // Combine and renormalize
+    const result = new Array<number>(n);
+    for (let i = 0; i < n; i++) {
+        const min = leftMin[i] < rightMin[i] ? leftMin[i] : rightMin[i];
+        const max = leftMax[i] > rightMax[i] ? leftMax[i] : rightMax[i];
+        const range = max - min;
+        const localValue = range > 0 ? (values[i] - min) / range : 0.5;
+        result[i] = values[i] + blend * (localValue - values[i]);
+    }
+
+    return { ...curve, values: result };
+}
+
 export const asPathD = (curve: IntensityCurve, totalHeight: number, padTop = 8, padBottom = 8): string => {
     const { values, step } = curve;
     if (values.length === 0) return "";
