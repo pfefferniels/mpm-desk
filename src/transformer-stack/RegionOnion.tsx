@@ -182,6 +182,7 @@ interface RegionOnionProps {
     prevChainMemberTo?: number;   // tick space — previous chain member's `to`
     nextChainMemberFrom?: number; // tick space — next chain member's `from`
     onUnchain?: () => void;
+    onExplode?: () => void;
 }
 
 export const RegionOnion = memo(function RegionOnion({
@@ -208,15 +209,18 @@ export const RegionOnion = memo(function RegionOnion({
     prevChainMemberTo: prevChainMemberToTick,
     nextChainMemberFrom: nextChainMemberFromTick,
     onUnchain,
+    onExplode,
 }: RegionOnionProps) {
-    // Region-level context menu (e.g. break chain link)
+    // Region-level context menu (e.g. break chain link, explode)
     const [regionMenuAnchor, setRegionMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+    const hasRegionActions = !!(onUnchain || onExplode);
 
     const handleRegionContextMenu = (e: React.MouseEvent) => {
-        if (!onUnchain) return; // no actions available — let browser default
         e.preventDefault();
         e.stopPropagation();
-        setRegionMenuAnchor({ x: e.clientX, y: e.clientY });
+        if (hasRegionActions) {
+            setRegionMenuAnchor({ x: e.clientX, y: e.clientY });
+        }
     };
 
     // Pending region drag: distinguish click from drag via threshold
@@ -380,16 +384,23 @@ export const RegionOnion = memo(function RegionOnion({
                 />
             )}
 
-            {onUnchain && (
+            {hasRegionActions && (
                 <Menu
                     open={regionMenuAnchor !== null}
                     onClose={() => setRegionMenuAnchor(null)}
                     anchorReference="anchorPosition"
                     anchorPosition={regionMenuAnchor !== null ? { top: regionMenuAnchor.y, left: regionMenuAnchor.x } : undefined}
                 >
-                    <MenuItem onClick={() => { onUnchain(); setRegionMenuAnchor(null); }}>
-                        Break chain link
-                    </MenuItem>
+                    {onUnchain && (
+                        <MenuItem onClick={() => { onUnchain(); setRegionMenuAnchor(null); }}>
+                            Break chain link
+                        </MenuItem>
+                    )}
+                    {onExplode && (
+                        <MenuItem onClick={() => { onExplode(); setRegionMenuAnchor(null); }}>
+                            Explode
+                        </MenuItem>
+                    )}
                 </Menu>
             )}
 

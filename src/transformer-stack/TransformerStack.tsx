@@ -508,6 +508,22 @@ export const TransformerStack = ({
         [regions, transformers, setTransformers],
     );
 
+    const explodeRegion = useCallback(
+        (regionId: string) => {
+            const region = regions.find(r => r.id === regionId);
+            if (!region || region.transformers.length < 2) return;
+            setTransformers(transformers.map(t => {
+                if (!region.transformers.some(rt => rt.id === t.id)) return t;
+                return cloneTransformerWithArgumentation(t, {
+                    id: v4(),
+                    conclusion: { certainty: 'plausible', motivation: 'calm', id: v4() },
+                    type: 'simpleArgumentation',
+                });
+            }));
+        },
+        [regions, transformers, setTransformers],
+    );
+
     const onDragMouseUp = useEffectEvent((e: MouseEvent) => {
         const prev = dragState;
         setDragState(null);
@@ -768,6 +784,7 @@ export const TransformerStack = ({
                                 isLocked={lockedRegionId === region.id}
                                 onLock={handleLock}
                                 onUnchain={region.argumentation.continue ? () => unchainRegion(region.id) : undefined}
+                                onExplode={region.subregions.length >= 2 ? () => explodeRegion(region.id) : undefined}
                             />
                         ))}
 
