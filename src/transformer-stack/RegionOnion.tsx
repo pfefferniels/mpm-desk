@@ -181,6 +181,7 @@ interface RegionOnionProps {
     onLock: (regionId: string) => void;
     prevChainMemberTo?: number;   // tick space — previous chain member's `to`
     nextChainMemberFrom?: number; // tick space — next chain member's `from`
+    onUnchain?: () => void;
 }
 
 export const RegionOnion = memo(function RegionOnion({
@@ -206,7 +207,18 @@ export const RegionOnion = memo(function RegionOnion({
     onLock,
     prevChainMemberTo: prevChainMemberToTick,
     nextChainMemberFrom: nextChainMemberFromTick,
+    onUnchain,
 }: RegionOnionProps) {
+    // Region-level context menu (e.g. break chain link)
+    const [regionMenuAnchor, setRegionMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+
+    const handleRegionContextMenu = (e: React.MouseEvent) => {
+        if (!onUnchain) return; // no actions available — let browser default
+        e.preventDefault();
+        e.stopPropagation();
+        setRegionMenuAnchor({ x: e.clientX, y: e.clientY });
+    };
+
     // Pending region drag: distinguish click from drag via threshold
     const [pendingRegionDrag, setPendingRegionDrag] = useState(false);
     const pendingRegionDragRef = useRef<{
@@ -320,6 +332,7 @@ export const RegionOnion = memo(function RegionOnion({
                             setPendingRegionDrag(true);
                         }
                     } : undefined}
+                    onContextMenu={handleRegionContextMenu}
                 />
             )}
 
@@ -342,6 +355,7 @@ export const RegionOnion = memo(function RegionOnion({
                             setPendingRegionDrag(true);
                         }
                     } : undefined}
+                    onContextMenu={handleRegionContextMenu}
                 />
             )}
 
@@ -364,6 +378,19 @@ export const RegionOnion = memo(function RegionOnion({
                     draggingSubregionId={draggingSubregionId}
                     onLaneClick={onLaneClick}
                 />
+            )}
+
+            {onUnchain && (
+                <Menu
+                    open={regionMenuAnchor !== null}
+                    onClose={() => setRegionMenuAnchor(null)}
+                    anchorReference="anchorPosition"
+                    anchorPosition={regionMenuAnchor !== null ? { top: regionMenuAnchor.y, left: regionMenuAnchor.x } : undefined}
+                >
+                    <MenuItem onClick={() => { onUnchain(); setRegionMenuAnchor(null); }}>
+                        Break chain link
+                    </MenuItem>
+                </Menu>
             )}
 
         </g>

@@ -498,6 +498,16 @@ export const TransformerStack = ({
         [regions, transformers, setTransformers],
     );
 
+    const unchainRegion = useCallback(
+        (regionId: string) => {
+            const region = regions.find(r => r.id === regionId);
+            if (!region) return;
+            delete region.argumentation.continue;
+            setTransformers([...transformers]);
+        },
+        [regions, transformers, setTransformers],
+    );
+
     const onDragMouseUp = useEffectEvent((e: MouseEvent) => {
         const prev = dragState;
         setDragState(null);
@@ -757,6 +767,7 @@ export const TransformerStack = ({
                                 onRegionDragStart={draggable ? handleRegionDragStart : undefined}
                                 isLocked={lockedRegionId === region.id}
                                 onLock={handleLock}
+                                onUnchain={region.argumentation.continue ? () => unchainRegion(region.id) : undefined}
                             />
                         ))}
 
