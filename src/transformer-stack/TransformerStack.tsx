@@ -175,10 +175,20 @@ export const TransformerStack = ({
     const LOD_MIN_PX = 30;
     const LOD_FADE_PX = 60;
 
+    // Minimum effective tick span for point-like regions so they respond to
+    // zoom naturally: invisible when zoomed out, visible when zoomed in.
+    const minPointSpan = useMemo(() => {
+        const spans = regions.map(r => r.to - r.from).filter(s => s > 0);
+        if (spans.length === 0) return 0;
+        spans.sort((a, b) => a - b);
+        return spans[Math.floor(spans.length / 4)]; // first quartile
+    }, [regions]);
+
     const lodOpacities = useMemo(() => {
         const map = new Map<string, number>();
         for (const r of regions) {
-            const pixelWidth = (r.to - r.from) * stretchX;
+            const effectiveSpan = r.to > r.from ? r.to - r.from : minPointSpan;
+            const pixelWidth = effectiveSpan * stretchX;
             const opacity = Math.min(1, Math.max(0, (pixelWidth - LOD_MIN_PX) / (LOD_FADE_PX - LOD_MIN_PX)));
             map.set(r.id, opacity);
         }
@@ -202,7 +212,7 @@ export const TransformerStack = ({
         }
 
         return map;
-    }, [regions, stretchX]);
+    }, [regions, stretchX, minPointSpan]);
 
     const deferredLodOpacities = useDeferredValue(lodOpacities);
 

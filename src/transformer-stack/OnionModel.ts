@@ -154,11 +154,26 @@ export function buildRegions(
         const subregions: OnionSubregion[] = localTransformers.map(t => {
             const tRange = getRange(t.options, msm);
             const types = elementTypesByTransformer.get(t.id) ?? [];
+            let srFrom = tRange?.from ?? from;
+            const srTo = tRange?.to ?? to;
+            // Point-like subregions (e.g. date-based transformers with no `to`)
+            // collapse to a single point — often right at the region edge where
+            // the onion envelope is zero.  Extend them backwards so the lane is
+            // visible without inflating the region itself.
+            if (srFrom >= srTo) {
+                if (to > from) {
+                    const minSpan = Math.max(1, Math.round((to - from) * 0.2));
+                    srFrom = Math.max(from, srTo - minSpan);
+                } else {
+                    // Region itself is a single point — centre a small span around it
+                    srFrom = srTo - 1;
+                }
+            }
             return {
                 id: t.id,
                 transformer: t,
-                from: tRange?.from ?? from,
-                to: tRange?.to ?? to,
+                from: srFrom,
+                to: srTo,
                 type: types[0] ?? t.name,
             };
         });

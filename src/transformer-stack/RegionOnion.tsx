@@ -244,8 +244,15 @@ export const RegionOnion = memo(function RegionOnion({
         };
     }, [pendingRegionDrag, onRegionDragStart, region.id, regionColor, onLock]);
 
-    const from = Math.max(0, Math.min(tickToCurveIndex(region.from, curveStep), curvePoints.length - 1));
-    const to = Math.max(0, Math.min(tickToCurveIndex(region.to, curveStep), curvePoints.length - 1));
+    let from = Math.max(0, Math.min(tickToCurveIndex(region.from, curveStep), curvePoints.length - 1));
+    let to = Math.max(0, Math.min(tickToCurveIndex(region.to, curveStep), curvePoints.length - 1));
+    // Ensure point-like regions (e.g. a single date-based transformer) still
+    // render a small onion so their lanes are reachable.
+    if (to <= from && curvePoints.length > 1) {
+        const MIN_CURVE_SPAN = 3;
+        from = Math.max(0, from - Math.floor(MIN_CURVE_SPAN / 2));
+        to = Math.min(curvePoints.length - 1, from + MIN_CURVE_SPAN);
+    }
     const valid = to > from;
 
     const chainFromIdx = chainFromTick !== undefined
@@ -284,10 +291,10 @@ export const RegionOnion = memo(function RegionOnion({
                 <path
                     d={onionPath}
                     fill={color}
-                    fillOpacity={(isDropTarget ? 0.35 : expanded ? 0.28 : 0.18 - sizeFactor * 0.1) * lodOpacity}
-                    stroke={color}
-                    strokeWidth={isDropTarget ? 1.5 : isLocked ? 1.2 : expanded ? 0.5 : 1.5 - sizeFactor * 0.5}
-                    strokeOpacity={(isDropTarget ? 0.6 : isLocked ? 0.5 : expanded ? 0.25 : 0.5 - sizeFactor * 0.2) * lodOpacity}
+                    fillOpacity={(isDropTarget ? 0.35 : expanded ? 0.35 : 0.18 - sizeFactor * 0.1) * lodOpacity}
+                    stroke="black"
+                    strokeWidth={isDropTarget ? 1.5 : expanded ? 0 : 1.5 - sizeFactor * 0.5}
+                    strokeOpacity={expanded ? 0 : (isDropTarget ? 0.6 : 0.5 - sizeFactor * 0.2) * lodOpacity}
                     pointerEvents="none"
                     vectorEffect="non-scaling-stroke"
                     style={{ transition: "fill 0.15s, fill-opacity 0.15s, stroke 0.15s, stroke-opacity 0.15s, stroke-width 0.15s" }}
