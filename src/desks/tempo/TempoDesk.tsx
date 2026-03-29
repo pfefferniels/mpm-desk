@@ -121,15 +121,22 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     }, [mpm, part])
 
     useEffect(() => {
-        msm.shiftToFirstOnset()
-
         setTempoClusterState((prev) => {
             if (prev.segments.length > 0) return prev
             return new TempoCluster(extractTempoSegments(msm, part))
         })
     }, [msm, part])
 
-    const onsets = useMemo(() => extractOnsets(msm, part), [msm, part])
+    const onsets = useMemo(() => {
+        const base = extractOnsets(msm, part)
+        const existing = new Set(base.map(o => o.date))
+        for (const [date] of silentOnsets) {
+            if (!existing.has(date)) {
+                base.push({ date })
+            }
+        }
+        return base.sort((a, b) => a.date - b.date)
+    }, [msm, part, silentOnsets])
     const chartHeight = tempoCluster && tickToSeconds ? -stretchY * tempoCluster.highestBPM(tickToSeconds) : 0
 
     const { play, stop } = usePiano()

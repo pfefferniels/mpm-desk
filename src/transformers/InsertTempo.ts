@@ -41,16 +41,18 @@ export class InsertTempo extends AbstractTransformer<InsertTempoOptions> {
         }
     }
 
-    protected transform(_msm: MSM, mpm: MPM) {
+    protected transform(msm: MSM, mpm: MPM) {
+        msm.shiftToFirstOnset()
         const { from, to, bpm, transitionTo, meanTempoAt, beatLength } = this.options
         const scope = this.options.scope
 
         this.removeAffectedTempoInstructions(mpm, scope, from, to)
 
-        const tempo: Tempo = {
-            type: 'tempo',
+        const tempo = {
+            type: 'tempo' as const,
             'xml:id': generateId('tempo', from, mpm),
             date: from,
+            endDate: to,
             bpm,
             beatLength,
             ...(transitionTo !== undefined ? {
@@ -59,7 +61,7 @@ export class InsertTempo extends AbstractTransformer<InsertTempoOptions> {
             } : {})
         }
 
-        mpm.insertInstruction(tempo, scope, true)
+        mpm.insertInstruction(tempo as Tempo, scope, true)
     }
 
     private removeAffectedTempoInstructions(mpm: MPM, scope: Scope, from: number, to: number) {
