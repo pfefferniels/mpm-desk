@@ -183,6 +183,7 @@ interface RegionOnionProps {
     nextChainMemberFrom?: number; // tick space — next chain member's `from`
     onUnchain?: () => void;
     onExplode?: () => void;
+    editable?: boolean;
 }
 
 export const RegionOnion = memo(function RegionOnion({
@@ -210,6 +211,7 @@ export const RegionOnion = memo(function RegionOnion({
     nextChainMemberFrom: nextChainMemberFromTick,
     onUnchain,
     onExplode,
+    editable,
 }: RegionOnionProps) {
     // Region-level context menu (e.g. break chain link, explode)
     const [regionMenuAnchor, setRegionMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -381,6 +383,7 @@ export const RegionOnion = memo(function RegionOnion({
                     onDragStart={onDragStart}
                     draggingSubregionId={draggingSubregionId}
                     onLaneClick={onLaneClick}
+                    editable={editable}
                 />
             )}
 
@@ -426,6 +429,7 @@ interface SubregionLanesProps {
     onDragStart?: (subregion: OnionSubregion, sourceRegionId: string, laneColor: string, e: { clientX: number; clientY: number }) => void;
     draggingSubregionId?: string | null;
     onLaneClick?: (subregionId: string) => void;
+    editable?: boolean;
 }
 
 const LANE_STROKE_WIDTH = 3;
@@ -450,6 +454,7 @@ const SubregionLanes = memo(function SubregionLanes({
     onDragStart,
     draggingSubregionId,
     onLaneClick,
+    editable,
 }: SubregionLanesProps) {
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -652,7 +657,7 @@ const SubregionLanes = memo(function SubregionLanes({
                                     }
                                 }
                             }}
-                            onContextMenu={e => handleContextMenu(e, subregion)}
+                            onContextMenu={editable ? e => handleContextMenu(e, subregion) : undefined}
                         />
                         {/* Visible lane stroke */}
                         <path

@@ -791,8 +791,9 @@ export const TransformerStack = ({
                                 onRegionDragStart={draggable ? handleRegionDragStart : undefined}
                                 isLocked={lockedRegionId === region.id}
                                 onLock={handleLock}
-                                onUnchain={region.argumentation.continue ? () => unchainRegion(region.id) : undefined}
-                                onExplode={region.subregions.length >= 2 ? () => explodeRegion(region.id) : undefined}
+                                onUnchain={draggable && region.argumentation.continue ? () => unchainRegion(region.id) : undefined}
+                                onExplode={draggable && region.subregions.length >= 2 ? () => explodeRegion(region.id) : undefined}
+                                editable={draggable}
                             />
                         ))}
 
