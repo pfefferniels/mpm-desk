@@ -395,6 +395,8 @@ export const TransformerStack = ({
     const findDropTarget = useCallback(
         (svgX: number, svgY: number, sourceRegionId: string): string | null => {
             if (curvePoints.length === 0) return null;
+            let bestId: string | null = null;
+            let bestSpan = Infinity;
             for (const r of regions) {
                 if (r.id === sourceRegionId) continue;
                 const f = Math.max(0, Math.min(tickToCurveIndex(r.from, curveStep), curvePoints.length - 1));
@@ -414,9 +416,15 @@ export const TransformerStack = ({
                         break;
                     }
                 }
-                if (Math.abs(svgY - curveY) <= DROP_Y_TOLERANCE) return r.id;
+                if (Math.abs(svgY - curveY) <= DROP_Y_TOLERANCE) {
+                    const span = r.to - r.from;
+                    if (span < bestSpan) {
+                        bestSpan = span;
+                        bestId = r.id;
+                    }
+                }
             }
-            return null;
+            return bestId;
         },
         [regions, curvePoints, curveStep],
     );
