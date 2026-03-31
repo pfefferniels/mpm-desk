@@ -181,8 +181,8 @@ interface RegionOnionProps {
     onLock: (regionId: string) => void;
     prevChainMemberTo?: number;   // tick space — previous chain member's `to`
     nextChainMemberFrom?: number; // tick space — next chain member's `from`
-    onUnchain?: () => void;
-    onExplode?: () => void;
+    onUnchain?: (regionId: string) => void;
+    onExplode?: (regionId: string) => void;
     editable?: boolean;
 }
 
@@ -387,20 +387,20 @@ export const RegionOnion = memo(function RegionOnion({
                 />
             )}
 
-            {hasRegionActions && (
+            {regionMenuAnchor !== null && (
                 <Menu
-                    open={regionMenuAnchor !== null}
+                    open
                     onClose={() => setRegionMenuAnchor(null)}
                     anchorReference="anchorPosition"
-                    anchorPosition={regionMenuAnchor !== null ? { top: regionMenuAnchor.y, left: regionMenuAnchor.x } : undefined}
+                    anchorPosition={{ top: regionMenuAnchor.y, left: regionMenuAnchor.x }}
                 >
                     {onUnchain && (
-                        <MenuItem onClick={() => { onUnchain(); setRegionMenuAnchor(null); }}>
+                        <MenuItem onClick={() => { onUnchain(region.id); setRegionMenuAnchor(null); }}>
                             Break chain link
                         </MenuItem>
                     )}
                     {onExplode && (
-                        <MenuItem onClick={() => { onExplode(); setRegionMenuAnchor(null); }}>
+                        <MenuItem onClick={() => { onExplode(region.id); setRegionMenuAnchor(null); }}>
                             Explode
                         </MenuItem>
                     )}
@@ -692,15 +692,17 @@ const SubregionLanes = memo(function SubregionLanes({
                 ) : null;
             })}
 
-            <Menu
-                open={menuAnchor !== null}
-                onClose={handleCloseMenu}
-                anchorReference="anchorPosition"
-                anchorPosition={menuAnchor !== null ? { top: menuAnchor.y, left: menuAnchor.x } : undefined}
-            >
-                <MenuItem onClick={handleEdit}>Edit...</MenuItem>
-                <MenuItem onClick={handleRemove}>Remove</MenuItem>
-            </Menu>
+            {menuAnchor !== null && (
+                <Menu
+                    open
+                    onClose={handleCloseMenu}
+                    anchorReference="anchorPosition"
+                    anchorPosition={{ top: menuAnchor.y, left: menuAnchor.x }}
+                >
+                    <MenuItem onClick={handleEdit}>Edit...</MenuItem>
+                    <MenuItem onClick={handleRemove}>Remove</MenuItem>
+                </Menu>
+            )}
 
             {editingTransformer && (
                 <OptionsDialog
