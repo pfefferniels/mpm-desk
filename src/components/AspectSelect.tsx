@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Card, Collapse, Divider, List, ListItemButton, ListItemText } from '@mui/material';
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import { Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { ChevronRight, ExpandLess, ExpandMore } from '@mui/icons-material';
 import { correspondingDesks } from '../desks/DeskSwitch';
 
 interface AspectSelectProps {
@@ -13,6 +13,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
     setSelectedDesk,
 }) => {
     const [toExpand, setToExpand] = useState<string>();
+    const [collapsed, setCollapsed] = useState(false);
 
     const aspectGroups = Array.from(
         Map.groupBy(correspondingDesks, desk => desk.aspect)
@@ -32,75 +33,90 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                 marginTop: '1rem',
                 marginRight: '1rem',
                 width: 'fit-content',
-                minWidth: '200px',
+                minWidth: collapsed ? undefined : '200px',
             }}
         >
-            <List>
-                <ListItemButton
-                    selected={selectedDesk === 'metadata'}
-                    onClick={() => {
-                        setSelectedDesk('metadata');
-                        setToExpand(undefined);
-                    }}
-                >
-                    <ListItemText>metadata</ListItemText>
-                </ListItemButton>
-                <Divider sx={{ my: 1 }} />
-                {aspectGroups.map(([aspect, info]) => {
-                    if (info.length === 0) return null;
+            {collapsed ? (
+                <IconButton onClick={() => setCollapsed(false)} size="small" sx={{ m: 0.5 }}>
+                    <ChevronRight fontSize="small" />
+                </IconButton>
+            ) : (
+                <>
+                    <ListItemButton onClick={() => setCollapsed(true)} dense>
+                        <Typography variant="subtitle2" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+                            Aspects
+                        </Typography>
+                        <ExpandMore fontSize="small" sx={{ transform: 'rotate(90deg)' }} />
+                    </ListItemButton>
+                    <Divider />
+                    <List>
+                        <ListItemButton
+                            selected={selectedDesk === 'metadata'}
+                            onClick={() => {
+                                setSelectedDesk('metadata');
+                                setToExpand(undefined);
+                            }}
+                        >
+                            <ListItemText>metadata</ListItemText>
+                        </ListItemButton>
+                        <Divider sx={{ my: 1 }} />
+                        {aspectGroups.map(([aspect, info]) => {
+                            if (info.length === 0) return null;
 
-                    const currentGroup = info[0].group;
-                    const showDivider = lastGroup !== undefined && currentGroup !== lastGroup;
-                    lastGroup = currentGroup;
+                            const currentGroup = info[0].group;
+                            const showDivider = lastGroup !== undefined && currentGroup !== lastGroup;
+                            lastGroup = currentGroup;
 
-                    return (
-                        <React.Fragment key={aspect}>
-                            {showDivider && <Divider sx={{ my: 1 }} />}
-                            {info.length === 1 ? (
-                                <ListItemButton
-                                    selected={aspect === selectedDesk}
-                                    onClick={() => {
-                                        setSelectedDesk(aspect);
-                                        setToExpand(undefined);
-                                    }}
-                                >
-                                    <ListItemText>{aspect}</ListItemText>
-                                </ListItemButton>
-                            ) : (
-                                <ListItemButton
-                                    selected={aspect === toExpand}
-                                    onClick={() => {
-                                        setToExpand(aspect === toExpand ? undefined : aspect);
-                                    }}
-                                >
-                                    <ListItemText>{aspect}</ListItemText>
-                                    {aspect === toExpand ? <ExpandLess /> : <ExpandMore />}
-                                </ListItemButton>
-                            )}
+                            return (
+                                <React.Fragment key={aspect}>
+                                    {showDivider && <Divider sx={{ my: 1 }} />}
+                                    {info.length === 1 ? (
+                                        <ListItemButton
+                                            selected={aspect === selectedDesk}
+                                            onClick={() => {
+                                                setSelectedDesk(aspect);
+                                                setToExpand(undefined);
+                                            }}
+                                        >
+                                            <ListItemText>{aspect}</ListItemText>
+                                        </ListItemButton>
+                                    ) : (
+                                        <ListItemButton
+                                            selected={aspect === toExpand}
+                                            onClick={() => {
+                                                setToExpand(aspect === toExpand ? undefined : aspect);
+                                            }}
+                                        >
+                                            <ListItemText>{aspect}</ListItemText>
+                                            {aspect === toExpand ? <ExpandLess /> : <ExpandMore />}
+                                        </ListItemButton>
+                                    )}
 
-                            {info.length > 1 && (
-                                <Collapse in={toExpand === aspect} timeout="auto" unmountOnExit>
-                                    <List dense component='div' disablePadding sx={{ pl: 3 }}>
-                                        {info.map(({ displayName }) => {
-                                            if (!displayName) return null;
+                                    {info.length > 1 && (
+                                        <Collapse in={toExpand === aspect} timeout="auto" unmountOnExit>
+                                            <List dense component='div' disablePadding sx={{ pl: 3 }}>
+                                                {info.map(({ displayName }) => {
+                                                    if (!displayName) return null;
 
-                                            return (
-                                                <ListItemButton
-                                                    key={displayName}
-                                                    selected={displayName === selectedDesk}
-                                                    onClick={() => setSelectedDesk(displayName)}
-                                                >
-                                                    <ListItemText>{displayName}</ListItemText>
-                                                </ListItemButton>
-                                            );
-                                        })}
-                                    </List>
-                                </Collapse>
-                            )}
-                        </React.Fragment>
-                    );
-                })}
-            </List>
+                                                    return (
+                                                        <ListItemButton
+                                                            key={displayName}
+                                                            selected={displayName === selectedDesk}
+                                                            onClick={() => setSelectedDesk(displayName)}
+                                                        >
+                                                            <ListItemText>{displayName}</ListItemText>
+                                                        </ListItemButton>
+                                                    );
+                                                })}
+                                            </List>
+                                        </Collapse>
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
+                    </List>
+                </>
+            )}
         </Card>
     );
 };
