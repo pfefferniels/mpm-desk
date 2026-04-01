@@ -17,10 +17,12 @@ async function svgElementToPngDataUrl(
     cloned.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
     // 2) Figure out output size
-    // Prefer explicit opts, then width/height, then viewBox
+    // Prefer explicit opts, then clientWidth, then width attribute, then viewBox
     const vb = cloned.viewBox?.baseVal;
-    const cssWidth = svgEl.clientWidth || (vb?.width ?? 0);
-    const cssHeight = svgEl.clientHeight || (vb?.height ?? 0);
+    const attrWidth = parseFloat(svgEl.getAttribute("width") ?? "") || 0;
+    const attrHeight = parseFloat(svgEl.getAttribute("height") ?? "") || 0;
+    const cssWidth = svgEl.clientWidth || attrWidth || (vb?.width ?? 0);
+    const cssHeight = svgEl.clientHeight || attrHeight || (vb?.height ?? 0);
 
     const width = Math.max(1, Math.round(opts?.width ?? cssWidth));
     const height = Math.max(1, Math.round(opts?.height ?? cssHeight));
