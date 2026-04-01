@@ -1,6 +1,7 @@
 import { Argumentation, MPM, MSM, Transformer } from 'mpmify';
 import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { useLatest } from './useLatest';
+import { mergeOverlappingArgumentations } from '../utils/mergeArgumentations';
 
 interface PipelineMetadata {
     author: string;
@@ -144,14 +145,19 @@ export const usePipelineRunner = ({
                 newMPM.doc = data.mpmDoc;
 
                 setTransformers(prev => {
+                    // 1. Update created arrays from pipeline output
                     let changed = false;
-                    const next = prev.map(transformer => {
+                    let next = prev.map(transformer => {
                         const created = data.created[transformer.id];
                         if (!created || equalIds(transformer.created, created)) return transformer;
                         changed = true;
                         return cloneTransformerWithCreated(transformer, created);
                     });
-                    return changed ? next : prev;
+                    if (!changed) next = prev;
+
+                    // 2. Merge overlapping argumentations in the same
+                    //    state update to avoid an extra render cycle.
+                    return mergeOverlappingArgumentations(next, newMSM);
                 });
 
                 setMPM(newMPM);

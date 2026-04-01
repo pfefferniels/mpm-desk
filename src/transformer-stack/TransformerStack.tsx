@@ -569,7 +569,7 @@ export const TransformerStack = ({
             window.removeEventListener("mousemove", onDragMouseMove);
             window.removeEventListener("mouseup", onDragMouseUp);
         };
-    }, [isDragging, onDragMouseMove, onDragMouseUp]);
+    }, [isDragging]);
 
     const handleClearSelection = useCallback(() => {
         setActiveTransformerIds(new Set());
@@ -773,7 +773,12 @@ export const TransformerStack = ({
                                     effectiveHoveredIds.has(region.id) ||
                                     (dragState?.dropTargetRegionId === region.id)
                                 }
-                                hoveredSizeFactor={lockedRegionId !== null ? null : hoveredSizeFactor}
+                                suppressHitArea={
+                                    lockedRegionId === null &&
+                                    hoveredSizeFactor !== null &&
+                                    !effectiveHoveredIds.has(region.id) &&
+                                    (sizeFactors.get(region.id) ?? 1) >= hoveredSizeFactor
+                                }
                                 hasActiveSubregion={region.subregions.some(sr => activeTransformerIds.has(sr.id))}
                                 isDropTarget={dragState?.dropTargetRegionId === region.id}
                                 chainFrom={chains.get(region.id)?.chainFrom}

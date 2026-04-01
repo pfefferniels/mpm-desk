@@ -166,7 +166,7 @@ interface RegionOnionProps {
     regionColor: string;
     sizeFactor: number;
     isHovered: boolean;
-    hoveredSizeFactor: number | null;
+    suppressHitArea: boolean;
     hasActiveSubregion: boolean;
     lodOpacity: number;
     isDropTarget?: boolean;
@@ -195,7 +195,7 @@ export const RegionOnion = memo(function RegionOnion({
     sizeFactor,
     lodOpacity,
     isHovered,
-    hoveredSizeFactor,
+    suppressHitArea,
     hasActiveSubregion,
     isDropTarget,
     chainFrom: chainFromTick,
@@ -348,7 +348,7 @@ export const RegionOnion = memo(function RegionOnion({
                     d={onionPath}
                     fill="transparent"
                     stroke="transparent"
-                    pointerEvents={hoveredSizeFactor !== null && !isHovered && sizeFactor >= hoveredSizeFactor ? "none" : "fill"}
+                    pointerEvents={suppressHitArea && !isHovered ? "none" : "fill"}
                     style={{ cursor: onRegionDragStart ? "grab" : "pointer" }}
                     onClick={onRegionDragStart ? undefined : () => onLock(region.id)}
                     onMouseDown={onRegionDragStart ? (e) => {

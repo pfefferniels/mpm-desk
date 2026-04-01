@@ -26,7 +26,13 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { parseWork } from './utils/workImport';
 import { usePipelineRunner } from './hooks/usePipelineRunner';
 import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
-import { findMatchingArgumentation, mergeOverlappingArgumentations } from './utils/mergeArgumentations';
+import { findMatchingArgumentation } from './utils/mergeArgumentations';
+
+// Legacy transformer names that should map to their current desk entry
+const TRANSFORMER_ALIASES: Record<string, string> = {
+    'ApproximateLogarithmicTempo': 'InsertTempo',
+    'TranslatePhyiscalTimeToTicks': 'InsertTempo',
+};
 
 export const App = () => {
     const { isEditorMode } = useMode();
@@ -117,12 +123,6 @@ export const App = () => {
         fileInput.click();
     };
 
-    // Legacy transformer names that should map to their current desk entry
-    const TRANSFORMER_ALIASES: Record<string, string> = {
-        'ApproximateLogarithmicTempo': 'InsertTempo',
-        'TranslatePhyiscalTimeToTicks': 'InsertTempo',
-    };
-
     // Manual click: switch desk, update scope, update hash, set selection to single transformer
     const focusTransformer = useCallback((id: string) => {
         const transformer = transformersRef.current.find(t => t.id === id);
@@ -185,7 +185,7 @@ export const App = () => {
     useEffect(() => {
         window.addEventListener('hashchange', onHashChange);
         return () => window.removeEventListener('hashchange', onHashChange);
-    }, [onHashChange]);
+    }, []);
 
     useEffect(() => {
         // prevent the user from loosing unsaved changes (editor mode only)
@@ -213,17 +213,9 @@ export const App = () => {
         onPipelineSuccess: () => setMessage(undefined),
     });
 
-    // Auto-merge argumentations that share identical (from, to) bounds.
-    // Only re-run when msm changes (range calculations depend on it).
-    // The functional updater reads latest transformers via `prev`, so
-    // `transformers` is intentionally excluded to avoid a cascade where
-    // transformers → merge → setTransformers → pipeline → setTransformers → merge …
-    useEffect(() => {
-        setTransformers(prev => {
-            const merged = mergeOverlappingArgumentations(prev, msm);
-            return merged === prev ? prev : merged;
-        });
-    }, [msm]);
+    // Auto-merge of overlapping argumentations is now done inside
+    // usePipelineRunner's result handler (same state update as created
+    // array sync), avoiding an extra render cycle per pipeline run.
 
     const isMetadataSelected = selectedDesk === 'metadata'
     const DeskComponent = correspondingDesks

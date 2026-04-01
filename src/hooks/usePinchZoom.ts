@@ -88,7 +88,7 @@ function usePinchZoom() {
             document.removeEventListener('touchend', resetTouch);
             document.removeEventListener('touchcancel', resetTouch);
         };
-    }, [applyZoom]);
+    }, []);
 }
 
 export const PinchZoomHandler = (): null => {
