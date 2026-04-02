@@ -409,6 +409,28 @@ export const RegionOnion = memo(function RegionOnion({
 
         </g>
     );
+}, (prev, next) => {
+    // Compare region by value rather than reference, since buildRegions
+    // produces new objects every render even when data is unchanged.
+    const pr = prev.region;
+    const nr = next.region;
+    if (!pr || !nr) return false;
+    if (pr === nr) { /* same reference, skip deep check */ }
+    else {
+        if (pr.id !== nr.id || pr.from !== nr.from || pr.to !== nr.to) return false;
+        if (pr.subregions.length !== nr.subregions.length) return false;
+        if (pr.argumentation.conclusion.motivation !== nr.argumentation.conclusion.motivation) return false;
+        if (pr.argumentation.conclusion.certainty !== nr.argumentation.conclusion.certainty) return false;
+        if (pr.argumentation.conclusion.note !== nr.argumentation.conclusion.note) return false;
+    }
+
+    // Compare all other props shallowly
+    const keys = Object.keys(next) as (keyof typeof next)[];
+    for (const k of keys) {
+        if (k === 'region') continue;
+        if (prev[k] !== next[k]) return false;
+    }
+    return true;
 });
 
 /* ── Subregion lanes rendered inside the expanded onion ── */

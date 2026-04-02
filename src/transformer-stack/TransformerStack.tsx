@@ -1,5 +1,5 @@
 import { Card } from "@mui/material";
-import { useCallback, useDeferredValue, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
@@ -214,7 +214,21 @@ export const TransformerStack = ({
         return map;
     }, [regions, stretchX, minPointSpan]);
 
-    const deferredLodOpacities = useDeferredValue(lodOpacities);
+    // Stabilize lodOpacities reference: keep previous Map when values are identical,
+    // preventing useDeferredValue from scheduling redundant re-renders.
+    const lodOpacitiesRef = useRef(lodOpacities);
+    if (lodOpacities !== lodOpacitiesRef.current) {
+        let changed = lodOpacities.size !== lodOpacitiesRef.current.size;
+        if (!changed) {
+            for (const [id, val] of lodOpacities) {
+                if (lodOpacitiesRef.current.get(id) !== val) { changed = true; break; }
+            }
+        }
+        if (changed) lodOpacitiesRef.current = lodOpacities;
+    }
+    const stableLodOpacities = lodOpacitiesRef.current;
+
+    const deferredLodOpacities = useDeferredValue(stableLodOpacities);
 
     const scaled = useMemo(
         () => negotiateIntensityCurve(argumentations, maxDate, msm, elementTypesByTransformer, deferredLodOpacities),
@@ -262,10 +276,22 @@ export const TransformerStack = ({
         return map;
     }, [regions, exaggeration, displayCurve]);
 
-    const curvePoints = useMemo(
+    const curvePointsRaw = useMemo(
         () => computeCurvePoints({ curve: displayCurve, totalHeight, padTop, padBottom }),
         [displayCurve, totalHeight],
     );
+    // Stabilize reference: keep previous array if values are identical.
+    // This prevents all ~48 RegionOnion children from re-rendering when
+    // the curve recomputes to the same result (common during argumentation edits).
+    const curvePointsRef = useRef(curvePointsRaw);
+    if (
+        curvePointsRaw !== curvePointsRef.current &&
+        (curvePointsRaw.length !== curvePointsRef.current.length ||
+         curvePointsRaw.some((p, i) => p.x !== curvePointsRef.current[i].x || p.y !== curvePointsRef.current[i].y))
+    ) {
+        curvePointsRef.current = curvePointsRaw;
+    }
+    const curvePoints = curvePointsRef.current;
 
     const curvePathD = useMemo(
         () => asPathD(displayCurve, totalHeight, padTop, padBottom),
@@ -274,30 +300,34 @@ export const TransformerStack = ({
 
     const mergeInto = useCallback(
         (transformerId: string, argumentation: Argumentation) => {
-            setTransformers(transformers.map(transformer =>
-                transformer.id === transformerId
-                    ? cloneTransformerWithArgumentation(transformer, argumentation)
-                    : transformer
-            ));
+            startTransition(() => {
+                setTransformers(transformers.map(transformer =>
+                    transformer.id === transformerId
+                        ? cloneTransformerWithArgumentation(transformer, argumentation)
+                        : transformer
+                ));
+            });
         },
         [transformers, setTransformers]
     );
 
     const extractTransformer = useCallback(
         (transformerId: string) => {
-            setTransformers(transformers.map(transformer =>
-                transformer.id === transformerId
-                    ? cloneTransformerWithArgumentation(transformer, {
-                        id: v4(),
-                        conclusion: {
-                            certainty: 'plausible',
-                            motivation: 'calm',
-                            id: v4()
-                        },
-                        type: 'simpleArgumentation'
-                    })
-                    : transformer
-            ));
+            startTransition(() => {
+                setTransformers(transformers.map(transformer =>
+                    transformer.id === transformerId
+                        ? cloneTransformerWithArgumentation(transformer, {
+                            id: v4(),
+                            conclusion: {
+                                certainty: 'plausible',
+                                motivation: 'calm',
+                                id: v4()
+                            },
+                            type: 'simpleArgumentation'
+                        })
+                        : transformer
+                ));
+            });
         }, [transformers, setTransformers]);
 
     // During drag, force source region (and drop target) to stay hovered
@@ -347,7 +377,9 @@ export const TransformerStack = ({
     }, [subregionToRegion, exaggerationRef, playRef, transformersRef]);
 
     const handleArgumentationChange = useCallback(() => {
-        setTransformers([...transformersRef.current]);
+        startTransition(() => {
+            setTransformers([...transformersRef.current]);
+        });
     }, [setTransformers, transformersRef]);
 
     // Mask gap for intensity curve under hovered region
@@ -475,11 +507,13 @@ export const TransformerStack = ({
             const sourceRegion = regions.find(r => r.id === sourceId);
             const targetRegion = regions.find(r => r.id === targetId);
             if (!sourceRegion || !targetRegion) return;
-            setTransformers(transformers.map(t =>
-                sourceRegion.transformers.some(st => st.id === t.id)
-                    ? cloneTransformerWithArgumentation(t, targetRegion.argumentation)
-                    : t
-            ));
+            startTransition(() => {
+                setTransformers(transformers.map(t =>
+                    sourceRegion.transformers.some(st => st.id === t.id)
+                        ? cloneTransformerWithArgumentation(t, targetRegion.argumentation)
+                        : t
+                ));
+            });
         },
         [regions, transformers, setTransformers],
     );
@@ -501,7 +535,9 @@ export const TransformerStack = ({
             }
 
             sourceRegion.argumentation.continue = targetId;
-            setTransformers([...transformers]);
+            startTransition(() => {
+                setTransformers([...transformers]);
+            });
         },
         [regions, transformers, setTransformers],
     );
@@ -511,7 +547,9 @@ export const TransformerStack = ({
             const region = regions.find(r => r.id === regionId);
             if (!region) return;
             delete region.argumentation.continue;
-            setTransformers([...transformers]);
+            startTransition(() => {
+                setTransformers([...transformers]);
+            });
         },
         [regions, transformers, setTransformers],
     );
@@ -520,14 +558,16 @@ export const TransformerStack = ({
         (regionId: string) => {
             const region = regions.find(r => r.id === regionId);
             if (!region || region.transformers.length < 2) return;
-            setTransformers(transformers.map(t => {
-                if (!region.transformers.some(rt => rt.id === t.id)) return t;
-                return cloneTransformerWithArgumentation(t, {
-                    id: v4(),
-                    conclusion: { certainty: 'plausible', motivation: 'calm', id: v4() },
-                    type: 'simpleArgumentation',
-                });
-            }));
+            startTransition(() => {
+                setTransformers(transformers.map(t => {
+                    if (!region.transformers.some(rt => rt.id === t.id)) return t;
+                    return cloneTransformerWithArgumentation(t, {
+                        id: v4(),
+                        conclusion: { certainty: 'plausible', motivation: 'calm', id: v4() },
+                        type: 'simpleArgumentation',
+                    });
+                }));
+            });
         },
         [regions, transformers, setTransformers],
     );

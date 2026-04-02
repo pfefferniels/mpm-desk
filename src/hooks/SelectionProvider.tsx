@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useCallback, ReactNode, SetStateAction } from 'react';
 import { Transformer } from 'mpmify';
+import { useLatest } from './useLatest';
 
 interface SelectionContextValue {
     transformers: Transformer[];
@@ -33,6 +34,13 @@ export const SelectionProvider = ({
     setTransformers,
     focusTransformer,
 }: SelectionProviderProps) => {
+    // Use refs so callbacks stay stable across transformer state changes,
+    // preventing unnecessary context value updates and cascading re-renders
+    // in all useSelection() consumers (including ~48 RegionOnion instances).
+    const transformersRef = useLatest(transformers);
+    const activeTransformerIdsRef = useLatest(activeTransformerIds);
+    const setTransformersRef = useLatest(setTransformers);
+
     const activeElements = useMemo(() => {
         if (activeTransformerIds.size === 0) return [];
         return transformers
@@ -41,51 +49,58 @@ export const SelectionProvider = ({
     }, [activeTransformerIds, transformers]);
 
     const toggleActiveTransformer = useCallback((id: string) => {
-        const next = new Set(activeTransformerIds);
+        const next = new Set(activeTransformerIdsRef.current);
         if (next.has(id)) {
             next.delete(id);
         } else {
             next.add(id);
         }
         setActiveTransformerIds(next);
-    }, [activeTransformerIds, setActiveTransformerIds]);
+    }, [activeTransformerIdsRef, setActiveTransformerIds]);
 
     const setActiveElement = useCallback((elementId: string) => {
-        const correspondingTransformer = transformers.find(t => t.created.includes(elementId));
+        const correspondingTransformer = transformersRef.current.find(t => t.created.includes(elementId));
         if (correspondingTransformer) {
             setActiveTransformerIds(new Set([correspondingTransformer.id]));
         }
-    }, [transformers, setActiveTransformerIds]);
+    }, [transformersRef, setActiveTransformerIds]);
 
     const removeTransformer = useCallback((transformer: Transformer) => {
-        const filtered = transformers.filter(t => t.id !== transformer.id);
-        setTransformers(filtered);
-        if (activeTransformerIds.has(transformer.id)) {
-            const next = new Set(activeTransformerIds);
+        const filtered = transformersRef.current.filter(t => t.id !== transformer.id);
+        setTransformersRef.current(filtered);
+        if (activeTransformerIdsRef.current.has(transformer.id)) {
+            const next = new Set(activeTransformerIdsRef.current);
             next.delete(transformer.id);
             setActiveTransformerIds(next);
         }
-    }, [transformers, setTransformers, activeTransformerIds, setActiveTransformerIds]);
+    }, [transformersRef, setTransformersRef, activeTransformerIdsRef, setActiveTransformerIds]);
 
     const removeActiveTransformers = useCallback(() => {
-        if (activeTransformerIds.size === 0) return;
-        const filtered = transformers.filter(t => !activeTransformerIds.has(t.id));
-        setTransformers(filtered);
+        if (activeTransformerIdsRef.current.size === 0) return;
+        const filtered = transformersRef.current.filter(t => !activeTransformerIdsRef.current.has(t.id));
+        setTransformersRef.current(filtered);
         setActiveTransformerIds(new Set());
-    }, [transformers, setTransformers, activeTransformerIds, setActiveTransformerIds]);
+    }, [transformersRef, setTransformersRef, activeTransformerIdsRef, setActiveTransformerIds]);
 
     const replaceTransformer = useCallback((transformer: Transformer) => {
-        const index = transformers.findIndex(t => t.id === transformer.id);
+        const current = transformersRef.current;
+        const index = current.findIndex(t => t.id === transformer.id);
         if (index === -1) return;
-        const updated = [...transformers];
+        const updated = [...current];
         updated[index] = transformer;
-        setTransformers(updated);
-    }, [transformers, setTransformers]);
+        setTransformersRef.current(updated);
+    }, [transformersRef, setTransformersRef]);
 
-    const value = useMemo(() => ({
-        transformers,
+    // Only recompute context value when activeTransformerIds changes.
+    // Callbacks are stable (useLatest refs). transformers/activeElements
+    // are read via getter to avoid triggering consumer re-renders when
+    // only transformers change (common during argumentation edits).
+    const activeElementsRef = useLatest(activeElements);
+
+    const value = useMemo<SelectionContextValue>(() => ({
+        get transformers() { return transformersRef.current; },
+        get activeElements() { return activeElementsRef.current; },
         activeTransformerIds,
-        activeElements,
         setActiveTransformerIds,
         toggleActiveTransformer,
         setActiveElement,
@@ -93,7 +108,7 @@ export const SelectionProvider = ({
         removeActiveTransformers,
         replaceTransformer,
         focusTransformer,
-    }), [transformers, activeTransformerIds, activeElements, setActiveTransformerIds, toggleActiveTransformer, setActiveElement, removeTransformer, removeActiveTransformers, replaceTransformer, focusTransformer]);
+    }), [activeTransformerIds, setActiveTransformerIds, toggleActiveTransformer, setActiveElement, removeTransformer, removeActiveTransformers, replaceTransformer, focusTransformer, transformersRef, activeElementsRef]);
 
     return (
         <SelectionContext value={value}>
