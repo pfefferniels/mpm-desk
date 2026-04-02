@@ -1,6 +1,6 @@
 # MPM Desk
 
-Web app for interpreting score-aligned performances as [MPM (music performance markup)](https://github.com/axelberndt/MPM).
+Application for interpreting score-aligned performances as [MPM](https://github.com/axelberndt/MPM) and intensity curves.
 
 ## Prerequisites
 
