@@ -69,14 +69,14 @@ export const TransformerStack = ({
 
     const svgRef = useRef<SVGSVGElement>(null);
     const [hoveredRegionId, setHoveredRegionId] = useState<string | null>(null);
-    const [lockedRegionId, setLockedRegionId] = useState<string | null>(null);
+    const [lockedRegionIds, setLockedRegionIds] = useState<Set<string>>(new Set());
     const [dragState, setDragState] = useState<OnionDragState | null>(null);
     const [pendingRegionDrop, setPendingRegionDrop] = useState<{
         sourceRegionId: string;
         targetRegionId: string;
     } | null>(null);
     const dragStateRef = useLatest(dragState);
-    const lockedRegionIdRef = useLatest(lockedRegionId);
+    const lockedRegionIdsRef = useLatest(lockedRegionIds);
     const transformersRef = useLatest(transformers);
     const playRef = useLatest(play);
     const stopRef = useLatest(stop);
@@ -332,49 +332,57 @@ export const TransformerStack = ({
 
     // During drag, force source region (and drop target) to stay hovered
     // Expand to all chain members when hovering a chained region
-    const baseHoveredId = lockedRegionId ?? (dragState ? dragState.sourceRegionId : hoveredRegionId);
+    // When locked, all locked regions count as hovered
+    const baseHoveredId = lockedRegionIds.size === 0
+        ? (dragState ? dragState.sourceRegionId : hoveredRegionId)
+        : null;
     const effectiveHoveredIds = useMemo(() => {
+        if (lockedRegionIds.size > 0) return lockedRegionIds;
         if (!baseHoveredId) return new Set<string>();
         const chain = chains.get(baseHoveredId);
         if (chain) return new Set(chain.memberIds);
         return new Set([baseHoveredId]);
-    }, [baseHoveredId, chains]);
+    }, [lockedRegionIds, baseHoveredId, chains]);
 
     const hoveredSizeFactor = baseHoveredId !== null ? (sizeFactors.get(baseHoveredId) ?? null) : null;
 
     const handleHoverChange = useCallback((regionId: string | null) => {
         if (dragStateRef.current) return;
-        if (lockedRegionIdRef.current !== null) return;
+        if (lockedRegionIdsRef.current.size > 0) return;
         setHoveredRegionId(regionId);
-    }, [dragStateRef, lockedRegionIdRef]);
+    }, [dragStateRef, lockedRegionIdsRef]);
 
     const handleLock = useCallback((regionId: string) => {
-        if (lockedRegionIdRef.current === regionId) {
+        if (lockedRegionIdsRef.current.has(regionId)) {
             // Already locked — clear transformer selection (back to argumentation popover)
             setActiveTransformerIds(new Set());
             return;
         }
-        setLockedRegionId(regionId);
-        setActiveTransformerIds(new Set());
-
-        // Play audio for the locked region
-        const ts = transformersRef.current;
         const chain = chainsRef.current.get(regionId);
         const ids = chain ? chain.memberIds : [regionId];
+        setLockedRegionIds(new Set(ids));
+        setActiveTransformerIds(new Set());
+
+        // Play audio for the locked region (all chain members)
+        const ts = transformersRef.current;
         const mpmIds = ts.filter(t => ids.includes(t.argumentation?.id)).flatMap(t => t.created);
         if (mpmIds.length > 0) playRef.current({ mpmIds, isolate: true, exaggerate: exaggerationRef.current });
-    }, [lockedRegionIdRef, setActiveTransformerIds, transformersRef, chainsRef, playRef, exaggerationRef]);
+    }, [lockedRegionIdsRef, setActiveTransformerIds, transformersRef, chainsRef, playRef, exaggerationRef]);
 
     const handleLaneClick = useCallback((subregionId: string) => {
         const regionId = subregionToRegion.get(subregionId);
-        if (regionId) setLockedRegionId(regionId);
+        if (regionId) {
+            const chain = chainsRef.current.get(regionId);
+            const ids = chain ? chain.memberIds : [regionId];
+            setLockedRegionIds(new Set(ids));
+        }
 
         const ts = transformersRef.current;
         const t = ts.find(t => t.id === subregionId);
         if (t) {
             playRef.current({ mpmIds: t.created, isolate: true, exaggerate: exaggerationRef.current });
         }
-    }, [subregionToRegion, exaggerationRef, playRef, transformersRef]);
+    }, [subregionToRegion, chainsRef, exaggerationRef, playRef, transformersRef]);
 
     const handleArgumentationChange = useCallback(() => {
         startTransition(() => {
@@ -620,7 +628,7 @@ export const TransformerStack = ({
     }, [setActiveTransformerIds]);
 
     const handleUnlock = useCallback(() => {
-        setLockedRegionId(null);
+        setLockedRegionIds(new Set());
         stopRef.current();
         handleClearSelection();
     }, [stopRef, handleClearSelection]);
@@ -630,73 +638,85 @@ export const TransformerStack = ({
         if (activeTransformerIds.size === 1) {
             const [id] = activeTransformerIds;
             const regionId = subregionToRegion.get(id);
-            if (regionId) setLockedRegionId(regionId);
+            if (regionId) {
+                const chain = chains.get(regionId);
+                const ids = chain ? chain.memberIds : [regionId];
+                setLockedRegionIds(new Set(ids));
+            }
         }
-    }, [activeTransformerIds, subregionToRegion]);
+    }, [activeTransformerIds, subregionToRegion, chains]);
 
-    // Clear lock if the locked region no longer exists
+    // Clear lock if any locked region no longer exists
     useEffect(() => {
-        if (lockedRegionId && !regions.some(r => r.id === lockedRegionId)) {
-            setLockedRegionId(null);
+        if (lockedRegionIds.size > 0) {
+            const stillExist = new Set([...lockedRegionIds].filter(id => regions.some(r => r.id === id)));
+            if (stillExist.size !== lockedRegionIds.size) {
+                setLockedRegionIds(stillExist);
+            }
         }
-    }, [lockedRegionId, regions]);
+    }, [lockedRegionIds, regions]);
 
-    const lockedRegion = useMemo(() => {
-        if (!lockedRegionId) return null;
-        return regions.find(r => r.id === lockedRegionId) ?? null;
-    }, [lockedRegionId, regions]);
+    const lockedRegions = useMemo(() => {
+        if (lockedRegionIds.size === 0) return [];
+        return regions.filter(r => lockedRegionIds.has(r.id));
+    }, [lockedRegionIds, regions]);
 
-    const lockAnchorEl = useMemo(() => {
-        if (!lockedRegion || curvePoints.length === 0) return null;
-        const from = lockedRegion.from;
-        const to = lockedRegion.to;
+    const lockAnchorEls = useMemo(() => {
+        if (lockedRegions.length === 0 || curvePoints.length === 0) return new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
+        const map = new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
+        for (const region of lockedRegions) {
+            const from = region.from;
+            const to = region.to;
+            const sf = sizeFactors.get(region.id) ?? 1;
+            const amplitude = (6 + (30 - 6) * sf) + 12;
+            const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
+            const onionTopY = curvePoints[centerIdx].y - amplitude;
+            map.set(region.id, {
+                getBoundingClientRect: () => {
+                    const ctm = svgRef.current?.getScreenCTM();
+                    if (!ctm) return new DOMRect(0, 0, 0, 0);
+                    const x1 = ctm.a * from + ctm.e;
+                    const x2 = ctm.a * to + ctm.e;
+                    const y = ctm.d * onionTopY + ctm.f;
+                    return new DOMRect(x1, y, x2 - x1, 0);
+                },
+                contextElement: svgRef.current ?? undefined,
+            });
+        }
+        return map;
+    }, [lockedRegions, sizeFactors, curvePoints, curveStep, svgRef]);
 
-        // Estimate onion top: curve y at center minus expanded amplitude
-        const sf = sizeFactors.get(lockedRegion.id) ?? 1;
-        const amplitude = (6 + (30 - 6) * sf) + 12; // MIN + (BASE-MIN)*sf + HOVER_EXTRA
-        const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
-        const onionTopY = curvePoints[centerIdx].y - amplitude;
+    const hoveredRegions = useMemo(() => {
+        if (!hoveredRegionId || lockedRegionIds.size > 0) return [];
+        const chain = chains.get(hoveredRegionId);
+        const ids = chain ? chain.memberIds : [hoveredRegionId];
+        return regions.filter(r => ids.includes(r.id));
+    }, [hoveredRegionId, lockedRegionIds, regions, chains]);
 
-        return {
-            getBoundingClientRect: () => {
-                const ctm = svgRef.current?.getScreenCTM();
-                if (!ctm) return new DOMRect(0, 0, 0, 0);
-                const x1 = ctm.a * from + ctm.e;
-                const x2 = ctm.a * to + ctm.e;
-                const y = ctm.d * onionTopY + ctm.f;
-                return new DOMRect(x1, y, x2 - x1, 0);
-            },
-            contextElement: svgRef.current ?? undefined,
-        };
-    }, [lockedRegion, sizeFactors, curvePoints, curveStep, svgRef]);
-
-    const hoveredRegion = useMemo(() => {
-        if (!hoveredRegionId || lockedRegionId) return null;
-        return regions.find(r => r.id === hoveredRegionId) ?? null;
-    }, [hoveredRegionId, lockedRegionId, regions]);
-
-    const hoverAnchorEl = useMemo(() => {
-        if (!hoveredRegion || curvePoints.length === 0) return null;
-        const from = hoveredRegion.from;
-        const to = hoveredRegion.to;
-
-        const sf = sizeFactors.get(hoveredRegion.id) ?? 1;
-        const amplitude = (6 + (30 - 6) * sf) + 12;
-        const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
-        const onionTopY = curvePoints[centerIdx].y - amplitude;
-
-        return {
-            getBoundingClientRect: () => {
-                const ctm = svgRef.current?.getScreenCTM();
-                if (!ctm) return new DOMRect(0, 0, 0, 0);
-                const x1 = ctm.a * from + ctm.e;
-                const x2 = ctm.a * to + ctm.e;
-                const y = ctm.d * onionTopY + ctm.f;
-                return new DOMRect(x1, y, x2 - x1, 0);
-            },
-            contextElement: svgRef.current ?? undefined,
-        };
-    }, [hoveredRegion, sizeFactors, curvePoints, curveStep, svgRef]);
+    const hoverAnchorEls = useMemo(() => {
+        if (hoveredRegions.length === 0 || curvePoints.length === 0) return new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
+        const map = new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
+        for (const region of hoveredRegions) {
+            const from = region.from;
+            const to = region.to;
+            const sf = sizeFactors.get(region.id) ?? 1;
+            const amplitude = (6 + (30 - 6) * sf) + 12;
+            const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
+            const onionTopY = curvePoints[centerIdx].y - amplitude;
+            map.set(region.id, {
+                getBoundingClientRect: () => {
+                    const ctm = svgRef.current?.getScreenCTM();
+                    if (!ctm) return new DOMRect(0, 0, 0, 0);
+                    const x1 = ctm.a * from + ctm.e;
+                    const x2 = ctm.a * to + ctm.e;
+                    const y = ctm.d * onionTopY + ctm.f;
+                    return new DOMRect(x1, y, x2 - x1, 0);
+                },
+                contextElement: svgRef.current ?? undefined,
+            });
+        }
+        return map;
+    }, [hoveredRegions, sizeFactors, curvePoints, curveStep, svgRef]);
 
     if (transformers.length === 0) return null;
 
@@ -792,8 +812,10 @@ export const TransformerStack = ({
                     {/* Region onions — largest first so smaller ones render on top */}
                     {[...regions]
                         .sort((a, b) => {
-                            if (a.id === lockedRegionId) return 1;
-                            if (b.id === lockedRegionId) return -1;
+                            const aLocked = lockedRegionIds.has(a.id);
+                            const bLocked = lockedRegionIds.has(b.id);
+                            if (aLocked && !bLocked) return 1;
+                            if (!aLocked && bLocked) return -1;
                             const sizeA = a.to - a.from;
                             const sizeB = b.to - b.from;
                             return sizeB - sizeA;
@@ -814,7 +836,7 @@ export const TransformerStack = ({
                                     (dragState?.dropTargetRegionId === region.id)
                                 }
                                 suppressHitArea={
-                                    lockedRegionId === null &&
+                                    lockedRegionIds.size === 0 &&
                                     hoveredSizeFactor !== null &&
                                     !effectiveHoveredIds.has(region.id) &&
                                     (sizeFactors.get(region.id) ?? 1) >= hoveredSizeFactor
@@ -834,7 +856,7 @@ export const TransformerStack = ({
                                 }
                                 onLaneClick={handleLaneClick}
                                 onRegionDragStart={draggable ? handleRegionDragStart : undefined}
-                                isLocked={lockedRegionId === region.id}
+                                isLocked={lockedRegionIds.has(region.id)}
                                 onLock={handleLock}
                                 onUnchain={draggable && region.argumentation.continue ? unchainRegion : undefined}
                                 onExplode={draggable && region.subregions.length >= 2 ? explodeRegion : undefined}
@@ -878,19 +900,29 @@ export const TransformerStack = ({
                     )}
                 </svg>
             </div>
-            {lockedRegion && lockAnchorEl && (draggable || activeTransformerIds.size === 0) && (
-                <ArgumentationPopover
-                    argumentation={lockedRegion.argumentation}
-                    anchorEl={lockAnchorEl}
-                    onArgumentationChange={handleArgumentationChange}
-                />
-            )}
-            {hoveredRegion && hoverAnchorEl && (
-                <ArgumentationTooltip
-                    argumentation={hoveredRegion.argumentation}
-                    anchorEl={hoverAnchorEl}
-                />
-            )}
+            {(draggable || activeTransformerIds.size === 0) && lockedRegions.map(region => {
+                const anchorEl = lockAnchorEls.get(region.id);
+                if (!anchorEl) return null;
+                return (
+                    <ArgumentationPopover
+                        key={region.id}
+                        argumentation={region.argumentation}
+                        anchorEl={anchorEl}
+                        onArgumentationChange={handleArgumentationChange}
+                    />
+                );
+            })}
+            {hoveredRegions.map(region => {
+                const anchorEl = hoverAnchorEls.get(region.id);
+                if (!anchorEl) return null;
+                return (
+                    <ArgumentationTooltip
+                        key={region.id}
+                        argumentation={region.argumentation}
+                        anchorEl={anchorEl}
+                    />
+                );
+            })}
             {!draggable && activeTransformerIds.size === 1 && (
                 <InstructionPopover
                     mpm={mpm}
