@@ -629,6 +629,7 @@ export const TransformerStack = ({
 
     const handleUnlock = useCallback(() => {
         setLockedRegionIds(new Set());
+        setHoveredRegionId(null);
         stopRef.current();
         handleClearSelection();
     }, [stopRef, handleClearSelection]);
