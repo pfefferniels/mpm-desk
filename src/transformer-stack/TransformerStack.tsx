@@ -661,29 +661,28 @@ export const TransformerStack = ({
         return regions.filter(r => lockedRegionIds.has(r.id));
     }, [lockedRegionIds, regions]);
 
-    const lockAnchorEls = useMemo(() => {
-        if (lockedRegions.length === 0 || curvePoints.length === 0) return new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
-        const map = new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
+    const lockAnchorEl = useMemo(() => {
+        if (lockedRegions.length === 0 || curvePoints.length === 0) return null;
+        const from = Math.min(...lockedRegions.map(r => r.from));
+        const to = Math.max(...lockedRegions.map(r => r.to));
+        let minOnionTopY = Infinity;
         for (const region of lockedRegions) {
-            const from = region.from;
-            const to = region.to;
             const sf = sizeFactors.get(region.id) ?? 1;
             const amplitude = (6 + (30 - 6) * sf) + 12;
-            const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
-            const onionTopY = curvePoints[centerIdx].y - amplitude;
-            map.set(region.id, {
-                getBoundingClientRect: () => {
-                    const ctm = svgRef.current?.getScreenCTM();
-                    if (!ctm) return new DOMRect(0, 0, 0, 0);
-                    const x1 = ctm.a * from + ctm.e;
-                    const x2 = ctm.a * to + ctm.e;
-                    const y = ctm.d * onionTopY + ctm.f;
-                    return new DOMRect(x1, y, x2 - x1, 0);
-                },
-                contextElement: svgRef.current ?? undefined,
-            });
+            const centerIdx = Math.max(0, Math.min(tickToCurveIndex((region.from + region.to) / 2, curveStep), curvePoints.length - 1));
+            minOnionTopY = Math.min(minOnionTopY, curvePoints[centerIdx].y - amplitude);
         }
-        return map;
+        return {
+            getBoundingClientRect: () => {
+                const ctm = svgRef.current?.getScreenCTM();
+                if (!ctm) return new DOMRect(0, 0, 0, 0);
+                const x1 = ctm.a * from + ctm.e;
+                const x2 = ctm.a * to + ctm.e;
+                const y = ctm.d * minOnionTopY + ctm.f;
+                return new DOMRect(x1, y, x2 - x1, 0);
+            },
+            contextElement: svgRef.current ?? undefined,
+        };
     }, [lockedRegions, sizeFactors, curvePoints, curveStep, svgRef]);
 
     const hoveredRegions = useMemo(() => {
@@ -693,29 +692,28 @@ export const TransformerStack = ({
         return regions.filter(r => ids.includes(r.id));
     }, [hoveredRegionId, lockedRegionIds, regions, chains]);
 
-    const hoverAnchorEls = useMemo(() => {
-        if (hoveredRegions.length === 0 || curvePoints.length === 0) return new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
-        const map = new Map<string, { getBoundingClientRect: () => DOMRect; contextElement?: Element }>();
+    const hoverAnchorEl = useMemo(() => {
+        if (hoveredRegions.length === 0 || curvePoints.length === 0) return null;
+        const from = Math.min(...hoveredRegions.map(r => r.from));
+        const to = Math.max(...hoveredRegions.map(r => r.to));
+        let minOnionTopY = Infinity;
         for (const region of hoveredRegions) {
-            const from = region.from;
-            const to = region.to;
             const sf = sizeFactors.get(region.id) ?? 1;
             const amplitude = (6 + (30 - 6) * sf) + 12;
-            const centerIdx = Math.max(0, Math.min(tickToCurveIndex((from + to) / 2, curveStep), curvePoints.length - 1));
-            const onionTopY = curvePoints[centerIdx].y - amplitude;
-            map.set(region.id, {
-                getBoundingClientRect: () => {
-                    const ctm = svgRef.current?.getScreenCTM();
-                    if (!ctm) return new DOMRect(0, 0, 0, 0);
-                    const x1 = ctm.a * from + ctm.e;
-                    const x2 = ctm.a * to + ctm.e;
-                    const y = ctm.d * onionTopY + ctm.f;
-                    return new DOMRect(x1, y, x2 - x1, 0);
-                },
-                contextElement: svgRef.current ?? undefined,
-            });
+            const centerIdx = Math.max(0, Math.min(tickToCurveIndex((region.from + region.to) / 2, curveStep), curvePoints.length - 1));
+            minOnionTopY = Math.min(minOnionTopY, curvePoints[centerIdx].y - amplitude);
         }
-        return map;
+        return {
+            getBoundingClientRect: () => {
+                const ctm = svgRef.current?.getScreenCTM();
+                if (!ctm) return new DOMRect(0, 0, 0, 0);
+                const x1 = ctm.a * from + ctm.e;
+                const x2 = ctm.a * to + ctm.e;
+                const y = ctm.d * minOnionTopY + ctm.f;
+                return new DOMRect(x1, y, x2 - x1, 0);
+            },
+            contextElement: svgRef.current ?? undefined,
+        };
     }, [hoveredRegions, sizeFactors, curvePoints, curveStep, svgRef]);
 
     if (transformers.length === 0) return null;
@@ -900,29 +898,19 @@ export const TransformerStack = ({
                     )}
                 </svg>
             </div>
-            {(draggable || activeTransformerIds.size === 0) && lockedRegions.map(region => {
-                const anchorEl = lockAnchorEls.get(region.id);
-                if (!anchorEl) return null;
-                return (
-                    <ArgumentationPopover
-                        key={region.id}
-                        argumentation={region.argumentation}
-                        anchorEl={anchorEl}
-                        onArgumentationChange={handleArgumentationChange}
-                    />
-                );
-            })}
-            {hoveredRegions.map(region => {
-                const anchorEl = hoverAnchorEls.get(region.id);
-                if (!anchorEl) return null;
-                return (
-                    <ArgumentationTooltip
-                        key={region.id}
-                        argumentation={region.argumentation}
-                        anchorEl={anchorEl}
-                    />
-                );
-            })}
+            {lockedRegions.length > 0 && lockAnchorEl && (draggable || activeTransformerIds.size === 0) && (
+                <ArgumentationPopover
+                    argumentations={lockedRegions.map(r => r.argumentation)}
+                    anchorEl={lockAnchorEl}
+                    onArgumentationChange={handleArgumentationChange}
+                />
+            )}
+            {hoveredRegions.length > 0 && hoverAnchorEl && (
+                <ArgumentationTooltip
+                    argumentations={hoveredRegions.map(r => r.argumentation)}
+                    anchorEl={hoverAnchorEl}
+                />
+            )}
             {!draggable && activeTransformerIds.size === 1 && (
                 <InstructionPopover
                     mpm={mpm}
