@@ -93,11 +93,65 @@ export const usePipelineRunner = ({
     const onValidationErrorRef = useLatest(onValidationError);
     const onPipelineErrorRef = useLatest(onPipelineError);
     const onPipelineSuccessRef = useLatest(onPipelineSuccess);
+    const setTransformersRef = useLatest(setTransformers);
+    const setMSMRef = useLatest(setMSM);
+    const setMPMRef = useLatest(setMPM);
 
     useEffect(() => {
-        workerRef.current = new Worker(new URL('../pipeline.worker.ts', import.meta.url), { type: 'module' });
-        return () => workerRef.current?.terminate();
-    }, []);
+        const worker = new Worker(new URL('../pipeline.worker.ts', import.meta.url), { type: 'module' });
+        workerRef.current = worker;
+
+        // One persistent listener, guarded by requestId. Attaching it per
+        // pipeline run is not safe: the posting effect's cleanup would remove
+        // the listener while the worker is still computing, and the
+        // fingerprint guard would then skip re-attaching it — silently
+        // dropping the result and leaving msm/mpm stale.
+        const handler = (event: MessageEvent<PipelineWorkerMessage>) => {
+            const data = event.data;
+            if (data.requestId !== requestIdRef.current) return;
+
+            if (data.type === 'pipeline-result') {
+                const newMSM = new MSM();
+                newMSM.allNotes = data.msm.allNotes;
+                newMSM.pedals = data.msm.pedals;
+                newMSM.timeSignature = data.msm.timeSignature;
+
+                const newMPM = new MPM();
+                newMPM.doc = data.mpmDoc;
+
+                setTransformersRef.current(prev => {
+                    // 1. Update created arrays from pipeline output
+                    let changed = false;
+                    let next = prev.map(transformer => {
+                        const created = data.created[transformer.id];
+                        if (!created || equalIds(transformer.created, created)) return transformer;
+                        changed = true;
+                        return cloneTransformerWithCreated(transformer, created);
+                    });
+                    if (!changed) next = prev;
+
+                    // 2. Merge overlapping argumentations in the same
+                    //    state update to avoid an extra render cycle.
+                    return mergeOverlappingArgumentations(next, newMSM);
+                });
+
+                setMPMRef.current(newMPM);
+                setMSMRef.current(newMSM);
+                onPipelineSuccessRef.current?.();
+                return;
+            }
+
+            if (data.type === 'validation-error') {
+                onValidationErrorRef.current?.(data.messages);
+                return;
+            }
+
+            onPipelineErrorRef.current?.(data.error);
+        };
+        worker.addEventListener('message', handler as EventListener);
+
+        return () => worker.terminate();
+    }, [setTransformersRef, setMSMRef, setMPMRef, onValidationErrorRef, onPipelineErrorRef, onPipelineSuccessRef]);
 
     useEffect(() => {
         if (initialMSM.allNotes.length === 0) return;
@@ -129,62 +183,5 @@ export const usePipelineRunner = ({
             },
             metadata,
         });
-
-        const handler = (event: MessageEvent<PipelineWorkerMessage>) => {
-            const data = event.data;
-            if (data.requestId !== requestIdRef.current) return;
-            workerRef.current?.removeEventListener('message', handler as EventListener);
-
-            if (data.type === 'pipeline-result') {
-                const newMSM = new MSM();
-                newMSM.allNotes = data.msm.allNotes;
-                newMSM.pedals = data.msm.pedals;
-                newMSM.timeSignature = data.msm.timeSignature;
-
-                const newMPM = new MPM();
-                newMPM.doc = data.mpmDoc;
-
-                setTransformers(prev => {
-                    // 1. Update created arrays from pipeline output
-                    let changed = false;
-                    let next = prev.map(transformer => {
-                        const created = data.created[transformer.id];
-                        if (!created || equalIds(transformer.created, created)) return transformer;
-                        changed = true;
-                        return cloneTransformerWithCreated(transformer, created);
-                    });
-                    if (!changed) next = prev;
-
-                    // 2. Merge overlapping argumentations in the same
-                    //    state update to avoid an extra render cycle.
-                    return mergeOverlappingArgumentations(next, newMSM);
-                });
-
-                setMPM(newMPM);
-                setMSM(newMSM);
-                onPipelineSuccessRef.current?.();
-                return;
-            }
-
-            if (data.type === 'validation-error') {
-                onValidationErrorRef.current?.(data.messages);
-                return;
-            }
-
-            onPipelineErrorRef.current?.(data.error);
-        };
-
-        workerRef.current.addEventListener('message', handler as EventListener);
-        return () => workerRef.current?.removeEventListener('message', handler as EventListener);
-    }, [
-        transformers,
-        initialMSM,
-        metadata,
-        setTransformers,
-        setMSM,
-        setMPM,
-        onValidationErrorRef,
-        onPipelineErrorRef,
-        onPipelineSuccessRef,
-    ]);
+    }, [transformers, initialMSM, metadata]);
 };

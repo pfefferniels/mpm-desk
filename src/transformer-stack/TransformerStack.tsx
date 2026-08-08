@@ -7,7 +7,7 @@ import { Argumentation, getRange, MPM, MSM, Transformer } from "mpmify";
 import { v4 } from "uuid";
 import { applyExaggeration, applyLocalRenormalization, asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
-import { EXAGGERATION_MAX, usePlayback } from "../hooks/PlaybackProvider";
+import { EXAGGERATION_MAX, PlaybackNoteEvent, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
 import { ExportPNG } from "../components/ExportPng";
 import { buildChains, buildRegions, ChainInfo, computeCurvePoints, OnionDragState, OnionSubregion, tickToCurveIndex } from "./OnionModel";
@@ -32,6 +32,14 @@ function lerpHexColor(a: string, b: string, t: number): string {
     const g = Math.round(ag + (bg - ag) * t);
     const bl = Math.round(ab + (bb - ab) * t);
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
+}
+
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+    if (a.size !== b.size) return false;
+    for (const item of a) {
+        if (!b.has(item)) return false;
+    }
+    return true;
 }
 
 /** Check whether [from, to] is fully covered by the union of the given intervals. */
@@ -63,7 +71,7 @@ export const TransformerStack = ({
     mpm,
     draggable = false,
 }: TransformerStackProps) => {
-    const { play, stop, exaggeration } = usePlayback();
+    const { play, stop, exaggeration, isPlaying, subscribeNoteEvents } = usePlayback();
     const { activeTransformerIds, setActiveTransformerIds, removeActiveTransformers } = useSelection();
     const stretchX = useSymbolicZoom();
 
@@ -83,7 +91,7 @@ export const TransformerStack = ({
     const exaggerationRef = useLatest(exaggeration);
 
     // Scroll sync
-    const { register, unregister } = useScrollSync();
+    const { register, unregister, scrollToDate } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
         if (element) {
             register('transformer-stack', element, 'symbolic');
@@ -647,6 +655,67 @@ export const TransformerStack = ({
         }
     }, [activeTransformerIds, subregionToRegion, chains]);
 
+    // Follow playback: open (lock) the regions whose instructions are currently
+    // sounding, so their labels show while the playhead passes through them.
+    // While listening, a chain must not open as a whole: an instruction of an
+    // earlier chain member can still be "in effect" past that member's span,
+    // so per chain only the member the playhead is actually in stays open
+    // (falling back to the latest member that has already begun).
+    const followPlayback = useEffectEvent(({ date, scoped }: PlaybackNoteEvent) => {
+        // Region previews (lock/lane clicks) manage the lock themselves.
+        if (scoped) return;
+        const types = ['tempo', 'dynamics', 'rubato', 'articulation', 'asynchrony', 'movement', 'ornament', 'accentuationPattern'] as const;
+        const regionIds = new Set<string>();
+        for (const type of types) {
+            for (const instruction of mpm.instructionsEffectiveAtDate(date, type)) {
+                const transformer = transformers.find(t => t.created.includes(instruction['xml:id']));
+                if (!transformer) continue;
+                const regionId = subregionToRegion.get(transformer.id);
+                if (regionId) regionIds.add(regionId);
+            }
+        }
+
+        const candidatesByChain = new Map<ChainInfo, string[]>();
+        for (const id of regionIds) {
+            const chain = chains.get(id);
+            if (!chain) continue;
+            const list = candidatesByChain.get(chain);
+            if (list) list.push(id);
+            else candidatesByChain.set(chain, [id]);
+        }
+        const regionById = new Map(regions.map(r => [r.id, r]));
+        const laterMember = (a: string, b: string) =>
+            (regionById.get(a)?.from ?? -Infinity) >= (regionById.get(b)?.from ?? -Infinity) ? a : b;
+        for (const candidates of candidatesByChain.values()) {
+            if (candidates.length < 2) continue;
+            const containing = candidates.filter(id => {
+                const r = regionById.get(id);
+                return r !== undefined && r.from <= date && date <= r.to;
+            });
+            const begun = candidates.filter(id => (regionById.get(id)?.from ?? Infinity) <= date);
+            const keep = containing.length > 0
+                ? containing.reduce(laterMember)
+                : (begun.length > 0 ? begun.reduce(laterMember) : candidates[0]);
+            for (const id of candidates) {
+                if (id !== keep) regionIds.delete(id);
+            }
+        }
+
+        if (regionIds.size > 0) {
+            setLockedRegionIds(prev => setsEqual(prev, regionIds) ? prev : regionIds);
+        }
+        scrollToDate(date);
+    });
+
+    useEffect(() => subscribeNoteEvents(followPlayback), [subscribeNoteEvents]);
+
+    // Close playback-opened regions when playback stops
+    useEffect(() => {
+        if (!isPlaying) {
+            setLockedRegionIds(prev => (prev.size > 0 ? new Set() : prev));
+        }
+    }, [isPlaying]);
+
     // Clear lock if any locked region no longer exists
     useEffect(() => {
         if (lockedRegionIds.size > 0) {
@@ -819,7 +888,7 @@ export const TransformerStack = ({
                             const sizeB = b.to - b.from;
                             return sizeB - sizeA;
                         })
-                        .filter(region => (lodOpacities.get(region.id) ?? 0) > 0)
+                        .filter(region => (lodOpacities.get(region.id) ?? 0) > 0 || lockedRegionIds.has(region.id))
                         .map(region => (
                             <RegionOnion
                                 key={region.id}
@@ -829,7 +898,7 @@ export const TransformerStack = ({
                                 stretchX={stretchX}
                                 regionColor={regionColors.get(region.id) ?? '#999999'}
                                 sizeFactor={sizeFactors.get(region.id) ?? 1}
-                                lodOpacity={lodOpacities.get(region.id) ?? 1}
+                                lodOpacity={lockedRegionIds.has(region.id) ? 1 : (lodOpacities.get(region.id) ?? 1)}
                                 isHovered={
                                     effectiveHoveredIds.has(region.id) ||
                                     (dragState?.dropTargetRegionId === region.id)

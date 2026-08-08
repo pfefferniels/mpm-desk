@@ -46,12 +46,24 @@ interface PlayOptions {
     onNoteEvent?: (noteId: string, date: number) => void;
 }
 
+export interface PlaybackNoteEvent {
+    noteId: string;
+    /** Symbolic date (ticks) of the sounding note. */
+    date: number;
+    /** True when playback is scoped to specific instructions (mpmIds), e.g. a region preview. */
+    scoped: boolean;
+}
+
+type NoteEventListener = (event: PlaybackNoteEvent) => void;
+
 interface PlaybackContextValue {
     isPlaying: boolean;
     play: (options?: PlayOptions) => Promise<void>;
     stop: () => void;
     exaggeration: number;
     setExaggeration: (value: number) => void;
+    /** Subscribe to note events during playback. Returns an unsubscribe function. */
+    subscribeNoteEvents: (listener: NoteEventListener) => () => void;
 }
 
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
@@ -83,6 +95,14 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
     const playOptionsRef = useRef<PlayOptions | undefined>(undefined);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isPlayingRef = useRef(false);
+
+    const noteEventListenersRef = useRef(new Set<NoteEventListener>());
+    const subscribeNoteEvents = useCallback((listener: NoteEventListener) => {
+        noteEventListenersRef.current.add(listener);
+        return () => {
+            noteEventListenersRef.current.delete(listener);
+        };
+    }, []);
 
     const stop = useCallback(() => {
         stopPianoRef.current();
@@ -136,13 +156,16 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
                 resumeMs = findNoteIdTime(file, resumeFromNoteId);
             }
 
+            const scoped = mpmIds !== undefined;
             playPianoRef.current(file, (e) => {
                 if (e.type === 'meta' && e.subtype === 'text') {
                     lastNoteIdRef.current = e.text;
-                    if (onNoteEvent) {
+                    if (onNoteEvent || noteEventListenersRef.current.size > 0) {
                         const date = currentMsm.getByID(e.text)?.date;
                         if (date !== undefined) {
-                            onNoteEvent(e.text, date);
+                            onNoteEvent?.(e.text, date);
+                            noteEventListenersRef.current.forEach(listener =>
+                                listener({ noteId: e.text, date, scoped }));
                         }
                     }
                 }
@@ -192,7 +215,8 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         stop,
         exaggeration,
         setExaggeration,
-    }), [isPlaying, play, stop, exaggeration]);
+        subscribeNoteEvents,
+    }), [isPlaying, play, stop, exaggeration, subscribeNoteEvents]);
 
     return (
         <PlaybackContext value={value}>
