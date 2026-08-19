@@ -85,28 +85,3 @@ export function mergeOverlappingArgumentations(transformers: Transformer[], msm:
     });
 }
 
-/**
- * Find an existing argumentation whose composite range matches the given range.
- * Used for preventive merge when adding a new transformer.
- */
-export function findMatchingArgumentation(
-    existingTransformers: Transformer[],
-    newRange: { from: number; to?: number },
-    msm: MSM,
-): Argumentation | undefined {
-    const grouped = Map.groupBy(existingTransformers, t => t.argumentation);
-
-    for (const [arg, ts] of grouped) {
-        const range = getRange(ts, msm);
-        if (!range) continue;
-        const existingFrom = range.from;
-        const existingTo = range.to ?? range.from;
-        const newFrom = newRange.from;
-        const newTo = newRange.to ?? newRange.from;
-        if (existingFrom === newFrom && existingTo === newTo) {
-            return arg;
-        }
-    }
-
-    return undefined;
-}

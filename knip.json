@@ -1,5 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/pipeline.worker.ts",
+    "scripts/*.ts"
+  ],
   "ignore": [
     "coverage/**"
   ],
@@ -7,6 +11,8 @@
     "-lintignore"
   ],
   "ignoreDependencies": [
+    "espressivo",
+    "mpm-ts",
     "mpmify",
     "react-pianosound"
   ]

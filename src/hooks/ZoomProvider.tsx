@@ -30,14 +30,6 @@ export const useSymbolicZoom = (): number => {
     return context.symbolic.stretchX;
 };
 
-export const usePhysicalZoom = (): number => {
-    const context = useContext(ZoomContext);
-    if (!context) {
-        throw new Error('useZoom must be used within a ZoomProvider');
-    }
-    return context.physical.stretchX;
-};
-
 export const useZoom = () => {
     const context = useContext(ZoomContext);
     if (!context) {

@@ -38,27 +38,6 @@
     ],
     "argumentations": [
       {
-        "note": "",
-        "id": "argumentation-6d58daff",
-        "conclusion": {
-          "certainty": "likely",
-          "id": "belief-dc3e5dbf",
-          "motivation": "unknown",
-          "note": ""
-        },
-        "type": "simpleArgumentation",
-        "calls": [
-          {
-            "id": "cce2b0f1-099b-478c-8ca7-24b3c17eb879",
-            "created": [],
-            "name": "MakeChoice",
-            "options": {
-              "prefer": "c9050e75-97a8-4862-9533-0f4b1439802b"
-            }
-          }
-        ]
-      },
-      {
         "id": "0fad3105-f846-4c6f-88da-0682d76b1afd",
         "conclusion": {
           "certainty": "speculative",
@@ -68,18 +47,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "9f8b5d24-4423-431f-80dc-5178e79af043",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 1440,
-              "to": 1440,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -3
-            }
-          },
           {
             "id": "69f91e58-1ffa-4352-97a8-f797b3cb2fd4",
             "created": [
@@ -125,30 +92,6 @@
         "note": "Die Dynamik unterschreitet hier vermutlich den Rahmen des Welte-Systems. Sie wurde daher an die Pegelverhältnisse der akustischen Aufnahme (1913) angepasst.",
         "id": "decision-35c68177",
         "calls": [
-          {
-            "id": "fbb12a14-9f25-49d5-b3dc-b9bee321c73b",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 16920,
-              "to": 18360,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -3
-            }
-          },
-          {
-            "id": "b75ee127-70da-4a11-b45d-41cb43b22fcc",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 17640,
-              "to": 18000,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -3
-            }
-          },
           {
             "id": "2aac2b1a-7be2-4182-8503-7cc3d7a03229",
             "created": [
@@ -216,30 +159,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "cf4780f1-3f9a-4be5-8015-91d5daed0ad2",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 19800,
-              "to": 20160,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -3
-            }
-          },
-          {
-            "id": "0b186337-6944-4fa8-bf31-e1eded2d538a",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 20160,
-              "to": 20160,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
             "id": "db9f7266-850f-4bf6-bf0d-9f76d6080fbf",
             "created": [
               "tempo_19440"
@@ -295,18 +214,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "67636efe-2c6a-4555-a2e9-a83607a206d0",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 30600,
-              "to": 30600,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
           {
             "id": "4614d4c5-696c-404a-8255-2a6da3b84d6a",
             "created": [
@@ -374,18 +281,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "bbefb444-1020-4ad6-8f7f-1d83ef9b7970",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 36000,
-              "to": 36000,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
           {
             "id": "f5c41495-9134-4745-9967-bd0eddb7d9f5",
             "created": [
@@ -511,18 +406,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "943843e3-361b-49b3-b779-0db8971a4984",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 40680,
-              "to": 40680,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
             "id": "22e4272e-7940-4490-99f5-5d7e278a951d",
             "created": [
               "ornament_41040"
@@ -559,18 +442,6 @@
           "note": "nachschlagende Akkordbrechung schattieren"
         },
         "calls": [
-          {
-            "id": "4576e759-d534-4c2e-a0d3-8e31b07b73e9",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 43200,
-              "to": 43200,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2
-            }
-          },
           {
             "id": "5e644aed-96ad-4d28-a90c-a3fb2152b128",
             "created": [
@@ -672,32 +543,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "9080c9be-2bf7-4e8e-bea6-a261b673bf46",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -3,
-              "noteIDs": [
-                "ntu78d0"
-              ]
-            }
-          },
-          {
-            "id": "d6ed9ef4-635e-456b-9be4-092a6ad8cd97",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2,
-              "noteIDs": [
-                "nh71je6"
-              ]
-            }
-          },
-          {
             "id": "182b412f-fe92-4a94-8229-85b292b1b65b",
             "created": [
               "ornament_4320"
@@ -744,19 +589,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "a2c7ef23-05d0-4e0c-a25f-1ab617023f2a",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2,
-              "noteIDs": [
-                "n1rj5zce-rend2"
-              ]
-            }
-          },
           {
             "id": "eb405007-8d7b-467b-8e48-d24135a570f0",
             "created": [
@@ -835,18 +667,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "7b025e15-1188-4756-b848-132c11113607",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 44280,
-              "to": 44280,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
           {
             "id": "bd7bdad5-d2b3-49f6-bdb5-d13d31d2041b",
             "created": [
@@ -1007,18 +827,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "8fe66077-e492-4c2d-a628-e1482d991cea",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 45720,
-              "to": 45720,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
             "id": "656e0b15-c1d5-4f5b-b257-768c0ac798e0",
             "created": [
               "ornament_46440"
@@ -1119,30 +927,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "ffa38b33-e2c0-4806-8e28-57e2760bc96c",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 55800,
-              "to": 55800,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -3
-            }
-          },
-          {
-            "id": "a2cb7475-09ac-4231-abe9-4603a9f10cbd",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 56160,
-              "to": 56160,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -5
-            }
-          },
           {
             "id": "9383b88b-bbb3-421f-a08c-2cbbe6a2823f",
             "created": [
@@ -1247,18 +1031,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "0f000b06-d62f-4234-ad11-e81b2a400338",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 56520,
-              "to": 61200,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -5
-            }
-          },
-          {
             "id": "b6032711-a39c-47dd-86f1-4cae8e13c9f6",
             "created": [
               "tempo_58320"
@@ -1324,18 +1096,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "37a17ba4-26af-4f29-9806-c5b38af17217",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 57240,
-              "to": 57240,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
             "id": "ca89c13b-f044-45a9-8de4-2dd070bf0946",
             "created": [
               "rubato_56880"
@@ -1359,30 +1119,6 @@
           "note": "Nachschlag schattieren"
         },
         "calls": [
-          {
-            "id": "97cc788e-3604-4e2a-8a09-c3ad86a7c4e9",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 65880,
-              "to": 66240,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
-            "id": "c1992520-d109-4eac-bf30-87fa415c6446",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 66240,
-              "to": 66240,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
           {
             "id": "b66c2a25-71d7-4d2e-98ac-d04553316a92",
             "created": [
@@ -1456,30 +1192,6 @@
         },
         "calls": [
           {
-            "id": "920476c1-6e5c-481e-8137-fd900bc0c1fa",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 67320,
-              "to": 67680,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2
-            }
-          },
-          {
-            "id": "70d2a454-eaff-45e2-b79a-bd202f3f147e",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 67680,
-              "to": 67680,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
             "id": "52bc8e32-0f9e-467a-9459-364d7fa80703",
             "created": [
               "accentuationPattern_66960"
@@ -1539,18 +1251,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "9db2feed-a996-4bd0-beff-93dacb03de25",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 68760,
-              "to": 68760,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
           {
             "id": "12b9f08b-cbe6-4b91-811b-51a781e70f46",
             "created": [
@@ -1676,18 +1376,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "e91c9bae-11dd-46b1-9476-1f11e6670915",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 69480,
-              "to": 69480,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
             "id": "ef273c4e-2d65-4dd2-b3a6-bd2639b5d100",
             "created": [
               "ornament_69840"
@@ -1780,18 +1468,6 @@
         },
         "calls": [
           {
-            "id": "5fb48c60-c4d2-4c43-90b6-1894ffd9d846",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 70560,
-              "to": 70560,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2
-            }
-          },
-          {
             "id": "0a4760d2-2ba1-41a9-a19a-6ff97204db71",
             "created": [
               "ornament_70560"
@@ -1862,18 +1538,6 @@
           "note": "mit Inegalité vorwärts zum b"
         },
         "calls": [
-          {
-            "id": "180918f3-54d4-4eb5-9842-66de04ba6f70",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 76680,
-              "to": 76680,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
           {
             "id": "f8bec790-b9e2-4b12-a1fc-e1a40dfcf55a",
             "created": [
@@ -2017,18 +1681,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "8b11a4e6-7c95-4c17-a90f-2e2665595685",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 78120,
-              "to": 78120,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1
-            }
-          },
-          {
             "id": "d1276ca6-6452-4c79-92e2-3f67651a6919",
             "created": [
               "ornament_78120"
@@ -2151,18 +1803,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "adb5d484-391e-4d43-871e-6fa47e1d15e2",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 80280,
-              "to": 80280,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2
-            }
-          },
-          {
             "id": "4838d841-464a-4ef5-a98f-6950c3cffc5f",
             "created": [
               "accentuationPattern_79200"
@@ -2223,18 +1863,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "6af44169-9738-4954-9a85-751b19aedd45",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 82080,
-              "to": 82080,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2
-            }
-          },
           {
             "id": "966b93d6-b27a-4e61-9506-602ff66c6af6",
             "created": [
@@ -2361,18 +1989,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "940ade92-f86b-41f8-9cd1-75934f1e4c89",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 86760,
-              "to": 86760,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2
-            }
-          },
-          {
             "id": "ca77154e-d17b-4d87-b7dc-f791305eede1",
             "created": [
               "ornament_87120"
@@ -2477,18 +2093,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "cf837c20-e94f-4415-b246-2cf3b0a05d88",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 90360,
-              "to": 91440,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -3
-            }
-          },
-          {
             "id": "795d7de1-ffa6-45d7-8116-36c37eab6a94",
             "created": [
               "ornament_90720"
@@ -2552,18 +2156,6 @@
         "type": "simpleArgumentation",
         "calls": [
           {
-            "id": "0655bac4-a3ad-4862-90db-0a35376f9e5f",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "from": 91080,
-              "to": 91080,
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -2
-            }
-          },
-          {
             "id": "cb756905-5e71-425c-b60d-4641b334c6b2",
             "created": [
               "ornament_91080"
@@ -2589,19 +2181,6 @@
         },
         "type": "simpleArgumentation",
         "calls": [
-          {
-            "id": "3f1b9f7c-3f2a-4ac4-8da0-3891db773f61",
-            "created": [],
-            "name": "Modify",
-            "options": {
-              "scope": "global",
-              "aspect": "velocity",
-              "change": -1,
-              "noteIDs": [
-                "negi5d2"
-              ]
-            }
-          },
           {
             "id": "39710772-26e5-438e-b865-0581e72ba12a",
             "created": [

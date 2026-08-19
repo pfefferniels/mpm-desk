@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { exportWork, getRange, MPM, MSM, Transformer } from 'mpmify';
-import { exportMPM } from '../../mpm-ts/lib';
+import { exportMPM } from 'mpm-ts';
 import JSZip from 'jszip';
 import { asMSM } from './utils/asMSM';
+import { convertMei } from './utils/espressivoClient';
 import { TransformerStack } from './transformer-stack/TransformerStack';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';
@@ -23,6 +24,7 @@ const ViewerInner = () => {
     const [msm, setMSM] = useState<MSM>(new MSM());
     const [mpm, setMPM] = useState<MPM>(new MPM());
     const [mei, setMEI] = useState<string>();
+    const [msmXml, setMsmXml] = useState<string>();
     const [transformers, setTransformers] = useState<Transformer[]>([]);
     const [activeTransformerIds, setActiveTransformerIds] = useState<Set<string>>(new Set());
     const [stretchX, setStretchX] = useState<number>(20);
@@ -48,7 +50,11 @@ const ViewerInner = () => {
 
     const handleMeiLoaded = useCallback(async (meiContent: string) => {
         setMEI(meiContent);
-        const parsed = await asMSM(meiContent);
+        // The conversion runs in the espressivo worker: it takes seconds, and the loading
+        // screen has to keep painting while it does.
+        const { msm: converted } = await convertMei(meiContent);
+        setMsmXml(converted);
+        const parsed = asMSM(meiContent, converted);
         setMSM(parsed);
         setInitialMSM(parsed);
     }, []);
@@ -107,7 +113,7 @@ const ViewerInner = () => {
 
     return (
         <ZoomContext value={zoomContextValue}>
-            <PlaybackProvider mei={mei} msm={msm} mpm={mpm}>
+            <PlaybackProvider msmXml={msmXml} msm={msm} mpm={mpm}>
                 <ViewerToolbar onDownload={handleDownload} metadata={metadata} />
                 <SelectionProvider
                     activeTransformerIds={activeTransformerIds}

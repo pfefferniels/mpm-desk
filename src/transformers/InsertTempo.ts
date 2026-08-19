@@ -1,5 +1,5 @@
-import { MPM } from '../../../mpm-ts/lib'
-import type { Tempo, Scope } from '../../../mpm-ts/lib'
+import { MPM } from 'mpm-ts'
+import type { Tempo, Scope } from 'mpm-ts'
 import { MSM, AbstractTransformer, generateId } from 'mpmify'
 import type { ScopedTransformationOptions } from 'mpmify'
 

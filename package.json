@@ -22,14 +22,14 @@
     "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.18.0",
     "@types/uuid": "^10.0.0",
+    "espressivo": "file:../meico-ts",
     "jszip": "^3.10.1",
     "midifile-ts": "^1.5.1",
+    "mpm-ts": "file:../mpm-ts",
     "mpmify": "file:../mpmify",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-hotkeys-hook": "^5.2.4",
     "react-pianosound": "file:../react-pianosound",
-    "tone": "^14.9.17",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

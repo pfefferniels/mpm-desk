@@ -1,6 +1,5 @@
 import { compareTransformers, importWork, InsertMetadata, registerTransformer, Transformer, validate } from 'mpmify';
 import { InsertTempo } from '../transformers/InsertTempo';
-import { SecondaryData } from '../desks/TransformerViewProps';
 
 registerTransformer(InsertTempo, { after: 'ApproximateLogarithmicTempo' });
 
@@ -11,7 +10,6 @@ interface WorkMetadata {
 
 interface ParsedWork {
     transformers: Transformer[];
-    secondary: SecondaryData;
     metadata: WorkMetadata;
     validationMessages: string[];
 }
@@ -26,7 +24,7 @@ const extractMetadataFromTransformers = (transformers: Transformer[]): WorkMetad
 };
 
 export const parseWork = (content: string): ParsedWork => {
-    const { transformers: loaded, secondary } = importWork(content);
+    const { transformers: loaded } = importWork(content);
     const validationMessages = validate(loaded).map(message => message.message);
     const transformers = loaded
         .filter(transformer => transformer.name !== 'InsertMetadata')
@@ -34,7 +32,6 @@ export const parseWork = (content: string): ParsedWork => {
 
     return {
         transformers,
-        secondary: secondary ?? {},
         metadata: extractMetadataFromTransformers(loaded),
         validationMessages,
     };

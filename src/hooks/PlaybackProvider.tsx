@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { usePiano } from 'react-pianosound';
 import { read, MidiFile } from 'midifile-ts';
 import { MPM, MSM } from 'mpmify';
-import { exportMPM } from '../../../mpm-ts/lib';
-import { performMpm, PerformRequest } from '../utils/backendApi';
+import { exportMPM } from 'mpm-ts';
+import { renderPerformance } from '../utils/espressivoClient';
+import type { RenderRequest } from '../utils/espressivo';
 import { useZoom } from './ZoomProvider';
 import { useLatest } from './useLatest';
 
@@ -29,14 +30,6 @@ function findNoteIdTime(file: MidiFile, noteId: string): number | null {
         }
     }
     return null;
-}
-
-function decodeMidiBase64(b64: string): ArrayBuffer {
-    const binary = atob(b64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes.buffer;
 }
 
 interface PlayOptions {
@@ -69,13 +62,14 @@ interface PlaybackContextValue {
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
 interface PlaybackProviderProps {
-    mei: string | undefined;
+    /** The score as MSM XML, from `utils/espressivo.convertMei`. */
+    msmXml: string | undefined;
     msm: MSM;
     mpm: MPM;
     children: ReactNode;
 }
 
-export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderProps) => {
+export const PlaybackProvider = ({ msmXml, msm, mpm, children }: PlaybackProviderProps) => {
     const { play: playPiano, stop: stopPiano, jumpTo } = usePiano();
     const { stretchX } = useZoom();
     const [isPlaying, setIsPlaying] = useState(false);
@@ -83,7 +77,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
 
     // Store props and unstable usePiano() references in refs
     // so downstream callbacks and context value stay stable.
-    const meiRef = useLatest(mei);
+    const msmXmlRef = useLatest(msmXml);
     const msmRef = useLatest(msm);
     const mpmRef = useLatest(mpm);
     const playPianoRef = useLatest(playPiano);
@@ -119,17 +113,17 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
     const stretchXRef = useLatest(stretchX);
 
     const startPlayback = useCallback(async (options: PlayOptions | undefined, resumeFromNoteId: string | null) => {
-        const currentMei = meiRef.current;
+        const currentMsmXml = msmXmlRef.current;
         const currentMsm = msmRef.current;
         const currentMpm = mpmRef.current;
 
-        if (!currentMpm || !currentMei) return;
+        if (!currentMpm || !currentMsmXml) return;
 
         const { mpmIds, isolate, exaggerate, onNoteEvent } = options || {};
 
-        const request: PerformRequest = {
+        const request: RenderRequest = {
+            msm: currentMsmXml,
             mpm: exportMPM(currentMpm),
-            mei: currentMei,
             sketchiness: computeSketchiness(stretchXRef.current),
         };
 
@@ -140,14 +134,11 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         if (mpmIds) {
             request.mpmIds = mpmIds;
             if (request.exaggerate === undefined) request.exaggerate = 1.2;
-            request.exemplify = false;
-            request.context = 0;
             request.isolate = isolate;
         }
 
         try {
-            const b64 = await performMpm(request);
-            const midiBuffer = decodeMidiBase64(b64);
+            const midiBuffer = await renderPerformance(request);
             const file = read(midiBuffer);
 
             // Find resume position if we're re-rendering mid-playback
@@ -180,7 +171,7 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [meiRef, msmRef, mpmRef, stretchXRef, playPianoRef, jumpToRef]);
+    }, [msmXmlRef, msmRef, mpmRef, stretchXRef, playPianoRef, jumpToRef]);
 
     const play = useCallback(async (options?: PlayOptions) => {
         stopPianoRef.current();

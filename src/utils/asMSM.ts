@@ -1,9 +1,13 @@
 import { MSM, MsmNote, MsmPedal } from "mpmify"
 import { v4 } from "uuid";
-import { convertMeiToMsm } from "./backendApi";
 
-export const asMSM = async (mei: string) => {
-    const msmXml = await convertMeiToMsm(mei)
+/**
+ * Enrich a converted MSM with the performance data encoded in the MEI.
+ *
+ * @param mei the source MEI, whose `<performance>` holds the onsets, durations and velocities
+ * @param msmXml the same MEI converted to MSM — see `utils/espressivo.convertMei`
+ */
+export const asMSM = (mei: string, msmXml: string) => {
     const msmDoc = new DOMParser().parseFromString(msmXml, 'application/xml')
 
     // Enrich the official MSM with performance information

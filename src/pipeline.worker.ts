@@ -4,7 +4,7 @@ import {
     InsertTemporalSpread, InsertRubato, ApproximateLogarithmicTempo,
     InsertMetricalAccentuation, InsertPedal, CombineAdjacentRubatos,
     StylizeOrnamentation, StylizeArticulation, TranslatePhyiscalTimeToTicks,
-    MergeMetricalAccentuations, InsertArticulation, MakeChoice, Modify,
+    MergeMetricalAccentuations, InsertArticulation,
     compareTransformers, validate
 } from 'mpmify';
 import type { Transformer, Argumentation, TransformationOptions } from 'mpmify';
@@ -33,11 +33,7 @@ export interface RunPipelineMessage {
 function reconstructTransformer(t: SerializedTransformer): Transformer | null {
     let transformer: Transformer | null = null;
 
-    if (t.name === 'MakeChoice') transformer = new MakeChoice();
-    else if (t.name === 'Modify') transformer = new Modify(
-        t.options as ConstructorParameters<typeof Modify>[0]
-    );
-    else if (t.name === 'InsertDynamicsInstructions') transformer = new InsertDynamicsInstructions();
+    if (t.name === 'InsertDynamicsInstructions') transformer = new InsertDynamicsInstructions();
     else if (t.name === 'InsertDynamicsGradient') transformer = new InsertDynamicsGradient();
     else if (t.name === 'InsertTemporalSpread') transformer = new InsertTemporalSpread();
     else if (t.name === 'InsertRubato') transformer = new InsertRubato();
