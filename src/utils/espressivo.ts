@@ -1,8 +1,11 @@
 /**
  * The espressivo (meico-ts) facade — what the Java meico backend's `/perform` used to do.
  *
- * Pure and synchronous, which is why it is called from `espressivo.worker.ts` rather than
- * directly. The MEI conversion the backend also served happens at bake time now, in
+ * Pure and synchronous, and called as such: rendering this piece takes ~36 ms, ~53 ms with a
+ * spotlight, so playback pays a few frames at the click rather than a worker boundary. It used
+ * to run in `espressivo.worker.ts`, back when the same render took ~170 ms.
+ *
+ * The MEI conversion the backend also served happens at bake time now, in
  * `scripts/deriveSegments.ts`.
  */
 import {

@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { usePiano } from 'react-pianosound';
 import { read, MidiFile } from 'midifile-ts';
-import { renderPerformance } from '../utils/espressivoClient';
-import type { RenderRequest } from '../utils/espressivo';
+import { renderPerformance, type RenderRequest } from '../utils/espressivo';
 import { useZoom } from './ZoomProvider';
 import { useLatest } from './useLatest';
 
@@ -49,7 +48,7 @@ type NoteEventListener = (event: PlaybackNoteEvent) => void;
 
 interface PlaybackContextValue {
     isPlaying: boolean;
-    play: (options?: PlayOptions) => Promise<void>;
+    play: (options?: PlayOptions) => void;
     stop: () => void;
     exaggeration: number;
     setExaggeration: (value: number) => void;
@@ -112,7 +111,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
 
     const stretchXRef = useLatest(stretchX);
 
-    const startPlayback = useCallback(async (options: PlayOptions | undefined, resumeFromNoteId: string | null) => {
+    const startPlayback = useCallback((options: PlayOptions | undefined, resumeFromNoteId: string | null) => {
         const dateByNoteId = dateByNoteIdRef.current;
         const { mpmIds, isolate, exaggerate, onNoteEvent } = options || {};
 
@@ -133,8 +132,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         }
 
         try {
-            const midiBuffer = await renderPerformance(request);
-            const file = read(midiBuffer);
+            const file = read(renderPerformance(request));
 
             // Find resume position if we're re-rendering mid-playback
             let resumeMs: number | null = null;
@@ -168,11 +166,11 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         }
     }, [scoreMsmRef, performanceMpmRef, dateByNoteIdRef, stretchXRef, playPianoRef, jumpToRef]);
 
-    const play = useCallback(async (options?: PlayOptions) => {
+    const play = useCallback((options?: PlayOptions) => {
         stopPianoRef.current();
         lastNoteIdRef.current = null;
         playOptionsRef.current = options;
-        await startPlayback(options, null);
+        startPlayback(options, null);
     }, [stopPianoRef, startPlayback]);
 
     // Re-render on zoom change during playback (debounced)
