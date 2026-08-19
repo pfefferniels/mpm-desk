@@ -1,9 +1,8 @@
 import { useMemo } from "react";
-import {
-    DynamicsWithEndDate,
-    volumeAtDate,
-    computeInnerControlPointsXPositions,
-} from "mpmify";
+// Past the barrel for the same reason as TempoInstructionView: MPM's dynamics curve is
+// spec maths, but mpmify's entry point drags the transformer registry in with it.
+import { volumeAtDate, computeInnerControlPointsXPositions } from "mpmify/lib/transformers/dynamics/Approximation";
+import type { DynamicsWithEndDate } from "mpmify";
 
 const CHART_WIDTH = 240;
 const CHART_HEIGHT = 100;

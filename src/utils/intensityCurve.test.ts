@@ -1,10 +1,46 @@
 import { describe, it, expect } from 'vitest'
-import { asPathD, IntensityCurve } from './intensityCurve'
+import { asPathD, IntensityCurve, negotiateIntensityCurve } from './intensityCurve'
+import type { Motivation, Segment } from '../model/Reconstruction'
 
 /** Helper to build an IntensityCurve from raw values (no downsampling). */
 function makeCurve(values: number[]): IntensityCurve {
   return { values, step: 1, fullLength: values.length }
 }
+
+/** One segment in the middle of a 3000-tick piece. */
+function pieceWith(motivation: Motivation): Segment[] {
+  return [{
+    id: 'a',
+    motivation,
+    certainty: 'plausible',
+    from: 1000,
+    to: 2000,
+    spans: [{ id: 'tempo_1000', type: 'tempo', from: 1000, to: 2000, elements: ['tempo_1000'] }],
+  }]
+}
+
+describe('negotiateIntensityCurve', () => {
+  it('scales to 0..1', () => {
+    // The extremes are found at full resolution, so a downsampled point can sit
+    // just inside them.
+    const { values } = negotiateIntensityCurve(pieceWith('intensify'), 3000)
+    expect(Math.min(...values)).toBeCloseTo(0, 5)
+    expect(Math.max(...values)).toBeCloseTo(1, 5)
+    expect(values.every(v => v >= 0 && v <= 1)).toBe(true)
+  })
+
+  it('rises through an intensify and falls through a relax', () => {
+    const rising = negotiateIntensityCurve(pieceWith('intensify'), 3000).values
+    const falling = negotiateIntensityCurve(pieceWith('relax'), 3000).values
+    expect(rising[1500]).toBeGreaterThan(rising[500])
+    expect(falling[1500]).toBeLessThan(falling[500])
+  })
+
+  it('ignores a segment the level of detail has faded out', () => {
+    const faded = negotiateIntensityCurve(pieceWith('intensify'), 3000, new Map([['a', 0]]))
+    expect(faded.values.every(v => v === 0)).toBe(true)
+  })
+})
 
 describe('intensityCurve utilities', () => {
   describe('asPathD', () => {

@@ -1,0 +1,5440 @@
+{
+  "title": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Grünfeld spielt Robert Schumann, Träumerei",
+  "author": "Niels Pfeffer",
+  "segments": [
+    {
+      "id": "0fad3105-f846-4c6f-88da-0682d76b1afd",
+      "motivation": "move",
+      "certainty": "speculative",
+      "note": "Nachschlag als Ereignis: vor dem Schlag arpeggiert",
+      "from": 1440,
+      "to": 1440,
+      "spans": [
+        {
+          "id": "ornament_1440",
+          "type": "ornament",
+          "from": 1440,
+          "to": 1440,
+          "elements": [
+            "ornament_1440"
+          ]
+        },
+        {
+          "id": "articulation_1440",
+          "type": "articulation",
+          "from": 1440,
+          "to": 1440,
+          "elements": [
+            "articulation_1440"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b86cea25-33b2-46a9-83d4-40fb1e7747ce",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Richtung durch Inegalité",
+      "from": 30240,
+      "to": 30960,
+      "spans": [
+        {
+          "id": "ornament_30960",
+          "type": "ornament",
+          "from": 30960,
+          "to": 30960,
+          "elements": [
+            "ornament_30960"
+          ]
+        },
+        {
+          "id": "ornament_30240",
+          "type": "ornament",
+          "from": 30240,
+          "to": 30960,
+          "elements": [
+            "ornament_30240"
+          ]
+        },
+        {
+          "id": "rubato_30240",
+          "type": "rubato",
+          "from": 30240,
+          "to": 30960,
+          "elements": [
+            "rubato_30240"
+          ]
+        },
+        {
+          "id": "accentuationPattern_30240",
+          "type": "accentuationPattern",
+          "from": 30240,
+          "to": 30960,
+          "elements": [
+            "accentuationPattern_30240"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-915c7d64",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "Nachschlag schattieren",
+      "from": 35280,
+      "to": 37440,
+      "spans": [
+        {
+          "id": "ornament_36000",
+          "type": "ornament",
+          "from": 36000,
+          "to": 37440,
+          "elements": [
+            "ornament_36000"
+          ]
+        },
+        {
+          "id": "tempo_35280",
+          "type": "tempo",
+          "from": 35280,
+          "to": 36720,
+          "elements": [
+            "tempo_35280"
+          ]
+        },
+        {
+          "id": "dynamics_35280",
+          "type": "dynamics",
+          "from": 35280,
+          "to": 37440,
+          "elements": [
+            "dynamics_35280"
+          ]
+        },
+        {
+          "id": "accentuationPattern_35280",
+          "type": "accentuationPattern",
+          "from": 35280,
+          "to": 37080,
+          "elements": [
+            "accentuationPattern_35280"
+          ]
+        },
+        {
+          "id": "articulation_36000",
+          "type": "articulation",
+          "from": 36000,
+          "to": 36000,
+          "elements": [
+            "articulation_36000"
+          ]
+        },
+        {
+          "id": "sustain-36000_start",
+          "type": "movement",
+          "from": 35350,
+          "to": 35550,
+          "elements": [
+            "sustain-36000_start",
+            "sustain-36000_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-36000_moveUp",
+          "type": "movement",
+          "from": 36948,
+          "to": 37248,
+          "elements": [
+            "sustain-36000_moveUp",
+            "sustain-36000_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3ec504f3-7d4a-4362-a15a-ca6c33d7dd93",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "\"Heineinfallen\"",
+      "from": 40320,
+      "to": 41040,
+      "spans": [
+        {
+          "id": "ornament_41040",
+          "type": "ornament",
+          "from": 41040,
+          "to": 41040,
+          "elements": [
+            "ornament_41040"
+          ]
+        },
+        {
+          "id": "rubato_40320",
+          "type": "rubato",
+          "from": 40320,
+          "to": 41040,
+          "elements": [
+            "rubato_40320"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_4d03627d",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "nachschlagende Akkordbrechung schattieren",
+      "from": 42480,
+      "to": 43920,
+      "spans": [
+        {
+          "id": "ornament_42480",
+          "type": "ornament",
+          "from": 42480,
+          "to": 43920,
+          "elements": [
+            "ornament_42480"
+          ]
+        },
+        {
+          "id": "tempo_42480",
+          "type": "tempo",
+          "from": 42480,
+          "to": 43920,
+          "elements": [
+            "tempo_42480"
+          ]
+        },
+        {
+          "id": "rubato_42480",
+          "type": "rubato",
+          "from": 42480,
+          "to": 43200,
+          "elements": [
+            "rubato_42480"
+          ]
+        },
+        {
+          "id": "accentuationPattern_42480",
+          "type": "accentuationPattern",
+          "from": 42480,
+          "to": 43560,
+          "elements": [
+            "accentuationPattern_42480"
+          ]
+        },
+        {
+          "id": "sustain-43200_start",
+          "type": "movement",
+          "from": 42773,
+          "to": 42973,
+          "elements": [
+            "sustain-43200_start",
+            "sustain-43200_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-43200_moveUp",
+          "type": "movement",
+          "from": 43266,
+          "to": 43466,
+          "elements": [
+            "sustain-43200_moveUp",
+            "sustain-43200_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-95b79d89",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 3600,
+      "to": 4320,
+      "spans": [
+        {
+          "id": "ornament_4320",
+          "type": "ornament",
+          "from": 4320,
+          "to": 4320,
+          "elements": [
+            "ornament_4320"
+          ]
+        },
+        {
+          "id": "dynamics_3600",
+          "type": "dynamics",
+          "from": 3600,
+          "to": 4320,
+          "elements": [
+            "dynamics_3600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-14001e32",
+      "motivation": "move",
+      "certainty": "likely",
+      "note": "Intensivierung der Integalité",
+      "from": 43807,
+      "to": 45360,
+      "spans": [
+        {
+          "id": "ornament_44640",
+          "type": "ornament",
+          "from": 44640,
+          "to": 45360,
+          "elements": [
+            "ornament_44640"
+          ]
+        },
+        {
+          "id": "ornament_45360",
+          "type": "ornament",
+          "from": 45360,
+          "to": 45360,
+          "elements": [
+            "ornament_45360"
+          ]
+        },
+        {
+          "id": "tempo_43920",
+          "type": "tempo",
+          "from": 43920,
+          "to": 45360,
+          "elements": [
+            "tempo_43920"
+          ]
+        },
+        {
+          "id": "rubato_43920",
+          "type": "rubato",
+          "from": 43920,
+          "to": 44640,
+          "elements": [
+            "rubato_43920"
+          ]
+        },
+        {
+          "id": "accentuationPattern_43920",
+          "type": "accentuationPattern",
+          "from": 43920,
+          "to": 44640,
+          "elements": [
+            "accentuationPattern_43920"
+          ]
+        },
+        {
+          "id": "accentuationPattern_44640",
+          "type": "accentuationPattern",
+          "from": 44640,
+          "to": 45360,
+          "elements": [
+            "accentuationPattern_44640"
+          ]
+        },
+        {
+          "id": "sustain-43920_start",
+          "type": "movement",
+          "from": 43807,
+          "to": 44007,
+          "elements": [
+            "sustain-43920_start",
+            "sustain-43920_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-43920_moveUp",
+          "type": "movement",
+          "from": 44340,
+          "to": 44540,
+          "elements": [
+            "sustain-43920_moveUp",
+            "sustain-43920_end"
+          ]
+        },
+        {
+          "id": "sustain-45000_start",
+          "type": "movement",
+          "from": 44569,
+          "to": 44769,
+          "elements": [
+            "sustain-45000_start",
+            "sustain-45000_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-3407ad9c",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Überleitung wird träger",
+      "from": 45360,
+      "to": 46800,
+      "spans": [
+        {
+          "id": "ornament_46440",
+          "type": "ornament",
+          "from": 46440,
+          "to": 46800,
+          "elements": [
+            "ornament_46440"
+          ]
+        },
+        {
+          "id": "ornament_46800",
+          "type": "ornament",
+          "from": 46800,
+          "to": 46800,
+          "elements": [
+            "ornament_46800"
+          ]
+        },
+        {
+          "id": "tempo_45360",
+          "type": "tempo",
+          "from": 45360,
+          "to": 46800,
+          "elements": [
+            "tempo_45360"
+          ]
+        },
+        {
+          "id": "accentuationPattern_45360",
+          "type": "accentuationPattern",
+          "from": 45360,
+          "to": 46800,
+          "elements": [
+            "accentuationPattern_45360"
+          ]
+        },
+        {
+          "id": "sustain-45720_start",
+          "type": "movement",
+          "from": 45381,
+          "to": 45681,
+          "elements": [
+            "sustain-45720_start",
+            "sustain-45720_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-45720_moveUp",
+          "type": "movement",
+          "from": 46287,
+          "to": 46787,
+          "elements": [
+            "sustain-45720_moveUp",
+            "sustain-45720_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-b284c0b1",
+      "motivation": "intensify",
+      "certainty": "likely",
+      "from": 69041,
+      "to": 69840,
+      "spans": [
+        {
+          "id": "ornament_69840",
+          "type": "ornament",
+          "from": 69840,
+          "to": 69840,
+          "elements": [
+            "ornament_69840"
+          ]
+        },
+        {
+          "id": "dynamics_69480",
+          "type": "dynamics",
+          "from": 69480,
+          "to": 69840,
+          "elements": [
+            "dynamics_69480"
+          ]
+        },
+        {
+          "id": "sustain-69480_start",
+          "type": "movement",
+          "from": 69041,
+          "to": 69241,
+          "elements": [
+            "sustain-69480_start",
+            "sustain-69480_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-69480_moveUp",
+          "type": "movement",
+          "from": 69637,
+          "to": 69837,
+          "elements": [
+            "sustain-69480_moveUp",
+            "sustain-69480_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_5a60f53a",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "Nachschlag schattieren",
+      "from": 69840,
+      "to": 71735,
+      "spans": [
+        {
+          "id": "ornament_70560",
+          "type": "ornament",
+          "from": 70560,
+          "to": 71735,
+          "elements": [
+            "ornament_70560"
+          ]
+        },
+        {
+          "id": "accentuationPattern_69840",
+          "type": "accentuationPattern",
+          "from": 69840,
+          "to": 71640,
+          "elements": [
+            "accentuationPattern_69840"
+          ]
+        },
+        {
+          "id": "sustain-70560_start",
+          "type": "movement",
+          "from": 69879,
+          "to": 70224,
+          "elements": [
+            "sustain-70560_start",
+            "sustain-70560_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-70560_moveUp",
+          "type": "movement",
+          "from": 71365,
+          "to": 71735,
+          "elements": [
+            "sustain-70560_moveUp",
+            "sustain-70560_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_5e26e496",
+      "motivation": "intensify",
+      "certainty": "possible",
+      "note": "mit Inegalité vorwärts zum b",
+      "from": 76320,
+      "to": 77797,
+      "spans": [
+        {
+          "id": "ornament_76320",
+          "type": "ornament",
+          "from": 76320,
+          "to": 77797,
+          "elements": [
+            "ornament_76320"
+          ]
+        },
+        {
+          "id": "ornament_77040",
+          "type": "ornament",
+          "from": 77040,
+          "to": 77797,
+          "elements": [
+            "ornament_77040"
+          ]
+        },
+        {
+          "id": "tempo_76320",
+          "type": "tempo",
+          "from": 76320,
+          "to": 77760,
+          "elements": [
+            "tempo_76320"
+          ]
+        },
+        {
+          "id": "rubato_76320",
+          "type": "rubato",
+          "from": 76320,
+          "to": 77040,
+          "elements": [
+            "rubato_76320"
+          ]
+        },
+        {
+          "id": "rubato_77040",
+          "type": "rubato",
+          "from": 77040,
+          "to": 77760,
+          "elements": [
+            "rubato_77040"
+          ]
+        },
+        {
+          "id": "accentuationPattern_76320",
+          "type": "accentuationPattern",
+          "from": 76320,
+          "to": 77040,
+          "elements": [
+            "accentuationPattern_76320"
+          ]
+        },
+        {
+          "id": "accentuationPattern_77040",
+          "type": "accentuationPattern",
+          "from": 77040,
+          "to": 77760,
+          "elements": [
+            "accentuationPattern_77040",
+            "accentuationPattern_78480"
+          ]
+        },
+        {
+          "id": "sustain-77400_start",
+          "type": "movement",
+          "from": 77069,
+          "to": 77269,
+          "elements": [
+            "sustain-77400_start",
+            "sustain-77400_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-77400_moveUp",
+          "type": "movement",
+          "from": 77597,
+          "to": 77797,
+          "elements": [
+            "sustain-77400_moveUp",
+            "sustain-77400_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-b9cc9254",
+      "motivation": "intensify",
+      "certainty": "likely",
+      "note": "Hineinfallen",
+      "from": 77760,
+      "to": 79200,
+      "spans": [
+        {
+          "id": "ornament_78120",
+          "type": "ornament",
+          "from": 78120,
+          "to": 79200,
+          "elements": [
+            "ornament_78120"
+          ]
+        },
+        {
+          "id": "ornament_78480",
+          "type": "ornament",
+          "from": 78480,
+          "to": 79200,
+          "elements": [
+            "ornament_78480"
+          ]
+        },
+        {
+          "id": "ornament_77760",
+          "type": "ornament",
+          "from": 77760,
+          "to": 79200,
+          "elements": [
+            "ornament_77760"
+          ]
+        },
+        {
+          "id": "tempo_77760",
+          "type": "tempo",
+          "from": 77760,
+          "to": 79200,
+          "elements": [
+            "tempo_77760"
+          ]
+        },
+        {
+          "id": "rubato_77760",
+          "type": "rubato",
+          "from": 77760,
+          "to": 78480,
+          "elements": [
+            "rubato_77760"
+          ]
+        },
+        {
+          "id": "rubato_78480",
+          "type": "rubato",
+          "from": 78480,
+          "to": 79200,
+          "elements": [
+            "rubato_78480"
+          ]
+        },
+        {
+          "id": "sustain-78840_start",
+          "type": "movement",
+          "from": 78451,
+          "to": 78651,
+          "elements": [
+            "sustain-78840_start",
+            "sustain-78840_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-78840_moveUp",
+          "type": "movement",
+          "from": 78957,
+          "to": 79157,
+          "elements": [
+            "sustain-78840_moveUp",
+            "sustain-78840_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-4e456c1e",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "Nachschlag schattieren",
+      "from": 81360,
+      "to": 83520,
+      "spans": [
+        {
+          "id": "ornament_82080",
+          "type": "ornament",
+          "from": 82080,
+          "to": 83520,
+          "elements": [
+            "ornament_82080"
+          ]
+        },
+        {
+          "id": "tempo_81360",
+          "type": "tempo",
+          "from": 81360,
+          "to": 83520,
+          "elements": [
+            "tempo_81360"
+          ]
+        },
+        {
+          "id": "dynamics_81360",
+          "type": "dynamics",
+          "from": 81360,
+          "to": 83520,
+          "elements": [
+            "dynamics_81360"
+          ]
+        },
+        {
+          "id": "accentuationPattern_81360",
+          "type": "accentuationPattern",
+          "from": 81360,
+          "to": 83160,
+          "elements": [
+            "accentuationPattern_81360"
+          ]
+        },
+        {
+          "id": "sustain-82080_start",
+          "type": "movement",
+          "from": 81395,
+          "to": 81695,
+          "elements": [
+            "sustain-82080_start",
+            "sustain-82080_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-82080_moveUp",
+          "type": "movement",
+          "from": 82807,
+          "to": 83207,
+          "elements": [
+            "sustain-82080_moveUp",
+            "sustain-82080_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-6038a4d2",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "zum Quartsextakkord",
+      "from": 86400,
+      "to": 87840,
+      "spans": [
+        {
+          "id": "ornament_87120",
+          "type": "ornament",
+          "from": 87120,
+          "to": 87840,
+          "elements": [
+            "ornament_87120"
+          ]
+        },
+        {
+          "id": "dynamics_86400",
+          "type": "dynamics",
+          "from": 86400,
+          "to": 87840,
+          "elements": [
+            "dynamics_86400"
+          ]
+        },
+        {
+          "id": "accentuationPattern_86400",
+          "type": "accentuationPattern",
+          "from": 86400,
+          "to": 87120,
+          "elements": [
+            "accentuationPattern_86400"
+          ]
+        },
+        {
+          "id": "accentuationPattern_87120",
+          "type": "accentuationPattern",
+          "from": 87120,
+          "to": 87840,
+          "elements": [
+            "accentuationPattern_87120"
+          ]
+        },
+        {
+          "id": "sustain-87480_start",
+          "type": "movement",
+          "from": 87134,
+          "to": 87464,
+          "elements": [
+            "sustain-87480_start",
+            "sustain-87480_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-87480_moveUp",
+          "type": "movement",
+          "from": 87475,
+          "to": 87785,
+          "elements": [
+            "sustain-87480_moveUp",
+            "sustain-87480_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-376f87be",
+      "motivation": "relax",
+      "certainty": "likely",
+      "from": 90000,
+      "to": 91440,
+      "spans": [
+        {
+          "id": "ornament_90720",
+          "type": "ornament",
+          "from": 90720,
+          "to": 91440,
+          "elements": [
+            "ornament_90720"
+          ]
+        },
+        {
+          "id": "dynamics_90000",
+          "type": "dynamics",
+          "from": 90000,
+          "to": 91440,
+          "elements": [
+            "dynamics_90000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-70968f49",
+      "motivation": "unknown",
+      "certainty": "likely",
+      "from": 91080,
+      "to": 91080,
+      "spans": [
+        {
+          "id": "ornament_91080",
+          "type": "ornament",
+          "from": 91080,
+          "to": 91080,
+          "elements": [
+            "ornament_91080"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-cab11b85",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 20880,
+      "to": 22341,
+      "spans": [
+        {
+          "id": "ornament_21600",
+          "type": "ornament",
+          "from": 21600,
+          "to": 22341,
+          "elements": [
+            "ornament_21600"
+          ]
+        },
+        {
+          "id": "ornament_20880",
+          "type": "ornament",
+          "from": 20880,
+          "to": 22341,
+          "elements": [
+            "ornament_20880"
+          ]
+        },
+        {
+          "id": "ornament_22320",
+          "type": "ornament",
+          "from": 22320,
+          "to": 22341,
+          "elements": [
+            "ornament_22320"
+          ]
+        },
+        {
+          "id": "tempo_20880",
+          "type": "tempo",
+          "from": 20880,
+          "to": 22320,
+          "elements": [
+            "tempo_20880"
+          ]
+        },
+        {
+          "id": "rubato_20880",
+          "type": "rubato",
+          "from": 20880,
+          "to": 21600,
+          "elements": [
+            "rubato_20880"
+          ]
+        },
+        {
+          "id": "dynamics_21600",
+          "type": "dynamics",
+          "from": 21600,
+          "to": 22320,
+          "elements": [
+            "dynamics_21600"
+          ]
+        },
+        {
+          "id": "accentuationPattern_20880",
+          "type": "accentuationPattern",
+          "from": 20880,
+          "to": 21600,
+          "elements": [
+            "accentuationPattern_20880"
+          ]
+        },
+        {
+          "id": "accentuationPattern_21600",
+          "type": "accentuationPattern",
+          "from": 21600,
+          "to": 22320,
+          "elements": [
+            "accentuationPattern_21600"
+          ]
+        },
+        {
+          "id": "articulation_21240",
+          "type": "articulation",
+          "from": 21240,
+          "to": 21240,
+          "elements": [
+            "articulation_21240"
+          ]
+        },
+        {
+          "id": "sustain-21240_moveUp",
+          "type": "movement",
+          "from": 21377,
+          "to": 21577,
+          "elements": [
+            "sustain-21240_moveUp",
+            "sustain-21240_end"
+          ]
+        },
+        {
+          "id": "sustain-21240_start",
+          "type": "movement",
+          "from": 20896,
+          "to": 21096,
+          "elements": [
+            "sustain-21240_start",
+            "sustain-21240_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-21960_start",
+          "type": "movement",
+          "from": 21809,
+          "to": 22009,
+          "elements": [
+            "sustain-21960_start",
+            "sustain-21960_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-21960_moveUp",
+          "type": "movement",
+          "from": 22141,
+          "to": 22341,
+          "elements": [
+            "sustain-21960_moveUp",
+            "sustain-21960_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "018ee72f-65e0-4cc7-bb81-2b0c050ab60d",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Hinspielen auf 1",
+      "from": 5760,
+      "to": 7426,
+      "spans": [
+        {
+          "id": "ornament_5760",
+          "type": "ornament",
+          "from": 5760,
+          "to": 7426,
+          "elements": [
+            "ornament_5760"
+          ]
+        },
+        {
+          "id": "ornament_6120",
+          "type": "ornament",
+          "from": 6120,
+          "to": 7426,
+          "elements": [
+            "ornament_6120"
+          ]
+        },
+        {
+          "id": "ornament_6480",
+          "type": "ornament",
+          "from": 6480,
+          "to": 7426,
+          "elements": [
+            "ornament_6480"
+          ]
+        },
+        {
+          "id": "tempo_5760",
+          "type": "tempo",
+          "from": 5760,
+          "to": 7200,
+          "elements": [
+            "tempo_5760"
+          ]
+        },
+        {
+          "id": "rubato_5760",
+          "type": "rubato",
+          "from": 5760,
+          "to": 6480,
+          "elements": [
+            "rubato_5760"
+          ]
+        },
+        {
+          "id": "rubato_6480",
+          "type": "rubato",
+          "from": 6480,
+          "to": 7200,
+          "elements": [
+            "rubato_6480"
+          ]
+        },
+        {
+          "id": "dynamics_5760",
+          "type": "dynamics",
+          "from": 5760,
+          "to": 7200,
+          "elements": [
+            "dynamics_5760"
+          ]
+        },
+        {
+          "id": "accentuationPattern_5760",
+          "type": "accentuationPattern",
+          "from": 5760,
+          "to": 6480,
+          "elements": [
+            "accentuationPattern_5760"
+          ]
+        },
+        {
+          "id": "accentuationPattern_6480",
+          "type": "accentuationPattern",
+          "from": 6480,
+          "to": 7200,
+          "elements": [
+            "accentuationPattern_6480"
+          ]
+        },
+        {
+          "id": "articulation_6480",
+          "type": "articulation",
+          "from": 6480,
+          "to": 6480,
+          "elements": [
+            "articulation_6480"
+          ]
+        },
+        {
+          "id": "sustain-6840_start",
+          "type": "movement",
+          "from": 6608,
+          "to": 6808,
+          "elements": [
+            "sustain-6840_start",
+            "sustain-6840_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-6840_moveUp",
+          "type": "movement",
+          "from": 6986,
+          "to": 7426,
+          "elements": [
+            "sustain-6840_moveUp",
+            "sustain-6840_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "80d8e0d0-7814-4566-b9a0-b700191ebc2d",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Hinspielen auf Taktmitte",
+      "from": 7200,
+      "to": 8947,
+      "spans": [
+        {
+          "id": "ornament_7200",
+          "type": "ornament",
+          "from": 7200,
+          "to": 8947,
+          "elements": [
+            "ornament_7200"
+          ]
+        },
+        {
+          "id": "ornament_7560",
+          "type": "ornament",
+          "from": 7560,
+          "to": 8947,
+          "elements": [
+            "ornament_7560"
+          ]
+        },
+        {
+          "id": "ornament_7920",
+          "type": "ornament",
+          "from": 7920,
+          "to": 8947,
+          "elements": [
+            "ornament_7920"
+          ]
+        },
+        {
+          "id": "tempo_7200",
+          "type": "tempo",
+          "from": 7200,
+          "to": 8640,
+          "elements": [
+            "tempo_7200"
+          ]
+        },
+        {
+          "id": "rubato_7200",
+          "type": "rubato",
+          "from": 7200,
+          "to": 7920,
+          "elements": [
+            "rubato_7200"
+          ]
+        },
+        {
+          "id": "rubato_7920",
+          "type": "rubato",
+          "from": 7920,
+          "to": 8640,
+          "elements": [
+            "rubato_7920"
+          ]
+        },
+        {
+          "id": "accentuationPattern_7200",
+          "type": "accentuationPattern",
+          "from": 7200,
+          "to": 7920,
+          "elements": [
+            "accentuationPattern_7200"
+          ]
+        },
+        {
+          "id": "accentuationPattern_7920",
+          "type": "accentuationPattern",
+          "from": 7920,
+          "to": 8640,
+          "elements": [
+            "accentuationPattern_7920"
+          ]
+        },
+        {
+          "id": "articulation_7920",
+          "type": "articulation",
+          "from": 7920,
+          "to": 7920,
+          "elements": [
+            "articulation_7920"
+          ]
+        },
+        {
+          "id": "sustain-8280_start",
+          "type": "movement",
+          "from": 7977,
+          "to": 8177,
+          "elements": [
+            "sustain-8280_start",
+            "sustain-8280_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-8280_moveUp",
+          "type": "movement",
+          "from": 8547,
+          "to": 8947,
+          "elements": [
+            "sustain-8280_moveUp",
+            "sustain-8280_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7938a94a-fe29-42d0-bca8-b134a6776a96",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Auftaktenergie hin zur 1",
+      "from": 0,
+      "to": 720,
+      "spans": [
+        {
+          "id": "ornament_720",
+          "type": "ornament",
+          "from": 720,
+          "to": 720,
+          "elements": [
+            "ornament_720"
+          ]
+        },
+        {
+          "id": "tempo_0",
+          "type": "tempo",
+          "from": 0,
+          "to": 720,
+          "elements": [
+            "tempo_0"
+          ]
+        },
+        {
+          "id": "dynamics_0",
+          "type": "dynamics",
+          "from": 0,
+          "to": 720,
+          "elements": [
+            "dynamics_0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "58eb812f-2628-49f4-af8b-85296eb0a48a",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 84735,
+      "to": 86231,
+      "spans": [
+        {
+          "id": "ornament_84960",
+          "type": "ornament",
+          "from": 84960,
+          "to": 86231,
+          "elements": [
+            "ornament_84960"
+          ]
+        },
+        {
+          "id": "ornament_29160",
+          "type": "ornament",
+          "from": 84735,
+          "to": 86231,
+          "elements": [
+            "ornament_29160",
+            "ornament_79200",
+            "ornament_88200"
+          ]
+        },
+        {
+          "id": "sustain-84960_start",
+          "type": "movement",
+          "from": 84735,
+          "to": 85320,
+          "elements": [
+            "sustain-84960_start",
+            "sustain-84960_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-84960_moveUp",
+          "type": "movement",
+          "from": 85741,
+          "to": 86231,
+          "elements": [
+            "sustain-84960_moveUp",
+            "sustain-84960_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-a97a44c0",
+      "motivation": "move",
+      "certainty": "speculative",
+      "note": "Klang öffnen (\"gelüftete\" Artikulation + Pedal, Arpeggi)",
+      "from": 8640,
+      "to": 10440,
+      "spans": [
+        {
+          "id": "ornament_10080",
+          "type": "ornament",
+          "from": 10080,
+          "to": 10440,
+          "elements": [
+            "ornament_10080"
+          ]
+        },
+        {
+          "id": "ornament_9360",
+          "type": "ornament",
+          "from": 9360,
+          "to": 10440,
+          "elements": [
+            "ornament_9360"
+          ]
+        },
+        {
+          "id": "ornament_9000",
+          "type": "ornament",
+          "from": 9000,
+          "to": 10440,
+          "elements": [
+            "ornament_9000"
+          ]
+        },
+        {
+          "id": "ornament_8640",
+          "type": "ornament",
+          "from": 8640,
+          "to": 10440,
+          "elements": [
+            "ornament_8640"
+          ]
+        },
+        {
+          "id": "tempo_8640",
+          "type": "tempo",
+          "from": 8640,
+          "to": 10440,
+          "elements": [
+            "tempo_8640"
+          ]
+        },
+        {
+          "id": "rubato_9360",
+          "type": "rubato",
+          "from": 9360,
+          "to": 10080,
+          "elements": [
+            "rubato_9360"
+          ]
+        },
+        {
+          "id": "rubato_8640",
+          "type": "rubato",
+          "from": 8640,
+          "to": 9360,
+          "elements": [
+            "rubato_8640"
+          ]
+        },
+        {
+          "id": "accentuationPattern_8640",
+          "type": "accentuationPattern",
+          "from": 8640,
+          "to": 9360,
+          "elements": [
+            "accentuationPattern_8640"
+          ]
+        },
+        {
+          "id": "accentuationPattern_9360",
+          "type": "accentuationPattern",
+          "from": 9360,
+          "to": 10080,
+          "elements": [
+            "accentuationPattern_9360"
+          ]
+        },
+        {
+          "id": "articulation_9360",
+          "type": "articulation",
+          "from": 9360,
+          "to": 9360,
+          "elements": [
+            "articulation_9360"
+          ]
+        },
+        {
+          "id": "articulation_8640",
+          "type": "articulation",
+          "from": 8640,
+          "to": 9000,
+          "elements": [
+            "articulation_8640",
+            "articulation_9000"
+          ]
+        },
+        {
+          "id": "articulation_8640_1",
+          "type": "articulation",
+          "from": 8640,
+          "to": 9000,
+          "elements": [
+            "articulation_8640_1",
+            "articulation_9000_1"
+          ]
+        },
+        {
+          "id": "sustain-9720_start",
+          "type": "movement",
+          "from": 9432,
+          "to": 9632,
+          "elements": [
+            "sustain-9720_start",
+            "sustain-9720_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-9720_moveUp",
+          "type": "movement",
+          "from": 9904,
+          "to": 10304,
+          "elements": [
+            "sustain-9720_moveUp",
+            "sustain-9720_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-c118a7a5",
+      "motivation": "move",
+      "certainty": "likely",
+      "note": "Verbinden zur nächsten Phrase: \"nach vorne\", lombardische Achtel, legato",
+      "from": 10080,
+      "to": 12240,
+      "spans": [
+        {
+          "id": "ornament_11520",
+          "type": "ornament",
+          "from": 11520,
+          "to": 12240,
+          "elements": [
+            "ornament_11520"
+          ]
+        },
+        {
+          "id": "ornament_12240",
+          "type": "ornament",
+          "from": 12240,
+          "to": 12240,
+          "elements": [
+            "ornament_12240"
+          ]
+        },
+        {
+          "id": "tempo_10440",
+          "type": "tempo",
+          "from": 10440,
+          "to": 12240,
+          "elements": [
+            "tempo_10440"
+          ]
+        },
+        {
+          "id": "rubato_10800",
+          "type": "rubato",
+          "from": 10800,
+          "to": 11520,
+          "elements": [
+            "rubato_10800"
+          ]
+        },
+        {
+          "id": "rubato_11520",
+          "type": "rubato",
+          "from": 11520,
+          "to": 12240,
+          "elements": [
+            "rubato_11520"
+          ]
+        },
+        {
+          "id": "dynamics_10800",
+          "type": "dynamics",
+          "from": 10800,
+          "to": 12240,
+          "elements": [
+            "dynamics_10800"
+          ]
+        },
+        {
+          "id": "accentuationPattern_10800",
+          "type": "accentuationPattern",
+          "from": 10800,
+          "to": 11520,
+          "elements": [
+            "accentuationPattern_10800"
+          ]
+        },
+        {
+          "id": "accentuationPattern_11520",
+          "type": "accentuationPattern",
+          "from": 11520,
+          "to": 12240,
+          "elements": [
+            "accentuationPattern_11520"
+          ]
+        },
+        {
+          "id": "articulation_10080",
+          "type": "articulation",
+          "from": 10080,
+          "to": 11880,
+          "elements": [
+            "articulation_10080",
+            "articulation_10800",
+            "articulation_11160",
+            "articulation_11520",
+            "articulation_11880"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-0e9f088b",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "\"Aufweichen\": Decrescendo und Arpeggio zum a'",
+      "from": 15120,
+      "to": 16920,
+      "spans": [
+        {
+          "id": "ornament_15840",
+          "type": "ornament",
+          "from": 15840,
+          "to": 16920,
+          "elements": [
+            "ornament_15840"
+          ]
+        },
+        {
+          "id": "dynamics_15120",
+          "type": "dynamics",
+          "from": 15120,
+          "to": 16920,
+          "elements": [
+            "dynamics_15120"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d472996d-738c-4dd1-9ee4-b8c0cc37cdc5",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Richtung zum Quartsexkkord, Vorwärts-\"Lilt\"",
+      "from": 17280,
+      "to": 19440,
+      "spans": [
+        {
+          "id": "ornament_18000",
+          "type": "ornament",
+          "from": 18000,
+          "to": 19440,
+          "elements": [
+            "ornament_18000"
+          ]
+        },
+        {
+          "id": "ornament_19080",
+          "type": "ornament",
+          "from": 19080,
+          "to": 19440,
+          "elements": [
+            "ornament_19080"
+          ]
+        },
+        {
+          "id": "ornament_19440",
+          "type": "ornament",
+          "from": 19440,
+          "to": 19440,
+          "elements": [
+            "ornament_19440"
+          ]
+        },
+        {
+          "id": "tempo_18360",
+          "type": "tempo",
+          "from": 18360,
+          "to": 19440,
+          "elements": [
+            "tempo_18360"
+          ]
+        },
+        {
+          "id": "rubato_18720",
+          "type": "rubato",
+          "from": 18720,
+          "to": 19440,
+          "elements": [
+            "rubato_18720"
+          ]
+        },
+        {
+          "id": "dynamics_18000",
+          "type": "dynamics",
+          "from": 18000,
+          "to": 19440,
+          "elements": [
+            "dynamics_18000"
+          ]
+        },
+        {
+          "id": "articulation_17280",
+          "type": "articulation",
+          "from": 17280,
+          "to": 19080,
+          "elements": [
+            "articulation_17280",
+            "articulation_17640",
+            "articulation_18000",
+            "articulation_18360",
+            "articulation_18720",
+            "articulation_19080"
+          ]
+        },
+        {
+          "id": "sustain-18720_moveUp",
+          "type": "movement",
+          "from": 18783,
+          "to": 18983,
+          "elements": [
+            "sustain-18720_moveUp",
+            "sustain-18720_end"
+          ]
+        },
+        {
+          "id": "sustain-18720_start",
+          "type": "movement",
+          "from": 18312,
+          "to": 18512,
+          "elements": [
+            "sustain-18720_start",
+            "sustain-18720_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-18000_moveUp",
+          "type": "movement",
+          "from": 17862,
+          "to": 18062,
+          "elements": [
+            "sustain-18000_moveUp",
+            "sustain-18000_end"
+          ]
+        },
+        {
+          "id": "sustain-18000_start",
+          "type": "movement",
+          "from": 17515,
+          "to": 17715,
+          "elements": [
+            "sustain-18000_start",
+            "sustain-18000_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_99622919-e538-4bc8-8ee0-3abb2e9d719a",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "continue": "argumentation-232ca7b0",
+      "from": 20160,
+      "to": 20880,
+      "spans": [
+        {
+          "id": "ornament_20520",
+          "type": "ornament",
+          "from": 20520,
+          "to": 20880,
+          "elements": [
+            "ornament_20520"
+          ]
+        },
+        {
+          "id": "rubato_20160",
+          "type": "rubato",
+          "from": 20160,
+          "to": 20880,
+          "elements": [
+            "rubato_20160"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "aaedcf8b-e357-4b15-bf26-5c63a828584d",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 23400,
+      "to": 23760,
+      "spans": [
+        {
+          "id": "ornament_23400",
+          "type": "ornament",
+          "from": 23400,
+          "to": 23760,
+          "elements": [
+            "ornament_23400"
+          ]
+        },
+        {
+          "id": "ornament_23760",
+          "type": "ornament",
+          "from": 23760,
+          "to": 23760,
+          "elements": [
+            "ornament_23760"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_d56ba6b5-284e-493d-a394-071dcb3df020",
+      "motivation": "calm",
+      "certainty": "possible",
+      "note": "Geste des Nachlauschens",
+      "from": 23760,
+      "to": 25662,
+      "spans": [
+        {
+          "id": "ornament_24480",
+          "type": "ornament",
+          "from": 24480,
+          "to": 25662,
+          "elements": [
+            "ornament_24480"
+          ]
+        },
+        {
+          "id": "accentuationPattern_23760",
+          "type": "accentuationPattern",
+          "from": 23760,
+          "to": 25560,
+          "elements": [
+            "accentuationPattern_23760"
+          ]
+        },
+        {
+          "id": "articulation_24480",
+          "type": "articulation",
+          "from": 24480,
+          "to": 24480,
+          "elements": [
+            "articulation_24480"
+          ]
+        },
+        {
+          "id": "sustain-24480_start",
+          "type": "movement",
+          "from": 23860,
+          "to": 24060,
+          "elements": [
+            "sustain-24480_start",
+            "sustain-24480_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-24480_moveUp",
+          "type": "movement",
+          "from": 25352,
+          "to": 25662,
+          "elements": [
+            "sustain-24480_moveUp",
+            "sustain-24480_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-77980e25",
+      "motivation": "intensify",
+      "certainty": "likely",
+      "note": "Überlegato",
+      "from": 25560,
+      "to": 28799,
+      "spans": [
+        {
+          "id": "ornament_27360",
+          "type": "ornament",
+          "from": 27360,
+          "to": 28799,
+          "elements": [
+            "ornament_27360"
+          ]
+        },
+        {
+          "id": "articulation_25560",
+          "type": "articulation",
+          "from": 25560,
+          "to": 27000,
+          "elements": [
+            "articulation_25560",
+            "articulation_25920",
+            "articulation_26280",
+            "articulation_26640",
+            "articulation_27000"
+          ]
+        },
+        {
+          "id": "sustain-27360_moveUp",
+          "type": "movement",
+          "from": 28459,
+          "to": 28799,
+          "elements": [
+            "sustain-27360_moveUp",
+            "sustain-27360_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ad9d5d44-b501-44d1-8cd9-58664ccdc241",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Vorwärtsbewegung durch Inegalité",
+      "from": 28800,
+      "to": 29520,
+      "spans": [
+        {
+          "id": "ornament_28800",
+          "type": "ornament",
+          "from": 28800,
+          "to": 29520,
+          "elements": [
+            "ornament_28800"
+          ]
+        },
+        {
+          "id": "rubato_28800",
+          "type": "rubato",
+          "from": 28800,
+          "to": 29520,
+          "elements": [
+            "rubato_28800"
+          ]
+        },
+        {
+          "id": "accentuationPattern_28800",
+          "type": "accentuationPattern",
+          "from": 28800,
+          "to": 29520,
+          "elements": [
+            "accentuationPattern_28800"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e49e1685-8c27-465c-9a38-c5dfa4e473be",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "\"Innehalten\"",
+      "from": 29520,
+      "to": 30281,
+      "spans": [
+        {
+          "id": "ornament_29520",
+          "type": "ornament",
+          "from": 29520,
+          "to": 30281,
+          "elements": [
+            "ornament_29520"
+          ]
+        },
+        {
+          "id": "rubato_29520",
+          "type": "rubato",
+          "from": 29520,
+          "to": 30240,
+          "elements": [
+            "rubato_29520"
+          ]
+        },
+        {
+          "id": "accentuationPattern_29520",
+          "type": "accentuationPattern",
+          "from": 29520,
+          "to": 30240,
+          "elements": [
+            "accentuationPattern_29520"
+          ]
+        },
+        {
+          "id": "sustain-29880_start",
+          "type": "movement",
+          "from": 29550,
+          "to": 29750,
+          "elements": [
+            "sustain-29880_start",
+            "sustain-29880_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-29880_moveUp",
+          "type": "movement",
+          "from": 30081,
+          "to": 30281,
+          "elements": [
+            "sustain-29880_moveUp",
+            "sustain-29880_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ee4513f4-5a09-47b6-ae3d-50531c13397a",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 31680,
+      "to": 32400,
+      "spans": [
+        {
+          "id": "ornament_31680",
+          "type": "ornament",
+          "from": 31680,
+          "to": 32400,
+          "elements": [
+            "ornament_31680"
+          ]
+        },
+        {
+          "id": "ornament_32040",
+          "type": "ornament",
+          "from": 32040,
+          "to": 32400,
+          "elements": [
+            "ornament_32040"
+          ]
+        },
+        {
+          "id": "ornament_32400",
+          "type": "ornament",
+          "from": 32400,
+          "to": 32400,
+          "elements": [
+            "ornament_32400"
+          ]
+        },
+        {
+          "id": "rubato_31680",
+          "type": "rubato",
+          "from": 31680,
+          "to": 32400,
+          "elements": [
+            "rubato_31680"
+          ]
+        },
+        {
+          "id": "accentuationPattern_31680",
+          "type": "accentuationPattern",
+          "from": 31680,
+          "to": 32400,
+          "elements": [
+            "accentuationPattern_31680"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-a7986d89",
+      "motivation": "intensify",
+      "certainty": "unlikely",
+      "note": "\"Hineinfallen\" und Verweilen",
+      "from": 38520,
+      "to": 40320,
+      "spans": [
+        {
+          "id": "ornament_38880",
+          "type": "ornament",
+          "from": 38880,
+          "to": 40320,
+          "elements": [
+            "ornament_38880"
+          ]
+        },
+        {
+          "id": "rubato_39600",
+          "type": "rubato",
+          "from": 39600,
+          "to": 40320,
+          "elements": [
+            "rubato_39600"
+          ]
+        },
+        {
+          "id": "dynamics_38520",
+          "type": "dynamics",
+          "from": 38520,
+          "to": 38880,
+          "elements": [
+            "dynamics_38520"
+          ]
+        },
+        {
+          "id": "dynamics_38880",
+          "type": "dynamics",
+          "from": 38880,
+          "to": 39960,
+          "elements": [
+            "dynamics_38880"
+          ]
+        },
+        {
+          "id": "sustain-38880_start",
+          "type": "movement",
+          "from": 38766,
+          "to": 38966,
+          "elements": [
+            "sustain-38880_start",
+            "sustain-38880_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-38880_moveUp",
+          "type": "movement",
+          "from": 39908,
+          "to": 40108,
+          "elements": [
+            "sustain-38880_moveUp",
+            "sustain-38880_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-3afe3771",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "langsamer und deutlicher werden",
+      "continue": "argumentation-8e3cbc2d",
+      "from": 34200,
+      "to": 35280,
+      "spans": [
+        {
+          "id": "ornament_35280",
+          "type": "ornament",
+          "from": 35280,
+          "to": 35280,
+          "elements": [
+            "ornament_35280"
+          ]
+        },
+        {
+          "id": "ornament_34560",
+          "type": "ornament",
+          "from": 34560,
+          "to": 35280,
+          "elements": [
+            "ornament_34560"
+          ]
+        },
+        {
+          "id": "tempo_34560",
+          "type": "tempo",
+          "from": 34560,
+          "to": 35280,
+          "elements": [
+            "tempo_34560"
+          ]
+        },
+        {
+          "id": "dynamics_34200",
+          "type": "dynamics",
+          "from": 34200,
+          "to": 35280,
+          "elements": [
+            "dynamics_34200"
+          ]
+        },
+        {
+          "id": "articulation_34560",
+          "type": "articulation",
+          "from": 34560,
+          "to": 34560,
+          "elements": [
+            "articulation_34560"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_8c9fb33a-2056-4e0f-9188-1605e5675983",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "Nachschlag etwas abschattieren",
+      "continue": "argumentation-c118a7a5",
+      "from": 12240,
+      "to": 14319,
+      "spans": [
+        {
+          "id": "ornament_12960",
+          "type": "ornament",
+          "from": 12960,
+          "to": 14319,
+          "elements": [
+            "ornament_12960"
+          ]
+        },
+        {
+          "id": "tempo_12240",
+          "type": "tempo",
+          "from": 12240,
+          "to": 13680,
+          "elements": [
+            "tempo_12240"
+          ]
+        },
+        {
+          "id": "dynamics_12240",
+          "type": "dynamics",
+          "from": 12240,
+          "to": 14040,
+          "elements": [
+            "dynamics_12240"
+          ]
+        },
+        {
+          "id": "accentuationPattern_12240",
+          "type": "accentuationPattern",
+          "from": 12240,
+          "to": 14040,
+          "elements": [
+            "accentuationPattern_12240"
+          ]
+        },
+        {
+          "id": "sustain-12960_start",
+          "type": "movement",
+          "from": 12385,
+          "to": 12585,
+          "elements": [
+            "sustain-12960_start",
+            "sustain-12960_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-12960_moveUp",
+          "type": "movement",
+          "from": 14019,
+          "to": 14319,
+          "elements": [
+            "sustain-12960_moveUp",
+            "sustain-12960_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "26b2e9af-f98d-40b7-a53a-e82c70585940",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Verfrühtes Einsetzen (der Mollsubdominante)",
+      "from": 41760,
+      "to": 42480,
+      "spans": [
+        {
+          "id": "ornament_42120",
+          "type": "ornament",
+          "from": 42120,
+          "to": 42480,
+          "elements": [
+            "ornament_42120"
+          ]
+        },
+        {
+          "id": "rubato_41760",
+          "type": "rubato",
+          "from": 41760,
+          "to": 42480,
+          "elements": [
+            "rubato_41760"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "672c670d-fd25-4eb9-a3c4-c37e6816ea24",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Verfrühtes Einsetzen (des verminderten Septakkords)",
+      "from": 43200,
+      "to": 43920,
+      "spans": [
+        {
+          "id": "ornament_43920",
+          "type": "ornament",
+          "from": 43920,
+          "to": 43920,
+          "elements": [
+            "ornament_43920"
+          ]
+        },
+        {
+          "id": "ornament_43560",
+          "type": "ornament",
+          "from": 43560,
+          "to": 43920,
+          "elements": [
+            "ornament_43560"
+          ]
+        },
+        {
+          "id": "rubato_43200",
+          "type": "rubato",
+          "from": 43200,
+          "to": 43920,
+          "elements": [
+            "rubato_43200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_a89283d0-6eb2-46ce-9b9a-1125b591c374",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "schattierter Nachklang",
+      "from": 46800,
+      "to": 49011,
+      "spans": [
+        {
+          "id": "ornament_47520",
+          "type": "ornament",
+          "from": 47520,
+          "to": 49011,
+          "elements": [
+            "ornament_47520"
+          ]
+        },
+        {
+          "id": "tempo_46800",
+          "type": "tempo",
+          "from": 46800,
+          "to": 48294.11764705881,
+          "elements": [
+            "tempo_46800"
+          ]
+        },
+        {
+          "id": "dynamics_46800",
+          "type": "dynamics",
+          "from": 46800,
+          "to": 48960,
+          "elements": [
+            "dynamics_46800"
+          ]
+        },
+        {
+          "id": "accentuationPattern_46800",
+          "type": "accentuationPattern",
+          "from": 46800,
+          "to": 48600,
+          "elements": [
+            "accentuationPattern_46800"
+          ]
+        },
+        {
+          "id": "articulation_47520",
+          "type": "articulation",
+          "from": 47520,
+          "to": 47520,
+          "elements": [
+            "articulation_47520"
+          ]
+        },
+        {
+          "id": "sustain-47520_start",
+          "type": "movement",
+          "from": 46821,
+          "to": 47021,
+          "elements": [
+            "sustain-47520_start",
+            "sustain-47520_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-47520_moveUp",
+          "type": "movement",
+          "from": 48611,
+          "to": 49011,
+          "elements": [
+            "sustain-47520_moveUp",
+            "sustain-47520_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-e4be49a2",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Verfrühung des Spannungsakkords (Mollsubdominante)",
+      "from": 49680,
+      "to": 50400,
+      "spans": [
+        {
+          "id": "ornament_50040",
+          "type": "ornament",
+          "from": 50040,
+          "to": 50400,
+          "elements": [
+            "ornament_50040"
+          ]
+        },
+        {
+          "id": "ornament_50400",
+          "type": "ornament",
+          "from": 50400,
+          "to": 50400,
+          "elements": [
+            "ornament_50400"
+          ]
+        },
+        {
+          "id": "rubato_49680",
+          "type": "rubato",
+          "from": 49680,
+          "to": 50400,
+          "elements": [
+            "rubato_49680"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-0a38165f",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Hinspielen zum Quartsextakkord",
+      "continue": "argumentation-1a04ff8d",
+      "from": 53280,
+      "to": 54360,
+      "spans": [
+        {
+          "id": "ornament_53640",
+          "type": "ornament",
+          "from": 53640,
+          "to": 54360,
+          "elements": [
+            "ornament_53640"
+          ]
+        },
+        {
+          "id": "ornament_54000",
+          "type": "ornament",
+          "from": 54000,
+          "to": 54360,
+          "elements": [
+            "ornament_54000"
+          ]
+        },
+        {
+          "id": "tempo_53640",
+          "type": "tempo",
+          "from": 53640,
+          "to": 54360,
+          "elements": [
+            "tempo_53640"
+          ]
+        },
+        {
+          "id": "dynamics_53280",
+          "type": "dynamics",
+          "from": 53280,
+          "to": 54000,
+          "elements": [
+            "dynamics_53280"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-52683313",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Weiter zurück",
+      "from": 51480,
+      "to": 53640,
+      "spans": [
+        {
+          "id": "ornament_52200",
+          "type": "ornament",
+          "from": 52200,
+          "to": 53640,
+          "elements": [
+            "ornament_52200"
+          ]
+        },
+        {
+          "id": "tempo_51480",
+          "type": "tempo",
+          "from": 51480,
+          "to": 53640,
+          "elements": [
+            "tempo_51480"
+          ]
+        },
+        {
+          "id": "dynamics_52560",
+          "type": "dynamics",
+          "from": 52560,
+          "to": 53280,
+          "elements": [
+            "dynamics_52560"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-0e5c17ae",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Ausgedehntes g-Moll",
+      "from": 52560,
+      "to": 53531,
+      "spans": [
+        {
+          "id": "ornament_52560",
+          "type": "ornament",
+          "from": 52560,
+          "to": 53531,
+          "elements": [
+            "ornament_52560"
+          ]
+        },
+        {
+          "id": "rubato_52560",
+          "type": "rubato",
+          "from": 52560,
+          "to": 53280,
+          "elements": [
+            "rubato_52560"
+          ]
+        },
+        {
+          "id": "articulation_52560",
+          "type": "articulation",
+          "from": 52560,
+          "to": 52560,
+          "elements": [
+            "articulation_52560"
+          ]
+        },
+        {
+          "id": "sustain-52920_start",
+          "type": "movement",
+          "from": 52880,
+          "to": 53080,
+          "elements": [
+            "sustain-52920_start",
+            "sustain-52920_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-52920_moveUp",
+          "type": "movement",
+          "from": 53331,
+          "to": 53531,
+          "elements": [
+            "sustain-52920_moveUp",
+            "sustain-52920_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a379d774-0173-4f61-8b61-f04b30f8f11b",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Hinspielen zum B-Dur",
+      "from": 56880,
+      "to": 58320,
+      "spans": [
+        {
+          "id": "ornament_58320",
+          "type": "ornament",
+          "from": 58320,
+          "to": 58320,
+          "elements": [
+            "ornament_58320"
+          ]
+        },
+        {
+          "id": "ornament_57960",
+          "type": "ornament",
+          "from": 57960,
+          "to": 58320,
+          "elements": [
+            "ornament_57960"
+          ]
+        },
+        {
+          "id": "tempo_56880",
+          "type": "tempo",
+          "from": 56880,
+          "to": 58320,
+          "elements": [
+            "tempo_56880"
+          ]
+        },
+        {
+          "id": "dynamics_56880",
+          "type": "dynamics",
+          "from": 56880,
+          "to": 58320,
+          "elements": [
+            "dynamics_56880"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ecc57d79-1a69-4f54-8524-36f9dc3c5477",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Subdominante etwas früher und arpeggiert",
+      "from": 54720,
+      "to": 55440,
+      "spans": [
+        {
+          "id": "ornament_55080",
+          "type": "ornament",
+          "from": 55080,
+          "to": 55440,
+          "elements": [
+            "ornament_55080"
+          ]
+        },
+        {
+          "id": "rubato_54720",
+          "type": "rubato",
+          "from": 54720,
+          "to": 55440,
+          "elements": [
+            "rubato_54720"
+          ]
+        },
+        {
+          "id": "articulation_55080",
+          "type": "articulation",
+          "from": 55080,
+          "to": 55080,
+          "elements": [
+            "articulation_55080"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c358481c-0609-4222-ba34-8501b618310d",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "note": "Kurze \"Station\" auf Quartsextakkord",
+      "from": 55440,
+      "to": 56353,
+      "spans": [
+        {
+          "id": "ornament_55440",
+          "type": "ornament",
+          "from": 55440,
+          "to": 56353,
+          "elements": [
+            "ornament_55440"
+          ]
+        },
+        {
+          "id": "rubato_55440",
+          "type": "rubato",
+          "from": 55440,
+          "to": 56160,
+          "elements": [
+            "rubato_55440"
+          ]
+        },
+        {
+          "id": "sustain-55800_start",
+          "type": "movement",
+          "from": 55522,
+          "to": 55722,
+          "elements": [
+            "sustain-55800_start",
+            "sustain-55800_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-55800_moveUp",
+          "type": "movement",
+          "from": 56153,
+          "to": 56353,
+          "elements": [
+            "sustain-55800_moveUp",
+            "sustain-55800_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dd042a2c-91ef-40f2-a025-b9fbfa6a9338",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Interessante Harmonien früher",
+      "from": 56160,
+      "to": 56880,
+      "spans": [
+        {
+          "id": "ornament_56520",
+          "type": "ornament",
+          "from": 56520,
+          "to": 56880,
+          "elements": [
+            "ornament_56520"
+          ]
+        },
+        {
+          "id": "rubato_56160",
+          "type": "rubato",
+          "from": 56160,
+          "to": 56880,
+          "elements": [
+            "rubato_56160"
+          ]
+        },
+        {
+          "id": "articulation_56520",
+          "type": "articulation",
+          "from": 56520,
+          "to": 56520,
+          "elements": [
+            "articulation_56520"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_76caf28c-c77a-4d9f-8205-402ee443860e",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "Abschattieren",
+      "from": 58320,
+      "to": 60120,
+      "spans": [
+        {
+          "id": "ornament_59040",
+          "type": "ornament",
+          "from": 59040,
+          "to": 60120,
+          "elements": [
+            "ornament_59040"
+          ]
+        },
+        {
+          "id": "accentuationPattern_58320",
+          "type": "accentuationPattern",
+          "from": 58320,
+          "to": 60120,
+          "elements": [
+            "accentuationPattern_58320"
+          ]
+        },
+        {
+          "id": "articulation_59040",
+          "type": "articulation",
+          "from": 59040,
+          "to": 59040,
+          "elements": [
+            "articulation_59040"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-9a9870e0",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "fließend in Dominantseptnonakkord",
+      "continue": "8a143343-1778-4720-83b2-aa0ac720fef1",
+      "from": 61200,
+      "to": 61920,
+      "spans": [
+        {
+          "id": "ornament_61560",
+          "type": "ornament",
+          "from": 61560,
+          "to": 61920,
+          "elements": [
+            "ornament_61560"
+          ]
+        },
+        {
+          "id": "ornament_61920",
+          "type": "ornament",
+          "from": 61920,
+          "to": 61920,
+          "elements": [
+            "ornament_61920"
+          ]
+        },
+        {
+          "id": "rubato_61200",
+          "type": "rubato",
+          "from": 61200,
+          "to": 61920,
+          "elements": [
+            "rubato_61200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-55f96f9b",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 63360,
+      "to": 64440,
+      "spans": [
+        {
+          "id": "ornament_63360",
+          "type": "ornament",
+          "from": 63360,
+          "to": 64440,
+          "elements": [
+            "ornament_63360"
+          ]
+        },
+        {
+          "id": "ornament_63720",
+          "type": "ornament",
+          "from": 63720,
+          "to": 64440,
+          "elements": [
+            "ornament_63720"
+          ]
+        },
+        {
+          "id": "ornament_64080",
+          "type": "ornament",
+          "from": 64080,
+          "to": 64440,
+          "elements": [
+            "ornament_64080"
+          ]
+        },
+        {
+          "id": "tempo_63360",
+          "type": "tempo",
+          "from": 63360,
+          "to": 64440,
+          "elements": [
+            "tempo_63360"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-46b51284",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Hineinfallen in Quartsextakkord",
+      "from": 64800,
+      "to": 65520,
+      "spans": [
+        {
+          "id": "ornament_65160",
+          "type": "ornament",
+          "from": 65160,
+          "to": 65520,
+          "elements": [
+            "ornament_65160"
+          ]
+        },
+        {
+          "id": "ornament_65520",
+          "type": "ornament",
+          "from": 65520,
+          "to": 65520,
+          "elements": [
+            "ornament_65520"
+          ]
+        },
+        {
+          "id": "rubato_64800",
+          "type": "rubato",
+          "from": 64800,
+          "to": 65520,
+          "elements": [
+            "rubato_64800"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-d9fe4092",
+      "motivation": "calm",
+      "certainty": "speculative",
+      "note": "kleine Verzögerung",
+      "from": 32760,
+      "to": 33480,
+      "spans": [
+        {
+          "id": "ornament_33120",
+          "type": "ornament",
+          "from": 33120,
+          "to": 33480,
+          "elements": [
+            "ornament_33120"
+          ]
+        },
+        {
+          "id": "tempo_32760",
+          "type": "tempo",
+          "from": 32760,
+          "to": 33480,
+          "elements": [
+            "tempo_32760"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-28ed32b3",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Zum Quartsextakkord",
+      "from": 66600,
+      "to": 67320,
+      "spans": [
+        {
+          "id": "ornament_66600",
+          "type": "ornament",
+          "from": 66600,
+          "to": 67320,
+          "elements": [
+            "ornament_66600"
+          ]
+        },
+        {
+          "id": "ornament_66960",
+          "type": "ornament",
+          "from": 66960,
+          "to": 67320,
+          "elements": [
+            "ornament_66960"
+          ]
+        },
+        {
+          "id": "tempo_66600",
+          "type": "tempo",
+          "from": 66600,
+          "to": 67320,
+          "elements": [
+            "tempo_66600"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-2a02724b",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Beruhigung vor Phrasenende",
+      "from": 67320,
+      "to": 69840,
+      "spans": [
+        {
+          "id": "ornament_68040",
+          "type": "ornament",
+          "from": 68040,
+          "to": 69840,
+          "elements": [
+            "ornament_68040"
+          ]
+        },
+        {
+          "id": "ornament_68400",
+          "type": "ornament",
+          "from": 68400,
+          "to": 69840,
+          "elements": [
+            "ornament_68400"
+          ]
+        },
+        {
+          "id": "ornament_69120",
+          "type": "ornament",
+          "from": 69120,
+          "to": 69840,
+          "elements": [
+            "ornament_69120"
+          ]
+        },
+        {
+          "id": "tempo_67320",
+          "type": "tempo",
+          "from": 67320,
+          "to": 69840,
+          "elements": [
+            "tempo_67320"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-f95d85b2",
+      "motivation": "intensify",
+      "certainty": "likely",
+      "note": "zum B-Dur-Akkord",
+      "from": 72000,
+      "to": 73440,
+      "spans": [
+        {
+          "id": "ornament_73440",
+          "type": "ornament",
+          "from": 73440,
+          "to": 73440,
+          "elements": [
+            "ornament_73440"
+          ]
+        },
+        {
+          "id": "tempo_72000",
+          "type": "tempo",
+          "from": 72000,
+          "to": 73440,
+          "elements": [
+            "tempo_72000"
+          ]
+        },
+        {
+          "id": "rubato_72000",
+          "type": "rubato",
+          "from": 72000,
+          "to": 72720,
+          "elements": [
+            "rubato_72000"
+          ]
+        },
+        {
+          "id": "rubato_72720",
+          "type": "rubato",
+          "from": 72720,
+          "to": 73440,
+          "elements": [
+            "rubato_72720"
+          ]
+        },
+        {
+          "id": "sustain-72360_start",
+          "type": "movement",
+          "from": 72079,
+          "to": 72374,
+          "elements": [
+            "sustain-72360_start",
+            "sustain-72360_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-72360_moveUp",
+          "type": "movement",
+          "from": 72721,
+          "to": 73141,
+          "elements": [
+            "sustain-72360_moveUp",
+            "sustain-72360_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "48ec9583-f24b-41f0-ac09-fd99270af4e4",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "hin zum Quartsextakkord",
+      "from": 73440,
+      "to": 76320,
+      "spans": [
+        {
+          "id": "ornament_74880",
+          "type": "ornament",
+          "from": 74880,
+          "to": 76320,
+          "elements": [
+            "ornament_74880"
+          ]
+        },
+        {
+          "id": "ornament_75240",
+          "type": "ornament",
+          "from": 75240,
+          "to": 76320,
+          "elements": [
+            "ornament_75240"
+          ]
+        },
+        {
+          "id": "ornament_75600",
+          "type": "ornament",
+          "from": 75600,
+          "to": 76320,
+          "elements": [
+            "ornament_75600"
+          ]
+        },
+        {
+          "id": "tempo_74880",
+          "type": "tempo",
+          "from": 74880,
+          "to": 76320,
+          "elements": [
+            "tempo_74880"
+          ]
+        },
+        {
+          "id": "dynamics_73440",
+          "type": "dynamics",
+          "from": 73440,
+          "to": 75600,
+          "elements": [
+            "dynamics_73440"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-c91bdddd",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Weich ins F-Dur",
+      "from": 80280,
+      "to": 81360,
+      "spans": [
+        {
+          "id": "ornament_81360",
+          "type": "ornament",
+          "from": 81360,
+          "to": 81360,
+          "elements": [
+            "ornament_81360"
+          ]
+        },
+        {
+          "id": "ornament_80640",
+          "type": "ornament",
+          "from": 80640,
+          "to": 81360,
+          "elements": [
+            "ornament_80640"
+          ]
+        },
+        {
+          "id": "tempo_80280",
+          "type": "tempo",
+          "from": 80280,
+          "to": 81360,
+          "elements": [
+            "tempo_80280"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-d28eda4a",
+      "motivation": "relax",
+      "certainty": "likely",
+      "from": 87840,
+      "to": 89280,
+      "spans": [
+        {
+          "id": "ornament_87840",
+          "type": "ornament",
+          "from": 87840,
+          "to": 89280,
+          "elements": [
+            "ornament_87840"
+          ]
+        },
+        {
+          "id": "dynamics_87840",
+          "type": "dynamics",
+          "from": 87840,
+          "to": 88920,
+          "elements": [
+            "dynamics_87840"
+          ]
+        },
+        {
+          "id": "accentuationPattern_87840",
+          "type": "accentuationPattern",
+          "from": 87840,
+          "to": 88560,
+          "elements": [
+            "accentuationPattern_87840"
+          ]
+        },
+        {
+          "id": "accentuationPattern_88560",
+          "type": "accentuationPattern",
+          "from": 88560,
+          "to": 89280,
+          "elements": [
+            "accentuationPattern_88560"
+          ]
+        },
+        {
+          "id": "sustain-88920_start",
+          "type": "movement",
+          "from": 88808,
+          "to": 89008,
+          "elements": [
+            "sustain-88920_start",
+            "sustain-88920_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-88920_moveUp",
+          "type": "movement",
+          "from": 89097,
+          "to": 89202,
+          "elements": [
+            "sustain-88920_moveUp",
+            "sustain-88920_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-3ef12ef9",
+      "motivation": "intensify",
+      "certainty": "likely",
+      "from": 88920,
+      "to": 90749,
+      "spans": [
+        {
+          "id": "ornament_89280",
+          "type": "ornament",
+          "from": 89280,
+          "to": 90749,
+          "elements": [
+            "ornament_89280"
+          ]
+        },
+        {
+          "id": "ornament_89640",
+          "type": "ornament",
+          "from": 89640,
+          "to": 90749,
+          "elements": [
+            "ornament_89640"
+          ]
+        },
+        {
+          "id": "ornament_90000",
+          "type": "ornament",
+          "from": 90000,
+          "to": 90749,
+          "elements": [
+            "ornament_90000"
+          ]
+        },
+        {
+          "id": "dynamics_88920",
+          "type": "dynamics",
+          "from": 88920,
+          "to": 90000,
+          "elements": [
+            "dynamics_88920"
+          ]
+        },
+        {
+          "id": "sustain-89640_start",
+          "type": "movement",
+          "from": 89290,
+          "to": 89490,
+          "elements": [
+            "sustain-89640_start",
+            "sustain-89640_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-89640_moveUp",
+          "type": "movement",
+          "from": 89502,
+          "to": 89702,
+          "elements": [
+            "sustain-89640_moveUp",
+            "sustain-89640_end"
+          ]
+        },
+        {
+          "id": "sustain-90360_start",
+          "type": "movement",
+          "from": 90031,
+          "to": 90316,
+          "elements": [
+            "sustain-90360_start",
+            "sustain-90360_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-90360_moveUp",
+          "type": "movement",
+          "from": 90479,
+          "to": 90749,
+          "elements": [
+            "sustain-90360_moveUp",
+            "sustain-90360_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d0c6a809-f8fc-4436-b260-5b7bd28fa5cc",
+      "motivation": "unknown",
+      "certainty": "plausible",
+      "from": 91440,
+      "to": 91440,
+      "spans": [
+        {
+          "id": "ornament_91440",
+          "type": "ornament",
+          "from": 91440,
+          "to": 91440,
+          "elements": [
+            "ornament_91440"
+          ]
+        },
+        {
+          "id": "articulation_91440",
+          "type": "articulation",
+          "from": 91440,
+          "to": 91440,
+          "elements": [
+            "articulation_91440"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "646f927c-8e4e-4e2b-b09a-6db176eee1c8",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "der Harmonie \"nachlauschen\": dynamische Reduktion, leichte zeitliche Dehnung",
+      "continue": "7938a94a-fe29-42d0-bca8-b134a6776a96",
+      "from": 700,
+      "to": 2982,
+      "spans": [
+        {
+          "id": "tempo_720",
+          "type": "tempo",
+          "from": 720,
+          "to": 2160,
+          "elements": [
+            "tempo_720"
+          ]
+        },
+        {
+          "id": "dynamics_720",
+          "type": "dynamics",
+          "from": 720,
+          "to": 2520,
+          "elements": [
+            "dynamics_720"
+          ]
+        },
+        {
+          "id": "accentuationPattern_720",
+          "type": "accentuationPattern",
+          "from": 720,
+          "to": 2520,
+          "elements": [
+            "accentuationPattern_720"
+          ]
+        },
+        {
+          "id": "sustain-1440_start",
+          "type": "movement",
+          "from": 700,
+          "to": 900,
+          "elements": [
+            "sustain-1440_start",
+            "sustain-1440_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-1440_moveUp",
+          "type": "movement",
+          "from": 2562,
+          "to": 2982,
+          "elements": [
+            "sustain-1440_moveUp",
+            "sustain-1440_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "decision-9bb1a3aa",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Hinspielen zur 1",
+      "from": 2160,
+      "to": 4320,
+      "spans": [
+        {
+          "id": "tempo_2160",
+          "type": "tempo",
+          "from": 2160,
+          "to": 2880,
+          "elements": [
+            "tempo_2160"
+          ]
+        },
+        {
+          "id": "tempo_2880",
+          "type": "tempo",
+          "from": 2880,
+          "to": 4320,
+          "elements": [
+            "tempo_2880"
+          ]
+        },
+        {
+          "id": "rubato_2880",
+          "type": "rubato",
+          "from": 2880,
+          "to": 3600,
+          "elements": [
+            "rubato_2880"
+          ]
+        },
+        {
+          "id": "dynamics_2520",
+          "type": "dynamics",
+          "from": 2520,
+          "to": 3600,
+          "elements": [
+            "dynamics_2520"
+          ]
+        },
+        {
+          "id": "accentuationPattern_2880",
+          "type": "accentuationPattern",
+          "from": 2880,
+          "to": 3600,
+          "elements": [
+            "accentuationPattern_2880"
+          ]
+        },
+        {
+          "id": "articulation_2880",
+          "type": "articulation",
+          "from": 2880,
+          "to": 3960,
+          "elements": [
+            "articulation_2880",
+            "articulation_3240",
+            "articulation_3600",
+            "articulation_3960"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-d6d50300",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "note": "\"Nachlauschen\"",
+      "from": 4019,
+      "to": 5881,
+      "spans": [
+        {
+          "id": "tempo_4320",
+          "type": "tempo",
+          "from": 4320,
+          "to": 5760,
+          "elements": [
+            "tempo_4320"
+          ]
+        },
+        {
+          "id": "dynamics_4320",
+          "type": "dynamics",
+          "from": 4320,
+          "to": 5760,
+          "elements": [
+            "dynamics_4320"
+          ]
+        },
+        {
+          "id": "sustain-4320_start",
+          "type": "movement",
+          "from": 4019,
+          "to": 4219,
+          "elements": [
+            "sustain-4320_start",
+            "sustain-4320_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-4320_moveUp",
+          "type": "movement",
+          "from": 5681,
+          "to": 5881,
+          "elements": [
+            "sustain-4320_moveUp",
+            "sustain-4320_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-a2cf81d9",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Stete Verlangsamung zum melodischen Höhepunkt (A-Dur)",
+      "from": 13680,
+      "to": 17280,
+      "spans": [
+        {
+          "id": "tempo_13680",
+          "type": "tempo",
+          "from": 13680,
+          "to": 14400,
+          "elements": [
+            "tempo_13680"
+          ]
+        },
+        {
+          "id": "tempo_14400",
+          "type": "tempo",
+          "from": 14400,
+          "to": 16560,
+          "elements": [
+            "tempo_14400"
+          ]
+        },
+        {
+          "id": "rubato_16560",
+          "type": "rubato",
+          "from": 16560,
+          "to": 17280,
+          "elements": [
+            "rubato_16560"
+          ]
+        },
+        {
+          "id": "rubato_13680",
+          "type": "rubato",
+          "from": 13680,
+          "to": 14400,
+          "elements": [
+            "rubato_13680"
+          ]
+        },
+        {
+          "id": "accentuationPattern_14400",
+          "type": "accentuationPattern",
+          "from": 14400,
+          "to": 15120,
+          "elements": [
+            "accentuationPattern_14400"
+          ]
+        },
+        {
+          "id": "sustain-16920_start",
+          "type": "movement",
+          "from": 16025,
+          "to": 16225,
+          "elements": [
+            "sustain-16920_start",
+            "sustain-16920_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-16920_moveUp",
+          "type": "movement",
+          "from": 16853,
+          "to": 17053,
+          "elements": [
+            "sustain-16920_moveUp",
+            "sustain-16920_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "decision-35c68177",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "Bewegung zum d-Moll hin stark zurücknehmen",
+      "from": 16560,
+      "to": 18360,
+      "spans": [
+        {
+          "id": "tempo_16560",
+          "type": "tempo",
+          "from": 16560,
+          "to": 18360,
+          "elements": [
+            "tempo_16560"
+          ]
+        },
+        {
+          "id": "dynamics_16920",
+          "type": "dynamics",
+          "from": 16920,
+          "to": 18000,
+          "elements": [
+            "dynamics_16920"
+          ]
+        },
+        {
+          "id": "accentuationPattern_16920",
+          "type": "accentuationPattern",
+          "from": 16920,
+          "to": 18000,
+          "elements": [
+            "accentuationPattern_16920"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-232ca7b0",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "note": "Arpeggio schattieren",
+      "from": 19440,
+      "to": 20880,
+      "spans": [
+        {
+          "id": "tempo_19440",
+          "type": "tempo",
+          "from": 19440,
+          "to": 20880,
+          "elements": [
+            "tempo_19440"
+          ]
+        },
+        {
+          "id": "rubato_19440",
+          "type": "rubato",
+          "from": 19440,
+          "to": 20160,
+          "elements": [
+            "rubato_19440"
+          ]
+        },
+        {
+          "id": "accentuationPattern_19440",
+          "type": "accentuationPattern",
+          "from": 19440,
+          "to": 20520,
+          "elements": [
+            "accentuationPattern_19440"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-7b141ee5",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "Neue Phrase vorbereiten",
+      "from": 22320,
+      "to": 23760,
+      "spans": [
+        {
+          "id": "tempo_22320",
+          "type": "tempo",
+          "from": 22320,
+          "to": 23760,
+          "elements": [
+            "tempo_22320"
+          ]
+        },
+        {
+          "id": "rubato_22320",
+          "type": "rubato",
+          "from": 22320,
+          "to": 23040,
+          "elements": [
+            "rubato_22320"
+          ]
+        },
+        {
+          "id": "rubato_23040",
+          "type": "rubato",
+          "from": 23040,
+          "to": 23760,
+          "elements": [
+            "rubato_23040"
+          ]
+        },
+        {
+          "id": "dynamics_22320",
+          "type": "dynamics",
+          "from": 22320,
+          "to": 23760,
+          "elements": [
+            "dynamics_22320"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-90aa6158",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "in die nächste Phrase weiterführen: Kein ausgeprägtes Naschlauschen",
+      "from": 23760,
+      "to": 25920,
+      "spans": [
+        {
+          "id": "tempo_23760",
+          "type": "tempo",
+          "from": 23760,
+          "to": 25920,
+          "elements": [
+            "tempo_23760"
+          ]
+        },
+        {
+          "id": "rubato_25200",
+          "type": "rubato",
+          "from": 25200,
+          "to": 25920,
+          "elements": [
+            "rubato_25200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-089b78cb",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Zum B-Dur-Akkord hin entspannen",
+      "continue": "argumentation-90aa6158",
+      "from": 25920,
+      "to": 28800,
+      "spans": [
+        {
+          "id": "tempo_25920",
+          "type": "tempo",
+          "from": 25920,
+          "to": 28800,
+          "elements": [
+            "tempo_25920"
+          ]
+        },
+        {
+          "id": "sustain-27360_start",
+          "type": "movement",
+          "from": 27093,
+          "to": 27343,
+          "elements": [
+            "sustain-27360_start",
+            "sustain-27360_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "57f29be6-43e8-4dbc-b425-38219be9ace6",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "kurzes Verweilen auf Quartsextakkord; Beruhigen (dynamisch und agogisch)",
+      "from": 28800,
+      "to": 30240,
+      "spans": [
+        {
+          "id": "tempo_28800",
+          "type": "tempo",
+          "from": 28800,
+          "to": 30240,
+          "elements": [
+            "tempo_28800"
+          ]
+        },
+        {
+          "id": "dynamics_28800",
+          "type": "dynamics",
+          "from": 28800,
+          "to": 30240,
+          "elements": [
+            "dynamics_28800"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-be73bd91",
+      "motivation": "move",
+      "certainty": "likely",
+      "note": "etwas aktiver, nach vorne",
+      "from": 30240,
+      "to": 31680,
+      "spans": [
+        {
+          "id": "tempo_30240",
+          "type": "tempo",
+          "from": 30240,
+          "to": 31680,
+          "elements": [
+            "tempo_30240"
+          ]
+        },
+        {
+          "id": "dynamics_30240",
+          "type": "dynamics",
+          "from": 30240,
+          "to": 31680,
+          "elements": [
+            "dynamics_30240"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-ac14a76f",
+      "motivation": "move",
+      "certainty": "likely",
+      "note": "Spannung aufbauen",
+      "from": 31680,
+      "to": 33120,
+      "spans": [
+        {
+          "id": "tempo_31680",
+          "type": "tempo",
+          "from": 31680,
+          "to": 32760,
+          "elements": [
+            "tempo_31680"
+          ]
+        },
+        {
+          "id": "dynamics_31680",
+          "type": "dynamics",
+          "from": 31680,
+          "to": 33120,
+          "elements": [
+            "dynamics_31680"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-8e3cbc2d",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "Auftakt unter C-Dur schattieren: schneller und leiser werden",
+      "from": 33120,
+      "to": 34560,
+      "spans": [
+        {
+          "id": "tempo_33480",
+          "type": "tempo",
+          "from": 33480,
+          "to": 34560,
+          "elements": [
+            "tempo_33480"
+          ]
+        },
+        {
+          "id": "dynamics_33120",
+          "type": "dynamics",
+          "from": 33120,
+          "to": 34200,
+          "elements": [
+            "dynamics_33120"
+          ]
+        },
+        {
+          "id": "articulation_33840",
+          "type": "articulation",
+          "from": 33840,
+          "to": 33840,
+          "elements": [
+            "articulation_33840"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-2379b36a",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "konstante, leichte Verlangsamung",
+      "from": 36720,
+      "to": 39600,
+      "spans": [
+        {
+          "id": "tempo_36720",
+          "type": "tempo",
+          "from": 36720,
+          "to": 39600,
+          "elements": [
+            "tempo_36720"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-2f21a865",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Schneller und leiser",
+      "from": 39600,
+      "to": 41040,
+      "spans": [
+        {
+          "id": "tempo_39600",
+          "type": "tempo",
+          "from": 39600,
+          "to": 41040,
+          "elements": [
+            "tempo_39600"
+          ]
+        },
+        {
+          "id": "dynamics_39960",
+          "type": "dynamics",
+          "from": 39960,
+          "to": 41040,
+          "elements": [
+            "dynamics_39960"
+          ]
+        },
+        {
+          "id": "sustain-40680_start",
+          "type": "movement",
+          "from": 40292,
+          "to": 40492,
+          "elements": [
+            "sustain-40680_start",
+            "sustain-40680_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-40680_moveUp",
+          "type": "movement",
+          "from": 40582,
+          "to": 41037,
+          "elements": [
+            "sustain-40680_moveUp",
+            "sustain-40680_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ece08c1a-e163-434e-9291-aab3c47deb45",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Hinspielen auf Quartsextakkord",
+      "from": 41040,
+      "to": 42480,
+      "spans": [
+        {
+          "id": "tempo_41040",
+          "type": "tempo",
+          "from": 41040,
+          "to": 42480,
+          "elements": [
+            "tempo_41040"
+          ]
+        },
+        {
+          "id": "rubato_41040",
+          "type": "rubato",
+          "from": 41040,
+          "to": 41760,
+          "elements": [
+            "rubato_41040"
+          ]
+        },
+        {
+          "id": "dynamics_41040",
+          "type": "dynamics",
+          "from": 41040,
+          "to": 42480,
+          "elements": [
+            "dynamics_41040"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-0b732081",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 48294.11764705881,
+      "to": 49680,
+      "spans": [
+        {
+          "id": "tempo_48294.11764705881",
+          "type": "tempo",
+          "from": 48294.11764705881,
+          "to": 49680,
+          "elements": [
+            "tempo_48294.11764705881"
+          ]
+        },
+        {
+          "id": "articulation_48600",
+          "type": "articulation",
+          "from": 48600,
+          "to": 49680,
+          "elements": [
+            "articulation_48600",
+            "articulation_48960",
+            "articulation_49320",
+            "articulation_49680"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-037c8a9a",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Anlauf",
+      "from": 48960,
+      "to": 51480,
+      "spans": [
+        {
+          "id": "tempo_49680",
+          "type": "tempo",
+          "from": 49680,
+          "to": 51480,
+          "elements": [
+            "tempo_49680"
+          ]
+        },
+        {
+          "id": "dynamics_48960",
+          "type": "dynamics",
+          "from": 48960,
+          "to": 49320,
+          "elements": [
+            "dynamics_48960"
+          ]
+        },
+        {
+          "id": "dynamics_49320",
+          "type": "dynamics",
+          "from": 49320,
+          "to": 50400,
+          "elements": [
+            "dynamics_49320"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_311e8fd0-a9dc-4e8f-ab9a-cb21ceeb08c8",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "Arpeggio schattieren unter Quartsextakkord ",
+      "from": 53970,
+      "to": 55440,
+      "spans": [
+        {
+          "id": "tempo_54360",
+          "type": "tempo",
+          "from": 54360,
+          "to": 55440,
+          "elements": [
+            "tempo_54360"
+          ]
+        },
+        {
+          "id": "rubato_54000",
+          "type": "rubato",
+          "from": 54000,
+          "to": 54720,
+          "elements": [
+            "rubato_54000"
+          ]
+        },
+        {
+          "id": "accentuationPattern_54000",
+          "type": "accentuationPattern",
+          "from": 54000,
+          "to": 55080,
+          "elements": [
+            "accentuationPattern_54000"
+          ]
+        },
+        {
+          "id": "articulation_54360",
+          "type": "articulation",
+          "from": 54360,
+          "to": 54360,
+          "elements": [
+            "articulation_54360"
+          ]
+        },
+        {
+          "id": "sustain-54360_start",
+          "type": "movement",
+          "from": 53970,
+          "to": 54170,
+          "elements": [
+            "sustain-54360_start",
+            "sustain-54360_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-54360_moveUp",
+          "type": "movement",
+          "from": 54641,
+          "to": 54841,
+          "elements": [
+            "sustain-54360_moveUp",
+            "sustain-54360_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-10407ff0",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "Großangelegtes Decrescendo",
+      "from": 54000,
+      "to": 56880,
+      "spans": [
+        {
+          "id": "tempo_55440",
+          "type": "tempo",
+          "from": 55440,
+          "to": 56880,
+          "elements": [
+            "tempo_55440"
+          ]
+        },
+        {
+          "id": "dynamics_54000",
+          "type": "dynamics",
+          "from": 54000,
+          "to": 55440,
+          "elements": [
+            "dynamics_54000"
+          ]
+        },
+        {
+          "id": "dynamics_55440",
+          "type": "dynamics",
+          "from": 55440,
+          "to": 56880,
+          "elements": [
+            "dynamics_55440"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-07539110",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Dranbleiben, auf melodischen Höhepunkt hin",
+      "from": 58320,
+      "to": 61920,
+      "spans": [
+        {
+          "id": "tempo_58320",
+          "type": "tempo",
+          "from": 58320,
+          "to": 61200,
+          "elements": [
+            "tempo_58320"
+          ]
+        },
+        {
+          "id": "dynamics_58320",
+          "type": "dynamics",
+          "from": 58320,
+          "to": 61920,
+          "elements": [
+            "dynamics_58320"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "8a143343-1778-4720-83b2-aa0ac720fef1",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Kurz entspannen ",
+      "from": 60840,
+      "to": 61560,
+      "spans": [
+        {
+          "id": "tempo_60840",
+          "type": "tempo",
+          "from": 60840,
+          "to": 61560,
+          "elements": [
+            "tempo_60840"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-60fd733a",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Etwas flüchtiger werden",
+      "from": 61560,
+      "to": 64080,
+      "spans": [
+        {
+          "id": "tempo_61560",
+          "type": "tempo",
+          "from": 61560,
+          "to": 63360,
+          "elements": [
+            "tempo_61560"
+          ]
+        },
+        {
+          "id": "dynamics_61920",
+          "type": "dynamics",
+          "from": 61920,
+          "to": 64080,
+          "elements": [
+            "dynamics_61920"
+          ]
+        },
+        {
+          "id": "accentuationPattern_61920",
+          "type": "accentuationPattern",
+          "from": 61920,
+          "to": 62640,
+          "elements": [
+            "accentuationPattern_61920"
+          ]
+        },
+        {
+          "id": "accentuationPattern_62640",
+          "type": "accentuationPattern",
+          "from": 62640,
+          "to": 63360,
+          "elements": [
+            "accentuationPattern_62640"
+          ]
+        },
+        {
+          "id": "accentuationPattern_63360",
+          "type": "accentuationPattern",
+          "from": 63360,
+          "to": 64080,
+          "elements": [
+            "accentuationPattern_63360"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-fdd319f0",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Hinspielen auf Quartsextakkord",
+      "from": 64080,
+      "to": 65880,
+      "spans": [
+        {
+          "id": "tempo_64440",
+          "type": "tempo",
+          "from": 64440,
+          "to": 65880,
+          "elements": [
+            "tempo_64440"
+          ]
+        },
+        {
+          "id": "dynamics_64080",
+          "type": "dynamics",
+          "from": 64080,
+          "to": 65520,
+          "elements": [
+            "dynamics_64080"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_43ee7a5e",
+      "motivation": "calm",
+      "certainty": "possible",
+      "note": "Nachschlag schattieren",
+      "continue": "argumentation-46b51284",
+      "from": 65520,
+      "to": 66600,
+      "spans": [
+        {
+          "id": "tempo_65880",
+          "type": "tempo",
+          "from": 65880,
+          "to": 66600,
+          "elements": [
+            "tempo_65880"
+          ]
+        },
+        {
+          "id": "rubato_65520",
+          "type": "rubato",
+          "from": 65520,
+          "to": 66240,
+          "elements": [
+            "rubato_65520"
+          ]
+        },
+        {
+          "id": "accentuationPattern_65520",
+          "type": "accentuationPattern",
+          "from": 65520,
+          "to": 66600,
+          "elements": [
+            "accentuationPattern_65520"
+          ]
+        },
+        {
+          "id": "sustain-64800_moveUp",
+          "type": "movement",
+          "from": 65854,
+          "to": 66599,
+          "elements": [
+            "sustain-64800_moveUp",
+            "sustain-64800_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-35ba9e0f",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "vorwärts ...",
+      "from": 69840,
+      "to": 72000,
+      "spans": [
+        {
+          "id": "tempo_69840",
+          "type": "tempo",
+          "from": 69840,
+          "to": 72000,
+          "elements": [
+            "tempo_69840"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-94788e2f",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Resonanz durch Pedal halten, aber etwas verkürzt",
+      "from": 73224,
+      "to": 74880,
+      "spans": [
+        {
+          "id": "tempo_73440",
+          "type": "tempo",
+          "from": 73440,
+          "to": 74880,
+          "elements": [
+            "tempo_73440"
+          ]
+        },
+        {
+          "id": "sustain-73440_start",
+          "type": "movement",
+          "from": 73224,
+          "to": 73344,
+          "elements": [
+            "sustain-73440_start",
+            "sustain-73440_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-73440_moveUp",
+          "type": "movement",
+          "from": 74634,
+          "to": 74834,
+          "elements": [
+            "sustain-73440_moveUp",
+            "sustain-73440_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-09d4a249",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "gedehntes d",
+      "from": 79200,
+      "to": 80280,
+      "spans": [
+        {
+          "id": "tempo_79200",
+          "type": "tempo",
+          "from": 79200,
+          "to": 80280,
+          "elements": [
+            "tempo_79200"
+          ]
+        },
+        {
+          "id": "rubato_79200",
+          "type": "rubato",
+          "from": 79200,
+          "to": 79920,
+          "elements": [
+            "rubato_79200"
+          ]
+        },
+        {
+          "id": "articulation_79560",
+          "type": "articulation",
+          "from": 79560,
+          "to": 79560,
+          "elements": [
+            "articulation_79560"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-bbb2c017",
+      "motivation": "move",
+      "certainty": "likely",
+      "from": 83520,
+      "to": 86400,
+      "spans": [
+        {
+          "id": "tempo_83520",
+          "type": "tempo",
+          "from": 83520,
+          "to": 86400,
+          "elements": [
+            "tempo_83520"
+          ]
+        },
+        {
+          "id": "dynamics_83520",
+          "type": "dynamics",
+          "from": 83520,
+          "to": 84960,
+          "elements": [
+            "dynamics_83520"
+          ]
+        },
+        {
+          "id": "dynamics_84960",
+          "type": "dynamics",
+          "from": 84960,
+          "to": 86400,
+          "elements": [
+            "dynamics_84960"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-3e9d851c",
+      "motivation": "relax",
+      "certainty": "likely",
+      "from": 86400,
+      "to": 91440,
+      "spans": [
+        {
+          "id": "tempo_86400",
+          "type": "tempo",
+          "from": 86400,
+          "to": 91440,
+          "elements": [
+            "tempo_86400"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6078a08e-f0c5-4190-828e-b606c54cf8e2",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "from": 56880,
+      "to": 57600,
+      "spans": [
+        {
+          "id": "rubato_56880",
+          "type": "rubato",
+          "from": 56880,
+          "to": 57600,
+          "elements": [
+            "rubato_56880"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-1a04ff8d",
+      "motivation": "intensify",
+      "certainty": "likely",
+      "note": "Wichtige Harmonien etwas zu früh",
+      "from": 53280,
+      "to": 54000,
+      "spans": [
+        {
+          "id": "rubato_53280",
+          "type": "rubato",
+          "from": 53280,
+          "to": 54000,
+          "elements": [
+            "rubato_53280"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "de292c8f-0d9d-469c-af87-7b6d26f840bf",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "from": 32400,
+      "to": 33182,
+      "spans": [
+        {
+          "id": "rubato_32400",
+          "type": "rubato",
+          "from": 32400,
+          "to": 33120,
+          "elements": [
+            "rubato_32400"
+          ]
+        },
+        {
+          "id": "sustain-32760_start",
+          "type": "movement",
+          "from": 32552,
+          "to": 32752,
+          "elements": [
+            "sustain-32760_start",
+            "sustain-32760_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-32760_moveUp",
+          "type": "movement",
+          "from": 32982,
+          "to": 33182,
+          "elements": [
+            "sustain-32760_moveUp",
+            "sustain-32760_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a164d06d-5c67-4208-b876-0388f5d2d755",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "note": "Ankommen, Klang öffnen",
+      "from": 30945,
+      "to": 31680,
+      "spans": [
+        {
+          "id": "rubato_30960",
+          "type": "rubato",
+          "from": 30960,
+          "to": 31680,
+          "elements": [
+            "rubato_30960"
+          ]
+        },
+        {
+          "id": "accentuationPattern_30960",
+          "type": "accentuationPattern",
+          "from": 30960,
+          "to": 31680,
+          "elements": [
+            "accentuationPattern_30960"
+          ]
+        },
+        {
+          "id": "sustain-31320_start",
+          "type": "movement",
+          "from": 30945,
+          "to": 31145,
+          "elements": [
+            "sustain-31320_start",
+            "sustain-31320_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-31320_moveUp",
+          "type": "movement",
+          "from": 31411,
+          "to": 31611,
+          "elements": [
+            "sustain-31320_moveUp",
+            "sustain-31320_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5a6b448d-5922-4ef8-aee3-69e632fab865",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 50400,
+      "to": 51840,
+      "spans": [
+        {
+          "id": "rubato_51120",
+          "type": "rubato",
+          "from": 51120,
+          "to": 51840,
+          "elements": [
+            "rubato_51120"
+          ]
+        },
+        {
+          "id": "rubato_50400",
+          "type": "rubato",
+          "from": 50400,
+          "to": 51120,
+          "elements": [
+            "rubato_50400"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5222c4c2-639e-46d9-a153-e8ccd41ac893",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "note": "Kurzes Entspannen auf C-Dur",
+      "from": 10080,
+      "to": 10800,
+      "spans": [
+        {
+          "id": "rubato_10080",
+          "type": "rubato",
+          "from": 10080,
+          "to": 10800,
+          "elements": [
+            "rubato_10080"
+          ]
+        },
+        {
+          "id": "dynamics_10080",
+          "type": "dynamics",
+          "from": 10080,
+          "to": 10800,
+          "elements": [
+            "dynamics_10080"
+          ]
+        },
+        {
+          "id": "accentuationPattern_10080",
+          "type": "accentuationPattern",
+          "from": 10080,
+          "to": 10800,
+          "elements": [
+            "accentuationPattern_10080"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eb7cd8ea-1a3d-4d18-918a-3a04469d68c4",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "from": 75592,
+      "to": 76323,
+      "spans": [
+        {
+          "id": "rubato_75600",
+          "type": "rubato",
+          "from": 75600,
+          "to": 76320,
+          "elements": [
+            "rubato_75600"
+          ]
+        },
+        {
+          "id": "dynamics_75600",
+          "type": "dynamics",
+          "from": 75600,
+          "to": 76320,
+          "elements": [
+            "dynamics_75600"
+          ]
+        },
+        {
+          "id": "sustain-75960_start",
+          "type": "movement",
+          "from": 75592,
+          "to": 75847,
+          "elements": [
+            "sustain-75960_start",
+            "sustain-75960_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-75960_moveUp",
+          "type": "movement",
+          "from": 76123,
+          "to": 76323,
+          "elements": [
+            "sustain-75960_moveUp",
+            "sustain-75960_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-270564c1",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Verfrühtes a",
+      "from": 64080,
+      "to": 65068,
+      "spans": [
+        {
+          "id": "rubato_64080",
+          "type": "rubato",
+          "from": 64080,
+          "to": 64800,
+          "elements": [
+            "rubato_64080"
+          ]
+        },
+        {
+          "id": "sustain-64800_start",
+          "type": "movement",
+          "from": 64423,
+          "to": 65068,
+          "elements": [
+            "sustain-64800_start",
+            "sustain-64800_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "780e8cb3-9be3-44aa-aa24-f523fa45553a",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Minimal Zeit lassen auf b",
+      "continue": "argumentation-0369dca0",
+      "from": 60480,
+      "to": 61200,
+      "spans": [
+        {
+          "id": "rubato_60480",
+          "type": "rubato",
+          "from": 60480,
+          "to": 61200,
+          "elements": [
+            "rubato_60480"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-0369dca0",
+      "motivation": "move",
+      "certainty": "likely",
+      "note": "Hinspielen auf b",
+      "from": 59760,
+      "to": 61379,
+      "spans": [
+        {
+          "id": "rubato_59760",
+          "type": "rubato",
+          "from": 59760,
+          "to": 60480,
+          "elements": [
+            "rubato_59760"
+          ]
+        },
+        {
+          "id": "sustain-59040_moveUp",
+          "type": "movement",
+          "from": 60424,
+          "to": 61379,
+          "elements": [
+            "sustain-59040_moveUp",
+            "sustain-59040_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "decision-cfcd2188",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "Konstantes \"Dranbleiben\" (dynamisch und agogisch)",
+      "from": 7200,
+      "to": 10080,
+      "spans": [
+        {
+          "id": "dynamics_7200",
+          "type": "dynamics",
+          "from": 7200,
+          "to": 10080,
+          "elements": [
+            "dynamics_7200"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-9a7040ec",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Hinspielen auf c",
+      "from": 14040,
+      "to": 15120,
+      "spans": [
+        {
+          "id": "dynamics_14040",
+          "type": "dynamics",
+          "from": 14040,
+          "to": 15120,
+          "elements": [
+            "dynamics_14040"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-7f4000be",
+      "motivation": "move",
+      "certainty": "likely",
+      "note": "Hin zur Paenultima (Dominate + Sexte)",
+      "from": 19440,
+      "to": 21600,
+      "spans": [
+        {
+          "id": "dynamics_19440",
+          "type": "dynamics",
+          "from": 19440,
+          "to": 20520,
+          "elements": [
+            "dynamics_19440"
+          ]
+        },
+        {
+          "id": "dynamics_20520",
+          "type": "dynamics",
+          "from": 20520,
+          "to": 21600,
+          "elements": [
+            "dynamics_20520"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "61cfb25f-8a56-4744-af8f-cad4da376dd3",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 23760,
+      "to": 26640,
+      "spans": [
+        {
+          "id": "dynamics_23760",
+          "type": "dynamics",
+          "from": 23760,
+          "to": 26640,
+          "elements": [
+            "dynamics_23760"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_a880b0d1-a3fd-4767-a8c1-562ce917f954",
+      "motivation": "move",
+      "certainty": "plausible",
+      "note": "dynamisch Weiterführen",
+      "from": 26640,
+      "to": 28800,
+      "spans": [
+        {
+          "id": "dynamics_26640",
+          "type": "dynamics",
+          "from": 26640,
+          "to": 28800,
+          "elements": [
+            "dynamics_26640"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-ccb7b1d0",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "als Dreiklang aufwärts entspannen",
+      "from": 37440,
+      "to": 38709,
+      "spans": [
+        {
+          "id": "dynamics_37440",
+          "type": "dynamics",
+          "from": 37440,
+          "to": 38520,
+          "elements": [
+            "dynamics_37440"
+          ]
+        },
+        {
+          "id": "sustain-38160_start",
+          "type": "movement",
+          "from": 37760,
+          "to": 37960,
+          "elements": [
+            "sustain-38160_start",
+            "sustain-38160_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-38160_moveUp",
+          "type": "movement",
+          "from": 38509,
+          "to": 38709,
+          "elements": [
+            "sustain-38160_moveUp",
+            "sustain-38160_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-d933faf7",
+      "motivation": "move",
+      "certainty": "likely",
+      "from": 42480,
+      "to": 46800,
+      "spans": [
+        {
+          "id": "dynamics_42480",
+          "type": "dynamics",
+          "from": 42480,
+          "to": 46800,
+          "elements": [
+            "dynamics_42480"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-3e056782",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "Dynamisch etwas zurück",
+      "from": 50400,
+      "to": 52560,
+      "spans": [
+        {
+          "id": "dynamics_50400",
+          "type": "dynamics",
+          "from": 50400,
+          "to": 52560,
+          "elements": [
+            "dynamics_50400"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-f073c65b",
+      "motivation": "relax",
+      "certainty": "likely",
+      "note": "großflächig dynamisch langsam zurückgehen",
+      "from": 65520,
+      "to": 69480,
+      "spans": [
+        {
+          "id": "dynamics_65520",
+          "type": "dynamics",
+          "from": 65520,
+          "to": 66600,
+          "elements": [
+            "dynamics_65520"
+          ]
+        },
+        {
+          "id": "dynamics_66600",
+          "type": "dynamics",
+          "from": 66600,
+          "to": 68040,
+          "elements": [
+            "dynamics_66600"
+          ]
+        },
+        {
+          "id": "dynamics_68040",
+          "type": "dynamics",
+          "from": 68040,
+          "to": 69480,
+          "elements": [
+            "dynamics_68040"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6a3c300f-b1b4-4518-af94-fdea24322eef",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "note": "dynamisch etwas zurück",
+      "from": 69840,
+      "to": 73440,
+      "spans": [
+        {
+          "id": "dynamics_69840",
+          "type": "dynamics",
+          "from": 69840,
+          "to": 73440,
+          "elements": [
+            "dynamics_69840"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fa4f9d02-b3ba-47d3-923e-66cca29191d8",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 76320,
+      "to": 78480,
+      "spans": [
+        {
+          "id": "dynamics_76320",
+          "type": "dynamics",
+          "from": 76320,
+          "to": 78480,
+          "elements": [
+            "dynamics_76320"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-e66db26d",
+      "motivation": "relax",
+      "certainty": "likely",
+      "from": 78480,
+      "to": 81360,
+      "spans": [
+        {
+          "id": "dynamics_78480",
+          "type": "dynamics",
+          "from": 78480,
+          "to": 79920,
+          "elements": [
+            "dynamics_78480"
+          ]
+        },
+        {
+          "id": "dynamics_79920",
+          "type": "dynamics",
+          "from": 79920,
+          "to": 81360,
+          "elements": [
+            "dynamics_79920"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cf7fa33d-4d72-4af3-a330-92f84738c2ae",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "note": "Schattieren des d unter dem a",
+      "continue": "argumentation-270564c1",
+      "from": 64440,
+      "to": 65160,
+      "spans": [
+        {
+          "id": "accentuationPattern_64440",
+          "type": "accentuationPattern",
+          "from": 64440,
+          "to": 65160,
+          "elements": [
+            "accentuationPattern_64440"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arg_f042db2c",
+      "motivation": "relax",
+      "certainty": "possible",
+      "note": "Nachschlag schattieren",
+      "continue": "argumentation-28ed32b3",
+      "from": 66960,
+      "to": 68040,
+      "spans": [
+        {
+          "id": "accentuationPattern_66960",
+          "type": "accentuationPattern",
+          "from": 66960,
+          "to": 68040,
+          "elements": [
+            "accentuationPattern_66960"
+          ]
+        },
+        {
+          "id": "sustain-67320_start",
+          "type": "movement",
+          "from": 67057,
+          "to": 67417,
+          "elements": [
+            "sustain-67320_start",
+            "sustain-67320_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-67320_moveUp",
+          "type": "movement",
+          "from": 67835,
+          "to": 68035,
+          "elements": [
+            "sustain-67320_moveUp",
+            "sustain-67320_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-36604f19",
+      "motivation": "move",
+      "certainty": "likely",
+      "note": "Gut-schlecht Akzente",
+      "from": 79200,
+      "to": 81360,
+      "spans": [
+        {
+          "id": "accentuationPattern_79200",
+          "type": "accentuationPattern",
+          "from": 79200,
+          "to": 79920,
+          "elements": [
+            "accentuationPattern_79200"
+          ]
+        },
+        {
+          "id": "accentuationPattern_79920",
+          "type": "accentuationPattern",
+          "from": 79920,
+          "to": 80640,
+          "elements": [
+            "accentuationPattern_79920"
+          ]
+        },
+        {
+          "id": "accentuationPattern_80640",
+          "type": "accentuationPattern",
+          "from": 80640,
+          "to": 81360,
+          "elements": [
+            "accentuationPattern_80640"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-64b22ad0",
+      "motivation": "intensify",
+      "certainty": "likely",
+      "note": "Richtung zum \"a\"",
+      "from": 83520,
+      "to": 84960,
+      "spans": [
+        {
+          "id": "accentuationPattern_83520",
+          "type": "accentuationPattern",
+          "from": 83520,
+          "to": 84240,
+          "elements": [
+            "accentuationPattern_83520"
+          ]
+        },
+        {
+          "id": "accentuationPattern_84240",
+          "type": "accentuationPattern",
+          "from": 84240,
+          "to": 84960,
+          "elements": [
+            "accentuationPattern_84240"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b1703afe-823a-4261-9969-dbab1ae85531",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 33120,
+      "to": 33480,
+      "spans": [
+        {
+          "id": "articulation_33480",
+          "type": "articulation",
+          "from": 33480,
+          "to": 33480,
+          "elements": [
+            "articulation_33480"
+          ]
+        },
+        {
+          "id": "articulation_33120",
+          "type": "articulation",
+          "from": 33120,
+          "to": 33120,
+          "elements": [
+            "articulation_33120"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "821fda57-7ea5-4a05-ab4f-2b221a141996",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Drücken des Verschiebungspedals",
+      "continue": "7938a94a-fe29-42d0-bca8-b134a6776a96",
+      "from": -100,
+      "to": 100,
+      "spans": [
+        {
+          "id": "soft-0_start",
+          "type": "movement",
+          "from": -100,
+          "to": 100,
+          "elements": [
+            "soft-0_start",
+            "soft-0_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-5bca80cd",
+      "motivation": "move",
+      "certainty": "speculative",
+      "note": "Klang langsam öffnen",
+      "from": 46367,
+      "to": 53367,
+      "spans": [
+        {
+          "id": "soft-0_moveUp",
+          "type": "movement",
+          "from": 46367,
+          "to": 53367,
+          "elements": [
+            "soft-0_moveUp",
+            "soft-0_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-b80e5b76",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "from": 58331,
+      "to": 58531,
+      "spans": [
+        {
+          "id": "sustain-59040_start",
+          "type": "movement",
+          "from": 58331,
+          "to": 58531,
+          "elements": [
+            "sustain-59040_start",
+            "sustain-59040_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-003cb5fa",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Legato in der aufsteigenden Sexte c-a",
+      "from": 84187,
+      "to": 84692,
+      "spans": [
+        {
+          "id": "sustain-84600_start",
+          "type": "movement",
+          "from": 84187,
+          "to": 84387,
+          "elements": [
+            "sustain-84600_start",
+            "sustain-84600_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-84600_moveUp",
+          "type": "movement",
+          "from": 84492,
+          "to": 84692,
+          "elements": [
+            "sustain-84600_moveUp",
+            "sustain-84600_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-3fd3e6c8",
+      "motivation": "move",
+      "certainty": "plausible",
+      "from": 86631,
+      "to": 86831,
+      "spans": [
+        {
+          "id": "sustain-86760_start",
+          "type": "movement",
+          "from": 86631,
+          "to": 86831,
+          "elements": [
+            "sustain-86760_start",
+            "sustain-86760_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-a7ece2a0",
+      "motivation": "relax",
+      "certainty": "plausible",
+      "continue": "argumentation-3fd3e6c8",
+      "from": 86873,
+      "to": 87073,
+      "spans": [
+        {
+          "id": "sustain-86760_moveUp",
+          "type": "movement",
+          "from": 86873,
+          "to": 87073,
+          "elements": [
+            "sustain-86760_moveUp",
+            "sustain-86760_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-4d0e2c4d",
+      "motivation": "intensify",
+      "certainty": "plausible",
+      "note": "Verbindung der absteigenden Quinte a-d",
+      "from": 41209,
+      "to": 42023,
+      "spans": [
+        {
+          "id": "sustain-41400_start",
+          "type": "movement",
+          "from": 41209,
+          "to": 41409,
+          "elements": [
+            "sustain-41400_start",
+            "sustain-41400_moveDown"
+          ]
+        },
+        {
+          "id": "sustain-41400_moveUp",
+          "type": "movement",
+          "from": 41823,
+          "to": 42023,
+          "elements": [
+            "sustain-41400_moveUp",
+            "sustain-41400_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-959bbd48",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 45078,
+      "to": 45168,
+      "spans": [
+        {
+          "id": "sustain-45000_moveUp",
+          "type": "movement",
+          "from": 45078,
+          "to": 45168,
+          "elements": [
+            "sustain-45000_moveUp",
+            "sustain-45000_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-6ceeb676",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 90752,
+      "to": 90817,
+      "spans": [
+        {
+          "id": "sustain-91080_start",
+          "type": "movement",
+          "from": 90752,
+          "to": 90817,
+          "elements": [
+            "sustain-91080_start",
+            "sustain-91080_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-876c53ca",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 90927,
+      "to": 91127,
+      "spans": [
+        {
+          "id": "sustain-91080_moveUp",
+          "type": "movement",
+          "from": 90927,
+          "to": 91127,
+          "elements": [
+            "sustain-91080_moveUp",
+            "sustain-91080_end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-7d253482",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 91134,
+      "to": 91234,
+      "spans": [
+        {
+          "id": "sustain-91440_start",
+          "type": "movement",
+          "from": 91134,
+          "to": 91234,
+          "elements": [
+            "sustain-91440_start",
+            "sustain-91440_moveDown"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "argumentation-fdfafaf4",
+      "motivation": "calm",
+      "certainty": "plausible",
+      "from": 91404,
+      "to": 91464,
+      "spans": [
+        {
+          "id": "sustain-91440_moveUp",
+          "type": "movement",
+          "from": 91404,
+          "to": 91464,
+          "elements": [
+            "sustain-91440_moveUp",
+            "sustain-91440_end"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { Argumentation, MSM, getRange, Transformer } from "mpmify";
+import type { Segment } from "../model/Reconstruction";
 
 function bridgeToZeroLinear(curve: number[]): number[] {
     const n = curve.length;
@@ -56,24 +56,26 @@ export type IntensityCurve = {
     fullLength: number;
 };
 
+/**
+ * Sum every segment into one curve of rising and falling intensity.
+ *
+ * Each segment contributes a half-sine bump: upwards for `intensify`/`move`,
+ * downwards for `relax`/`calm`, and taller the longer it lasts. The sum is
+ * integrated, de-trended and scaled to 0..1, so the curve reads as a shape
+ * rather than as a stack of individual claims.
+ */
 export const negotiateIntensityCurve = (
-    argumentations: Map<Argumentation, Transformer[]>,
+    segments: Segment[],
     maxDate: number,
-    msm: MSM,
-    elementTypesByTransformer: Map<string, string[]>,
     lodWeights?: Map<string, number>,
 ): IntensityCurve => {
-    // Build index: element type → sorted start dates of point-based transformers
+    // Index: MPM element type → sorted start dates, to bound point-like segments
     const startsByType = new Map<string, number[]>();
-    for (const [, localTransformers] of argumentations) {
-        for (const t of localTransformers) {
-            const tRange = getRange(t.options, msm);
-            if (!tRange) continue;
-            for (const type of elementTypesByTransformer.get(t.id) ?? []) {
-                let starts = startsByType.get(type);
-                if (!starts) { starts = []; startsByType.set(type, starts); }
-                starts.push(tRange.from);
-            }
+    for (const segment of segments) {
+        for (const span of segment.spans) {
+            let starts = startsByType.get(span.type);
+            if (!starts) { starts = []; startsByType.set(span.type, starts); }
+            starts.push(span.from);
         }
     }
     for (const starts of startsByType.values()) {
@@ -81,20 +83,15 @@ export const negotiateIntensityCurve = (
     }
 
     const diff: number[] = new Array(maxDate).fill(0);
-    for (const [argumentation, localTransformers] of argumentations) {
-        const lodWeight = lodWeights?.get(argumentation.id) ?? 1;
+    for (const segment of segments) {
+        const lodWeight = lodWeights?.get(segment.id) ?? 1;
         if (lodWeight === 0) continue;
-
-        const range = getRange(localTransformers, msm);
-        if (!range) continue;
-
-        const motivation = argumentation.conclusion.motivation;
 
         // sign: positive = increase, negative = decrease
         // gain: strong (1.0) vs gentle (0.5)
         let sign: number;
         let gain: number;
-        switch (motivation) {
+        switch (segment.motivation) {
             case "intensify": sign = +1; gain = 1.0; break;
             case "move":      sign = +1; gain = 0.5; break;
             case "relax":     sign = -1; gain = 1.0; break;
@@ -102,17 +99,15 @@ export const negotiateIntensityCurve = (
             default: continue;
         }
 
-        const start = range.from;
-        const end = range.to ?? range.from;
-        let length = Math.max(200, end - start + 1);
+        const start = segment.from;
+        let length = Math.max(200, segment.to - start + 1);
 
-        // For point-based transformers (no explicit range), clamp to end before
-        // the next same-type transformer starts
-        if (range.to === undefined || range.to === range.from) {
-            const types = localTransformers.flatMap(t => elementTypesByTransformer.get(t.id) ?? []);
+        // A segment that acts on a single point has no length of its own; give it
+        // one, clamped to where the next segment of the same type takes over.
+        if (segment.to === segment.from) {
             let nextStart = Infinity;
-            for (const type of types) {
-                const starts = startsByType.get(type);
+            for (const span of segment.spans) {
+                const starts = startsByType.get(span.type);
                 if (!starts) continue;
                 // Find first start strictly after current start
                 for (const s of starts) {

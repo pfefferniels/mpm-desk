@@ -1,8 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { usePiano } from 'react-pianosound';
 import { read, MidiFile } from 'midifile-ts';
-import { MPM, MSM } from 'mpmify';
-import { exportMPM } from 'mpm-ts';
 import { renderPerformance } from '../utils/espressivoClient';
 import type { RenderRequest } from '../utils/espressivo';
 import { useZoom } from './ZoomProvider';
@@ -43,7 +41,7 @@ export interface PlaybackNoteEvent {
     noteId: string;
     /** Symbolic date (ticks) of the sounding note. */
     date: number;
-    /** True when playback is scoped to specific instructions (mpmIds), e.g. a region preview. */
+    /** True when playback is scoped to specific instructions (mpmIds), e.g. a segment preview. */
     scoped: boolean;
 }
 
@@ -62,14 +60,16 @@ interface PlaybackContextValue {
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
 interface PlaybackProviderProps {
-    /** The score as MSM XML, from `utils/espressivo.convertMei`. */
-    msmXml: string | undefined;
-    msm: MSM;
-    mpm: MPM;
+    /** The score as MSM XML, i.e. `public/score.msm`. */
+    scoreMsm: string;
+    /** The performance as MPM XML, i.e. `public/performance.mpm`. */
+    performanceMpm: string;
+    /** Note `xml:id` ⇒ symbolic date, for reporting where the playhead is. */
+    dateByNoteId: Map<string, number>;
     children: ReactNode;
 }
 
-export const PlaybackProvider = ({ msmXml, msm, mpm, children }: PlaybackProviderProps) => {
+export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, children }: PlaybackProviderProps) => {
     const { play: playPiano, stop: stopPiano, jumpTo } = usePiano();
     const { stretchX } = useZoom();
     const [isPlaying, setIsPlaying] = useState(false);
@@ -77,9 +77,9 @@ export const PlaybackProvider = ({ msmXml, msm, mpm, children }: PlaybackProvide
 
     // Store props and unstable usePiano() references in refs
     // so downstream callbacks and context value stay stable.
-    const msmXmlRef = useLatest(msmXml);
-    const msmRef = useLatest(msm);
-    const mpmRef = useLatest(mpm);
+    const scoreMsmRef = useLatest(scoreMsm);
+    const performanceMpmRef = useLatest(performanceMpm);
+    const dateByNoteIdRef = useLatest(dateByNoteId);
     const playPianoRef = useLatest(playPiano);
     const stopPianoRef = useLatest(stopPiano);
     const jumpToRef = useLatest(jumpTo);
@@ -113,17 +113,12 @@ export const PlaybackProvider = ({ msmXml, msm, mpm, children }: PlaybackProvide
     const stretchXRef = useLatest(stretchX);
 
     const startPlayback = useCallback(async (options: PlayOptions | undefined, resumeFromNoteId: string | null) => {
-        const currentMsmXml = msmXmlRef.current;
-        const currentMsm = msmRef.current;
-        const currentMpm = mpmRef.current;
-
-        if (!currentMpm || !currentMsmXml) return;
-
+        const dateByNoteId = dateByNoteIdRef.current;
         const { mpmIds, isolate, exaggerate, onNoteEvent } = options || {};
 
         const request: RenderRequest = {
-            msm: currentMsmXml,
-            mpm: exportMPM(currentMpm),
+            msm: scoreMsmRef.current,
+            mpm: performanceMpmRef.current,
             sketchiness: computeSketchiness(stretchXRef.current),
         };
 
@@ -152,7 +147,7 @@ export const PlaybackProvider = ({ msmXml, msm, mpm, children }: PlaybackProvide
                 if (e.type === 'meta' && e.subtype === 'text') {
                     lastNoteIdRef.current = e.text;
                     if (onNoteEvent || noteEventListenersRef.current.size > 0) {
-                        const date = currentMsm.getByID(e.text)?.date;
+                        const date = dateByNoteId.get(e.text);
                         if (date !== undefined) {
                             onNoteEvent?.(e.text, date);
                             noteEventListenersRef.current.forEach(listener =>
@@ -171,7 +166,7 @@ export const PlaybackProvider = ({ msmXml, msm, mpm, children }: PlaybackProvide
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [msmXmlRef, msmRef, mpmRef, stretchXRef, playPianoRef, jumpToRef]);
+    }, [scoreMsmRef, performanceMpmRef, dateByNoteIdRef, stretchXRef, playPianoRef, jumpToRef]);
 
     const play = useCallback(async (options?: PlayOptions) => {
         stopPianoRef.current();

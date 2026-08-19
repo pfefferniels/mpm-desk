@@ -3,16 +3,13 @@
  *
  * One worker for the page, created on first use so that importing this module stays free in
  * tests and on the server. One persistent `message` listener dispatches by request id into a
- * pending map — attaching a listener per request would drop results whose caller unmounted
- * mid-flight, the bug `usePipelineRunner` documents.
+ * pending map; attaching a listener per request would drop results whose caller unmounted
+ * mid-flight.
  */
 import type { EspressivoRequest, EspressivoResponse } from '../espressivo.worker';
 import type { RenderRequest } from './espressivo';
 
 type Pending = { resolve: (value: never) => void; reject: (error: Error) => void };
-
-/** `Omit` collapses a union into its common keys; this keeps each member intact. */
-type DistributiveOmit<T, K extends keyof never> = T extends unknown ? Omit<T, K> : never;
 
 let worker: Worker | null = null;
 let nextRequestId = 0;
@@ -41,7 +38,7 @@ const getWorker = (): Worker => {
 };
 
 const request = <T extends EspressivoResponse>(
-    message: DistributiveOmit<EspressivoRequest, 'requestId'>,
+    message: Omit<EspressivoRequest, 'requestId'>,
 ): Promise<T> => {
     const requestId = ++nextRequestId;
     const instance = getWorker();
@@ -49,15 +46,6 @@ const request = <T extends EspressivoResponse>(
         pending.set(requestId, { resolve: resolve as Pending['resolve'], reject });
         instance.postMessage({ ...message, requestId } as EspressivoRequest);
     });
-};
-
-/** MEI ⇒ MSM + MPM XML. Several seconds for a full piece. */
-export const convertMei = async (mei: string): Promise<{ msm: string; mpm: string }> => {
-    const { msm, mpm } = await request<Extract<EspressivoResponse, { type: 'convert-result' }>>({
-        type: 'convert',
-        mei,
-    });
-    return { msm, mpm };
 };
 
 /** MSM + MPM ⇒ expressive MIDI bytes. */

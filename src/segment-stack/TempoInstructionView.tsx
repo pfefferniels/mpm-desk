@@ -1,5 +1,9 @@
 import { useMemo } from "react";
-import { getTempoAt, TempoWithEndDate } from "mpmify";
+// Reached past mpmify's barrel on purpose: importing it registers every transformer, which
+// pins the whole pipeline into the bundle for the sake of one curve function. The type comes
+// from the public entry point, where it costs nothing.
+import { getTempoAt } from "mpmify/lib/transformers/tempo/tempoCalculations";
+import type { TempoWithEndDate } from "mpmify";
 
 const CHART_WIDTH = 240;
 const CHART_HEIGHT = 100;

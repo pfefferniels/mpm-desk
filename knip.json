@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": [
-    "src/pipeline.worker.ts",
+    "src/espressivo.worker.ts",
     "scripts/*.ts"
   ],
   "ignore": [

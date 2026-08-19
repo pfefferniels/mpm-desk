@@ -1,43 +1,35 @@
 import { useMemo, useState, useEffect, RefObject } from "react";
 import { Popper, Paper } from "@mui/material";
-import { MPM, Transformer, TempoWithEndDate, DynamicsWithEndDate } from "mpmify";
+import { MPM } from "mpm-ts";
+import type { TempoWithEndDate, DynamicsWithEndDate } from "mpmify";
 import { TempoInstructionView } from "./TempoInstructionView";
 import { DynamicsInstructionView } from "./DynamicsInstructionView";
 import { GenericInstructionView } from "./GenericInstructionView";
 
 interface InstructionPopoverProps {
     mpm: MPM;
-    transformers: Transformer[];
-    activeTransformerIds: Set<string>;
+    activeSpanIds: Set<string>;
     svgRef: RefObject<SVGSVGElement | null>;
 }
 
 export const InstructionPopover = ({
     mpm,
-    transformers,
-    activeTransformerIds,
+    activeSpanIds,
     svgRef,
 }: InstructionPopoverProps) => {
-    // Find the single active transformer
+    // A span's id is the MPM element it leads with, so the selection names the
+    // instruction to show outright.
     const activeId = useMemo(() => {
-        if (activeTransformerIds.size !== 1) return null;
-        return activeTransformerIds.values().next().value ?? null;
-    }, [activeTransformerIds]);
+        if (activeSpanIds.size !== 1) return null;
+        return activeSpanIds.values().next().value ?? null;
+    }, [activeSpanIds]);
 
-    const activeTransformer = useMemo(() => {
-        if (!activeId) return null;
-        return transformers.find(t => t.id === activeId) ?? null;
-    }, [activeId, transformers]);
-
-    // Find the instruction created by this transformer
     const allInstructions = useMemo(() => mpm.getInstructions(), [mpm]);
 
     const instruction = useMemo(() => {
-        if (!activeTransformer) return null;
-        const createdId = activeTransformer.created[0];
-        if (!createdId) return null;
-        return allInstructions.find(i => i['xml:id'] === createdId) ?? null;
-    }, [activeTransformer, allInstructions]);
+        if (!activeId) return null;
+        return allInstructions.find(i => i['xml:id'] === activeId) ?? null;
+    }, [activeId, allInstructions]);
 
     // For tempo instructions, build the sorted list with endDates
     const tempoData = useMemo(() => {
@@ -94,21 +86,21 @@ export const InstructionPopover = ({
     const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
 
     useEffect(() => {
-        if (activeTransformerIds.size !== 1) {
+        if (activeSpanIds.size !== 1) {
             setAnchorPos(null);
         }
-    }, [activeTransformerIds]);
+    }, [activeSpanIds]);
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
-            if (activeTransformerIds.size === 1) {
+            if (activeSpanIds.size === 1) {
                 setAnchorPos({ x: e.clientX, y: e.clientY });
             }
         };
         svgRef.current?.addEventListener("click", handler);
         const svg = svgRef.current;
         return () => svg?.removeEventListener("click", handler);
-    }, [activeTransformerIds, svgRef]);
+    }, [activeSpanIds, svgRef]);
 
     const virtualElement = useMemo(() => {
         if (!anchorPos) return null;
@@ -117,7 +109,7 @@ export const InstructionPopover = ({
         };
     }, [anchorPos]);
 
-    if (!activeTransformer || !instruction || !virtualElement) return null;
+    if (!instruction || !virtualElement) return null;
 
     return (
         <Popper

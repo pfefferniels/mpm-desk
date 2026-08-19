@@ -1,5 +1,10 @@
 import { Argumentation, getRange, MSM, Transformer } from "mpmify";
-import { cloneTransformerWithArgumentation } from "../transformer-stack/cloneTransformer";
+
+const cloneTransformerWithArgumentation = (transformer: Transformer, argumentation: Argumentation): Transformer => {
+    const clone = Object.create(Object.getPrototypeOf(transformer)) as Transformer;
+    Object.assign(clone, transformer, { argumentation });
+    return clone;
+};
 
 /**
  * Reconcile metadata from an absorbed argumentation into the winner.
