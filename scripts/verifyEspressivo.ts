@@ -8,8 +8,8 @@
  *   4. Exaggeration x sketchiness stays on the smooth side of the ornament cliff,
  *      and a scalar past the cap still renders instead of throwing.
  *
- * `verifySegments.ts` covers the other half — that the baked files are the
- * pipeline, and that espressivo accepts every selection the app can make.
+ * `verifySegments.ts` covers the other half — that every id a segment names lands
+ * in the MPM, and that espressivo accepts every selection the app can make.
  *
  * Usage:
  *   node_modules/.bin/vite-node scripts/verifyEspressivo.ts

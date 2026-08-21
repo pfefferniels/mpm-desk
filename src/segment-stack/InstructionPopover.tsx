@@ -1,13 +1,12 @@
 import { useMemo, useState, useEffect, RefObject } from "react";
 import { Popper, Paper } from "@mui/material";
-import { MPM } from "mpm-ts";
-import type { TempoWithEndDate, DynamicsWithEndDate } from "mpmify";
+import type { PerformanceReader } from "../utils/mpm";
 import { TempoInstructionView } from "./TempoInstructionView";
 import { DynamicsInstructionView } from "./DynamicsInstructionView";
 import { GenericInstructionView } from "./GenericInstructionView";
 
 interface InstructionPopoverProps {
-    mpm: MPM;
+    mpm: PerformanceReader;
     activeSpanIds: Set<string>;
     svgRef: RefObject<SVGSVGElement | null>;
 }
@@ -24,63 +23,23 @@ export const InstructionPopover = ({
         return activeSpanIds.values().next().value ?? null;
     }, [activeSpanIds]);
 
-    const allInstructions = useMemo(() => mpm.getInstructions(), [mpm]);
+    const instruction = useMemo(
+        () => (activeId ? mpm.byId(activeId) ?? null : null),
+        [activeId, mpm],
+    );
 
-    const instruction = useMemo(() => {
-        if (!activeId) return null;
-        return allInstructions.find(i => i['xml:id'] === activeId) ?? null;
-    }, [activeId, allInstructions]);
-
-    // For tempo instructions, build the sorted list with endDates
-    const tempoData = useMemo(() => {
-        if (!instruction || instruction.type !== 'tempo') return null;
-
-        const tempoInstructions = mpm.getInstructions<{ type: 'tempo'; date: number; 'xml:id': string; bpm: number; beatLength: number; 'transition.to'?: number; 'meanTempoAt'?: number }>('tempo')
-            .slice()
-            .sort((a, b) => a.date - b.date);
-
-        const temposWithEndDate: TempoWithEndDate[] = tempoInstructions
-            .map((tempo, i) => {
-                const next = tempoInstructions[i + 1];
-                // Last instruction gets a synthetic endDate (one quarter note)
-                const endDate = next ? next.date : tempo.date + tempo.beatLength * 720;
-                if (endDate <= tempo.date) return null;
-                return { ...tempo, endDate } as TempoWithEndDate;
-            })
-            .filter((t): t is TempoWithEndDate => t !== null);
-
-        const focusedIndex = temposWithEndDate.findIndex(t => t['xml:id'] === instruction['xml:id']);
-        if (focusedIndex === -1) return null;
-
-        return { tempos: temposWithEndDate, focusedIndex };
-    }, [instruction, mpm]);
-
-    // For dynamics instructions, build the sorted list with endDates
-    const dynamicsData = useMemo(() => {
-        if (!instruction || instruction.type !== 'dynamics') return null;
-
-        const dynamicsInstructions = mpm.getInstructions<{
-            type: 'dynamics'; date: number; 'xml:id': string;
-            volume: number | string; 'transition.to'?: number;
-            protraction?: number; curvature?: number; beatLength: number;
-        }>('dynamics')
-            .slice()
-            .sort((a, b) => a.date - b.date);
-
-        const dynamicsWithEndDate: DynamicsWithEndDate[] = dynamicsInstructions
-            .map((dyn, i) => {
-                const next = dynamicsInstructions[i + 1];
-                const endDate = next ? next.date : dyn.date + dyn.beatLength * 720;
-                if (endDate <= dyn.date) return null;
-                return { ...dyn, endDate } as DynamicsWithEndDate;
-            })
-            .filter((d): d is DynamicsWithEndDate => d !== null);
-
-        const focusedIndex = dynamicsWithEndDate.findIndex(d => d['xml:id'] === instruction['xml:id']);
-        if (focusedIndex === -1) return null;
-
-        return { dynamics: dynamicsWithEndDate, focusedIndex };
-    }, [instruction, mpm]);
+    // Both charts show the focused instruction against its neighbours. espressivo resolves
+    // the span ends, the style-relative names and (for dynamics) the Bézier control points,
+    // so there is nothing left here to derive — a null means the renderer skips it, which
+    // is a document with no curve to draw rather than a curve of zero.
+    const tempi = useMemo(
+        () => (instruction?.type === 'tempo' ? mpm.tempoAround(instruction) : null),
+        [instruction, mpm],
+    );
+    const dynamics = useMemo(
+        () => (instruction?.type === 'dynamics' ? mpm.dynamicsAround(instruction) : null),
+        [instruction, mpm],
+    );
 
     // Anchor at the click position
     const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
@@ -129,21 +88,12 @@ export const InstructionPopover = ({
                     overflow: "hidden",
                 }}
             >
-                {tempoData ? (
-                    <TempoInstructionView
-                        tempos={tempoData.tempos}
-                        focusedIndex={tempoData.focusedIndex}
-                    />
-                ) : dynamicsData ? (
-                    <DynamicsInstructionView
-                        dynamics={dynamicsData.dynamics}
-                        focusedIndex={dynamicsData.focusedIndex}
-                    />
+                {tempi ? (
+                    <TempoInstructionView tempi={tempi} meter={mpm.meter} />
+                ) : dynamics ? (
+                    <DynamicsInstructionView dynamics={dynamics} meter={mpm.meter} />
                 ) : (
-                    <GenericInstructionView
-                        type={instruction.type}
-                        date={(instruction as { date: number }).date}
-                    />
+                    <GenericInstructionView type={instruction.type} date={instruction.date} />
                 )}
             </Paper>
         </Popper>

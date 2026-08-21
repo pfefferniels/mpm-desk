@@ -9,7 +9,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { act, type ReactNode } from 'react'
-import { parseMPM } from 'mpm-ts'
+import { readPerformance } from '../utils/mpm'
+import { readMeter } from '../utils/score'
 import { ZoomContext } from '../hooks/ZoomProvider'
 import { SelectionProvider } from '../hooks/SelectionProvider'
 import { ScrollSyncProvider } from '../hooks/ScrollSyncProvider'
@@ -27,7 +28,7 @@ vi.mock('react-pianosound', () => ({
 describe('SegmentStack over the shipped reconstruction', () => {
     it('draws an onion per visible segment and one intensity curve', async () => {
         const { segments } = JSON.parse(readFileSync('public/segments.json', 'utf-8')) as Reconstruction
-        const mpm = parseMPM(readFileSync('public/performance.mpm', 'utf-8'))
+        const mpm = readPerformance(readFileSync('public/performance.mpm', 'utf-8'), readMeter(readFileSync('public/score.msm', 'utf-8')))
 
         const container = document.createElement('div')
         document.body.appendChild(container)

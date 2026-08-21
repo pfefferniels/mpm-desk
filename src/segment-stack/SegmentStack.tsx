@@ -3,7 +3,7 @@ import { useCallback, useDeferredValue, useEffect, useEffectEvent, useId, useMem
 import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
-import { MPM } from "mpm-ts";
+import type { PerformanceReader } from "../utils/mpm";
 import type { Segment } from "../model/Reconstruction";
 import { applyExaggeration, applyLocalRenormalization, asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
@@ -52,7 +52,7 @@ function isRangeFullyCovered(from: number, to: number, intervals: { from: number
 
 interface SegmentStackProps {
     segments: Segment[];
-    mpm: MPM;
+    mpm: PerformanceReader;
 }
 
 export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
@@ -391,8 +391,8 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         const types = ['tempo', 'dynamics', 'rubato', 'articulation', 'asynchrony', 'movement', 'ornament', 'accentuationPattern'] as const;
         const segmentIds = new Set<string>();
         for (const type of types) {
-            for (const instruction of mpm.instructionsEffectiveAtDate(date, type)) {
-                const segmentId = elementToSegment.get(instruction['xml:id']);
+            for (const instruction of mpm.effectiveAt(date, type)) {
+                const segmentId = elementToSegment.get(instruction.id);
                 if (segmentId) segmentIds.add(segmentId);
             }
         }

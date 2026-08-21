@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { parseMPM } from 'mpm-ts';
 import JSZip from 'jszip';
 import { SegmentStack } from './segment-stack/SegmentStack';
 import { ZoomContext } from './hooks/ZoomProvider';
@@ -9,7 +8,8 @@ import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { PianoContextProvider } from 'react-pianosound';
 import { ViewerToolbar } from './components/ViewerToolbar';
 import { downloadAsFile } from './utils/utils';
-import { readNoteDates } from './utils/score';
+import { readMeter, readNoteDates } from './utils/score';
+import { readPerformance } from './utils/mpm';
 import { useReconstruction } from './hooks/useReconstructionLoader';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -31,8 +31,12 @@ const ViewerInner = () => {
     }, [segments, fitted]);
 
     // Both are parsed once: the MPM for the instructions a popover shows and for
-    // "what is in effect now", the MSM for note dates. Neither changes.
-    const mpm = useMemo(() => work && parseMPM(work.performanceMpm), [work]);
+    // "what is in effect now", the MSM for note dates and the tick grid. Neither changes.
+    const meter = useMemo(() => work ? readMeter(work.scoreMsm) : null, [work]);
+    const mpm = useMemo(
+        () => work && meter ? readPerformance(work.performanceMpm, meter) : null,
+        [work, meter],
+    );
     const dateByNoteId = useMemo(() => work ? readNoteDates(work.scoreMsm) : new Map(), [work]);
 
     const handleDownload = useCallback(async () => {

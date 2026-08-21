@@ -1,9 +1,6 @@
 import { useMemo } from "react";
-// Reached past mpmify's barrel on purpose: importing it registers every transformer, which
-// pins the whole pipeline into the bundle for the sake of one curve function. The type comes
-// from the public entry point, where it costs nothing.
-import { getTempoAt } from "mpmify/lib/transformers/tempo/tempoCalculations";
-import type { TempoWithEndDate } from "mpmify";
+import { spanEnd, tempoAt, type Neighbourhood, type Tempo } from "../utils/mpm";
+import type { Meter } from "../utils/score";
 
 const CHART_WIDTH = 240;
 const CHART_HEIGHT = 100;
@@ -12,41 +9,43 @@ const FADE_TICKS = 720;
 const SAMPLE_STEP = 10;
 
 interface TempoInstructionViewProps {
-    tempos: TempoWithEndDate[];
-    focusedIndex: number;
+    tempi: Neighbourhood<Tempo>;
+    meter: Meter;
 }
 
-export const TempoInstructionView = ({ tempos, focusedIndex }: TempoInstructionViewProps) => {
-    const focused = tempos[focusedIndex];
-    const prev = focusedIndex > 0 ? tempos[focusedIndex - 1] : null;
-    const next = focusedIndex < tempos.length - 1 ? tempos[focusedIndex + 1] : null;
+export const TempoInstructionView = ({ tempi, meter }: TempoInstructionViewProps) => {
+    const { focused, previous, next } = tempi;
+
+    const focusedEnd = spanEnd(focused, meter);
 
     // Determine the visible tick range: focused instruction + fade zones for adjacent
-    const viewFrom = prev
-        ? Math.max(prev.date, focused.date - FADE_TICKS)
-        : focused.date;
+    const viewFrom = previous
+        ? Math.max(previous.startDate, focused.startDate - FADE_TICKS)
+        : focused.startDate;
     const viewTo = next
-        ? Math.min(next.endDate, focused.endDate + FADE_TICKS)
-        : focused.endDate;
+        ? Math.min(spanEnd(next, meter), focusedEnd + FADE_TICKS)
+        : focusedEnd;
 
-    // Sample BPM curves
+    // Sample BPM curves. `tempoAt` is the renderer's own evaluator, so what is drawn here
+    // and what is heard cannot come apart — including the case where a last instruction's
+    // `@transition.to` never takes effect because nothing follows to close its span.
     const { focusedPoints, prevPoints, nextPoints, bpmMin, bpmMax } = useMemo(() => {
-        const sampleCurve = (tempo: TempoWithEndDate, from: number, to: number) => {
+        const sampleCurve = (tempo: Tempo, from: number, to: number) => {
             const pts: { tick: number; bpm: number }[] = [];
-            const clampedFrom = Math.max(tempo.date, from);
-            const clampedTo = Math.min(tempo.endDate, to);
+            const clampedFrom = Math.max(tempo.startDate, from);
+            const clampedTo = Math.min(spanEnd(tempo, meter), to);
             for (let t = clampedFrom; t <= clampedTo; t += SAMPLE_STEP) {
-                pts.push({ tick: t, bpm: getTempoAt(t, tempo) });
+                pts.push({ tick: t, bpm: tempoAt(tempo, t) });
             }
             if (pts.length > 0 && pts[pts.length - 1].tick < clampedTo) {
-                pts.push({ tick: clampedTo, bpm: getTempoAt(clampedTo, tempo) });
+                pts.push({ tick: clampedTo, bpm: tempoAt(tempo, clampedTo) });
             }
             return pts;
         };
 
         const fp = sampleCurve(focused, viewFrom, viewTo);
-        const pp = prev ? sampleCurve(prev, viewFrom, focused.date) : [];
-        const np = next ? sampleCurve(next, focused.endDate, viewTo) : [];
+        const pp = previous ? sampleCurve(previous, viewFrom, focused.startDate) : [];
+        const np = next ? sampleCurve(next, focusedEnd, viewTo) : [];
 
         const allBpms = [...fp, ...pp, ...np].map(p => p.bpm);
         const min = allBpms.length > 0 ? Math.min(...allBpms) : 100;
@@ -59,7 +58,7 @@ export const TempoInstructionView = ({ tempos, focusedIndex }: TempoInstructionV
             bpmMin: min,
             bpmMax: max,
         };
-    }, [focused, prev, next, viewFrom, viewTo]);
+    }, [focused, previous, next, viewFrom, viewTo, focusedEnd, meter]);
 
     const bpmPadding = Math.max(2, (bpmMax - bpmMin) * 0.15);
     const yMin = bpmMin - bpmPadding;
@@ -77,13 +76,18 @@ export const TempoInstructionView = ({ tempos, focusedIndex }: TempoInstructionV
     const prevGradientId = "prev-fade";
     const nextGradientId = "next-fade";
 
+    // The endpoints as performed, not as written: a trailing `@transition.to` is inert, and
+    // labelling it would name the most audible gesture in the file where there is none.
+    const startBpm = tempoAt(focused, focused.startDate);
+    const endBpm = tempoAt(focused, focusedEnd);
+
     return (
         <svg width={CHART_WIDTH} height={CHART_HEIGHT} style={{ display: "block" }}>
             {/* Focused instruction range background */}
             <rect
-                x={tickToX(focused.date)}
+                x={tickToX(focused.startDate)}
                 y={PAD}
-                width={tickToX(focused.endDate) - tickToX(focused.date)}
+                width={tickToX(focusedEnd) - tickToX(focused.startDate)}
                 height={plotH}
                 fill="#16a085"
                 fillOpacity={0.06}
@@ -145,25 +149,25 @@ export const TempoInstructionView = ({ tempos, focusedIndex }: TempoInstructionV
             {focusedPoints.length > 0 && (
                 <>
                     <text
-                        x={tickToX(focused.date)}
-                        y={bpmToY(focused.bpm) - 6}
+                        x={tickToX(focused.startDate)}
+                        y={bpmToY(startBpm) - 6}
                         textAnchor="start"
                         fontSize={10}
                         fontWeight={600}
                         fill="#16a085"
                     >
-                        {focused.bpm.toFixed(1)}
+                        {startBpm.toFixed(1)}
                     </text>
-                    {focused["transition.to"] && (
+                    {endBpm !== startBpm && (
                         <text
-                            x={tickToX(focused.endDate)}
-                            y={bpmToY(focused["transition.to"]) - 6}
+                            x={tickToX(focusedEnd)}
+                            y={bpmToY(endBpm) - 6}
                             textAnchor="end"
                             fontSize={10}
                             fontWeight={600}
                             fill="#16a085"
                         >
-                            {focused["transition.to"].toFixed(1)}
+                            {endBpm.toFixed(1)}
                         </text>
                     )}
                 </>

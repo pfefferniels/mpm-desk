@@ -1,8 +1,6 @@
 import { useMemo } from "react";
-// Past the barrel for the same reason as TempoInstructionView: MPM's dynamics curve is
-// spec maths, but mpmify's entry point drags the transformer registry in with it.
-import { volumeAtDate, computeInnerControlPointsXPositions } from "mpmify/lib/transformers/dynamics/Approximation";
-import type { DynamicsWithEndDate } from "mpmify";
+import { dynamicsAt, spanEnd, type Dynamics, type Neighbourhood } from "../utils/mpm";
+import type { Meter } from "../utils/score";
 
 const CHART_WIDTH = 240;
 const CHART_HEIGHT = 100;
@@ -12,55 +10,46 @@ const SAMPLE_STEP = 10;
 const COLOR = "#2980b9";
 
 interface DynamicsInstructionViewProps {
-    dynamics: DynamicsWithEndDate[];
-    focusedIndex: number;
+    dynamics: Neighbourhood<Dynamics>;
+    meter: Meter;
 }
 
 export const DynamicsInstructionView = ({
     dynamics,
-    focusedIndex,
+    meter,
 }: DynamicsInstructionViewProps) => {
-    const focused = dynamics[focusedIndex];
-    const prev = focusedIndex > 0 ? dynamics[focusedIndex - 1] : null;
-    const next =
-        focusedIndex < dynamics.length - 1 ? dynamics[focusedIndex + 1] : null;
+    const { focused, previous, next } = dynamics;
 
-    const viewFrom = prev
-        ? Math.max(prev.date, focused.date - FADE_TICKS)
-        : focused.date;
+    const focusedEnd = spanEnd(focused, meter);
+
+    const viewFrom = previous
+        ? Math.max(previous.startDate, focused.startDate - FADE_TICKS)
+        : focused.startDate;
     const viewTo = next
-        ? Math.min(next.endDate, focused.endDate + FADE_TICKS)
-        : focused.endDate;
+        ? Math.min(spanEnd(next, meter), focusedEnd + FADE_TICKS)
+        : focusedEnd;
 
+    // `dynamicsAt` is the renderer's evaluator and the Bézier control points are already
+    // derived and clamped onto the record (`x1`/`x2`), so `@curvature` and `@protraction`
+    // need no interpretation here.
     const { focusedPoints, prevPoints, nextPoints, volMin, volMax } =
         useMemo(() => {
-            const sampleCurve = (
-                instr: DynamicsWithEndDate,
-                from: number,
-                to: number
-            ) => {
-                const withCp = {
-                    ...instr,
-                    ...computeInnerControlPointsXPositions(
-                        instr.curvature ?? 0.5,
-                        instr.protraction ?? 0
-                    ),
-                };
+            const sampleCurve = (instr: Dynamics, from: number, to: number) => {
                 const pts: { tick: number; vol: number }[] = [];
-                const clampedFrom = Math.max(instr.date, from);
-                const clampedTo = Math.min(instr.endDate, to);
+                const clampedFrom = Math.max(instr.startDate, from);
+                const clampedTo = Math.min(spanEnd(instr, meter), to);
                 for (let t = clampedFrom; t <= clampedTo; t += SAMPLE_STEP) {
-                    pts.push({ tick: t, vol: volumeAtDate(withCp, t) });
+                    pts.push({ tick: t, vol: dynamicsAt(instr, t) });
                 }
                 if (pts.length > 0 && pts[pts.length - 1].tick < clampedTo) {
-                    pts.push({ tick: clampedTo, vol: volumeAtDate(withCp, clampedTo) });
+                    pts.push({ tick: clampedTo, vol: dynamicsAt(instr, clampedTo) });
                 }
                 return pts;
             };
 
             const fp = sampleCurve(focused, viewFrom, viewTo);
-            const pp = prev ? sampleCurve(prev, viewFrom, focused.date) : [];
-            const np = next ? sampleCurve(next, focused.endDate, viewTo) : [];
+            const pp = previous ? sampleCurve(previous, viewFrom, focused.startDate) : [];
+            const np = next ? sampleCurve(next, focusedEnd, viewTo) : [];
 
             const allVols = [...fp, ...pp, ...np].map((p) => p.vol);
             const min = allVols.length > 0 ? Math.min(...allVols) : 60;
@@ -73,7 +62,7 @@ export const DynamicsInstructionView = ({
                 volMin: min,
                 volMax: max,
             };
-        }, [focused, prev, next, viewFrom, viewTo]);
+        }, [focused, previous, next, viewFrom, viewTo, focusedEnd, meter]);
 
     const volPadding = Math.max(2, (volMax - volMin) * 0.15);
     const yMin = volMin - volPadding;
@@ -95,18 +84,17 @@ export const DynamicsInstructionView = ({
             )
             .join(" ");
 
-    const startVol =
-        typeof focused.volume === "number"
-            ? focused.volume
-            : parseFloat(focused.volume);
+    // As performed, not as written — see TempoInstructionView.
+    const startVol = dynamicsAt(focused, focused.startDate);
+    const endVol = dynamicsAt(focused, focusedEnd);
 
     return (
         <svg width={CHART_WIDTH} height={CHART_HEIGHT} style={{ display: "block" }}>
             {/* Focused range background */}
             <rect
-                x={tickToX(focused.date)}
+                x={tickToX(focused.startDate)}
                 y={PAD}
-                width={tickToX(focused.endDate) - tickToX(focused.date)}
+                width={tickToX(focusedEnd) - tickToX(focused.startDate)}
                 height={plotH}
                 fill={COLOR}
                 fillOpacity={0.06}
@@ -167,7 +155,7 @@ export const DynamicsInstructionView = ({
             {focusedPoints.length > 0 && (
                 <>
                     <text
-                        x={tickToX(focused.date)}
+                        x={tickToX(focused.startDate)}
                         y={volToY(startVol) - 6}
                         textAnchor="start"
                         fontSize={10}
@@ -176,16 +164,16 @@ export const DynamicsInstructionView = ({
                     >
                         {startVol.toFixed(0)}
                     </text>
-                    {focused["transition.to"] != null && (
+                    {endVol !== startVol && (
                         <text
-                            x={tickToX(focused.endDate)}
-                            y={volToY(focused["transition.to"]) - 6}
+                            x={tickToX(focusedEnd)}
+                            y={volToY(endVol) - 6}
                             textAnchor="end"
                             fontSize={10}
                             fontWeight={600}
                             fill={COLOR}
                         >
-                            {focused["transition.to"].toFixed(0)}
+                            {endVol.toFixed(0)}
                         </text>
                     )}
                 </>

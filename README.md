@@ -18,31 +18,31 @@ or calm, how sure, and why — over which ticks, through which MPM elements; the
 and asks espressivo to render it.
 
 `transcription.mei` and `data/info.json` are the provenance: the MEI the score comes from, and
-the transformer calls the segments were derived from. Neither is fetched by the viewer.
+the transformer calls the segments were derived from. Neither is fetched by the viewer, and
+nothing in this repo reads them any more.
 
-## Re-baking
+## Where the bake went
 
-`scripts/bakeSegments.ts` runs mpmify's transformer pipeline over the MEI and `data/info.json`
-and writes the three files. It is the only place that pipeline still runs.
-
-```sh
-node_modules/.bin/vite-node scripts/bakeSegments.ts            # dry run, reports what it would write
-node_modules/.bin/vite-node scripts/bakeSegments.ts -- --write
-node_modules/.bin/vite-node scripts/verifySegments.ts          # re-derive and diff against public/
-node_modules/.bin/vite-node scripts/verifyEspressivo.ts        # the render contract playback needs
-```
+The three files were baked by mpmify's transformer pipeline. That pipeline — and the scripts
+that drove it — moved to `../mpmify/scripts/bake/` when this repo dropped `mpm-ts` and
+`mpmify`; see the README there. `public/` is the source of truth here.
 
 The pipeline fits its curves by simulated annealing, so the three files must always be written
-by one run — that is what baking is for.
+by one run — that is what baking is for, and why re-deriving them is not a thing this repo does.
+
+## Verifying
+
+```sh
+node_modules/.bin/vite-node scripts/verifySegments.ts          # every reference lands, every selection spotlights
+node_modules/.bin/vite-node scripts/verifyEspressivo.ts        # the render contract playback needs
+```
 
 ## Prerequisites
 
 Local packages that must be cloned as siblings:
 
-- `../meico-ts` — espressivo, the MPM renderer (npm name `espressivo`)
-- `../mpm-ts` — MPM document model
-- `../mpmify` — the transformer pipeline; bake-time only, plus two curve helpers the
-  instruction popovers draw with
+- `../meico-ts` — espressivo: renders the performance, and is also the MPM document model the
+  viewer reads (`src/utils/mpm.ts`; see espressivo's `docs/reading.md`)
 - `../react-pianosound` — React MIDI playback hooks
 
 ## Setup
