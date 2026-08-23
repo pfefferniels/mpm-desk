@@ -9,7 +9,7 @@ import { applyExaggeration, applyLocalRenormalization, asPathD, negotiateIntensi
 import { useSelection } from "../hooks/SelectionProvider";
 import { EXAGGERATION_MAX, PlaybackNoteEvent, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
-import { buildChains, ChainInfo, computeCurvePoints, tickToCurveIndex } from "./OnionModel";
+import { buildChains, ChainInfo, computeCurvePoints, computeLodOpacities, pointSpanFallback, tickToCurveIndex } from "./OnionModel";
 import { SegmentOnion } from "./SegmentOnion";
 import { InstructionPopover } from "./InstructionPopover";
 import { SegmentPopover } from "./SegmentPopover";
@@ -34,20 +34,6 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
         if (!b.has(item)) return false;
     }
     return true;
-}
-
-/** Check whether [from, to] is fully covered by the union of the given intervals. */
-function isRangeFullyCovered(from: number, to: number, intervals: { from: number; to: number }[]): boolean {
-    const relevant = intervals
-        .filter(i => i.from < to && i.to > from)
-        .sort((a, b) => a.from - b.from);
-    let cursor = from;
-    for (const i of relevant) {
-        if (i.from > cursor) return false;
-        cursor = Math.max(cursor, i.to);
-        if (cursor >= to) return true;
-    }
-    return cursor >= to;
 }
 
 interface SegmentStackProps {
@@ -151,47 +137,12 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         return map;
     }, [segments]);
 
-    const LOD_MIN_PX = 30;
-    const LOD_FADE_PX = 60;
+    const minPointSpan = useMemo(() => pointSpanFallback(segments), [segments]);
 
-    // Minimum effective tick span for point-like segments so they respond to
-    // zoom naturally: invisible when zoomed out, visible when zoomed in.
-    const minPointSpan = useMemo(() => {
-        const spans = segments.map(s => s.to - s.from).filter(s => s > 0);
-        if (spans.length === 0) return 0;
-        spans.sort((a, b) => a - b);
-        return spans[Math.floor(spans.length / 4)]; // first quartile
-    }, [segments]);
-
-    const lodOpacities = useMemo(() => {
-        const map = new Map<string, number>();
-        for (const s of segments) {
-            const effectiveSpan = s.to > s.from ? s.to - s.from : minPointSpan;
-            const pixelWidth = effectiveSpan * stretchX;
-            const opacity = Math.min(1, Math.max(0, (pixelWidth - LOD_MIN_PX) / (LOD_FADE_PX - LOD_MIN_PX)));
-            map.set(s.id, opacity);
-        }
-
-        // Ensure gap-free coverage: force the largest segments visible
-        // so every part of the timeline covered by any segment stays filled.
-        // Only count fully-opaque segments as reliable coverage — segments with
-        // partial LOD opacity (barely above threshold) render nearly invisible
-        // and must not block the gap-fill from showing a proper segment.
-        const sorted = [...segments].sort((a, b) => (b.to - b.from) - (a.to - a.from));
-        const covered: { from: number; to: number }[] = [];
-        for (const s of sorted) {
-            if ((map.get(s.id) ?? 0) >= 1) covered.push({ from: s.from, to: s.to });
-        }
-        for (const s of sorted) {
-            if ((map.get(s.id) ?? 0) >= 1) continue;
-            if (!isRangeFullyCovered(s.from, s.to, covered)) {
-                map.set(s.id, 1);
-                covered.push({ from: s.from, to: s.to });
-            }
-        }
-
-        return map;
-    }, [segments, stretchX, minPointSpan]);
+    const lodOpacities = useMemo(
+        () => computeLodOpacities({ segments, chains, stretchX, minPointSpan }),
+        [segments, chains, stretchX, minPointSpan],
+    );
 
     // Stabilize lodOpacities reference: keep previous Map when values are identical,
     // preventing useDeferredValue from scheduling redundant re-renders.
