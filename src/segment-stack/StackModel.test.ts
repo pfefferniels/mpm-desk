@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { arcOf, buildChains, containmentDepths, fadeOpacities, laneOf, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, pointSpanFallback, treeGeometry, typeScale } from './StackModel'
+import { arcOf, buildChains, kneeAngle, containmentDepths, fadeOpacities, laneOf, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, treeGeometry, typeScale } from './StackModel'
 import type { Reconstruction, Segment, Span } from '../model/Reconstruction'
 
 const span = (over: Partial<Span> = {}): Span => ({
@@ -197,13 +197,16 @@ describe('packLabels', () => {
   })
 
   it('lets long words share the innermost tier once their feet clear on the lean', () => {
-    // This is the whole point of the tilt: the clearance a word needs is a fixed
-    // spacing between feet, and its length costs nothing horizontally.
-    const gap = Math.ceil(LINE_HEIGHT / Math.sin(26 * Math.PI / 180)) + 2
+    // This is the whole point of the tilt: two words on the same lean run
+    // near-parallel, so the clearance one needs is a spacing between feet and
+    // not room for its whole length. The spacing follows from the angle they
+    // settle at — but it stays a constant, whatever the words say.
+    const gap = Math.ceil(LINE_HEIGHT / Math.sin(kneeAngle(400) * Math.PI / 180)) + 2
     const spread = Array.from({ length: 12 }, (_, i) =>
       segment({ id: `s${i}`, from: i * gap, to: i * gap + 1 }))
-    const placed = pack(spread, { length: 400 })
-    expect(new Set(placed.map(l => l.offset)).size).toBe(1)
+    expect(new Set(pack(spread, { length: 400 }).map(l => l.offset)).size).toBe(1)
+    // Twice the word — it rests at the same angle, so the same feet still clear.
+    expect(new Set(pack(spread, { length: 800 }).map(l => l.offset)).size).toBe(1)
   })
 
   it('stacks them outwards when the feet are too close to clear', () => {
@@ -318,6 +321,39 @@ describe('typeScale', () => {
   })
 })
 
+describe('packZoom', () => {
+  it('never packs for a closer view than the one being drawn', () => {
+    for (let slider = 1; slider <= 60; slider += 0.25) {
+      const stretchX = slider / 200
+      expect(packZoom(stretchX)).toBeLessThanOrEqual(stretchX)
+    }
+  })
+
+  it('holds still across a step of the slider, so the tree does not re-form for nothing', () => {
+    const rungs = new Set<number>()
+    for (let slider = 1; slider <= 60; slider += 0.5) rungs.add(packZoom(slider / 200))
+    // Far fewer rungs than steps: most of a drag slides rather than re-packs.
+    expect(rungs.size).toBeLessThan(40)
+    expect(rungs.size).toBeGreaterThan(20)
+  })
+
+  it('is close enough to the zoom it stands in for', () => {
+    for (let slider = 1; slider <= 60; slider += 0.25) {
+      const stretchX = slider / 200
+      expect(packZoom(stretchX) / stretchX).toBeGreaterThan(0.85)
+    }
+  })
+
+  it('gives the same rung going back, so zooming out and in returns the tree you left', () => {
+    expect(packZoom(0.1)).toBe(packZoom(0.1))
+    expect(packZoom(0.104)).toBe(packZoom(0.1))
+  })
+
+  it('does not fall over on a zoom of nothing', () => {
+    expect(() => packZoom(0)).not.toThrow()
+  })
+})
+
 describe('arcOf', () => {
   it('starts at the foot and leaves the line the way the branch leans', () => {
     const up = arcOf(100, -1)
@@ -335,11 +371,51 @@ describe('arcOf', () => {
     expect(arc.reach).toBeLessThan(length * Math.SQRT1_2)
   })
 
-  it('keeps one handwriting: a long word turns as far as a short one', () => {
-    const short = arcOf(100, -1)
-    const long = arcOf(500, -1)
-    // Same total turn means the radius grows with the length.
-    expect(long.radius / short.radius).toBeCloseTo(5, 1)
+  it('leaves the line at the same angle whatever the word says', () => {
+    const slope = (length: number) => {
+      const a = arcOf(length, -1)
+      const p = a.at(Math.min(2, length))
+      return Math.atan2(-p.y, p.x) * 180 / Math.PI
+    }
+    expect(slope(40)).toBeCloseTo(58, 0)
+    expect(slope(400)).toBeCloseTo(58, 0)
+  })
+
+  it('settles a long word flatter than a short one', () => {
+    expect(kneeAngle(40)).toBeGreaterThan(kneeAngle(200))
+    expect(kneeAngle(200)).toBeGreaterThan(kneeAngle(400))
+    // Clamped at both ends, so nothing stands upright and nothing lies flat.
+    expect(kneeAngle(0)).toBe(kneeAngle(60))
+    expect(kneeAngle(5000)).toBe(kneeAngle(360))
+    expect(kneeAngle(5000)).toBeGreaterThan(0)
+  })
+
+  it('is what stops two branches of unlike length running side by side', () => {
+    // Parallel branches never clear each other; branches that diverge do. The
+    // gap between their resting angles is the whole mechanism.
+    expect(kneeAngle(80) - kneeAngle(360)).toBeGreaterThan(10)
+  })
+
+  it('runs almost flat once it has bent, so a long word costs the tree little height', () => {
+    const bend = arcOf(150, -1)
+    const longer = arcOf(450, -1)
+    // The 300px past the bend are all run and hardly any rise.
+    expect((longer.reach - bend.reach) / 300).toBeLessThan(0.2)
+  })
+
+  it('leaves a word shorter than the bend standing steeper, partway round', () => {
+    const steep = arcOf(60, -1)
+    const flat = arcOf(400, -1)
+    expect(steep.reach / 60).toBeGreaterThan(flat.reach / 400)
+  })
+
+  it('never lets a branch turn back down towards the line', () => {
+    // The tangent stays on one side of horizontal, so the far end is the
+    // furthest out — which is what `treeGeometry` measures the tree by.
+    for (const length of [30, 90, 150, 260, 400, 700]) {
+      const arc = arcOf(length, -1)
+      expect(arc.reach).toBeCloseTo(Math.abs(arc.end.y), 6)
+    }
   })
 
   it('survives a word with no length', () => {

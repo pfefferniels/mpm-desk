@@ -21,19 +21,24 @@ const MOTIVATION_WORDS: Record<Motivation, string> = {
 /** For `unknown`, and for any word the corpus uses that the table has not met. */
 const UNNAMED = "Unbestimmt";
 
-/** The tree is set in the same serif the title uses. */
-export const WORD_FONT_FAMILY = '"Times New Roman", Times, serif';
+/** The tree is set in the same serif the title uses; see `index.css` for the faces. */
+export const WORD_FONT_FAMILY = '"EB Garamond", Garamond, "Times New Roman", serif';
 
 /**
  * Estimated advance width per character, as a fraction of the font size.
  *
- * Tuned to {@link WORD_FONT_FAMILY} — Times sets a good deal narrower than a
- * sans would, so this dropped when the tree changed face. Deliberately generous:
- * measured against `getComputedTextLength` over every word in the corpus it
- * never under-estimates, and for packing an over-estimate only ever leaves
- * branches further apart than they had to be.
+ * Tuned to {@link WORD_FONT_FAMILY} by measuring `getComputedTextLength` over
+ * every word in the corpus: one ratio has to cover the widest of them, or two
+ * words touch, so this sits just above the worst case — „Zurücknehmen", at
+ * 0.4723.
+ *
+ * It is worth knowing what that costs. Garamond's *median* word needs only
+ * 0.425, so a single ratio carries about a fifth more branch than the writing
+ * actually fills, and the packer holds every branch that much further from its
+ * neighbours than it had to. Measuring each word once at load would recover it,
+ * at the price of putting DOM metrics under the layout model.
  */
-export const CHAR_WIDTH_RATIO = 0.48;
+export const CHAR_WIDTH_RATIO = 0.475;
 const TRAILING_SPACE = 6;
 
 /** What a segment says, in as many words as it takes. */

@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
 import { ZoomIn, Download, PlayArrow, Stop } from '@mui/icons-material';
 import { useZoom } from '../hooks/ZoomProvider';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { EXAGGERATION_MAX } from '../utils/espressivo';
+import { WORD_FONT_FAMILY } from '../segment-stack/words';
 
 const glassStyle = {
     backdropFilter: 'blur(20px) saturate(180%)',
@@ -54,13 +55,34 @@ const ExpandableRow = ({ icon, tooltip, expanded, onExpandChange, onClick, child
     </Box>
 );
 
+/**
+ * The zoom slider, kept apart from the rest of the toolbar.
+ *
+ * It is the only thing here that answers to the zoom, and a drag changes the
+ * zoom sixty times a second — so it subscribes on its own rather than making
+ * MUI re-render the whole bar of buttons and tooltips for every step.
+ */
+const ZoomSlider = () => {
+    const { stretchX, setStretchX } = useZoom();
+    return (
+        <Slider
+            size="small"
+            value={stretchX}
+            min={1}
+            max={60}
+            step={0.5}
+            onChange={(_, v) => setStretchX(v as number)}
+            onClick={e => e.stopPropagation()}
+        />
+    );
+};
+
 interface ViewerToolbarProps {
     onDownload: () => void;
     metadata?: { title: string; author: string };
 }
 
-export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
-    const { stretchX, setStretchX } = useZoom();
+export const ViewerToolbar = memo(function ViewerToolbar({ onDownload, metadata }: ViewerToolbarProps) {
     const { play, stop, isPlaying, exaggeration, setExaggeration } = usePlayback();
     const [zoomHovered, setZoomHovered] = useState(false);
     const [playHovered, setPlayHovered] = useState(false);
@@ -98,15 +120,7 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                     expanded={zoomHovered}
                     onExpandChange={setZoomHovered}
                 >
-                    <Slider
-                        size="small"
-                        value={stretchX}
-                        min={1}
-                        max={60}
-                        step={0.5}
-                        onChange={(_, v) => setStretchX(v as number)}
-                        onClick={e => e.stopPropagation()}
-                    />
+                    <ZoomSlider />
                 </ExpandableRow>
 
                 <Tooltip title="Download" placement="bottom">
@@ -139,7 +153,7 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                 <Box sx={{ pt: 0.5 }}>
                     {metadata!.title && (
                         <Typography sx={{
-                            fontFamily: "'Georgia', 'Times New Roman', serif",
+                            fontFamily: WORD_FONT_FAMILY,
                             fontSize: '1.1rem',
                             fontWeight: 400,
                             color: 'text.secondary',
@@ -150,7 +164,7 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                     )}
                     {metadata!.author && (
                         <Typography sx={{
-                            fontFamily: "'Georgia', 'Times New Roman', serif",
+                            fontFamily: WORD_FONT_FAMILY,
                             fontSize: '0.85rem',
                             fontStyle: 'italic',
                             color: 'text.disabled',
@@ -163,4 +177,4 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
             )}
         </Box>
     );
-};
+});

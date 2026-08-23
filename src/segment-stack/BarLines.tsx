@@ -14,13 +14,19 @@ function lodOpacity(pixelSpacing: number): number {
 
 interface BarLinesProps {
     maxDate: number;
+    /**
+     * The packing rung, not the live zoom — the ruler's own level of detail only
+     * has to be right for roughly this zoom, and holding it still between rungs
+     * is what keeps a drag from re-rendering a couple of hundred tick marks a
+     * step. The numbers themselves ride {@link anchorRef}, so they stay true.
+     */
     stretchX: number;
     height: number;
+    /** Pins a bar number to its tick; see `useTickAnchors`. */
+    anchorRef: (tick: number) => (node: SVGGraphicsElement | null) => void;
 }
 
-export const BarLines = memo(function BarLines({ maxDate, stretchX, height }: BarLinesProps) {
-    const invStretchX = 1 / stretchX;
-
+export const BarLines = memo(function BarLines({ maxDate, stretchX, height, anchorRef }: BarLinesProps) {
     // LOD opacity for finer subdivisions
     const beatOpacity = lodOpacity(TICKS_PER_BEAT * stretchX);
     const subbeatOpacity = lodOpacity(TICKS_PER_EIGHTH * stretchX);
@@ -72,12 +78,12 @@ export const BarLines = memo(function BarLines({ maxDate, stretchX, height }: Ba
                     />
                     {label !== undefined && (
                         <text
+                            ref={anchorRef(tick)}
                             x={0}
                             y={height - 8}
                             fontSize={12}
                             fill="gray"
                             textAnchor="middle"
-                            transform={`translate(${tick}, 0) scale(${invStretchX}, 1)`}
                         >
                             {label}
                         </text>

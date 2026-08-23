@@ -95,10 +95,49 @@ export function tickRange(over: { from: number; to: number }, minPointSpan: numb
     return { from, to };
 }
 
+/**
+ * How many rungs of the packing ladder there are to a doubling of the zoom.
+ *
+ * Six puts them about 12% apart, which is finer than the clearance the packer
+ * works to, so a rung is never visibly the wrong shape for the zoom it is shown
+ * at.
+ */
+const PACK_RUNGS_PER_OCTAVE = 6;
+
+/**
+ * The zoom the tree is packed at: the rung at or below the zoom it is drawn at.
+ *
+ * Where a branch sits is a question about what else is near it, so the packing
+ * is the one part of the drawing that has to answer to zoom — and the only part
+ * that costs real time. Holding it on a ladder means a zoom step usually just
+ * slides the branches along their line, which the browser does at frame rate,
+ * and the tree only re-forms once the crowding has actually changed.
+ *
+ * Downwards, never to the nearest: a rung packs as though the view were further
+ * out than it is, so between rungs the feet are further apart than the packer
+ * allowed for rather than closer. Rounding the other way would let two words
+ * that were only just clear of each other overprint.
+ *
+ * It also makes the layout a function of the rung alone, so zooming out and
+ * back in returns the tree you left rather than a reshuffled one.
+ */
+export function packZoom(stretchX: number): number {
+    if (!(stretchX > 0)) return stretchX;
+    const rung = Math.floor(Math.log2(stretchX) * PACK_RUNGS_PER_OCTAVE);
+    return 2 ** (rung / PACK_RUNGS_PER_OCTAVE);
+}
+
 const FADE_MIN_PX = 24;
 const FADE_SPAN_PX = 60;
-/** Nothing is ever culled, so the faintest a gesture gets is still legible as a mark. */
-const FADE_FLOOR = 0.16;
+/**
+ * The faintest a gesture ever gets.
+ *
+ * Every branch has to stay readable at every zoom, so this is a floor on the
+ * writing rather than a way of hiding it: pale enough that the long gestures
+ * still carry the shape of the piece, dark enough that a short one is a word
+ * you can read and not a smudge.
+ */
+const FADE_FLOOR = 0.45;
 
 /**
  * How solid each segment reads at this zoom.
@@ -221,66 +260,117 @@ export function typeScale(params: {
 
 /* ── The branch a word is written along ── */
 
-/** A branch leaves the line steeply and bends towards the horizontal. */
+/* ── The shape of a branch ──
+ *
+ * Every branch leaves the line at the same steep angle, bends over the first
+ * {@link BEND_LENGTH}, and then runs on at whatever angle it has reached.
+ *
+ * Letting the bend *finish* — rather than spreading it over the whole word, as
+ * the first version did — is what stops a long word costing the tree height in
+ * proportion to how much it has to say. Past the knee a word rises by a small
+ * fraction of what it adds in length, so how tall the tree stands becomes a
+ * question of how many gestures overlap rather than of who wrote the longest
+ * note.
+ *
+ * Where it comes to rest is read off the length of what it says: a short
+ * gesture stands up, a long phrase lies back. That is partly economy — length
+ * only costs height where there is length to spend — and partly the sound of
+ * the thing, an aside against an arch.
+ */
+
+/** How steeply every branch leaves the line. */
 const ARC_START_DEG = 58;
-const ARC_END_DEG = 26;
+/** Where a short word comes to rest, having no length to spend on lying down. */
+const KNEE_STEEP_DEG = 24;
+/** Where a long one does. */
+const KNEE_FLAT_DEG = 6;
+/** The word lengths those two answer to; in between, the angle is interpolated. */
+const KNEE_SHORT_PX = 60;
+const KNEE_LONG_PX = 360;
+/** How far a branch travels while it bends. Past this it runs straight. */
+const BEND_LENGTH = 150;
 const DEG = Math.PI / 180;
+
+/**
+ * The angle a branch of this length comes to rest at.
+ *
+ * Exported so the invariant can be tested rather than only asserted in a
+ * comment: it is what makes two neighbouring branches of unlike length draw
+ * apart instead of running side by side.
+ */
+export function kneeAngle(length: number): number {
+    const t = (length - KNEE_SHORT_PX) / (KNEE_LONG_PX - KNEE_SHORT_PX);
+    return KNEE_STEEP_DEG + (KNEE_FLAT_DEG - KNEE_STEEP_DEG) * Math.min(1, Math.max(0, t));
+}
 
 type Arc = {
     /** Point at arc length `s` from the foot, in the label's own pixel frame. */
     at: (s: number) => { x: number; y: number };
     radius: number;
     sweep: 0 | 1;
+    /** Arc length spent bending, after which the branch runs straight. */
+    bend: number;
     end: { x: number; y: number };
     /** How far the branch reaches away from the line. */
     reach: number;
 };
 
 /**
- * The curve a word is set along: a circular arc that leaves the centre line at
- * {@link ARC_START_DEG} and bends to {@link ARC_END_DEG}.
+ * The curve a word is set along — see the note above on where it settles.
  *
- * Constant curvature, so the whole thing is one SVG `A` command and one
- * `textPath` — no sampling in the DOM. Turning the tangent by a fixed angle
- * whatever the length means a long word bends the same amount as a short one,
- * just over a larger radius, so the tree keeps one handwriting.
+ * Bending towards the horizontal buys back vertical room, which is the scarce
+ * direction: the piece is thousands of pixels wide and only hundreds tall. So
+ * every branch in the corpus can be shown at once without the tree growing
+ * taller than the window it is read in.
  *
- * Bending towards the horizontal buys back vertical room — the scarce direction,
- * since the piece is thousands of pixels wide and only hundreds tall — and it is
- * why a long word costs less height here than it would on a straight ray.
+ * A word shorter than {@link BEND_LENGTH} stops partway round its own bend and
+ * stands steeper than it would have settled — which is the same thing said
+ * twice, and no accident.
  */
 export function arcOf(length: number, side: -1 | 1): Arc {
     const t0 = side * ARC_START_DEG * DEG;
-    const t1 = side * ARC_END_DEG * DEG;
-    const turn = t1 - t0;
+    const bend = Math.min(Math.max(0, length), BEND_LENGTH);
+    const turn = side * (kneeAngle(length) - ARC_START_DEG) * DEG * (bend / BEND_LENGTH);
 
     if (length <= 0 || turn === 0) {
         const at = (s: number) => ({ x: s * Math.cos(t0), y: s * Math.sin(t0) });
-        return { at, radius: 0, sweep: 1, end: at(length), reach: Math.abs(at(length).y) };
+        return { at, radius: 0, sweep: 1, bend: 0, end: at(length), reach: Math.abs(at(length).y) };
     }
 
-    // Signed radius: the tangent turns by `turn` over the whole arc length.
-    const r = length / turn;
-    const at = (s: number) => {
-        const t = t0 + turn * (s / length);
+    // Signed radius, and the same magnitude for every branch: the tangent turns
+    // through the whole of `turn` over the whole of `bend`.
+    const r = bend / turn;
+    const t1 = t0 + turn;
+    const onArc = (s: number) => {
+        const t = t0 + turn * (s / bend);
         return { x: r * (Math.sin(t) - Math.sin(t0)), y: -r * (Math.cos(t) - Math.cos(t0)) };
     };
+    const corner = onArc(bend);
+    const at = (s: number) => {
+        if (s <= bend) return onArc(s);
+        const run = s - bend;
+        return { x: corner.x + run * Math.cos(t1), y: corner.y + run * Math.sin(t1) };
+    };
+
     // The tangent never crosses horizontal, so the far end is the furthest out.
     const end = at(length);
     return {
         at,
         radius: Math.abs(r),
         sweep: turn > 0 ? 1 : 0,
+        bend,
         end,
         reach: Math.abs(end.y),
     };
 }
 
-/** The arc as an SVG path, starting at the label's foot. */
+/** The branch as an SVG path, starting at the label's foot: the bend, then the run. */
 export function arcPathD(length: number, side: -1 | 1): string {
-    const { radius, sweep, end } = arcOf(length, side);
+    const { radius, sweep, bend, at, end } = arcOf(length, side);
     if (radius === 0) return `M 0 0 L ${end.x} ${end.y}`;
-    return `M 0 0 A ${radius} ${radius} 0 0 ${sweep} ${end.x} ${end.y}`;
+    const corner = at(bend);
+    const arc = `M 0 0 A ${radius} ${radius} 0 0 ${sweep} ${corner.x} ${corner.y}`;
+    return length > bend ? `${arc} L ${end.x} ${end.y}` : arc;
 }
 
 export type LabelPlacement = {

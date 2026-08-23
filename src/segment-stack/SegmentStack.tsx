@@ -8,8 +8,9 @@ import type { Segment } from "../model/Reconstruction";
 import { useSelection } from "../hooks/SelectionProvider";
 import { PlaybackNoteEvent, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
-import { buildChains, ChainInfo, containmentDepths, fadeOpacities, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, pointSpanFallback, tickRange, treeGeometry, typeScale } from "./StackModel";
+import { buildChains, ChainInfo, containmentDepths, fadeOpacities, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, tickRange, treeGeometry, typeScale } from "./StackModel";
 import { SegmentLabel, SpanRibbon } from "./SegmentLabel";
+import { useTickAnchors } from "./useTickAnchors";
 import { wordFor, wordWidth } from "./words";
 import { InstructionPopover } from "./InstructionPopover";
 import { SegmentPopover } from "./SegmentPopover";
@@ -23,11 +24,15 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
 }
 
 /**
- * The viewport the tree sits in. A tree of 45° text is much taller than a band
- * of boxes was, and the stack is centred in a 100vh page with the room to spare,
- * so the card takes what the branches need up to this cap and scrolls past it.
+ * The viewport the tree sits in.
+ *
+ * The tree is meant to be read whole at whatever place you have zoomed in to,
+ * so the card takes the window rather than a polite share of it — the branches
+ * bend flat precisely so they fit inside this (see `arcOf`). It still scrolls,
+ * for the zoomed-right-out view where a hundred-odd gestures genuinely will not
+ * fit on a screen at any legible size.
  */
-const MAX_CARD_HEIGHT = '78vh';
+const MAX_CARD_HEIGHT = '94vh';
 const MIN_CANVAS_HEIGHT = 260;
 /** How much of the exaggeration slider's travel goes into the size of the writing. */
 const EXAG_TYPE_GROWTH = 0.7;
@@ -77,13 +82,24 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         [segments],
     );
     /**
-     * Zooming redraws all 128 branches, so the drawing follows the zoom at low
-     * priority: React keeps the old tree on screen while the new one is built,
-     * instead of blocking the slider for ~50ms a step. Everything in the SVG
-     * reads this one value, so the ruler and the words never disagree.
+     * Zoom, twice over: where the branches sit, and how they are stacked.
+     *
+     * Sliding 128 words along the line is one transform each and the browser
+     * does that at frame rate, so position follows the slider exactly — which
+     * is what makes a drag feel attached to the hand. Stacking them is the
+     * expensive half, so it answers to a rung of {@link packZoom} instead, and
+     * at low priority: between rungs the tree keeps its shape and simply
+     * stretches, and React builds the next one without blocking the drag.
+     *
+     * The two never disagree, because a placement holds no zoom of its own —
+     * only a tick, a lean, and a distance from the line.
+     *
+     * The rung is what is deferred, not the zoom: deferring the zoom itself
+     * would schedule a second pass over the tree on every step of a drag, to
+     * arrive at the same rung it already had.
      */
-    const drawnStretchX = useDeferredValue(stretchX);
-    const maxX = maxDate * drawnStretchX;
+    const packStretchX = useDeferredValue(packZoom(stretchX));
+    const maxX = maxDate * stretchX;
 
     const chains = useMemo(() => buildChains(segments), [segments]);
     const chainsRef = useLatest(chains);
@@ -112,24 +128,16 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const minPointSpan = useMemo(() => pointSpanFallback(segments), [segments]);
     const minPointSpanRef = useLatest(minPointSpan);
 
+    /**
+     * How solid each word reads. On the packing rung rather than the live zoom,
+     * so the tree does not change colour under a drag — and so this stays the
+     * same object between rungs, which is what keeps 128 memo'd labels from
+     * re-rendering for it.
+     */
     const opacities = useMemo(
-        () => fadeOpacities({ segments, chains, stretchX: drawnStretchX, minPointSpan }),
-        [segments, chains, drawnStretchX, minPointSpan],
+        () => fadeOpacities({ segments, chains, stretchX: packStretchX, minPointSpan }),
+        [segments, chains, packStretchX, minPointSpan],
     );
-
-    // Stabilize the reference: keep the previous Map when the values are identical,
-    // so useDeferredValue does not schedule a redundant pass over 128 labels.
-    const opacitiesRef = useRef(opacities);
-    if (opacities !== opacitiesRef.current) {
-        let changed = opacities.size !== opacitiesRef.current.size;
-        if (!changed) {
-            for (const [id, val] of opacities) {
-                if (opacitiesRef.current.get(id) !== val) { changed = true; break; }
-            }
-        }
-        if (changed) opacitiesRef.current = opacities;
-    }
-    const deferredOpacities = useDeferredValue(opacitiesRef.current);
 
     const depths = useMemo(() => containmentDepths(segments), [segments]);
 
@@ -152,7 +160,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             segments,
             depths,
             minPointSpan,
-            stretchX: drawnStretchX,
+            stretchX: packStretchX,
             metricsOf: s => {
                 const fontSize = fontSizes.get(s.id) ?? 11;
                 return {
@@ -161,13 +169,16 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                 };
             },
         }),
-        [segments, depths, minPointSpan, drawnStretchX, fontSizes],
+        [segments, depths, minPointSpan, packStretchX, fontSizes],
     );
 
     const { totalHeight, centreY } = useMemo(
         () => treeGeometry({ labels, minHeight: MIN_CANVAS_HEIGHT }),
         [labels],
     );
+
+    /** Everything pinned to a tick — the branch feet and the bar numbers — slides from here. */
+    const anchorRef = useTickAnchors(stretchX);
 
     /**
      * Keep the line in the middle of the window when the tree outgrows it.
@@ -364,7 +375,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         const placed = anchored.map(s => labelById.get(s.id)).filter(l => l !== undefined);
         if (placed.length === 0) return null;
         const from = Math.min(...placed.map(l => l.tick));
-        const to = Math.max(...placed.map(l => l.tick + l.length / drawnStretchX));
+        const to = Math.max(...placed.map(l => l.tick + l.length / stretchX));
         // Sit above the highest foot, or below the lowest, so the card never
         // covers the word it is describing.
         const leansUp = placed.some(l => l.side === -1);
@@ -381,7 +392,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             },
             contextElement: svgRef.current ?? undefined,
         };
-    }, [labelById, centreY, drawnStretchX]);
+    }, [labelById, centreY, stretchX]);
 
     const lockedSegments = useMemo(() => {
         if (lockedSegmentIds.size === 0) return [];
@@ -470,8 +481,9 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
                     <BarLines
                         maxDate={maxDate}
-                        stretchX={drawnStretchX}
+                        stretchX={packStretchX}
                         height={totalHeight}
+                        anchorRef={anchorRef}
                     />
 
                     <g
@@ -482,14 +494,13 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                             <SegmentLabel
                                 key={label.segment.id}
                                 segment={label.segment}
-                                tick={label.tick}
+                                footRef={anchorRef(label.tick)}
                                 side={label.side}
                                 offset={label.offset}
                                 centreY={centreY}
-                                stretchX={drawnStretchX}
                                 fontSize={label.fontSize}
                                 length={label.length}
-                                opacity={deferredOpacities.get(label.segment.id) ?? 1}
+                                opacity={opacities.get(label.segment.id) ?? 1}
                                 isHovered={false}
                                 isLocked={false}
                                 hasActiveSpan={false}
@@ -504,11 +515,10 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                         <SegmentLabel
                             key={label.segment.id}
                             segment={label.segment}
-                            tick={label.tick}
+                            footRef={anchorRef(label.tick)}
                             side={label.side}
                             offset={label.offset}
                             centreY={centreY}
-                            stretchX={drawnStretchX}
                             fontSize={label.fontSize}
                             length={label.length}
                             opacity={1}
@@ -531,7 +541,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                                 to={to}
                                 centreY={centreY}
                                 side={side}
-                                stretchX={drawnStretchX}
+                                stretchX={stretchX}
                                 onLaneClick={handleLaneClick}
                             />
                         );
