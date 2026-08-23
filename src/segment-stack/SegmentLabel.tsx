@@ -4,21 +4,7 @@ import { useSelection } from "../hooks/SelectionProvider";
 import type { Segment } from "../model/Reconstruction";
 import { wordFor, WORD_FONT_FAMILY } from "./words";
 import { TypeLabel } from "./TypeLabel";
-
-/** One colour per MPM element type. */
-const SPAN_COLORS: Record<string, string> = {
-    dynamics: "#8e44ad",
-    tempo: "#16a085",
-    ornament: "#d35400",
-    articulation: "#2c3e50",
-    rubato: "#e74c3c",
-    accentuationPattern: "#2980b9",
-    movement: "#7f8c8d",
-};
-
-function getLaneColor(type: string): string {
-    return SPAN_COLORS[type] ?? "#666";
-}
+import { getLaneColor } from "./spanColors";
 
 const HOVER_GROW = 1.35;
 

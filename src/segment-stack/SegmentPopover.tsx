@@ -5,22 +5,20 @@ import { wordFor } from "./words";
 interface SegmentPopoverProps {
     segments: Segment[];
     anchorEl: { getBoundingClientRect: () => DOMRect; contextElement?: Element };
-    /** Follows the pointer around on hover, so it must not swallow events. */
-    transient?: boolean;
 }
 
 /**
- * What a segment says, and how sure it is of saying it.
+ * What an opened segment says, and how sure it is of saying it.
  *
- * This is where the word goes when the box is too narrow to hold it, which at
- * most zooms is most of them — so it says the same thing the box would, rather
- * than naming the motivation the box no longer speaks in.
+ * The opened segment also lays its gestures out on the centre line, at the
+ * piece's own scale, so this card is left to name the claim — hovering is what
+ * asks for the inside of a segment, and that goes to `SegmentTimelinePopover`.
  *
  * Several are shown side by side when the playhead is inside more than one at
  * once — they argue one moment between them, so they read as one card with
- * dividers.
+ * dividers, and the word is what tells the columns apart.
  */
-export const SegmentPopover = ({ segments, anchorEl, transient }: SegmentPopoverProps) => (
+export const SegmentPopover = ({ segments, anchorEl }: SegmentPopoverProps) => (
     <Popper
         open
         anchorEl={anchorEl}
@@ -29,7 +27,7 @@ export const SegmentPopover = ({ segments, anchorEl, transient }: SegmentPopover
             { name: "offset", options: { offset: [0, 8] } },
             { name: "preventOverflow", options: { padding: 8 } },
         ]}
-        style={{ zIndex: 10, pointerEvents: transient ? "none" : undefined }}
+        style={{ zIndex: 10 }}
     >
         <Paper elevation={4} sx={{ borderRadius: 2, p: 1.5 }}>
             <Stack direction="row" divider={<Divider orientation="vertical" flexItem />} spacing={1.5}>

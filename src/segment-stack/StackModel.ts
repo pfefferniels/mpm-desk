@@ -490,3 +490,73 @@ export function laneOf(span: Span, segmentFrom: number, segmentTo: number): Span
     }
     return { ...span, from: span.to - 1 };
 }
+
+/* ── The inside of one segment, on its own axis: see `SegmentTimeline` ── */
+
+/** Past this the grid stops reading as a grid, so the step doubles instead. */
+const MAX_GRID_LINES = 12;
+
+interface TimelineRow {
+    type: string;
+    bars: { id: string; left: number; width: number }[];
+}
+
+/**
+ * A segment's gestures, one row per MPM element type, laid out over `width`.
+ *
+ * Types come in the order they first appear, the same rule {@link laneOf}'s
+ * lanes follow, so a hovered segment and an opened one say the same thing in the
+ * same sequence. Several gestures of one type share a row: they are one voice
+ * arguing over the stretch, not several.
+ *
+ * Nothing is widened here. A gesture on a single date comes out `minBar` wide,
+ * which the drawing rounds into a dot — on this axis the whole width is one
+ * segment, so a dot is legible as itself, and only the lanes down on the piece's
+ * own timeline need `laneOf` to be seen at all.
+ */
+export function timelineRows(
+    segment: Segment,
+    from: number,
+    to: number,
+    width: number,
+    minBar: number,
+): TimelineRow[] {
+    const ticks = to - from;
+    const xOf = (tick: number) => Math.max(0, Math.min(1, (tick - from) / ticks)) * width;
+
+    const byType = new Map<string, Span[]>();
+    for (const span of segment.spans) {
+        const row = byType.get(span.type);
+        if (row) row.push(span);
+        else byType.set(span.type, [span]);
+    }
+
+    return [...byType].map(([type, spans]) => ({
+        type,
+        bars: spans.map(span => {
+            const left = xOf(span.from);
+            const barWidth = Math.max(minBar, xOf(span.to) - left);
+            // A gesture on the segment's last date would otherwise hang off the end.
+            return { id: span.id, left: Math.max(0, Math.min(left, width - barWidth)), width: barWidth };
+        }),
+    }));
+}
+
+/**
+ * Where the beats fall inside a segment, in pixels from its start.
+ *
+ * This is what gives the rows a scale: without it a one-beat segment and a
+ * ten-beat one are the same picture. They are the piece's beats rather than a
+ * division of the segment, so a gesture that starts on a beat looks like one.
+ */
+export function beatGrid(from: number, to: number, beat: number, width: number): number[] {
+    if (!(beat > 0) || !(to > from)) return [];
+    let step = beat;
+    while ((to - from) / step > MAX_GRID_LINES) step *= 2;
+
+    const xs: number[] = [];
+    for (let tick = Math.ceil(from / step) * step; tick < to; tick += step) {
+        if (tick > from) xs.push(((tick - from) / (to - from)) * width);
+    }
+    return xs;
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { arcOf, kneeAngle, containmentDepths, fadeOpacities, laneOf, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, treeGeometry, typeScale } from './StackModel'
+import { arcOf, beatGrid, kneeAngle, containmentDepths, fadeOpacities, laneOf, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, tickRange, timelineRows, treeGeometry, typeScale } from './StackModel'
 import type { Reconstruction, Segment, Span } from '../model/Reconstruction'
 
 const span = (over: Partial<Span> = {}): Span => ({
@@ -385,5 +385,69 @@ describe('arcOf', () => {
   it('agrees with LINE_HEIGHT_RATIO being a sane leading', () => {
     expect(LINE_HEIGHT_RATIO).toBeGreaterThan(1)
     expect(LINE_HEIGHT_RATIO).toBeLessThan(2)
+  })
+})
+
+describe('timelineRows', () => {
+  const MIN_BAR = 5
+
+  it('gives each type one row, in the order it first appears', () => {
+    const rows = timelineRows(segment({
+      spans: [
+        span({ id: 'a', type: 'ornament', from: 0, to: 50 }),
+        span({ id: 'b', type: 'tempo' }),
+        span({ id: 'c', type: 'ornament', from: 60, to: 100 }),
+      ],
+    }), 0, 100, 180, MIN_BAR)
+    expect(rows.map(r => r.type)).toEqual(['ornament', 'tempo'])
+    expect(rows[0].bars.map(b => b.id)).toEqual(['a', 'c'])
+  })
+
+  it('places a bar over the fraction of the segment its gesture covers', () => {
+    const [row] = timelineRows(segment({ spans: [span({ from: 25, to: 75 })] }), 0, 100, 180, MIN_BAR)
+    expect(row.bars[0]).toMatchObject({ left: 45, width: 90 })
+  })
+
+  it('draws a gesture on a single date as a dot, where the date is', () => {
+    const [row] = timelineRows(segment({ spans: [span({ from: 50, to: 50 })] }), 0, 100, 180, MIN_BAR)
+    expect(row.bars[0]).toMatchObject({ left: 90, width: MIN_BAR })
+  })
+
+  it('keeps a gesture on the segment’s last date inside the track', () => {
+    const [row] = timelineRows(segment({ spans: [span({ from: 100, to: 100 })] }), 0, 100, 180, MIN_BAR)
+    expect(row.bars[0].left + row.bars[0].width).toBe(180)
+  })
+
+  it('draws every gesture in the corpus inside its own segment', () => {
+    const { segments } = JSON.parse(readFileSync('public/segments.json', 'utf-8')) as Reconstruction
+    const minPointSpan = pointSpanFallback(segments)
+    for (const s of segments) {
+      const { from, to } = tickRange(s, minPointSpan)
+      for (const row of timelineRows(s, from, to, 180, MIN_BAR)) {
+        for (const bar of row.bars) {
+          expect(bar.left).toBeGreaterThanOrEqual(0)
+          expect(bar.left + bar.width).toBeLessThanOrEqual(180)
+          expect(bar.width).toBeGreaterThanOrEqual(MIN_BAR)
+        }
+      }
+    }
+  })
+})
+
+describe('beatGrid', () => {
+  it('marks the beats inside the segment, but neither end', () => {
+    expect(beatGrid(0, 2160, 720, 180)).toEqual([60, 120])
+  })
+
+  it('counts from the piece’s beats, not the segment’s start', () => {
+    expect(beatGrid(360, 1800, 720, 180)).toEqual([45, 135])
+  })
+
+  it('has nothing to say about a segment shorter than a beat', () => {
+    expect(beatGrid(0, 700, 720, 180)).toEqual([])
+  })
+
+  it('doubles the step rather than drawing a wall of lines', () => {
+    expect(beatGrid(0, 720 * 40, 720, 180).length).toBeLessThanOrEqual(12)
   })
 })

@@ -14,6 +14,7 @@ import { useTickAnchors } from "./useTickAnchors";
 import { wordFor, wordWidth } from "./words";
 import { InstructionPopover } from "./InstructionPopover";
 import { SegmentPopover } from "./SegmentPopover";
+import { SegmentTimelinePopover } from "./SegmentTimeline";
 
 function setsEqual(a: Set<string>, b: Set<string>): boolean {
     if (a.size !== b.size) return false;
@@ -354,12 +355,30 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
     const lockAnchorEl = useMemo(() => anchorFor(lockedSegments), [anchorFor, lockedSegments]);
 
-    const hoveredSegments = useMemo(() => {
-        if (!hoveredSegmentId || lockedSegmentIds.size > 0) return [];
-        return segments.filter(s => s.id === hoveredSegmentId);
+    /** The one word under the pointer — once something is opened, the card is its. */
+    const hoveredSegment = useMemo(() => {
+        if (!hoveredSegmentId || lockedSegmentIds.size > 0) return null;
+        return segments.find(s => s.id === hoveredSegmentId) ?? null;
     }, [hoveredSegmentId, lockedSegmentIds, segments]);
 
-    const hoverAnchorEl = useMemo(() => anchorFor(hoveredSegments), [anchorFor, hoveredSegments]);
+    const hoverAnchorEl = useMemo(
+        () => (hoveredSegment ? anchorFor([hoveredSegment]) : null),
+        [anchorFor, hoveredSegment],
+    );
+
+    /**
+     * The card opens back towards the centre line, against the lean of the
+     * branch it belongs to.
+     *
+     * `anchorFor` sits it at the foot, and the word climbs away from there — so
+     * the only side with nothing of its own on it is the inward one. It costs
+     * covering a little of the tree, which is dimmed anyway; opening outward
+     * would cover the word the card is about.
+     */
+    const hoverPlacement = hoveredSegment && labelById.get(hoveredSegment.id)?.side === 1 ? "top" : "bottom";
+
+    /** One beat in ticks, counted the way the score's own metre counts it. */
+    const beatLength = (4 * mpm.meter.ppq) / mpm.meter.denominator;
 
     /**
      * The tree, split into what is spotlit and what is stepping back.
@@ -515,8 +534,14 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             {lockedSegments.length > 0 && lockAnchorEl && activeSpanIds.size === 0 && (
                 <SegmentPopover segments={lockedSegments} anchorEl={lockAnchorEl} />
             )}
-            {hoveredSegments.length > 0 && hoverAnchorEl && (
-                <SegmentPopover segments={hoveredSegments} anchorEl={hoverAnchorEl} transient />
+            {hoveredSegment && hoverAnchorEl && (
+                <SegmentTimelinePopover
+                    segment={hoveredSegment}
+                    anchorEl={hoverAnchorEl}
+                    placement={hoverPlacement}
+                    minPointSpan={minPointSpan}
+                    beatLength={beatLength}
+                />
             )}
             {activeSpanIds.size === 1 && (
                 <InstructionPopover
