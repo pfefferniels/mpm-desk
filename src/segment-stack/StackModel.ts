@@ -1,73 +1,6 @@
 import type { Segment, Span } from "../model/Reconstruction";
 import { CHAR_WIDTH_RATIO } from "./words";
 
-export type ChainInfo = {
-    chainFrom: number;   // earliest tick in the chain
-    chainTo: number;     // latest tick in the chain
-    memberIds: string[]; // ordered segment ids in the chain
-};
-
-/**
- * Walk `continue` links to group segments into chains.
- * Returns a map from segment id → ChainInfo for chained segments only.
- */
-export function buildChains(segments: Segment[]): Map<string, ChainInfo> {
-    const byId = new Map<string, Segment>();
-    for (const s of segments) byId.set(s.id, s);
-
-    // successorOf[predId] = segment whose `continue` === predId
-    const successorOf = new Map<string, Segment>();
-    for (const s of segments) {
-        const predId = s.continue;
-        if (predId && byId.has(predId)) {
-            successorOf.set(predId, s);
-        }
-    }
-
-    const visited = new Set<string>();
-    const result = new Map<string, ChainInfo>();
-
-    for (const s of segments) {
-        if (visited.has(s.id)) continue;
-
-        // Walk back to find root
-        let root = s;
-        const seen = new Set<string>([s.id]);
-        for (; ;) {
-            const predId = root.continue;
-            if (!predId || !byId.has(predId) || seen.has(predId)) break;
-            root = byId.get(predId)!;
-            seen.add(root.id);
-        }
-
-        // Walk forward from root
-        const members: Segment[] = [root];
-        visited.add(root.id);
-        let current = root;
-        while (successorOf.has(current.id)) {
-            const next = successorOf.get(current.id)!;
-            if (visited.has(next.id)) break;
-            members.push(next);
-            visited.add(next.id);
-            current = next;
-        }
-
-        if (members.length < 2) continue;
-
-        members.sort((a, b) => a.from - b.from);
-        const chainFrom = Math.min(...members.map(m => m.from));
-        const chainTo = Math.max(...members.map(m => m.to));
-        const memberIds = members.map(m => m.id);
-
-        const info: ChainInfo = { chainFrom, chainTo, memberIds };
-        for (const m of members) {
-            result.set(m.id, info);
-        }
-    }
-
-    return result;
-}
-
 /**
  * The tick span a point-like segment is drawn as, so it responds to zoom
  * naturally: small when zoomed out, wider when zoomed in.
@@ -144,37 +77,22 @@ const FADE_FLOOR = 0.45;
  *
  * Every segment is always drawn — this only fades the small gestures back as the
  * view pulls out, so the long ones carry the shape and the detail arrives as you
- * come closer. A chain fades as one gesture, by its whole extent, so zooming out
- * never leaves half a chain solid while the rest of it has gone pale.
+ * come closer.
  */
 export function fadeOpacities(params: {
     segments: Segment[];
-    chains: Map<string, ChainInfo>;
     stretchX: number;
     minPointSpan: number;
 }): Map<string, number> {
-    const { segments, chains, stretchX, minPointSpan } = params;
+    const { segments, stretchX, minPointSpan } = params;
 
     const map = new Map<string, number>();
-    const seenChains = new Set<ChainInfo>();
-
-    const opacityOf = (from: number, to: number) => {
-        const span = to > from ? to - from : minPointSpan;
-        const pixels = span * stretchX;
-        const t = (pixels - FADE_MIN_PX) / FADE_SPAN_PX;
-        return FADE_FLOOR + (1 - FADE_FLOOR) * Math.min(1, Math.max(0, t));
-    };
 
     for (const s of segments) {
-        const chain = chains.get(s.id);
-        if (!chain) {
-            map.set(s.id, opacityOf(s.from, s.to));
-            continue;
-        }
-        if (seenChains.has(chain)) continue;
-        seenChains.add(chain);
-        const shared = opacityOf(chain.chainFrom, chain.chainTo);
-        for (const id of chain.memberIds) map.set(id, shared);
+        const span = s.to > s.from ? s.to - s.from : minPointSpan;
+        const pixels = span * stretchX;
+        const t = (pixels - FADE_MIN_PX) / FADE_SPAN_PX;
+        map.set(s.id, FADE_FLOOR + (1 - FADE_FLOOR) * Math.min(1, Math.max(0, t)));
     }
 
     return map;

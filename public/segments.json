@@ -1714,7 +1714,6 @@
       "id": "arg_99622919-e538-4bc8-8ee0-3abb2e9d719a",
       "motivation": "intensify",
       "certainty": "plausible",
-      "continue": "argumentation-232ca7b0",
       "from": 20160,
       "to": 20880,
       "spans": [
@@ -2083,7 +2082,6 @@
       "motivation": "move",
       "certainty": "plausible",
       "note": "langsamer und deutlicher werden",
-      "continue": "argumentation-8e3cbc2d",
       "from": 34200,
       "to": 35280,
       "spans": [
@@ -2139,7 +2137,6 @@
       "motivation": "relax",
       "certainty": "possible",
       "note": "Nachschlag etwas abschattieren",
-      "continue": "argumentation-c118a7a5",
       "from": 12240,
       "to": 14319,
       "spans": [
@@ -2383,7 +2380,6 @@
       "motivation": "intensify",
       "certainty": "plausible",
       "note": "Hinspielen zum Quartsextakkord",
-      "continue": "argumentation-1a04ff8d",
       "from": 53280,
       "to": 54360,
       "spans": [
@@ -2729,7 +2725,6 @@
       "motivation": "intensify",
       "certainty": "plausible",
       "note": "fließend in Dominantseptnonakkord",
-      "continue": "8a143343-1778-4720-83b2-aa0ac720fef1",
       "from": 61200,
       "to": 61920,
       "spans": [
@@ -3295,7 +3290,6 @@
       "motivation": "calm",
       "certainty": "plausible",
       "note": "der Harmonie \"nachlauschen\": dynamische Reduktion, leichte zeitliche Dehnung",
-      "continue": "7938a94a-fe29-42d0-bca8-b134a6776a96",
       "from": 700,
       "to": 2982,
       "spans": [
@@ -3691,7 +3685,6 @@
       "motivation": "calm",
       "certainty": "plausible",
       "note": "Zum B-Dur-Akkord hin entspannen",
-      "continue": "argumentation-90aa6158",
       "from": 25920,
       "to": 28800,
       "spans": [
@@ -4246,7 +4239,6 @@
       "motivation": "calm",
       "certainty": "possible",
       "note": "Nachschlag schattieren",
-      "continue": "argumentation-46b51284",
       "from": 65520,
       "to": 66600,
       "spans": [
@@ -4706,7 +4698,6 @@
       "motivation": "calm",
       "certainty": "plausible",
       "note": "Minimal Zeit lassen auf b",
-      "continue": "argumentation-0369dca0",
       "from": 60480,
       "to": 61200,
       "spans": [
@@ -5035,7 +5026,6 @@
       "motivation": "calm",
       "certainty": "plausible",
       "note": "Schattieren des d unter dem a",
-      "continue": "argumentation-270564c1",
       "from": 64440,
       "to": 65160,
       "spans": [
@@ -5055,7 +5045,6 @@
       "motivation": "relax",
       "certainty": "possible",
       "note": "Nachschlag schattieren",
-      "continue": "argumentation-28ed32b3",
       "from": 66960,
       "to": 68040,
       "spans": [
@@ -5187,7 +5176,6 @@
       "motivation": "intensify",
       "certainty": "plausible",
       "note": "Drücken des Verschiebungspedals",
-      "continue": "7938a94a-fe29-42d0-bca8-b134a6776a96",
       "from": -100,
       "to": 100,
       "spans": [
@@ -5295,7 +5283,6 @@
       "id": "argumentation-a7ece2a0",
       "motivation": "relax",
       "certainty": "plausible",
-      "continue": "argumentation-3fd3e6c8",
       "from": 86873,
       "to": 87073,
       "spans": [

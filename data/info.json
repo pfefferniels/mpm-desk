@@ -1178,8 +1178,7 @@
               "direction": "up"
             }
           }
-        ],
-        "continue": "argumentation-46b51284"
+        ]
       },
       {
         "type": "simpleArgumentation",
@@ -1237,8 +1236,7 @@
               "direction": "up"
             }
           }
-        ],
-        "continue": "argumentation-28ed32b3"
+        ]
       },
       {
         "note": "",
@@ -3634,8 +3632,7 @@
               "length": 720
             }
           }
-        ],
-        "continue": "argumentation-232ca7b0"
+        ]
       },
       {
         "id": "aaedcf8b-e357-4b15-bf26-5c63a828584d",
@@ -4251,8 +4248,7 @@
               "name": "0cebf342-b10a-41c5-bf64-f9ae2d57dfb4"
             }
           }
-        ],
-        "continue": "argumentation-8e3cbc2d"
+        ]
       },
       {
         "type": "simpleArgumentation",
@@ -4364,8 +4360,7 @@
               "direction": "up"
             }
           }
-        ],
-        "continue": "argumentation-c118a7a5"
+        ]
       },
       {
         "id": "26b2e9af-f98d-40b7-a53a-e82c70585940",
@@ -4652,7 +4647,6 @@
           "note": "Hinspielen zum Quartsextakkord"
         },
         "type": "simpleArgumentation",
-        "continue": "argumentation-1a04ff8d",
         "calls": [
           {
             "id": "e81aeddd-f891-48b4-a5b5-301b42361e9d",
@@ -5277,8 +5271,7 @@
               "length": 720
             }
           }
-        ],
-        "continue": "8a143343-1778-4720-83b2-aa0ac720fef1"
+        ]
       },
       {
         "note": "",
@@ -6226,8 +6219,7 @@
               "direction": "up"
             }
           }
-        ],
-        "continue": "7938a94a-fe29-42d0-bca8-b134a6776a96"
+        ]
       },
       {
         "note": "",
@@ -6673,7 +6665,6 @@
           "note": "Zum B-Dur-Akkord hin entspannen"
         },
         "type": "simpleArgumentation",
-        "continue": "argumentation-90aa6158",
         "calls": [
           {
             "id": "50226304-5908-4dfc-a1b1-f73bb69fb145",
@@ -8236,7 +8227,6 @@
           "note": "Minimal Zeit lassen auf b"
         },
         "type": "simpleArgumentation",
-        "continue": "argumentation-0369dca0",
         "calls": [
           {
             "id": "c56a87fc-8923-47af-919d-45a1198cf94b",
@@ -8830,7 +8820,6 @@
           "note": "Schattieren des d unter dem a"
         },
         "type": "simpleArgumentation",
-        "continue": "argumentation-270564c1",
         "calls": [
           {
             "id": "c5317b2a-5b71-4bd4-a886-a6eec67faebd",
@@ -9080,8 +9069,7 @@
               "direction": "down"
             }
           }
-        ],
-        "continue": "7938a94a-fe29-42d0-bca8-b134a6776a96"
+        ]
       },
       {
         "note": "",
@@ -9220,7 +9208,6 @@
           "note": ""
         },
         "type": "simpleArgumentation",
-        "continue": "argumentation-3fd3e6c8",
         "calls": [
           {
             "id": "648d79b9-1a51-4ed2-b106-63b2e6300b4f",

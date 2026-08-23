@@ -8,7 +8,7 @@ import type { Segment } from "../model/Reconstruction";
 import { useSelection } from "../hooks/SelectionProvider";
 import { PlaybackNoteEvent, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
-import { buildChains, ChainInfo, containmentDepths, fadeOpacities, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, tickRange, treeGeometry, typeScale } from "./StackModel";
+import { containmentDepths, fadeOpacities, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, tickRange, treeGeometry, typeScale } from "./StackModel";
 import { SegmentLabel, SpanRibbon } from "./SegmentLabel";
 import { useTickAnchors } from "./useTickAnchors";
 import { wordFor, wordWidth } from "./words";
@@ -101,9 +101,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const packStretchX = useDeferredValue(packZoom(stretchX));
     const maxX = maxDate * stretchX;
 
-    const chains = useMemo(() => buildChains(segments), [segments]);
-    const chainsRef = useLatest(chains);
-
     const spanToSegment = useMemo(() => {
         const map = new Map<string, string>();
         for (const s of segments) {
@@ -135,8 +132,8 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
      * re-rendering for it.
      */
     const opacities = useMemo(
-        () => fadeOpacities({ segments, chains, stretchX: packStretchX, minPointSpan }),
-        [segments, chains, packStretchX, minPointSpan],
+        () => fadeOpacities({ segments, stretchX: packStretchX, minPointSpan }),
+        [segments, packStretchX, minPointSpan],
     );
 
     const depths = useMemo(() => containmentDepths(segments), [segments]);
@@ -203,16 +200,13 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         return map;
     }, [labels]);
 
-    // Expand to all chain members when hovering a chained segment.
     // When locked, all locked segments count as hovered.
     const baseHoveredId = lockedSegmentIds.size === 0 ? hoveredSegmentId : null;
     const effectiveHoveredIds = useMemo(() => {
         if (lockedSegmentIds.size > 0) return lockedSegmentIds;
         if (!baseHoveredId) return new Set<string>();
-        const chain = chains.get(baseHoveredId);
-        if (chain) return new Set(chain.memberIds);
         return new Set([baseHoveredId]);
-    }, [lockedSegmentIds, baseHoveredId, chains]);
+    }, [lockedSegmentIds, baseHoveredId]);
 
     const handleHoverChange = useCallback((segmentId: string | null) => {
         if (lockedSegmentIdsRef.current.size > 0) return;
@@ -227,37 +221,28 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             setActiveSpanIds(new Set());
             return;
         }
-        const chain = chainsRef.current.get(segmentId);
-        const ids = chain ? chain.memberIds : [segmentId];
         lockOriginRef.current = 'user';
-        setLockedSegmentIds(new Set(ids));
+        setLockedSegmentIds(new Set([segmentId]));
         setActiveSpanIds(new Set());
 
-        // Preview the locked segment: its own stretch of music, spotlit, and nothing else. The
-        // whole chain, because a chain is one gesture and the words light up together.
-        const members = segmentsRef.current.filter(s => ids.includes(s.id));
-        const mpmIds = members.flatMap(s => s.spans.flatMap(span => span.elements));
-        if (mpmIds.length > 0) {
-            const ranges = members.map(s => tickRange(s, minPointSpanRef.current));
+        // Preview the locked segment: its own stretch of music, spotlit, and nothing else.
+        const segment = segmentsRef.current.find(s => s.id === segmentId);
+        const mpmIds = segment?.spans.flatMap(span => span.elements) ?? [];
+        if (segment && mpmIds.length > 0) {
             playRef.current({
                 mpmIds,
                 isolate: true,
                 exaggerate: exaggerationRef.current,
-                range: {
-                    from: Math.min(...ranges.map(r => r.from)),
-                    to: Math.max(...ranges.map(r => r.to)),
-                },
+                range: tickRange(segment, minPointSpanRef.current),
             });
         }
-    }, [lockedSegmentIdsRef, setActiveSpanIds, segmentsRef, chainsRef, playRef, exaggerationRef, minPointSpanRef]);
+    }, [lockedSegmentIdsRef, setActiveSpanIds, segmentsRef, playRef, exaggerationRef, minPointSpanRef]);
 
     const handleLaneClick = useCallback((spanId: string) => {
         const segmentId = spanToSegment.get(spanId);
         if (segmentId) {
-            const chain = chainsRef.current.get(segmentId);
-            const ids = chain ? chain.memberIds : [segmentId];
             lockOriginRef.current = 'user';
-            setLockedSegmentIds(new Set(ids));
+            setLockedSegmentIds(new Set([segmentId]));
         }
 
         const span = segmentsRef.current.flatMap(s => s.spans).find(s => s.id === spanId);
@@ -269,7 +254,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                 range: tickRange(span, minPointSpanRef.current),
             });
         }
-    }, [spanToSegment, chainsRef, exaggerationRef, playRef, segmentsRef, minPointSpanRef]);
+    }, [spanToSegment, exaggerationRef, playRef, segmentsRef, minPointSpanRef]);
 
     const handleClearSelection = useCallback(() => {
         setActiveSpanIds(new Set());
@@ -293,20 +278,14 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             const [id] = activeSpanIds;
             const segmentId = spanToSegment.get(id);
             if (segmentId) {
-                const chain = chains.get(segmentId);
-                const ids = chain ? chain.memberIds : [segmentId];
                 lockOriginRef.current = 'user';
-                setLockedSegmentIds(new Set(ids));
+                setLockedSegmentIds(new Set([segmentId]));
             }
         }
-    }, [activeSpanIds, spanToSegment, chains]);
+    }, [activeSpanIds, spanToSegment]);
 
     // Follow playback: open (lock) the segments whose instructions are currently
     // sounding, so their words show while the playhead passes through them.
-    // While listening, a chain must not open as a whole: an instruction of an
-    // earlier chain member can still be "in effect" past that member's span,
-    // so per chain only the member the playhead is actually in stays open
-    // (falling back to the latest member that has already begun).
     const followPlayback = useEffectEvent(({ date, scoped }: PlaybackNoteEvent) => {
         // Segment previews (lock/lane clicks) manage the lock themselves.
         if (scoped) return;
@@ -316,32 +295,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             for (const instruction of mpm.effectiveAt(date, type)) {
                 const segmentId = elementToSegment.get(instruction.id);
                 if (segmentId) segmentIds.add(segmentId);
-            }
-        }
-
-        const candidatesByChain = new Map<ChainInfo, string[]>();
-        for (const id of segmentIds) {
-            const chain = chains.get(id);
-            if (!chain) continue;
-            const list = candidatesByChain.get(chain);
-            if (list) list.push(id);
-            else candidatesByChain.set(chain, [id]);
-        }
-        const segmentById = new Map(segments.map(s => [s.id, s]));
-        const laterMember = (a: string, b: string) =>
-            (segmentById.get(a)?.from ?? -Infinity) >= (segmentById.get(b)?.from ?? -Infinity) ? a : b;
-        for (const candidates of candidatesByChain.values()) {
-            if (candidates.length < 2) continue;
-            const containing = candidates.filter(id => {
-                const s = segmentById.get(id);
-                return s !== undefined && s.from <= date && date <= s.to;
-            });
-            const begun = candidates.filter(id => (segmentById.get(id)?.from ?? Infinity) <= date);
-            const keep = containing.length > 0
-                ? containing.reduce(laterMember)
-                : (begun.length > 0 ? begun.reduce(laterMember) : candidates[0]);
-            for (const id of candidates) {
-                if (id !== keep) segmentIds.delete(id);
             }
         }
 
@@ -403,10 +356,8 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
     const hoveredSegments = useMemo(() => {
         if (!hoveredSegmentId || lockedSegmentIds.size > 0) return [];
-        const chain = chains.get(hoveredSegmentId);
-        const ids = chain ? chain.memberIds : [hoveredSegmentId];
-        return segments.filter(s => ids.includes(s.id));
-    }, [hoveredSegmentId, lockedSegmentIds, segments, chains]);
+        return segments.filter(s => s.id === hoveredSegmentId);
+    }, [hoveredSegmentId, lockedSegmentIds, segments]);
 
     const hoverAnchorEl = useMemo(() => anchorFor(hoveredSegments), [anchorFor, hoveredSegments]);
 

@@ -16,8 +16,9 @@ interface SegmentPopoverProps {
  * most zooms is most of them — so it says the same thing the box would, rather
  * than naming the motivation the box no longer speaks in.
  *
- * Several are shown side by side when a chain is open — the members argue one
- * gesture between them, so they read as one card with dividers.
+ * Several are shown side by side when the playhead is inside more than one at
+ * once — they argue one moment between them, so they read as one card with
+ * dividers.
  */
 export const SegmentPopover = ({ segments, anchorEl, transient }: SegmentPopoverProps) => (
     <Popper

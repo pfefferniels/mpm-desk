@@ -41,8 +41,6 @@ export interface Segment {
     certainty: string;
     /** Why — shown when the segment is hovered or opened. */
     note?: string;
-    /** Id of the segment this one continues, forming a chain. */
-    continue?: string;
     from: number;
     /** Equal to `from` for a segment that acts on a single point in time. */
     to: number;

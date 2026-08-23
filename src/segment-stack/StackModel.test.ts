@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { arcOf, buildChains, kneeAngle, containmentDepths, fadeOpacities, laneOf, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, treeGeometry, typeScale } from './StackModel'
+import { arcOf, kneeAngle, containmentDepths, fadeOpacities, laneOf, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, treeGeometry, typeScale } from './StackModel'
 import type { Reconstruction, Segment, Span } from '../model/Reconstruction'
 
 const span = (over: Partial<Span> = {}): Span => ({
@@ -9,36 +9,6 @@ const span = (over: Partial<Span> = {}): Span => ({
 
 const segment = (over: Partial<Segment> = {}): Segment => ({
   id: 's', motivation: 'intensify', certainty: 'plausible', from: 0, to: 100, spans: [span()], ...over,
-})
-
-describe('buildChains', () => {
-  it('leaves unlinked segments out', () => {
-    const chains = buildChains([segment({ id: 'a' }), segment({ id: 'b', from: 200, to: 300 })])
-    expect(chains.size).toBe(0)
-  })
-
-  it('spans the whole chain, in order, for every member', () => {
-    const a = segment({ id: 'a', from: 0, to: 100 })
-    const b = segment({ id: 'b', from: 90, to: 200, continue: 'a' })
-    const c = segment({ id: 'c', from: 180, to: 300, continue: 'b' })
-
-    const chains = buildChains([c, a, b])
-    expect(chains.get('a')).toEqual({ chainFrom: 0, chainTo: 300, memberIds: ['a', 'b', 'c'] })
-    expect(chains.get('b')).toBe(chains.get('a'))
-    expect(chains.get('c')).toBe(chains.get('a'))
-  })
-
-  it('ignores a `continue` that names nothing', () => {
-    const chains = buildChains([segment({ id: 'a', continue: 'gone' })])
-    expect(chains.size).toBe(0)
-  })
-
-  it('terminates on a cycle', () => {
-    const a = segment({ id: 'a', continue: 'b' })
-    const b = segment({ id: 'b', from: 100, to: 200, continue: 'a' })
-    const chains = buildChains([a, b])
-    expect(chains.get('a')?.memberIds).toHaveLength(2)
-  })
 })
 
 describe('laneOf', () => {
@@ -62,12 +32,11 @@ describe('laneOf', () => {
 
 describe('fadeOpacities', () => {
   const { segments } = JSON.parse(readFileSync('public/segments.json', 'utf-8')) as Reconstruction
-  const chains = buildChains(segments)
   const minPointSpan = pointSpanFallback(segments)
 
   it('never culls — every segment keeps a visible mark at every zoom', () => {
     for (const stretchX of [0.001, 0.005, 0.02, 0.1, 0.5, 2]) {
-      const fade = fadeOpacities({ segments, chains, stretchX, minPointSpan })
+      const fade = fadeOpacities({ segments, stretchX, minPointSpan })
       for (const s of segments) {
         expect(fade.get(s.id), `${s.id} at ${stretchX}`).toBeGreaterThan(0)
       }
@@ -76,20 +45,10 @@ describe('fadeOpacities', () => {
 
   it('brings the small gestures forward as the view comes closer', () => {
     const small = [...segments].sort((a, b) => (a.to - a.from) - (b.to - b.from))[10]
-    const far = fadeOpacities({ segments, chains, stretchX: 0.002, minPointSpan }).get(small.id)!
-    const near = fadeOpacities({ segments, chains, stretchX: 1, minPointSpan }).get(small.id)!
+    const far = fadeOpacities({ segments, stretchX: 0.002, minPointSpan }).get(small.id)!
+    const near = fadeOpacities({ segments, stretchX: 1, minPointSpan }).get(small.id)!
     expect(near).toBeGreaterThan(far)
     expect(near).toBe(1)
-  })
-
-  it('fades a chain as one gesture', () => {
-    for (const stretchX of [0.005, 0.05, 0.5]) {
-      const fade = fadeOpacities({ segments, chains, stretchX, minPointSpan })
-      for (const chain of new Set(chains.values())) {
-        const values = chain.memberIds.map(id => fade.get(id))
-        expect(new Set(values).size, `chain at ${stretchX}`).toBe(1)
-      }
-    }
   })
 })
 
