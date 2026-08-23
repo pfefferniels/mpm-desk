@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
 import { ZoomIn, Download, PlayArrow, Stop } from '@mui/icons-material';
 import { useZoom } from '../hooks/ZoomProvider';
-import { EXAGGERATION_MAX, usePlayback } from '../hooks/PlaybackProvider';
+import { usePlayback } from '../hooks/PlaybackProvider';
+import { EXAGGERATION_MAX } from '../utils/espressivo';
 
 const glassStyle = {
     backdropFilter: 'blur(20px) saturate(180%)',
@@ -72,14 +73,6 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
         }
     }, [isPlaying, play, stop, exaggeration]);
 
-    const handleExaggerationCommit = useCallback((_: unknown, value: number | number[]) => {
-        const v = value as number;
-        setExaggeration(v);
-        if (isPlaying) {
-            play({ exaggerate: v });
-        }
-    }, [isPlaying, play, setExaggeration]);
-
     const hasMetadata = metadata?.title || metadata?.author;
 
     return (
@@ -134,11 +127,10 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                         value={exaggeration}
                         min={1}
                         max={EXAGGERATION_MAX}
-                        step={0.1}
+                        step={0.01}
                         valueLabelDisplay="auto"
-                        valueLabelFormat={v => `${v.toFixed(1)}x`}
+                        valueLabelFormat={v => `${v.toFixed(2)}x`}
                         onChange={(_, v) => setExaggeration(v as number)}
-                        onChangeCommitted={handleExaggerationCommit}
                     />
                 </ExpandableRow>
             </Box>
