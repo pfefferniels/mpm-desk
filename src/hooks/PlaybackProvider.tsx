@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { usePiano } from 'react-pianosound';
 import type { AnyEvent } from 'midifile-ts';
 import { renderCached, type RenderRequest, type Rendered } from '../utils/espressivo';
-import { UNIDENTIFIED_NOTE, pickAnchor } from '../utils/anchor';
+import { UNIDENTIFIED_NOTE, pickAnchor, renderedRange } from '../utils/anchor';
 import { useZoom } from './ZoomProvider';
 import { useLatest } from './useLatest';
 
@@ -33,6 +33,15 @@ const BACKOFF_FACTOR = 3;
  */
 const ANCHOR_LEAD_S = 0.02;
 
+/**
+ * How long a preview is left running past the last note its range covers.
+ *
+ * The range ends at the following note's onset, which is where the gesture's last note stops
+ * being the one you are listening to — but it is still ringing, and stopping the transport damps
+ * it. A little tail lets it decay instead of being cut off mid-sound.
+ */
+const PREVIEW_TAIL_MS = 900;
+
 function computeSketchiness(stretchX: number): number {
     if (stretchX >= SKETCH_THRESHOLD) return 1.0;
     const t = (SKETCH_THRESHOLD - stretchX) / SKETCH_THRESHOLD;
@@ -43,6 +52,11 @@ interface PlayOptions {
     mpmIds?: string[];
     isolate?: boolean;
     exaggerate?: number;
+    /**
+     * Symbolic tick range to play, instead of the whole piece — a preview of one gesture.
+     * Playback starts at the first note inside it and stops once it is through.
+     */
+    range?: { from: number; to: number };
     onNoteEvent?: (noteId: string, date: number) => void;
 }
 
@@ -99,6 +113,8 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
 
     // Throttle bookkeeping
     const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** Armed for a `range` preview only; the whole piece plays until something stops it. */
+    const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastUpdateRef = useRef(0);
     const intervalRef = useRef(MIN_UPDATE_INTERVAL_MS);
 
@@ -119,6 +135,10 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         if (throttleTimerRef.current) {
             clearTimeout(throttleTimerRef.current);
             throttleTimerRef.current = null;
+        }
+        if (stopTimerRef.current) {
+            clearTimeout(stopTimerRef.current);
+            stopTimerRef.current = null;
         }
     }, [pianoRef]);
 
@@ -157,6 +177,34 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         return request;
     }, [scoreMsmRef, performanceMpmRef, stretchXRef]);
 
+    /** Where a preview's tick range falls in this particular rendering, if it names one. */
+    const previewRange = useCallback((options: PlayOptions | undefined, rendered: Rendered) => {
+        const range = options?.range;
+        if (!range) return null;
+        return renderedRange(rendered.noteIds, dateByNoteIdRef.current, range.from, range.to);
+    }, [dateByNoteIdRef]);
+
+    /**
+     * Stop a preview once its range has been heard.
+     *
+     * Re-armed against every rendering that gets installed, never carried over: the exaggeration
+     * knob rescales time under a running preview, so how long is left is a property of the
+     * rendering that is playing rather than of the click that started it.
+     */
+    const armPreviewStop = useCallback((heard: { toMs: number } | null) => {
+        if (stopTimerRef.current) {
+            clearTimeout(stopTimerRef.current);
+            stopTimerRef.current = null;
+        }
+        if (!heard) return;
+        const { offset } = pianoRef.current.getSchedule() ?? { offset: 0 };
+        const left = heard.toMs + offset * 1000 - pianoRef.current.getTransportSeconds() * 1000;
+        stopTimerRef.current = setTimeout(() => {
+            stopTimerRef.current = null;
+            stop();
+        }, Math.max(0, left + PREVIEW_TAIL_MS));
+    }, [pianoRef, stop]);
+
     /**
      * Install a rendering from the top, discarding whatever was scheduled.
      *
@@ -165,20 +213,24 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
      * The transport still restarts, so there is a short hole in the rhythm; what there no longer is
      * is a damper, because nothing calls `stopAll()` on the way through and the sounding notes ring
      * on. Re-striking the note it lands on is a no-op while that note is still held.
+     *
+     * Without one, a `range` preview seeks to the head of its range instead of playing from bar 1.
      */
     const startPlayback = useCallback((options: PlayOptions | undefined, resume: Rendered | null) => {
         try {
             const rendered = resume ?? renderCached(buildRequest(options));
             const noteId = resume ? lastNoteIdRef.current : null;
             if (!pianoRef.current.play(rendered.file, noteListener)) return;
-            const resumeMs = noteId === null ? undefined : rendered.noteIds.get(noteId);
-            if (resumeMs !== undefined) pianoRef.current.jumpTo(resumeMs / 1000);
+            const heard = previewRange(options, rendered);
+            const startMs = noteId === null ? heard?.fromMs : rendered.noteIds.get(noteId);
+            if (startMs !== undefined) pianoRef.current.jumpTo(startMs / 1000);
             setIsPlaying(true);
             isPlayingRef.current = true;
+            armPreviewStop(heard);
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [buildRequest, noteListener, pianoRef]);
+    }, [armPreviewStop, buildRequest, noteListener, pianoRef, previewRange]);
 
     const play = useCallback((options?: PlayOptions) => {
         lastNoteIdRef.current = null;
@@ -222,6 +274,8 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
 
             const result = splice({ events: rendered.events, anchor, cb: noteListener });
             if (result.ok) {
+                // The seam rescales what is left, so a preview's remaining time is re-read here.
+                armPreviewStop(previewRange(options, rendered));
                 intervalRef.current = Math.max(
                     MIN_UPDATE_INTERVAL_MS,
                     (performance.now() - startedAt) * BACKOFF_FACTOR,
@@ -236,7 +290,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         // No seamless path (hardware output, or samples still loading): restart and seek back in,
         // minus the `stopAll()` that used to damp everything on the way.
         startPlayback(options, rendered);
-    }, [buildRequest, noteListener, pianoRef, startPlayback]);
+    }, [armPreviewStop, buildRequest, noteListener, pianoRef, previewRange, startPlayback]);
 
     const scheduleUpdate = useCallback(() => {
         if (!isPlayingRef.current) return;

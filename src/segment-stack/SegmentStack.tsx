@@ -1,33 +1,18 @@
 import { Card } from "@mui/material";
-import { useCallback, useDeferredValue, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
 import type { PerformanceReader } from "../utils/mpm";
 import type { Segment } from "../model/Reconstruction";
-import { applyExaggeration, applyLocalRenormalization, asPathD, negotiateIntensityCurve } from "../utils/intensityCurve";
 import { useSelection } from "../hooks/SelectionProvider";
 import { PlaybackNoteEvent, usePlayback } from "../hooks/PlaybackProvider";
-import { EXAGGERATION_MAX } from "../utils/espressivo";
 import { BarLines } from "./BarLines";
-import { buildChains, ChainInfo, computeCurvePoints, computeLodOpacities, pointSpanFallback, tickToCurveIndex } from "./OnionModel";
-import { SegmentOnion } from "./SegmentOnion";
+import { buildChains, ChainInfo, containmentDepths, fadeOpacities, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, pointSpanFallback, tickRange, treeGeometry, typeScale } from "./StackModel";
+import { SegmentLabel, SpanRibbon } from "./SegmentLabel";
+import { wordFor, wordWidth } from "./words";
 import { InstructionPopover } from "./InstructionPopover";
 import { SegmentPopover } from "./SegmentPopover";
-
-function lerpHexColor(a: string, b: string, t: number): string {
-    const parse = (hex: string) => [
-        parseInt(hex.slice(1, 3), 16),
-        parseInt(hex.slice(3, 5), 16),
-        parseInt(hex.slice(5, 7), 16),
-    ];
-    const [ar, ag, ab] = parse(a);
-    const [br, bg, bb] = parse(b);
-    const r = Math.round(ar + (br - ar) * t);
-    const g = Math.round(ag + (bg - ag) * t);
-    const bl = Math.round(ab + (bb - ab) * t);
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
-}
 
 function setsEqual(a: Set<string>, b: Set<string>): boolean {
     if (a.size !== b.size) return false;
@@ -36,6 +21,18 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
     }
     return true;
 }
+
+/**
+ * The viewport the tree sits in. A tree of 45° text is much taller than a band
+ * of boxes was, and the stack is centred in a 100vh page with the room to spare,
+ * so the card takes what the branches need up to this cap and scrolls past it.
+ */
+const MAX_CARD_HEIGHT = '78vh';
+const MIN_CANVAS_HEIGHT = 260;
+/** How much of the exaggeration slider's travel goes into the size of the writing. */
+const EXAG_TYPE_GROWTH = 0.7;
+/** How far the rest of the tree steps back while one word is spotlit. */
+const OTHERS_DIM = 0.35;
 
 interface SegmentStackProps {
     segments: Segment[];
@@ -48,9 +45,18 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const stretchX = useSymbolicZoom();
 
     const svgRef = useRef<SVGSVGElement>(null);
+    const cardRef = useRef<HTMLDivElement | null>(null);
     const [hoveredSegmentId, setHoveredSegmentId] = useState<string | null>(null);
     const [lockedSegmentIds, setLockedSegmentIds] = useState<Set<string>>(new Set());
     const lockedSegmentIdsRef = useLatest(lockedSegmentIds);
+    /**
+     * Who opened the segments that are open.
+     *
+     * Playback opens them as the playhead passes and they close again when it stops. A click opens
+     * one deliberately, and its preview stops on its own after a few seconds — the spotlight has to
+     * outlive the sound, or clicking a word would light it up and then drop it.
+     */
+    const lockOriginRef = useRef<'user' | 'playback'>('playback');
     const playRef = useLatest(play);
     const stopRef = useLatest(stop);
     const exaggerationRef = useLatest(exaggeration);
@@ -58,6 +64,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     // Scroll sync
     const { register, unregister, scrollToDate } = useScrollSync();
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
+        cardRef.current = element;
         if (element) {
             register('segment-stack', element);
         } else {
@@ -69,53 +76,17 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         () => segments.reduce((max, segment) => Math.max(max, segment.to), 0),
         [segments],
     );
-    const maxX = maxDate * stretchX;
-
-    const totalHeight = 300;
-    const padTop = 40;
-    const padBottom = 40;
+    /**
+     * Zooming redraws all 128 branches, so the drawing follows the zoom at low
+     * priority: React keeps the old tree on screen while the new one is built,
+     * instead of blocking the slider for ~50ms a step. Everything in the SVG
+     * reads this one value, so the ruler and the words never disagree.
+     */
+    const drawnStretchX = useDeferredValue(stretchX);
+    const maxX = maxDate * drawnStretchX;
 
     const chains = useMemo(() => buildChains(segments), [segments]);
     const chainsRef = useLatest(chains);
-
-    const chainNeighborBounds = useMemo(() => {
-        const map = new Map<string, { prevTo?: number; nextFrom?: number }>();
-        const segmentById = new Map(segments.map(s => [s.id, s]));
-        const seen = new Set<ChainInfo>();
-        for (const chain of chains.values()) {
-            if (seen.has(chain)) continue;
-            seen.add(chain);
-            for (let i = 0; i < chain.memberIds.length; i++) {
-                const id = chain.memberIds[i];
-                const bounds: { prevTo?: number; nextFrom?: number } = {};
-                if (i > 0) {
-                    const prev = segmentById.get(chain.memberIds[i - 1]);
-                    if (prev) bounds.prevTo = prev.to;
-                }
-                if (i < chain.memberIds.length - 1) {
-                    const next = segmentById.get(chain.memberIds[i + 1]);
-                    if (next) bounds.nextFrom = next.from;
-                }
-                map.set(id, bounds);
-            }
-        }
-        return map;
-    }, [segments, chains]);
-
-    const sizeFactors = useMemo(() => {
-        // For chained segments, use the chain's total span
-        const effectiveSpans = new Map<string, number>();
-        for (const s of segments) {
-            const chain = chains.get(s.id);
-            effectiveSpans.set(s.id, chain ? chain.chainTo - chain.chainFrom : s.to - s.from);
-        }
-        const maxSpan = Math.max(1, ...effectiveSpans.values());
-        const map = new Map<string, number>();
-        for (const [id, span] of effectiveSpans) {
-            map.set(id, span / maxSpan);
-        }
-        return map;
-    }, [segments, chains]);
 
     const spanToSegment = useMemo(() => {
         const map = new Map<string, string>();
@@ -139,94 +110,87 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     }, [segments]);
 
     const minPointSpan = useMemo(() => pointSpanFallback(segments), [segments]);
+    const minPointSpanRef = useLatest(minPointSpan);
 
-    const lodOpacities = useMemo(
-        () => computeLodOpacities({ segments, chains, stretchX, minPointSpan }),
-        [segments, chains, stretchX, minPointSpan],
+    const opacities = useMemo(
+        () => fadeOpacities({ segments, chains, stretchX: drawnStretchX, minPointSpan }),
+        [segments, chains, drawnStretchX, minPointSpan],
     );
 
-    // Stabilize lodOpacities reference: keep previous Map when values are identical,
-    // preventing useDeferredValue from scheduling redundant re-renders.
-    const lodOpacitiesRef = useRef(lodOpacities);
-    if (lodOpacities !== lodOpacitiesRef.current) {
-        let changed = lodOpacities.size !== lodOpacitiesRef.current.size;
+    // Stabilize the reference: keep the previous Map when the values are identical,
+    // so useDeferredValue does not schedule a redundant pass over 128 labels.
+    const opacitiesRef = useRef(opacities);
+    if (opacities !== opacitiesRef.current) {
+        let changed = opacities.size !== opacitiesRef.current.size;
         if (!changed) {
-            for (const [id, val] of lodOpacities) {
-                if (lodOpacitiesRef.current.get(id) !== val) { changed = true; break; }
+            for (const [id, val] of opacities) {
+                if (opacitiesRef.current.get(id) !== val) { changed = true; break; }
             }
         }
-        if (changed) lodOpacitiesRef.current = lodOpacities;
+        if (changed) opacitiesRef.current = opacities;
     }
-    const stableLodOpacities = lodOpacitiesRef.current;
+    const deferredOpacities = useDeferredValue(opacitiesRef.current);
 
-    const deferredLodOpacities = useDeferredValue(stableLodOpacities);
+    const depths = useMemo(() => containmentDepths(segments), [segments]);
 
-    const scaled = useMemo(
-        () => negotiateIntensityCurve(segments, maxDate, deferredLodOpacities),
-        [segments, maxDate, deferredLodOpacities],
+    /** Exaggeration is the size of the writing now there is nothing else to grow. */
+    const fontScale = 1 + (exaggeration - 1) * EXAG_TYPE_GROWTH;
+
+    /** How big each word is set — the longer the gesture, the larger the type. */
+    const fontSizes = useMemo(
+        () => typeScale({
+            segments,
+            minPointSpan,
+            fontScale,
+            charsOf: s => wordFor(s).length,
+        }),
+        [segments, minPointSpan, fontScale],
     );
 
-    const exaggeratedCurve = useMemo(
-        () => applyExaggeration(scaled, exaggeration),
-        [scaled, exaggeration],
+    const labels = useMemo(
+        () => packLabels({
+            segments,
+            depths,
+            minPointSpan,
+            stretchX: drawnStretchX,
+            metricsOf: s => {
+                const fontSize = fontSizes.get(s.id) ?? 11;
+                return {
+                    length: wordWidth(s, fontSize),
+                    lineHeight: fontSize * LINE_HEIGHT_RATIO,
+                };
+            },
+        }),
+        [segments, depths, minPointSpan, drawnStretchX, fontSizes],
     );
 
-    // Defer stretchX for renormalization so the zoom itself stays responsive
-    // while the curve normalization catches up between interactions.
-    const deferredStretchX = useDeferredValue(stretchX);
-
-    const displayCurve = useMemo(
-        () => applyLocalRenormalization(exaggeratedCurve, deferredStretchX),
-        [exaggeratedCurve, deferredStretchX],
+    const { totalHeight, centreY } = useMemo(
+        () => treeGeometry({ labels, minHeight: MIN_CANVAS_HEIGHT }),
+        [labels],
     );
 
-    const segmentColors = useMemo(() => {
-        const globalT = Math.min(1, (exaggeration - 1) / (EXAGGERATION_MAX - 1));
-        const { values, step } = displayCurve;
-        const map = new Map<string, string>();
-        for (const s of segments) {
-            const warm = s.motivation === 'intensify' || s.motivation === 'move';
-            const target = warm ? '#c0392b' : '#2980b9';
+    /**
+     * Keep the line in the middle of the window when the tree outgrows it.
+     *
+     * The branches reach a long way in both directions, so a tree taller than
+     * its card would otherwise open showing only the top of it. This runs when
+     * the geometry changes — a zoom or the exaggeration knob — which is exactly
+     * when the reader expects the view to resettle, and leaves manual scrolling
+     * alone in between.
+     */
+    useEffect(() => {
+        const card = cardRef.current;
+        if (!card) return;
+        const overflow = totalHeight - card.clientHeight;
+        if (overflow <= 0) return;
+        card.scrollTop = Math.max(0, Math.min(overflow, centreY - card.clientHeight / 2));
+    }, [totalHeight, centreY]);
 
-            // Per-segment saturation: how far the exaggerated curve deviates
-            // from the midline within this segment's tick range
-            const fromIdx = Math.max(0, Math.min(tickToCurveIndex(s.from, step), values.length - 1));
-            const toIdx = Math.max(0, Math.min(tickToCurveIndex(s.to, step), values.length - 1));
-            let sumDev = 0;
-            let count = 0;
-            for (let i = fromIdx; i <= toIdx; i++) {
-                sumDev += Math.abs(values[i] - 0.5);
-                count++;
-            }
-            const meanDev = count > 0 ? sumDev / count : 0;
-            const localIntensity = Math.min(1, meanDev * 2);
-
-            map.set(s.id, lerpHexColor('#999999', target, globalT * localIntensity));
-        }
+    const labelById = useMemo(() => {
+        const map = new Map<string, LabelPlacement>();
+        for (const label of labels) map.set(label.segment.id, label);
         return map;
-    }, [segments, exaggeration, displayCurve]);
-
-    const curvePointsRaw = useMemo(
-        () => computeCurvePoints({ curve: displayCurve, totalHeight, padTop, padBottom }),
-        [displayCurve, totalHeight],
-    );
-    // Stabilize reference: keep previous array if values are identical.
-    // This prevents all ~128 SegmentOnion children from re-rendering when
-    // the curve recomputes to the same result.
-    const curvePointsRef = useRef(curvePointsRaw);
-    if (
-        curvePointsRaw !== curvePointsRef.current &&
-        (curvePointsRaw.length !== curvePointsRef.current.length ||
-            curvePointsRaw.some((p, i) => p.x !== curvePointsRef.current[i].x || p.y !== curvePointsRef.current[i].y))
-    ) {
-        curvePointsRef.current = curvePointsRaw;
-    }
-    const curvePoints = curvePointsRef.current;
-
-    const curvePathD = useMemo(
-        () => asPathD(displayCurve, totalHeight, padTop, padBottom),
-        [displayCurve, totalHeight],
-    );
+    }, [labels]);
 
     // Expand to all chain members when hovering a chained segment.
     // When locked, all locked segments count as hovered.
@@ -238,8 +202,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         if (chain) return new Set(chain.memberIds);
         return new Set([baseHoveredId]);
     }, [lockedSegmentIds, baseHoveredId, chains]);
-
-    const hoveredSizeFactor = baseHoveredId !== null ? (sizeFactors.get(baseHoveredId) ?? null) : null;
 
     const handleHoverChange = useCallback((segmentId: string | null) => {
         if (lockedSegmentIdsRef.current.size > 0) return;
@@ -256,52 +218,47 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         }
         const chain = chainsRef.current.get(segmentId);
         const ids = chain ? chain.memberIds : [segmentId];
+        lockOriginRef.current = 'user';
         setLockedSegmentIds(new Set(ids));
         setActiveSpanIds(new Set());
 
-        // Play audio for the locked segment (all chain members)
-        const mpmIds = segmentsRef.current
-            .filter(s => ids.includes(s.id))
-            .flatMap(s => s.spans.flatMap(span => span.elements));
-        if (mpmIds.length > 0) playRef.current({ mpmIds, isolate: true, exaggerate: exaggerationRef.current });
-    }, [lockedSegmentIdsRef, setActiveSpanIds, segmentsRef, chainsRef, playRef, exaggerationRef]);
+        // Preview the locked segment: its own stretch of music, spotlit, and nothing else. The
+        // whole chain, because a chain is one gesture and the words light up together.
+        const members = segmentsRef.current.filter(s => ids.includes(s.id));
+        const mpmIds = members.flatMap(s => s.spans.flatMap(span => span.elements));
+        if (mpmIds.length > 0) {
+            const ranges = members.map(s => tickRange(s, minPointSpanRef.current));
+            playRef.current({
+                mpmIds,
+                isolate: true,
+                exaggerate: exaggerationRef.current,
+                range: {
+                    from: Math.min(...ranges.map(r => r.from)),
+                    to: Math.max(...ranges.map(r => r.to)),
+                },
+            });
+        }
+    }, [lockedSegmentIdsRef, setActiveSpanIds, segmentsRef, chainsRef, playRef, exaggerationRef, minPointSpanRef]);
 
     const handleLaneClick = useCallback((spanId: string) => {
         const segmentId = spanToSegment.get(spanId);
         if (segmentId) {
             const chain = chainsRef.current.get(segmentId);
             const ids = chain ? chain.memberIds : [segmentId];
+            lockOriginRef.current = 'user';
             setLockedSegmentIds(new Set(ids));
         }
 
         const span = segmentsRef.current.flatMap(s => s.spans).find(s => s.id === spanId);
         if (span) {
-            playRef.current({ mpmIds: span.elements, isolate: true, exaggerate: exaggerationRef.current });
+            playRef.current({
+                mpmIds: span.elements,
+                isolate: true,
+                exaggerate: exaggerationRef.current,
+                range: tickRange(span, minPointSpanRef.current),
+            });
         }
-    }, [spanToSegment, chainsRef, exaggerationRef, playRef, segmentsRef]);
-
-    // Mask gap for intensity curve under hovered segment
-    const maskId = useId();
-    const curveStep = scaled.step;
-
-    const maskGap = useMemo(() => {
-        if (effectiveHoveredIds.size === 0 || curvePoints.length === 0) return null;
-        // Span the full range of all hovered segments (chain-expanded)
-        let minFrom = Infinity;
-        let maxTo = -Infinity;
-        for (const id of effectiveHoveredIds) {
-            const s = segments.find(s => s.id === id);
-            if (s) {
-                minFrom = Math.min(minFrom, s.from);
-                maxTo = Math.max(maxTo, s.to);
-            }
-        }
-        if (minFrom === Infinity) return null;
-        const f = Math.max(0, Math.min(tickToCurveIndex(minFrom, curveStep), curvePoints.length - 1));
-        const t = Math.max(0, Math.min(tickToCurveIndex(maxTo, curveStep), curvePoints.length - 1));
-        if (t <= f) return null;
-        return { x1: curvePoints[f].x, x2: curvePoints[t].x };
-    }, [effectiveHoveredIds, segments, curvePoints, curveStep]);
+    }, [spanToSegment, chainsRef, exaggerationRef, playRef, segmentsRef, minPointSpanRef]);
 
     const handleClearSelection = useCallback(() => {
         setActiveSpanIds(new Set());
@@ -312,6 +269,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     }, [setActiveSpanIds]);
 
     const handleUnlock = useCallback(() => {
+        lockOriginRef.current = 'playback';
         setLockedSegmentIds(new Set());
         setHoveredSegmentId(null);
         stopRef.current();
@@ -326,13 +284,14 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             if (segmentId) {
                 const chain = chains.get(segmentId);
                 const ids = chain ? chain.memberIds : [segmentId];
+                lockOriginRef.current = 'user';
                 setLockedSegmentIds(new Set(ids));
             }
         }
     }, [activeSpanIds, spanToSegment, chains]);
 
     // Follow playback: open (lock) the segments whose instructions are currently
-    // sounding, so their labels show while the playhead passes through them.
+    // sounding, so their words show while the playhead passes through them.
     // While listening, a chain must not open as a whole: an instruction of an
     // earlier chain member can still be "in effect" past that member's span,
     // so per chain only the member the playhead is actually in stays open
@@ -376,6 +335,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         }
 
         if (segmentIds.size > 0) {
+            lockOriginRef.current = 'playback';
             setLockedSegmentIds(prev => setsEqual(prev, segmentIds) ? prev : segmentIds);
         }
         scrollToDate(date);
@@ -383,45 +343,50 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
     useEffect(() => subscribeNoteEvents(followPlayback), [subscribeNoteEvents]);
 
-    // Close playback-opened segments when playback stops
+    // Close playback-opened segments when playback stops — but leave a clicked one open. A
+    // segment preview stops itself at the end of its own stretch of music, and the reader is
+    // still looking at the word they clicked.
     useEffect(() => {
-        if (!isPlaying) {
+        if (!isPlaying && lockOriginRef.current === 'playback') {
             setLockedSegmentIds(prev => (prev.size > 0 ? new Set() : prev));
         }
     }, [isPlaying]);
 
-    const lockedSegments = useMemo(() => {
-        if (lockedSegmentIds.size === 0) return [];
-        return segments.filter(s => lockedSegmentIds.has(s.id));
-    }, [lockedSegmentIds, segments]);
-
     /**
-     * Anchor a popover above the onions of the given segments.
+     * Anchor a popover at the foot of the given segments' branches.
      * Positions are read from the live CTM, so the popover follows zoom and scroll.
+     *
+     * Every segment is drawn now, so a placement is always there to anchor to —
+     * but playback can still name a segment while the tree is re-packing, so the
+     * lookup stays guarded.
      */
     const anchorFor = useCallback((anchored: Segment[]) => {
-        if (anchored.length === 0 || curvePoints.length === 0) return null;
-        const from = Math.min(...anchored.map(s => s.from));
-        const to = Math.max(...anchored.map(s => s.to));
-        let minOnionTopY = Infinity;
-        for (const segment of anchored) {
-            const sf = sizeFactors.get(segment.id) ?? 1;
-            const amplitude = (6 + (30 - 6) * sf) + 12;
-            const centerIdx = Math.max(0, Math.min(tickToCurveIndex((segment.from + segment.to) / 2, curveStep), curvePoints.length - 1));
-            minOnionTopY = Math.min(minOnionTopY, curvePoints[centerIdx].y - amplitude);
-        }
+        const placed = anchored.map(s => labelById.get(s.id)).filter(l => l !== undefined);
+        if (placed.length === 0) return null;
+        const from = Math.min(...placed.map(l => l.tick));
+        const to = Math.max(...placed.map(l => l.tick + l.length / drawnStretchX));
+        // Sit above the highest foot, or below the lowest, so the card never
+        // covers the word it is describing.
+        const leansUp = placed.some(l => l.side === -1);
+        const y = leansUp
+            ? centreY - Math.max(...placed.filter(l => l.side === -1).map(l => l.offset))
+            : centreY + Math.max(...placed.map(l => l.offset));
         return {
             getBoundingClientRect: () => {
                 const ctm = svgRef.current?.getScreenCTM();
                 if (!ctm) return new DOMRect(0, 0, 0, 0);
                 const x1 = ctm.a * from + ctm.e;
                 const x2 = ctm.a * to + ctm.e;
-                const y = ctm.d * minOnionTopY + ctm.f;
-                return new DOMRect(x1, y, x2 - x1, 0);
+                return new DOMRect(x1, ctm.d * y + ctm.f, x2 - x1, 0);
             },
             contextElement: svgRef.current ?? undefined,
         };
-    }, [sizeFactors, curvePoints, curveStep]);
+    }, [labelById, centreY, drawnStretchX]);
+
+    const lockedSegments = useMemo(() => {
+        if (lockedSegmentIds.size === 0) return [];
+        return segments.filter(s => lockedSegmentIds.has(s.id));
+    }, [lockedSegmentIds, segments]);
 
     const lockAnchorEl = useMemo(() => anchorFor(lockedSegments), [anchorFor, lockedSegments]);
 
@@ -433,6 +398,33 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     }, [hoveredSegmentId, lockedSegmentIds, segments, chains]);
 
     const hoverAnchorEl = useMemo(() => anchorFor(hoveredSegments), [anchorFor, hoveredSegments]);
+
+    /**
+     * The tree, split into what is spotlit and what is stepping back.
+     *
+     * The dim is one `opacity` on the group rather than one per word: a group
+     * opacity below 1 costs the browser an offscreen buffer, and paying that 128
+     * times on every hover is what made the view crawl. It also means hovering
+     * re-renders the one word that moved between the groups, not all of them.
+     */
+    const [dimmed, spotlit] = useMemo(() => {
+        const lit: typeof labels = [];
+        const rest: typeof labels = [];
+        for (const label of labels) {
+            (effectiveHoveredIds.has(label.segment.id) ? lit : rest).push(label);
+        }
+        return [rest, lit];
+    }, [labels, effectiveHoveredIds]);
+
+    /** Segments the reader has opened, and the way their word leans. */
+    const openSegments = useMemo(() => {
+        const open = segments.filter(s =>
+            lockedSegmentIds.has(s.id) || s.spans.some(span => activeSpanIds.has(span.id)));
+        return open.map(segment => ({
+            segment,
+            side: labelById.get(segment.id)?.side ?? (1 as -1 | 1),
+        }));
+    }, [segments, lockedSegmentIds, activeSpanIds, labelById]);
 
     if (segments.length === 0) return null;
 
@@ -447,7 +439,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             style={{
                 overflow: "scroll",
                 position: "relative",
-                height: "300px",
+                height: `min(${Math.max(MIN_CANVAS_HEIGHT, totalHeight)}px, ${MAX_CARD_HEIGHT})`,
                 width: "100vw",
                 borderTop: "0.5px solid gray",
                 outline: "none",
@@ -478,78 +470,84 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
                     <BarLines
                         maxDate={maxDate}
-                        stretchX={stretchX}
+                        stretchX={drawnStretchX}
                         height={totalHeight}
                     />
 
-                    {maskGap && (
-                        <defs>
-                            <mask id={maskId}>
-                                <rect x="0" y="0" width={maxDate} height={totalHeight} fill="white" />
-                                <rect
-                                    x={maskGap.x1}
-                                    y="0"
-                                    width={maskGap.x2 - maskGap.x1}
-                                    height={totalHeight}
-                                    fill="black"
-                                />
-                            </mask>
-                        </defs>
-                    )}
-
-                    {/* Segment onions — largest first so smaller ones render on top */}
-                    {[...segments]
-                        .sort((a, b) => {
-                            const aLocked = lockedSegmentIds.has(a.id);
-                            const bLocked = lockedSegmentIds.has(b.id);
-                            if (aLocked && !bLocked) return 1;
-                            if (!aLocked && bLocked) return -1;
-                            return (b.to - b.from) - (a.to - a.from);
-                        })
-                        .filter(segment => (lodOpacities.get(segment.id) ?? 0) > 0 || lockedSegmentIds.has(segment.id))
-                        .map(segment => (
-                            <SegmentOnion
-                                key={segment.id}
-                                segment={segment}
-                                curvePoints={curvePoints}
-                                curveStep={curveStep}
-                                stretchX={stretchX}
-                                segmentColor={segmentColors.get(segment.id) ?? '#999999'}
-                                sizeFactor={sizeFactors.get(segment.id) ?? 1}
-                                lodOpacity={lockedSegmentIds.has(segment.id) ? 1 : (lodOpacities.get(segment.id) ?? 1)}
-                                isHovered={effectiveHoveredIds.has(segment.id)}
-                                suppressHitArea={
-                                    lockedSegmentIds.size === 0 &&
-                                    hoveredSizeFactor !== null &&
-                                    !effectiveHoveredIds.has(segment.id) &&
-                                    (sizeFactors.get(segment.id) ?? 1) >= hoveredSizeFactor
-                                }
-                                hasActiveSpan={segment.spans.some(span => activeSpanIds.has(span.id))}
-                                chainFrom={chains.get(segment.id)?.chainFrom}
-                                chainTo={chains.get(segment.id)?.chainTo}
-                                prevChainMemberTo={chainNeighborBounds.get(segment.id)?.prevTo}
-                                nextChainMemberFrom={chainNeighborBounds.get(segment.id)?.nextFrom}
+                    <g
+                        opacity={spotlit.length > 0 ? OTHERS_DIM : 1}
+                        style={{ transition: "opacity 0.18s ease" }}
+                    >
+                        {dimmed.map(label => (
+                            <SegmentLabel
+                                key={label.segment.id}
+                                segment={label.segment}
+                                tick={label.tick}
+                                side={label.side}
+                                offset={label.offset}
+                                centreY={centreY}
+                                stretchX={drawnStretchX}
+                                fontSize={label.fontSize}
+                                length={label.length}
+                                opacity={deferredOpacities.get(label.segment.id) ?? 1}
+                                isHovered={false}
+                                isLocked={false}
+                                hasActiveSpan={false}
                                 onHoverChange={handleHoverChange}
-                                onLaneClick={handleLaneClick}
-                                isLocked={lockedSegmentIds.has(segment.id)}
                                 onLock={handleLock}
                             />
                         ))}
+                    </g>
 
-                    {/* Intensity curve on top, masked under hovered segment */}
-                    <path
-                        className="intensityCurve"
-                        d={curvePathD}
-                        fill="none"
-                        stroke="#888"
-                        strokeWidth={1.3}
-                        strokeOpacity={0.5}
-                        strokeDasharray="2.6 3.9"
-                        strokeLinejoin="round"
-                        strokeLinecap="round"
+                    {/* Spotlit words draw last, above the ones stepping back */}
+                    {spotlit.map(label => (
+                        <SegmentLabel
+                            key={label.segment.id}
+                            segment={label.segment}
+                            tick={label.tick}
+                            side={label.side}
+                            offset={label.offset}
+                            centreY={centreY}
+                            stretchX={drawnStretchX}
+                            fontSize={label.fontSize}
+                            length={label.length}
+                            opacity={1}
+                            isHovered
+                            isLocked={lockedSegmentIds.has(label.segment.id)}
+                            hasActiveSpan={label.segment.spans.some(span => activeSpanIds.has(span.id))}
+                            onHoverChange={handleHoverChange}
+                            onLock={handleLock}
+                        />
+                    ))}
+
+                    {/* What an opened segment is made of, down on the line itself */}
+                    {openSegments.map(({ segment, side }) => {
+                        const { from, to } = tickRange(segment, minPointSpan);
+                        return (
+                            <SpanRibbon
+                                key={segment.id}
+                                segment={segment}
+                                from={from}
+                                to={to}
+                                centreY={centreY}
+                                side={side}
+                                stretchX={drawnStretchX}
+                                onLaneClick={handleLaneClick}
+                            />
+                        );
+                    })}
+
+                    {/* The centre line the story is told around */}
+                    <line
+                        className="centreLine"
+                        x1={0}
+                        y1={centreY}
+                        x2={maxDate}
+                        y2={centreY}
+                        stroke="#9ca3af"
+                        strokeWidth={1}
                         pointerEvents="none"
                         vectorEffect="non-scaling-stroke"
-                        mask={maskGap ? `url(#${maskId})` : undefined}
                     />
                 </svg>
             </div>

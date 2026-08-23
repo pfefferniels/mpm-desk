@@ -59,3 +59,52 @@ export function pickAnchor(
     }
     return null;
 }
+
+/**
+ * Where a symbolic tick range sits in a rendering, in absolute milliseconds.
+ *
+ * A gesture is named in ticks and heard in time, and exaggeration moves the second without
+ * touching the first — so the range has to be read off each rendering rather than kept.
+ *
+ * Both ends reach outwards by one note, because a range is a claim about music rather than a
+ * slice of it. The end is the *next* onset wherever there is one: a gesture's last note is only
+ * over when the following one begins, and ending at its own onset would cut it off entirely.
+ * And a range that falls between two onsets — five of this corpus's segments are 65 to 200 ticks
+ * wide and land in a gap — starts at the note still sounding under it, which is the note the
+ * gesture is about.
+ *
+ * Returns `null` only for a range that ends before the first note, where there is nothing to
+ * play; the caller's cue to fall back to the piece whole.
+ */
+export function renderedRange(
+    noteIds: ReadonlyMap<string, number>,
+    dateByNoteId: ReadonlyMap<string, number>,
+    from: number,
+    to: number,
+): { fromMs: number; toMs: number } | null {
+    let fromMs = Infinity;
+    let lastMs = -Infinity;
+    let afterMs = Infinity;
+    /** The onset still sounding at `from`; ms rises with date, so the latest is the largest. */
+    let underMs = -Infinity;
+
+    for (const [noteId, ms] of noteIds) {
+        const date = dateByNoteId.get(noteId);
+        if (date === undefined) continue;
+        if (date >= to) {
+            if (ms < afterMs) afterMs = ms;
+        } else if (date >= from) {
+            if (ms < fromMs) fromMs = ms;
+            if (ms > lastMs) lastMs = ms;
+        } else if (ms > underMs) {
+            underMs = ms;
+        }
+    }
+
+    if (fromMs === Infinity) {
+        if (underMs === -Infinity) return null;
+        fromMs = underMs;
+        lastMs = underMs;
+    }
+    return { fromMs, toMs: afterMs === Infinity ? lastMs : Math.max(lastMs, afterMs) };
+}

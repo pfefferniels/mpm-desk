@@ -3,7 +3,8 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { addAbsoluteTime, emptyState, planSplice, type AbsoluteEvent, type Schedule } from 'react-pianosound'
 import { read } from 'midifile-ts'
 import { renderPerformance } from './espressivo'
-import { UNIDENTIFIED_NOTE, indexNoteIds, pickAnchor } from './anchor'
+import { readNoteDates } from './score'
+import { UNIDENTIFIED_NOTE, indexNoteIds, pickAnchor, renderedRange } from './anchor'
 
 const msm = readFileSync('public/score.msm', 'utf8')
 const mpm = readFileSync('public/performance.mpm', 'utf8')
@@ -70,6 +71,46 @@ describe('pickAnchor', () => {
                 linear && linear.type === 'meta' && linear.subtype === 'text' ? linear.text : null)
         }
     })
+})
+
+describe('renderedRange', () => {
+    // Four notes a second apart, on ticks 0, 720, 1440, 2160.
+    const noteIds = new Map([['a', 0], ['b', 1000], ['c', 2000], ['d', 3000]])
+    const dates = new Map([['a', 0], ['b', 720], ['c', 1440], ['d', 2160]])
+
+    it('starts at the first note inside the range', () => {
+        expect(renderedRange(noteIds, dates, 720, 1441)?.fromMs).toBe(1000)
+    })
+
+    it('ends at the next note\'s onset, so the last one is not cut off', () => {
+        // The range holds b and c; it is over when d begins.
+        expect(renderedRange(noteIds, dates, 720, 1441)).toEqual({ fromMs: 1000, toMs: 3000 })
+    })
+
+    it('ends at the last note it covers when there is nothing after it', () => {
+        expect(renderedRange(noteIds, dates, 1440, 9999)).toEqual({ fromMs: 2000, toMs: 3000 })
+    })
+
+    it('covers a point-like range that has been given width', () => {
+        expect(renderedRange(noteIds, dates, 700, 800)).toEqual({ fromMs: 1000, toMs: 2000 })
+    })
+
+    it('starts at the note still sounding when the range falls in a gap', () => {
+        // Five segments in the corpus are a couple of hundred ticks wide and land between two
+        // onsets. The gesture is about the note underneath, not about the silence.
+        expect(renderedRange(noteIds, dates, 800, 900)).toEqual({ fromMs: 1000, toMs: 2000 })
+    })
+
+    it('says nothing for a range that ends before the first note', () => {
+        // Nothing to play, so the caller falls back to the piece whole.
+        expect(renderedRange(new Map([['b', 1000]]), dates, 0, 100)).toBeNull()
+    })
+
+    it('ignores notes the rendering does not date', () => {
+        expect(renderedRange(new Map([...noteIds, ['x', 1]]), dates, 0, 721))
+            .toEqual({ fromMs: 0, toMs: 2000 })
+    })
+
 })
 
 describe('splicing one rendering into another, over the shipped performance', () => {
@@ -198,6 +239,24 @@ describe('splicing one rendering into another, over the shipped performance', ()
         const plan = planSplice(outgoing, exaggerated, anchor, { ppq: 192, bpm: 120, nowSeconds: 20 })
         expect(plan.ok).toBe(false)
         if (!plan.ok) expect(plan.reason).toBe('stale')
+    })
+
+    it('locates a gesture by its ticks, and finds it moved once the piece is stretched', () => {
+        const dateByNoteId = readNoteDates(msm)
+        expect(dateByNoteId.size).toBeGreaterThan(400)
+
+        const at1 = renderedRange(indexNoteIds(neutral), dateByNoteId, 20000, 24000)!
+        const at2 = renderedRange(indexNoteIds(exaggerated), dateByNoteId, 20000, 24000)!
+
+        // Well into the piece, and a few seconds long — one gesture, not the whole thing.
+        expect(at1.fromMs).toBeGreaterThan(10_000)
+        expect(at1.toMs - at1.fromMs).toBeGreaterThan(1000)
+        expect(at1.toMs - at1.fromMs).toBeLessThan(60_000)
+
+        // The same ticks, later and longer in the stretched rendering: which is why the range is
+        // re-read from whatever is playing rather than remembered as a time.
+        expect(at2.fromMs).toBeGreaterThan(at1.fromMs)
+        expect(at2.toMs - at2.fromMs).toBeGreaterThan(at1.toMs - at1.fromMs)
     })
 
     it('refuses an anchor behind the schedule it would replace', () => {
