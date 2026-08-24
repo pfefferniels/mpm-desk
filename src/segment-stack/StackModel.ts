@@ -480,8 +480,10 @@ export function treeGeometry(params: {
 const MAX_GRID_LINES = 12;
 
 interface TimelineRow {
+    /** What put these spans on one row: the type, unless the caller divides it finer. */
+    lane: string;
     type: string;
-    bars: { id: string; left: number; width: number }[];
+    bars: { id: string; span: Span; left: number; width: number }[];
 }
 
 /**
@@ -490,6 +492,11 @@ interface TimelineRow {
  * Types come in the order they first appear, so the same segment always reads in
  * the same sequence. Several gestures of one type share a row: they are one
  * voice arguing over the stretch, not several.
+ *
+ * `laneOf` divides a type where one row would draw two things at once — the
+ * `movementMap` interleaves the sustain pedal with the soft one, and a curve
+ * through both is a curve through neither. It only ever splits a type, never
+ * merges two, so the ordering rule above still holds.
  *
  * Nothing is widened here. A gesture on a single date comes out `minBar` wide,
  * which the drawing rounds into a dot — on this axis the whole width is one
@@ -501,24 +508,32 @@ export function timelineRows(
     to: number,
     width: number,
     minBar: number,
+    laneOf: (span: Span) => string = span => span.type,
 ): TimelineRow[] {
     const ticks = to - from;
     const xOf = (tick: number) => Math.max(0, Math.min(1, (tick - from) / ticks)) * width;
 
-    const byType = new Map<string, Span[]>();
+    const byLane = new Map<string, Span[]>();
     for (const span of segment.spans) {
-        const row = byType.get(span.type);
+        const lane = laneOf(span);
+        const row = byLane.get(lane);
         if (row) row.push(span);
-        else byType.set(span.type, [span]);
+        else byLane.set(lane, [span]);
     }
 
-    return [...byType].map(([type, spans]) => ({
-        type,
+    return [...byLane].map(([lane, spans]) => ({
+        lane,
+        type: spans[0].type,
         bars: spans.map(span => {
             const left = xOf(span.from);
             const barWidth = Math.max(minBar, xOf(span.to) - left);
             // A gesture on the segment's last date would otherwise hang off the end.
-            return { id: span.id, left: Math.max(0, Math.min(left, width - barWidth)), width: barWidth };
+            return {
+                id: span.id,
+                span,
+                left: Math.max(0, Math.min(left, width - barWidth)),
+                width: barWidth,
+            };
         }),
     }));
 }

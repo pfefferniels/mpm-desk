@@ -1,8 +1,13 @@
 /**
  * One colour per MPM element type.
  *
- * Shared, because the same gestures are drawn twice over: as lanes on the centre
- * line under an opened segment, and as rows of the timeline a hovered one shows.
+ * The timeline's rows differ in height as well as in colour now — a lane that is
+ * drawn as what it does needs twice a lane that is drawn as when it happens — so
+ * this is what says which is which where two rows are the same size.
+ *
+ * `movement` is the deliberate odd one out. The pedal is a condition rather than
+ * a gesture — it is what the other instructions are heard through — so it stays
+ * neutral and lets the rest of the card carry the hue.
  */
 const SPAN_COLORS: Record<string, string> = {
     dynamics: "#8e44ad",
@@ -11,7 +16,7 @@ const SPAN_COLORS: Record<string, string> = {
     articulation: "#2c3e50",
     rubato: "#e74c3c",
     accentuationPattern: "#2980b9",
-    movement: "#7f8c8d",
+    movement: "#475569",
 };
 
 export function getLaneColor(type: string): string {

@@ -500,10 +500,12 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             {cardSegments.length > 0 && cardAnchorEl && activeSpanIds.size === 0 && (
                 <SegmentTimelinePopover
                     segments={cardSegments}
+                    mpm={mpm}
                     anchorEl={cardAnchorEl}
                     placement={cardPlacement}
                     minPointSpan={minPointSpan}
                     beatLength={beatLength}
+                    interactive={lockedSegments.length > 0}
                 />
             )}
             {activeSpanIds.size === 1 && (

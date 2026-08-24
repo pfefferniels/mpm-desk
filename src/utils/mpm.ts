@@ -3,7 +3,8 @@
  *
  * This replaces what `mpm-ts` did for the viewer: parse once, take an inventory of every
  * dated instruction, and answer "what is in effect at this tick?" while the playhead moves.
- * The two instruction charts get their numbers from here too.
+ * The instruction drawings get their numbers from here too, and — for the card that quotes
+ * an instruction back — the element itself and the `<…Def>` it points at.
  *
  * **The numbers are the renderer's.** `getTempoDataOf` / `getDynamicsDataOf` and the
  * `tempoAt` / `dynamicsAt` evaluators are the same code paths `renderExpressiveMidi` runs,
@@ -24,15 +25,21 @@
  * never a round trip.
  */
 import {
+    DEFAULT_CONTROLLER,
     DynamicsMap,
     MetricalAccentuationMap,
+    MovementMap,
     Mpm,
     RubatoMap,
     TempoMap,
     dynamicsAt,
+    positionAt,
     tempoAt,
     type Dynamics,
+    type Element,
     type GenericMap,
+    type Movement,
+    type StyleKind,
     type Tempo,
 } from 'espressivo';
 import type { Meter } from './score';
@@ -53,6 +60,14 @@ export interface Instruction {
     /** The map it lives in, and where in it — together, what the resolvers take. */
     map: GenericMap;
     index: number;
+    /**
+     * The element itself, live in the parsed document.
+     *
+     * Carried so a reader can quote an instruction verbatim — `toXML()` is the same
+     * serializer espressivo writes documents with — and so the odd attribute no resolved
+     * record keeps (`@controller`) is still reachable. Nothing here writes to it.
+     */
+    element: Element;
 }
 
 /** An instruction with the ones on either side of it, for a chart that shows context. */
@@ -81,11 +96,50 @@ export interface PerformanceReader {
      * before it where that type's span rule says it still reaches.
      */
     effectiveAt(date: number, type: string): Instruction[];
+    /** Every instruction of `type`, in date order — what a curve is sampled from. */
+    ofType(type: string): readonly Instruction[];
     /** The resolved `<tempo>` for `instruction`, with its neighbours; null if unreadable. */
     tempoAround(instruction: Instruction): Neighbourhood<Tempo> | null;
     /** The resolved `<dynamics>` for `instruction`, with its neighbours. */
     dynamicsAround(instruction: Instruction): Neighbourhood<Dynamics> | null;
+    /** The resolved `<tempo>` alone. */
+    tempoOf(instruction: Instruction): Tempo | null;
+    /** The resolved `<dynamics>` alone. */
+    dynamicsOf(instruction: Instruction): Dynamics | null;
+    /** The resolved `<movement>` — the pedal, or whatever controller it names. */
+    movementOf(instruction: Instruction): Movement | null;
+    /**
+     * The `<…Def>` the instruction points at by name, resolved through the `<style>` in
+     * force at its date; null where it names none or the name does not resolve.
+     */
+    defFor(instruction: Instruction): Element | null;
 }
+
+/**
+ * Which style collection each instruction type looks its definition up in, and the
+ * attribute that carries the name.
+ *
+ * `tempo` and `dynamics` are the odd pair: their name lives in the attribute that would
+ * otherwise hold a number (`@bpm`, `@volume`), so a numeric value means there is no def to
+ * find rather than a def named `59.15`.
+ */
+const STYLE_REF: Record<string, { kind: StyleKind; attribute: string }> = {
+    tempo: { kind: 'tempo', attribute: 'bpm' },
+    dynamics: { kind: 'dynamics', attribute: 'volume' },
+    articulation: { kind: 'articulation', attribute: 'name.ref' },
+    accentuationPattern: { kind: 'metricalAccentuation', attribute: 'name.ref' },
+    rubato: { kind: 'rubato', attribute: 'name.ref' },
+    ornament: { kind: 'ornamentation', attribute: 'name.ref' },
+};
+
+/**
+ * The controller a `<movement>` drives, defaulted the way espressivo defaults it.
+ *
+ * No resolved record carries it — `Movement.controller` does, but the viewer needs it
+ * before it resolves anything, to decide which movements belong on one lane.
+ */
+export const controllerOf = (instruction: Instruction): string =>
+    instruction.element.getAttributeValue('controller') ?? DEFAULT_CONTROLLER;
 
 export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader => {
     const performance = new Mpm(mpmXml).getPerformance(0);
@@ -112,7 +166,7 @@ export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader
                 const id = element.getAttributeValue('id');
                 if (id === null || !Number.isFinite(date)) return;
 
-                const instruction: Instruction = { id, type, date, map, index };
+                const instruction: Instruction = { id, type, date, map, index, element };
                 instructions.push(instruction);
                 byId.set(id, instruction);
 
@@ -217,15 +271,37 @@ export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader
             return result;
         },
 
-        tempoAround: instruction =>
-            around(instruction, ({ map, index }) =>
-                map instanceof TempoMap ? map.getTempoDataOf(index) : null),
+        ofType: type => byType.get(type) ?? EMPTY,
 
-        dynamicsAround: instruction =>
-            around(instruction, ({ map, index }) =>
-                map instanceof DynamicsMap ? map.getDynamicsDataOf(index) : null),
+        tempoAround: instruction => around(instruction, tempoOf),
+
+        dynamicsAround: instruction => around(instruction, dynamicsOf),
+
+        tempoOf,
+        dynamicsOf,
+        movementOf,
+
+        defFor: ({ type, date, map, element }) => {
+            const ref = STYLE_REF[type];
+            if (!ref) return null;
+            const name = element.getAttributeValue(ref.attribute);
+            // A `@bpm` of `59.15` names no def; a `@bpm` of `Allegro` does.
+            if (name === null || name.trim() === '' || Number.isFinite(Number(name))) return null;
+            return map.getStyleAt(date, ref.kind)?.getDef(name)?.getXmlOrNull() ?? null;
+        },
     };
 };
+
+const EMPTY: readonly Instruction[] = [];
+
+const tempoOf = ({ map, index }: Instruction) =>
+    map instanceof TempoMap ? map.getTempoDataOf(index) : null;
+
+const dynamicsOf = ({ map, index }: Instruction) =>
+    map instanceof DynamicsMap ? map.getDynamicsDataOf(index) : null;
+
+const movementOf = ({ map, index }: Instruction) =>
+    map instanceof MovementMap ? map.getMovementDataOf(index) : null;
 
 /**
  * Where a chart should stop drawing an instruction that runs to the end of time.
@@ -239,5 +315,5 @@ export const spanEnd = (span: { startDate: number; endDate: number }, meter: Met
         ? span.startDate + meter.ppq
         : span.endDate;
 
-export { dynamicsAt, tempoAt };
-export type { Dynamics, Tempo };
+export { dynamicsAt, positionAt, tempoAt };
+export type { Dynamics, Element, Movement, Tempo };
