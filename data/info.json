@@ -394,7 +394,7 @@
         "conclusion": {
           "motivation": "intensify",
           "id": "1097eb80-002e-4132-bb31-b8b3f7cfe5f7",
-          "note": "\"Heineinfallen\""
+          "note": "„Heineinfallen“"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -2942,7 +2942,7 @@
         "conclusion": {
           "id": "belief-cbc53590",
           "motivation": "move",
-          "note": "Klang öffnen (\"gelüftete\" Artikulation + Pedal, Arpeggi)"
+          "note": "Klang öffnen („gelüftete“ Artikulation + Pedal, Arpeggi)"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -3173,7 +3173,7 @@
         "conclusion": {
           "id": "belief-90a3c16b",
           "motivation": "move",
-          "note": "Verbinden zur nächsten Phrase: \"nach vorne\", lombardische Achtel, legato"
+          "note": "Verbinden zur nächsten Phrase: „nach vorne“, lombardische Achtel, legato"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -3332,7 +3332,7 @@
         "conclusion": {
           "id": "belief-c5a420e9",
           "motivation": "calm",
-          "note": "\"Aufweichen\": Decrescendo und Arpeggio zum a'"
+          "note": "„Aufweichen“: Decrescendo und Arpeggio zum a'"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -3377,7 +3377,7 @@
         "conclusion": {
           "motivation": "intensify",
           "id": "ef80ca22-b146-4e9a-a09b-cae8c153604f",
-          "note": "Richtung zum Quartsexkkord, Vorwärts-\"Lilt\""
+          "note": "Richtung zum Quartsexkkord, Vorwärts-„Lilt“"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -3850,7 +3850,7 @@
         "conclusion": {
           "motivation": "calm",
           "id": "e2ff95e6-1a22-4148-b55f-9bd5a01791ab",
-          "note": "\"Innehalten\""
+          "note": "„Innehalten“"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -4011,7 +4011,7 @@
         "conclusion": {
           "id": "belief-2f7d3bfc",
           "motivation": "intensify",
-          "note": "\"Hineinfallen\" und Verweilen"
+          "note": "„Hineinfallen“ und Verweilen"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -4981,7 +4981,7 @@
         "conclusion": {
           "motivation": "relax",
           "id": "54d82fb1-ca0d-446f-b949-292106a5cb8c",
-          "note": "Kurze \"Station\" auf Quartsextakkord"
+          "note": "Kurze „Station“ auf Quartsextakkord"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -6066,7 +6066,7 @@
         "conclusion": {
           "motivation": "calm",
           "id": "f483f3b7-1f87-4178-b245-bcbe64b48a03",
-          "note": "der Harmonie \"nachlauschen\": dynamische Reduktion, leichte zeitliche Dehnung"
+          "note": "der Harmonie „nachlauschen“: dynamische Reduktion, leichte zeitliche Dehnung"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -6284,7 +6284,7 @@
         "conclusion": {
           "id": "belief-c3ca3713",
           "motivation": "relax",
-          "note": "\"Nachlauschen\""
+          "note": "„Nachlauschen“"
         },
         "type": "simpleArgumentation",
         "calls": [
@@ -8181,7 +8181,7 @@
         "note": "",
         "conclusion": {
           "motivation": "move",
-          "note": "Konstantes \"Dranbleiben\" (dynamisch und agogisch)"
+          "note": "Konstantes „Dranbleiben“ (dynamisch und agogisch)"
         },
         "id": "decision-cfcd2188",
         "calls": [
@@ -8728,7 +8728,7 @@
         "conclusion": {
           "id": "belief-a6a762d3",
           "motivation": "intensify",
-          "note": "Richtung zum \"a\""
+          "note": "Richtung zum „a“"
         },
         "type": "simpleArgumentation",
         "calls": [
