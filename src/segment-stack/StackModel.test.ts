@@ -8,7 +8,7 @@ const span = (over: Partial<Span> = {}): Span => ({
 })
 
 const segment = (over: Partial<Segment> = {}): Segment => ({
-  id: 's', motivation: 'intensify', certainty: 'plausible', from: 0, to: 100, spans: [span()], ...over,
+  id: 's', motivation: 'intensify', from: 0, to: 100, spans: [span()], ...over,
 })
 
 describe('laneOf', () => {

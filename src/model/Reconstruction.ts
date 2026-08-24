@@ -37,8 +37,6 @@ export interface Segment {
     id: string;
     /** A {@link Motivation}, or another word the corpus uses — `unknown` leaves the curve flat. */
     motivation: string;
-    /** How sure the claim is: `plausible`, `likely`, `possible`, `speculative`, `unlikely`. */
-    certainty: string;
     /** Why — shown when the segment is hovered or opened. */
     note?: string;
     from: number;

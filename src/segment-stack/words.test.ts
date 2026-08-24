@@ -4,7 +4,7 @@ import { wordFor } from './words'
 import type { Reconstruction, Segment } from '../model/Reconstruction'
 
 const segment = (over: Partial<Segment> = {}): Segment => ({
-  id: 's', motivation: 'intensify', certainty: 'plausible', from: 0, to: 100, spans: [], ...over,
+  id: 's', motivation: 'intensify', from: 0, to: 100, spans: [], ...over,
 })
 
 describe('wordFor', () => {

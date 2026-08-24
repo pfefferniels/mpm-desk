@@ -25,8 +25,7 @@
       "@id": "crminf:J2_concluded_that",
       "@type": "crminf:I2_Belief"
     },
-    "that": "crminf:J27_that_the_formal_meaning_of",
-    "certainty": "crminf:J5_holds_to_be"
+    "that": "crminf:J27_that_the_formal_meaning_of"
   },
   "@type": "Reconstruction",
   "name": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Grünfeld spielt Robert Schumann, Träumerei",
@@ -40,7 +39,6 @@
       {
         "id": "0fad3105-f846-4c6f-88da-0682d76b1afd",
         "conclusion": {
-          "certainty": "speculative",
           "motivation": "move",
           "id": "8d76a17b-24af-4247-90b8-be1dff1480af",
           "note": "Nachschlag als Ereignis: vor dem Schlag arpeggiert"
@@ -85,7 +83,6 @@
       },
       {
         "conclusion": {
-          "certainty": "possible",
           "motivation": "relax",
           "note": "Bewegung zum d-Moll hin stark zurücknehmen"
         },
@@ -151,7 +148,6 @@
         "note": "",
         "id": "argumentation-232ca7b0",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-21be1dd8",
           "motivation": "relax",
           "note": "Arpeggio schattieren"
@@ -207,7 +203,6 @@
       {
         "id": "b86cea25-33b2-46a9-83d4-40fb1e7747ce",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "move",
           "id": "a9dbc24b-a434-45ef-b456-492053dc2afc",
           "note": "Richtung durch Inegalité"
@@ -274,7 +269,6 @@
         "note": "",
         "id": "argumentation-915c7d64",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-23fd6645",
           "motivation": "relax",
           "note": "Nachschlag schattieren"
@@ -398,7 +392,6 @@
       {
         "id": "3ec504f3-7d4a-4362-a15a-ca6c33d7dd93",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "1097eb80-002e-4132-bb31-b8b3f7cfe5f7",
           "note": "\"Heineinfallen\""
@@ -437,7 +430,6 @@
         "id": "arg_4d03627d",
         "conclusion": {
           "id": "concl_506a2eb8-13e7-4c60-9499-91864f2fde3c",
-          "certainty": "possible",
           "motivation": "relax",
           "note": "nachschlagende Akkordbrechung schattieren"
         },
@@ -535,7 +527,6 @@
         "note": "",
         "id": "argumentation-95b79d89",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-bcb0a6ef",
           "motivation": "intensify",
           "note": ""
@@ -582,7 +573,6 @@
         "note": "",
         "id": "argumentation-8e3cbc2d",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-12ca806c",
           "motivation": "relax",
           "note": "Auftakt unter C-Dur schattieren: schneller und leiser werden"
@@ -660,7 +650,6 @@
         "note": "",
         "id": "argumentation-14001e32",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-68da9539",
           "motivation": "move",
           "note": "Intensivierung der Integalité"
@@ -819,7 +808,6 @@
       {
         "id": "argumentation-3407ad9c",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-0515fbbc",
           "motivation": "calm",
           "note": "Überleitung wird träger"
@@ -920,7 +908,6 @@
         "note": "der dynamische Verlauf folgt dem Tonhöhenverlauf",
         "id": "argumentation-10407ff0",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-5ec674d5",
           "motivation": "relax",
           "note": "Großangelegtes Decrescendo"
@@ -1023,7 +1010,6 @@
         "note": "",
         "id": "argumentation-07539110",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-43ff5cd5",
           "motivation": "move",
           "note": "Dranbleiben, auf melodischen Höhepunkt hin"
@@ -1088,7 +1074,6 @@
       {
         "id": "6078a08e-f0c5-4190-828e-b606c54cf8e2",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "relax",
           "id": "6bd09a25-7ca4-4784-abb4-ba316fdc5aa0",
           "note": ""
@@ -1114,7 +1099,6 @@
         "id": "arg_43ee7a5e",
         "conclusion": {
           "id": "concl_7a658505-3e3b-4d29-83cf-635c0c49c514",
-          "certainty": "possible",
           "motivation": "calm",
           "note": "Nachschlag schattieren"
         },
@@ -1185,7 +1169,6 @@
         "id": "arg_f042db2c",
         "conclusion": {
           "id": "concl_e9b969ad-6261-4dae-925a-cd01c54c8592",
-          "certainty": "possible",
           "motivation": "relax",
           "note": "Nachschlag schattieren"
         },
@@ -1242,7 +1225,6 @@
         "note": "",
         "id": "argumentation-f073c65b",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-5c63143c",
           "motivation": "relax",
           "note": "großflächig dynamisch langsam zurückgehen"
@@ -1366,7 +1348,6 @@
         "note": "",
         "id": "argumentation-b284c0b1",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-e9d95a9b",
           "motivation": "intensify",
           "note": ""
@@ -1460,7 +1441,6 @@
         "id": "arg_5a60f53a",
         "conclusion": {
           "id": "concl_5402984d-b370-46c5-8708-55f217bbca8c",
-          "certainty": "possible",
           "motivation": "relax",
           "note": "Nachschlag schattieren"
         },
@@ -1531,7 +1511,6 @@
         "id": "arg_5e26e496",
         "conclusion": {
           "id": "concl_c5f4b467-5da3-488e-8827-0a10fbd651d2",
-          "certainty": "possible",
           "motivation": "intensify",
           "note": "mit Inegalité vorwärts zum b"
         },
@@ -1671,7 +1650,6 @@
         "note": "",
         "id": "argumentation-b9cc9254",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-8b32c9f8",
           "motivation": "intensify",
           "note": "Hineinfallen"
@@ -1793,7 +1771,6 @@
         "note": "",
         "id": "argumentation-36604f19",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-7ae2ed27",
           "motivation": "move",
           "note": "Gut-schlecht Akzente"
@@ -1854,7 +1831,6 @@
         "note": "",
         "id": "argumentation-4e456c1e",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-f85fbe5b",
           "motivation": "relax",
           "note": "Nachschlag schattieren"
@@ -1979,7 +1955,6 @@
         "note": "",
         "id": "argumentation-6038a4d2",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-fa3ab498",
           "motivation": "move",
           "note": "zum Quartsextakkord"
@@ -2083,7 +2058,6 @@
         "note": "",
         "id": "argumentation-376f87be",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-2d5b603d",
           "motivation": "relax",
           "note": ""
@@ -2146,7 +2120,6 @@
         "note": "",
         "id": "argumentation-70968f49",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-b8da2407",
           "motivation": "unknown",
           "note": ""
@@ -2172,7 +2145,6 @@
         "note": "",
         "id": "argumentation-cab11b85",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-9d683dce",
           "motivation": "intensify",
           "note": ""
@@ -2379,7 +2351,6 @@
       {
         "id": "018ee72f-65e0-4cc7-bb81-2b0c050ab60d",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "move",
           "id": "355a8659-9678-47a6-afe9-e3cf76f00f88",
           "note": "Hinspielen auf 1"
@@ -2582,7 +2553,6 @@
       {
         "id": "80d8e0d0-7814-4566-b9a0-b700191ebc2d",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "85b6e659-0fe7-4ee9-8ccc-b841222c9fab",
           "note": "Hinspielen auf Taktmitte"
@@ -2755,7 +2725,6 @@
       {
         "id": "7938a94a-fe29-42d0-bca8-b134a6776a96",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "move",
           "id": "c2085c69-00a1-4850-a57b-1ad926dc50f7",
           "note": "Auftaktenergie hin zur 1"
@@ -2812,7 +2781,6 @@
       {
         "id": "58eb812f-2628-49f4-af8b-85296eb0a48a",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "4765a48d-9d0c-4353-9131-4eae6cd011a1"
         },
@@ -2972,7 +2940,6 @@
       {
         "id": "argumentation-a97a44c0",
         "conclusion": {
-          "certainty": "speculative",
           "id": "belief-cbc53590",
           "motivation": "move",
           "note": "Klang öffnen (\"gelüftete\" Artikulation + Pedal, Arpeggi)"
@@ -3204,7 +3171,6 @@
         "note": "",
         "id": "argumentation-c118a7a5",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-90a3c16b",
           "motivation": "move",
           "note": "Verbinden zur nächsten Phrase: \"nach vorne\", lombardische Achtel, legato"
@@ -3364,7 +3330,6 @@
         "note": "",
         "id": "argumentation-0e9f088b",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-c5a420e9",
           "motivation": "calm",
           "note": "\"Aufweichen\": Decrescendo und Arpeggio zum a'"
@@ -3410,7 +3375,6 @@
       {
         "id": "d472996d-738c-4dd1-9ee4-b8c0cc37cdc5",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "ef80ca22-b146-4e9a-a09b-cae8c153604f",
           "note": "Richtung zum Quartsexkkord, Vorwärts-\"Lilt\""
@@ -3602,7 +3566,6 @@
         "id": "arg_99622919-e538-4bc8-8ee0-3abb2e9d719a",
         "conclusion": {
           "id": "concl_c1a088b6-5916-4396-b9e6-618eadcaf904",
-          "certainty": "plausible",
           "motivation": "intensify",
           "note": ""
         },
@@ -3637,7 +3600,6 @@
       {
         "id": "aaedcf8b-e357-4b15-bf26-5c63a828584d",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "e6e73b87-cdfb-4556-86a1-21066245fe7e",
           "note": ""
@@ -3677,7 +3639,6 @@
         "id": "arg_d56ba6b5-284e-493d-a394-071dcb3df020",
         "conclusion": {
           "id": "concl_095d3565-1cbf-4eab-81e8-1cfd6a5788dd",
-          "certainty": "possible",
           "motivation": "calm",
           "note": "Geste des Nachlauschens"
         },
@@ -3768,7 +3729,6 @@
         "note": "",
         "id": "argumentation-77980e25",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-feb4c18a",
           "motivation": "intensify",
           "note": "Überlegato"
@@ -3836,7 +3796,6 @@
       {
         "id": "ad9d5d44-b501-44d1-8cd9-58664ccdc241",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "move",
           "id": "b0c490b7-889e-4c50-a9cc-053fe3c03f67",
           "note": "Vorwärtsbewegung durch Inegalité"
@@ -3889,7 +3848,6 @@
       {
         "id": "e49e1685-8c27-465c-9a38-c5dfa4e473be",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "e2ff95e6-1a22-4148-b55f-9bd5a01791ab",
           "note": "\"Innehalten\""
@@ -3972,7 +3930,6 @@
       {
         "id": "ee4513f4-5a09-47b6-ae3d-50531c13397a",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "77749852-55bc-46d3-bfae-f09429c9897a",
           "note": ""
@@ -4052,7 +4009,6 @@
         "note": "",
         "id": "argumentation-a7986d89",
         "conclusion": {
-          "certainty": "unlikely",
           "id": "belief-2f7d3bfc",
           "motivation": "intensify",
           "note": "\"Hineinfallen\" und Verweilen"
@@ -4157,7 +4113,6 @@
         "note": "",
         "id": "argumentation-3afe3771",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-a510b192",
           "motivation": "move",
           "note": "langsamer und deutlicher werden"
@@ -4255,7 +4210,6 @@
         "id": "arg_8c9fb33a-2056-4e0f-9188-1605e5675983",
         "conclusion": {
           "id": "concl_ec3ee6d3-259f-42c9-98dc-a227fee6aafe",
-          "certainty": "possible",
           "motivation": "relax",
           "note": "Nachschlag etwas abschattieren"
         },
@@ -4365,7 +4319,6 @@
       {
         "id": "26b2e9af-f98d-40b7-a53a-e82c70585940",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "2c496338-7427-44be-afaf-077b5e7b9b7e",
           "note": "Verfrühtes Einsetzen (der Mollsubdominante)"
@@ -4402,7 +4355,6 @@
       {
         "id": "672c670d-fd25-4eb9-a3c4-c37e6816ea24",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "5512087d-314a-4aec-8652-76010e9e4277",
           "note": "Verfrühtes Einsetzen (des verminderten Septakkords)"
@@ -4454,7 +4406,6 @@
         "id": "arg_a89283d0-6eb2-46ce-9b9a-1125b591c374",
         "conclusion": {
           "id": "concl_74f65bfc-c14a-4880-b6e2-d9c22776acda",
-          "certainty": "possible",
           "motivation": "relax",
           "note": "schattierter Nachklang"
         },
@@ -4590,7 +4541,6 @@
         "note": "",
         "id": "argumentation-e4be49a2",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-e876c340",
           "motivation": "intensify",
           "note": "Verfrühung des Spannungsakkords (Mollsubdominante)"
@@ -4641,7 +4591,6 @@
         "note": "",
         "id": "argumentation-0a38165f",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-1ab110a5",
           "motivation": "intensify",
           "note": "Hinspielen zum Quartsextakkord"
@@ -4725,7 +4674,6 @@
         "note": "",
         "id": "argumentation-52683313",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-bf0c269b",
           "motivation": "calm",
           "note": "Weiter zurück"
@@ -4796,7 +4744,6 @@
         "note": "",
         "id": "argumentation-0e5c17ae",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-bd983f7a",
           "motivation": "calm",
           "note": "Ausgedehntes g-Moll"
@@ -4883,7 +4830,6 @@
       {
         "id": "a379d774-0173-4f61-8b61-f04b30f8f11b",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "move",
           "id": "045f9023-cf9a-49b8-a508-501a3b08effe",
           "note": "Hinspielen zum B-Dur"
@@ -4974,7 +4920,6 @@
       {
         "id": "ecc57d79-1a69-4f54-8524-36f9dc3c5477",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "96f1657f-7324-4afb-a510-e2bdc2e83182",
           "note": "Subdominante etwas früher und arpeggiert"
@@ -5034,7 +4979,6 @@
       {
         "id": "c358481c-0609-4222-ba34-8501b618310d",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "relax",
           "id": "54d82fb1-ca0d-446f-b949-292106a5cb8c",
           "note": "Kurze \"Station\" auf Quartsextakkord"
@@ -5101,7 +5045,6 @@
       {
         "id": "dd042a2c-91ef-40f2-a025-b9fbfa6a9338",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "5324ff94-42af-4d3f-8bb7-047d300e499b",
           "note": "Interessante Harmonien früher"
@@ -5163,7 +5106,6 @@
         "id": "arg_76caf28c-c77a-4d9f-8205-402ee443860e",
         "conclusion": {
           "id": "concl_f9416205-7e82-4dff-b184-16914fb8387c",
-          "certainty": "possible",
           "motivation": "relax",
           "note": "Abschattieren"
         },
@@ -5226,7 +5168,6 @@
         "note": "",
         "id": "argumentation-9a9870e0",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-eabba6fa",
           "motivation": "intensify",
           "note": "fließend in Dominantseptnonakkord"
@@ -5277,7 +5218,6 @@
         "note": "",
         "id": "argumentation-55f96f9b",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-9f0e0ce5",
           "motivation": "calm"
         },
@@ -5344,7 +5284,6 @@
         "note": "",
         "id": "argumentation-46b51284",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-b4b92347",
           "motivation": "intensify",
           "note": "Hineinfallen in Quartsextakkord"
@@ -5395,7 +5334,6 @@
         "note": "durch gedachtes Portamento (imitiert als Arpeggio)",
         "id": "argumentation-d9fe4092",
         "conclusion": {
-          "certainty": "speculative",
           "id": "belief-52b75694",
           "motivation": "calm",
           "note": "kleine Verzögerung"
@@ -5437,7 +5375,6 @@
         "note": "",
         "id": "argumentation-28ed32b3",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-6632e1a3",
           "motivation": "intensify",
           "note": "Zum Quartsextakkord"
@@ -5492,7 +5429,6 @@
         "note": "",
         "id": "argumentation-2a02724b",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-8b7dada4",
           "motivation": "calm",
           "note": "Beruhigung vor Phrasenende"
@@ -5559,7 +5495,6 @@
       {
         "id": "argumentation-f95d85b2",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-624fb327",
           "motivation": "intensify",
           "note": "zum B-Dur-Akkord"
@@ -5654,7 +5589,6 @@
       {
         "id": "48ec9583-f24b-41f0-ac09-fd99270af4e4",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "571b3d60-1afc-4240-89f1-9f1f3aa0dd23",
           "note": "hin zum Quartsextakkord"
@@ -5759,7 +5693,6 @@
         "note": "",
         "id": "argumentation-c91bdddd",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-cc8b9b80",
           "motivation": "calm",
           "note": "Weich ins F-Dur"
@@ -5814,7 +5747,6 @@
         "note": "",
         "id": "argumentation-d28eda4a",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-2b4bfeec",
           "motivation": "relax",
           "note": ""
@@ -5939,7 +5871,6 @@
         "note": "",
         "id": "argumentation-3ef12ef9",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-466d32ca",
           "motivation": "intensify",
           "note": ""
@@ -6087,7 +6018,6 @@
       {
         "id": "d0c6a809-f8fc-4436-b260-5b7bd28fa5cc",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "unknown",
           "id": "83fe48c4-00a1-489b-b092-bade6e886750"
         },
@@ -6134,7 +6064,6 @@
       {
         "id": "646f927c-8e4e-4e2b-b09a-6db176eee1c8",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "f483f3b7-1f87-4178-b245-bcbe64b48a03",
           "note": "der Harmonie \"nachlauschen\": dynamische Reduktion, leichte zeitliche Dehnung"
@@ -6225,7 +6154,6 @@
         "note": "",
         "id": "decision-9bb1a3aa",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "note": "Hinspielen zur 1"
         },
@@ -6354,7 +6282,6 @@
         "note": "",
         "id": "argumentation-d6d50300",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-c3ca3713",
           "motivation": "relax",
           "note": "\"Nachlauschen\""
@@ -6434,7 +6361,6 @@
         "note": "",
         "id": "argumentation-a2cf81d9",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-cd755b00",
           "motivation": "calm",
           "note": "Stete Verlangsamung zum melodischen Höhepunkt (A-Dur)"
@@ -6549,7 +6475,6 @@
         "note": "",
         "id": "argumentation-7b141ee5",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-d7da59f6",
           "motivation": "relax",
           "note": "Neue Phrase vorbereiten"
@@ -6618,7 +6543,6 @@
         "note": "",
         "id": "argumentation-90aa6158",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-59d6ff04",
           "motivation": "move",
           "note": "in die nächste Phrase weiterführen: Kein ausgeprägtes Naschlauschen"
@@ -6659,7 +6583,6 @@
         "note": "",
         "id": "argumentation-089b78cb",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-74958e9f",
           "motivation": "calm",
           "note": "Zum B-Dur-Akkord hin entspannen"
@@ -6702,7 +6625,6 @@
       {
         "id": "57f29be6-43e8-4dbc-b425-38219be9ace6",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "314b94e7-30be-4c66-a8a1-2f2a749a24bb",
           "note": "kurzes Verweilen auf Quartsextakkord; Beruhigen (dynamisch und agogisch)"
@@ -6760,7 +6682,6 @@
         "note": "",
         "id": "argumentation-be73bd91",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-8ce24168",
           "motivation": "move",
           "note": "etwas aktiver, nach vorne"
@@ -6818,7 +6739,6 @@
         "note": "",
         "id": "argumentation-ac14a76f",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-2682d6a5",
           "motivation": "move",
           "note": "Spannung aufbauen"
@@ -6876,7 +6796,6 @@
         "note": "",
         "id": "argumentation-2379b36a",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-09e924bc",
           "motivation": "intensify",
           "note": "konstante, leichte Verlangsamung"
@@ -6905,7 +6824,6 @@
         "note": "",
         "id": "argumentation-2f21a865",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-c42b05ca",
           "motivation": "calm",
           "note": "Schneller und leiser"
@@ -6984,7 +6902,6 @@
       {
         "id": "ece08c1a-e163-434e-9291-aab3c47deb45",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "e2bdd3de-0137-46d9-bcdb-bcdbc8086f1d",
           "note": "Hinspielen auf Quartsextakkord"
@@ -7050,7 +6967,6 @@
         "note": "",
         "id": "argumentation-0b732081",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-e0ff0fc0",
           "motivation": "intensify",
           "note": ""
@@ -7105,7 +7021,6 @@
         "note": "",
         "id": "argumentation-037c8a9a",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-a62660a6",
           "motivation": "intensify",
           "note": "Anlauf"
@@ -7193,7 +7108,6 @@
         "id": "arg_311e8fd0-a9dc-4e8f-ab9a-cb21ceeb08c8",
         "conclusion": {
           "id": "concl_6e54b1f2-a88b-4b24-a746-e97b8c5dd4ce",
-          "certainty": "possible",
           "motivation": "relax",
           "note": "Arpeggio schattieren unter Quartsextakkord "
         },
@@ -7297,7 +7211,6 @@
       {
         "id": "8a143343-1778-4720-83b2-aa0ac720fef1",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "e9b095c9-c7dd-4288-9f2c-55641ed16ff7",
           "note": "Kurz entspannen "
@@ -7326,7 +7239,6 @@
         "note": "",
         "id": "argumentation-60fd733a",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-be07fe89",
           "motivation": "calm",
           "note": "Etwas flüchtiger werden"
@@ -7440,7 +7352,6 @@
         "note": "",
         "id": "argumentation-fdd319f0",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-6352cad9",
           "motivation": "intensify",
           "note": "Hinspielen auf Quartsextakkord"
@@ -7506,7 +7417,6 @@
         "note": "",
         "id": "argumentation-35ba9e0f",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-213e1eb1",
           "motivation": "move",
           "note": "vorwärts ..."
@@ -7535,7 +7445,6 @@
         "note": "",
         "id": "argumentation-94788e2f",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-6205993f",
           "motivation": "calm",
           "note": "Resonanz durch Pedal halten, aber etwas verkürzt"
@@ -7594,7 +7503,6 @@
         "note": "",
         "id": "argumentation-09d4a249",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-49eb558f",
           "motivation": "intensify",
           "note": "gedehntes d"
@@ -7655,7 +7563,6 @@
         "note": "",
         "id": "argumentation-bbb2c017",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-069d6f35",
           "motivation": "move",
           "note": ""
@@ -7774,7 +7681,6 @@
         "note": "",
         "id": "argumentation-3e9d851c",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-9586629d",
           "motivation": "relax",
           "note": ""
@@ -7802,7 +7708,6 @@
       {
         "note": "",
         "conclusion": {
-          "certainty": "possible",
           "motivation": "unknown",
           "note": ""
         },
@@ -7822,7 +7727,6 @@
         "note": "",
         "id": "argumentation-7716eba3",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-ccbb6710",
           "motivation": "unknown",
           "note": ""
@@ -7845,7 +7749,6 @@
         "note": "",
         "id": "argumentation-1a04ff8d",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-eeedb08d",
           "motivation": "intensify",
           "note": "Wichtige Harmonien etwas zu früh"
@@ -7869,7 +7772,6 @@
       {
         "id": "de292c8f-0d9d-469c-af87-7b6d26f840bf",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "relax",
           "id": "b613ae12-02a1-4de1-8867-229b3cd972ba",
           "note": ""
@@ -7923,7 +7825,6 @@
       {
         "id": "a164d06d-5c67-4208-b876-0388f5d2d755",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "relax",
           "id": "20a5f6bc-9edd-4ccc-9d09-60b4af0424e3",
           "note": "Ankommen, Klang öffnen"
@@ -7993,7 +7894,6 @@
       {
         "id": "5a6b448d-5922-4ef8-aee3-69e632fab865",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "926faaf6-f25c-4d10-b7e7-33827a80cb0d",
           "note": ""
@@ -8029,7 +7929,6 @@
       {
         "id": "5222c4c2-639e-46d9-a153-e8ccd41ac893",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "relax",
           "id": "f72bc1b5-42d1-4beb-945b-650f02c487f1",
           "note": "Kurzes Entspannen auf C-Dur"
@@ -8090,7 +7989,6 @@
       {
         "id": "eb7cd8ea-1a3d-4d18-918a-3a04469d68c4",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "relax",
           "id": "dfe160f9-e80b-4cc8-af50-8021960554c9",
           "note": ""
@@ -8182,7 +8080,6 @@
         "note": "",
         "id": "argumentation-270564c1",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-4adeb7e7",
           "motivation": "move",
           "note": "Verfrühtes a"
@@ -8221,7 +8118,6 @@
       {
         "id": "780e8cb3-9be3-44aa-aa24-f523fa45553a",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "76eaf034-83be-4880-b2b3-ff817e629b81",
           "note": "Minimal Zeit lassen auf b"
@@ -8246,7 +8142,6 @@
         "note": "",
         "id": "argumentation-0369dca0",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-5eb717fe",
           "motivation": "move",
           "note": "Hinspielen auf b"
@@ -8285,7 +8180,6 @@
       {
         "note": "",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "move",
           "note": "Konstantes \"Dranbleiben\" (dynamisch und agogisch)"
         },
@@ -8326,7 +8220,6 @@
         "note": "",
         "id": "argumentation-9a7040ec",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-8f4eff8c",
           "motivation": "intensify",
           "note": "Hinspielen auf c"
@@ -8364,7 +8257,6 @@
         "note": "",
         "id": "argumentation-7f4000be",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-f17ca542",
           "motivation": "move",
           "note": "Hin zur Paenultima (Dominate + Sexte)"
@@ -8408,7 +8300,6 @@
       {
         "id": "61cfb25f-8a56-4744-af8f-cad4da376dd3",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "9bf64b10-adbb-4db1-aa5e-6cd0d3af982f",
           "note": ""
@@ -8451,7 +8342,6 @@
         "id": "arg_a880b0d1-a3fd-4767-a8c1-562ce917f954",
         "conclusion": {
           "id": "concl_3c97a407-a337-4b5e-99b5-01548dfcdff2",
-          "certainty": "plausible",
           "motivation": "move",
           "note": "dynamisch Weiterführen"
         },
@@ -8491,7 +8381,6 @@
         "note": "",
         "id": "argumentation-ccb7b1d0",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-c9cc3b36",
           "motivation": "relax",
           "note": "als Dreiklang aufwärts entspannen"
@@ -8550,7 +8439,6 @@
         "note": "",
         "id": "argumentation-d933faf7",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-5b34ee8d",
           "motivation": "move",
           "note": ""
@@ -8588,7 +8476,6 @@
         "note": "",
         "id": "argumentation-3e056782",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-f6a612e9",
           "motivation": "relax",
           "note": "Dynamisch etwas zurück"
@@ -8629,7 +8516,6 @@
       {
         "id": "6a3c300f-b1b4-4518-af94-fdea24322eef",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "relax",
           "id": "3ae0cbcb-107b-431a-9c49-028687c9e665",
           "note": "dynamisch etwas zurück"
@@ -8678,7 +8564,6 @@
       {
         "id": "fa4f9d02-b3ba-47d3-923e-66cca29191d8",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "6a20e39b-937d-4be6-89e2-fc99dbf2b4ab",
           "note": ""
@@ -8728,7 +8613,6 @@
         "note": "",
         "id": "argumentation-e66db26d",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-05861388",
           "motivation": "relax",
           "note": ""
@@ -8814,7 +8698,6 @@
       {
         "id": "cf7fa33d-4d72-4af3-a330-92f84738c2ae",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "calm",
           "id": "92ce08ab-36b1-4072-abbe-a9c4b159f073",
           "note": "Schattieren des d unter dem a"
@@ -8843,7 +8726,6 @@
         "note": "",
         "id": "argumentation-64b22ad0",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-a6a762d3",
           "motivation": "intensify",
           "note": "Richtung zum \"a\""
@@ -8887,7 +8769,6 @@
       {
         "id": "9e8ee1a1-97f1-4ea5-88ad-1b764a4edc2b",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "unknown",
           "id": "0893a28f-6b46-4407-8c95-6ed33a42c9b8"
         },
@@ -8913,7 +8794,6 @@
         "note": "",
         "id": "argumentation-5068b907",
         "conclusion": {
-          "certainty": "likely",
           "id": "belief-bff6ac0f",
           "motivation": "forward-lilt",
           "note": "Gut-schlecht-Akzente"
@@ -8941,7 +8821,6 @@
         "note": "",
         "id": "argumentation-3fac2b08",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-c4d1df00",
           "motivation": "unknown"
         },
@@ -8969,7 +8848,6 @@
         "note": "",
         "id": "argumentation-9d791bd9",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-24348a4f",
           "motivation": "unknown"
         },
@@ -8995,7 +8873,6 @@
       {
         "id": "b1703afe-823a-4261-9969-dbab1ae85531",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "d4257fed-28ef-494c-8c03-bb818bdf9f4e",
           "note": ""
@@ -9047,7 +8924,6 @@
       {
         "id": "821fda57-7ea5-4a05-ab4f-2b221a141996",
         "conclusion": {
-          "certainty": "plausible",
           "motivation": "intensify",
           "id": "e7ad84e0-7c16-49a0-9334-27b021988ac1",
           "note": "Drücken des Verschiebungspedals"
@@ -9075,7 +8951,6 @@
         "note": "",
         "id": "argumentation-5bca80cd",
         "conclusion": {
-          "certainty": "speculative",
           "id": "belief-2fa45c56",
           "motivation": "move",
           "note": "Klang langsam öffnen"
@@ -9103,7 +8978,6 @@
         "note": "",
         "id": "argumentation-b80e5b76",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-16b6de59",
           "motivation": "intensify",
           "note": ""
@@ -9131,7 +9005,6 @@
         "note": "",
         "id": "argumentation-003cb5fa",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-0db2a122",
           "motivation": "intensify",
           "note": "Legato in der aufsteigenden Sexte c-a"
@@ -9174,7 +9047,6 @@
         "note": "",
         "id": "argumentation-3fd3e6c8",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-39f20f9c",
           "motivation": "move",
           "note": ""
@@ -9202,7 +9074,6 @@
         "note": "",
         "id": "argumentation-a7ece2a0",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-3a52838a",
           "motivation": "relax",
           "note": ""
@@ -9230,7 +9101,6 @@
         "note": "",
         "id": "argumentation-4d0e2c4d",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-72707268",
           "motivation": "intensify",
           "note": "Verbindung der absteigenden Quinte a-d"
@@ -9273,7 +9143,6 @@
         "note": "",
         "id": "argumentation-959bbd48",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-34d20950",
           "motivation": "calm"
         },
@@ -9300,7 +9169,6 @@
         "note": "",
         "id": "argumentation-6ceeb676",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-60e29676",
           "motivation": "calm"
         },
@@ -9327,7 +9195,6 @@
         "note": "",
         "id": "argumentation-876c53ca",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-7cdd4491",
           "motivation": "calm"
         },
@@ -9354,7 +9221,6 @@
         "note": "",
         "id": "argumentation-7d253482",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-8d6a95da",
           "motivation": "calm"
         },
@@ -9381,7 +9247,6 @@
         "note": "",
         "id": "argumentation-fdfafaf4",
         "conclusion": {
-          "certainty": "plausible",
           "id": "belief-0194851e",
           "motivation": "calm"
         },
@@ -9408,7 +9273,6 @@
         "note": "",
         "id": "argumentation-metadata",
         "conclusion": {
-          "certainty": "authentic",
           "id": "belief-metadata",
           "motivation": "calm"
         },
