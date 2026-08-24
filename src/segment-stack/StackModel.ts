@@ -474,23 +474,6 @@ export function treeGeometry(params: {
     return { totalHeight: needed, centreY: above + VERTICAL_PAD };
 }
 
-/**
- * The span as drawn: the same gesture, widened when it would otherwise be a point.
- *
- * A span with no extent — a date-based gesture, or one that inherited a segment
- * that is itself a single point — would collapse to nothing and be invisible.
- * Extend the lane backwards, never the segment: the segment's range is what the
- * label is anchored to.
- */
-export function laneOf(span: Span, segmentFrom: number, segmentTo: number): Span {
-    if (span.from < span.to) return span;
-    if (segmentTo > segmentFrom) {
-        const minSpan = Math.max(1, Math.round((segmentTo - segmentFrom) * 0.2));
-        return { ...span, from: Math.max(segmentFrom, span.to - minSpan) };
-    }
-    return { ...span, from: span.to - 1 };
-}
-
 /* ── The inside of one segment, on its own axis: see `SegmentTimeline` ── */
 
 /** Past this the grid stops reading as a grid, so the step doubles instead. */
@@ -504,15 +487,13 @@ interface TimelineRow {
 /**
  * A segment's gestures, one row per MPM element type, laid out over `width`.
  *
- * Types come in the order they first appear, the same rule {@link laneOf}'s
- * lanes follow, so a hovered segment and an opened one say the same thing in the
- * same sequence. Several gestures of one type share a row: they are one voice
- * arguing over the stretch, not several.
+ * Types come in the order they first appear, so the same segment always reads in
+ * the same sequence. Several gestures of one type share a row: they are one
+ * voice arguing over the stretch, not several.
  *
  * Nothing is widened here. A gesture on a single date comes out `minBar` wide,
  * which the drawing rounds into a dot — on this axis the whole width is one
- * segment, so a dot is legible as itself, and only the lanes down on the piece's
- * own timeline need `laneOf` to be seen at all.
+ * segment, so a dot is legible as itself.
  */
 export function timelineRows(
     segment: Segment,

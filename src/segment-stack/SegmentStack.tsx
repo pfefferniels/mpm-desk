@@ -9,7 +9,7 @@ import { useSelection } from "../hooks/SelectionProvider";
 import { PlaybackNoteEvent, usePlayback } from "../hooks/PlaybackProvider";
 import { BarLines } from "./BarLines";
 import { containmentDepths, fadeOpacities, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, tickRange, treeGeometry, typeScale } from "./StackModel";
-import { SegmentLabel, SpanRibbon } from "./SegmentLabel";
+import { SegmentLabel } from "./SegmentLabel";
 import { useTickAnchors } from "./useTickAnchors";
 import { wordFor, wordWidth } from "./words";
 import { InstructionPopover } from "./InstructionPopover";
@@ -24,15 +24,15 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
 }
 
 /**
- * The viewport the tree sits in.
+ * The viewport the tree sits in: the window, whole.
  *
  * The tree is meant to be read whole at whatever place you have zoomed in to,
- * so the card takes the window rather than a polite share of it — the branches
- * bend flat precisely so they fit inside this (see `arcOf`). It still scrolls,
+ * so it takes the screen rather than a polite share of it — the branches bend
+ * flat precisely so they fit inside this (see `arcOf`), and the controls and
+ * the title lie over the tree instead of standing beside it. It still scrolls,
  * for the zoomed-right-out view where a hundred-odd gestures genuinely will not
  * fit on a screen at any legible size.
  */
-const MAX_CARD_HEIGHT = '94vh';
 const MIN_CANVAS_HEIGHT = 260;
 /** How much of the exaggeration slider's travel goes into the size of the writing. */
 const EXAG_TYPE_GROWTH = 0.7;
@@ -52,16 +52,18 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const svgRef = useRef<SVGSVGElement>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
     const [hoveredSegmentId, setHoveredSegmentId] = useState<string | null>(null);
+    /** The word a click has opened: spotlit, and with the card held on it. */
     const [lockedSegmentIds, setLockedSegmentIds] = useState<Set<string>>(new Set());
     const lockedSegmentIdsRef = useLatest(lockedSegmentIds);
     /**
-     * Who opened the segments that are open.
+     * The words the playhead is inside.
      *
-     * Playback opens them as the playhead passes and they close again when it stops. A click opens
-     * one deliberately, and its preview stops on its own after a few seconds — the spotlight has to
-     * outlive the sound, or clicking a word would light it up and then drop it.
+     * Held apart from the opened one because playback only lights a word up as
+     * it passes: reading a card at that speed is impossible, and the sounding
+     * segments change under you. Asking for one — hovering it, clicking it — is
+     * what asks for its inside.
      */
-    const lockOriginRef = useRef<'user' | 'playback'>('playback');
+    const [playingSegmentIds, setPlayingSegmentIds] = useState<Set<string>>(new Set());
     const playRef = useLatest(play);
     const stopRef = useLatest(stop);
     const exaggerationRef = useLatest(exaggeration);
@@ -200,13 +202,19 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         return map;
     }, [labels]);
 
-    // When locked, all locked segments count as hovered.
-    const baseHoveredId = lockedSegmentIds.size === 0 ? hoveredSegmentId : null;
-    const effectiveHoveredIds = useMemo(() => {
-        if (lockedSegmentIds.size > 0) return lockedSegmentIds;
-        if (!baseHoveredId) return new Set<string>();
-        return new Set([baseHoveredId]);
-    }, [lockedSegmentIds, baseHoveredId]);
+    /**
+     * The words in the spotlight: the one opened, the ones sounding, the one
+     * under the pointer.
+     *
+     * One look for all three — the tree has only the one way of saying "this
+     * one", and a second would have to be read as well as seen.
+     */
+    const spotlitIds = useMemo(() => {
+        const lit = new Set(playingSegmentIds);
+        for (const id of lockedSegmentIds) lit.add(id);
+        if (hoveredSegmentId) lit.add(hoveredSegmentId);
+        return lit;
+    }, [playingSegmentIds, lockedSegmentIds, hoveredSegmentId]);
 
     const handleHoverChange = useCallback((segmentId: string | null) => {
         if (lockedSegmentIdsRef.current.size > 0) return;
@@ -221,7 +229,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             setActiveSpanIds(new Set());
             return;
         }
-        lockOriginRef.current = 'user';
         setLockedSegmentIds(new Set([segmentId]));
         setActiveSpanIds(new Set());
 
@@ -238,24 +245,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         }
     }, [lockedSegmentIdsRef, setActiveSpanIds, segmentsRef, playRef, exaggerationRef, minPointSpanRef]);
 
-    const handleLaneClick = useCallback((spanId: string) => {
-        const segmentId = spanToSegment.get(spanId);
-        if (segmentId) {
-            lockOriginRef.current = 'user';
-            setLockedSegmentIds(new Set([segmentId]));
-        }
-
-        const span = segmentsRef.current.flatMap(s => s.spans).find(s => s.id === spanId);
-        if (span) {
-            playRef.current({
-                mpmIds: span.elements,
-                isolate: true,
-                exaggerate: exaggerationRef.current,
-                range: tickRange(span, minPointSpanRef.current),
-            });
-        }
-    }, [spanToSegment, exaggerationRef, playRef, segmentsRef, minPointSpanRef]);
-
     const handleClearSelection = useCallback(() => {
         setActiveSpanIds(new Set());
         const currentHash = window.location.hash.slice(1);
@@ -265,7 +254,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     }, [setActiveSpanIds]);
 
     const handleUnlock = useCallback(() => {
-        lockOriginRef.current = 'playback';
         setLockedSegmentIds(new Set());
         setHoveredSegmentId(null);
         stopRef.current();
@@ -277,17 +265,15 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         if (activeSpanIds.size === 1) {
             const [id] = activeSpanIds;
             const segmentId = spanToSegment.get(id);
-            if (segmentId) {
-                lockOriginRef.current = 'user';
-                setLockedSegmentIds(new Set([segmentId]));
-            }
+            if (segmentId) setLockedSegmentIds(new Set([segmentId]));
         }
     }, [activeSpanIds, spanToSegment]);
 
-    // Follow playback: open (lock) the segments whose instructions are currently
-    // sounding, so their words show while the playhead passes through them.
+    // Follow playback: light up the words whose instructions are currently
+    // sounding, so the reading moves with the playing. Only the spotlight — the
+    // card belongs to whatever the reader asked for.
     const followPlayback = useEffectEvent(({ date, scoped }: PlaybackNoteEvent) => {
-        // Segment previews (lock/lane clicks) manage the lock themselves.
+        // A clicked word previews itself, and is already lit for its own reason.
         if (scoped) return;
         const types = ['tempo', 'dynamics', 'rubato', 'articulation', 'asynchrony', 'movement', 'ornament', 'accentuationPattern'] as const;
         const segmentIds = new Set<string>();
@@ -299,21 +285,18 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         }
 
         if (segmentIds.size > 0) {
-            lockOriginRef.current = 'playback';
-            setLockedSegmentIds(prev => setsEqual(prev, segmentIds) ? prev : segmentIds);
+            setPlayingSegmentIds(prev => setsEqual(prev, segmentIds) ? prev : segmentIds);
         }
         scrollToDate(date);
     });
 
     useEffect(() => subscribeNoteEvents(followPlayback), [subscribeNoteEvents]);
 
-    // Close playback-opened segments when playback stops — but leave a clicked one open. A
-    // segment preview stops itself at the end of its own stretch of music, and the reader is
-    // still looking at the word they clicked.
+    // The playhead's spotlight goes out with the sound. A clicked word keeps its
+    // own — its preview stops itself after a few seconds, and the reader is still
+    // looking at what they opened.
     useEffect(() => {
-        if (!isPlaying && lockOriginRef.current === 'playback') {
-            setLockedSegmentIds(prev => (prev.size > 0 ? new Set() : prev));
-        }
+        if (!isPlaying) setPlayingSegmentIds(prev => (prev.size > 0 ? new Set() : prev));
     }, [isPlaying]);
 
     /**
@@ -395,20 +378,10 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         const lit: typeof labels = [];
         const rest: typeof labels = [];
         for (const label of labels) {
-            (effectiveHoveredIds.has(label.segment.id) ? lit : rest).push(label);
+            (spotlitIds.has(label.segment.id) ? lit : rest).push(label);
         }
         return [rest, lit];
-    }, [labels, effectiveHoveredIds]);
-
-    /** Segments the reader has opened, and the way their word leans. */
-    const openSegments = useMemo(() => {
-        const open = segments.filter(s =>
-            lockedSegmentIds.has(s.id) || s.spans.some(span => activeSpanIds.has(span.id)));
-        return open.map(segment => ({
-            segment,
-            side: labelById.get(segment.id)?.side ?? (1 as -1 | 1),
-        }));
-    }, [segments, lockedSegmentIds, activeSpanIds, labelById]);
+    }, [labels, spotlitIds]);
 
     if (segments.length === 0) return null;
 
@@ -420,25 +393,29 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             onKeyDown={(e) => {
                 if (e.key === 'Escape') handleUnlock();
             }}
+            elevation={0}
             style={{
                 overflow: "scroll",
                 position: "relative",
-                height: `min(${Math.max(MIN_CANVAS_HEIGHT, totalHeight)}px, ${MAX_CARD_HEIGHT})`,
+                height: "100vh",
                 width: "100vw",
-                borderTop: "0.5px solid gray",
+                borderRadius: 0,
                 outline: "none",
             }}
         >
-            <div style={{ position: "relative", width: maxX, height: totalHeight }}>
+            {/* A tree shorter than the window is read in the middle of it, not
+                off the top edge; a taller one fills the box and scrolls. */}
+            <div style={{
+                position: "relative",
+                width: maxX,
+                minHeight: "100%",
+                display: "flex",
+                alignItems: "center",
+            }}>
                 <svg
                     width={maxX}
                     height={totalHeight}
                     ref={svgRef}
-                    style={{
-                        position: "absolute",
-                        left: 0,
-                        top: 0,
-                    }}
                     viewBox={`0 0 ${maxDate} ${totalHeight}`}
                     preserveAspectRatio="none"
                 >
@@ -450,13 +427,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                         height={totalHeight}
                         fill="white"
                         onClick={handleUnlock}
-                    />
-
-                    <BarLines
-                        maxDate={maxDate}
-                        stretchX={packStretchX}
-                        height={totalHeight}
-                        anchorRef={anchorRef}
                     />
 
                     <g
@@ -503,22 +473,15 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                         />
                     ))}
 
-                    {/* What an opened segment is made of, down on the line itself */}
-                    {openSegments.map(({ segment, side }) => {
-                        const { from, to } = tickRange(segment, minPointSpan);
-                        return (
-                            <SpanRibbon
-                                key={segment.id}
-                                segment={segment}
-                                from={from}
-                                to={to}
-                                centreY={centreY}
-                                side={side}
-                                stretchX={stretchX}
-                                onLaneClick={handleLaneClick}
-                            />
-                        );
-                    })}
+                    {/* The ruler reads over the tree rather than under it: it is on
+                        the trunk now, where the branches have their feet, and a bar
+                        number you cannot find is worse than one crossing a word. */}
+                    <BarLines
+                        maxDate={maxDate}
+                        stretchX={packStretchX}
+                        centreY={centreY}
+                        anchorRef={anchorRef}
+                    />
 
                     {/* The centre line the story is told around */}
                     <line

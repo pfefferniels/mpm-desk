@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { arcOf, beatGrid, kneeAngle, containmentDepths, fadeOpacities, laneOf, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, tickRange, timelineRows, treeGeometry, typeScale } from './StackModel'
+import { arcOf, beatGrid, kneeAngle, containmentDepths, fadeOpacities, LabelPlacement, LINE_HEIGHT_RATIO, packLabels, packZoom, pointSpanFallback, tickRange, timelineRows, treeGeometry, typeScale } from './StackModel'
 import type { Reconstruction, Segment, Span } from '../model/Reconstruction'
 
 const span = (over: Partial<Span> = {}): Span => ({
@@ -9,25 +9,6 @@ const span = (over: Partial<Span> = {}): Span => ({
 
 const segment = (over: Partial<Segment> = {}): Segment => ({
   id: 's', motivation: 'intensify', from: 0, to: 100, spans: [span()], ...over,
-})
-
-describe('laneOf', () => {
-  it('leaves a span that already has extent alone', () => {
-    const s = span({ from: 10, to: 90 })
-    expect(laneOf(s, 0, 100)).toBe(s)
-  })
-
-  it('extends a point-like span backwards by a fifth of the segment', () => {
-    expect(laneOf(span({ from: 100, to: 100 }), 0, 100).from).toBe(80)
-  })
-
-  it('never reaches back past the segment', () => {
-    expect(laneOf(span({ from: 10, to: 10 }), 0, 100).from).toBe(0)
-  })
-
-  it('gives a point inside a point-like segment something to draw', () => {
-    expect(laneOf(span({ from: 50, to: 50 }), 50, 50)).toMatchObject({ from: 49, to: 50 })
-  })
 })
 
 describe('fadeOpacities', () => {
