@@ -80,14 +80,9 @@ const ViewerInner = () => {
                 <SelectionProvider>
                     <ScrollSyncProvider zoom={zoomContextValue.symbolic.stretchX}>
                         <PinchZoomHandler />
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '100vh',
-                        }}>
-                            <SegmentStack segments={work.reconstruction.segments} mpm={mpm} />
-                        </div>
+                        {/* The tree is the page: it takes the whole window, and the
+                            toolbar and the title lie over it. */}
+                        <SegmentStack segments={work.reconstruction.segments} mpm={mpm} />
                     </ScrollSyncProvider>
                 </SelectionProvider>
             </PlaybackProvider>

@@ -149,8 +149,10 @@ export const ViewerToolbar = memo(function ViewerToolbar({ onDownload, metadata 
                 </ExpandableRow>
             </Box>
 
+            {/* The title lies over the tree as the controls do, so it needs the
+                same pane of glass under it to stay readable over a word. */}
             {hasMetadata && (
-                <Box sx={{ pt: 0.5 }}>
+                <Box sx={{ ...glassStyle, px: 1.75, py: 1.25 }}>
                     {metadata!.title && (
                         <Typography sx={{
                             fontFamily: WORD_FONT_FAMILY,

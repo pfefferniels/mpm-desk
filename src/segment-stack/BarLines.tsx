@@ -8,6 +8,9 @@ const TICKS_PER_EIGHTH = TICKS_PER_BEAT / 2;
 const MIN_SPACING_PX = 20;
 const FADE_SPACING_PX = 50;
 
+/** Where the number sits under the graduation it belongs to. */
+const LABEL_BASELINE = 15;
+
 function lodOpacity(pixelSpacing: number): number {
     return Math.min(1, Math.max(0, (pixelSpacing - MIN_SPACING_PX) / (FADE_SPACING_PX - MIN_SPACING_PX)));
 }
@@ -21,12 +24,13 @@ interface BarLinesProps {
      * step. The numbers themselves ride {@link anchorRef}, so they stay true.
      */
     stretchX: number;
-    height: number;
+    /** The line the ruler graduates — the trunk, which the ticks straddle. */
+    centreY: number;
     /** Pins a bar number to its tick; see `useTickAnchors`. */
     anchorRef: (tick: number) => (node: SVGGraphicsElement | null) => void;
 }
 
-export const BarLines = memo(function BarLines({ maxDate, stretchX, height, anchorRef }: BarLinesProps) {
+export const BarLines = memo(function BarLines({ maxDate, stretchX, centreY, anchorRef }: BarLinesProps) {
     // LOD opacity for finer subdivisions
     const beatOpacity = lodOpacity(TICKS_PER_BEAT * stretchX);
     const subbeatOpacity = lodOpacity(TICKS_PER_EIGHTH * stretchX);
@@ -64,26 +68,31 @@ export const BarLines = memo(function BarLines({ maxDate, stretchX, height, anch
     }
 
     return (
-        <g className="barLines">
+        <g className="barLines" pointerEvents="none">
             {ticks.map(({ tick, lineH, opacity, label }) => (
                 <g key={tick} opacity={opacity}>
                     <line
                         x1={tick}
-                        y1={height - lineH}
+                        y1={centreY - lineH / 2}
                         x2={tick}
-                        y2={height}
+                        y2={centreY + lineH / 2}
                         stroke="gray"
                         strokeWidth={1}
                         vectorEffect="non-scaling-stroke"
                     />
+                    {/* The tree grows over the trunk from both sides, so a number
+                        carries its own bit of paper to be read on. */}
                     {label !== undefined && (
                         <text
                             ref={anchorRef(tick)}
                             x={0}
-                            y={height - 8}
+                            y={centreY + LABEL_BASELINE}
                             fontSize={12}
                             fill="gray"
                             textAnchor="middle"
+                            stroke="white"
+                            strokeWidth={3}
+                            paintOrder="stroke"
                         >
                             {label}
                         </text>
