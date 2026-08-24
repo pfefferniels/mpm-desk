@@ -1,6 +1,5 @@
-import { InsertPedal, InsertPedalOptions, MsmPedal } from "mpmify"
+import { InsertPedal, InsertPedalOptions, MsmPedal, Movement } from "mpmify"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { Movement } from "../../../../mpm-ts/lib"
 import { MovementSegment } from "./MovementSegment"
 import { useState, useCallback } from "react"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"

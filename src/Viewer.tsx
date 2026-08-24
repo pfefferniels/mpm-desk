@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { exportWork, getRange, MPM, MSM, Transformer } from 'mpmify';
-import { exportMPM } from '../../mpm-ts/lib';
+import { exportWork, getRange, MPM, MSM, Transformer, exportMPM } from 'mpmify';
 import JSZip from 'jszip';
 import { asMSM } from './utils/asMSM';
 import { TransformerStack } from './transformer-stack/TransformerStack';

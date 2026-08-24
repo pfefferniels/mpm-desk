@@ -1,5 +1,4 @@
-import { MSM } from "mpmify"
-import { Scope } from "../../../../mpm-ts/lib"
+import { MSM, Scope } from "mpmify"
 
 export type Range = {
     start: number

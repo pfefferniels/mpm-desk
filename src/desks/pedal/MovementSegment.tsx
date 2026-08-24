@@ -1,6 +1,5 @@
 import { SVGProps, useEffect, useState } from "react"
-import { Movement } from "../../../../mpm-ts/lib"
-import { computeInnerControlPointsXPositions, positionAtDate } from "mpmify"
+import { computeInnerControlPointsXPositions, positionAtDate, Movement } from "mpmify"
 
 interface MovementSegmentProps extends SVGProps<SVGPathElement> {
     instruction: Movement & { endDate: number }

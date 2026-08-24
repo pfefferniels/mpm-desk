@@ -1,6 +1,5 @@
 import { useState } from "react"
-import { MsmNote } from "mpmify"
-import { Articulation, ArticulationDef } from "../../../../mpm-ts/lib"
+import { MsmNote, Articulation, ArticulationDef } from "mpmify"
 import { convexHull } from "../../utils/convexHull"
 
 interface ArticulationOverlayProps {

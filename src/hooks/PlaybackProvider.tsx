@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { usePiano } from 'react-pianosound';
 import { read, MidiFile } from 'midifile-ts';
-import { MPM, MSM } from 'mpmify';
-import { exportMPM } from '../../../mpm-ts/lib';
+import { MPM, MSM, exportMPM } from 'mpmify';
 import { performMpm, PerformRequest } from '../utils/backendApi';
 import { useZoom } from './ZoomProvider';
 import { useLatest } from './useLatest';

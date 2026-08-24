@@ -1,5 +1,5 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { computeMillisecondsAt, SilentOnset, TranslatePhyiscalTimeToTicks } from "mpmify"
+import { computeMillisecondsAt, SilentOnset, TranslatePhyiscalTimeToTicks, MPM, Tempo } from "mpmify"
 import type { TempoWithEndDate } from "mpmify"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
@@ -12,7 +12,6 @@ import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Add, Merge } from "@mui/icons-material"
 import { Ribbon } from "../../components/Ribbon"
 import { createPortal } from "react-dom"
-import { MPM, Tempo } from "../../../../mpm-ts/lib"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useSelection } from "../../hooks/SelectionProvider"
 import { useScrollSync } from "../../hooks/ScrollSyncProvider"
@@ -22,8 +21,6 @@ import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
 import { MidiFile } from "midifile-ts"
 import { InsertTempo } from "../../transformers/InsertTempo"
-
-type TempoWithOptionalEndDate = Tempo & { endDate?: number }
 
 export type TempoSecondaryData = {
     tempoCluster?: LocalTempoSegment[]
@@ -103,22 +100,22 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         }))
     }
 
+    // A <tempo> has no end in MPM: it is in force until the next one, and the last
+    // one until the piece ends. (mpmify writes the same span in
+    // TranslatePhysicalTimeToTicks; it used to be an `endDate` attribute, which was
+    // never part of the format.)
     useEffect(() => {
         const tempos = mpm.getInstructions<Tempo>('tempo', part)
             .slice()
             .sort((a, b) => a.date - b.date)
         setCommittedTempos(tempos
             .map((tempo, i) => {
-                const next = tempos[i + 1]
-                const storedEndDate = (tempo as TempoWithOptionalEndDate).endDate
-                const endDate = next
-                    ? Math.min(next.date, storedEndDate ?? next.date)
-                    : storedEndDate
+                const endDate = tempos[i + 1]?.date ?? msm.end
                 if (!endDate || endDate <= tempo.date) return null
                 return { ...tempo, endDate }
             })
             .filter((t): t is TempoWithEndDate => t !== null))
-    }, [mpm, part])
+    }, [mpm, msm, part])
 
     useEffect(() => {
         setTempoClusterState((prev) => {
@@ -188,8 +185,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
 
         return tempos
             .map((tempo, i) => {
-                const next = tempos[i + 1]
-                const endDate = next ? next.date : (tempo as TempoWithOptionalEndDate).endDate
+                const endDate = tempos[i + 1]?.date ?? msm.end
                 if (!endDate || endDate <= tempo.date) return null
                 return { ...tempo, endDate }
             })

@@ -1,7 +1,7 @@
 import { Button, Stack } from "@mui/material"
 import { ViewProps } from "../TransformerViewProps"
 import { downloadAsFile } from "../../utils/utils"
-import { exportMPM } from "../../../../mpm-ts/lib"
+import { exportMPM } from "mpmify"
 import { CopyAll, Download } from "@mui/icons-material"
 import { convertMpmToMidi } from "../../utils/backendApi"
 

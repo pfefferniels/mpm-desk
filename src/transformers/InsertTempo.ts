@@ -1,7 +1,5 @@
-import { MPM } from '../../../mpm-ts/lib'
-import type { Tempo, Scope } from '../../../mpm-ts/lib'
-import { MSM, AbstractTransformer, generateId } from 'mpmify'
-import type { ScopedTransformationOptions } from 'mpmify'
+import { MSM, AbstractTransformer, generateId, MPM } from 'mpmify'
+import type { ScopedTransformationOptions, Tempo, Scope } from 'mpmify'
 
 interface InsertTempoOptions extends ScopedTransformationOptions {
     from: number
@@ -52,7 +50,6 @@ export class InsertTempo extends AbstractTransformer<InsertTempoOptions> {
             type: 'tempo' as const,
             'xml:id': generateId('tempo', from, mpm),
             date: from,
-            endDate: to,
             bpm,
             beatLength,
             ...(transitionTo !== undefined ? {

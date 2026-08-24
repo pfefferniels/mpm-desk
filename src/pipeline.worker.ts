@@ -125,7 +125,7 @@ self.onmessage = (event: MessageEvent<RunPipelineMessage>) => {
                 pedals: newMSM.pedals,
                 timeSignature: newMSM.timeSignature
             },
-            mpmDoc: newMPM.doc,
+            mpm: newMPM.toXML(),
             created
         });
     } catch (error) {

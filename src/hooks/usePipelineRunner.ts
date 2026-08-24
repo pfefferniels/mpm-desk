@@ -24,7 +24,12 @@ interface PipelineResultMessage {
         pedals: MSM['pedals'];
         timeSignature: MSM['timeSignature'];
     };
-    mpmDoc: MPM['doc'];
+    /**
+     * The finished MPM as source. espressivo's document is a live XML tree, which
+     * structured clone cannot carry across the worker boundary, so the two sides
+     * agree on the serialization instead.
+     */
+    mpm: string;
     created: Record<string, string[]>;
 }
 
@@ -116,8 +121,7 @@ export const usePipelineRunner = ({
                 newMSM.pedals = data.msm.pedals;
                 newMSM.timeSignature = data.msm.timeSignature;
 
-                const newMPM = new MPM();
-                newMPM.doc = data.mpmDoc;
+                const newMPM = MPM.parse(data.mpm);
 
                 setTransformersRef.current(prev => {
                     // 1. Update created arrays from pipeline output

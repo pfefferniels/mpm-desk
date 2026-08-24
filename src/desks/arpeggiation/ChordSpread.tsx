@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { usePiano } from "react-pianosound";
 import { asMIDI } from "../../utils/utils";
-import { ArpeggioPlacement, MsmNote } from "mpmify";
-import { TemporalSpread } from "../../../../mpm-ts/lib";
+import { ArpeggioPlacement, MsmNote, TemporalSpread } from "mpmify";
 
 interface ChordSpreadProps {
     notes: MsmNote[];

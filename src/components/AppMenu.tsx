@@ -1,9 +1,8 @@
 import React, { useCallback } from 'react';
 import { Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { Pause, PlayArrow, Save, UploadFile } from '@mui/icons-material';
-import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM, Transformer } from 'mpmify';
+import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM, Transformer, exportMPM } from 'mpmify';
 import { SecondaryData } from '../desks/TransformerViewProps';
-import { exportMPM } from '../../../mpm-ts/lib';
 import { Ribbon } from './Ribbon';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useMode } from '../hooks/ModeProvider';
@@ -92,17 +91,11 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     const { scrollToDate } = useScrollSync();
 
     // Follow behavior: update active transformers and scroll position based on playback position.
-    // Calls instructionsEffectiveAtDate per type to work around a bug in mpm-ts where calling
-    // without a type parameter uses incorrect instruction filtering (line 44: `type` vs `instructionType`).
     const handleNoteEvent = useCallback((_noteId: string, date: number) => {
-        const types = ['tempo', 'dynamics', 'rubato', 'articulation', 'asynchrony', 'movement', 'ornament', 'accentuationPattern'] as const;
         const ids = new Set<string>();
-        for (const type of types) {
-            const instructions = mpm.instructionsEffectiveAtDate(date, type);
-            for (const instruction of instructions) {
-                const t = transformers.find(t => t.created.includes(instruction['xml:id']));
-                if (t) ids.add(t.id);
-            }
+        for (const instruction of mpm.instructionsEffectiveAtDate(date)) {
+            const t = transformers.find(t => t.created.includes(instruction['xml:id']));
+            if (t) ids.add(t.id);
         }
         if (ids.size > 0) setActiveTransformerIds(ids);
         scrollToDate(date);

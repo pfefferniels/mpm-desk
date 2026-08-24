@@ -1,5 +1,5 @@
 import { MouseEventHandler, useState } from "react"
-import { Accentuation, AccentuationPattern } from "../../../../mpm-ts/lib"
+import { Accentuation, AccentuationPattern } from "mpmify"
 
 interface PatternProps {
     pattern: AccentuationPattern & { scale: number, length: number, children: Accentuation[] }

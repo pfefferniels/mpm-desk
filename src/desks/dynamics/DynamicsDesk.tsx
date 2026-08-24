@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useScrollSync } from "../../hooks/ScrollSyncProvider";
-import { Dynamics } from "../../../../mpm-ts/lib";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
-import { DynamicsWithEndDate, InsertDynamicsInstructions, Modify, ModifyOptions, MSM, MsmNote } from "mpmify";
+import { DynamicsWithEndDate, InsertDynamicsInstructions, Modify, ModifyOptions, MSM, MsmNote, Dynamics } from "mpmify";
 import { Range } from "../tempo/Tempo";
 import { Box, Button, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";

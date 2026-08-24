@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
-import { ArpeggioPlacement, InsertTemporalSpread } from "mpmify";
+import { ArpeggioPlacement, InsertTemporalSpread, Ornament, OrnamentDef, TemporalSpread } from "mpmify";
 import { ChordSpread } from "./ChordSpread";
 import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
-import { Ornament, OrnamentDef, TemporalSpread } from "../../../../mpm-ts/lib";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../../components/Ribbon";
 import { usePhysicalZoom } from "../../hooks/ZoomProvider";
