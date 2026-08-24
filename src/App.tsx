@@ -31,6 +31,7 @@ import { findMatchingArgumentation } from './utils/mergeArgumentations';
 // Legacy transformer names that should map to their current desk entry
 const TRANSFORMER_ALIASES: Record<string, string> = {
     'ApproximateLogarithmicTempo': 'InsertTempo',
+    'TranslatePhysicalTimeToTicks': 'InsertTempo',
     'TranslatePhyiscalTimeToTicks': 'InsertTempo',
 };
 

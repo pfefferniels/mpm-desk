@@ -1,4 +1,4 @@
-import { MPM, MSM, Transformer } from "mpmify";
+import { MPM, MSM, Scope, Transformer } from "mpmify";
 import { TempoSecondaryData } from "./tempo/TempoDesk";
 
 export interface SecondaryData {
@@ -22,7 +22,7 @@ interface TransformerViewProps<T extends Transformer> extends ViewProps {
     addTransformer: (transformer: T, override?: boolean) => void;
 }
 
-export type Scope = number | 'global'
+export type { Scope };
 
 export interface ScopedTransformerViewProps<T extends Transformer> extends TransformerViewProps<T> {
     part: Scope

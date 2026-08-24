@@ -1,8 +1,6 @@
-import { compareTransformers, importWork, InsertMetadata, registerTransformer, Transformer, validate } from 'mpmify';
-import { InsertTempo } from '../transformers/InsertTempo';
+import { compareTransformers, importWork, InsertMetadata, Transformer, validate } from 'mpmify';
 import { SecondaryData } from '../desks/TransformerViewProps';
-
-registerTransformer(InsertTempo, { after: 'ApproximateLogarithmicTempo' });
+import '../transformers/register';
 
 interface WorkMetadata {
     author: string;

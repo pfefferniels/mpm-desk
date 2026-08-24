@@ -5,6 +5,9 @@ import { Viewer } from './Viewer.tsx'
 import './index.css'
 import { PianoContextProvider } from 'react-pianosound'
 import { ModeProvider } from './hooks/ModeProvider.tsx'
+// Populates the transformer registry for this thread. Stated at the entry point rather than
+// left to whichever module happens to be imported first.
+import './transformers/register.ts'
 
 const isEditorMode = window.location.pathname === '/editor';
 

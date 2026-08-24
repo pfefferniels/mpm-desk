@@ -1,5 +1,5 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { computeMillisecondsAt, SilentOnset, TranslatePhyiscalTimeToTicks, MPM, Tempo } from "mpmify"
+import { computeMillisecondsAt, SilentOnset, TranslatePhysicalTimeToTicks, MPM, Tempo } from "mpmify"
 import type { TempoWithEndDate } from "mpmify"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
@@ -28,7 +28,7 @@ export type TempoSecondaryData = {
     drawnLines?: DrawnLine[]
 }
 
-export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhyiscalTimeToTicks | InsertTempo>) => {
+export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhysicalTimeToTicks | InsertTempo>) => {
     const { activeElements, setActiveElement } = useSelection()
     const tempoData = secondary?.tempo
 
@@ -267,7 +267,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     }
 
     const translate = () => {
-        addTransformer(new TranslatePhyiscalTimeToTicks({
+        addTransformer(new TranslatePhysicalTimeToTicks({
             translatePhysicalModifiers: true
         }))
     }

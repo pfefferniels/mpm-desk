@@ -6,7 +6,7 @@ import { ArticulationDesk } from "./articulation/ArticulationDesk";
 import { RubatoDesk } from "./rubato/RubatoDesk";
 import { PedalDesk } from "./pedal/PedalDesk";
 import { AccentuationDesk } from "./accentuation/AccentuationDesk";
-import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRubato, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhyiscalTimeToTicks, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
+import { CombineAdjacentRubatos, InsertDynamicsGradient, InsertDynamicsInstructions, InsertMetricalAccentuation, InsertPedal, InsertRubato, InsertTemporalSpread, StylizeArticulation, StylizeOrnamentation, TranslatePhysicalTimeToTicks, MergeMetricalAccentuations, InsertArticulation, MakeChoice } from "mpmify";
 import { InsertTempo } from "../transformers/InsertTempo";
 import { DynamicsGradientDesk } from "./arpeggiation/DynamicsGradientDesk";
 import { TemporalSpreadDesk } from "./arpeggiation/TemporalSpreadDesk";
@@ -25,7 +25,7 @@ type AnyTransformer =
     | typeof CombineAdjacentRubatos
     | typeof StylizeOrnamentation
     | typeof StylizeArticulation
-    | typeof TranslatePhyiscalTimeToTicks
+    | typeof TranslatePhysicalTimeToTicks
     | typeof MergeMetricalAccentuations
     | typeof InsertArticulation
     | typeof MakeChoice

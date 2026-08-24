@@ -1,20 +1,8 @@
-import { Argumentation, MPM, MSM, Transformer } from 'mpmify';
+import { MPM, MSM, Transformer } from 'mpmify';
 import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { useLatest } from './useLatest';
 import { mergeOverlappingArgumentations } from '../utils/mergeArgumentations';
-
-interface PipelineMetadata {
-    author: string;
-    title: string;
-}
-
-interface SerializedTransformer {
-    id: string;
-    name: string;
-    options: unknown;
-    created: string[];
-    argumentation: Argumentation;
-}
+import type { PipelineMetadata, SerializedTransformer } from '../pipeline';
 
 interface PipelineResultMessage {
     type: 'pipeline-result';
