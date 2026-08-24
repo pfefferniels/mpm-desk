@@ -13,7 +13,6 @@ import { SegmentLabel, SpanRibbon } from "./SegmentLabel";
 import { useTickAnchors } from "./useTickAnchors";
 import { wordFor, wordWidth } from "./words";
 import { InstructionPopover } from "./InstructionPopover";
-import { SegmentPopover } from "./SegmentPopover";
 import { SegmentTimelinePopover } from "./SegmentTimeline";
 
 function setsEqual(a: Set<string>, b: Set<string>): boolean {
@@ -218,7 +217,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
     const handleLock = useCallback((segmentId: string) => {
         if (lockedSegmentIdsRef.current.has(segmentId)) {
-            // Already locked — clear span selection (back to the segment popover)
+            // Already locked — clear span selection (back to the segment's own card)
             setActiveSpanIds(new Set());
             return;
         }
@@ -353,18 +352,21 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         return segments.filter(s => lockedSegmentIds.has(s.id));
     }, [lockedSegmentIds, segments]);
 
-    const lockAnchorEl = useMemo(() => anchorFor(lockedSegments), [anchorFor, lockedSegments]);
+    /**
+     * What the card is about: the words held open, or else the one under the
+     * pointer.
+     *
+     * The two are the same card, so clicking a word keeps what hovering it was
+     * already showing instead of trading it for something else.
+     */
+    const cardSegments = useMemo(() => {
+        if (lockedSegments.length > 0) return lockedSegments;
+        if (!hoveredSegmentId) return [];
+        const hovered = segments.find(s => s.id === hoveredSegmentId);
+        return hovered ? [hovered] : [];
+    }, [lockedSegments, hoveredSegmentId, segments]);
 
-    /** The one word under the pointer — once something is opened, the card is its. */
-    const hoveredSegment = useMemo(() => {
-        if (!hoveredSegmentId || lockedSegmentIds.size > 0) return null;
-        return segments.find(s => s.id === hoveredSegmentId) ?? null;
-    }, [hoveredSegmentId, lockedSegmentIds, segments]);
-
-    const hoverAnchorEl = useMemo(
-        () => (hoveredSegment ? anchorFor([hoveredSegment]) : null),
-        [anchorFor, hoveredSegment],
-    );
+    const cardAnchorEl = useMemo(() => anchorFor(cardSegments), [anchorFor, cardSegments]);
 
     /**
      * The card opens back towards the centre line, against the lean of the
@@ -373,9 +375,10 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
      * `anchorFor` sits it at the foot, and the word climbs away from there — so
      * the only side with nothing of its own on it is the inward one. It costs
      * covering a little of the tree, which is dimmed anyway; opening outward
-     * would cover the word the card is about.
+     * would cover the word the card is about. The test is the one `anchorFor`
+     * made when it picked the foot to sit at.
      */
-    const hoverPlacement = hoveredSegment && labelById.get(hoveredSegment.id)?.side === 1 ? "top" : "bottom";
+    const cardPlacement = cardSegments.some(s => labelById.get(s.id)?.side === -1) ? "bottom" : "top";
 
     /** One beat in ticks, counted the way the score's own metre counts it. */
     const beatLength = (4 * mpm.meter.ppq) / mpm.meter.denominator;
@@ -531,14 +534,11 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                     />
                 </svg>
             </div>
-            {lockedSegments.length > 0 && lockAnchorEl && activeSpanIds.size === 0 && (
-                <SegmentPopover segments={lockedSegments} anchorEl={lockAnchorEl} />
-            )}
-            {hoveredSegment && hoverAnchorEl && (
+            {cardSegments.length > 0 && cardAnchorEl && activeSpanIds.size === 0 && (
                 <SegmentTimelinePopover
-                    segment={hoveredSegment}
-                    anchorEl={hoverAnchorEl}
-                    placement={hoverPlacement}
+                    segments={cardSegments}
+                    anchorEl={cardAnchorEl}
+                    placement={cardPlacement}
                     minPointSpan={minPointSpan}
                     beatLength={beatLength}
                 />

@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { Paper, Popper, type PopperPlacementType } from "@mui/material";
+import { Divider, Paper, Popper, Stack, type PopperPlacementType } from "@mui/material";
 import type { Segment } from "../model/Reconstruction";
 import { beatGrid, tickRange, timelineRows } from "./StackModel";
 import { getLaneColor } from "./spanColors";
+import { wordFor } from "./words";
 
 /** Wide enough for `accentuationPattern`, the longest type name in the corpus. */
 const TYPE_COLUMN = 110;
@@ -96,16 +97,17 @@ const SegmentTimeline = ({ segment, minPointSpan, beatLength }: SegmentTimelineP
 };
 
 interface SegmentTimelinePopoverProps {
-    segment: Segment;
+    /** One column each: the one under the pointer, or the ones held open. */
+    segments: Segment[];
     anchorEl: { getBoundingClientRect: () => DOMRect; contextElement?: Element };
-    /** Above a word that leans up, below one that leans down — never over it. */
+    /** Above a word that leans down, below one that leans up — never over it. */
     placement: PopperPlacementType;
     minPointSpan: number;
     beatLength: number;
 }
 
 /**
- * What a hovered segment is made of.
+ * What a segment is made of.
  *
  * The word itself is already on the line, spotlit and grown, so saying it again
  * here would only be an echo. What the tree cannot show is the inside of a
@@ -114,10 +116,18 @@ interface SegmentTimelinePopoverProps {
  * segment lays on the centre line, but drawn on the segment's own axis rather
  * than the piece's, so they stay legible at any zoom.
  *
+ * The same card answers the pointer and holds still once a word is clicked:
+ * what you were reading is what gets kept, rather than being swapped for a
+ * different card at the moment you ask to keep it.
+ *
+ * Several columns show when the playhead is inside more than one segment at
+ * once — they argue one moment between them, and only then is the word worth
+ * writing again, because it is what tells the columns apart.
+ *
  * It follows the pointer around, so it must not swallow events.
  */
 export const SegmentTimelinePopover = ({
-    segment,
+    segments,
     anchorEl,
     placement,
     minPointSpan,
@@ -134,10 +144,22 @@ export const SegmentTimelinePopover = ({
         style={{ zIndex: 10, pointerEvents: "none" }}
     >
         <Paper elevation={4} sx={{ borderRadius: 2, px: 1.5, py: 1.25 }}>
-            <SegmentTimeline segment={segment} minPointSpan={minPointSpan} beatLength={beatLength} />
-            <div style={{ marginTop: 6, fontFamily: "system-ui, sans-serif", fontSize: 11, color: "#6b7280" }}>
-                {segment.certainty}
-            </div>
+            <Stack direction="row" divider={<Divider orientation="vertical" flexItem />} spacing={1.5}>
+                {segments.map(segment => (
+                    <div key={segment.id} style={{ fontFamily: "system-ui, sans-serif" }}>
+                        {segments.length > 1 && (
+                            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                                {wordFor(segment)}
+                            </div>
+                        )}
+                        <SegmentTimeline
+                            segment={segment}
+                            minPointSpan={minPointSpan}
+                            beatLength={beatLength}
+                        />
+                    </div>
+                ))}
+            </Stack>
         </Paper>
     </Popper>
 );
