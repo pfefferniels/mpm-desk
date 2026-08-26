@@ -24,7 +24,8 @@ interface Work {
  * Load the three files that make up the piece.
  *
  * Three, not four: the projection the tree draws is derived here rather than shipped beside them.
- * `work.json` already carries the grouping, and every call records what it wrote and where, so a
+ * `work.json` already carries the grouping — each call names the segment it was made under —
+ * and every call records what it wrote and where, so a
  * `segments.json` holding the projection would be the same facts twice, free to disagree with
  * them. Deriving it costs a few milliseconds.
  *
@@ -58,7 +59,7 @@ export const useReconstruction = (): { work: Work | null; error: Error | null } 
                 const { reconstruction } = projectReconstruction({
                     title: file.name,
                     author: '',
-                    groupings: file.segments,
+                    claims: file.segments,
                     outcomes: outcomesOf(file.provenance),
                     elementTypes,
                 });

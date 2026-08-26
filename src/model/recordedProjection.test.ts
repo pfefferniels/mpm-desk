@@ -26,7 +26,7 @@ const project = () =>
     projectReconstruction({
         title: work.name,
         author: '',
-        groupings: work.segments,
+        claims: work.segments,
         outcomes: outcomesOf(work.provenance),
         elementTypes: new Map(
             performance.instructions.map((instruction) => [instruction.id, instruction.type]),

@@ -4,7 +4,7 @@
  * `public/info.json` was written as a CIDOC-CRM / CRMinf graph: a `Reconstruction` whose
  * `creation` held 136 `I1_Argumentation`s, each with a `calls` list and an `I2_Belief` under
  * `conclusion`. What is going in its place is {@link WorkFile} — a flat `provenance` of every
- * call, and one `segment` per argumentation naming the calls that make it up.
+ * call, each naming the segment it is claimed under, and one prose `segment` per argumentation.
  *
  * Run it:
  *
@@ -43,6 +43,12 @@
  *
  * `continue` becomes {@link Segment.continues}, a link from one segment to the one it picks up
  * from. All 13 of them resolve; two name the same predecessor.
+ *
+ * `argumentation.note` — the second prose field — is **folded into the segment's note**, joined
+ * with an em-dash. Three argumentations carry one, all three on a segment that already has a
+ * word, and two of them read as that word's sentence continued. One narrative per segment is
+ * what the tree draws and what the desk edits; two fields meant deciding per sentence which kind
+ * of writing it was.
  *
  * ## What it drops, and why each is safe
  *
@@ -150,7 +156,8 @@ export interface MigrationReport {
     /** How many `created` entries were dropped as duplicates inside one segment. */
     duplicateElements: number;
     segmentsWithNote: number;
-    segmentsWithCommentary: number;
+    /** Argumentations that carried the second prose field, now folded into the note. */
+    foldedCommentaries: number;
     segmentsWithContinues: number;
     /** The `incorporates` value, and the sources derived from `MakeChoice` that matched it. */
     incorporates: string[];
@@ -235,6 +242,19 @@ const readOldWork = (value: unknown): OldWorkFile => {
  * `provenance` is the discriminator and `creation` is its absence: a file cannot be both, and a
  * half-migrated one is a bug worth an exception rather than a guess.
  */
+/**
+ * One narrative out of the two prose fields the graph filed apart.
+ *
+ * Em-dashed rather than newlined: the tree writes this along a branch, so it has to read as one
+ * line. A segment carrying only the longer prose keeps it as its whole note rather than losing
+ * it — which does not happen in the shipped file, and would be a silent loss if it did.
+ */
+const joined = (note: string | undefined, commentary: string | undefined): string | undefined => {
+    if (note === undefined) return commentary;
+    if (commentary === undefined) return note;
+    return `${note} — ${commentary}`;
+};
+
 export const isMigrated = (value: unknown): value is WorkFile => {
     if (!isRecord(value)) return false;
     const migrated = Array.isArray(value['provenance']) && Array.isArray(value['segments']);
@@ -302,7 +322,7 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
                 elements: new Set(input.provenance.flatMap((call) => call.elements ?? [])).size,
                 duplicateElements: 0,
                 segmentsWithNote: input.segments.filter((segment) => segment.note).length,
-                segmentsWithCommentary: input.segments.filter((segment) => segment.commentary).length,
+                foldedCommentaries: 0,
                 segmentsWithContinues: input.segments.filter((segment) => segment.continues).length,
                 incorporates: [],
                 retiredCalls: input.provenance
@@ -326,6 +346,7 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
     const seenElements = new Set<string>();
     let duplicateElements = 0;
     let callsWithElements = 0;
+    let commentaries = 0;
 
     for (const argumentation of argumentations) {
         const where = `argumentation ${argumentation.id}`;
@@ -340,8 +361,10 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
                     'and the group has no note of its own to fall back on. Add it to ' +
                     '`MOTIVATION_WORDS` deliberately rather than letting a segment lose its word.',
             );
-        const note = stated ?? (motivation !== undefined ? MOTIVATION_WORDS[motivation] : undefined);
+        const word = stated ?? (motivation !== undefined ? MOTIVATION_WORDS[motivation] : undefined);
         const commentary = text(argumentation.note);
+        if (commentary !== undefined) commentaries += 1;
+        const note = joined(word, commentary);
 
         // A dangling link would leave a segment claiming to continue something that is not
         // there, which reads on the tree as a gesture that starts mid-air.
@@ -364,6 +387,10 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
                 name: call.name,
                 options: call.options,
                 ...(created.length > 0 && { elements: [...created] }),
+                // The link, written on the call rather than listed on the segment — see
+                // `Call.segment`. An argumentation names its calls exactly once (checked just
+                // above), so the transposition is total and loses nothing.
+                segment: argumentation.id,
             });
             if (created.length > 0) callsWithElements += 1;
 
@@ -379,15 +406,15 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
 
         segments.push({
             id: argumentation.id,
-            // The gesture word lives on the conclusion and the editorial commentary on the
-            // argumentation, which is the opposite of what the field names suggest. Measured:
-            // `conclusion.note` is 96 entries averaging 29 characters and carries every
-            // „schattieren", „Hineinfallen" and „Nachlauschen" in the file; `argumentation.note`
-            // is 3 entries averaging 85 characters of apparatus prose.
+            // Two prose fields become one. The gesture word lives on the conclusion and the
+            // longer prose on the argumentation, which is the opposite of what the field names
+            // suggest — `conclusion.note` is 96 entries averaging 29 characters and carries
+            // every „schattieren", „Hineinfallen" and „Nachlauschen" in the file, and
+            // `argumentation.note` is 3. All three of those sit on a segment that also has a
+            // word, and two of them read as that word's sentence continued, so they are joined
+            // rather than filed apart: see `foldCommentary` in `loadWork.ts`.
             ...(note !== undefined && { note }),
-            ...(commentary !== undefined && { commentary }),
             ...(argumentation.continue !== undefined && { continues: argumentation.continue }),
-            calls: argumentation.calls.map((call) => call.id),
         });
     }
 
@@ -412,7 +439,7 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
             elements: seenElements.size,
             duplicateElements,
             segmentsWithNote: segments.filter((segment) => segment.note).length,
-            segmentsWithCommentary: segments.filter((segment) => segment.commentary).length,
+            foldedCommentaries: commentaries,
             segmentsWithContinues: segments.filter((segment) => segment.continues).length,
             incorporates,
             retiredCalls: provenance
@@ -437,7 +464,7 @@ export const describe = (report: MigrationReport): string => {
             : `${String(report.argumentations)} argumentations -> ${String(report.segments)} segments`,
         `${String(report.calls)} calls in provenance, ${String(report.transformerNames.length)} distinct names`,
         `${String(report.callsWithElements)} calls carry elements; ${String(report.elements)} element ids, ${String(report.duplicateElements)} duplicate(s) folded`,
-        `notes ${String(report.segmentsWithNote)}, commentaries ${String(report.segmentsWithCommentary)}, continues ${String(report.segmentsWithContinues)}`,
+        `notes ${String(report.segmentsWithNote)}, folded commentaries ${String(report.foldedCommentaries)}, continues ${String(report.segmentsWithContinues)}`,
     ];
     if (report.incorporates.length > 0)
         lines.push(

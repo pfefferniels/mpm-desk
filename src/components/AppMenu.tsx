@@ -131,7 +131,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({
      * Save: the archive the viewer reads.
      *
      *   transcription.mei   the score, with the recording aligned into it
-     *   work.json           the chain, its segments, and what each call wrote
+     *   work.json           the chain, what each call wrote, and the segment it wrote it under
      *   performance.mpm     the MPM this run produced
      *   score.msm           the MEI converted, so the viewer need not convert
      *

@@ -19,7 +19,7 @@ import './fitting/transformers/Order';
  *
  * `/editor` is the **editor**: the desks. Each one plots what the recording did in its own
  * dimension and lets that be annotated — the tempo skyline, the dynamics curve, the rubato
- * frames — plus a segments desk for grouping the resulting calls and saying why.
+ * frames — plus a narrative desk for grouping the resulting calls and saying why.
  *
  * They are two trees because they answer different questions: a viewer asks *what does this
  * performance do*, an editor asks *what have I claimed about it and where*. Sharing one tree

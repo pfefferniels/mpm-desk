@@ -7,7 +7,7 @@ import './App.css';
 import { correspondingDesks } from './desks/DeskSwitch';
 import type { SecondaryData } from './desks/TransformerViewProps';
 import { MetadataDesk } from './desks/metadata/MetadataDesk';
-import { SegmentsDesk } from './desks/segments/SegmentsDesk';
+import { NarrativeDesk } from './desks/narrative/NarrativeDesk';
 import { NotesProvider } from './hooks/NotesProvider';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { CallSelectionProvider } from './hooks/CallSelection';
@@ -43,11 +43,23 @@ import type { Call, Segment, WorkFile } from './model/Work';
  *
  * ## A new call lands ungrouped
  *
- * Grouping is its own step, with its own desk, so a call arrives belonging to nothing and the
- * segments desk shows it in amber until somebody says what it is for. Folding a new call into
- * whichever argumentation happens to overlap its range would be convenient, and would write
+ * Grouping is its own step, with its own desk, so a call arrives with no `segment` and the
+ * narrative desk shows what it wrote in amber until somebody says what it is for. Folding a new
+ * call into whichever claim happens to overlap its range would be convenient, and would write
  * claims nobody had made.
  */
+
+/**
+ * A call with its `segment` taken off.
+ *
+ * Deleted rather than set to `undefined`: `JSON.stringify` drops an undefined value, so the two
+ * write the same file — but only one of them says so in the object anybody reads in a debugger.
+ */
+const ungrouped = (call: Call): Call => {
+    const next = { ...call };
+    delete next.segment;
+    return next;
+};
 
 /** Legacy transformer names that should still resolve to a desk when a saved call names one. */
 const TRANSFORMER_ALIASES: Record<string, string> = {
@@ -177,21 +189,59 @@ export const App = () => {
 
     const removeCalls = useCallback((ids: readonly string[]) => {
         const dropping = new Set(ids);
-        setWork((current) => ({
-            ...current,
-            provenance: current.provenance.filter((call) => !dropping.has(call.id)),
-            segments: current.segments
-                .map((segment) => ({
-                    ...segment,
-                    calls: segment.calls.filter((id) => !dropping.has(id)),
-                }))
-                // A group emptied of its last call is not a claim about the performance any more.
-                .filter((segment) => segment.calls.length > 0),
-        }));
+        setWork((current) => {
+            const provenance = current.provenance.filter((call) => !dropping.has(call.id));
+            // A claim nothing is made under any more is not a claim about the performance. The
+            // segments hold no lists to prune — the calls named them — so this is the only place
+            // the removal touches them at all.
+            const standing = new Set(provenance.map((call) => call.segment));
+            return {
+                ...current,
+                provenance,
+                segments: current.segments.filter((segment) => standing.has(segment.id)),
+            };
+        });
     }, []);
 
     const setSegments = useCallback((segments: Segment[]) => {
         setWork((current) => ({ ...current, segments }));
+    }, []);
+
+    /**
+     * Put calls under a claim — an existing one, a new one, or none at all.
+     *
+     * One update rather than two, because creating a segment and putting the first calls under it
+     * is one act: done in two, the render in between holds a claim nothing is made under, which
+     * `removeCalls` would be within its rights to sweep away.
+     */
+    const groupCalls = useCallback((callIds: readonly string[], segment: Segment | null) => {
+        if (callIds.length === 0) return;
+        const moving = new Set(callIds);
+        setWork((current) => ({
+            ...current,
+            provenance: current.provenance.map((call) =>
+                moving.has(call.id)
+                    ? segment
+                        ? { ...call, segment: segment.id }
+                        : ungrouped(call)
+                    : call,
+            ),
+            segments:
+                segment && !current.segments.some(({ id }) => id === segment.id)
+                    ? [...current.segments, segment]
+                    : current.segments,
+        }));
+    }, []);
+
+    /** Remove a claim. The calls survive and become unclaimed — the honest place for them. */
+    const dissolveSegment = useCallback((segmentId: string) => {
+        setWork((current) => ({
+            ...current,
+            provenance: current.provenance.map((call) =>
+                call.segment === segmentId ? ungrouped(call) : call,
+            ),
+            segments: current.segments.filter(({ id }) => id !== segmentId),
+        }));
     }, []);
 
     const setSecondary = useCallback<React.Dispatch<React.SetStateAction<SecondaryData>>>(
@@ -339,7 +389,7 @@ export const App = () => {
     }
 
     const isMetadataSelected = selectedDesk === 'metadata';
-    const isSegmentsSelected = deskEntry?.aspect === 'segments';
+    const isNarrativeSelected = deskEntry?.aspect === 'narrative';
     const DeskComponent = deskEntry?.desk;
 
     const deskProps = {
@@ -416,12 +466,16 @@ export const App = () => {
                                         appBarRef={isEditorMode ? appBarRef : null}
                                         isEditorMode={isEditorMode}
                                     />
-                                ) : isSegmentsSelected ? (
-                                    <SegmentsDesk
+                                ) : isNarrativeSelected ? (
+                                    <NarrativeDesk
                                         {...deskProps}
                                         segments={work.segments}
                                         setSegments={setSegments}
+                                        groupCalls={groupCalls}
+                                        dissolveSegment={dissolveSegment}
                                         calls={work.provenance}
+                                        projected={result.reconstruction.segments}
+                                        performanceXml={result.mpm}
                                     />
                                 ) : (
                                     DeskComponent && (

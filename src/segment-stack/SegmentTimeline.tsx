@@ -9,8 +9,9 @@ import { InstructionAttributes } from "./InstructionAttributes";
 import { wordFor } from "./words";
 
 /** Wide enough for `accentuationPattern`, the longest type name in the corpus. */
-const TYPE_COLUMN = 106;
-const TRACK_WIDTH = 250;
+export const TYPE_COLUMN = 106;
+/** The track a card is drawn on. A caller with more room of its own may say otherwise. */
+export const TRACK_WIDTH = 250;
 /** A row that only has to say *when* — a bar and a beat grid fit in this. */
 const BAR_ROW = 15;
 /**
@@ -187,6 +188,17 @@ interface SegmentTimelineProps {
     /** The gesture the pointer is on, and how to say so — null while the card is untouchable. */
     hovered: Span | null;
     onHover: ((span: Span | null) => void) | null;
+    /** How wide the tracks are drawn. Defaults to {@link TRACK_WIDTH}, what a card affords. */
+    trackWidth?: number;
+    /**
+     * Whether a lane that is already drawn as a curve may still be pointed at.
+     *
+     * False in the card, where the pane under it exists to stand in for a drawing that does not
+     * exist yet. True where the source itself is the point — the narrative desk quotes a
+     * `<tempo>`'s own `@bpm` beside the curve of it, because there the question is what the
+     * document says, not what it sounds like.
+     */
+    reachDrawn?: boolean;
 }
 
 /**
@@ -210,13 +222,15 @@ interface SegmentTimelineProps {
  * under the card exists to stand in for a drawing that does not exist yet, not to gloss one
  * that does.
  */
-const SegmentTimeline = ({
+export const SegmentTimeline = ({
     segment,
     mpm,
     minPointSpan,
     beatLength,
     hovered,
     onHover,
+    trackWidth = TRACK_WIDTH,
+    reachDrawn = false,
 }: SegmentTimelineProps) => {
     const { from, to } = useMemo(() => tickRange(segment, minPointSpan), [segment, minPointSpan]);
 
@@ -243,7 +257,7 @@ const SegmentTimeline = ({
         };
 
         let top = 0;
-        return timelineRows(segment, from, to, TRACK_WIDTH, BAR_HEIGHT, laneOf).map<Row>(row => {
+        return timelineRows(segment, from, to, trackWidth, BAR_HEIGHT, laneOf).map<Row>(row => {
             const controller = controllers.get(row.lane) ?? null;
             const drawn = row.type === "movement" ? controller !== null : DRAWN.has(row.type);
             const height = drawn ? CURVE_ROW : BAR_ROW;
@@ -251,10 +265,13 @@ const SegmentTimeline = ({
             top += height;
             return placed;
         });
-    }, [segment, from, to, mpm]);
+    }, [segment, from, to, mpm, trackWidth]);
 
     const height = rows.reduce((sum, row) => sum + row.height, 0);
-    const grid = useMemo(() => beatGrid(from, to, beatLength, TRACK_WIDTH), [from, to, beatLength]);
+    const grid = useMemo(
+        () => beatGrid(from, to, beatLength, trackWidth),
+        [from, to, beatLength, trackWidth],
+    );
 
     /** Every curve the card shows, read once — hovering must not resample anything. */
     const curves = useMemo(() => {
@@ -274,11 +291,11 @@ const SegmentTimeline = ({
     }, [rows, mpm, from, to]);
 
     const xOf = (tick: number) =>
-        Math.max(0, Math.min(1, (tick - from) / (to - from))) * TRACK_WIDTH;
+        Math.max(0, Math.min(1, (tick - from) / (to - from))) * trackWidth;
 
     return (
         <svg
-            width={TYPE_COLUMN + TRACK_WIDTH}
+            width={TYPE_COLUMN + trackWidth}
             height={height}
             style={{ display: "block", fontFamily: "system-ui, sans-serif" }}
             onMouseLeave={() => onHover?.(null)}
@@ -313,7 +330,7 @@ const SegmentTimeline = ({
                             <rect
                                 x={0}
                                 y={row.top}
-                                width={TRACK_WIDTH}
+                                width={trackWidth}
                                 height={row.height - 1}
                                 fill="#f9fafb"
                             />
@@ -405,10 +422,10 @@ const SegmentTimeline = ({
                                 is drawn has already answered the question the pane below
                                 answers, so pointing at it would offer a worse version of
                                 what is on the screen. */}
-                            {onHover && !row.drawn && row.bars.map(bar => (
+                            {onHover && (reachDrawn || !row.drawn) && row.bars.map(bar => (
                                 <rect
                                     key={bar.id}
-                                    x={Math.min(bar.left, TRACK_WIDTH - MIN_HIT_WIDTH)}
+                                    x={Math.min(bar.left, trackWidth - MIN_HIT_WIDTH)}
                                     y={row.top}
                                     width={Math.max(bar.width, MIN_HIT_WIDTH)}
                                     height={row.height}
