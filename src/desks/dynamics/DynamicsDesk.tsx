@@ -4,14 +4,17 @@ import { usePiano } from "react-pianosound";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
-import { DynamicsWithEndDate, InsertDynamicsInstructions, Modify, ModifyOptions, MSM, MsmNote, Dynamics } from "mpmify";
+import { DynamicsWithEndDate, InsertDynamicsInstructions } from "../../fitting/transformers/dynamics/InsertDynamicsInstructions";
+import { Modify, ModifyOptions } from "../../fitting/transformers/modification/Modify";
+import { Alignment, AlignedNote } from "../../fitting/alignment";
+import { getInstructions } from "../../fitting/instructions/index";
 import { Range } from "../tempo/Tempo";
 import { Box, Button, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
-import { useSelection } from "../../hooks/SelectionProvider";
+import { useCallSelection } from "../../hooks/CallSelection";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../../components/Ribbon";
 import { Add, Clear } from "@mui/icons-material";
@@ -24,19 +27,19 @@ export interface DynamicsSegment {
     noteID?: string
 }
 
-const extractDynamicsSegments = (msm: MSM, part: Scope) => {
+const extractDynamicsSegments = (msm: Alignment, part: Scope) => {
     const segments: DynamicsSegment[] = []
     msm.asChords(part).forEach((notes, date) => {
         if (!notes.length) return
 
         for (const note of notes) {
-            if (segments.findIndex(s => s.date.start === date && s.velocity === note['midi.velocity']) !== -1) continue
+            if (segments.findIndex(s => s.date.start === date && s.velocity === note.velocity) !== -1) continue
             segments.push({
                 date: {
                     start: date,
                     end: date
                 },
-                velocity: note['midi.velocity'],
+                velocity: note.velocity,
                 active: false,
                 noteID: note['xml:id']
             })
@@ -49,7 +52,7 @@ const extractDynamicsSegments = (msm: MSM, part: Scope) => {
 export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<
     InsertDynamicsInstructions | Modify
 >) => {
-    const { activeElements, setActiveElement, transformers } = useSelection();
+    const { activeElements, setActiveElement, calls } = useCallSelection();
     const [datePlayed, setDatePlayed] = useState<number>()
     const [segments, setSegments] = useState<DynamicsSegment[]>([])
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
@@ -105,13 +108,14 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     }, [currentPhantomDate, mode]);
 
     useEffect(() => {
-        const dynamics = mpm.getInstructions<Dynamics>('dynamics', part)
+        const dynamics = getInstructions(mpm, 'dynamics', part)
         const withEndDate = []
         for (let i = 0; i < dynamics.length; i++) {
-            let endDate = dynamics[i + 1]?.date
-            if ('endDate' in dynamics[i]) {
-                endDate = (dynamics[i] as DynamicsWithEndDate).endDate
-            }
+            // Where the curve stops is the next `<dynamics>`, and nothing else. There is no
+            // `@endDate` attribute in MPM to prefer instead: `InsertDynamicsInstructions` takes
+            // the fitted end back off before writing, so nothing carries one into the document.
+            // A curve nothing follows has no span to draw, and is skipped.
+            const endDate = dynamics[i + 1]?.date
             if (endDate === undefined) continue
 
             withEndDate.push({
@@ -128,9 +132,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
 
     const modifyDeltas = useMemo(() => {
         const deltas = new Map<string, number>()
-        for (const t of transformers) {
+        // The chain as the work file records it: a call is a name and the options it ran with.
+        // The options of a `Modify` are plain JSON, so they can be read straight off the call.
+        for (const t of calls) {
             if (t.name !== 'Modify') continue
-            const opts = t.options as ModifyOptions
+            const opts = t.options as unknown as ModifyOptions
             if (opts.aspect !== 'velocity') continue
             if (opts.scope !== undefined && opts.scope !== 'global' && opts.scope !== part) continue
             if ('noteIDs' in opts) {
@@ -164,7 +170,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         }
 
         return deltas
-    }, [transformers, msm, part, pendingCommitOptions])
+    }, [calls, msm, part, pendingCommitOptions])
 
     useEffect(() => {
         setSegments(extractDynamicsSegments(msm, part))
@@ -218,7 +224,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         const svg = svgRef.current
         if (!svg) return
 
-        const noteid = msm.allNotes.find(n => n["midi.velocity"] === segment.velocity && n.date === segment.date.start)?.["xml:id"]
+        const noteid = msm.allNotes.find(n => n.velocity === segment.velocity && n.date === segment.date.start)?.["xml:id"]
         if (!noteid) return
 
         // If dragged circle is not in current selection, replace selection with just this note
@@ -271,10 +277,13 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     const handlePlay = (from: number, to?: number) => {
         let notes =
             slice(from, to).map(n => {
-                const partial: Partial<MsmNote> = { ...n }
-                delete partial['midi.onset']
-                delete partial['midi.duration']
-                return partial as Omit<MsmNote, 'midi.onset' | 'midi.duration'>
+                // Play off the score grid, not off the recording: the recording states itself
+                // in `milliseconds.date` / `milliseconds.date.end`, so dropping those two
+                // leaves `asMIDI` to fall back to the symbolic date.
+                const partial: Partial<AlignedNote> = { ...n }
+                delete partial['milliseconds.date']
+                delete partial['milliseconds.date.end']
+                return partial as Omit<AlignedNote, 'milliseconds.date' | 'milliseconds.date.end'>
             })
 
         if (typeof part === 'number') notes = notes.filter(n => n.part - 1 === part)
@@ -297,7 +306,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
             return
         }
         else if (mode === 'modify') {
-            const noteid = msm.allNotes.find(n => n["midi.velocity"] === segment.velocity && n.date === segment.date.start)?.["xml:id"]
+            const noteid = msm.allNotes.find(n => n.velocity === segment.velocity && n.date === segment.date.start)?.["xml:id"]
             if (!noteid) {
                 return
             }
@@ -461,15 +470,19 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         )
     })
 
+    // `@xml:id` is optional on an espressivo instruction, so the round trip between a drawn
+    // curve and the call that wrote it is guarded. Every `<dynamics>` the chain writes carries
+    // one — `auditInstructions` reports an unnamed instruction as a bug — but a document from
+    // elsewhere need not, and such a curve simply cannot be selected.
     const curves = instructions.map(i => {
         return (
             <CurveSegment
-                active={activeElements.includes(i["xml:id"])}
+                active={i.id !== undefined && activeElements.includes(i.id)}
                 instruction={i}
                 stretchX={stretchX}
                 stretchY={stretchY}
                 onClick={() => {
-                    setActiveElement(i["xml:id"])
+                    if (i.id !== undefined) setActiveElement(i.id)
                 }}
             />
         )

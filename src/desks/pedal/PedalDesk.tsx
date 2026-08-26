@@ -1,17 +1,19 @@
-import { InsertPedal, InsertPedalOptions, MsmPedal, Movement } from "mpmify"
+import { InsertPedal, type InsertPedalOptions } from "../../fitting/transformers/pedal/InsertPedalInstructions"
+import type { AlignedPedal } from "../../fitting/alignment"
+import { getInstructions } from "../../fitting/instructions/index"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MovementSegment } from "./MovementSegment"
 import { useState, useCallback } from "react"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
-import { useSelection } from "../../hooks/SelectionProvider"
+import { useCallSelection } from "../../hooks/CallSelection"
 import { PedalDialog } from "./PedalDialog"
 import { usePiano } from "react-pianosound"
 import { asMIDI } from "../../utils/utils"
 import { useScrollSync } from "../../hooks/ScrollSyncProvider"
 
-export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
-    const { activeElements, setActiveElement } = useSelection();
-    const [currentPedal, setCurrentPedal] = useState<MsmPedal>()
+export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
+    const { activeElements, setActiveElement } = useCallSelection();
+    const [currentPedal, setCurrentPedal] = useState<AlignedPedal>()
 
     const stretchX = useSymbolicZoom()
     const { play, stop } = usePiano()
@@ -33,8 +35,11 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
 
     const stretchY = 30
 
+    // `@controller` is optional on a `<movement>`. Every one this desk draws was written by
+    // `InsertPedal`, which always states it, so the fallback lane exists only so that a
+    // movement from somewhere else is still drawn rather than dropped.
     const movementsByController = Object
-        .groupBy(mpm.getInstructions<Movement>('movement'), m => m.controller)
+        .groupBy(getInstructions(mpm, 'movement'), m => m.controller ?? 'unknown')
 
     return (
         <div>
@@ -42,6 +47,7 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
                 <PedalDialog
                     open={currentPedal !== undefined}
                     pedal={currentPedal}
+                    residual={residual}
                     onClose={() => setCurrentPedal(undefined)}
                     onDone={(options) => {
                         transform(options)
@@ -52,14 +58,19 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
             <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
                 <svg width={msm.end * stretchX} height={400}>
                     {msm.pedals.map(p => {
-                        if (p.tickDate === undefined || !p.tickDuration) return null
+                        // A recorded pedal carries no symbolic date of its own, so where it falls
+                        // on the tick grid is the residual's answer and nothing else's. An
+                        // undefined `tickDate` means the MPM cannot place it yet — no `<tempo>`
+                        // covers it — and an unplaceable pedal is not drawn.
+                        const placed = residual.ofPedal(p)
+                        if (placed?.tickDate === undefined || !placed.tickDuration) return null
 
                         return (
                             <g key={`pedal_${p["xml:id"]}`}>
                                 <rect
-                                    x={p.tickDate * stretchX}
+                                    x={placed.tickDate * stretchX}
                                     y={p.type === 'soft' ? 20 : 0}
-                                    width={p.tickDuration * stretchX}
+                                    width={placed.tickDuration * stretchX}
                                     height={20}
                                     fill='lightblue'
                                     onClick={() => {
@@ -83,7 +94,7 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
                                     strokeWidth={3}
                                     onMouseOver={() => {
                                         const midi = asMIDI(chord)
-                                        if (!midi) return 
+                                        if (!midi) return
 
                                         stop()
                                         play(midi)
@@ -97,6 +108,8 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
                         {Object
                             .entries(movementsByController)
                             .map(([controller, movements], i) => {
+                                if (!movements) return null
+
                                 return (
                                     <g
                                         key={controller}
@@ -114,11 +127,11 @@ export const PedalDesk = ({ msm, mpm, addTransformer }: ScopedTransformerViewPro
                                                 return (
                                                     <MovementSegment
                                                         instruction={{ ...movement, endDate }}
-                                                        key={`movement_${movement["xml:id"]}`}
+                                                        key={`movement_${movement.id}`}
                                                         stretchX={stretchX}
                                                         stretchY={stretchY}
-                                                        onClick={() => setActiveElement(movement["xml:id"])}
-                                                        fill={activeElements.includes(movement["xml:id"]) ? 'orange' : 'lightblue'}
+                                                        onClick={() => movement.id && setActiveElement(movement.id)}
+                                                        fill={movement.id && activeElements.includes(movement.id) ? 'orange' : 'lightblue'}
                                                     />
                                                 )
                                             })}

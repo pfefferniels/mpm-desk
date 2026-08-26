@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { usePiano } from "react-pianosound";
 import { asMIDI } from "../../utils/utils";
-import { ArpeggioPlacement, MsmNote, TemporalSpread } from "mpmify";
+import { onsetSeconds } from "../noteTiming";
+import type { ArpeggioPlacement } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
+import type { AlignedNote } from "../../fitting/alignment";
+import { FrameDomain, type TemporalSpread } from "espressivo";
 
 interface ChordSpreadProps {
-    notes: MsmNote[];
+    notes: AlignedNote[];
     spread?: TemporalSpread;
     placement?: ArpeggioPlacement;
     onClick: () => void;
@@ -16,23 +19,23 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
 
-    let firstOnset = notes[0]['midi.onset'];
-    const lastOnset = notes[notes.length - 1]['midi.onset'];
+    let firstOnset = onsetSeconds(notes[0]);
+    const lastOnset = onsetSeconds(notes[notes.length - 1]);
     let frameLength = lastOnset - firstOnset;
 
-    if (spread && spread["time.unit"] === 'milliseconds') {
-        firstOnset = (firstOnset - spread["frame.start"]) / 1000;
-        frameLength = spread.frameLength / 1000;
+    if (spread && spread.frameDomain === FrameDomain.Milliseconds) {
+        firstOnset = (firstOnset - spread.frameStart) / 1000;
+        frameLength = spread.getFrameLength() / 1000;
     }
 
     let placedLine = 0
     if (!spread) {
         if (placement === 'estimate') {
-            placedLine = notes.reduce((acc, note) => acc + note['midi.onset'], 0) / notes.length;
+            placedLine = notes.reduce((acc, note) => acc + onsetSeconds(note), 0) / notes.length;
         } else if (placement === 'before-beat') {
-            placedLine = notes[notes.length - 1]['midi.onset'];
+            placedLine = onsetSeconds(notes[notes.length - 1]);
         } else if (placement === 'on-beat') {
-            placedLine = notes[0]['midi.onset'];
+            placedLine = onsetSeconds(notes[0]);
         }
     }
 
@@ -63,8 +66,8 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
                 return (
                     <line
                         key={`instantNote_${note['xml:id']}`}
-                        x1={note["midi.onset"] * stretch}
-                        x2={note["midi.onset"] * stretch}
+                        x1={onsetSeconds(note) * stretch}
+                        x2={onsetSeconds(note) * stretch}
                         y1={0}
                         y2={height}
                         stroke='gray'

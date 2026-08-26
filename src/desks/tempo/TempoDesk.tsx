@@ -1,6 +1,9 @@
 import { Button, Stack, ToggleButton } from "@mui/material"
-import { computeMillisecondsAt, SilentOnset, TranslatePhysicalTimeToTicks, MPM, Tempo } from "mpmify"
-import type { TempoWithEndDate } from "mpmify"
+import { computeMillisecondsAt } from "../../fitting/transformers/tempo/tempoCalculations"
+import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
+import { TranslatePhysicalTimeToTicks } from "../../fitting/transformers/tempo/TranslatePhysicalTimeToTicks"
+import { InsertTempo } from "../../fitting/transformers/tempo/InsertTempo"
+import { createMpm, getInstructions, requireMap } from "../../fitting/instructions/index"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import type { SkylineMode } from "./Skyline"
@@ -13,14 +16,25 @@ import { Add, Merge } from "@mui/icons-material"
 import { Ribbon } from "../../components/Ribbon"
 import { createPortal } from "react-dom"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
-import { useSelection } from "../../hooks/SelectionProvider"
+import { useCallSelection } from "../../hooks/CallSelection"
 import { useScrollSync } from "../../hooks/ScrollSyncProvider"
 import { useTimeMapping } from "../../hooks/useTimeMapping"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
 import { MidiFile } from "midifile-ts"
-import { InsertTempo } from "../../transformers/InsertTempo"
+
+/**
+ * The onset of a date the recording does not sound — the second half of a segment the user
+ * split, in seconds, as `work.json` stores it.
+ *
+ * Stated here rather than imported: it is this desk's own editorial input, it never reaches the
+ * chain, and nothing else reads it.
+ */
+export type SilentOnset = {
+    date: number
+    onset: number
+}
 
 export type TempoSecondaryData = {
     tempoCluster?: LocalTempoSegment[]
@@ -29,7 +43,7 @@ export type TempoSecondaryData = {
 }
 
 export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhysicalTimeToTicks | InsertTempo>) => {
-    const { activeElements, setActiveElement } = useSelection()
+    const { activeElements, setActiveElement } = useCallSelection()
     const tempoData = secondary?.tempo
 
     const [tempoCluster, setTempoClusterState] = useState<TempoCluster>(() => {
@@ -101,11 +115,10 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     }
 
     // A <tempo> has no end in MPM: it is in force until the next one, and the last
-    // one until the piece ends. (mpmify writes the same span in
-    // TranslatePhysicalTimeToTicks; it used to be an `endDate` attribute, which was
-    // never part of the format.)
+    // one until the piece ends. (The fitting chain reads the same span through
+    // `resolveSpan`. There is no `endDate` attribute in the format to read instead.)
     useEffect(() => {
-        const tempos = mpm.getInstructions<Tempo>('tempo', part)
+        const tempos = getInstructions(mpm, 'tempo', part)
             .slice()
             .sort((a, b) => a.date - b.date)
         setCommittedTempos(tempos
@@ -114,7 +127,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                 if (!endDate || endDate <= tempo.date) return null
                 return { ...tempo, endDate }
             })
-            .filter((t): t is TempoWithEndDate => t !== null))
+            .filter((t): t is NonNullable<typeof t> => t !== null))
     }, [mpm, msm, part])
 
     useEffect(() => {
@@ -143,22 +156,23 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     const previewTempos = useMemo<TempoWithEndDate[]>(() => {
         if (drawnLines.length === 0) return []
 
-        const scratchMPM = new MPM()
+        const scratchMPM = createMpm()
 
-        // First, apply all existing committed tempos to the scratch MPM
+        // First, apply all existing committed tempos to the scratch MPM, through the
+        // espressivo map. The scratch document is empty and the committed tempos are
+        // unique by date, so a plain add per tempo can overwrite nothing.
+        const scratchTempoMap = requireMap(scratchMPM, 'tempo', part)
         for (const ct of committedTempos) {
-            const tempo: Tempo = {
-                type: 'tempo',
-                'xml:id': ct['xml:id'],
+            scratchTempoMap.addTempo({
+                id: ct.id,
                 date: ct.date,
                 bpm: ct.bpm,
                 beatLength: ct.beatLength,
-                ...(ct['transition.to'] !== undefined ? {
-                    'transition.to': ct['transition.to'],
+                ...(ct.transitionTo !== undefined ? {
+                    transitionTo: ct.transitionTo,
                     meanTempoAt: ct.meanTempoAt
                 } : {})
-            }
-            scratchMPM.insertInstruction(tempo, part, true)
+            })
         }
 
         // Then apply drawn lines as InsertTempo transformers
@@ -179,7 +193,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
             transformer.run(msm, scratchMPM)
         }
 
-        const tempos = scratchMPM.getInstructions<Tempo>('tempo', part)
+        const tempos = getInstructions(scratchMPM, 'tempo', part)
             .slice()
             .sort((a, b) => a.date - b.date)
 
@@ -189,7 +203,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                 if (!endDate || endDate <= tempo.date) return null
                 return { ...tempo, endDate }
             })
-            .filter((t): t is TempoWithEndDate => t !== null)
+            .filter((t): t is NonNullable<typeof t> => t !== null)
     }, [drawnLines, committedTempos, msm, part])
 
     // Use preview tempos if there are drawn lines, otherwise committed tempos
@@ -198,15 +212,23 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     const buildTempoMidi = useCallback((tempo: TempoWithEndDate): MidiFile | undefined => {
         const notes = structuredClone(slice(tempo.date, tempo.endDate))
 
+        // The preview restates the passage under this one <tempo>, so each note is re-timed
+        // from the start of its span. `computeMillisecondsAt` already answers in milliseconds,
+        // which is what the alignment holds, so nothing is divided here; and the second
+        // attribute is an absolute release rather than a length, so it is a second
+        // `computeMillisecondsAt` call rather than the difference of two.
         for (const note of notes) {
             if (note.date >= tempo.date && note.date < tempo.endDate) {
-                note["midi.onset"] = computeMillisecondsAt(note.date, tempo) / 1000
+                note['milliseconds.date'] = computeMillisecondsAt(note.date, tempo)
                 const noteEnd = Math.min(note.date + note.duration, tempo.endDate)
-                note["midi.duration"] = computeMillisecondsAt(noteEnd, tempo) / 1000 - note["midi.onset"]
+                note['milliseconds.date.end'] = computeMillisecondsAt(noteEnd, tempo)
             }
         }
 
+        const CLICK_MS = 10
+
         for (let i = tempo.date; i <= tempo.endDate; i += (tempo.beatLength * 4 * 720) / 2) {
+            const onset = computeMillisecondsAt(i, tempo)
             notes.push({
                 date: i,
                 duration: 5,
@@ -216,13 +238,13 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
                 pitchname: 'C',
                 accidentals: 0,
                 octave: 4,
-                'midi.onset': computeMillisecondsAt(i, tempo) / 1000,
-                'midi.duration': 0.01,
-                'midi.velocity': 80
+                'milliseconds.date': onset,
+                'milliseconds.date.end': onset + CLICK_MS,
+                velocity: 80
             })
         }
 
-        notes.sort((a, b) => (a["midi.onset"] ?? 0) - (b["midi.onset"] ?? 0))
+        notes.sort((a, b) => a['milliseconds.date'] - b['milliseconds.date'])
         return asMIDI(notes)
     }, [slice])
 

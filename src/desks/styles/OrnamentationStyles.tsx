@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
-import { StylizeOrnamentation } from "mpmify";
+import { StylizeOrnamentation } from "../../fitting/transformers/ornamentation/StylizeOrnamentation";
 import { Stack, Box, Typography, Slider, Button } from "@mui/material";
 import { Plot } from "./Plot";
 import { createPortal } from "react-dom";
 import { Ribbon } from "../../components/Ribbon";
 import { DeleteOutline } from "@mui/icons-material";
-import { useSelection } from "../../hooks/SelectionProvider";
+import { useCallSelection } from "../../hooks/CallSelection";
 
 export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
-    const { transformers, removeTransformer } = useSelection()
-    const existingTransformer = transformers.find(t => t.name === 'StylizeOrnamentation')
+    const { calls, removeCall } = useCallSelection()
+    const existingTransformer = calls.find(t => t.name === 'StylizeOrnamentation')
     const [tickTolerance, setTickTolerance] = useState(10)
     const [intensityTolerance, setIntensityTolerance] = useState(0.2)
     const [gradientTolerance, setGradientTolerance] = useState(0.2)
@@ -27,7 +27,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
         tickTolerance,
         intensityTolerance,
         gradientTolerance: 0.2
-    }).generateClusters(mpm.getInstructions('ornament', part))
+    }).clustersOf(mpm, part)
 
     return (
         <div>
@@ -93,7 +93,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
                     {existingTransformer ? (
                         <Button
                             variant='outlined'
-                            onClick={() => removeTransformer(existingTransformer)}
+                            onClick={() => removeCall(existingTransformer.id)}
                             size='small'
                             startIcon={<DeleteOutline />}
                         >

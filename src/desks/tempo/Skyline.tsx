@@ -3,10 +3,12 @@ import { Box } from "./Box"
 import { TempoCluster } from "./Tempo"
 import type { TempoSegment, Onset, DrawnLine } from "./Tempo"
 import { inferBeatLength, beatLengthLabel, findOnsetTick } from "./Tempo"
-import { fitMeanTempoAt, optimizeForElapsedTime } from "mpmify"
+import { fitMeanTempoAt, optimizeForElapsedTime } from "../../fitting/transformers/tempo/tempoCalculations"
 import { TempoLine } from "./TempoLine"
 import HorizontalScale from "./HorizontalScale"
-import type { TempoWithEndDate, MSM } from "mpmify"
+import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
+import type { Alignment } from "../../fitting/alignment"
+import { onsetSeconds } from "../noteTiming"
 import type { MidiFile } from "midifile-ts"
 import type { Scope } from "../TransformerViewProps"
 
@@ -27,7 +29,7 @@ interface SkylineProps {
 
   committedTempos: TempoWithEndDate[]
   silentOnsets: Map<number, number>
-  msm: MSM
+  msm: Alignment
 
   drawnLines: DrawnLine[]
   onDrawLine: (line: DrawnLine) => void
@@ -258,10 +260,17 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
 
       {/* Committed tempo curves */}
       {committedTempos.map((t, i) => {
-        let startTime: number | undefined = msm.notesAtDate(t.date, part)[0]?.['midi.onset']
+        // The skyline is in seconds throughout, and `silentOnsets` already is; the recording
+        // states its onsets in milliseconds, so the conversion goes through `noteTiming`.
+        const recorded = msm.notesAtDate(t.date, part)[0]
+        let startTime: number | undefined = recorded === undefined ? undefined : onsetSeconds(recorded)
         if (startTime === undefined) {
           startTime = silentOnsets.get(t.date)
         }
+
+        // `@xml:id` is optional on an instruction. One without an id cannot be traced back to
+        // the call that wrote it, so it draws but neither lights up nor selects.
+        const id = t.id
 
         return (
           <TempoLine
@@ -270,8 +279,8 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
             startTime={startTime || 0}
             stretchX={stretchX}
             stretchY={stretchY}
-            active={activeElements?.includes(t['xml:id'])}
-            onClick={onActivateElement ? () => onActivateElement(t['xml:id']) : undefined}
+            active={id !== undefined && activeElements?.includes(id)}
+            onClick={onActivateElement && id !== undefined ? () => onActivateElement(id) : undefined}
             onMouseEnter={onPlayTempo ? () => onPlayTempo(committedTempoMidis[i]) : undefined}
             onMouseLeave={onStopTempo}
           />

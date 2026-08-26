@@ -14,7 +14,7 @@ import {
     ToggleButtonGroup,
     Typography
 } from "@mui/material"
-import { InsertMetricalAccentuationOptions } from "mpmify";
+import { InsertMetricalAccentuationOptions } from "../../fitting/transformers/accentuation/InsertMetricalAccentuation";
 import { useState, useEffect } from "react";
 
 interface AccentuationDialogProps {

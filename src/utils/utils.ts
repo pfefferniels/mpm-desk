@@ -1,5 +1,6 @@
 import { AnyEvent, MidiFile } from "midifile-ts";
-import { MsmNote } from "mpmify";
+import type { AlignedNote } from "../fitting/alignment";
+import { onsetSeconds, soundedSeconds } from "../desks/noteTiming";
 
 export const downloadAsFile = (
     content: string | ArrayBuffer | Blob,
@@ -16,7 +17,23 @@ export const downloadAsFile = (
 
 export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
-export const asMIDI = (notes_: PartialBy<MsmNote, 'midi.onset' | 'midi.duration'>[]): MidiFile | undefined => {
+/**
+ * A few notes as an in-memory MIDI file, for a desk to audition on hover.
+ *
+ * One tick is one millisecond (`ticksPerBeat: 1`, `microsecondsPerBeat: 1000`), and every note-on
+ * carries a text meta event holding the note's **symbolic date**. That is a desk-preview
+ * convention and NOT the one `PlaybackProvider` uses — espressivo's render writes the note's
+ * `xml:id` into the same slot. Both are here on purpose, and neither can read the other's.
+ *
+ * ## Absent physical timing means "play it as written"
+ *
+ * A caller that *deletes* `milliseconds.date` before calling gets the passage on the symbolic
+ * grid instead of as recorded, at `date / 1000`. Several desks rely on that to preview a
+ * correction against the score rather than against the roll, so the fallback is load-bearing.
+ */
+export const asMIDI = (
+    notes_: PartialBy<AlignedNote, 'milliseconds.date' | 'milliseconds.date.end'>[],
+): MidiFile | undefined => {
     if (!notes_.length) return
 
     const events: AnyEvent[] = []
@@ -31,18 +48,27 @@ export const asMIDI = (notes_: PartialBy<MsmNote, 'midi.onset' | 'midi.duration'
 
     const notes = notes_
         .reduce((prev, curr) => {
+            // Seconds throughout. The alignment holds milliseconds; `noteTiming` is the one
+            // place that divides, so that the thousandfold error cannot be written here.
+            const at = curr["milliseconds.date"] === undefined
+                ? curr.date / 1000
+                : onsetSeconds(curr as AlignedNote)
+            const held = curr["milliseconds.date.end"] === undefined || curr["milliseconds.date"] === undefined
+                ? curr.duration / 1000
+                : soundedSeconds(curr as AlignedNote)
+
             prev.push({
                 type: 'on',
-                at: curr["midi.onset"] === undefined ? (curr.date / 1000) : curr["midi.onset"],
-                velocity: curr["midi.velocity"],
+                at,
+                velocity: curr.velocity,
                 pitch: curr["midi.pitch"],
                 date: curr.date
             })
 
             prev.push({
                 type: 'off',
-                at: (curr["midi.onset"] === undefined ? (curr.date / 1000) : curr["midi.onset"]) + (curr["midi.duration"] || (curr.duration / 1000)),
-                velocity: curr["midi.velocity"],
+                at: at + held,
+                velocity: curr.velocity,
                 pitch: curr["midi.pitch"],
                 date: curr.date + curr.duration
             })

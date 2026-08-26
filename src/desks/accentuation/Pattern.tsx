@@ -1,8 +1,9 @@
 import { MouseEventHandler, useState } from "react"
-import { Accentuation, AccentuationPattern } from "mpmify"
+import { Instruction } from "../../fitting/instructions/index"
+import { Accentuation } from "./AccentuationDesk"
 
 interface PatternProps {
-    pattern: AccentuationPattern & { scale: number, length: number, children: Accentuation[] }
+    pattern: Instruction<'accentuationPattern'> & { length: number, children: Accentuation[] }
     stretchX: number
     stretchY: number
     getScreenY: (velocity: number) => number
@@ -14,10 +15,14 @@ interface PatternProps {
 export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, onClick, selected }: PatternProps) => {
     const [hovered, setHovered] = useState(false)
 
+    // No test for an absent number: all three are always numbers, because the def fills them in
+    // while parsing. `NaN` does have to be filtered, though: espressivo parses the literal
+    // `NaN` exactly as Java's `Double.parseDouble` does, and one of them would take the whole
+    // `Math.min`/`Math.max` with it.
     const allPositions = pattern.children
-        .map(child => [child.value, child["transition.from"], child["transition.to"]])
+        .map(child => [child.value, child.transitionFrom, child.transitionTo])
         .flat()
-        .filter(n => n !== undefined && !isNaN(n))
+        .filter(n => !isNaN(n))
 
     const posMin = Math.min(...allPositions) * pattern.scale
     const posMax = Math.max(...allPositions) * pattern.scale
@@ -27,8 +32,8 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
     }
 
     return (
-        <g className="pattern" data-id={pattern["xml:id"]} data-ref={pattern["name.ref"]} onClick={onClick}>
-            {pattern["name.ref"] === 'neutral' && (
+        <g className="pattern" data-id={pattern.id} data-ref={pattern.accentuationPatternDefName} onClick={onClick}>
+            {pattern.accentuationPatternDefName === 'neutral' && (
                 <line
                     x1={pattern.date * stretchX}
                     y1={getScreenY(2)}
@@ -69,12 +74,11 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
                     ? (pattern.length + 1)
                     : pattern.children[i + 1].beat
 
-                let from = child.value
-                if (from === undefined) from = child["transition.from"]
-
-                let to = child["transition.to"]
-                if (to === undefined) to = child["transition.from"]
-                if (to === undefined) to = child.value
+                // No fallback needed on either read: the def has already run MPM's own chains
+                // at parse time, filling a missing `@transition.from` from `@value` and a
+                // missing `@transition.to` from `@transition.from`.
+                const from = child.value
+                const to = child.transitionTo
 
                 return (
                     <line

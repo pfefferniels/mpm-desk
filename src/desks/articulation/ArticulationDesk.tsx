@@ -5,19 +5,25 @@ import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
 import { MouseEventHandler, SVGProps, useCallback, useState } from "react"
 import { asMIDI } from "../../utils/utils"
-import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation, MsmNote, Articulation, ArticulationDef } from "mpmify"
+import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation } from "../../fitting/transformers/articulation/index"
+import type { AlignedNote } from "../../fitting/alignment"
+import { getInstructions, getDefinition } from "../../fitting/instructions/index"
+import type { Residual } from "../../fitting/residual"
+import type { ArticulationDef } from "espressivo"
 import { v4 } from "uuid"
 import { UnitDialog } from "./UnitDialog"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useScrollSync } from "../../hooks/ScrollSyncProvider"
-import { useSelection } from "../../hooks/SelectionProvider"
+import { useCallSelection } from "../../hooks/CallSelection"
 import { Ribbon } from "../../components/Ribbon"
 import { createPortal } from "react-dom"
 import { Add } from "@mui/icons-material"
 import { ArticulationOverlay } from "./ArticulationOverlay"
 
 interface ArticulatedNoteProps extends SVGProps<SVGRectElement> {
-    note: MsmNote
+    note: AlignedNote
+    /** What the MPM does not yet explain about this note — where its recorded span went. */
+    residual: Residual
     stretchX: number
     stretchY: number
 
@@ -25,15 +31,26 @@ interface ArticulatedNoteProps extends SVGProps<SVGRectElement> {
     onClick: MouseEventHandler
 }
 
-const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgProps }: ArticulatedNoteProps) => {
+const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected, ...svgProps }: ArticulatedNoteProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
     const [hovered, setHovered] = useState(false)
 
+    const placed = residual.of(note)
+
     const isOnset = note.date
-    const isDuration = note.tickDuration || note["midi.duration"]
+    // The recorded duration on the score grid — this desk's ground, since what it plots is
+    // recorded duration against score duration. `undefined` means the MPM cannot place the note
+    // yet (no `<tempo>` covers it), and a zero-length recorded span is what that is drawn as:
+    // the `Math.max(1, …)` floor below turns it into a sliver at the onset and the solid release
+    // line lands on the onset, which says "nothing measured here" rather than inventing a
+    // release.
+    const isDuration = placed?.tickDuration ?? 0
     const shouldDuration = note.duration
+    // Recorded velocity minus rendered, in MIDI units. It is a bar thickness here and not a
+    // measurement, so `undefined` and a genuine zero collapse to the same minimum below.
+    const velocityResidual = placed?.velocity
 
     const handleMouseOver = () => {
         setHovered(true)
@@ -57,9 +74,9 @@ const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgPr
             <rect
                 data-date={note.date}
                 x={isOnset * stretchX}
-                y={(max - note["midi.pitch"]) * stretchY - (((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)) / 2}
+                y={(max - note["midi.pitch"]) * stretchY - (((velocityResidual || 1) + 2) * (hovered ? 2 : 1)) / 2}
                 width={Math.max(1, ((isOnset + isDuration) * stretchX) - (isOnset * stretchX))}
-                height={((note.absoluteVelocityChange || 1) + 2) * (hovered ? 2 : 1)}
+                height={((velocityResidual || 1) + 2) * (hovered ? 2 : 1)}
                 rx={2}
                 ry={2}
                 onMouseOver={handleMouseOver}
@@ -107,14 +124,14 @@ const ArticulatedNote = ({ note, stretchX, stretchY, onClick, selected, ...svgPr
 }
 
 export type UnitWithDef = {
-    notes: MsmNote[]
+    notes: AlignedNote[]
     aspects: Set<ArticulationProperty>
     name: string
     def?: ArticulationDef
 }
 
-export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
-    const { activeElements, setActiveElement } = useSelection();
+export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
+    const { activeElements, setActiveElement } = useCallSelection();
     const { register, unregister } = useScrollSync();
     const [currentUnit, setCurrentUnit] = useState<UnitWithDef>()
     const [unitDialogOpen, setUnitDialogOpen] = useState(false)
@@ -145,7 +162,7 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
     const stretchX = useSymbolicZoom()
     const stretchY = 8
 
-    const artics = mpm.getInstructions<Articulation>('articulation', part)
+    const artics = getInstructions(mpm, 'articulation', part)
 
     const articulatedNotes = []
     for (const [, notes] of msm.asChords(part)) {
@@ -154,19 +171,20 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
                 return a.noteid?.split(' ').includes(`#${note["xml:id"]}`)
             })
 
-            const active = effectiveArtic && activeElements.includes(effectiveArtic["xml:id"]) || false
+            const active = effectiveArtic?.id !== undefined && activeElements.includes(effectiveArtic.id)
 
             articulatedNotes.push((
                 <ArticulatedNote
                     key={`articulatedNote_${note["xml:id"]}`}
                     note={note}
+                    residual={residual}
                     stretchX={stretchX}
                     stretchY={stretchY}
                     selected={currentUnit?.notes.includes(note) || false}
                     fill={active ? 'red' : effectiveArtic ? 'orange' : 'gray'}
                     onClick={(e) => {
                         if (effectiveArtic) {
-                            setActiveElement(effectiveArtic["xml:id"])
+                            if (effectiveArtic.id) setActiveElement(effectiveArtic.id)
                             return
                         }
 
@@ -204,18 +222,19 @@ export const ArticulationDesk = ({ msm, mpm, part, addTransformer, appBarRef }: 
 
     const allNotes = msm.notesInPart(part)
 
-    const overlays = artics.map(artic => {
-        const def = artic["name.ref"] ? mpm.getDefinition('articulationDef', artic["name.ref"]) as ArticulationDef | null : null
+    const overlays = artics.map((artic, index) => {
+        const def = getDefinition(mpm, 'articulationDef', artic.nameRef)
         return (
             <ArticulationOverlay
-                key={`overlay_${artic["xml:id"]}`}
+                key={`overlay_${artic.id ?? `${artic.date}_${index}`}`}
                 instruction={artic}
                 def={def ?? undefined}
                 notes={allNotes}
+                residual={residual}
                 stretchX={stretchX}
                 stretchY={stretchY}
-                active={activeElements.includes(artic["xml:id"])}
-                onClick={() => setActiveElement(artic["xml:id"])}
+                active={artic.id !== undefined && activeElements.includes(artic.id)}
+                onClick={() => artic.id && setActiveElement(artic.id)}
             />
         )
     })

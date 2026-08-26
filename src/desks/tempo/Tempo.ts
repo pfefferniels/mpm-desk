@@ -1,4 +1,6 @@
-import { MSM, Scope } from "mpmify"
+import type { Alignment } from "../../fitting/alignment"
+import type { Scope } from "../../fitting/instructions/index"
+import { onsetSeconds, soundedSeconds, wasSounded } from "../noteTiming"
 
 export type Range = {
     start: number
@@ -21,17 +23,20 @@ export const asBPM = (dateRange: Range, tickToSeconds?: (tick: number) => number
 
 export type Onset = { date: number }
 
-export const extractOnsets = (msm: MSM, part: Scope): Onset[] => {
+export const extractOnsets = (msm: Alignment, part: Scope): Onset[] => {
     const chords = msm.asChords(part)
     const onsets: Onset[] = []
     for (const [date, notes] of chords) {
-        if (notes[0]?.['midi.onset'] === undefined) continue
+        // A chord the recording never sounded gets no onset tick: the alignment expresses
+        // that as a non-finite `milliseconds.date`, which is what `wasSounded` asks about.
+        const first = notes[0]
+        if (first === undefined || !wasSounded(first)) continue
         onsets.push({ date })
     }
     return onsets.sort((a, b) => a.date - b.date)
 }
 
-export const extractTempoSegments = (msm: MSM, part: Scope) => {
+export const extractTempoSegments = (msm: Alignment, part: Scope) => {
     msm.shiftToFirstOnset()
 
     const segments: TempoSegment[] = []
@@ -41,13 +46,16 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
     let current = iterator.next()
     while (!current.done) {
         const [date, notes] = current.value
-        const onset = notes[0]['midi.onset']
+        const first = notes[0]
 
         current = iterator.next()
         if (current.done) {
             const longest = notes.sort((a, b) => b.duration - a.duration)[0]
 
-            if (longest.duration === 0 || longest['midi.duration'] === 0) {
+            // The recording states a release rather than a length, so the sounded extent is a
+            // subtraction, and `soundedSeconds` is the one place that makes it. A final chord
+            // with no extent gives no segment.
+            if (longest.duration === 0 || soundedSeconds(longest) === 0) {
                 break
             }
 
@@ -65,12 +73,14 @@ export const extractTempoSegments = (msm: MSM, part: Scope) => {
 
         const [nextDate, nextNotes] = current.value
 
-        const nextOnset = nextNotes[0]['midi.onset']
-        if (onset === undefined || nextOnset === undefined) {
+        const next = nextNotes[0]
+        // Same reading as `extractOnsets`: a chord the recording did not sound cannot bound a
+        // segment, and not having sounded is a non-finite `milliseconds.date`.
+        if (first === undefined || next === undefined || !wasSounded(first) || !wasSounded(next)) {
             continue
         }
 
-        if (onset - nextOnset === 0) {
+        if (onsetSeconds(first) - onsetSeconds(next) === 0) {
             continue;
         }
 

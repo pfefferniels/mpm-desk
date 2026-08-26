@@ -1,21 +1,21 @@
 // NotesContext.tsx
-import { MsmNote } from 'mpmify';
+import type { AlignedNote } from '../fitting/alignment';
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 
 interface NotesContextValue {
-    notes: MsmNote[];
-    slice: (start: number, end?: number) => MsmNote[];
+    notes: AlignedNote[];
+    slice: (start: number, end?: number) => AlignedNote[];
 }
 
 const NotesContext = createContext<NotesContextValue | undefined>(undefined);
 
 interface NotesProviderProps {
-    notes: MsmNote[]
+    notes: AlignedNote[]
     children: ReactNode;
 }
 
 // Binary search to find first index where note.date >= target
-function lowerBound(sortedNotes: MsmNote[], target: number): number {
+function lowerBound(sortedNotes: AlignedNote[], target: number): number {
     let lo = 0, hi = sortedNotes.length;
     while (lo < hi) {
         const mid = (lo + hi) >>> 1;

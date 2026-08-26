@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
-import { ArpeggioPlacement, InsertTemporalSpread, Ornament, OrnamentDef, TemporalSpread } from "mpmify";
+import { type ArpeggioPlacement, InsertTemporalSpread } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
+import { getDefinition, getInstructions, type Instruction } from "../../fitting/instructions/index";
+import { FrameDomain, type TemporalSpread } from "espressivo";
+import { onsetSeconds, releaseSeconds } from "../noteTiming";
 import { ChordSpread } from "./ChordSpread";
 import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
 import { createPortal } from "react-dom";
@@ -11,10 +14,10 @@ import { Add, DeleteOutline } from "@mui/icons-material";
 import { TempoVariance } from "./TempoVariance";
 import { TemporalSpreadInstruction } from "./TemporalSpreadInstruction";
 import { useTimeMapping } from "../../hooks/useTimeMapping";
-import { useSelection } from "../../hooks/SelectionProvider";
+import { useCallSelection } from "../../hooks/CallSelection";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
-    const [temporalSpreads, setTemporalSpreads] = useState<(Ornament & { def: TemporalSpread })[]>([])
+    const [temporalSpreads, setTemporalSpreads] = useState<(Instruction<'ornament'> & { def: TemporalSpread })[]>([])
     const [insert, setInsert] = useState(false);
 
     // these are being defined in the drawer
@@ -27,9 +30,9 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
 
     const stretchX = usePhysicalZoom()
     const { tickToSeconds } = useTimeMapping(msm)
-    const { transformers, activeElements, setActiveElement, removeTransformer } = useSelection()
+    const { calls, activeElements, setActiveElement, removeCall } = useCallSelection()
 
-    const defaultTransformer = transformers.find(
+    const defaultCall = calls.find(
         t => t.name === 'InsertTemporalSpread' && !('date' in t.options)
     )
 
@@ -39,7 +42,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
         const firstNote = notes.reduce((a, b) => a.date < b.date ? a : b)
         const lastNote = notes.reduce((a, b) => a.date > b.date ? a : b)
         const totalTicks = lastNote.date - firstNote.date
-        const totalSeconds = lastNote["midi.onset"] - firstNote["midi.onset"]
+        const totalSeconds = onsetSeconds(lastNote) - onsetSeconds(firstNote)
         if (totalSeconds <= 0 || totalTicks <= 0) return 120
         return (totalTicks / beatLength) / (totalSeconds / 60)
     }, [msm, beatLength])
@@ -54,16 +57,17 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
     }, [register, unregister]);
 
     useEffect(() => {
-        const spreads = mpm
-            .getInstructions<Ornament>('ornament', part)
+        const spreads = getInstructions(mpm, 'ornament', part)
             .map(ornament => {
-                const def = mpm.getDefinition('ornamentDef', ornament['name.ref']) as OrnamentDef
+                const def = getDefinition(mpm, 'ornamentDef', ornament.nameRef)
                 return {
                     ...ornament,
-                    def: def?.temporalSpread
+                    // `getTemporalSpread` answers null for a def that has none; the filter below
+                    // tests for absence, so null becomes undefined here.
+                    def: def?.getTemporalSpread() ?? undefined
                 }
             })
-            .filter((spread): spread is (Ornament & { def: TemporalSpread }) => spread.def !== undefined);
+            .filter((spread): spread is (Instruction<'ornament'> & { def: TemporalSpread }) => spread.def !== undefined);
         setTemporalSpreads(spreads);
     }, [mpm, part])
 
@@ -91,7 +95,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
     const height = 250;
     const instructionHeight = 40;
 
-    const tickBasedSpreads = temporalSpreads.filter(s => s.def["time.unit"] === "ticks");
+    const tickBasedSpreads = temporalSpreads.filter(s => s.def.frameDomain === FrameDomain.Ticks);
 
     const chordsByDate = useMemo(() => {
         const map = new Map<number, typeof msm.allNotes>();
@@ -104,7 +108,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
 
     const chords = []
     for (const notes of msm.asChords().values()) {
-        const chordNotes = notes.slice().sort((a, b) => a["midi.onset"] - b["midi.onset"])
+        const chordNotes = notes.slice().sort((a, b) => onsetSeconds(a) - onsetSeconds(b))
         if (!chordNotes.length) continue
 
         const date = chordNotes[0].date
@@ -130,11 +134,11 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                     {appBarRef && createPortal((
                         <>
                             <Ribbon title="Temporal Spread">
-                                {!currentDate && defaultTransformer ? (
+                                {!currentDate && defaultCall ? (
                                     <Button
                                         size='small'
                                         variant='outlined'
-                                        onClick={() => removeTransformer(defaultTransformer)}
+                                        onClick={() => removeCall(defaultCall.id)}
                                         startIcon={<DeleteOutline />}
                                     >
                                         Remove Default
@@ -174,7 +178,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                     ))}
                 </svg>
                 <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
-                    <svg width={Math.max(...msm.allNotes.map(n => n['midi.onset'] + n['midi.duration'])) * stretchX} height={height + instructionHeight + 30}>
+                    <svg width={Math.max(...msm.allNotes.map(releaseSeconds)) * stretchX} height={height + instructionHeight + 30}>
                         <g>
                             {chords}
                         </g>
@@ -185,17 +189,17 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                         />
                         {tickToSeconds && tickBasedSpreads.length > 0 && (
                             <g transform={`translate(0, ${height + 10})`}>
-                                {tickBasedSpreads.map(ornament => (
+                                {tickBasedSpreads.map((ornament, index) => (
                                     <TemporalSpreadInstruction
-                                        key={`spreadInstruction_${ornament["xml:id"]}`}
+                                        key={`spreadInstruction_${ornament.id ?? `${ornament.date}_${index}`}`}
                                         ornament={ornament}
                                         spread={ornament.def}
                                         notes={chordsByDate.get(ornament.date) ?? []}
                                         tickToSeconds={tickToSeconds}
                                         stretch={stretchX}
                                         height={instructionHeight}
-                                        active={activeElements.includes(ornament["xml:id"])}
-                                        onClick={() => setActiveElement(ornament["xml:id"])}
+                                        active={ornament.id !== undefined && activeElements.includes(ornament.id)}
+                                        onClick={() => ornament.id && setActiveElement(ornament.id)}
                                         beatLength={beatLength}
                                         refBPM={averageBPM}
                                     />

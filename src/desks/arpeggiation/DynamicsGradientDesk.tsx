@@ -1,4 +1,7 @@
-import { InsertDynamicsGradient, MSM, MsmNote, Ornament } from "mpmify"
+import { InsertDynamicsGradient } from "../../fitting/transformers/ornamentation/InsertDynamicsGradient"
+import type { Alignment, AlignedNote } from "../../fitting/alignment"
+import { getInstructions, ornamentDraftOf, type Instruction } from "../../fitting/instructions/index"
+import { onsetSeconds, releaseSeconds } from "../noteTiming"
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -10,7 +13,7 @@ import { Add, DeleteOutline } from "@mui/icons-material"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
-import { useSelection } from "../../hooks/SelectionProvider"
+import { useCallSelection } from "../../hooks/CallSelection"
 
 const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
     return (
@@ -46,7 +49,7 @@ const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
 }
 
 type RawGradientProps = {
-    notes: MsmNote[]
+    notes: AlignedNote[]
     onClick: (gradient: { from: number; to: number }) => void
     getY: (velocity: number) => number
 }
@@ -125,23 +128,23 @@ const RawGradient =({ notes, onClick, getY }: RawGradientProps) => {
     )
 }
 
-const getDynamicsExtremes = (notes: MsmNote[]) => {
+const getDynamicsExtremes = (notes: AlignedNote[]) => {
     const softestNote = notes.reduce(
-        (prev, curr) => curr["midi.velocity"] < prev["midi.velocity"] ? curr : prev,
+        (prev, curr) => curr.velocity < prev.velocity ? curr : prev,
         notes[0]
     );
     const loudestNote = notes.reduce(
-        (prev, curr) => curr["midi.velocity"] > prev["midi.velocity"] ? curr : prev,
+        (prev, curr) => curr.velocity > prev.velocity ? curr : prev,
         notes[0]
     );
     return {
-        softest: { vel: softestNote["midi.velocity"], onset: softestNote["midi.onset"] },
-        loudest: { vel: loudestNote["midi.velocity"], onset: loudestNote["midi.onset"] }
+        softest: { vel: softestNote.velocity, onset: onsetSeconds(softestNote) },
+        loudest: { vel: loudestNote.velocity, onset: onsetSeconds(loudestNote) }
     };
 };
 
 
-const Hull =({ msm, part, getY }: { msm: MSM, part: Scope, getY: (velocity: number) => void }) => {
+const Hull =({ msm, part, getY }: { msm: Alignment, part: Scope, getY: (velocity: number) => void }) => {
     const stretchX = usePhysicalZoom()
 
     return Array
@@ -172,8 +175,8 @@ const Hull =({ msm, part, getY }: { msm: MSM, part: Scope, getY: (velocity: numb
 }
 
 type GradientInstructionProps = {
-    notes: MsmNote[]
-    ornament: Ornament
+    notes: AlignedNote[]
+    ornament: Instruction<'ornament'>
     getY: (velocity: number) => number
     active: boolean
     onClick: () => void
@@ -183,13 +186,18 @@ const GradientInstruction = ({ notes, ornament, getY, active, onClick }: Gradien
     const [hovered, setHovered] = useState(false)
     const stretchX = usePhysicalZoom()
 
-    const from = ornament["transition.from"]!
-    const to = ornament["transition.to"]!
+    // The ramp's two ends are not `<ornament>` attributes and never were: MPM keeps them on the
+    // `<dynamicsGradient>` of the def the ornament comes to name. `InsertDynamicsGradient` parks
+    // them on the element until `StylizeOrnamentation` moves them into a real def, and that
+    // parked draft is what this desk reads. `getMPMGradient` has checked both ends are there.
+    const draft = ornamentDraftOf(ornament.element)
+    const from = draft.transitionFrom!
+    const to = draft.transitionTo!
     const scale = ornament.scale || 1
 
     // Post-transformation, all notes share the same "standard" velocity
-    const standard = notes[0]["midi.velocity"]
-    const avgOnset = notes.reduce((sum, n) => sum + n["midi.onset"], 0) / notes.length
+    const standard = notes[0].velocity
+    const avgOnset = notes.reduce((sum, n) => sum + onsetSeconds(n), 0) / notes.length
 
     const lowVel = standard + Math.min(from, to) * scale
     const highVel = standard + Math.max(from, to) * scale
@@ -225,10 +233,10 @@ const GradientInstruction = ({ notes, ornament, getY, active, onClick }: Gradien
 export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [sortVelocities, setSortVelocities] = useState(true)
     const stretchX = usePhysicalZoom()
-    const physicalEnd = Math.max(...msm.allNotes.map(n => n['midi.onset'] + n['midi.duration']))
-    const { transformers, activeElements, setActiveElement, removeTransformer } = useSelection()
+    const physicalEnd = Math.max(...msm.allNotes.map(releaseSeconds))
+    const { calls, activeElements, setActiveElement, removeCall } = useCallSelection()
 
-    const defaultTransformer = transformers.find(
+    const defaultCall = calls.find(
         t => t.name === 'InsertDynamicsGradient' && !('date' in t.options)
     )
 
@@ -271,12 +279,15 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
         return height - (velocity / 100) * height
     }
 
-    const getMPMGradient = (date: number): Ornament | undefined => {
-        const instruction = mpm.getInstructions('ornament', part)
-            .find(i => i.date === date) as Ornament | undefined;
+    const getMPMGradient = (date: number): Instruction<'ornament'> | undefined => {
+        const instruction = getInstructions(mpm, 'ornament', part)
+            .find(i => i.date === date);
         if (!instruction) return
 
-        if (instruction["transition.from"] !== undefined && instruction["transition.to"] !== undefined) {
+        // Only an ornament that already carries both ends of the ramp is a gradient this desk
+        // has drawn; one with a temporal spread and nothing else is not.
+        const draft = ornamentDraftOf(instruction.element)
+        if (draft.transitionFrom !== undefined && draft.transitionTo !== undefined) {
             return instruction
         }
     }
@@ -299,16 +310,16 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                     <Button
                         size='small'
                         onClick={() => {
-                            if (defaultTransformer) {
-                                removeTransformer(defaultTransformer)
+                            if (defaultCall) {
+                                removeCall(defaultCall.id)
                             } else {
                                 transformDefault()
                             }
                         }}
-                        startIcon={defaultTransformer ? <DeleteOutline /> : <Add />}
+                        startIcon={defaultCall ? <DeleteOutline /> : <Add />}
                         variant='outlined'
                     >
-                        {defaultTransformer ? 'Remove Default' : 'Insert Default'}
+                        {defaultCall ? 'Remove Default' : 'Insert Default'}
                     </Button>
                 </Ribbon>
             ), appBarRef?.current ?? document.body)}
@@ -331,8 +342,8 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                                             notes={notes}
                                             ornament={mpmGradient}
                                             getY={getY}
-                                            active={activeElements.includes(mpmGradient["xml:id"])}
-                                            onClick={() => setActiveElement(mpmGradient["xml:id"])}
+                                            active={mpmGradient.id !== undefined && activeElements.includes(mpmGradient.id)}
+                                            onClick={() => mpmGradient.id && setActiveElement(mpmGradient.id)}
                                         />
                                     )
                                 }
