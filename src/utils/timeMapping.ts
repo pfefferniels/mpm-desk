@@ -15,19 +15,19 @@ export function buildLookupTable(
     const seen = new Set<number>();
     const result: [number, number][] = [];
 
-    for (const [tick, seconds] of pairs) {
-        if (seen.has(tick)) continue;
+    // A non-finite pair is refused rather than stored. One `undefined` from a caller reading the
+    // wrong field name is enough to make every interpolation that brackets it return `NaN`, and
+    // a `NaN` in a lookup table surfaces far away — as an SVG with `width="NaN"`, drawn but
+    // invisible, with nothing anywhere near the table to suggest why.
+    const add = (tick: number, seconds: number) => {
+        if (!Number.isFinite(tick) || !Number.isFinite(seconds)) return;
+        if (seen.has(tick)) return;
         seen.add(tick);
         result.push([tick, seconds]);
-    }
+    };
 
-    if (extraPairs) {
-        for (const [tick, seconds] of extraPairs) {
-            if (seen.has(tick)) continue;
-            seen.add(tick);
-            result.push([tick, seconds]);
-        }
-    }
+    for (const [tick, seconds] of pairs) add(tick, seconds);
+    for (const [tick, seconds] of extraPairs ?? []) add(tick, seconds);
 
     if (result.length === 0) return null;
 

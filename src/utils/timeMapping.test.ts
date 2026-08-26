@@ -143,3 +143,27 @@ describe('roundtrip consistency', () => {
         expect(tickToSeconds(table, t)).toBeCloseTo(sec, 5)
     })
 })
+
+describe('buildLookupTable, poisoning', () => {
+    it('refuses a pair whose seconds are not a number', () => {
+        // The failure this prevents: a caller read `entry.seconds` where the file says
+        // `entry.onset`, so every extra pair arrived as `[date, undefined]`. The table built
+        // without complaint and every reading that bracketed one came back NaN.
+        const table = buildLookupTable(
+            [[0, 0], [720, 1]],
+            [[360, undefined as unknown as number]],
+        );
+        expect(table).not.toBeNull();
+        expect(table).toEqual([[0, 0], [720, 1]]);
+        expect(Number.isFinite(tickToSeconds(table!, 360))).toBe(true);
+    });
+
+    it('refuses a pair whose tick is not a number', () => {
+        const table = buildLookupTable([[0, 0], [NaN, 5], [720, 1]]);
+        expect(table).toEqual([[0, 0], [720, 1]]);
+    });
+
+    it('is null when every pair was refused', () => {
+        expect(buildLookupTable([[NaN, NaN]])).toBeNull();
+    });
+});

@@ -1,254 +1,375 @@
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { useLatest } from './hooks/useLatest';
-import { asMSM } from './utils/asMSM';
-import { compareTransformers, getRange, MPM, MSM, ScopedTransformationOptions, Transformer, validate } from 'mpmify';
+import JSZip from 'jszip';
 import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
+import { convertMeiToMsm } from 'espressivo';
+import './App.css';
+
 import { correspondingDesks } from './desks/DeskSwitch';
-import { SecondaryData } from './desks/TransformerViewProps';
-import './App.css'
-import { TransformerStack } from './transformer-stack/TransformerStack';
-import { v4 } from 'uuid';
+import type { SecondaryData } from './desks/TransformerViewProps';
 import { MetadataDesk } from './desks/metadata/MetadataDesk';
+import { SegmentsDesk } from './desks/segments/SegmentsDesk';
 import { NotesProvider } from './hooks/NotesProvider';
 import { ZoomContext } from './hooks/ZoomProvider';
-import { SelectionProvider } from './hooks/SelectionProvider';
+import { CallSelectionProvider } from './hooks/CallSelection';
 import { useMode } from './hooks/ModeProvider';
-import JSZip from 'jszip'
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
+import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { AppMenu } from './components/AppMenu';
 import { AspectSelect } from './components/AspectSelect';
 import { FloatingZoom } from './components/FloatingZoom';
-import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { StartScreen } from './components/StartScreen';
 import { LoadingScreen } from './components/LoadingScreen';
-import { parseWork } from './utils/workImport';
-import { usePipelineRunner } from './hooks/usePipelineRunner';
-import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
-import { findMatchingArgumentation } from './utils/mergeArgumentations';
+import { useEditorFit } from './hooks/useEditorFit';
+import { asMSM } from './fitting/asMSM';
+import type { Alignment } from './fitting/alignment';
+import type {
+    ScopedTransformationOptions,
+    Transformer,
+} from './fitting/transformers/Transformer';
+import { migrateIfNeeded } from './model/loadWork';
+import type { Call, Segment, WorkFile } from './model/Work';
 
-// Legacy transformer names that should map to their current desk entry
+/**
+ * The editor.
+ *
+ * Its own component tree, mounted at `/editor`. The viewer at `/` is a different tree over the
+ * same document and the two are kept apart on purpose — see `main.tsx`.
+ *
+ * Each desk plots what the recording did in one dimension and turns a gesture on that plot into a
+ * transformer call. Below them sits the chain in `src/fitting/`, which runs in a worker over a
+ * document that is a `WorkFile`: a flat list of calls and a flat list of segments.
+ *
+ * ## A new call lands ungrouped
+ *
+ * Grouping is its own step, with its own desk, so a call arrives belonging to nothing and the
+ * segments desk shows it in amber until somebody says what it is for. Folding a new call into
+ * whichever argumentation happens to overlap its range would be convenient, and would write
+ * claims nobody had made.
+ */
+
+/** Legacy transformer names that should still resolve to a desk when a saved call names one. */
 const TRANSFORMER_ALIASES: Record<string, string> = {
-    'ApproximateLogarithmicTempo': 'InsertTempo',
-    'TranslatePhysicalTimeToTicks': 'InsertTempo',
-    'TranslatePhyiscalTimeToTicks': 'InsertTempo',
+    ApproximateLogarithmicTempo: 'InsertTempo',
+    TranslatePhysicalTimeToTicks: 'InsertTempo',
+    TranslatePhyiscalTimeToTicks: 'InsertTempo',
 };
+
+const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [], segments: [] };
 
 export const App = () => {
     const { isEditorMode } = useMode();
 
-    const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
+    const [work, setWork] = useState<WorkFile>(EMPTY_WORK);
+    const [pristine, setPristine] = useState<Alignment | null>(null);
+    const [scoreMsm, setScoreMsm] = useState<string>('');
+    const [mei, setMEI] = useState<string>();
+    const [message, setMessage] = useState<string>();
 
-    const [msm, setMSM] = useState<MSM>(new MSM());
-    const [mpm, setMPM] = useState<MPM>(new MPM());
-    const [mei, setMEI] = useState<string>()
-
-    const [transformers, setTransformers] = useState<Transformer[]>([])
-    const [secondary, setSecondary] = useState<SecondaryData>({})
-    const [metadata, setMetadata] = useState<{ author: string, title: string }>({ author: '', title: '' })
-
-    const [activeTransformerIds, setActiveTransformerIds] = useState<Set<string>>(new Set())
-    const [message, setMessage] = useState<string>()
-
-    const [selectedDesk, setSelectedDesk] = useState<string>('metadata')
+    const [selectedDesk, setSelectedDesk] = useState<string>('metadata');
     const [scope, setScope] = useState<'global' | number>('global');
+    const [activeCallIds, setActiveCallIds] = useState<Set<string>>(new Set());
+    const [stretchX, setStretchX] = useState<number>(20);
 
-    const [stretchX, setStretchX] = useState<number>(20)
+    const appBarRef = useRef<HTMLDivElement>(null);
 
-    const appBarRef = React.useRef<HTMLDivElement>(null);
-    const transformersRef = useLatest(transformers);
+    /**
+     * The desk currently open, and the hold-out its residual must be derived with.
+     *
+     * The hold-out is a correctness requirement rather than a preference — see `DeskSwitch.tsx`.
+     * Reading it here, from the registry, is what saves each desk from having to remember its own.
+     */
+    const deskEntry = useMemo(
+        () =>
+            correspondingDesks.find(
+                (entry) => entry.displayName === selectedDesk || entry.aspect === selectedDesk,
+            ),
+        [selectedDesk],
+    );
 
-    const loadWorkFromJson = useCallback((content: string) => {
-        const parsed = parseWork(content);
-        if (parsed.validationMessages.length) {
-            setMessage(parsed.validationMessages.join('\n'));
+    const { result, mpm, alignment, residual, pending, problems, error } = useEditorFit({
+        work,
+        pristine,
+        holdOut: deskEntry?.holdOut,
+    });
+
+    useEffect(() => {
+        if (problems) setMessage(problems.join('\n'));
+        else if (error) setMessage(error);
+    }, [problems, error]);
+
+    // ── loading ───────────────────────────────────────────────────
+
+    const loadMei = useCallback((content: string) => {
+        setMEI(content);
+        const converted = convertMeiToMsm(content)[0]?.msm;
+        if (!converted) {
+            setMessage('The MEI holds no convertible movement.');
             return;
         }
-        setMessage(undefined);
-        setTransformers(parsed.transformers);
-        setSecondary(parsed.secondary);
-        setMetadata(parsed.metadata);
-    }, [])
-
-    const handleMeiLoaded = useCallback(async (meiContent: string) => {
-        setMEI(meiContent);
-        const result = await asMSM(meiContent);
-        setMSM(result);
-        setInitialMSM(result);
+        setScoreMsm(converted);
+        setPristine(asMSM(content, converted));
     }, []);
 
-    const handleOpenMei = useCallback(async (file: File) => {
-        const content = await file.text();
-        setMEI(content);
-        const result = await asMSM(content);
-        setMSM(result);
-        setInitialMSM(result);
-        document.title = `${file.name} - MPM Desk`;
+    const loadWorkFromJson = useCallback((content: string) => {
+        try {
+            setWork(migrateIfNeeded(content));
+            setMessage(undefined);
+        } catch (reason) {
+            setMessage(reason instanceof Error ? reason.message : String(reason));
+        }
     }, []);
 
-    const handleOpenZip = useCallback(async (file: File) => {
-        const zip = await JSZip.loadAsync(file);
-
-        const meiFile = zip.file('transcription.mei');
-        const jsonFile = zip.file('info.json');
-
-        if (meiFile) {
-            const meiContent = await meiFile.async('string');
-            setMEI(meiContent);
-            const result = await asMSM(meiContent);
-            setMSM(result);
-            setInitialMSM(result);
+    const handleOpenMei = useCallback(
+        async (file: File) => {
+            loadMei(await file.text());
             document.title = `${file.name} - MPM Desk`;
-        }
+        },
+        [loadMei],
+    );
 
-        if (jsonFile) {
-            const jsonContent = await jsonFile.async('string');
-            loadWorkFromJson(jsonContent);
-        }
-    }, [loadWorkFromJson]);
+    const handleOpenZip = useCallback(
+        async (file: File) => {
+            const zip = await JSZip.loadAsync(file);
+            const meiFile = zip.file('transcription.mei');
+            // `work.json` is the current name; older archives carry `info.json`, and those are
+            // worth being able to open.
+            const jsonFile = zip.file('work.json') ?? zip.file('info.json');
 
-    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+            if (meiFile) {
+                loadMei(await meiFile.async('string'));
+                document.title = `${file.name} - MPM Desk`;
+            }
+            if (jsonFile) loadWorkFromJson(await jsonFile.async('string'));
+        },
+        [loadMei, loadWorkFromJson],
+    );
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
-        if (file.name.endsWith('.zip')) {
-            handleOpenZip(file);
-        } else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) {
-            handleOpenMei(file);
-        }
+        if (file.name.endsWith('.zip')) void handleOpenZip(file);
+        else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) void handleOpenMei(file);
     };
 
     const handleFileImport = () => {
-        const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-        fileInput.click();
+        document.getElementById('fileInput')?.click();
     };
 
-    // Manual click: switch desk, update scope, update hash, set selection to single transformer
-    const focusTransformer = useCallback((id: string) => {
-        const transformer = transformersRef.current.find(t => t.id === id);
-        if (!transformer) return;
+    // ── editing the document ──────────────────────────────────────
 
-        const transformerName = TRANSFORMER_ALIASES[transformer.name] ?? transformer.name;
+    /**
+     * What a desk's gesture becomes.
+     *
+     * A desk hands over a constructed `Transformer` and only its three data fields are kept —
+     * a call is a name, an id and its options. It lands in no segment: see the note at the top.
+     */
+    const addTransformer = useCallback((transformer: Transformer) => {
+        const call: Call = {
+            id: transformer.id,
+            name: transformer.name,
+            options: transformer.options as Call['options'],
+        };
+        setWork((current) => ({ ...current, provenance: [...current.provenance, call] }));
+        setActiveCallIds(new Set([call.id]));
+    }, []);
+
+    const removeCalls = useCallback((ids: readonly string[]) => {
+        const dropping = new Set(ids);
+        setWork((current) => ({
+            ...current,
+            provenance: current.provenance.filter((call) => !dropping.has(call.id)),
+            segments: current.segments
+                .map((segment) => ({
+                    ...segment,
+                    calls: segment.calls.filter((id) => !dropping.has(id)),
+                }))
+                // A group emptied of its last call is not a claim about the performance any more.
+                .filter((segment) => segment.calls.length > 0),
+        }));
+    }, []);
+
+    const setSegments = useCallback((segments: Segment[]) => {
+        setWork((current) => ({ ...current, segments }));
+    }, []);
+
+    const setSecondary = useCallback<React.Dispatch<React.SetStateAction<SecondaryData>>>(
+        (update) => {
+            setWork((current) => {
+                const previous = (current.secondary ?? {}) as SecondaryData;
+                const next = typeof update === 'function' ? update(previous) : update;
+                return { ...current, secondary: next as WorkFile['secondary'] };
+            });
+        },
+        [],
+    );
+
+    const secondary = (work.secondary ?? {}) as SecondaryData;
+
+    /**
+     * The title and author, read off and written back through the chain's `InsertMetadata` call.
+     *
+     * They are not editor state beside the document: the runner builds `<metadata>` from whatever
+     * call the chain carries, so anywhere else would be a second copy the next fit ignores.
+     */
+    const metadata = useMemo(() => {
+        const call = work.provenance.find((entry) => entry.name === 'InsertMetadata');
+        const options = call?.options as
+            | { authors?: { text: string }[]; comments?: { text: string }[] }
+            | undefined;
+        return {
+            author: options?.authors?.[0]?.text ?? '',
+            title: options?.comments?.[0]?.text ?? '',
+        };
+    }, [work.provenance]);
+
+    const setMetadata = useCallback<
+        React.Dispatch<React.SetStateAction<{ author: string; title: string }>>
+    >((update) => {
+        setWork((current) => {
+            const existing = current.provenance.find((entry) => entry.name === 'InsertMetadata');
+            const options = existing?.options as
+                | { authors?: { text: string }[]; comments?: { text: string }[] }
+                | undefined;
+            const before = {
+                author: options?.authors?.[0]?.text ?? '',
+                title: options?.comments?.[0]?.text ?? '',
+            };
+            const after = typeof update === 'function' ? update(before) : update;
+            const call: Call = {
+                id: existing?.id ?? crypto.randomUUID(),
+                name: 'InsertMetadata',
+                options: {
+                    authors: after.author ? [{ number: 0, text: after.author }] : [],
+                    comments: after.title ? [{ text: after.title }] : [],
+                },
+            };
+            return {
+                ...current,
+                provenance: existing
+                    ? current.provenance.map((entry) => (entry.id === call.id ? call : entry))
+                    : [...current.provenance, call],
+            };
+        });
+    }, []);
+
+    // ── selection ↔ desk ↔ URL hash ───────────────────────────────
+
+    const callsRef = useRef(work.provenance);
+    callsRef.current = work.provenance;
+
+    /** Switch to the desk that made a call, put the scope on it, and name it in the hash. */
+    const focusCall = useCallback((id: string) => {
+        const call = callsRef.current.find((entry) => entry.id === id);
+        if (!call) return;
+
+        const name = TRANSFORMER_ALIASES[call.name] ?? call.name;
         const entry = correspondingDesks
-            .filter(entry => !!entry.transformer)
-            .find(({ transformer: t }) => t!.name === transformerName);
+            .filter((candidate) => !!candidate.transformer)
+            .find(({ transformer }) => transformer?.name === name);
+        if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
 
-        if (entry) {
-            setSelectedDesk(entry.displayName || entry.aspect);
-        }
+        const options = call.options as Partial<ScopedTransformationOptions>;
+        if (options.scope !== undefined) setScope(options.scope);
 
-        if ('scope' in transformer.options) {
-            setScope((transformer.options as ScopedTransformationOptions).scope);
-        }
+        const prefix = call.id.slice(0, 8);
+        if (window.location.hash.slice(1) !== prefix) history.pushState(null, '', '#' + prefix);
 
-        // Update URL hash
-        const prefix = transformer.id.slice(0, 8);
-        const currentHash = window.location.hash.slice(1);
-        if (currentHash !== prefix) {
-            history.pushState(null, '', '#' + prefix);
-        }
+        setActiveCallIds(new Set([id]));
+    }, []);
 
-        setActiveTransformerIds(new Set([id]));
-    }, [transformersRef]);
-
-    // Hash → Selection: select transformer from URL hash on initial load
     const initialHashSynced = useRef(false);
     useEffect(() => {
-        if (initialHashSynced.current || !transformers.length) return;
-        const hash = window.location.hash.slice(1);
+        if (initialHashSynced.current || !work.provenance.length) return;
         initialHashSynced.current = true;
+        const hash = window.location.hash.slice(1);
         if (!hash) return;
-        const match = transformers.find(t => t.id.startsWith(hash));
-        if (match) {
-            setActiveTransformerIds(new Set([match.id]));
-        }
-    }, [transformers]);
+        const match = work.provenance.find((call) => call.id.startsWith(hash));
+        if (match) setActiveCallIds(new Set([match.id]));
+    }, [work.provenance]);
 
     const onHashChange = useEffectEvent(() => {
         const hash = window.location.hash.slice(1);
         if (!hash) {
-            if (activeTransformerIds.size > 0) {
-                setActiveTransformerIds(new Set());
+            if (activeCallIds.size > 0) {
+                setActiveCallIds(new Set());
                 history.replaceState(null, '', window.location.pathname + window.location.search);
             }
             return;
         }
-        if (activeTransformerIds.size === 1) {
-            const [onlyId] = activeTransformerIds;
-            if (onlyId.startsWith(hash)) return;
+        if (activeCallIds.size === 1) {
+            const [only] = activeCallIds;
+            if (only.startsWith(hash)) return;
         }
-        const match = transformers.find(t => t.id.startsWith(hash));
-        if (match) setActiveTransformerIds(new Set([match.id]));
+        const match = work.provenance.find((call) => call.id.startsWith(hash));
+        if (match) setActiveCallIds(new Set([match.id]));
     });
 
-    // Hashchange listener: support back/forward navigation
     useEffect(() => {
         window.addEventListener('hashchange', onHashChange);
-        return () => window.removeEventListener('hashchange', onHashChange);
+        return () => {
+            window.removeEventListener('hashchange', onHashChange);
+        };
     }, []);
 
     useEffect(() => {
-        // prevent the user from loosing unsaved changes (editor mode only)
-        if (isEditorMode) {
-            window.onbeforeunload = () => ''
-        }
+        // Nothing writes the work file back yet, so every edit is unsaved.
+        if (isEditorMode) window.onbeforeunload = () => '';
     }, [isEditorMode]);
 
-    usePublicWorkLoader({
-        enabled: !isEditorMode,
-        onMeiLoaded: handleMeiLoaded,
-        onWorkLoaded: loadWorkFromJson,
-        onError: (error) => console.error('Failed to load files:', error),
-    });
+    // ── rendering ─────────────────────────────────────────────────
 
-    usePipelineRunner({
-        initialMSM,
-        transformers,
-        metadata,
-        setTransformers,
-        setMSM,
-        setMPM,
-        onValidationError: messages => setMessage(messages.join('\n')),
-        onPipelineError: error => setMessage(error),
-        onPipelineSuccess: () => setMessage(undefined),
-    });
+    const zoomContextValue = useMemo(
+        () => ({
+            symbolic: { stretchX: stretchX / 200 },
+            physical: { stretchX },
+            setStretchX,
+        }),
+        [stretchX],
+    );
 
-    // Auto-merge of overlapping argumentations is now done inside
-    // usePipelineRunner's result handler (same state update as created
-    // array sync), avoiding an extra render cycle per pipeline run.
-
-    const isMetadataSelected = selectedDesk === 'metadata'
-    const DeskComponent = correspondingDesks
-        .find(info => info.displayName === selectedDesk || info.aspect === selectedDesk)?.desk;
-
-    // Memoize context value to prevent unnecessary re-renders of all consumers
-    const zoomContextValue = useMemo(() => ({
-        symbolic: { stretchX: stretchX / 200 },
-        physical: { stretchX: stretchX },
-        setStretchX
-    }), [stretchX]);
-
-    const { tickToSeconds, secondsToTick } = useTimeMapping(msm);
+    const { tickToSeconds, secondsToTick } = useTimeMapping(alignment);
 
     if (isEditorMode && !mei) {
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
     }
-
-    if (initialMSM.allNotes.length === 0) {
-        return <LoadingScreen />;
+    if (!alignment || !mpm || !result || !residual) {
+        return <LoadingScreen message={pending ? 'Running the chain' : undefined} />;
     }
+
+    const isMetadataSelected = selectedDesk === 'metadata';
+    const isSegmentsSelected = deskEntry?.aspect === 'segments';
+    const DeskComponent = deskEntry?.desk;
+
+    const deskProps = {
+        appBarRef: isEditorMode ? appBarRef : null,
+        msm: alignment,
+        mpm,
+        // A desk edits the document by adding a call, never by writing the MSM or MPM in place —
+        // both are outputs of the fit and the next run would overwrite anything set here.
+        setMSM: () => undefined,
+        setMPM: () => undefined,
+        residual,
+        secondary,
+        setSecondary,
+    };
 
     return (
         <ZoomContext value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
-                <PlaybackProvider mei={mei} msm={msm} mpm={mpm}>
-                    <SelectionProvider
-                        activeTransformerIds={activeTransformerIds}
-                        setActiveTransformerIds={setActiveTransformerIds}
-                        transformers={transformers}
-                        setTransformers={setTransformers}
-                        focusTransformer={focusTransformer}
+                <PlaybackProvider
+                    scoreMsm={scoreMsm}
+                    performanceMpm={result.mpm}
+                    dateByNoteId={new Map()}
+                >
+                    <CallSelectionProvider
+                        calls={work.provenance}
+                        outcomes={result.outcomes}
+                        activeCallIds={activeCallIds}
+                        setActiveCallIds={setActiveCallIds}
+                        onRemoveCalls={removeCalls}
+                        focusCall={focusCall}
                     >
                         <ScrollSyncProvider
                             symbolicZoom={zoomContextValue.symbolic.stretchX}
@@ -256,13 +377,16 @@ export const App = () => {
                             tickToSeconds={tickToSeconds}
                             secondsToTick={secondsToTick}
                         >
-                            <AppBar position='static' color='transparent' elevation={1}>
-                                <Stack direction='row' ref={appBarRef} spacing={1} sx={{ p: 1 }}>
+                            <AppBar position="static" color="transparent" elevation={1}>
+                                <Stack direction="row" ref={appBarRef} spacing={1} sx={{ p: 1 }}>
                                     <AppMenu
                                         mei={mei}
-                                        msm={msm}
+                                        msm={alignment}
                                         mpm={mpm}
-                                        transformers={transformers}
+                                        transformers={work.provenance}
+                                        segments={work.segments}
+                                        scoreMsm={scoreMsm}
+                                        outcomes={result.outcomes}
                                         metadata={metadata}
                                         secondary={secondary}
                                         scope={scope}
@@ -270,9 +394,21 @@ export const App = () => {
                                         onFileImport={handleFileImport}
                                         onFileChange={handleFileChange}
                                     />
+                                    {pending && (
+                                        <span
+                                            style={{
+                                                alignSelf: 'center',
+                                                fontSize: 12,
+                                                color: '#b45309',
+                                            }}
+                                        >
+                                            refitting…
+                                        </span>
+                                    )}
                                 </Stack>
                             </AppBar>
-                            <NotesProvider notes={msm.allNotes}>
+
+                            <NotesProvider notes={alignment.allNotes}>
                                 {isMetadataSelected ? (
                                     <MetadataDesk
                                         metadata={metadata}
@@ -280,76 +416,43 @@ export const App = () => {
                                         appBarRef={isEditorMode ? appBarRef : null}
                                         isEditorMode={isEditorMode}
                                     />
-                                ) : DeskComponent && (
-                                    <DeskComponent
-                                        appBarRef={isEditorMode ? appBarRef : null}
-                                        msm={msm}
-                                        mpm={mpm}
-                                        setMSM={setMSM}
-                                        setMPM={setMPM}
-                                        secondary={secondary}
-                                        setSecondary={setSecondary}
-                                        addTransformer={(transformer: Transformer) => {
-                                            setTransformers(prev => {
-                                                const newRange = getRange(transformer.options, msm);
-                                                const existingArg = newRange
-                                                    ? findMatchingArgumentation(prev, newRange, msm)
-                                                    : undefined;
-
-                                                const argumentation = existingArg ?? {
-                                                    note: '',
-                                                    id: `argumentation-${v4().slice(0, 8)}`,
-                                                    conclusion: {
-                                                        certainty: 'plausible' as const,
-                                                        id: `belief-${v4().slice(0, 8)}`,
-                                                        motivation: 'calm' as const,
-                                                    },
-                                                    type: 'simpleArgumentation',
-                                                };
-
-                                                const transformerWithArgumentation = Object.assign(
-                                                    Object.create(Object.getPrototypeOf(transformer)),
-                                                    transformer,
-                                                    { argumentation }
-                                                ) as Transformer;
-
-                                                const newTransformers = [...prev, transformerWithArgumentation].sort(compareTransformers);
-                                                const messages = validate(newTransformers);
-                                                if (messages.length) {
-                                                    setMessage(messages.map(m => m.message).join('\n'));
-                                                    return prev;
-                                                }
-                                                return newTransformers;
-                                            })
-                                        }}
-                                        part={scope}
+                                ) : isSegmentsSelected ? (
+                                    <SegmentsDesk
+                                        {...deskProps}
+                                        segments={work.segments}
+                                        setSegments={setSegments}
+                                        calls={work.provenance}
                                     />
+                                ) : (
+                                    DeskComponent && (
+                                        <DeskComponent
+                                            {...deskProps}
+                                            addTransformer={addTransformer}
+                                            part={scope}
+                                        />
+                                    )
                                 )}
                             </NotesProvider>
 
                             <PinchZoomHandler />
                             <FloatingZoom />
-                            <div style={{ position: 'absolute', left: 0, bottom: 0 }}>
-                                <TransformerStack
-                                    transformers={transformers}
-                                    setTransformers={setTransformers}
-                                    msm={msm}
-                                    mpm={mpm}
-                                    draggable
-                                />
-                            </div>
                         </ScrollSyncProvider>
-                    </SelectionProvider>
+                    </CallSelectionProvider>
                 </PlaybackProvider>
 
-                <AspectSelect
-                    selectedDesk={selectedDesk}
-                    setSelectedDesk={setSelectedDesk}
-                />
+                <AspectSelect selectedDesk={selectedDesk} setSelectedDesk={setSelectedDesk} />
 
-                <Snackbar open={message !== undefined} autoHideDuration={4000} onClose={() => setMessage(undefined)}>
+                <Snackbar
+                    open={message !== undefined}
+                    autoHideDuration={4000}
+                    onClose={() => {
+                        setMessage(undefined);
+                    }}
+                >
                     <Alert
-                        onClose={() => setMessage(undefined)}
+                        onClose={() => {
+                            setMessage(undefined);
+                        }}
                         severity="error"
                         variant="filled"
                         sx={{ width: '40%' }}

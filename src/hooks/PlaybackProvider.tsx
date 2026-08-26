@@ -1,15 +1,46 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { usePiano } from 'react-pianosound';
-import { read, MidiFile } from 'midifile-ts';
-import { MPM, MSM, exportMPM } from 'mpmify';
-import { performMpm, PerformRequest } from '../utils/backendApi';
+import type { AnyEvent } from 'midifile-ts';
+import { renderCached, type RenderRequest, type Rendered } from '../utils/espressivo';
+import { UNIDENTIFIED_NOTE, pickAnchor, renderedRange } from '../utils/anchor';
 import { useZoom } from './ZoomProvider';
 import { useLatest } from './useLatest';
 
-export const EXAGGERATION_MAX = 2.0;
-
 const SKETCH_THRESHOLD = 10;
 const SKETCH_MAX = 1.5;
+
+/**
+ * Minimum spacing between mid-playback updates, shared by the zoom and exaggeration knobs.
+ *
+ * Leading edge, so the first nudge of a drag is audible at once — debouncing on the trailing edge
+ * alone gives a continuous drag no audio change at all until the finger stops. Trailing edge too,
+ * so the value the drag ends on always lands.
+ *
+ * Notes attack roughly every 330 ms in this piece, and an update can only manifest at an attack,
+ * so ten a second is already more than the music can express.
+ */
+const MIN_UPDATE_INTERVAL_MS = 100;
+
+/** How far a slow machine is allowed to stretch that interval, as a multiple of its own cost. */
+const BACKOFF_FACTOR = 3;
+
+/**
+ * How far ahead of the dispatch frontier an anchor must sit.
+ *
+ * Only a hair is needed: `getTransportSeconds()` already reports `currentTime + lookAhead`, so
+ * anything past it provably has not been dispatched. The real spacing between updates comes from
+ * note density, not from this number.
+ */
+const ANCHOR_LEAD_S = 0.02;
+
+/**
+ * How long a preview is left running past the last note its range covers.
+ *
+ * The range ends at the following note's onset, which is where the gesture's last note stops
+ * being the one you are listening to — but it is still ringing, and stopping the transport damps
+ * it. A little tail lets it decay instead of being cut off mid-sound.
+ */
+const PREVIEW_TAIL_MS = 900;
 
 function computeSketchiness(stretchX: number): number {
     if (stretchX >= SKETCH_THRESHOLD) return 1.0;
@@ -17,31 +48,15 @@ function computeSketchiness(stretchX: number): number {
     return 1 + (SKETCH_MAX - 1) * t * t;
 }
 
-function findNoteIdTime(file: MidiFile, noteId: string): number | null {
-    for (const track of file.tracks) {
-        let abs = 0;
-        for (const event of track) {
-            abs += event.deltaTime;
-            if (event.type === 'meta' && event.subtype === 'text' && event.text === noteId) {
-                return abs; // ticks = milliseconds in meico output
-            }
-        }
-    }
-    return null;
-}
-
-function decodeMidiBase64(b64: string): ArrayBuffer {
-    const binary = atob(b64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes.buffer;
-}
-
 interface PlayOptions {
     mpmIds?: string[];
     isolate?: boolean;
     exaggerate?: number;
+    /**
+     * Symbolic tick range to play, instead of the whole piece — a preview of one gesture.
+     * Playback starts at the first note inside it and stops once it is through.
+     */
+    range?: { from: number; to: number };
     onNoteEvent?: (noteId: string, date: number) => void;
 }
 
@@ -49,7 +64,7 @@ export interface PlaybackNoteEvent {
     noteId: string;
     /** Symbolic date (ticks) of the sounding note. */
     date: number;
-    /** True when playback is scoped to specific instructions (mpmIds), e.g. a region preview. */
+    /** True when playback is scoped to specific instructions (mpmIds), e.g. a segment preview. */
     scoped: boolean;
 }
 
@@ -57,7 +72,7 @@ type NoteEventListener = (event: PlaybackNoteEvent) => void;
 
 interface PlaybackContextValue {
     isPlaying: boolean;
-    play: (options?: PlayOptions) => Promise<void>;
+    play: (options?: PlayOptions) => void;
     stop: () => void;
     exaggeration: number;
     setExaggeration: (value: number) => void;
@@ -68,32 +83,40 @@ interface PlaybackContextValue {
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
 interface PlaybackProviderProps {
-    mei: string | undefined;
-    msm: MSM;
-    mpm: MPM;
+    /** The score as MSM XML, i.e. `public/score.msm`. */
+    scoreMsm: string;
+    /** The performance as MPM XML, i.e. `public/performance.mpm`. */
+    performanceMpm: string;
+    /** Note `xml:id` ⇒ symbolic date, for reporting where the playhead is. */
+    dateByNoteId: Map<string, number>;
     children: ReactNode;
 }
 
-export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderProps) => {
-    const { play: playPiano, stop: stopPiano, jumpTo } = usePiano();
+export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, children }: PlaybackProviderProps) => {
+    const piano = usePiano();
     const { stretchX } = useZoom();
     const [isPlaying, setIsPlaying] = useState(false);
     const [exaggeration, setExaggeration] = useState(1.0);
 
-    // Store props and unstable usePiano() references in refs
-    // so downstream callbacks and context value stay stable.
-    const meiRef = useLatest(mei);
-    const msmRef = useLatest(msm);
-    const mpmRef = useLatest(mpm);
-    const playPianoRef = useLatest(playPiano);
-    const stopPianoRef = useLatest(stopPiano);
-    const jumpToRef = useLatest(jumpTo);
+    // Store props and the unstable usePiano() references in refs so downstream callbacks and the
+    // context value stay stable.
+    const scoreMsmRef = useLatest(scoreMsm);
+    const performanceMpmRef = useLatest(performanceMpm);
+    const dateByNoteIdRef = useLatest(dateByNoteId);
+    const stretchXRef = useLatest(stretchX);
+    const pianoRef = useLatest(piano);
 
-    // Track playback state for mid-playback re-rendering
+    // Track playback state for mid-playback updates
     const lastNoteIdRef = useRef<string | null>(null);
     const playOptionsRef = useRef<PlayOptions | undefined>(undefined);
-    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isPlayingRef = useRef(false);
+
+    // Throttle bookkeeping
+    const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** Armed for a `range` preview only; the whole piece plays until something stops it. */
+    const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastUpdateRef = useRef(0);
+    const intervalRef = useRef(MIN_UPDATE_INTERVAL_MS);
 
     const noteEventListenersRef = useRef(new Set<NoteEventListener>());
     const subscribeNoteEvents = useCallback((listener: NoteEventListener) => {
@@ -104,91 +127,188 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
     }, []);
 
     const stop = useCallback(() => {
-        stopPianoRef.current();
+        pianoRef.current.stop();
         setIsPlaying(false);
         isPlayingRef.current = false;
         lastNoteIdRef.current = null;
         playOptionsRef.current = undefined;
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-            debounceTimerRef.current = null;
+        if (throttleTimerRef.current) {
+            clearTimeout(throttleTimerRef.current);
+            throttleTimerRef.current = null;
         }
-    }, [stopPianoRef]);
+        if (stopTimerRef.current) {
+            clearTimeout(stopTimerRef.current);
+            stopTimerRef.current = null;
+        }
+    }, [pianoRef]);
 
-    const stretchXRef = useLatest(stretchX);
+    /**
+     * The one note listener, shared by the initial play and every later splice — a spliced-in
+     * schedule has to keep reporting where the playhead is, and keep the resume anchor current.
+     */
+    const noteListener = useCallback((event: AnyEvent) => {
+        if (event.type !== 'meta' || event.subtype !== 'text') return;
+        // Only identified notes are anchors; `'unknown'` would resolve to nothing and,
+        // on the fallback path, restart the piece from bar 1.
+        if (event.text !== UNIDENTIFIED_NOTE) lastNoteIdRef.current = event.text;
 
-    const startPlayback = useCallback(async (options: PlayOptions | undefined, resumeFromNoteId: string | null) => {
-        const currentMei = meiRef.current;
-        const currentMsm = msmRef.current;
-        const currentMpm = mpmRef.current;
+        const { onNoteEvent, mpmIds } = playOptionsRef.current || {};
+        if (!onNoteEvent && noteEventListenersRef.current.size === 0) return;
+        const date = dateByNoteIdRef.current.get(event.text);
+        if (date === undefined) return;
+        const scoped = mpmIds !== undefined;
+        onNoteEvent?.(event.text, date);
+        noteEventListenersRef.current.forEach(listener => listener({ noteId: event.text, date, scoped }));
+    }, [dateByNoteIdRef]);
 
-        if (!currentMpm || !currentMei) return;
-
-        const { mpmIds, isolate, exaggerate, onNoteEvent } = options || {};
-
-        const request: PerformRequest = {
-            mpm: exportMPM(currentMpm),
-            mei: currentMei,
+    const buildRequest = useCallback((options: PlayOptions | undefined): RenderRequest => {
+        const { mpmIds, isolate, exaggerate } = options || {};
+        const request: RenderRequest = {
+            msm: scoreMsmRef.current,
+            mpm: performanceMpmRef.current,
             sketchiness: computeSketchiness(stretchXRef.current),
         };
-
-        if (exaggerate !== undefined) {
-            request.exaggerate = exaggerate;
-        }
-
+        if (exaggerate !== undefined) request.exaggerate = exaggerate;
         if (mpmIds) {
             request.mpmIds = mpmIds;
             if (request.exaggerate === undefined) request.exaggerate = 1.2;
-            request.exemplify = false;
-            request.context = 0;
             request.isolate = isolate;
         }
+        return request;
+    }, [scoreMsmRef, performanceMpmRef, stretchXRef]);
 
+    /** Where a preview's tick range falls in this particular rendering, if it names one. */
+    const previewRange = useCallback((options: PlayOptions | undefined, rendered: Rendered) => {
+        const range = options?.range;
+        if (!range) return null;
+        return renderedRange(rendered.noteIds, dateByNoteIdRef.current, range.from, range.to);
+    }, [dateByNoteIdRef]);
+
+    /**
+     * Stop a preview once its range has been heard.
+     *
+     * Re-armed against every rendering that gets installed, never carried over: the exaggeration
+     * knob rescales time under a running preview, so how long is left is a property of the
+     * rendering that is playing rather than of the click that started it.
+     */
+    const armPreviewStop = useCallback((heard: { toMs: number } | null) => {
+        if (stopTimerRef.current) {
+            clearTimeout(stopTimerRef.current);
+            stopTimerRef.current = null;
+        }
+        if (!heard) return;
+        const { offset } = pianoRef.current.getSchedule() ?? { offset: 0 };
+        const left = heard.toMs + offset * 1000 - pianoRef.current.getTransportSeconds() * 1000;
+        stopTimerRef.current = setTimeout(() => {
+            stopTimerRef.current = null;
+            stop();
+        }, Math.max(0, left + PREVIEW_TAIL_MS));
+    }, [pianoRef, stop]);
+
+    /**
+     * Install a rendering from the top, discarding whatever was scheduled.
+     *
+     * With `resume`, the piece picks up where the last heard note sits in the *new* rendering —
+     * which is somewhere else entirely, since exaggeration stretches the piece by up to a fifth.
+     * The transport still restarts, so there is a short hole in the rhythm, but nothing is damped:
+     * no `stopAll()` is called on the way through, so the sounding notes ring on. Re-striking the
+     * note it lands on is a no-op while that note is still held.
+     *
+     * Without one, a `range` preview seeks to the head of its range instead of playing from bar 1.
+     */
+    const startPlayback = useCallback((options: PlayOptions | undefined, resume: Rendered | null) => {
         try {
-            const b64 = await performMpm(request);
-            const midiBuffer = decodeMidiBase64(b64);
-            const file = read(midiBuffer);
-
-            // Find resume position if we're re-rendering mid-playback
-            let resumeMs: number | null = null;
-            if (resumeFromNoteId) {
-                resumeMs = findNoteIdTime(file, resumeFromNoteId);
-            }
-
-            const scoped = mpmIds !== undefined;
-            playPianoRef.current(file, (e) => {
-                if (e.type === 'meta' && e.subtype === 'text') {
-                    lastNoteIdRef.current = e.text;
-                    if (onNoteEvent || noteEventListenersRef.current.size > 0) {
-                        const date = currentMsm.getByID(e.text)?.date;
-                        if (date !== undefined) {
-                            onNoteEvent?.(e.text, date);
-                            noteEventListenersRef.current.forEach(listener =>
-                                listener({ noteId: e.text, date, scoped }));
-                        }
-                    }
-                }
-            });
-
-            if (resumeMs !== null) {
-                jumpToRef.current(resumeMs / 1000);
-            }
-
+            const rendered = resume ?? renderCached(buildRequest(options));
+            const noteId = resume ? lastNoteIdRef.current : null;
+            if (!pianoRef.current.play(rendered.file, noteListener)) return;
+            const heard = previewRange(options, rendered);
+            const startMs = noteId === null ? heard?.fromMs : rendered.noteIds.get(noteId);
+            if (startMs !== undefined) pianoRef.current.jumpTo(startMs / 1000);
             setIsPlaying(true);
             isPlayingRef.current = true;
+            armPreviewStop(heard);
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [meiRef, msmRef, mpmRef, stretchXRef, playPianoRef, jumpToRef]);
+    }, [armPreviewStop, buildRequest, noteListener, pianoRef, previewRange]);
 
-    const play = useCallback(async (options?: PlayOptions) => {
-        stopPianoRef.current();
+    const play = useCallback((options?: PlayOptions) => {
         lastNoteIdRef.current = null;
         playOptionsRef.current = options;
-        await startPlayback(options, null);
-    }, [stopPianoRef, startPlayback]);
+        lastUpdateRef.current = Date.now();
+        startPlayback(options, null);
+    }, [startPlayback]);
 
-    // Re-render on zoom change during playback (debounced)
+    /**
+     * Swap in a rendering at the new knob position without stopping the transport.
+     *
+     * The transport never stops: the two renderings are glued at the next note onset, so nothing
+     * before the seam is disturbed and nothing is struck twice. Stopping the piano to re-render
+     * and seek back in would damp every sounding note and every bit of pedal resonance and then
+     * re-strike the note it landed on, which makes moving the knob sound like an event rather
+     * than like a value moving.
+     */
+    const applyUpdate = useCallback(() => {
+        lastUpdateRef.current = Date.now();
+        if (!isPlayingRef.current) return;
+
+        const startedAt = performance.now();
+        const options = playOptionsRef.current;
+
+        let rendered: Rendered;
+        try {
+            rendered = renderCached(buildRequest(options));
+        } catch (error) {
+            console.error('Playback error:', error);
+            return;
+        }
+
+        const { splice, canSplice, getSchedule, getTransportSeconds } = pianoRef.current;
+        const schedule = getSchedule();
+        if (canSplice && schedule) {
+            const notBefore = Math.max(getTransportSeconds() + ANCHOR_LEAD_S, schedule.from);
+            const anchor = pickAnchor(schedule, rendered.noteIds, notBefore);
+            // Past the last note the two renderings share, there is nothing to glue: let the
+            // current one play out rather than reaching for a restart at the very end.
+            if (!anchor) return;
+
+            const result = splice({ events: rendered.events, anchor, cb: noteListener });
+            if (result.ok) {
+                // The seam rescales what is left, so a preview's remaining time is re-read here.
+                armPreviewStop(previewRange(options, rendered));
+                intervalRef.current = Math.max(
+                    MIN_UPDATE_INTERVAL_MS,
+                    (performance.now() - startedAt) * BACKOFF_FACTOR,
+                );
+                return;
+            }
+            // The playhead outran the anchor, or the anchor went backwards: nothing was cancelled,
+            // so simply try again on the next tick with a fresh one.
+            if (result.reason === 'stale' || result.reason === 'backwards') return;
+        }
+
+        // No seamless path (hardware output, or samples still loading): restart and seek back in,
+        // without a `stopAll()` on the way, which would damp everything sounding.
+        startPlayback(options, rendered);
+    }, [armPreviewStop, buildRequest, noteListener, pianoRef, previewRange, startPlayback]);
+
+    const scheduleUpdate = useCallback(() => {
+        if (!isPlayingRef.current) return;
+        const wait = lastUpdateRef.current + intervalRef.current - Date.now();
+        if (wait <= 0) {
+            applyUpdate();
+            return;
+        }
+        // A trailing call is already armed; it reads the refs at fire time, so it picks up
+        // whatever the drag has reached by then.
+        if (throttleTimerRef.current) return;
+        throttleTimerRef.current = setTimeout(() => {
+            throttleTimerRef.current = null;
+            applyUpdate();
+        }, wait);
+    }, [applyUpdate]);
+
+    // Re-render on zoom change during playback
     const prevStretchXRef = useRef(stretchX);
     useEffect(() => {
         const prev = prevStretchXRef.current;
@@ -197,16 +317,20 @@ export const PlaybackProvider = ({ mei, msm, mpm, children }: PlaybackProviderPr
         if (!isPlayingRef.current) return;
         // Skip if sketchiness didn't actually change
         if (computeSketchiness(prev) === computeSketchiness(stretchX)) return;
+        scheduleUpdate();
+    }, [stretchX, scheduleUpdate]);
 
-        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = setTimeout(() => {
-            debounceTimerRef.current = null;
-            if (!isPlayingRef.current) return;
-            const noteId = lastNoteIdRef.current;
-            stopPianoRef.current();
-            startPlayback(playOptionsRef.current, noteId);
-        }, 300);
-    }, [stretchX, startPlayback, stopPianoRef]);
+    // Re-render on exaggeration change during playback
+    const prevExaggerationRef = useRef(exaggeration);
+    useEffect(() => {
+        const prev = prevExaggerationRef.current;
+        prevExaggerationRef.current = exaggeration;
+
+        if (!isPlayingRef.current || prev === exaggeration) return;
+        // Carry the new value into the next rendering; scoping (mpmIds/isolate) stays as-is.
+        playOptionsRef.current = { ...playOptionsRef.current, exaggerate: exaggeration };
+        scheduleUpdate();
+    }, [exaggeration, scheduleUpdate]);
 
     const value = useMemo(() => ({
         isPlaying,
