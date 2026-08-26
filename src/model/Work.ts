@@ -6,10 +6,11 @@
  * - **`provenance`** — the calls, in the order they ran, each with the options it ran with.
  *   This is the reconstructible half: rebuild the chain out of it, run it over the same MEI, and
  *   the same MPM comes back.
- * - **`segments`** — how those calls group into stretches of the performance, and why they
- *   belong together.
+ * - **`segments`** — what the reconstruction claims, one entry per claim. A segment holds prose
+ *   and nothing else; which instructions it covers is read off {@link Call.segment}, which is
+ *   where the link lives.
  *
- * A group says what it claims in its own words, in {@link Segment.note}. There is no controlled
+ * A claim says what it claims in its own words, in {@link Segment.note}. There is no controlled
  * vocabulary behind it: a fixed set of motivations is a worse version of the prose a
  * reconstruction already writes, and a placeholder that reads like a real word cannot be told
  * from one on the page.
@@ -67,47 +68,79 @@ export interface Call {
      * know which is which.
      */
     range?: { from: number; to: number | null };
+
+    /**
+     * The {@link Segment} this call's instructions are claimed under. Absent while it is claimed
+     * under none, which is what a call made a moment ago looks like.
+     *
+     * **This is the link, and it points this way round on purpose.** What an editor groups is
+     * MPM instructions — a `<tempo>`, the two ends of a dynamics ramp — and this is the only
+     * place that says which claim an instruction serves, because nothing else can:
+     *
+     * - The instruction cannot. A `<tempo>`'s attributes say what it does to the sound and
+     *   nothing about why. Writing the segment into it as `@corresp` is what the JSON-LD file
+     *   did, and it puts editorial grouping inside the performance document.
+     * - Its date cannot. The claims overlap heavily — 195 overlapping pairs in the shipped
+     *   reconstruction, 78 of them nested, „Intensivieren" sitting inside „Hinspielen zur 1" —
+     *   so a tick names no single segment.
+     *
+     * So it is recorded, and recorded here rather than as a list of element ids on the segment.
+     * A call is the unit that writes a gesture — `InsertPedal` writes a press as `_start` plus
+     * `_moveDown`, `InsertDynamicsInstructions` writes the two ends of one ramp — so a list on
+     * the segment would be able to express splitting those, which is not a thing anyone wants,
+     * at the price of a second copy of what {@link Call.elements} already says.
+     *
+     * A call that writes no instruction — `Modify`, `MakeChoice`, `InsertMetadata` — may carry
+     * one and contributes nothing to the narrative regardless, because the narrative is built
+     * from elements and it has none. It is excluded by having nothing to show rather than by
+     * anyone keeping a list of which transformers count.
+     */
+    segment?: string;
 }
 
 /**
- * A stretch of the performance a group of calls accounts for.
+ * A claim the reconstruction makes about a stretch of the performance.
  *
- * It holds only the grouping and what the group claims. What the calls *did* is recorded on the
- * calls themselves ({@link Call.elements}, {@link Call.range}). A union of them here would be
- * the same facts at a coarser grain, free to disagree with the finer ones.
+ * Editorial content and nothing else. It names no members: which instructions a claim covers is
+ * read the other way, off {@link Call.segment} and through {@link Call.elements}, so that the
+ * same fact is written once. What the calls *did* — what they wrote, where they acted — stays on
+ * the calls, and a list here would be the same facts at a coarser grain, free to disagree with
+ * the finer ones.
  */
 export interface Segment {
     id: string;
     /**
-     * What the gesture is, in a word or two: „Nachschlag schattieren", „Hineinfallen",
-     * „Nachlauschen", „mit Inegalité vorwärts zum b".
+     * The narrative: what is going on in the performer's head here, in the reconstruction's own
+     * words. „Nachschlag schattieren", „Hineinfallen", „mit Inegalité vorwärts zum b".
      *
-     * This is the label the tree of words shows, and the reason a reader can see the shape of a
-     * reconstruction without reading a single option. It came from the old
-     * `argumentation.conclusion.note` — 96 of 136 segments carry one, averaging 29 characters.
+     * **The only thing a segment says about itself.** It is the label the tree of words shows,
+     * and the reason a reader can see the shape of a reconstruction without reading a single
+     * option. It came from the old `argumentation.conclusion.note`; the old
+     * `argumentation.note`, a second field for longer editorial prose, was folded into it — three
+     * entries, and two of them read as the same sentence continued („Großangelegtes Decrescendo
+     * — der dynamische Verlauf folgt dem Tonhöhenverlauf"). Two fields for one narrative meant
+     * deciding, per sentence, which kind of writing it was; there is one, and the drawing writes
+     * all of it.
+     *
+     * The tree sets it along a branch at whatever length it runs to, so a long one is a long
+     * branch — see `segment-stack/words.ts`.
      */
     note?: string;
     /**
-     * The longer editorial commentary: why this reading, or what the source could not settle.
+     * The id of the segment this one picks up from, where the gesture runs on across a break.
      *
-     * A different kind of writing from {@link Segment.note} and kept apart from it for that
-     * reason — "Die Dynamik unterschreitet hier vermutlich den Rahmen des Welte-Systems. Sie
-     * wurde daher an die Pegelverhältnisse der akustischen Aufnahme (1913) angepasst." is an
-     * apparatus entry, not a label, and putting it on the tree would make one branch a
-     * paragraph. Three segments carry one.
-     */
-    commentary?: string;
-    /**
-     * The id of the segment this one continues, where the gesture runs on across a break.
+     * **Recorded, not used.** Nothing reads it: the viewer dropped chaining when the words
+     * arrived — one word per segment leaves nothing to merge — and the projection stopped
+     * carrying it when that became clear. It stays in the file because it is thirteen recorded
+     * editorial judgements, migrated out of the JSON-LD `continue` and checked to resolve; a
+     * format that drops what it has no current use for is a format that loses scholarship.
      *
      * A link between segments, not a flag on a call — and specifically **not** espressivo's
      * `ApproximateLogarithmicTempo.continue`, which is a boolean option on one transformer that
-     * this reconstruction never uses. Thirteen segments carry one, and two of them name the same
-     * predecessor, so it is a forest rather than a chain: read it as "picks up from", not "next".
+     * this reconstruction never uses. Two of the thirteen name the same predecessor, so it is a
+     * forest rather than a chain: read it as "picks up from", not "next".
      */
     continues?: string;
-    /** The `id`s of the {@link Call}s in `provenance` that make it up. */
-    calls: string[];
 }
 
 export interface WorkFile extends Work {

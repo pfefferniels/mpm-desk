@@ -35,7 +35,19 @@ const PUNCTUATION = "#9ca3af";
  * opaque score ids, which is a different question ("on which notes?") than this pane
  * answers and would fill it on its own.
  */
-const CLERICAL = new Set(["xml:id", "id", "date", "endDate", "corresp", "noteid", "xml:base"]);
+const CLERICAL = new Set([
+    "xml:id",
+    "id",
+    "date",
+    "endDate",
+    "corresp",
+    "noteid",
+    "xml:base",
+    // Not an attribute anyone wrote: espressivo's serializer re-declares the MPM namespace on
+    // whatever element it is handed, so quoting one standalone puts a URL in front of the first
+    // thing it actually says.
+    "xmlns",
+]);
 
 /** How many decimals a value is worth reading to. */
 const DECIMALS = 3;

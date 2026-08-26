@@ -50,7 +50,7 @@ export interface CallSelectionValue {
     callForElement: (elementId: string) => string | undefined;
     removeCall: (id: string) => void;
     removeActiveCalls: () => void;
-    /** Scroll the segments desk to a call, so selecting in one place shows it in the other. */
+    /** Scroll the narrative desk to a call, so selecting in one place shows it in the other. */
     focusCall: (id: string) => void;
 }
 

@@ -50,11 +50,21 @@ describe('the shipped reconstruction, migrated', () => {
         expect(work.segments.map(segment => segment.id)).toEqual(argumentations.map(a => a.id))
     })
 
-    it('partitions the provenance: every call in exactly one segment', () => {
-        const claimed = work.segments.flatMap(segment => segment.calls)
-        expect(claimed).toHaveLength(work.provenance.length)
-        expect(new Set(claimed).size).toBe(claimed.length)
-        expect(new Set(claimed)).toEqual(new Set(work.provenance.map(call => call.id)))
+    it('partitions the provenance: every call names exactly one segment', () => {
+        // The link points from the call, so "exactly one" is the shape of the field rather than
+        // something to check. What is worth checking is that every call got one and that every
+        // one of them resolves — an argumentation naming a call twice is refused elsewhere.
+        const named = work.provenance.map(call => call.segment)
+        expect(named.filter(id => id === undefined)).toHaveLength(0)
+        expect(new Set(named)).toEqual(new Set(work.segments.map(segment => segment.id)))
+    })
+
+    it('leaves the segment itself holding prose and nothing else', () => {
+        for (const segment of work.segments)
+            expect(Object.keys(segment).sort()).toEqual(
+                expect.arrayContaining(['id']),
+            )
+        expect(work.segments.some(segment => 'calls' in segment)).toBe(false)
     })
 
     it('records what each call wrote, on the call', () => {
@@ -101,10 +111,12 @@ describe('what the ontology carried that is now dropped', () => {
 
     it('leaves a group that named itself alone, and words the forty that did not', () => {
         const { work: dropped } = migrateWork(JSON.parse(source));
-        const stated = new Set(
-            argumentations.map((a) => (a.conclusion.note ?? '').trim()).filter(Boolean),
+        // By whether the group stated anything, not by whether its note matches something stated:
+        // three notes carry a folded second field after an em-dash and match nothing verbatim.
+        const wordless = new Set(
+            argumentations.filter((a) => !(a.conclusion.note ?? '').trim()).map((a) => a.id),
         );
-        const filled = dropped.segments.filter((segment) => !stated.has(segment.note ?? ''));
+        const filled = dropped.segments.filter((segment) => wordless.has(segment.id));
 
         expect(filled).toHaveLength(40);
         expect(dropped.segments.length - filled.length).toBe(96);
@@ -130,7 +142,10 @@ describe('what the ontology carried that is still read', () => {
         for (const a of argumentations) {
             const stated = a.conclusion.note?.trim()
             if (!stated) continue
-            expect(segmentById.get(a.id)?.note, `segment ${a.id}`).toBe(stated)
+            // Three of them also carried the second prose field, which is folded on after an
+            // em-dash rather than filed apart; the stated word survives at the head either way.
+            const expected = a.note?.trim() ? `${stated} — ${a.note.trim()}` : stated
+            expect(segmentById.get(a.id)?.note, `segment ${a.id}`).toBe(expected)
         }
         const notes = work.segments.map(segment => segment.note ?? '').join('\n')
         expect(notes).toContain('schattieren')
@@ -138,13 +153,17 @@ describe('what the ontology carried that is still read', () => {
         expect(notes).toContain('Nachlauschen')
     })
 
-    it('keeps the editorial prose apart, under commentary', () => {
-        expect(report.segmentsWithCommentary).toBe(3)
-        const commentaries = work.segments.flatMap(segment => segment.commentary ?? [])
-        expect(commentaries.some(commentary => commentary.includes('Welte-Systems'))).toBe(true)
-        // The long one is apparatus, not a label: it would make one branch of the tree a
-        // paragraph if it went into `note`.
-        expect(Math.max(...commentaries.map(commentary => commentary.length))).toBeGreaterThan(100)
+    it('folds the second prose field into the one thing a segment says', () => {
+        expect(report.foldedCommentaries).toBe(3)
+        expect(work.segments.some(segment => 'commentary' in segment)).toBe(false)
+
+        // All three sit on a segment that already had a word, and two of them read as that
+        // word's sentence continued.
+        const notes = work.segments.map(segment => segment.note ?? '')
+        expect(notes).toContain(
+            'Großangelegtes Decrescendo — der dynamische Verlauf folgt dem Tonhöhenverlauf',
+        )
+        expect(notes.some(note => note.includes(' — '))).toBe(true)
     })
 
 

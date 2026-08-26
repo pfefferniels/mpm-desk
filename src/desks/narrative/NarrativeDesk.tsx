@@ -1,0 +1,316 @@
+import { useCallback, useMemo, useState } from 'react';
+import { v4 } from 'uuid';
+import { getInstructions } from '../../fitting/instructions/index';
+import { PULSES_PER_QUARTER } from '../../fitting/ppq';
+import { useCallSelection } from '../../hooks/CallSelection';
+import type { ViewProps } from '../TransformerViewProps';
+import type { Call, Segment } from '../../model/Work';
+import type { Segment as Gestures } from '../../model/Reconstruction';
+import { readPerformance } from '../../utils/mpm';
+import { pointSpanFallback } from '../../segment-stack/StackModel';
+import { SegmentRow } from './SegmentRow';
+import type { Instruction } from './InstructionChips';
+import { gatherInstructions } from './gather';
+import { UngroupedInstructions } from './UngroupedInstructions';
+
+/**
+ * The narrative: grouping MPM instructions into claims, and saying what each claim says.
+ *
+ * A separate step, and a separate desk. The other desks answer "what did the performer do here";
+ * this one answers "what am I claiming, and which of the performance is the claim about". Those
+ * are different jobs, so they get different views.
+ *
+ * **This is a working view, not a reading one.** The tree of curved words is the viewer's, and it
+ * is the right shape for reading a finished argument — one word per claim, laid over the piece.
+ * It is the wrong shape for assigning: you cannot see which instructions a claim covers, which
+ * belong to nothing, or what the document says at any of them. So this is a table. Rows are
+ * claims, in score order; each row draws its gestures and lists the instructions they are made
+ * of; ungrouped instructions sit in their own list at the bottom, impossible to miss.
+ *
+ * ## What is grouped, and what is stored
+ *
+ * What is grouped is instructions. What is stored is `Call.segment` — the calls name the claim,
+ * not the other way round, so the link is written once and where it cannot go stale. Everything
+ * this desk shows about a claim is read through that: claim → its calls → what they wrote.
+ *
+ * The consequence worth knowing is that **a call's instructions move together.** That is not a
+ * limitation working around the storage; it is what a call is. `InsertPedal` writes a press as
+ * `_start` plus `_moveDown` and `InsertDynamicsInstructions` writes the two ends of one ramp, and
+ * a claim about half a ramp is not a claim anybody makes. Where a pedal genuinely divides, it is
+ * already two calls.
+ *
+ * A call that writes no instruction — `Modify`, `MakeChoice`, `InsertMetadata` — appears nowhere
+ * in this desk. It may carry a `segment` and it contributes nothing regardless, because what a
+ * claim covers is built from instructions and it has none. That is the whole of "these are not
+ * part of the narrative": they are left out by having nothing to show.
+ *
+ * ## Why the run is handed in twice over
+ *
+ * A row draws what its claim covers, and it draws it with the viewer's own component — so it
+ * needs the run in the two shapes that component reads: {@link NarrativeDeskProps.projected},
+ * which is the work file's claims projected onto the ticks their calls acted on, and a
+ * `PerformanceReader` over the finished document, which is where a curve is sampled from and an
+ * instruction quoted from. Both come out of the same fit as the `mpm` every desk gets; neither is
+ * derivable from it alone, because a span's reach is reported by the call rather than written on
+ * the instruction.
+ */
+export interface NarrativeDeskProps extends ViewProps {
+    segments: Segment[];
+    setSegments: (next: Segment[]) => void;
+    /** Put calls under a claim — an existing one, a new one, or none. */
+    groupCalls: (callIds: readonly string[], segment: Segment | null) => void;
+    dissolveSegment: (segmentId: string) => void;
+    calls: readonly Call[];
+    /**
+     * The claims as the last run projected them — one entry per claim that still has a gesture in
+     * the document, keyed by the same id.
+     */
+    projected: readonly Gestures[];
+    /** The finished performance as XML, read here into what the drawings sample from. */
+    performanceXml: string;
+}
+
+export const NarrativeDesk = ({
+    msm,
+    mpm,
+    segments,
+    setSegments,
+    groupCalls,
+    dissolveSegment,
+    calls,
+    projected,
+    performanceXml,
+}: NarrativeDeskProps) => {
+    const { activeCallIds, setActiveCallIds, toggleActiveCall } = useCallSelection();
+    const [filter, setFilter] = useState('');
+
+    /**
+     * The document read the way the drawings read it, once per fit.
+     *
+     * Parsing the MPM again rather than reusing the `Mpm` every desk is handed: the reader
+     * resolves styles, span ends and Bézier control points, and it is the thing the viewer's
+     * component takes. It costs about ten milliseconds on a document of this size, and only
+     * while this desk is open.
+     */
+    const performance = useMemo(
+        () =>
+            readPerformance(performanceXml, {
+                ppq: PULSES_PER_QUARTER,
+                denominator: msm.timeSignature?.denominator ?? 4,
+            }),
+        [performanceXml, msm],
+    );
+
+    const beatLength = (4 * performance.meter.ppq) / performance.meter.denominator;
+
+    /** A claim acting on a single point still has to be drawn over something. */
+    const minPointSpan = useMemo(() => pointSpanFallback([...projected]), [projected]);
+
+    const gesturesById = useMemo(
+        () => new Map(projected.map((segment) => [segment.id, segment])),
+        [projected],
+    );
+
+    /** Element id ⇒ what kind of instruction it is; absent means the document no longer holds it. */
+    const typeById = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const instruction of getInstructions(mpm)) {
+            if (instruction.id !== undefined) map.set(instruction.id, instruction.type);
+        }
+        return map;
+    }, [mpm]);
+
+    const { bySegment, ungrouped } = useMemo(
+        () => gatherInstructions(segments, calls, typeById),
+        [segments, calls, typeById],
+    );
+
+    const callById = useMemo(() => new Map(calls.map((call) => [call.id, call])), [calls]);
+
+    /**
+     * Claims in score order.
+     *
+     * By the earliest tick any of their calls acts at, not by their position in the file: the
+     * file records them in the order they were made, and a reconstruction is worked on out of
+     * order. A claim whose instructions have all been overwritten sorts last rather than at zero.
+     */
+    const ordered = useMemo(() => {
+        const froms = new Map<string, number>();
+        for (const call of calls) {
+            if (call.segment === undefined || call.range === undefined) continue;
+            const current = froms.get(call.segment);
+            if (current === undefined || call.range.from < current)
+                froms.set(call.segment, call.range.from);
+        }
+        return [...segments]
+            .map((segment) => ({
+                segment,
+                at: froms.get(segment.id) ?? Number.POSITIVE_INFINITY,
+            }))
+            .sort((a, b) => a.at - b.at);
+    }, [segments, calls]);
+
+    const visible = useMemo(() => {
+        const needle = filter.trim().toLowerCase();
+        if (!needle) return ordered;
+        return ordered.filter(({ segment }) =>
+            (segment.note ?? '').toLowerCase().includes(needle),
+        );
+    }, [ordered, filter]);
+
+    const patch = useCallback(
+        (id: string, changes: Partial<Segment>) => {
+            setSegments(
+                segments.map((segment) =>
+                    segment.id === id ? { ...segment, ...changes } : segment,
+                ),
+            );
+        },
+        [segments, setSegments],
+    );
+
+    const assignTo = useCallback(
+        (segment: Segment) => {
+            groupCalls([...activeCallIds], segment);
+        },
+        [activeCallIds, groupCalls],
+    );
+
+    const newSegment = useCallback(() => {
+        groupCalls([...activeCallIds], { id: v4() });
+        setActiveCallIds(new Set());
+    }, [activeCallIds, groupCalls, setActiveCallIds]);
+
+    /** How many instructions the selection stands for — a call moves everything it wrote. */
+    const selectedInstructions = useMemo(
+        () =>
+            [...activeCallIds].reduce(
+                (total, id) =>
+                    total +
+                    (callById.get(id)?.elements ?? []).filter((element) => typeById.has(element))
+                        .length,
+                0,
+            ),
+        [activeCallIds, callById, typeById],
+    );
+
+    const grouped = useMemo(
+        () =>
+            [...bySegment.values()].reduce((total, held) => total + held.instructions.length, 0),
+        [bySegment],
+    );
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    borderBottom: '1px solid #e5e7eb',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    fontSize: 12,
+                }}
+            >
+                <input
+                    value={filter}
+                    onChange={(event) => {
+                        setFilter(event.target.value);
+                    }}
+                    placeholder="Filter by word"
+                    style={{
+                        flex: '0 1 320px',
+                        padding: '4px 8px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 6,
+                        fontSize: 12,
+                    }}
+                />
+                <button
+                    type="button"
+                    onClick={newSegment}
+                    disabled={activeCallIds.size === 0}
+                    style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 6,
+                        padding: '4px 10px',
+                        background: activeCallIds.size ? '#111827' : '#f3f4f6',
+                        color: activeCallIds.size ? '#ffffff' : '#9ca3af',
+                        cursor: activeCallIds.size ? 'pointer' : 'default',
+                        fontSize: 12,
+                    }}
+                >
+                    New segment from {selectedInstructions} selected
+                </button>
+                <span style={{ marginLeft: 'auto', color: '#6b7280' }}>
+                    {segments.length} segments · {grouped} instructions ·{' '}
+                    <span style={{ color: ungrouped.length ? '#b45309' : '#6b7280' }}>
+                        {ungrouped.length} ungrouped
+                    </span>
+                </span>
+            </div>
+
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <table
+                    style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        fontFamily: 'Inter, system-ui, sans-serif',
+                        fontSize: 12,
+                    }}
+                >
+                    <thead>
+                        <tr style={{ textAlign: 'left', color: '#6b7280' }}>
+                            <th style={headCell}>Word</th>
+                            <th style={headCell}>Gestures</th>
+                            <th style={headCell}>Instructions</th>
+                            <th style={headCell} />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {visible.map(({ segment }) => (
+                            <SegmentRow
+                                key={segment.id}
+                                segment={segment}
+                                gestures={gesturesById.get(segment.id)}
+                                instructions={bySegment.get(segment.id)?.instructions ?? EMPTY}
+                                overwritten={bySegment.get(segment.id)?.overwritten ?? 0}
+                                performance={performance}
+                                minPointSpan={minPointSpan}
+                                beatLength={beatLength}
+                                activeCallIds={activeCallIds}
+                                onPatch={patch}
+                                onToggleCall={toggleActiveCall}
+                                onAssignSelected={() => {
+                                    assignTo(segment);
+                                }}
+                                canAssign={activeCallIds.size > 0}
+                                onDissolve={() => {
+                                    dissolveSegment(segment.id);
+                                }}
+                            />
+                        ))}
+                    </tbody>
+                </table>
+
+                <UngroupedInstructions
+                    instructions={ungrouped}
+                    activeCallIds={activeCallIds}
+                    onToggleCall={toggleActiveCall}
+                />
+            </div>
+        </div>
+    );
+};
+
+const EMPTY: readonly Instruction[] = [];
+
+const headCell: React.CSSProperties = {
+    padding: '6px 10px',
+    borderBottom: '1px solid #e5e7eb',
+    fontWeight: 500,
+    position: 'sticky',
+    top: 0,
+    background: '#ffffff',
+};

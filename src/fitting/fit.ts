@@ -61,7 +61,7 @@ export interface FitResult {
     ground: Ground;
     /** What the tree draws — segments and spans, projected onto the ticks the calls acted on. */
     reconstruction: Reconstruction;
-    /** Per call: the elements it is answerable for, and where it acted. */
+    /** Per call: the elements it is answerable for, where it acted, and under which claim. */
     outcomes: CallOutcome[];
     /** Calls naming a transformer this build does not have. Reported, never dropped in silence. */
     unknown: Call[];
@@ -122,19 +122,27 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
             )
             .map((instruction) => [instruction.id, instruction.type]),
     );
+    // Which claim a call's instructions are made under is the file's to say, not the run's —
+    // see `Call.segment`. A transformer the chain substituted has no entry here and stays
+    // unclaimed, which is the honest answer for something nobody wrote down.
+    const segmentOf = new Map(
+        work.provenance.map((call) => [call.id, call.segment] as const),
+    );
     const outcomes: CallOutcome[] = transformers.map((transformer) => {
         const range = getRange(transformer.options, alignment, residual);
+        const segment = segmentOf.get(transformer.id);
         return {
             id: transformer.id,
             elements: [...transformer.created],
             range: range ? { from: range.from, to: range.to ?? null } : null,
+            ...(segment !== undefined && { segment }),
         };
     });
 
     const { reconstruction, stats } = projectReconstruction({
         title,
         author,
-        groupings: work.segments,
+        claims: work.segments,
         outcomes,
         elementTypes,
     });

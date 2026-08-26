@@ -1,14 +1,16 @@
 /**
  * What the tree draws: the work file, projected onto the ticks its calls act on.
  *
- * Nothing is baked. Every call in a work file records the `xml:id`s it is answerable for and the
- * stretch of score it acted on, so grouping those by segment and by MPM element type is the whole
- * derivation — see `projectReconstruction`. Editor and viewer read one document and agree by
- * construction rather than by a build step being re-run.
+ * Nothing is baked. Every call in a work file records the segment it is claimed under, the
+ * `xml:id`s it is answerable for and the stretch of score it acted on, so gathering those by
+ * segment and by MPM element type is the whole derivation — see `projectReconstruction`. Editor
+ * and viewer read one document and agree by construction rather than by a build step being
+ * re-run.
  *
- * The direction matters. A {@link Segment} is what the *work file* records — a group of calls
- * and why they belong together. A {@link Span} is what that group *did* to the document, and it
- * exists only after a run. Nothing here is an input to the chain.
+ * The direction matters. A {@link Segment} is what the *work file* claims, in prose; the calls
+ * name it rather than the other way round, so what a claim covers is read through the calls that
+ * point at it. A {@link Span} is what those calls *did* to the document, and it exists only
+ * after a run. Nothing here is an input to the chain.
  */
 
 /**
@@ -33,8 +35,9 @@ export interface Span {
 /**
  * A stretch of the piece the reconstruction makes one claim about — and what it did to get there.
  *
- * `from`/`to` are the union of the group's calls' ranges, so a segment covers exactly the score
- * its own gestures touch. They are equal for a segment that acts on a single point in time.
+ * `from`/`to` are the union of the ranges of the calls claimed under it, so a segment covers
+ * exactly the score its own gestures touch. They are equal for a segment that acts on a single
+ * point in time.
  */
 export interface Segment {
     id: string;
@@ -42,23 +45,11 @@ export interface Segment {
      * What the segment says, in the reconstruction's own words.
      *
      * Free German prose in the corpus — „Abschattieren", „Hineinfallen", „Nachlauschen" — and
-     * it is what the tree writes along the branch. It is now the ONLY thing a segment says about
-     * itself. A segment with no note has no word, and `segment-stack/words.ts` says so rather
-     * than inventing one.
+     * it is what the tree writes along the branch. It is the ONLY thing a segment says about
+     * itself: the second prose field the work file used to carry was folded into it. A segment
+     * with no note has no word, and `segment-stack/words.ts` says so rather than inventing one.
      */
     note?: string;
-    /** Longer editorial prose, where the group carries both a gesture word and a justification. */
-    commentary?: string;
-    /**
-     * The segment this one continues, where the gesture runs on across a break.
-     *
-     * Thirteen segments in the corpus carry one, and two of them name the same predecessor — so
-     * it is a forest rather than a chain, and reads as "picks up from" rather than "next". The
-     * viewer dropped chaining when the words arrived, on the grounds that one word per segment
-     * leaves nothing to merge; it is carried here because it is recorded judgement, and a
-     * drawing that wants it later should not have to go back to the work file for it.
-     */
-    continues?: string;
     from: number;
     /** Equal to {@link from} for a segment that acts on a single point in time. */
     to: number;
@@ -71,10 +62,19 @@ export interface Reconstruction {
     segments: Segment[];
 }
 
-/** One call's contribution to the projection: what it wrote, and where it acted. */
+/** One call's contribution to the projection: what it wrote, where it acted, and under which claim. */
 export interface CallOutcome {
     /** The `Call.id` this is reporting for. */
     id: string;
+    /**
+     * The `Segment.id` this call's instructions are claimed under, as the work file records it.
+     *
+     * Carried rather than looked up because it is the only thing that says which claim an
+     * instruction serves — see {@link Call.segment} in `Work.ts` for why the link points this
+     * way. Absent for a call nobody has claimed yet, and for the `InsertMetadata` the runner
+     * substitutes, which is not in the file's provenance at all.
+     */
+    segment?: string;
     /** The `xml:id`s of the MPM elements the call is answerable for — written or changed. */
     elements: readonly string[];
     /**
@@ -101,29 +101,34 @@ export const outcomesOf = (
         id: string;
         elements?: string[];
         range?: { from: number; to: number | null };
+        segment?: string;
     }[],
 ): CallOutcome[] =>
     provenance.map((call) => ({
         id: call.id,
         elements: call.elements ?? [],
         range: call.range ?? null,
+        ...(call.segment !== undefined && { segment: call.segment }),
     }));
 
-/** What a work file's segment carries into the projection. */
-export interface SegmentGrouping {
+/**
+ * What a work file's segment carries into the projection: its prose, and nothing else.
+ *
+ * It names no members. The calls name it — see {@link CallOutcome.segment} — so what a claim
+ * covers is gathered from the run rather than restated here.
+ */
+export interface SegmentClaim {
     id: string;
     note?: string;
-    commentary?: string;
-    continues?: string;
-    calls: readonly string[];
 }
 
 /**
  * Project a run of the chain onto the tree's segments and spans.
  *
- * Three things go in — how the work file groups its calls, what each call did, and the element
- * types of the document it wrote — and what comes out is what the tree draws. Nothing is read
- * off the MPM beyond the types, because everything else has already been reported.
+ * Three things go in — what the work file claims, what each call did and which claim it did it
+ * under, and the element types of the document it wrote — and what comes out is what the tree
+ * draws. Nothing is read off the MPM beyond the types, because everything else has already been
+ * reported.
  *
  * Two kinds of loss are expected here rather than exceptional, and both are counted rather than
  * swallowed:
@@ -138,13 +143,12 @@ export interface SegmentGrouping {
 export function projectReconstruction(params: {
     title: string;
     author: string;
-    groupings: readonly SegmentGrouping[];
+    claims: readonly SegmentClaim[];
     outcomes: readonly CallOutcome[];
     elementTypes: ElementTypes;
 }): { reconstruction: Reconstruction; stats: ProjectionStats } {
-    const { title, author, groupings, outcomes, elementTypes } = params;
+    const { title, author, claims, outcomes, elementTypes } = params;
 
-    const outcomeById = new Map(outcomes.map((outcome) => [outcome.id, outcome]));
     const segments: Segment[] = [];
     const stats: ProjectionStats = {
         ungroupedCalls: 0,
@@ -154,15 +158,23 @@ export function projectReconstruction(params: {
         placelessSegments: 0,
     };
 
-    const grouped = new Set(groupings.flatMap((grouping) => [...grouping.calls]));
+    // Gathered in chain order, which is the order `outcomes` arrives in. A segment's spans come
+    // out in the order its calls ran, so a reader stepping through a claim sees it built the way
+    // it was built.
+    const claimed = new Set(claims.map((claim) => claim.id));
+    const bySegment = new Map<string, CallOutcome[]>();
     for (const outcome of outcomes) {
-        if (!grouped.has(outcome.id)) stats.ungroupedCalls++;
+        if (outcome.segment === undefined || !claimed.has(outcome.segment)) {
+            stats.ungroupedCalls++;
+            continue;
+        }
+        const existing = bySegment.get(outcome.segment);
+        if (existing) existing.push(outcome);
+        else bySegment.set(outcome.segment, [outcome]);
     }
 
-    for (const grouping of groupings) {
-        const called = grouping.calls
-            .map((callId) => outcomeById.get(callId))
-            .filter((outcome): outcome is CallOutcome => outcome !== undefined);
+    for (const claim of claims) {
+        const called = bySegment.get(claim.id) ?? [];
 
         // The segment's own stretch, settled BEFORE any span is built. A call that acts on the
         // whole piece reports no range of its own and takes the segment's, so the segment's has
@@ -176,8 +188,10 @@ export function projectReconstruction(params: {
             to = Math.max(to, outcome.range.to ?? outcome.range.from);
         }
 
-        // A group where nothing reported a range acts nowhere the timeline can show. That is a
-        // claim about the performance with no place in it, and there is nothing honest to draw.
+        // A claim nothing reported a range under acts nowhere the timeline can show — including
+        // one no call points at, which is what a claim looks like before anything is put in it.
+        // Either way it is a claim about the performance with no place in it, and there is
+        // nothing honest to draw.
         if (!Number.isFinite(from)) {
             stats.placelessSegments++;
             continue;
@@ -225,10 +239,8 @@ export function projectReconstruction(params: {
         }
 
         segments.push({
-            id: grouping.id,
-            ...(grouping.note ? { note: grouping.note } : {}),
-            ...(grouping.commentary ? { commentary: grouping.commentary } : {}),
-            ...(grouping.continues ? { continues: grouping.continues } : {}),
+            id: claim.id,
+            ...(claim.note ? { note: claim.note } : {}),
             from,
             to: Math.max(from, to),
             spans,
@@ -245,7 +257,7 @@ export function projectReconstruction(params: {
  * exactly like one that never had them, and the editor should be able to say which it is.
  */
 export interface ProjectionStats {
-    /** Calls belonging to no segment. They contribute no span. */
+    /** Calls claimed under no segment — or under one this file no longer holds. No span. */
     ungroupedCalls: number;
     /** Element ids a later call removed from the document again. */
     droppedElements: number;
@@ -253,6 +265,9 @@ export interface ProjectionStats {
     droppedSpans: number;
     /** Groups left with no gesture at all. */
     emptySegments: number;
-    /** Groups where no call reported a range, so there is nowhere on the timeline to draw them. */
+    /**
+     * Claims with nowhere on the timeline to draw them: no call points at them at all, or none
+     * of the calls that do reported a range.
+     */
     placelessSegments: number;
 }

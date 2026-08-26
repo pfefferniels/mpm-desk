@@ -79,8 +79,9 @@ for (const type of new Set([...Object.keys(expected), ...Object.keys(actual)]))
             `${type}: ${String(actual[type] ?? 0)} derived vs ${String(expected[type] ?? 0)} baked`,
         );
 
-// One call belongs to no segment and always will: the substituted `InsertMetadata` writes
-// `<metadata>`, not an instruction, so there is nothing for a segment to claim.
+// One call names no segment and always will: `buildChain` substitutes an `InsertMetadata` that
+// is not in the file's provenance at all, so there is nothing to read a `segment` off. It writes
+// `<metadata>` rather than an instruction, so it would contribute nothing either way.
 if (projection.ungroupedCalls !== 1)
     failures.push(`ungrouped calls: ${String(projection.ungroupedCalls)}, expected 1`);
 if (projection.droppedElements !== 0)

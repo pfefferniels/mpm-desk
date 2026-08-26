@@ -13,7 +13,7 @@ import { ResultDesk } from './result/ResultDesk';
 import { OrnamentationStyles } from './styles/OrnamentationStyles';
 import { ChoiceDesk } from './choice/ChoiceDesk';
 import { ArticulationStyles } from './styles/ArticulationStyles';
-import { SegmentsDesk } from './segments/SegmentsDesk';
+import { NarrativeDesk } from './narrative/NarrativeDesk';
 import { MakeChoice } from '../fitting/transformers/choice/MakeChoice';
 import { InsertRubato } from '../fitting/transformers/rubato/InsertRubato';
 import { CombineAdjacentRubatos } from '../fitting/transformers/rubato/CombineAdjacentRubatos';
@@ -179,9 +179,9 @@ export const correspondingDesks: DeskEntry[] = [
     },
     // The argument
     {
-        aspect: 'segments',
-        displayName: 'Segments',
-        desk: SegmentsDesk as AnyDesk,
+        aspect: 'narrative',
+        displayName: 'Narrative',
+        desk: NarrativeDesk as AnyDesk,
         group: 'argument',
     },
     // Result

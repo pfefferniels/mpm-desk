@@ -61,14 +61,16 @@ describe('the work file', () => {
     expect(read.name).toBe('Träumerei');
   });
 
-  test('carries a segment as it was written, elements and all', () => {
+  test('carries a segment as it was written, fields this build never heard of and all', () => {
+    // Fields from shapes this build no longer writes — `motivation` and `certainty` were dropped
+    // in the JSON-LD migration, `calls` when the link moved onto the call. A round trip that
+    // quietly tidies them away would edit somebody's file behind their back.
     const segment = {
       id: 'segment-1',
       note: 'Hinspielen auf 1',
       motivation: 'move' as const,
       certainty: 'plausible' as const,
       calls: ['call-InsertRubato'],
-      elements: ['rubato_0', 'rubato_720'],
     };
 
     expect(parseWorkFile(serializeWorkFile(file([choice(), rubato()], [segment]))).segments).toEqual(
@@ -122,7 +124,9 @@ describe('the work file', () => {
 describe('the chain built from it', () => {
   test('comes back as the chain it went out as', () => {
     const json = serializeWorkFile(
-      file([choice(), rubato()], [{ id: 'segment-1', calls: ['call-InsertRubato'], elements: [] }]),
+      file([{ ...choice(), segment: 'segment-1' }, { ...rubato(), segment: 'segment-1' }], [
+        { id: 'segment-1' },
+      ]),
     );
     const read = parseWorkFile(json);
     const { transformers, unknown } = buildChain(read.provenance);
@@ -141,7 +145,8 @@ describe('the chain built from it', () => {
       date: 0,
       length: 2880,
     });
-    expect(at(read.segments, 0, 'segment').calls).toEqual(['call-InsertRubato']);
+    // The link survives the round trip on the call, which is where it lives.
+    expect(read.provenance.map((c) => c.segment)).toEqual(['segment-1', 'segment-1']);
   });
 
   test('takes the title and author off the metadata call, and rebuilds it', () => {
