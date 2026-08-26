@@ -1,13 +1,10 @@
 import type { AddMovementOptions } from 'espressivo';
-import {
-  bezierPoint,
-  innerControlPointsXPositions,
-  tForDate,
-} from 'espressivo';
+import { fitTransitionCurve, innerControlPointsXPositions, transitionValueAt } from 'espressivo';
+import type { TransitionShape } from 'espressivo';
 import type { Normalized } from 'espressivo';
 import { v4 } from 'uuid';
 import type { DynamicsWithEndDate } from './InsertDynamicsInstructions';
-import { hashSeed, type Random, seededRandom } from '../../random';
+import { hashSeed, seededRandom } from '../../random';
 import { head, isNonEmpty, last } from 'espressivo';
 
 export interface DynamicsPoints {
@@ -41,33 +38,23 @@ export const computeInnerControlPointsXPositions = (
 /**
  * The value a transition holds at `date`, for the one shape `<dynamics>` and `<movement>` share.
  *
- * Both elements ramp from a start value to a `@transition.to` along a cubic Bézier whose
- * x-component is inverted to find the curve parameter. This is that shape once, for both, with
- * the inversion (`tForDate`) and the cubic (`bezierPoint`) taken from espressivo rather than
- * rewritten beside it.
+ * espressivo's `transitionValueAt`, adapted to the record shape the transformers carry. The
+ * endpoint rule that used to be written out here — `tForDate` is a binary search stopping within
+ * one tick on the x-axis, so a caller reading it at the boundaries gets 99.93 where the
+ * instruction plainly says 100 — is stated there now, once, for every caller.
  *
  * The absent-target test is `??` and not truthiness: a `@transition.to` of **0** — a dynamics
  * fading to silence, a pedal lifting fully — is a real target, which
  * `!instruction["transition.to"]` reads as no transition at all, holding the start value flat
  * across the whole span. See issue #46.
  */
-const transitionValueAt = (
+const transitionValueOf = (
   span: { date: number; endDate: number } & InnerControlPoints,
   from: number,
   to: number,
   date: number,
-): number => {
-  if (date < span.date) return from;
-  if (from === to) return from;
-  if (date >= span.endDate) return to;
-
-  // `tForDate` is a binary search that stops within one tick on the x-axis, so it only ever
-  // *approximates* the two endpoints. espressivo answers them before calling it
-  // (`tForDynamicsDate`, `tForMovementDate`, both of which say so), and a caller that skips
-  // this reads 99.93 where the instruction plainly says 100. Not a shortcut.
-  const t = date === span.date ? 0.0 : tForDate(span.x1, span.x2, span.date, span.endDate, date);
-  return bezierPoint(span.x1, span.x2, span.date, span.endDate, from, to, t)[1];
-};
+): number =>
+  transitionValueAt(span.x1, span.x2, span.date, span.endDate, from, to, date);
 
 /**
  * What the fitted `<dynamics>` sounds `date` at.
@@ -81,7 +68,7 @@ export const volumeAtDate = (
   instruction: DynamicsWithEndDate & InnerControlPoints,
   date: number,
 ): number =>
-  transitionValueAt(
+  transitionValueOf(
     instruction,
     +instruction.volume,
     +(instruction.transitionTo ?? instruction.volume),
@@ -99,55 +86,44 @@ export const positionAtDate = (
   instruction: AddMovementOptions & { position: Normalized; endDate: number } & InnerControlPoints,
   date: number,
 ): number =>
-  transitionValueAt(
+  transitionValueOf(
     instruction,
     instruction.position,
     instruction.transitionTo ?? instruction.position,
     date,
   );
 
-const computeError = (instruction: DynamicsWithEndDate, points: readonly DynamicsPoints[]) => {
-  const computedInstruction = {
-    ...instruction,
-    // `<dynamics>` defaults both to 0.0, which is what `resolveDynamics` fills in — scoring
-    // a candidate as if the attributes were merely missing would fit against a curve the
-    // renderer never draws.
-    ...computeInnerControlPointsXPositions(
-      instruction.curvature ?? 0.0,
-      instruction.protraction ?? 0.0,
-    ),
-  };
+/**
+ * The `<dynamics>` that best explains a run of measured velocities.
+ *
+ * The search itself is espressivo's `fitTransitionCurve` — it owns the curve, so it owns the
+ * shape of the hunt through it, including the clamps that keep a candidate inside `@curvature`
+ * and `@protraction`'s declared ranges. What stays here is everything the library has no
+ * standing to decide.
+ *
+ * **What the endpoints are.** The first and last velocity are taken as the transition's `@volume`
+ * and `@transition.to` rather than fitted. A reduction explains deviation; inventing endpoints
+ * the recording does not show would be explaining the wrong thing.
+ *
+ * **When a series is too short to bend.** One point is a constant, and two — or any run that
+ * begins and ends at the same velocity — is a straight ramp, written as `curvature: 0.5,
+ * protraction: 0`. Two points determine a line and nothing more, so searching for a bend
+ * between them would fit noise and write it into the document as though it were meant.
+ *
+ * **What counts as explained.** `MAX_ERROR` is five velocity steps summed over the whole run.
+ * That is a claim about how precisely a piano roll or an aligned recording reports a velocity,
+ * which is a question about this repertoire and these sources, not about a Bézier.
+ *
+ * **Why the seed is the points.** Re-running a chain must produce the same document, so the
+ * generator is seeded from the very data being fitted rather than from a clock. A caller that
+ * passed nothing would get `Math.random`, and the same work file would reconstruct differently
+ * every time it was opened.
+ */
+const MAX_ERROR = 5;
+const MAX_ITERATIONS = 5000;
 
-  let sum = 0;
-  for (const point of points) {
-    const assumed = volumeAtDate(computedInstruction, point.date);
-    const real = point.velocity;
-    const error = Math.abs(assumed - real);
-    sum += error;
-  }
-
-  return sum;
-};
-
-const generateNeighbour = (prev: DynamicsWithEndDate, random: Random) => {
-  // Define the magnitude of the maximum possible change
-  const maxProtractionChange = 0.05;
-  const maxCurvatureChange = 0.05;
-
-  // Generate random changes within the defined range
-  const newProtraction = (prev.protraction ?? 0.0) + (random() * 2 - 1) * maxProtractionChange;
-  const newCurvature = (prev.curvature ?? 0.0) + (random() * 2 - 1) * maxCurvatureChange;
-
-  // Ensure the new values are within valid bounds
-  const validProtraction = Math.max(Math.min(newProtraction, 1.0), -1.0);
-  const validCurvature = Math.max(Math.min(newCurvature, 1.0), 0.0);
-
-  return {
-    ...prev,
-    protraction: validProtraction,
-    curvature: validCurvature,
-  };
-};
+/** The shape the search departs from: a straight ramp, which assumes nothing about the bend. */
+const STRAIGHT: TransitionShape = { curvature: 0.5, protraction: 0 };
 
 export const approximateDynamics = (points: DynamicsPoints[]): DynamicsWithEndDate | undefined => {
   if (!isNonEmpty(points)) {
@@ -175,52 +151,37 @@ export const approximateDynamics = (points: DynamicsPoints[]): DynamicsWithEndDa
       endDate: final.date,
       volume: first.velocity,
       transitionTo: equal ? undefined : final.velocity,
-      protraction: 0,
-      curvature: 0.5,
+      ...STRAIGHT,
     };
   }
 
-  const initial: DynamicsWithEndDate = {
+  const span = {
+    startDate: first.date,
+    endDate: final.date,
+    from: first.velocity,
+    to: final.velocity,
+  };
+
+  const { curvature, protraction } = fitTransitionCurve(
+    span,
+    points.map((point) => ({ date: point.date, value: point.velocity })),
+    {
+      initial: STRAIGHT,
+      // Seeded from the points, not from a clock: the same curve is fitted the same way every
+      // time the chain is re-run.
+      random: seededRandom(hashSeed(JSON.stringify(points))),
+      maxIterations: MAX_ITERATIONS,
+      tolerance: MAX_ERROR,
+    },
+  );
+
+  return {
     id: `dynamics_${v4()}`,
     date: first.date,
     endDate: final.date,
     volume: first.velocity,
     transitionTo: final.velocity,
-    protraction: 0,
-    curvature: 0.5,
+    curvature,
+    protraction,
   };
-
-  // Seeded from the points, not from a clock: the same curve is fitted the same way every
-  // time the chain is re-run.
-  const random = seededRandom(hashSeed(JSON.stringify(points)));
-
-  const maxIterations = 5000;
-  const maxError = 5;
-  let error = computeError(initial, points);
-  let attempt = initial;
-  let bestAttempt = attempt;
-  let bestError = error;
-  let temperature = 1.0; // Initial temperature
-  const coolingRate = 0.99; // Cooling rate
-
-  for (let i = 0; i < maxIterations && error > maxError; i++) {
-    const neighbor = generateNeighbour(attempt, random);
-    const neighborError = computeError(neighbor, points);
-
-    if (neighborError < bestError) {
-      bestAttempt = neighbor;
-      bestError = neighborError;
-    }
-
-    const acceptanceProbability = Math.exp((error - neighborError) / temperature);
-    if (neighborError < error || random() < acceptanceProbability) {
-      attempt = neighbor;
-      error = neighborError;
-    }
-
-    // Cool down the temperature
-    temperature *= coolingRate;
-  }
-
-  return bestAttempt;
 };
