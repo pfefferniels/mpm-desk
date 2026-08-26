@@ -30,7 +30,10 @@ export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: Mo
             // this desk draws was written by `InsertPedal`, which always states it; one without
             // is drawn from a released pedal rather than not drawn at all.
             position: (instruction.position ?? 0) as Normalized,
-            ...computeInnerControlPointsXPositions(instruction.curvature || 0.5, instruction.protraction || 0)
+            // `<movement>` defaults curvature to 0.4 and protraction to 0.0 — deliberately not
+            // dynamics' 0.0, so the two call sites cannot share a literal. `??`, not `||`: an
+            // explicit `curvature="0"` is a pedal fitted to no bend, not an absent attribute.
+            ...computeInnerControlPointsXPositions(instruction.curvature ?? 0.4, instruction.protraction ?? 0.0)
         }
 
         for (let date = instruction.date; date < instruction.endDate; date += stepSize) {

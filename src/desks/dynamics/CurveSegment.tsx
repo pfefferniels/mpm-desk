@@ -25,7 +25,10 @@ export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick 
         const newPoints = []
         const instructionWithControlPoints = {
             ...instruction,
-            ...computeInnerControlPointsXPositions(instruction.curvature || 0.5, instruction.protraction || 0)
+            // `<dynamics>` defaults both to 0.0 — what `resolveDynamics` fills in and what
+            // `computeError` scores against. A literal 0.5 here drew a bend the renderer never
+            // sounded, and `||` did it to an explicit `curvature="0"` as well. See issue #15.
+            ...computeInnerControlPointsXPositions(instruction.curvature ?? 0.0, instruction.protraction ?? 0.0)
         }
 
         for (let date = instruction.date; date < instruction.endDate; date += stepSize) {
