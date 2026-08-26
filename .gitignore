@@ -28,3 +28,7 @@ dist-ssr
 CLAUDE.md
 AGENTS.md
 openspec/
+
+# Generated test output
+coverage/
+test-results/

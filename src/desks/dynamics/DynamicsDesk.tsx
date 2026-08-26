@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useScrollSync } from "../../hooks/ScrollSyncProvider";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../../hooks/NotesProvider";

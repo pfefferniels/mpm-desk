@@ -1,7 +1,7 @@
 import { calculateRubatoOnDate } from "../../fitting/transformers/rubato/rubatoMath"
 import type { AlignedNote, ChordMap } from "../../fitting/alignment"
 import type { Instruction } from "../../fitting/instructions/index"
-import { MouseEventHandler, useState } from "react"
+import { type JSX, MouseEventHandler, useState } from "react"
 import { MidiFile } from "midifile-ts"
 import { asMIDI } from "../../utils/utils"
 
