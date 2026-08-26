@@ -1,96 +1,59 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { exportWork, getRange, MPM, MSM, Transformer, exportMPM } from 'mpmify';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import JSZip from 'jszip';
-import { asMSM } from './utils/asMSM';
-import { TransformerStack } from './transformer-stack/TransformerStack';
+import { SegmentStack } from './segment-stack/SegmentStack';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { PianoContextProvider } from 'react-pianosound';
-import { useTimeMapping } from './hooks/useTimeMapping';
 import { ViewerToolbar } from './components/ViewerToolbar';
 import { downloadAsFile } from './utils/utils';
-import { parseWork } from './utils/workImport';
-import { usePipelineRunner } from './hooks/usePipelineRunner';
-import { usePublicWorkLoader } from './hooks/usePublicWorkLoader';
+import { readMeter, readNoteDates } from './utils/score';
+import { readPerformance } from './utils/mpm';
+import { useReconstruction } from './hooks/useReconstructionLoader';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { LoadingScreen } from './components/LoadingScreen';
 
 const ViewerInner = () => {
-    const [initialMSM, setInitialMSM] = useState<MSM>(new MSM());
-    const [msm, setMSM] = useState<MSM>(new MSM());
-    const [mpm, setMPM] = useState<MPM>(new MPM());
-    const [mei, setMEI] = useState<string>();
-    const [transformers, setTransformers] = useState<Transformer[]>([]);
-    const [activeTransformerIds, setActiveTransformerIds] = useState<Set<string>>(new Set());
+    const { work, error } = useReconstruction();
     const [stretchX, setStretchX] = useState<number>(20);
-    const [metadata, setMetadata] = useState<{ title: string; author: string }>({ title: '', author: '' });
-    const hasSetInitialZoom = useRef(false);
+    const [fitted, setFitted] = useState(false);
 
-    // Fit piece to viewport width on first load
+    const segments = work?.reconstruction.segments;
+
+    // Fit piece to viewport width once the segments are in
     useEffect(() => {
-        if (hasSetInitialZoom.current || transformers.length === 0) return;
-        const maxDate = getRange(transformers, msm)?.to;
+        if (fitted || !segments?.length) return;
+        const maxDate = segments.reduce((max, segment) => Math.max(max, segment.to), 0);
         if (!maxDate) return;
-        const fitStretch = Math.min(60, Math.max(1, (window.innerWidth * 200) / maxDate));
-        setStretchX(fitStretch);
-        hasSetInitialZoom.current = true;
-    }, [transformers, msm]);
+        setStretchX(Math.min(60, Math.max(1, (window.innerWidth * 200) / maxDate)));
+        setFitted(true);
+    }, [segments, fitted]);
 
-    const loadWorkFromJson = useCallback((content: string) => {
-        const parsed = parseWork(content);
-        if (parsed.validationMessages.length > 0) return;
-        setMetadata(parsed.metadata);
-        setTransformers(parsed.transformers);
-    }, []);
-
-    const handleMeiLoaded = useCallback(async (meiContent: string) => {
-        setMEI(meiContent);
-        const parsed = await asMSM(meiContent);
-        setMSM(parsed);
-        setInitialMSM(parsed);
-    }, []);
-
-    usePublicWorkLoader({
-        enabled: true,
-        onMeiLoaded: handleMeiLoaded,
-        onWorkLoaded: loadWorkFromJson,
-        onError: (error) => console.error('Failed to load files:', error),
-    });
-
-    usePipelineRunner({
-        initialMSM,
-        transformers,
-        metadata,
-        setTransformers,
-        setMSM,
-        setMPM,
-        onValidationError: (messages) => console.error(messages.join('\n')),
-        onPipelineError: (error) => console.error(error),
-    });
-
-    const focusTransformer = useCallback((id: string) => {
-        setActiveTransformerIds(new Set([id]));
-    }, []);
+    // Both are parsed once: the MPM for the instructions a popover shows and for
+    // "what is in effect now", the MSM for note dates and the tick grid. Neither changes.
+    const meter = useMemo(() => work ? readMeter(work.scoreMsm) : null, [work]);
+    const mpm = useMemo(
+        () => work && meter ? readPerformance(work.performanceMpm, meter) : null,
+        [work, meter],
+    );
+    const dateByNoteId = useMemo(() => work ? readNoteDates(work.scoreMsm) : new Map(), [work]);
 
     const handleDownload = useCallback(async () => {
-        if (!mei) return;
+        if (!work) return;
 
-        const json = exportWork({
-            name: 'Reconstruction',
-            mpm: 'performance.mpm',
-            mei: 'transcription.mei',
-        }, transformers, {});
-
+        // The MEI is the provenance of the other three, and nothing on screen
+        // needs it — so it is fetched here rather than on load.
+        const response = await fetch('/transcription.mei');
         const zip = new JSZip();
-        zip.file('performance.mpm', exportMPM(mpm));
-        zip.file('transcription.mei', mei);
-        zip.file('info.json', json);
+        zip.file('score.msm', work.scoreMsm);
+        zip.file('performance.mpm', work.performanceMpm);
+        zip.file('segments.json', JSON.stringify(work.reconstruction, null, 2));
+        if (response.ok) zip.file('transcription.mei', await response.text());
 
         const content = await zip.generateAsync({ type: 'blob' });
         downloadAsFile(content, 'export.zip', 'application/zip');
-    }, [mei, mpm, transformers]);
+    }, [work]);
 
     const zoomContextValue = useMemo(() => ({
         symbolic: { stretchX: stretchX / 200 },
@@ -98,43 +61,28 @@ const ViewerInner = () => {
         setStretchX
     }), [stretchX]);
 
-    const { tickToSeconds, secondsToTick } = useTimeMapping(msm);
+    if (error) {
+        return <LoadingScreen message={`Could not load the reconstruction — ${error.message}`} />;
+    }
 
-    if (initialMSM.allNotes.length === 0) {
+    if (!work || !mpm) {
         return <LoadingScreen />;
     }
 
     return (
         <ZoomContext value={zoomContextValue}>
-            <PlaybackProvider mei={mei} msm={msm} mpm={mpm}>
-                <ViewerToolbar onDownload={handleDownload} metadata={metadata} />
-                <SelectionProvider
-                    activeTransformerIds={activeTransformerIds}
-                    setActiveTransformerIds={setActiveTransformerIds}
-                    transformers={transformers}
-                    setTransformers={setTransformers}
-                    focusTransformer={focusTransformer}
-                >
-                    <ScrollSyncProvider
-                        symbolicZoom={zoomContextValue.symbolic.stretchX}
-                        physicalZoom={zoomContextValue.physical.stretchX}
-                        tickToSeconds={tickToSeconds}
-                        secondsToTick={secondsToTick}
-                    >
+            <PlaybackProvider
+                scoreMsm={work.scoreMsm}
+                performanceMpm={work.performanceMpm}
+                dateByNoteId={dateByNoteId}
+            >
+                <ViewerToolbar onDownload={handleDownload} metadata={work.reconstruction} />
+                <SelectionProvider>
+                    <ScrollSyncProvider zoom={zoomContextValue.symbolic.stretchX}>
                         <PinchZoomHandler />
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '100vh',
-                        }}>
-                            <TransformerStack
-                                transformers={transformers}
-                                setTransformers={setTransformers}
-                                msm={msm}
-                                mpm={mpm}
-                            />
-                        </div>
+                        {/* The tree is the page: it takes the whole window, and the
+                            toolbar and the title lie over it. */}
+                        <SegmentStack segments={work.reconstruction.segments} mpm={mpm} />
                     </ScrollSyncProvider>
                 </SelectionProvider>
             </PlaybackProvider>

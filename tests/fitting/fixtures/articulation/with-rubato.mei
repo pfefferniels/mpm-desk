@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://music-encoding.org/schema/dev/mei-all.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="https://music-encoding.org/schema/dev/mei-all.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.0.0-dev">
+   <meiHead>
+      <fileDesc>
+         <titleStmt>
+            <title />
+            <respStmt>
+            </respStmt>
+         </titleStmt>
+         <pubStmt>
+         </pubStmt>
+      </fileDesc>
+      <encodingDesc xml:id="encodingdesc-1rrsr5b">
+      </encodingDesc>
+   </meiHead>
+   <music>
+      <body>
+         <mdiv xml:id="m37wd3r">
+            <score xml:id="se9t513">
+               <scoreDef xml:id="s1nmqufz">
+                  <staffGrp xml:id="swjdxn8">
+                     <staffGrp xml:id="s6ocd3d">
+                        <staffGrp xml:id="P1" bar.thru="true">
+                           <staffDef xml:id="s191l644" n="1" lines="5">
+                              <clef xml:id="c1e53kuo" shape="G" line="2" />
+                              <keySig xml:id="k1bwr2le" mode="major" sig="0" />
+                              <meterSig xml:id="m18laua8" count="4" sym="common" unit="4" />
+                           </staffDef>
+                           <staffDef n="2" lines="5">
+                              <clef shape="F" line="4" />
+                              <keySig mode="major" sig="0" />
+                              <meterSig count="4" sym="common" unit="4" />
+                           </staffDef>
+                        </staffGrp>
+                     </staffGrp>
+                  </staffGrp>
+               </scoreDef>
+               <section xml:id="s1ed8wlx">
+                  <measure xml:id="m9oic4f" n="1">
+                     <staff xml:id="s19vqehk" n="1">
+                        <layer xml:id="l5oykx" n="1">
+                           <note xml:id="nmue11l" dur="4" oct="5" pname="g" stem.dir="down" />
+                           <note xml:id="n1x4raxe" dur="4" oct="5" pname="g" stem.dir="down" />
+                           <note xml:id="ncgekhb" dur="4" oct="5" pname="f" stem.dir="down" />
+                           <note xml:id="n1oiyzis" dur="4" oct="5" pname="f" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <staff n="2">
+                        <layer n="1">
+                           <note xml:id="bass-note-1" dur="2" oct="3" pname="c" />
+                           <note xml:id="bass-note-2" dur="2" oct="3" pname="d" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="m1scrrwq" n="2">
+                     <staff xml:id="s1mx6y2a" n="1">
+                        <layer xml:id="l139egk1" n="1">
+                           <note xml:id="nv0rft9" dur="4" oct="5" pname="e" stem.dir="down" />
+                           <note xml:id="n13ffnmq" dur="4" oct="5" pname="e" stem.dir="down" />
+                           <note xml:id="nra5r9c" dur="4" oct="5" pname="d" stem.dir="down" />
+                           <note xml:id="n1pbpp05" dur="4" oct="5" pname="d" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <staff n="2">
+                        <layer n="1">
+                           <note xml:id="bass-note-3" dur="2" oct="3" pname="c" />
+                           <note xml:id="bass-note-4" dur="2" oct="2" pname="g" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mmsa5hd" right="end" n="3">
+                     <staff xml:id="s9op06m" n="1">
+                        <layer xml:id="l18yy6kk" n="1">
+                           <note xml:id="nvmfawr" dur="1" oct="5" pname="c" />
+                        </layer>
+                     </staff>
+                     <staff n="2">
+                        <layer n="1">
+                           <note xml:id="bass-note-5" dur="1" oct="3" pname="c" />
+                        </layer>
+                     </staff>
+                  </measure>
+               </section>
+            </score>
+         </mdiv>
+      </body>
+   </music>
+</mei>

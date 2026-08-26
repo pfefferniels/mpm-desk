@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<msm title="aligned performance" xml:id="aligned" pulsesPerQuarter="720">
+  <global>
+    <header />
+    <dated>
+      <timeSignatureMap>
+        <timeSignature date="0" numerator="1" denominator="4" />
+      </timeSignatureMap>
+      <sectionMap>
+        <section date="0" date.end="11880" />
+      </sectionMap>
+    </dated>
+  </global>
+  <part name="part0" number="1" midi.channel="0" midi.port="0">
+    <header />
+    <dated>
+      <score>
+        <note xml:id="npk4lw6" date="0" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="720" velocity="41" milliseconds.date="28618" milliseconds.date.end="29597" />
+        <note xml:id="npk4lw6" date="0" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="720" velocity="35" milliseconds.date="28618" milliseconds.date.end="29597" />
+        <note xml:id="nxbdd6x" date="720" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="1800" velocity="40" milliseconds.date="29582" milliseconds.date.end="32314" />
+        <note xml:id="nxbdd6x" date="720" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="1800" velocity="35" milliseconds.date="29582" milliseconds.date.end="32314" />
+        <note xml:id="n1obi0t8" date="1440" midi.pitch="53" pitchname="f" accidentals="0" octave="2" duration="2160" velocity="35" milliseconds.date="30488" milliseconds.date.end="31171" />
+        <note xml:id="n1obi0t8" date="1440" midi.pitch="53" pitchname="f" accidentals="0" octave="2" duration="2160" velocity="35" milliseconds.date="30488" milliseconds.date.end="31171" />
+        <note xml:id="nd80ywu" date="1440" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="2160" velocity="35" milliseconds.date="30515" milliseconds.date.end="31282" />
+        <note xml:id="nd80ywu" date="1440" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="2160" velocity="35" milliseconds.date="30515" milliseconds.date.end="31282" />
+        <note xml:id="nrbga5m" date="2520" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="360" velocity="36" milliseconds.date="32240" milliseconds.date.end="32746" />
+        <note xml:id="nrbga5m" date="2520" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="360" velocity="35" milliseconds.date="32240" milliseconds.date.end="32746" />
+        <note xml:id="n1ogvejs" date="2880" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="360" velocity="37" milliseconds.date="32659" milliseconds.date.end="33166" />
+        <note xml:id="n1ogvejs" date="2880" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="360" velocity="37" milliseconds.date="32659" milliseconds.date.end="33166" />
+        <note xml:id="n1qzl4hr" date="3240" midi.pitch="69" pitchname="a" accidentals="0" octave="3" duration="360" velocity="39" milliseconds.date="33114" milliseconds.date.end="33634" />
+        <note xml:id="n1qzl4hr" date="3240" midi.pitch="69" pitchname="a" accidentals="0" octave="3" duration="360" velocity="39" milliseconds.date="33114" milliseconds.date.end="33634" />
+        <note xml:id="n10g2bbj" date="3600" midi.pitch="72" pitchname="c" accidentals="0" octave="4" duration="360" velocity="44" milliseconds.date="33554" milliseconds.date.end="34299" />
+        <note xml:id="n10g2bbj" date="3600" midi.pitch="72" pitchname="c" accidentals="0" octave="4" duration="360" velocity="44" milliseconds.date="33554" milliseconds.date.end="34299" />
+        <note xml:id="nv84jxp" date="3960" midi.pitch="77" pitchname="f" accidentals="0" octave="4" duration="360" velocity="45" milliseconds.date="34217" milliseconds.date.end="34993" />
+        <note xml:id="nv84jxp" date="3960" midi.pitch="77" pitchname="f" accidentals="0" octave="4" duration="360" velocity="50" milliseconds.date="34217" milliseconds.date.end="34993" />
+        <note xml:id="n162mama" date="4320" midi.pitch="77" pitchname="f" accidentals="0" octave="4" duration="1440" velocity="42" milliseconds.date="35185" milliseconds.date.end="37611" />
+        <note xml:id="n162mama" date="4320" midi.pitch="77" pitchname="f" accidentals="0" octave="4" duration="1440" velocity="60" milliseconds.date="35185" milliseconds.date.end="37611" />
+        <note xml:id="ntu78d0" date="4320" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="2880" velocity="35" milliseconds.date="34928" milliseconds.date.end="39150" />
+        <note xml:id="ntu78d0" date="4320" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="2880" velocity="35" milliseconds.date="34928" milliseconds.date.end="39150" />
+        <note xml:id="n1nv0ztz" date="5760" midi.pitch="76" pitchname="e" accidentals="0" octave="4" duration="360" velocity="41" milliseconds.date="37621" milliseconds.date.end="38096" />
+        <note xml:id="n1nv0ztz" date="5760" midi.pitch="76" pitchname="e" accidentals="0" octave="4" duration="360" velocity="47" milliseconds.date="37621" milliseconds.date.end="38096" />
+        <note xml:id="n105patq" date="6120" midi.pitch="74" pitchname="d" accidentals="0" octave="4" duration="360" velocity="36" milliseconds.date="38139" milliseconds.date.end="38741" />
+        <note xml:id="n105patq" date="6120" midi.pitch="74" pitchname="d" accidentals="0" octave="4" duration="360" velocity="42" milliseconds.date="38139" milliseconds.date.end="38741" />
+        <note xml:id="n1i66osm" date="6480" midi.pitch="72" pitchname="c" accidentals="0" octave="4" duration="360" velocity="39" milliseconds.date="38752" milliseconds.date.end="39309" />
+        <note xml:id="n1i66osm" date="6480" midi.pitch="72" pitchname="c" accidentals="0" octave="4" duration="360" velocity="35" milliseconds.date="38752" milliseconds.date.end="39309" />
+        <note xml:id="n1rph3w3" date="6840" midi.pitch="77" pitchname="f" accidentals="0" octave="4" duration="360" velocity="35" milliseconds.date="39388" milliseconds.date.end="40016" />
+        <note xml:id="n1rph3w3" date="6840" midi.pitch="77" pitchname="f" accidentals="0" octave="4" duration="360" velocity="39" milliseconds.date="39388" milliseconds.date.end="40016" />
+        <note xml:id="n1sw27dc" date="7200" midi.pitch="67" pitchname="g" accidentals="0" octave="3" duration="360" velocity="39" milliseconds.date="40112" milliseconds.date.end="40671" />
+        <note xml:id="n1sw27dc" date="7200" midi.pitch="67" pitchname="g" accidentals="0" octave="3" duration="360" velocity="35" milliseconds.date="40112" milliseconds.date.end="40671" />
+        <note xml:id="n43bpi4" date="7200" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="1440" velocity="38" milliseconds.date="39949" milliseconds.date.end="42189" />
+        <note xml:id="n43bpi4" date="7200" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="1440" velocity="35" milliseconds.date="39949" milliseconds.date.end="42189" />
+        <note xml:id="ni5wp4g" date="7560" midi.pitch="69" pitchname="a" accidentals="0" octave="3" duration="360" velocity="37" milliseconds.date="40653" milliseconds.date.end="41233" />
+        <note xml:id="ni5wp4g" date="7560" midi.pitch="69" pitchname="a" accidentals="0" octave="3" duration="360" velocity="38" milliseconds.date="40653" milliseconds.date.end="41233" />
+        <note xml:id="n1ix0t3p" date="7920" midi.pitch="70" pitchname="b" accidentals="-1" octave="3" duration="360" velocity="40" milliseconds.date="41203" milliseconds.date.end="42169" />
+        <note xml:id="n1ix0t3p" date="7920" midi.pitch="70" pitchname="b" accidentals="-1" octave="3" duration="360" velocity="35" milliseconds.date="41203" milliseconds.date.end="42169" />
+        <note xml:id="n80m4vn" date="8280" midi.pitch="74" pitchname="d" accidentals="0" octave="4" duration="360" velocity="35" milliseconds.date="41841" milliseconds.date.end="42403" />
+        <note xml:id="n80m4vn" date="8280" midi.pitch="74" pitchname="d" accidentals="0" octave="4" duration="360" velocity="39" milliseconds.date="41841" milliseconds.date.end="42403" />
+        <note xml:id="nlbef7n" date="8640" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="360" velocity="40" milliseconds.date="42447" milliseconds.date.end="42977" />
+        <note xml:id="nlbef7n" date="8640" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="360" velocity="35" milliseconds.date="42447" milliseconds.date.end="42977" />
+        <note xml:id="n1qopko1" date="8640" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="1440" velocity="37" milliseconds.date="42411" milliseconds.date.end="44030" />
+        <note xml:id="n1qopko1" date="8640" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="1440" velocity="35" milliseconds.date="42411" milliseconds.date.end="44030" />
+        <note xml:id="n12yqrz8" date="9000" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="360" velocity="36" milliseconds.date="42958" milliseconds.date.end="43538" />
+        <note xml:id="n12yqrz8" date="9000" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="360" velocity="38" milliseconds.date="42958" milliseconds.date.end="43538" />
+        <note xml:id="nfl0rmk" date="9000" midi.pitch="67" pitchname="g" accidentals="0" octave="3" duration="360" velocity="38" milliseconds.date="43013" milliseconds.date.end="43548" />
+        <note xml:id="nfl0rmk" date="9000" midi.pitch="67" pitchname="g" accidentals="0" octave="3" duration="360" velocity="35" milliseconds.date="43013" milliseconds.date.end="43548" />
+        <note xml:id="n1ewgtq3" date="9360" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="360" velocity="35" milliseconds.date="43568" milliseconds.date.end="44026" />
+        <note xml:id="n1ewgtq3" date="9360" midi.pitch="65" pitchname="f" accidentals="0" octave="3" duration="360" velocity="35" milliseconds.date="43568" milliseconds.date.end="44026" />
+        <note xml:id="n171h9f6" date="9360" midi.pitch="69" pitchname="a" accidentals="0" octave="3" duration="360" velocity="39" milliseconds.date="43553" milliseconds.date.end="44140" />
+        <note xml:id="n171h9f6" date="9360" midi.pitch="69" pitchname="a" accidentals="0" octave="3" duration="360" velocity="38" milliseconds.date="43553" milliseconds.date.end="44140" />
+        <note xml:id="ntj2e8n" date="9720" midi.pitch="72" pitchname="c" accidentals="0" octave="4" duration="360" velocity="37" milliseconds.date="44126" milliseconds.date.end="44756" />
+        <note xml:id="ntj2e8n" date="9720" midi.pitch="72" pitchname="c" accidentals="0" octave="4" duration="360" velocity="36" milliseconds.date="44126" milliseconds.date.end="44756" />
+        <note xml:id="nrma14f" date="10080" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="1440" velocity="35" milliseconds.date="44672" milliseconds.date.end="46449" />
+        <note xml:id="nrma14f" date="10080" midi.pitch="64" pitchname="e" accidentals="0" octave="3" duration="1440" velocity="35" milliseconds.date="44672" milliseconds.date.end="46449" />
+        <note xml:id="nusg357" date="10080" midi.pitch="67" pitchname="g" accidentals="0" octave="3" duration="1440" velocity="40" milliseconds.date="44862" milliseconds.date.end="47023" />
+        <note xml:id="nusg357" date="10080" midi.pitch="67" pitchname="g" accidentals="0" octave="3" duration="1440" velocity="40" milliseconds.date="44862" milliseconds.date.end="47023" />
+        <note xml:id="nh1xkvc" date="10080" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="1440" velocity="36" milliseconds.date="44587" milliseconds.date.end="46750" />
+        <note xml:id="nh1xkvc" date="10080" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="1440" velocity="35" milliseconds.date="44570" milliseconds.date.end="46907" />
+        <note xml:id="n3x6yrh" date="11520" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="720" velocity="42" milliseconds.date="46979" milliseconds.date.end="48047" />
+        <note xml:id="n3x6yrh" date="11520" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="720" velocity="35" milliseconds.date="46979" milliseconds.date.end="48047" />
+      </score>
+      <programChangeMap>
+        <programChange date="0" value="0" />
+      </programChangeMap>
+    </dated>
+  </part>
+  <part name="part1" number="2" midi.channel="1" midi.port="0">
+    <header />
+    <dated>
+      <score>
+        <note xml:id="n4vqmkc" date="720" midi.pitch="41" pitchname="f" accidentals="0" octave="1" duration="3600" velocity="37" milliseconds.date="29353" milliseconds.date.end="34405" />
+        <note xml:id="n4vqmkc" date="720" midi.pitch="41" pitchname="f" accidentals="0" octave="1" duration="3600" velocity="35" milliseconds.date="29353" milliseconds.date.end="34405" />
+        <note xml:id="n1ubfgy0" date="1440" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="2880" velocity="35" milliseconds.date="30353" milliseconds.date.end="34399" />
+        <note xml:id="n1ubfgy0" date="1440" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="2880" velocity="35" milliseconds.date="30353" milliseconds.date.end="34399" />
+        <note xml:id="n1yas34a" date="1440" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="2880" velocity="35" milliseconds.date="30500" milliseconds.date.end="34399" />
+        <note xml:id="n1yas34a" date="1440" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="2880" velocity="35" milliseconds.date="30500" milliseconds.date.end="34399" />
+        <note xml:id="nh71je6" date="4320" midi.pitch="62" pitchname="d" accidentals="0" octave="3" duration="1440" velocity="35" milliseconds.date="34816" milliseconds.date.end="37068" />
+        <note xml:id="nh71je6" date="4320" midi.pitch="62" pitchname="d" accidentals="0" octave="3" duration="1440" velocity="38" milliseconds.date="34816" milliseconds.date.end="37068" />
+        <note xml:id="n3tz9qd" date="5760" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="360" velocity="38" milliseconds.date="37514" milliseconds.date.end="38186" />
+        <note xml:id="n3tz9qd" date="5760" midi.pitch="60" pitchname="c" accidentals="0" octave="3" duration="360" velocity="35" milliseconds.date="37514" milliseconds.date.end="38186" />
+        <note xml:id="n1yb3fgn" date="6120" midi.pitch="58" pitchname="b" accidentals="-1" octave="2" duration="360" velocity="35" milliseconds.date="38075" milliseconds.date.end="38636" />
+        <note xml:id="n1yb3fgn" date="6120" midi.pitch="58" pitchname="b" accidentals="-1" octave="2" duration="360" velocity="35" milliseconds.date="38075" milliseconds.date.end="38636" />
+        <note xml:id="n1ml02qv" date="6480" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="720" velocity="37" milliseconds.date="38658" milliseconds.date.end="39274" />
+        <note xml:id="n1ml02qv" date="6480" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="720" velocity="35" milliseconds.date="38658" milliseconds.date.end="39274" />
+        <note xml:id="n116bigf" date="6480" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="720" velocity="37" milliseconds.date="38587" milliseconds.date.end="39190" />
+        <note xml:id="n116bigf" date="6480" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="720" velocity="35" milliseconds.date="38587" milliseconds.date.end="39190" />
+        <note xml:id="n1hdo2gg" date="7200" midi.pitch="58" pitchname="b" accidentals="-1" octave="2" duration="360" velocity="38" milliseconds.date="39953" milliseconds.date.end="40623" />
+        <note xml:id="n1hdo2gg" date="7200" midi.pitch="58" pitchname="b" accidentals="-1" octave="2" duration="360" velocity="35" milliseconds.date="39953" milliseconds.date.end="40623" />
+        <note xml:id="naq8f7d" date="7200" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="1440" velocity="37" milliseconds.date="39834" milliseconds.date.end="42184" />
+        <note xml:id="naq8f7d" date="7200" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="1440" velocity="35" milliseconds.date="39834" milliseconds.date.end="42184" />
+        <note xml:id="nxj8uux" date="7560" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="360" velocity="36" milliseconds.date="40630" milliseconds.date.end="41237" />
+        <note xml:id="nxj8uux" date="7560" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="360" velocity="35" milliseconds.date="40630" milliseconds.date.end="41237" />
+        <note xml:id="n1v81yp6" date="7920" midi.pitch="55" pitchname="g" accidentals="0" octave="2" duration="720" velocity="38" milliseconds.date="41158" milliseconds.date.end="42195" />
+        <note xml:id="n1v81yp6" date="7920" midi.pitch="55" pitchname="g" accidentals="0" octave="2" duration="720" velocity="35" milliseconds.date="41158" milliseconds.date.end="42195" />
+        <note xml:id="n1h9lqkp" date="8640" midi.pitch="53" pitchname="f" accidentals="0" octave="2" duration="360" velocity="35" milliseconds.date="42354" milliseconds.date.end="42864" />
+        <note xml:id="n1h9lqkp" date="8640" midi.pitch="53" pitchname="f" accidentals="0" octave="2" duration="360" velocity="35" milliseconds.date="42354" milliseconds.date.end="42864" />
+        <note xml:id="ncr5i92" date="8640" midi.pitch="45" pitchname="a" accidentals="0" octave="1" duration="360" velocity="35" milliseconds.date="42333" milliseconds.date.end="42985" />
+        <note xml:id="ncr5i92" date="8640" midi.pitch="45" pitchname="a" accidentals="0" octave="1" duration="360" velocity="35" milliseconds.date="42333" milliseconds.date.end="42985" />
+        <note xml:id="nu3c214" date="9000" midi.pitch="55" pitchname="g" accidentals="0" octave="2" duration="360" velocity="36" milliseconds.date="42955" milliseconds.date.end="43336" />
+        <note xml:id="nu3c214" date="9000" midi.pitch="55" pitchname="g" accidentals="0" octave="2" duration="360" velocity="38" milliseconds.date="42955" milliseconds.date.end="43336" />
+        <note xml:id="nw4587c" date="9000" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="360" velocity="35" milliseconds.date="42916" milliseconds.date.end="43608" />
+        <note xml:id="nw4587c" date="9000" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="360" velocity="38" milliseconds.date="42916" milliseconds.date.end="43608" />
+        <note xml:id="n1vmhu38" date="9360" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="720" velocity="35" milliseconds.date="43492" milliseconds.date.end="44030" />
+        <note xml:id="n1vmhu38" date="9360" midi.pitch="57" pitchname="a" accidentals="0" octave="2" duration="720" velocity="36" milliseconds.date="43492" milliseconds.date.end="44030" />
+        <note xml:id="n1273g3u" date="9360" midi.pitch="53" pitchname="f" accidentals="0" octave="2" duration="720" velocity="35" milliseconds.date="43429" milliseconds.date.end="44028" />
+        <note xml:id="n1273g3u" date="9360" midi.pitch="53" pitchname="f" accidentals="0" octave="2" duration="720" velocity="37" milliseconds.date="43429" milliseconds.date.end="44028" />
+        <note xml:id="nuygr2l" date="10080" midi.pitch="55" pitchname="g" accidentals="0" octave="2" duration="1440" velocity="36" milliseconds.date="44558" milliseconds.date.end="47447" />
+        <note xml:id="nuygr2l" date="10080" midi.pitch="55" pitchname="g" accidentals="0" octave="2" duration="1440" velocity="35" milliseconds.date="44558" milliseconds.date.end="47447" />
+        <note xml:id="n1pkbpqe" date="10080" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="360" velocity="37" milliseconds.date="44494" milliseconds.date.end="45426" />
+        <note xml:id="n1pkbpqe" date="10080" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="360" velocity="35" milliseconds.date="44494" milliseconds.date.end="45426" />
+        <note xml:id="n8cacvt" date="10440" midi.pitch="50" pitchname="d" accidentals="0" octave="2" duration="360" velocity="41" milliseconds.date="45344" milliseconds.date.end="45935" />
+        <note xml:id="n8cacvt" date="10440" midi.pitch="50" pitchname="d" accidentals="0" octave="2" duration="360" velocity="38" milliseconds.date="45344" milliseconds.date.end="45935" />
+        <note xml:id="n18s8imu" date="10800" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="360" velocity="37" milliseconds.date="45824" milliseconds.date.end="46389" />
+        <note xml:id="n18s8imu" date="10800" midi.pitch="48" pitchname="c" accidentals="0" octave="2" duration="360" velocity="35" milliseconds.date="45824" milliseconds.date.end="46389" />
+        <note xml:id="n1rj5zce" date="11160" midi.pitch="46" pitchname="b" accidentals="-1" octave="1" duration="360" velocity="35" milliseconds.date="46351" milliseconds.date.end="46963" />
+        <note xml:id="n1rj5zce" date="11160" midi.pitch="46" pitchname="b" accidentals="-1" octave="1" duration="360" velocity="35" milliseconds.date="46351" milliseconds.date.end="46963" />
+        <note xml:id="nrjozf4" date="11520" midi.pitch="43" pitchname="g" accidentals="0" octave="1" duration="360" velocity="35" milliseconds.date="46856" milliseconds.date.end="47449" />
+        <note xml:id="nrjozf4" date="11520" midi.pitch="43" pitchname="g" accidentals="0" octave="1" duration="360" velocity="35" milliseconds.date="46857" milliseconds.date.end="47449" />
+        <note xml:id="n7e8ajb" date="11880" midi.pitch="45" pitchname="a" accidentals="0" octave="1" duration="360" velocity="37" milliseconds.date="47428" milliseconds.date.end="47913" />
+        <note xml:id="n7e8ajb" date="11880" midi.pitch="45" pitchname="a" accidentals="0" octave="1" duration="360" velocity="35" milliseconds.date="47428" milliseconds.date.end="47913" />
+      </score>
+      <programChangeMap>
+        <programChange date="0" value="0" />
+      </programChangeMap>
+    </dated>
+  </part>
+</msm>
