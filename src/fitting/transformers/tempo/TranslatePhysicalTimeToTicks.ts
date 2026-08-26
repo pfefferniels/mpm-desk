@@ -61,18 +61,18 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
    *
    * The tempo segments cover the piece, and the times asked about do not have to: an ornament's
    * frame reaches backwards from its anchor, so a roll on the first beat asks about a negative
-   * time, and a roll near the last one can ask about a time past the final note. Both used to
-   * fall out of the loop and return `undefined`, which the caller then subtracted — writing
-   * `NaN` into the frame and marking the ornament converted. A roll that begins before its beat
-   * is what an arpeggio *is*, so that was every piece-initial ornament.
+   * time, and a roll near the last one can ask about a time past the final note. Both fall out
+   * of the loop and answer `undefined`; a caller that subtracts that writes `NaN` into the
+   * frame and marks the ornament converted. A roll that begins before its beat is what an
+   * arpeggio *is*, so that is every piece-initial ornament.
    *
-   * The two extrapolations that answered them are gone from here, and not because they were
-   * wrong: they were a third and fourth hand-copy of a rule `segmentAtMs` and
-   * `dateAtMilliseconds` now state once. The first-segment copy measured from `ms` where the
-   * cursor starts at `startMs`, and the last-segment copy read `@transition.to` straight off
-   * the record — which is not the tempo the span arrives at when `@meanTempoAt` resolves the
-   * transition away. Both now come out of the same two functions the note walk uses, so an
-   * ornament and the notes it ornaments cannot be placed by different arithmetic.
+   * There is no extrapolation here for either end, and not because extrapolating is wrong: it
+   * would be a third and fourth hand-copy of a rule `segmentAtMs` and `dateAtMilliseconds`
+   * state once. A first-segment copy measures from `ms` where the cursor starts at `startMs`,
+   * and a last-segment copy reads `@transition.to` straight off the record — which is not the
+   * tempo the span arrives at when `@meanTempoAt` resolves the transition away. Both ends come
+   * out of the same two functions the note walk uses, so an ornament and the notes it ornaments
+   * cannot be placed by different arithmetic.
    */
   private msToTicks(ms: number, segments: PlacedTempo[]): number | undefined {
     const segment = segmentAtMs(segments, ms);

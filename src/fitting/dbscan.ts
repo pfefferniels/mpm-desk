@@ -104,7 +104,7 @@ function rangeQuery(current: IPoint, data: IPoint[], epsilons: number[]) {
   return data.filter((point) =>
     point.value.every((value, dimension) => {
       // a point with fewer dimensions than its neighbour is nobody's neighbour, which is the
-      // reading `<= undefined` gave it. the epsilon is in range: `epsilons.length` was checked
+      // reading `<= undefined` gives it. the epsilon is in range: `epsilons.length` was checked
       // against the widest point above.
       const centre = elementAtOrNull(current.value, dimension);
       return (

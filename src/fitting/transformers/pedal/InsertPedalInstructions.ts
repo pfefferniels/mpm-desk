@@ -70,8 +70,8 @@ export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
 
       return { pedal, tickDate, tickDuration };
     });
-    // `??`, so a caller asking for a depth of `0` gets one. `||` read it as "not given" and
-    // substituted a fully depressed pedal — the opposite of what was asked for (issue #46).
+    // `??`, so a caller asking for a depth of `0` gets one. `||` reads it as "not given" and
+    // substitutes a fully depressed pedal — the opposite of what was asked for (issue #46).
     const depth = normalized(this.options.depth ?? 1);
     const released = normalized(0);
 

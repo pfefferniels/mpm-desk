@@ -78,7 +78,7 @@ const ViewerInner = () => {
             >
                 <ViewerToolbar onDownload={handleDownload} metadata={work.reconstruction} />
                 <SelectionProvider>
-                    <ScrollSyncProvider zoom={zoomContextValue.symbolic.stretchX}>
+                    <ScrollSyncProvider symbolicZoom={zoomContextValue.symbolic.stretchX}>
                         <PinchZoomHandler />
                         {/* The tree is the page: it takes the whole window, and the
                             toolbar and the title lie over it. */}

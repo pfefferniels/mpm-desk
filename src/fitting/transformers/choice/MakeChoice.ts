@@ -79,8 +79,8 @@ export class MakeChoice extends AbstractTransformer<MakeChoiceOptions> {
     );
 
     // The removals are collected and applied in one pass. Splicing each variant out
-    // individually was a `indexOf` scan plus a shift of the tail per note — quadratic in the
-    // score, and every note of every chosen group paid it.
+    // individually is an `indexOf` scan plus a shift of the tail per note — quadratic in the
+    // score, and every note of every chosen group pays it.
     const discarded = new Set<AlignedNote>();
     const chosen: AlignedNote[] = [];
 
@@ -103,23 +103,23 @@ export class MakeChoice extends AbstractTransformer<MakeChoiceOptions> {
     }
 
     if (discarded.size > 0) {
-      // Group order is iteration order, so the kept notes land at the end in the same
-      // order the splice-and-push loop left them in.
+      // Group order is iteration order, so the kept notes land at the end in the order
+      // their groups were visited.
       msm.allNotes = msm.allNotes.filter((note) => !discarded.has(note)).concat(chosen);
     }
 
     if (pedallingPreference) {
-      // The range is not applied to pedals, and never has been. The range branch compared
-      // `pedal.date` against it, but nothing has ever written a symbolic date onto a
-      // pedal — the field was declared optional and left unset by every producer — so the
-      // comparison was `undefined < number`, false, and every pedal fell through to the
-      // source test regardless of the range. Once that is said plainly the two branches
-      // are the same filter, so there is one. Giving pedals a symbolic position is a
-      // change of its own; they are placed in milliseconds only.
+      // The range is not applied to pedals. Comparing `pedal.date` against it does nothing:
+      // nothing writes a symbolic date onto a pedal — the field is optional and left unset
+      // by every producer — so the comparison is `undefined < number`, false, and every
+      // pedal falls through to the source test regardless of the range. Said plainly, a
+      // ranged branch and an unranged one are the same filter, so there is one. Giving
+      // pedals a symbolic position is a change of its own; they are placed in milliseconds
+      // only.
       //
-      // The range branch also spliced out of the array it was iterating, which skips the
-      // element after each removal — two adjacent pedals from the rejected source left the
-      // second one in.
+      // Filtered rather than spliced, too: splicing out of the array being iterated skips
+      // the element after each removal, so two adjacent pedals from the rejected source
+      // would leave the second one in.
       msm.pedals = msm.pedals.filter((pedal) => pedal.source === pedallingPreference);
     }
   }

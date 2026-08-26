@@ -2,8 +2,8 @@
  * A deterministic pseudo-random source: the same seed always yields the same sequence.
  *
  * The fitting transformers explore their parameter space by simulated annealing. The pipeline
- * re-runs the *whole* chain on every edit, so an un-seeded `Math.random` meant that touching one
- * desk re-fitted every curve in the piece to slightly different numbers. Seeding the search from
+ * re-runs the *whole* chain on every edit, so an un-seeded `Math.random` would mean that touching
+ * one desk re-fits every curve in the piece to slightly different numbers. Seeding the search from
  * its own inputs makes each fit a pure function of what it was asked to fit — which is also what
  * lets a desk's preview agree with what the pipeline will actually insert.
  */

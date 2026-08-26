@@ -158,7 +158,7 @@ export class InsertArticulation extends AbstractTransformer<InsertArticulationOp
     const affectedNotes = noteIDs.map((id) => msm.getByID(id)).filter((n) => !!n);
 
     // What the MPM explains without any articulation is what articulation has to account
-    // for. Derived here rather than read off the notes, so this no longer depends on which
+    // for. Derived here rather than read off the notes, so this does not depend on which
     // earlier transformer subtracted what.
     const residual = deriveResidual(msm, mpm, { without: ['articulation'] });
 

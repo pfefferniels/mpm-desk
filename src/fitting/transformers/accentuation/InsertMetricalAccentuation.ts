@@ -75,15 +75,14 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
    * `denominator * beat + 1` is the same grid espressivo's `MetricalAccentuationMap` reads the
    * pattern back on: it computes `1 + (date − tsDate) % measureTicks / ticksPerBeat` with
    * `ticksPerBeat = 4 * ppq / denominator`, so one beat is one denominator-note in both
-   * directions. (Issue #42 reported the two halves disagreeing. The half that read them back
-   * in quarters, `removeAccentuationDistortion`, no longer exists — the residual is derived by
-   * rendering the document through espressivo now, so the reader *is* the renderer and there
-   * is only one grid left to agree with.)
+   * directions. (Issue #42 reported the two halves disagreeing, one of them reading beats back
+   * in quarters. The residual is derived by rendering the document through espressivo, so the
+   * reader *is* the renderer and there is one grid to agree with.)
    *
    * The loop counts beats as integers and converts each to ticks once, rather than
-   * accumulating `beat += beatLength`. A triplet basis is not representable in binary, so the
-   * accumulated position drifted — and `notesAtDate` compares dates with `===`, so a drifted
-   * date silently matched no note at all. Rounding to the tick is exact for every basis,
+   * accumulating `beat += beatLength`. A triplet basis is not representable in binary, so an
+   * accumulated position drifts — and `notesAtDate` compares dates with `===`, so a drifted
+   * date silently matches no note at all. Rounding to the tick is exact for every basis,
    * because score dates are integers in ticks.
    */
   private extractVelocities(

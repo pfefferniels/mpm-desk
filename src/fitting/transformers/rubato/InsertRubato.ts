@@ -13,8 +13,8 @@ import { determineIntensity } from '../ornamentation/index';
 import { deriveResidual, type Residual } from '../../residual';
 import { head, isNonEmpty, numberAt } from 'espressivo';
 
-// Re-exported: `calculateRubatoOnDate` has been part of the package surface since before it
-// moved, and the rubato desk imports it from here.
+// Re-exported: `calculateRubatoOnDate` is part of this module's public surface, and the rubato
+// desk imports it from here.
 export { calculateRubatoOnDate } from './rubatoMath';
 
 /**

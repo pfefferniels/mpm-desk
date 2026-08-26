@@ -75,9 +75,9 @@ export const instructionTypes = [
  * One instruction as it stands in the document: everything it says, plus where it is.
  *
  * A **snapshot**, not a live view — the result of a query, the way a row is the result of a
- * `SELECT`. Under mpm-ts these records *were* the document and assigning to one edited it,
- * which made a value that looks like data silently not be. Reading is reading; writing is a
- * call on the espressivo map, which says at the call site that the document changed.
+ * `SELECT`. Records that *are* the document, where assigning to one edits it, make a value that
+ * looks like data silently not be. Reading is reading; writing is a call on the espressivo map,
+ * which says at the call site that the document changed.
  *
  * `element` is the identity that survives the snapshot — what `removeInstruction` finds the
  * instruction by, and what the ornament draft hangs off. Do not read attributes off it

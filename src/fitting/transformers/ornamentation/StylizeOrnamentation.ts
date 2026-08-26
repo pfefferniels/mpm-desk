@@ -86,9 +86,9 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
   requires = [InsertDynamicsGradient, InsertTemporalSpread];
 
   /**
-   * All three tolerances are read, and read with `??`. Two of them were hardcoded here and the
-   * caller's values discarded, so `new StylizeOrnamentation({ intensityTolerance: 0.9 })`
-   * clustered at 0.3 (issue #33). `??` rather than `||` for the same reason as in
+   * All three tolerances are read, and read with `??`. Hardcoding any of them discards the
+   * caller's value, so that `new StylizeOrnamentation({ intensityTolerance: 0.9 })` clusters
+   * at 0.3 (issue #33). `??` rather than `||` for the same reason as in
    * `StylizeArticulation`: `0` means "exact matches only", which is what the `noteoff.shift`
    * dimension of `generateClusters` already asks for.
    */
@@ -240,12 +240,12 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
    * One definition for a cluster of ornaments: each value the mean of the group's.
    *
    * Averaged from the drafts themselves rather than from the clustering's coordinate vectors.
-   * Those vectors were being read by position — `point[3]` and `point[4]` for the two
-   * `transition.*` — while `generateClusters` builds a **four**-dimensional point ending in the
-   * note-off shift. So the gradient was read one place short: `transitionFrom` came back as the
-   * note-off shift and `transitionTo` as `transitionFrom`, which turned every clustered
-   * crescendo into its own mirror image — a truth of 39/51.5/64 refitting as 64/51.5/39. Read
-   * the draft by name and the two cannot come apart again.
+   * Reading those vectors by position — `point[3]` and `point[4]` for the two `transition.*` —
+   * reads the gradient one place short, because `generateClusters` builds a **four**-dimensional
+   * point ending in the note-off shift: `transitionFrom` comes back as the note-off shift and
+   * `transitionTo` as `transitionFrom`, which turns every clustered crescendo into its own
+   * mirror image — a truth of 39/51.5/64 refitting as 64/51.5/39. Read the draft by name and
+   * the two cannot come apart.
    */
   private mergedDef(ornaments: FittedOrnament[], name: string): OrnamentDef | null {
     const mean = (of: (draft: OrnamentDraft) => number | undefined) => {

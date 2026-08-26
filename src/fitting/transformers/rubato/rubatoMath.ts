@@ -96,7 +96,7 @@ const resolve = (rubato: RubatoFrame): ResolvedRubato | null => {
  * espressivo keeps private — it is the one `…At()` evaluator the package does not export, where
  * tempo, dynamics and movement all do. Everything that decides *what numbers go into* it comes
  * from {@link resolve}, so what is duplicated here is a formula with no defaults and no
- * branches, rather than the policy that had actually drifted. If espressivo ever exports a
+ * branches, rather than the policy that is what actually drifts. If espressivo ever exports a
  * `rubatoAt`, this becomes a one-line delegation.
  *
  * An unresolvable rubato leaves the date where it was, which is what an identity warp means.
