@@ -10,6 +10,13 @@ interface Work {
     scoreMsm: string;
     /** The performance as MPM XML — what the segments point into. */
     performanceMpm: string;
+    /**
+     * The chain as it was fetched, verbatim.
+     *
+     * `reconstruction` is a projection of it and cannot be turned back into it, so the text is
+     * kept: it is what the download hands on, and what lets the editor open what the viewer shows.
+     */
+    workJson: string;
     reconstruction: Reconstruction;
 }
 
@@ -56,7 +63,7 @@ export const useReconstruction = (): { work: Work | null; error: Error | null } 
                     elementTypes,
                 });
 
-                setWork({ scoreMsm, performanceMpm, reconstruction });
+                setWork({ scoreMsm, performanceMpm, workJson, reconstruction });
             })
             .catch((reason: unknown) => {
                 if (!cancelled) setError(reason instanceof Error ? reason : new Error(String(reason)));

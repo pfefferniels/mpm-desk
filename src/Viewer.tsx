@@ -39,17 +39,25 @@ const ViewerInner = () => {
     );
     const dateByNoteId = useMemo(() => work ? readNoteDates(work.scoreMsm) : new Map(), [work]);
 
+    /**
+     * Download: the same four files the editor saves, so what you see can be opened and edited.
+     *
+     * `work.json` goes in verbatim rather than as the tree drawn from it. The tree is a projection
+     * — it drops the options each call was made with — and the editor opens `work.json`, so a zip
+     * carrying only the projection loads there as a score with no work behind it.
+     *
+     * The MEI is the provenance of the other three, and nothing on screen needs it, so it is
+     * fetched here rather than on load; a piece served without one still yields the rest.
+     */
     const handleDownload = useCallback(async () => {
         if (!work) return;
 
-        // The MEI is the provenance of the other three, and nothing on screen
-        // needs it — so it is fetched here rather than on load.
         const response = await fetch('/transcription.mei');
         const zip = new JSZip();
-        zip.file('score.msm', work.scoreMsm);
-        zip.file('performance.mpm', work.performanceMpm);
-        zip.file('segments.json', JSON.stringify(work.reconstruction, null, 2));
         if (response.ok) zip.file('transcription.mei', await response.text());
+        zip.file('work.json', work.workJson);
+        zip.file('performance.mpm', work.performanceMpm);
+        zip.file('score.msm', work.scoreMsm);
 
         const content = await zip.generateAsync({ type: 'blob' });
         downloadAsFile(content, 'export.zip', 'application/zip');
