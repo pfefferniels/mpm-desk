@@ -15,7 +15,9 @@
  */
 import type { AddRubatoOptions } from 'espressivo';
 import {
+  dateBeforeRubato,
   resolveRubato,
+  rubatoAt,
   type Rubato as ResolvedRubato,
 } from 'espressivo';
 import { instructionsEffectiveAtDate, Mpm, type Scope } from '../../instructions/index';
@@ -92,53 +94,46 @@ const resolve = (rubato: RubatoFrame): ResolvedRubato | null => {
 /**
  * Where a symbolic date lands once the rubato has warped its frame.
  *
- * The three lines of arithmetic are meico's `RubatoMap.computeRubatoTransformation`, which
- * espressivo keeps private — it is the one `…At()` evaluator the package does not export, where
- * tempo, dynamics and movement all do. Everything that decides *what numbers go into* it comes
- * from {@link resolve}, so what is duplicated here is a formula with no defaults and no
- * branches, rather than the policy that is what actually drifts. If espressivo ever exports a
- * `rubatoAt`, this becomes a one-line delegation.
+ * espressivo's `rubatoAt`, which is what this used to be a hand-copy of. It was the one
+ * `…At()` evaluator the package kept private, so the three lines of `RubatoMap`'s rendering
+ * math lived here too; the comment that stood here predicted this delegation, and this is it.
+ * Everything that decides *what numbers go into* it still comes from {@link resolve}.
  *
  * An unresolvable rubato leaves the date where it was, which is what an identity warp means.
  */
 export const calculateRubatoOnDate = (date: number, rubato: RubatoFrame): number => {
   const rd = resolve(rubato);
   if (rd === null) return date;
-
-  // compute the position of the map element within the rubato frame
-  const localDate = (date - rd.startDate) % rd.frameLength;
-  const d =
-    (Math.pow(localDate / rd.frameLength, rd.intensity) * (rd.earlyEnd - rd.lateStart) +
-      rd.lateStart) *
-    rd.frameLength;
-  return date + d - localDate;
+  return rubatoAt(rd, date);
 };
 
 /**
- * This function does the opposite of `calculateRubatoDate`:
- * It removes the "rubato effect" from a given date.
- * TODO: find a numerical, non-iterative solution.
+ * The frame-local position that the rubato warped to `local`, taking the warp back off it.
+ *
+ * `dateBeforeRubato` is espressivo's closed-form inverse of {@link calculateRubatoOnDate}. It
+ * replaces a bisection that carried a `TODO: find a numerical, non-iterative solution` and
+ * stopped as soon as the *output* was within one tick while its bracket ran to 1e-6 in the
+ * *input* — two domains in one tolerance. Measured over a 720-tick frame, that was out by up to
+ * **11.25 ticks**; the closed form round-trips to 2e-12.
+ *
+ * ## The clamp is ours, and that is the point
+ *
+ * The warped image of a frame is `[lateStart, earlyEnd)` of it, so a position outside that
+ * window is one no date warps to, and espressivo answers `NaN` rather than inventing a tick.
+ * That is the right answer for a library: it does not know what the caller would do with a
+ * fabricated one. Here we *are* the caller, we have a duration to write, and refusing is not
+ * available — so this clamps to the end the position fell past, which is where the bisection
+ * converged anyway (it could only ever return a point in its own bracket). The library refuses
+ * to guess; the client decides what to write. That is the whole division between the two.
+ *
+ * A `NaN` position is not clamped. It travels, and `auditInstructions` is what stops it — the
+ * bisection used to return 0 for one, which is a tick that looks like an answer.
  */
-const removeRubatoFromDate = (newDate: number, rubato: RubatoFrame) => {
-  const frameLength = frameLengthOf(rubato);
-  const target = rubato.date + ((newDate - rubato.date) % frameLength);
-  let lowerBound = rubato.date;
-  let upperBound = rubato.date + frameLength;
-
-  while (upperBound - lowerBound > 1e-6) {
-    const middle = (upperBound + lowerBound) / 2;
-    const middleNewDate = calculateRubatoOnDate(middle, rubato);
-
-    if (Math.abs(target - middleNewDate) < 1) {
-      return middle - rubato.date;
-    } else if (middleNewDate < target) {
-      lowerBound = middle;
-    } else {
-      upperBound = middle;
-    }
-  }
-
-  return lowerBound - rubato.date;
+const unwarpLocal = (rd: ResolvedRubato, local: number): number => {
+  const unwarped = dateBeforeRubato(rd, rd.startDate + local);
+  if (!Number.isNaN(unwarped)) return unwarped - rd.startDate;
+  if (Number.isNaN(local)) return NaN;
+  return local < rd.lateStart * rd.frameLength ? 0 : rd.frameLength;
 };
 
 /**
@@ -188,10 +183,8 @@ export const removeRubatoDistortion = (
     const remainder = offset - rubatoStart;
     time.tickDuration -= remainder;
 
-    const remainderWithoutRubato = removeRubatoFromDate(
-      effectiveRubato.date + remainder,
-      effectiveRubato,
-    );
-    time.tickDuration += remainderWithoutRubato;
+    const resolved = resolve(effectiveRubato);
+    if (resolved === null) continue;
+    time.tickDuration += unwarpLocal(resolved, remainder);
   }
 };
