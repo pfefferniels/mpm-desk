@@ -1,0 +1,1049 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?xml-model href="https://music-encoding.org/schema/5.1/mei-all.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?><?xml-model href="https://music-encoding.org/schema/5.1/mei-all.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?><mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.1">
+   <meiHead>
+      <fileDesc>
+         <titleStmt>
+            <title/>
+         </titleStmt>
+         <pubStmt>
+            <date isodate="2025-08-09T19:42:32"/>
+         </pubStmt>
+      </fileDesc>
+      <manifestationList>
+         <manifestation xml:id="c9050e75-97a8-4862-9533-0f4b1439802b">
+            <physDesc>
+               <captureMode>
+                  <p>linked-rolls (based on midi2exp)Parameters:<list>
+                     <li>place-time-conversion: kinematic (acceleration: 0.1772 ft/s², speed: 9.85 ft/min)</li>
+                     <li>welte_p=35</li>
+                     <li>welte_f=90</li>
+                     <li>welte_mf=60</li>
+                     <li>welte_loud=75</li>
+                     <li>trackerBarDiameter=1.413</li>
+                     <li>punchExtensionFraction=0.75</li>
+                     <li>slow_decay_rate=2380</li>
+                     <li>fastC_decay_rate=300</li>
+                     <li>fastD_decay_rate=400</li>
+                     <li>division=54</li>
+                     <li>slow_step=0.01050420168067227</li>
+                     <li>fastC_step=0.08333333333333333</li>
+                     <li>fastD_step=-0.1375</li>
+                  </list>
+               </p>
+            </captureMode>
+         </physDesc>
+      </manifestation>
+      <manifestation xml:id="0e5f443d-0dd9-4810-9dbe-7f5007df490f">
+         <physDesc>
+            <captureMode>
+               <p>linked-rolls (based on midi2exp)Parameters:<list>
+                  <li>place-time-conversion: kinematic (acceleration: 0.1772 ft/s², speed: 9.85 ft/min)</li>
+                  <li>welte_p=35</li>
+                  <li>welte_f=90</li>
+                  <li>welte_mf=60</li>
+                  <li>welte_loud=75</li>
+                  <li>trackerBarDiameter=1.413</li>
+                  <li>punchExtensionFraction=0.75</li>
+                  <li>slow_decay_rate=2380</li>
+                  <li>fastC_decay_rate=300</li>
+                  <li>fastD_decay_rate=400</li>
+                  <li>division=54</li>
+                  <li>slow_step=0.01050420168067227</li>
+                  <li>fastC_step=0.08333333333333333</li>
+                  <li>fastD_step=-0.1375</li>
+               </list>
+            </p>
+         </captureMode>
+      </physDesc>
+   </manifestation>
+</manifestationList>
+</meiHead>
+<music>
+<body>
+   <mdiv xml:id="r1241ama">
+      <score xml:id="sxx3od5">
+         <scoreDef xml:id="v1dhhier">
+            <pgHead xml:id="w1aj3sob" func="first">
+               <rend xml:id="x194lsq9" halign="center" valign="top">
+                  <rend xml:id="y1hxnx34" type="title" fontsize="x-large">Träumerei.</rend>
+               </rend>
+            </pgHead>
+            <staffGrp xml:id="apvju6v">
+               <staffGrp xml:id="bg14lrf" bar.thru="true" symbol="brace">
+                  <staffDef xml:id="d12ikqln" n="1" lines="5" keysig="1f" meter.sym="common">
+                     <clef xml:id="m1vpg8lr" shape="G" line="2"/>
+                  </staffDef>
+                  <staffDef xml:id="n1oshren" n="2" lines="5" keysig="1f" meter.sym="common">
+                     <clef xml:id="wysegse" shape="F" line="4"/>
+                  </staffDef>
+               </staffGrp>
+            </staffGrp>
+         </scoreDef>
+         <section xml:id="x1rpwh0z">
+            <measure xml:id="mjpcx1" metcon="false" n="1">
+               <staff xml:id="m1s1" n="1">
+                  <layer xml:id="m1s1l1" n="1">
+                     <note xml:id="npk4lw6" dur="4" oct="4" pname="c" corresp="symbol_acfc087a-e169-4fac-be23-b2d2ea72cefa"/>
+                  </layer>
+               </staff>
+               <staff xml:id="m1s2" n="2">
+                  <layer xml:id="m1s2l1" n="1">
+                     <rest xml:id="r1vdxzr7" dur="4"/>
+                  </layer>
+               </staff>
+               <tempo xml:id="t1kbraqc" type="mscore-infer-from-text" staff="1" tstamp="1" midi.bpm="50">M. M. <rend xml:id="rminrgc" glyph.auth="smufl"></rend> = 100.</tempo>
+               <dynam xml:id="dti0sj4" label="p" staff="1" startid="#npk4lw6">p</dynam>
+               <slur xml:id="sijfcth" startid="#npk4lw6" endid="#n1bsnpkr"/>
+            </measure>
+            <section xml:id="s1">
+               <measure xml:id="m1788ecg" n="2">
+                  <staff xml:id="m2s1" n="1">
+                     <layer xml:id="m2s1l1" n="1">
+                        <note xml:id="nxbdd6x" dur="2" oct="4" pname="f" corresp="symbol_ec92cca1-095b-4aa0-92c0-e509a62a6b6c"/>
+                        <note xml:id="n1bsnpkr" type="mscore-beam-none" dur="8" oct="4" pname="f"/>
+                        <beam xml:id="k1r3ht6q">
+                           <note xml:id="nrbga5m" dur="8" oct="4" pname="e" corresp="symbol_1aa3b62f-23c7-4947-913e-a7fa04f1486a"/>
+                           <note xml:id="n1ogvejs" dur="8" oct="4" pname="f" corresp="symbol_f4c5679f-77c8-4773-ab73-d144e265a6a4"/>
+                           <note xml:id="n1qzl4hr" dur="8" oct="4" pname="a" corresp="symbol_c5ca5933-d373-499c-9fc7-30c9d8d38d9a"/>
+                        </beam>
+                     </layer>
+                     <layer xml:id="m2s1l2" n="2">
+                        <rest xml:id="r1gwgx49" dur="4"/>
+                        <chord xml:id="c1wiufu1" dots="1" dur="2">
+                           <note xml:id="n1obi0t8" oct="3" pname="f" corresp="symbol_37541578-f09c-4308-91e2-ddd6c7f0379c"/>
+                           <note xml:id="nd80ywu" oct="4" pname="c" corresp="symbol_a41e85a4-a1c4-4c06-95f9-34c54ec0023d"/>
+                        </chord>
+                     </layer>
+                  </staff>
+                  <staff xml:id="m2s2" n="2">
+                     <layer xml:id="m2s2l1" n="1">
+                        <note xml:id="nyoi81f" dur="4" oct="2" pname="f"/>
+                        <chord xml:id="c41wf02" dots="1" dur="2" stem.dir="up">
+                           <note xml:id="n1ubfgy0" oct="3" pname="c" corresp="symbol_d2502412-575b-4e17-8a5b-ce4f5ed43eaf"/>
+                           <note xml:id="n1yas34a" oct="3" pname="a" corresp="symbol_17a5d5de-129c-4e86-97b0-0ab6fd644bb7"/>
+                        </chord>
+                     </layer>
+                     <layer xml:id="m2s2l2" n="2">
+                        <note xml:id="n4vqmkc" dur="1" oct="2" pname="f" corresp="symbol_03e5691c-d0b8-4916-b54e-817200185466"/>
+                     </layer>
+                  </staff>
+                  <tie xml:id="t1j3ha4g" startid="#nxbdd6x" endid="#n1bsnpkr"/>
+                  <slur xml:id="sj4bgoy" startid="#nrbga5m" endid="#nv84jxp"/>
+                  <hairpin xml:id="hikejwn" staff="1" startid="#n1ogvejs" endid="#nv84jxp" form="cres"/>
+                  <tie xml:id="t1rrj0yr" startid="#n1ubfgy0" endid="#n2k3qug"/>
+                  <tie xml:id="tpgsqvw" startid="#n1yas34a" endid="#n96l1dc"/>
+                  <tie xml:id="t1bhfn2s" startid="#n4vqmkc" endid="#n1hoitci"/>
+               </measure>
+               <measure xml:id="mzttfzx" n="3">
+                  <staff xml:id="m3s1" n="1">
+                     <layer xml:id="m3s1l1" n="1">
+                        <beam xml:id="thl6696">
+                           <note xml:id="n10g2bbj" dur="8" oct="5" pname="c" corresp="symbol_5c702f18-371c-4a37-8360-2562cf8f507a"/>
+                           <note xml:id="nv84jxp" dur="8" oct="5" pname="f" corresp="symbol_61ba1183-1e5a-4aa7-b915-dd419a48629d"/>
+                        </beam>
+                        <note xml:id="n162mama" dur="2" oct="5" pname="f" corresp="symbol_cc542baa-c130-42a1-a361-849826ff5fdd"/>
+                        <beam xml:id="xh1b70t">
+                           <note xml:id="n1nv0ztz" dur="8" oct="5" pname="e" corresp="symbol_d38ade32-e5a9-4439-9afb-360cbb674609"/>
+                           <note xml:id="n105patq" dur="8" oct="5" pname="d" corresp="symbol_e538ae06-f700-4e91-b8a7-957d1f3c5d9d"/>
+                        </beam>
+                     </layer>
+                     <layer xml:id="m3s1l2" n="2">
+                        <rest xml:id="r1s3xang" dur="4"/>
+                        <note xml:id="ntu78d0" dots="1" dur="2" oct="4" pname="f" corresp="symbol_eefbbbc4-0fd2-4736-8bc7-a7a1b9491a08"/>
+                     </layer>
+                  </staff>
+                  <staff xml:id="m3s2" n="2">
+                     <layer xml:id="m3s2l1" n="1">
+                        <chord xml:id="c1ulsjd6" dur="4">
+                           <note xml:id="n2k3qug" oct="3" pname="c"/>
+                           <note xml:id="n96l1dc" oct="3" pname="a"/>
+                        </chord>
+                        <note xml:id="nh71je6" dur="2" oct="4" pname="d" corresp="symbol_e75dcded-880b-4b55-8087-a3129a671942"/>
+                        <beam xml:id="j1nx08e2">
+                           <note xml:id="n3tz9qd" dur="8" oct="4" pname="c" corresp="symbol_ca26bc7c-7a41-4f76-bc3e-85bd2d40fcd8"/>
+                           <note xml:id="n1yb3fgn" dur="8" oct="3" pname="b" corresp="symbol_c791b5fe-1224-46fc-bdec-e4f6b234e536">
+                              <accid xml:id="mymztwq" accid.ges="f"/>
+                           </note>
+                        </beam>
+                     </layer>
+                     <layer xml:id="m3s2l2" n="2">
+                        <note xml:id="n1hoitci" dur="4" oct="2" pname="f"/>
+                        <graceGrp xml:id="pxnvdff">
+                           <beam xml:id="qsacbes">
+                              <note xml:id="n1or9mhw" dur="16" oct="2" pname="b" stem.dir="up">
+                                 <accid xml:id="s193dw6a" accid.ges="f"/>
+                              </note>
+                              <note xml:id="nw7mgns" dur="16" oct="3" pname="f" stem.dir="up"/>
+                           </beam>
+                        </graceGrp>
+                        <note xml:id="nanro74" dots="1" dur="2" oct="3" pname="f"/>
+                     </layer>
+                  </staff>
+                  <slur xml:id="sogn69o" startid="#n1nv0ztz" endid="#n1rph3w3"/>
+                  <tie xml:id="t1h4nysp" startid="#ntu78d0" endid="#naim99y"/>
+                  <slur xml:id="syxuaiv" startid="#n3tz9qd" endid="#n1ml02qv"/>
+                  <tie xml:id="tsoothb" startid="#nw7mgns" endid="#nanro74"/>
+               </measure>
+               <measure xml:id="mii2d69" n="4">
+                  <staff xml:id="m4s1" n="1">
+                     <layer xml:id="m4s1l1" n="1">
+                        <beam xml:id="k1pf9ffe">
+                           <note xml:id="n1i66osm" dur="8" oct="5" pname="c" corresp="symbol_101aea36-9273-42b3-b735-5fdf3e79cc19"/>
+                           <note xml:id="n1rph3w3" dur="8" oct="5" pname="f" corresp="symbol_28f21d6f-ac67-404f-994f-e2d6f8093ae0"/>
+                           <note xml:id="n1sw27dc" dur="8" oct="4" pname="g" corresp="symbol_653d7f71-37a6-4980-8bb4-a1e96aace515"/>
+                           <note xml:id="ni5wp4g" dur="8" oct="4" pname="a" corresp="symbol_cb52ae24-7f0b-4924-a594-e4405fec1ed2"/>
+                        </beam>
+                        <beam xml:id="p1py33kd">
+                           <note xml:id="n1ix0t3p" dur="8" oct="4" pname="b" corresp="symbol_ad2fe59e-79f6-408c-a501-63bb27c283dd">
+                              <accid xml:id="r16k5ect" accid.ges="f"/>
+                           </note>
+                           <note xml:id="n80m4vn" dur="8" oct="5" pname="d" corresp="symbol_fe7ca8d2-e842-4c8a-8d1f-775f786056a0"/>
+                           <note xml:id="nlbef7n" dur="8" oct="4" pname="f" corresp="symbol_a34c57fe-2c90-4218-9e07-8cf876f111a5"/>
+                           <chord xml:id="c1g7ewxr" dur="8">
+                              <note xml:id="n12yqrz8" oct="4" pname="e" corresp="symbol_75bf4e58-1573-4d88-8af8-dc094777d410"/>
+                              <note xml:id="nfl0rmk" oct="4" pname="g" corresp="symbol_2f55f1fc-a4fa-4c22-bf90-0df4e9bd9e67"/>
+                           </chord>
+                        </beam>
+                     </layer>
+                     <layer xml:id="m4s1l2" n="2">
+                        <note xml:id="naim99y" dur="4" oct="4" pname="f"/>
+                        <note xml:id="n43bpi4" dur="2" oct="4" pname="e" corresp="symbol_c57aa799-a02f-4395-8d22-5208d9b358ef"/>
+                        <note xml:id="n1qopko1" dur="4" oct="4" pname="c" corresp="symbol_bf2d635b-e80a-4b68-bfe9-7b5d40769ce6"/>
+                     </layer>
+                  </staff>
+                  <staff xml:id="m4s2" n="2">
+                     <layer xml:id="m4s2l1" n="1">
+                        <note xml:id="n1ml02qv" dur="4" oct="3" pname="a" corresp="symbol_2dcd3ef7-6ace-4fc9-994e-f0b83748fcf1"/>
+                        <beam xml:id="e5c6vsp">
+                           <note xml:id="n1hdo2gg" dur="8" oct="3" pname="b" corresp="symbol_616f600e-ab8e-4f0e-9a34-c30011d7feb3">
+                              <accid xml:id="g1ywj3ng" accid.ges="f"/>
+                           </note>
+                           <note xml:id="nxj8uux" dur="8" oct="3" pname="a" corresp="symbol_fddfa13f-e47f-4940-a76a-746de768d098"/>
+                        </beam>
+                        <note xml:id="n1v81yp6" dur="4" oct="3" pname="g" corresp="symbol_6ef49f13-9133-4859-8ce9-175b4d089b94"/>
+                        <beam xml:id="j19nr8k5">
+                           <note xml:id="n1h9lqkp" dur="8" oct="3" pname="f" corresp="symbol_694c87de-3b3f-49dd-9964-e5844fb64ec1"/>
+                           <note xml:id="nu3c214" dur="8" oct="3" pname="g" corresp="symbol_d499c266-1486-45ee-977e-8d26052f38f6"/>
+                        </beam>
+                     </layer>
+                     <layer xml:id="m4s2l2" n="2">
+                        <note xml:id="n116bigf" dur="4" oct="3" pname="c" corresp="symbol_77d072c4-fb7a-4aef-bfd9-a5ba41cc0e71"/>
+                        <note xml:id="naq8f7d" dur="2" oct="3" pname="c" corresp="symbol_06cfd16f-95b2-4396-83bb-991ec75ef804"/>
+                        <beam xml:id="p1shdfnb">
+                           <note xml:id="ncr5i92" dur="8" oct="2" pname="a" corresp="symbol_b383e516-157a-473c-a3fd-335bb7ac1d41"/>
+                           <note xml:id="nw4587c" dur="8" oct="3" pname="c" corresp="symbol_8be712d3-7070-4fa6-86cc-d3bf23a03e07"/>
+                        </beam>
+                     </layer>
+                  </staff>
+                  <slur xml:id="s5rg0ca" startid="#n1sw27dc" endid="#n80m4vn"/>
+                  <slur xml:id="s1pzz4dz" startid="#nlbef7n" endid="#c1r5llkf"/>
+                  <tie xml:id="t10ahtwk" startid="#n1qopko1" endid="#n1k7w0tu"/>
+                  <slur xml:id="s7d5tss" startid="#n1hdo2gg" endid="#n1v81yp6"/>
+                  <hairpin xml:id="hu6m1ax" staff="2" startid="#n1h9lqkp" form="cres"/>
+                  <slur xml:id="scv3m76" startid="#n1h9lqkp" endid="#nuygr2l"/>
+                  <slur xml:id="s1ec6im2" startid="#ncr5i92" endid="#n1273g3u"/>
+               </measure>
+               <measure xml:id="m1os0f9o" n="5">
+                  <staff xml:id="m5s1" n="1">
+                     <layer xml:id="m5s1l1" n="1">
+                        <beam xml:id="k146ud8r">
+                           <chord xml:id="c7vhmvm" dur="8">
+                              <note xml:id="n1ewgtq3" oct="4" pname="f" corresp="symbol_f3faf313-f184-4c79-a9f6-b5c250e1b408"/>
+                              <note xml:id="n171h9f6" oct="4" pname="a" corresp="symbol_cd9de60c-963c-493a-b799-f366a6b61efc"/>
+                           </chord>
+                           <note xml:id="ntj2e8n" dur="8" oct="5" pname="c" corresp="symbol_2ed44c4c-613b-4799-bafa-9be426b17349"/>
+                        </beam>
+                        <chord xml:id="c1r5llkf" dur="2">
+                           <note xml:id="nrma14f" oct="4" pname="e" corresp="symbol_7b8d45ca-7a48-4d50-a658-aedcdc4d1522"/>
+                           <note xml:id="nusg357" oct="4" pname="g" corresp="symbol_8f250075-487a-477d-9927-5fabd8441551"/>
+                        </chord>
+                        <note xml:id="n3x6yrh" dur="4" oct="4" pname="c" corresp="symbol_978ae676-bfe0-44d2-9485-be875e9d6786"/>
+                     </layer>
+                     <layer xml:id="m5s1l2" n="2">
+                        <note xml:id="n1k7w0tu" dur="4" oct="4" pname="c"/>
+                        <note xml:id="nh1xkvc" dur="2" oct="4" pname="c" corresp="symbol_bc5958aa-5fee-4daf-8457-9d96b98208a4"/>
+                        <note xml:id="n4f4ukk" dur="4" oct="4" pname="c"/>
+                     </layer>
+                  </staff>
+                  <staff xml:id="m5s2" n="2">
+                     <layer xml:id="m5s2l1" n="1">
+                        <note xml:id="n1vmhu38" dur="4" oct="3" pname="a" stem.dir="up" corresp="symbol_ab097a8a-4ed0-4c9e-a6e4-5831e15bc8df"/>
+                        <note xml:id="nuygr2l" dur="2" oct="3" pname="g" corresp="symbol_1d29c658-9ec9-45aa-b558-bd68d75fbff9"/>
+                        <rest xml:id="r1o6ywyh" dur="4"/>
+                     </layer>
+                     <layer xml:id="m5s2l2" n="2">
+                        <note xml:id="n1273g3u" dur="4" oct="3" pname="f" corresp="symbol_cd12ef5d-f02e-4ea9-915f-97eae435d924"/>
+                        <beam xml:id="ecs5qxu">
+                           <note xml:id="n1pkbpqe" dur="8" oct="3" pname="c" corresp="symbol_601c4e3f-1c4c-4138-a02e-7b850e5e36e1"/>
+                           <note xml:id="n8cacvt" dur="8" oct="3" pname="d" corresp="symbol_9be019ae-3898-478a-9569-859bd2f7872e"/>
+                        </beam>
+                        <beam xml:id="h1wr0ehg">
+                           <note xml:id="n18s8imu" dur="8" oct="3" pname="c" corresp="symbol_7bf15d23-3562-4b2e-ab94-f4393fd7477c"/>
+                           <note xml:id="n1rj5zce" dur="8" oct="2" pname="b" corresp="symbol_5faeef94-f789-4137-94d8-cbefa5bb15bc">
+                              <accid xml:id="k1awe5na" accid.ges="f"/>
+                           </note>
+                           <note xml:id="nrjozf4" dur="8" oct="2" pname="g" corresp="symbol_235a6a79-f28a-4ba0-8633-298bbf346489"/>
+                           <note xml:id="n7e8ajb" dur="8" oct="2" pname="a" corresp="symbol_c588eb39-73c6-4ec5-a74b-d8e6578b38f2"/>
+                        </beam>
+                     </layer>
+                  </staff>
+                  </measure>
+               </section>
+            </section>
+      </score>
+   </mdiv>
+</body>
+<performance>
+   <recording source="c9050e75-97a8-4862-9533-0f4b1439802b">
+      <when absolute="28618ms" abstype="smil" corresp="symbol_acfc087a-e169-4fac-be23-b2d2ea72cefa" data="#npk4lw6">
+         <extData type="velocity">41</extData>
+         <extData type="duration">979ms</extData>
+         <extData type="onsetTicks">28618</extData>
+         <extData type="durationTicks">979</extData>
+      </when>
+      <when absolute="29582ms" abstype="smil" corresp="symbol_ec92cca1-095b-4aa0-92c0-e509a62a6b6c" data="#nxbdd6x">
+         <extData type="velocity">40</extData>
+         <extData type="duration">2732ms</extData>
+         <extData type="onsetTicks">29582</extData>
+         <extData type="durationTicks">2732</extData>
+      </when>
+      <when absolute="29353ms" abstype="smil" corresp="symbol_03e5691c-d0b8-4916-b54e-817200185466" data="#n4vqmkc">
+         <extData type="velocity">37</extData>
+         <extData type="duration">5052ms</extData>
+         <extData type="onsetTicks">29353</extData>
+         <extData type="durationTicks">5052</extData>
+      </when>
+      <when absolute="30488ms" abstype="smil" corresp="symbol_37541578-f09c-4308-91e2-ddd6c7f0379c" data="#n1obi0t8">
+         <extData type="velocity">35</extData>
+         <extData type="duration">683ms</extData>
+         <extData type="onsetTicks">30488</extData>
+         <extData type="durationTicks">683</extData>
+      </when>
+      <when absolute="30515ms" abstype="smil" corresp="symbol_a41e85a4-a1c4-4c06-95f9-34c54ec0023d" data="#nd80ywu">
+         <extData type="velocity">35</extData>
+         <extData type="duration">767ms</extData>
+         <extData type="onsetTicks">30515</extData>
+         <extData type="durationTicks">767</extData>
+      </when>
+      <when absolute="30353ms" abstype="smil" corresp="symbol_d2502412-575b-4e17-8a5b-ce4f5ed43eaf" data="#n1ubfgy0">
+         <extData type="velocity">35</extData>
+         <extData type="duration">4046ms</extData>
+         <extData type="onsetTicks">30353</extData>
+         <extData type="durationTicks">4046</extData>
+      </when>
+      <when absolute="30500ms" abstype="smil" corresp="symbol_17a5d5de-129c-4e86-97b0-0ab6fd644bb7" data="#n1yas34a">
+         <extData type="velocity">35</extData>
+         <extData type="duration">3899ms</extData>
+         <extData type="onsetTicks">30500</extData>
+         <extData type="durationTicks">3899</extData>
+      </when>
+      <when absolute="32240ms" abstype="smil" corresp="symbol_1aa3b62f-23c7-4947-913e-a7fa04f1486a" data="#nrbga5m">
+         <extData type="velocity">36</extData>
+         <extData type="duration">506ms</extData>
+         <extData type="onsetTicks">32240</extData>
+         <extData type="durationTicks">506</extData>
+      </when>
+      <when absolute="32659ms" abstype="smil" corresp="symbol_f4c5679f-77c8-4773-ab73-d144e265a6a4" data="#n1ogvejs">
+         <extData type="velocity">37</extData>
+         <extData type="duration">507ms</extData>
+         <extData type="onsetTicks">32659</extData>
+         <extData type="durationTicks">507</extData>
+      </when>
+      <when absolute="33114ms" abstype="smil" corresp="symbol_c5ca5933-d373-499c-9fc7-30c9d8d38d9a" data="#n1qzl4hr">
+         <extData type="velocity">39</extData>
+         <extData type="duration">520ms</extData>
+         <extData type="onsetTicks">33114</extData>
+         <extData type="durationTicks">520</extData>
+      </when>
+      <when absolute="33554ms" abstype="smil" corresp="symbol_5c702f18-371c-4a37-8360-2562cf8f507a" data="#n10g2bbj">
+         <extData type="velocity">44</extData>
+         <extData type="duration">745ms</extData>
+         <extData type="onsetTicks">33554</extData>
+         <extData type="durationTicks">745</extData>
+      </when>
+      <when absolute="34217ms" abstype="smil" corresp="symbol_61ba1183-1e5a-4aa7-b915-dd419a48629d" data="#nv84jxp">
+         <extData type="velocity">45</extData>
+         <extData type="duration">776ms</extData>
+         <extData type="onsetTicks">34217</extData>
+         <extData type="durationTicks">776</extData>
+      </when>
+      <when absolute="34461ms" abstype="smil" corresp="symbol_dcbdbc01-e3ac-4f4c-9259-dbfebfe2ac01" data="#n1or9mhw">
+         <extData type="velocity">35</extData>
+         <extData type="duration">606ms</extData>
+         <extData type="onsetTicks">34461</extData>
+         <extData type="durationTicks">606</extData>
+      </when>
+      <when absolute="34569ms" abstype="smil" corresp="symbol_1f860b71-6c75-4760-a6da-7a24eaa8d1e2" data="#nw7mgns">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2146ms</extData>
+         <extData type="onsetTicks">34569</extData>
+         <extData type="durationTicks">2146</extData>
+      </when>
+      <when absolute="35185ms" abstype="smil" corresp="symbol_cc542baa-c130-42a1-a361-849826ff5fdd" data="#n162mama">
+         <extData type="velocity">42</extData>
+         <extData type="duration">2426ms</extData>
+         <extData type="onsetTicks">35185</extData>
+         <extData type="durationTicks">2426</extData>
+      </when>
+      <when absolute="34928ms" abstype="smil" corresp="symbol_eefbbbc4-0fd2-4736-8bc7-a7a1b9491a08" data="#ntu78d0">
+         <extData type="velocity">35</extData>
+         <extData type="duration">4222ms</extData>
+         <extData type="onsetTicks">34928</extData>
+         <extData type="durationTicks">4222</extData>
+      </when>
+      <when absolute="34816ms" abstype="smil" corresp="symbol_e75dcded-880b-4b55-8087-a3129a671942" data="#nh71je6">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2252ms</extData>
+         <extData type="onsetTicks">34816</extData>
+         <extData type="durationTicks">2252</extData>
+      </when>
+      <when absolute="37621ms" abstype="smil" corresp="symbol_d38ade32-e5a9-4439-9afb-360cbb674609" data="#n1nv0ztz">
+         <extData type="velocity">41</extData>
+         <extData type="duration">475ms</extData>
+         <extData type="onsetTicks">37621</extData>
+         <extData type="durationTicks">475</extData>
+      </when>
+      <when absolute="37514ms" abstype="smil" corresp="symbol_ca26bc7c-7a41-4f76-bc3e-85bd2d40fcd8" data="#n3tz9qd">
+         <extData type="velocity">38</extData>
+         <extData type="duration">672ms</extData>
+         <extData type="onsetTicks">37514</extData>
+         <extData type="durationTicks">672</extData>
+      </when>
+      <when absolute="38139ms" abstype="smil" corresp="symbol_e538ae06-f700-4e91-b8a7-957d1f3c5d9d" data="#n105patq">
+         <extData type="velocity">36</extData>
+         <extData type="duration">602ms</extData>
+         <extData type="onsetTicks">38139</extData>
+         <extData type="durationTicks">602</extData>
+      </when>
+      <when absolute="38075ms" abstype="smil" corresp="symbol_c791b5fe-1224-46fc-bdec-e4f6b234e536" data="#n1yb3fgn">
+         <extData type="velocity">35</extData>
+         <extData type="duration">561ms</extData>
+         <extData type="onsetTicks">38075</extData>
+         <extData type="durationTicks">561</extData>
+      </when>
+      <when absolute="38752ms" abstype="smil" corresp="symbol_101aea36-9273-42b3-b735-5fdf3e79cc19" data="#n1i66osm">
+         <extData type="velocity">39</extData>
+         <extData type="duration">557ms</extData>
+         <extData type="onsetTicks">38752</extData>
+         <extData type="durationTicks">557</extData>
+      </when>
+      <when absolute="38658ms" abstype="smil" corresp="symbol_2dcd3ef7-6ace-4fc9-994e-f0b83748fcf1" data="#n1ml02qv">
+         <extData type="velocity">37</extData>
+         <extData type="duration">616ms</extData>
+         <extData type="onsetTicks">38658</extData>
+         <extData type="durationTicks">616</extData>
+      </when>
+      <when absolute="38587ms" abstype="smil" corresp="symbol_77d072c4-fb7a-4aef-bfd9-a5ba41cc0e71" data="#n116bigf">
+         <extData type="velocity">37</extData>
+         <extData type="duration">603ms</extData>
+         <extData type="onsetTicks">38587</extData>
+         <extData type="durationTicks">603</extData>
+      </when>
+      <when absolute="39388ms" abstype="smil" corresp="symbol_28f21d6f-ac67-404f-994f-e2d6f8093ae0" data="#n1rph3w3">
+         <extData type="velocity">35</extData>
+         <extData type="duration">628ms</extData>
+         <extData type="onsetTicks">39388</extData>
+         <extData type="durationTicks">628</extData>
+      </when>
+      <when absolute="40112ms" abstype="smil" corresp="symbol_653d7f71-37a6-4980-8bb4-a1e96aace515" data="#n1sw27dc">
+         <extData type="velocity">39</extData>
+         <extData type="duration">559ms</extData>
+         <extData type="onsetTicks">40112</extData>
+         <extData type="durationTicks">559</extData>
+      </when>
+      <when absolute="39949ms" abstype="smil" corresp="symbol_c57aa799-a02f-4395-8d22-5208d9b358ef" data="#n43bpi4">
+         <extData type="velocity">38</extData>
+         <extData type="duration">2240ms</extData>
+         <extData type="onsetTicks">39949</extData>
+         <extData type="durationTicks">2240</extData>
+      </when>
+      <when absolute="39953ms" abstype="smil" corresp="symbol_616f600e-ab8e-4f0e-9a34-c30011d7feb3" data="#n1hdo2gg">
+         <extData type="velocity">38</extData>
+         <extData type="duration">670ms</extData>
+         <extData type="onsetTicks">39953</extData>
+         <extData type="durationTicks">670</extData>
+      </when>
+      <when absolute="39834ms" abstype="smil" corresp="symbol_06cfd16f-95b2-4396-83bb-991ec75ef804" data="#naq8f7d">
+         <extData type="velocity">37</extData>
+         <extData type="duration">2350ms</extData>
+         <extData type="onsetTicks">39834</extData>
+         <extData type="durationTicks">2350</extData>
+      </when>
+      <when absolute="40653ms" abstype="smil" corresp="symbol_cb52ae24-7f0b-4924-a594-e4405fec1ed2" data="#ni5wp4g">
+         <extData type="velocity">37</extData>
+         <extData type="duration">580ms</extData>
+         <extData type="onsetTicks">40653</extData>
+         <extData type="durationTicks">580</extData>
+      </when>
+      <when absolute="40630ms" abstype="smil" corresp="symbol_fddfa13f-e47f-4940-a76a-746de768d098" data="#nxj8uux">
+         <extData type="velocity">36</extData>
+         <extData type="duration">607ms</extData>
+         <extData type="onsetTicks">40630</extData>
+         <extData type="durationTicks">607</extData>
+      </when>
+      <when absolute="41203ms" abstype="smil" corresp="symbol_ad2fe59e-79f6-408c-a501-63bb27c283dd" data="#n1ix0t3p">
+         <extData type="velocity">40</extData>
+         <extData type="duration">966ms</extData>
+         <extData type="onsetTicks">41203</extData>
+         <extData type="durationTicks">966</extData>
+      </when>
+      <when absolute="41158ms" abstype="smil" corresp="symbol_6ef49f13-9133-4859-8ce9-175b4d089b94" data="#n1v81yp6">
+         <extData type="velocity">38</extData>
+         <extData type="duration">1037ms</extData>
+         <extData type="onsetTicks">41158</extData>
+         <extData type="durationTicks">1037</extData>
+      </when>
+      <when absolute="41841ms" abstype="smil" corresp="symbol_fe7ca8d2-e842-4c8a-8d1f-775f786056a0" data="#n80m4vn">
+         <extData type="velocity">35</extData>
+         <extData type="duration">562ms</extData>
+         <extData type="onsetTicks">41841</extData>
+         <extData type="durationTicks">562</extData>
+      </when>
+      <when absolute="42447ms" abstype="smil" corresp="symbol_a34c57fe-2c90-4218-9e07-8cf876f111a5" data="#nlbef7n">
+         <extData type="velocity">40</extData>
+         <extData type="duration">530ms</extData>
+         <extData type="onsetTicks">42447</extData>
+         <extData type="durationTicks">530</extData>
+      </when>
+      <when absolute="42411ms" abstype="smil" corresp="symbol_bf2d635b-e80a-4b68-bfe9-7b5d40769ce6" data="#n1qopko1">
+         <extData type="velocity">37</extData>
+         <extData type="duration">1619ms</extData>
+         <extData type="onsetTicks">42411</extData>
+         <extData type="durationTicks">1619</extData>
+      </when>
+      <when absolute="42354ms" abstype="smil" corresp="symbol_694c87de-3b3f-49dd-9964-e5844fb64ec1" data="#n1h9lqkp">
+         <extData type="velocity">35</extData>
+         <extData type="duration">510ms</extData>
+         <extData type="onsetTicks">42354</extData>
+         <extData type="durationTicks">510</extData>
+      </when>
+      <when absolute="42333ms" abstype="smil" corresp="symbol_b383e516-157a-473c-a3fd-335bb7ac1d41" data="#ncr5i92">
+         <extData type="velocity">35</extData>
+         <extData type="duration">652ms</extData>
+         <extData type="onsetTicks">42333</extData>
+         <extData type="durationTicks">652</extData>
+      </when>
+      <when absolute="42958ms" abstype="smil" corresp="symbol_75bf4e58-1573-4d88-8af8-dc094777d410" data="#n12yqrz8">
+         <extData type="velocity">36</extData>
+         <extData type="duration">580ms</extData>
+         <extData type="onsetTicks">42958</extData>
+         <extData type="durationTicks">580</extData>
+      </when>
+      <when absolute="43013ms" abstype="smil" corresp="symbol_2f55f1fc-a4fa-4c22-bf90-0df4e9bd9e67" data="#nfl0rmk">
+         <extData type="velocity">38</extData>
+         <extData type="duration">535ms</extData>
+         <extData type="onsetTicks">43013</extData>
+         <extData type="durationTicks">535</extData>
+      </when>
+      <when absolute="42955ms" abstype="smil" corresp="symbol_d499c266-1486-45ee-977e-8d26052f38f6" data="#nu3c214">
+         <extData type="velocity">36</extData>
+         <extData type="duration">381ms</extData>
+         <extData type="onsetTicks">42955</extData>
+         <extData type="durationTicks">381</extData>
+      </when>
+      <when absolute="42916ms" abstype="smil" corresp="symbol_8be712d3-7070-4fa6-86cc-d3bf23a03e07" data="#nw4587c">
+         <extData type="velocity">35</extData>
+         <extData type="duration">692ms</extData>
+         <extData type="onsetTicks">42916</extData>
+         <extData type="durationTicks">692</extData>
+      </when>
+      <when absolute="43568ms" abstype="smil" corresp="symbol_f3faf313-f184-4c79-a9f6-b5c250e1b408" data="#n1ewgtq3">
+         <extData type="velocity">35</extData>
+         <extData type="duration">458ms</extData>
+         <extData type="onsetTicks">43568</extData>
+         <extData type="durationTicks">458</extData>
+      </when>
+      <when absolute="43553ms" abstype="smil" corresp="symbol_cd9de60c-963c-493a-b799-f366a6b61efc" data="#n171h9f6">
+         <extData type="velocity">39</extData>
+         <extData type="duration">587ms</extData>
+         <extData type="onsetTicks">43553</extData>
+         <extData type="durationTicks">587</extData>
+      </when>
+      <when absolute="43492ms" abstype="smil" corresp="symbol_ab097a8a-4ed0-4c9e-a6e4-5831e15bc8df" data="#n1vmhu38">
+         <extData type="velocity">35</extData>
+         <extData type="duration">538ms</extData>
+         <extData type="onsetTicks">43492</extData>
+         <extData type="durationTicks">538</extData>
+      </when>
+      <when absolute="43429ms" abstype="smil" corresp="symbol_cd12ef5d-f02e-4ea9-915f-97eae435d924" data="#n1273g3u">
+         <extData type="velocity">35</extData>
+         <extData type="duration">599ms</extData>
+         <extData type="onsetTicks">43429</extData>
+         <extData type="durationTicks">599</extData>
+      </when>
+      <when absolute="44126ms" abstype="smil" corresp="symbol_2ed44c4c-613b-4799-bafa-9be426b17349" data="#ntj2e8n">
+         <extData type="velocity">37</extData>
+         <extData type="duration">630ms</extData>
+         <extData type="onsetTicks">44126</extData>
+         <extData type="durationTicks">630</extData>
+      </when>
+      <when absolute="44672ms" abstype="smil" corresp="symbol_7b8d45ca-7a48-4d50-a658-aedcdc4d1522" data="#nrma14f">
+         <extData type="velocity">35</extData>
+         <extData type="duration">1777ms</extData>
+         <extData type="onsetTicks">44672</extData>
+         <extData type="durationTicks">1777</extData>
+      </when>
+      <when absolute="44862ms" abstype="smil" corresp="symbol_8f250075-487a-477d-9927-5fabd8441551" data="#nusg357">
+         <extData type="velocity">40</extData>
+         <extData type="duration">2161ms</extData>
+         <extData type="onsetTicks">44862</extData>
+         <extData type="durationTicks">2161</extData>
+      </when>
+      <when absolute="44587ms" abstype="smil" corresp="symbol_bc5958aa-5fee-4daf-8457-9d96b98208a4" data="#nh1xkvc">
+         <extData type="velocity">36</extData>
+         <extData type="duration">2163ms</extData>
+         <extData type="onsetTicks">44587</extData>
+         <extData type="durationTicks">2163</extData>
+      </when>
+      <when absolute="44558ms" abstype="smil" corresp="symbol_1d29c658-9ec9-45aa-b558-bd68d75fbff9" data="#nuygr2l">
+         <extData type="velocity">36</extData>
+         <extData type="duration">2889ms</extData>
+         <extData type="onsetTicks">44558</extData>
+         <extData type="durationTicks">2889</extData>
+      </when>
+      <when absolute="44494ms" abstype="smil" corresp="symbol_601c4e3f-1c4c-4138-a02e-7b850e5e36e1" data="#n1pkbpqe">
+         <extData type="velocity">37</extData>
+         <extData type="duration">932ms</extData>
+         <extData type="onsetTicks">44494</extData>
+         <extData type="durationTicks">932</extData>
+      </when>
+      <when absolute="45344ms" abstype="smil" corresp="symbol_9be019ae-3898-478a-9569-859bd2f7872e" data="#n8cacvt">
+         <extData type="velocity">41</extData>
+         <extData type="duration">591ms</extData>
+         <extData type="onsetTicks">45344</extData>
+         <extData type="durationTicks">591</extData>
+      </when>
+      <when absolute="45824ms" abstype="smil" corresp="symbol_7bf15d23-3562-4b2e-ab94-f4393fd7477c" data="#n18s8imu">
+         <extData type="velocity">37</extData>
+         <extData type="duration">565ms</extData>
+         <extData type="onsetTicks">45824</extData>
+         <extData type="durationTicks">565</extData>
+      </when>
+      <when absolute="46351ms" abstype="smil" corresp="symbol_5faeef94-f789-4137-94d8-cbefa5bb15bc" data="#n1rj5zce">
+         <extData type="velocity">35</extData>
+         <extData type="duration">612ms</extData>
+         <extData type="onsetTicks">46351</extData>
+         <extData type="durationTicks">612</extData>
+      </when>
+      <when absolute="46979ms" abstype="smil" corresp="symbol_978ae676-bfe0-44d2-9485-be875e9d6786" data="#n3x6yrh">
+         <extData type="velocity">42</extData>
+         <extData type="duration">1068ms</extData>
+         <extData type="onsetTicks">46979</extData>
+         <extData type="durationTicks">1068</extData>
+      </when>
+      <when absolute="46856ms" abstype="smil" corresp="symbol_235a6a79-f28a-4ba0-8633-298bbf346489" data="#nrjozf4">
+         <extData type="velocity">35</extData>
+         <extData type="duration">593ms</extData>
+         <extData type="onsetTicks">46856</extData>
+         <extData type="durationTicks">593</extData>
+      </when>
+      <when absolute="47428ms" abstype="smil" corresp="symbol_c588eb39-73c6-4ec5-a74b-d8e6578b38f2" data="#n7e8ajb">
+         <extData type="velocity">37</extData>
+         <extData type="duration">485ms</extData>
+         <extData type="onsetTicks">47428</extData>
+         <extData type="durationTicks">485</extData>
+      </when>
+      <when absolute="29674ms" abstype="smil" corresp="symbol_08320782-9e79-44df-9f4f-363cfc087697 symbol_03f2b445-9652-4d43-9e68-ce15f23e1751" type="sustain">
+         <extData type="duration">2742ms</extData>
+         <extData type="onsetTicks">29674</extData>
+         <extData type="durationTicks">2742</extData>
+      </when>
+      <when absolute="34644ms" abstype="smil" corresp="symbol_d5c73884-40f0-4be6-b5fd-2515b89e0b90 symbol_2cf04461-2652-465c-8518-e8fb320a420e" type="sustain">
+         <extData type="duration">2899ms</extData>
+         <extData type="onsetTicks">34644</extData>
+         <extData type="durationTicks">2899</extData>
+      </when>
+      <when absolute="39009ms" abstype="smil" corresp="symbol_79a77270-97a6-45c3-a272-7ae2310a080a symbol_de3240d6-9b20-4609-bcb0-eb519e84f29f" type="sustain">
+         <extData type="duration">963ms</extData>
+         <extData type="onsetTicks">39009</extData>
+         <extData type="durationTicks">963</extData>
+      </when>
+      <when absolute="41371ms" abstype="smil" corresp="symbol_a7057c54-8019-4321-bc6f-3f17333aa9a1 symbol_53bf5879-06ae-4fae-8e21-f9d286c5e720" type="sustain">
+         <extData type="duration">1026ms</extData>
+         <extData type="onsetTicks">41371</extData>
+         <extData type="durationTicks">1026</extData>
+      </when>
+      <when absolute="43754ms" abstype="smil" corresp="symbol_43d875b7-ad0e-4a3c-a2b1-f5a5bf33c853 symbol_f09b36a9-1dda-4554-bcf0-749a3ceb6900" type="sustain">
+         <extData type="duration">805ms</extData>
+         <extData type="onsetTicks">43754</extData>
+         <extData type="durationTicks">805</extData>
+      </when>
+      </recording>
+   <recording source="0e5f443d-0dd9-4810-9dbe-7f5007df490f">
+      <when absolute="28618ms" abstype="smil" corresp="symbol_acfc087a-e169-4fac-be23-b2d2ea72cefa" data="#npk4lw6">
+         <extData type="velocity">35</extData>
+         <extData type="duration">979ms</extData>
+         <extData type="onsetTicks">28618</extData>
+         <extData type="durationTicks">979</extData>
+      </when>
+      <when absolute="29582ms" abstype="smil" corresp="symbol_ec92cca1-095b-4aa0-92c0-e509a62a6b6c" data="#nxbdd6x">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2732ms</extData>
+         <extData type="onsetTicks">29582</extData>
+         <extData type="durationTicks">2732</extData>
+      </when>
+      <when absolute="29353ms" abstype="smil" corresp="symbol_03e5691c-d0b8-4916-b54e-817200185466" data="#n4vqmkc">
+         <extData type="velocity">35</extData>
+         <extData type="duration">5052ms</extData>
+         <extData type="onsetTicks">29353</extData>
+         <extData type="durationTicks">5052</extData>
+      </when>
+      <when absolute="30488ms" abstype="smil" corresp="symbol_37541578-f09c-4308-91e2-ddd6c7f0379c" data="#n1obi0t8">
+         <extData type="velocity">35</extData>
+         <extData type="duration">683ms</extData>
+         <extData type="onsetTicks">30488</extData>
+         <extData type="durationTicks">683</extData>
+      </when>
+      <when absolute="30515ms" abstype="smil" corresp="symbol_a41e85a4-a1c4-4c06-95f9-34c54ec0023d" data="#nd80ywu">
+         <extData type="velocity">35</extData>
+         <extData type="duration">767ms</extData>
+         <extData type="onsetTicks">30515</extData>
+         <extData type="durationTicks">767</extData>
+      </when>
+      <when absolute="30353ms" abstype="smil" corresp="symbol_d2502412-575b-4e17-8a5b-ce4f5ed43eaf" data="#n1ubfgy0">
+         <extData type="velocity">35</extData>
+         <extData type="duration">4046ms</extData>
+         <extData type="onsetTicks">30353</extData>
+         <extData type="durationTicks">4046</extData>
+      </when>
+      <when absolute="30500ms" abstype="smil" corresp="symbol_17a5d5de-129c-4e86-97b0-0ab6fd644bb7" data="#n1yas34a">
+         <extData type="velocity">35</extData>
+         <extData type="duration">3899ms</extData>
+         <extData type="onsetTicks">30500</extData>
+         <extData type="durationTicks">3899</extData>
+      </when>
+      <when absolute="32240ms" abstype="smil" corresp="symbol_1aa3b62f-23c7-4947-913e-a7fa04f1486a" data="#nrbga5m">
+         <extData type="velocity">35</extData>
+         <extData type="duration">506ms</extData>
+         <extData type="onsetTicks">32240</extData>
+         <extData type="durationTicks">506</extData>
+      </when>
+      <when absolute="32659ms" abstype="smil" corresp="symbol_f4c5679f-77c8-4773-ab73-d144e265a6a4" data="#n1ogvejs">
+         <extData type="velocity">37</extData>
+         <extData type="duration">507ms</extData>
+         <extData type="onsetTicks">32659</extData>
+         <extData type="durationTicks">507</extData>
+      </when>
+      <when absolute="33114ms" abstype="smil" corresp="symbol_c5ca5933-d373-499c-9fc7-30c9d8d38d9a" data="#n1qzl4hr">
+         <extData type="velocity">39</extData>
+         <extData type="duration">520ms</extData>
+         <extData type="onsetTicks">33114</extData>
+         <extData type="durationTicks">520</extData>
+      </when>
+      <when absolute="33554ms" abstype="smil" corresp="symbol_5c702f18-371c-4a37-8360-2562cf8f507a" data="#n10g2bbj">
+         <extData type="velocity">44</extData>
+         <extData type="duration">745ms</extData>
+         <extData type="onsetTicks">33554</extData>
+         <extData type="durationTicks">745</extData>
+      </when>
+      <when absolute="34217ms" abstype="smil" corresp="symbol_61ba1183-1e5a-4aa7-b915-dd419a48629d" data="#nv84jxp">
+         <extData type="velocity">50</extData>
+         <extData type="duration">776ms</extData>
+         <extData type="onsetTicks">34217</extData>
+         <extData type="durationTicks">776</extData>
+      </when>
+      <when absolute="34461ms" abstype="smil" corresp="symbol_dcbdbc01-e3ac-4f4c-9259-dbfebfe2ac01" data="#n1or9mhw">
+         <extData type="velocity">35</extData>
+         <extData type="duration">606ms</extData>
+         <extData type="onsetTicks">34461</extData>
+         <extData type="durationTicks">606</extData>
+      </when>
+      <when absolute="34569ms" abstype="smil" corresp="symbol_1f860b71-6c75-4760-a6da-7a24eaa8d1e2" data="#nw7mgns">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2146ms</extData>
+         <extData type="onsetTicks">34569</extData>
+         <extData type="durationTicks">2146</extData>
+      </when>
+      <when absolute="35185ms" abstype="smil" corresp="symbol_cc542baa-c130-42a1-a361-849826ff5fdd" data="#n162mama">
+         <extData type="velocity">60</extData>
+         <extData type="duration">2426ms</extData>
+         <extData type="onsetTicks">35185</extData>
+         <extData type="durationTicks">2426</extData>
+      </when>
+      <when absolute="34928ms" abstype="smil" corresp="symbol_eefbbbc4-0fd2-4736-8bc7-a7a1b9491a08" data="#ntu78d0">
+         <extData type="velocity">35</extData>
+         <extData type="duration">4222ms</extData>
+         <extData type="onsetTicks">34928</extData>
+         <extData type="durationTicks">4222</extData>
+      </when>
+      <when absolute="34816ms" abstype="smil" corresp="symbol_e75dcded-880b-4b55-8087-a3129a671942" data="#nh71je6">
+         <extData type="velocity">38</extData>
+         <extData type="duration">2252ms</extData>
+         <extData type="onsetTicks">34816</extData>
+         <extData type="durationTicks">2252</extData>
+      </when>
+      <when absolute="37621ms" abstype="smil" corresp="symbol_d38ade32-e5a9-4439-9afb-360cbb674609" data="#n1nv0ztz">
+         <extData type="velocity">47</extData>
+         <extData type="duration">475ms</extData>
+         <extData type="onsetTicks">37621</extData>
+         <extData type="durationTicks">475</extData>
+      </when>
+      <when absolute="37514ms" abstype="smil" corresp="symbol_ca26bc7c-7a41-4f76-bc3e-85bd2d40fcd8" data="#n3tz9qd">
+         <extData type="velocity">35</extData>
+         <extData type="duration">672ms</extData>
+         <extData type="onsetTicks">37514</extData>
+         <extData type="durationTicks">672</extData>
+      </when>
+      <when absolute="38139ms" abstype="smil" corresp="symbol_e538ae06-f700-4e91-b8a7-957d1f3c5d9d" data="#n105patq">
+         <extData type="velocity">42</extData>
+         <extData type="duration">602ms</extData>
+         <extData type="onsetTicks">38139</extData>
+         <extData type="durationTicks">602</extData>
+      </when>
+      <when absolute="38075ms" abstype="smil" corresp="symbol_c791b5fe-1224-46fc-bdec-e4f6b234e536" data="#n1yb3fgn">
+         <extData type="velocity">35</extData>
+         <extData type="duration">561ms</extData>
+         <extData type="onsetTicks">38075</extData>
+         <extData type="durationTicks">561</extData>
+      </when>
+      <when absolute="38752ms" abstype="smil" corresp="symbol_101aea36-9273-42b3-b735-5fdf3e79cc19" data="#n1i66osm">
+         <extData type="velocity">35</extData>
+         <extData type="duration">557ms</extData>
+         <extData type="onsetTicks">38752</extData>
+         <extData type="durationTicks">557</extData>
+      </when>
+      <when absolute="38658ms" abstype="smil" corresp="symbol_2dcd3ef7-6ace-4fc9-994e-f0b83748fcf1" data="#n1ml02qv">
+         <extData type="velocity">35</extData>
+         <extData type="duration">616ms</extData>
+         <extData type="onsetTicks">38658</extData>
+         <extData type="durationTicks">616</extData>
+      </when>
+      <when absolute="38587ms" abstype="smil" corresp="symbol_77d072c4-fb7a-4aef-bfd9-a5ba41cc0e71" data="#n116bigf">
+         <extData type="velocity">35</extData>
+         <extData type="duration">603ms</extData>
+         <extData type="onsetTicks">38587</extData>
+         <extData type="durationTicks">603</extData>
+      </when>
+      <when absolute="39388ms" abstype="smil" corresp="symbol_28f21d6f-ac67-404f-994f-e2d6f8093ae0" data="#n1rph3w3">
+         <extData type="velocity">39</extData>
+         <extData type="duration">628ms</extData>
+         <extData type="onsetTicks">39388</extData>
+         <extData type="durationTicks">628</extData>
+      </when>
+      <when absolute="40112ms" abstype="smil" corresp="symbol_653d7f71-37a6-4980-8bb4-a1e96aace515" data="#n1sw27dc">
+         <extData type="velocity">35</extData>
+         <extData type="duration">559ms</extData>
+         <extData type="onsetTicks">40112</extData>
+         <extData type="durationTicks">559</extData>
+      </when>
+      <when absolute="39949ms" abstype="smil" corresp="symbol_c57aa799-a02f-4395-8d22-5208d9b358ef" data="#n43bpi4">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2240ms</extData>
+         <extData type="onsetTicks">39949</extData>
+         <extData type="durationTicks">2240</extData>
+      </when>
+      <when absolute="39953ms" abstype="smil" corresp="symbol_616f600e-ab8e-4f0e-9a34-c30011d7feb3" data="#n1hdo2gg">
+         <extData type="velocity">35</extData>
+         <extData type="duration">670ms</extData>
+         <extData type="onsetTicks">39953</extData>
+         <extData type="durationTicks">670</extData>
+      </when>
+      <when absolute="39834ms" abstype="smil" corresp="symbol_06cfd16f-95b2-4396-83bb-991ec75ef804" data="#naq8f7d">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2350ms</extData>
+         <extData type="onsetTicks">39834</extData>
+         <extData type="durationTicks">2350</extData>
+      </when>
+      <when absolute="40653ms" abstype="smil" corresp="symbol_cb52ae24-7f0b-4924-a594-e4405fec1ed2" data="#ni5wp4g">
+         <extData type="velocity">38</extData>
+         <extData type="duration">580ms</extData>
+         <extData type="onsetTicks">40653</extData>
+         <extData type="durationTicks">580</extData>
+      </when>
+      <when absolute="40630ms" abstype="smil" corresp="symbol_fddfa13f-e47f-4940-a76a-746de768d098" data="#nxj8uux">
+         <extData type="velocity">35</extData>
+         <extData type="duration">607ms</extData>
+         <extData type="onsetTicks">40630</extData>
+         <extData type="durationTicks">607</extData>
+      </when>
+      <when absolute="41203ms" abstype="smil" corresp="symbol_ad2fe59e-79f6-408c-a501-63bb27c283dd" data="#n1ix0t3p">
+         <extData type="velocity">35</extData>
+         <extData type="duration">966ms</extData>
+         <extData type="onsetTicks">41203</extData>
+         <extData type="durationTicks">966</extData>
+      </when>
+      <when absolute="41158ms" abstype="smil" corresp="symbol_6ef49f13-9133-4859-8ce9-175b4d089b94" data="#n1v81yp6">
+         <extData type="velocity">35</extData>
+         <extData type="duration">1037ms</extData>
+         <extData type="onsetTicks">41158</extData>
+         <extData type="durationTicks">1037</extData>
+      </when>
+      <when absolute="41841ms" abstype="smil" corresp="symbol_fe7ca8d2-e842-4c8a-8d1f-775f786056a0" data="#n80m4vn">
+         <extData type="velocity">39</extData>
+         <extData type="duration">562ms</extData>
+         <extData type="onsetTicks">41841</extData>
+         <extData type="durationTicks">562</extData>
+      </when>
+      <when absolute="42447ms" abstype="smil" corresp="symbol_a34c57fe-2c90-4218-9e07-8cf876f111a5" data="#nlbef7n">
+         <extData type="velocity">35</extData>
+         <extData type="duration">530ms</extData>
+         <extData type="onsetTicks">42447</extData>
+         <extData type="durationTicks">530</extData>
+      </when>
+      <when absolute="42411ms" abstype="smil" corresp="symbol_bf2d635b-e80a-4b68-bfe9-7b5d40769ce6" data="#n1qopko1">
+         <extData type="velocity">35</extData>
+         <extData type="duration">1619ms</extData>
+         <extData type="onsetTicks">42411</extData>
+         <extData type="durationTicks">1619</extData>
+      </when>
+      <when absolute="42354ms" abstype="smil" corresp="symbol_694c87de-3b3f-49dd-9964-e5844fb64ec1" data="#n1h9lqkp">
+         <extData type="velocity">35</extData>
+         <extData type="duration">510ms</extData>
+         <extData type="onsetTicks">42354</extData>
+         <extData type="durationTicks">510</extData>
+      </when>
+      <when absolute="42333ms" abstype="smil" corresp="symbol_b383e516-157a-473c-a3fd-335bb7ac1d41" data="#ncr5i92">
+         <extData type="velocity">35</extData>
+         <extData type="duration">652ms</extData>
+         <extData type="onsetTicks">42333</extData>
+         <extData type="durationTicks">652</extData>
+      </when>
+      <when absolute="42958ms" abstype="smil" corresp="symbol_75bf4e58-1573-4d88-8af8-dc094777d410" data="#n12yqrz8">
+         <extData type="velocity">38</extData>
+         <extData type="duration">580ms</extData>
+         <extData type="onsetTicks">42958</extData>
+         <extData type="durationTicks">580</extData>
+      </when>
+      <when absolute="43013ms" abstype="smil" corresp="symbol_2f55f1fc-a4fa-4c22-bf90-0df4e9bd9e67" data="#nfl0rmk">
+         <extData type="velocity">35</extData>
+         <extData type="duration">535ms</extData>
+         <extData type="onsetTicks">43013</extData>
+         <extData type="durationTicks">535</extData>
+      </when>
+      <when absolute="42955ms" abstype="smil" corresp="symbol_d499c266-1486-45ee-977e-8d26052f38f6" data="#nu3c214">
+         <extData type="velocity">38</extData>
+         <extData type="duration">381ms</extData>
+         <extData type="onsetTicks">42955</extData>
+         <extData type="durationTicks">381</extData>
+      </when>
+      <when absolute="42916ms" abstype="smil" corresp="symbol_8be712d3-7070-4fa6-86cc-d3bf23a03e07" data="#nw4587c">
+         <extData type="velocity">38</extData>
+         <extData type="duration">692ms</extData>
+         <extData type="onsetTicks">42916</extData>
+         <extData type="durationTicks">692</extData>
+      </when>
+      <when absolute="43568ms" abstype="smil" corresp="symbol_f3faf313-f184-4c79-a9f6-b5c250e1b408" data="#n1ewgtq3">
+         <extData type="velocity">35</extData>
+         <extData type="duration">458ms</extData>
+         <extData type="onsetTicks">43568</extData>
+         <extData type="durationTicks">458</extData>
+      </when>
+      <when absolute="43553ms" abstype="smil" corresp="symbol_cd9de60c-963c-493a-b799-f366a6b61efc" data="#n171h9f6">
+         <extData type="velocity">38</extData>
+         <extData type="duration">587ms</extData>
+         <extData type="onsetTicks">43553</extData>
+         <extData type="durationTicks">587</extData>
+      </when>
+      <when absolute="43492ms" abstype="smil" corresp="symbol_ab097a8a-4ed0-4c9e-a6e4-5831e15bc8df" data="#n1vmhu38">
+         <extData type="velocity">36</extData>
+         <extData type="duration">538ms</extData>
+         <extData type="onsetTicks">43492</extData>
+         <extData type="durationTicks">538</extData>
+      </when>
+      <when absolute="43429ms" abstype="smil" corresp="symbol_cd12ef5d-f02e-4ea9-915f-97eae435d924" data="#n1273g3u">
+         <extData type="velocity">37</extData>
+         <extData type="duration">599ms</extData>
+         <extData type="onsetTicks">43429</extData>
+         <extData type="durationTicks">599</extData>
+      </when>
+      <when absolute="44126ms" abstype="smil" corresp="symbol_2ed44c4c-613b-4799-bafa-9be426b17349" data="#ntj2e8n">
+         <extData type="velocity">36</extData>
+         <extData type="duration">630ms</extData>
+         <extData type="onsetTicks">44126</extData>
+         <extData type="durationTicks">630</extData>
+      </when>
+      <when absolute="44672ms" abstype="smil" corresp="symbol_7b8d45ca-7a48-4d50-a658-aedcdc4d1522" data="#nrma14f">
+         <extData type="velocity">35</extData>
+         <extData type="duration">1777ms</extData>
+         <extData type="onsetTicks">44672</extData>
+         <extData type="durationTicks">1777</extData>
+      </when>
+      <when absolute="44862ms" abstype="smil" corresp="symbol_8f250075-487a-477d-9927-5fabd8441551" data="#nusg357">
+         <extData type="velocity">40</extData>
+         <extData type="duration">2161ms</extData>
+         <extData type="onsetTicks">44862</extData>
+         <extData type="durationTicks">2161</extData>
+      </when>
+      <when absolute="44570ms" abstype="smil" corresp="symbol_c365caf3-577d-4cb6-b5dd-ec9221af00d0" data="#nh1xkvc">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2337ms</extData>
+         <extData type="onsetTicks">44570</extData>
+         <extData type="durationTicks">2337</extData>
+      </when>
+      <when absolute="44558ms" abstype="smil" corresp="symbol_1d29c658-9ec9-45aa-b558-bd68d75fbff9" data="#nuygr2l">
+         <extData type="velocity">35</extData>
+         <extData type="duration">2889ms</extData>
+         <extData type="onsetTicks">44558</extData>
+         <extData type="durationTicks">2889</extData>
+      </when>
+      <when absolute="44494ms" abstype="smil" corresp="symbol_601c4e3f-1c4c-4138-a02e-7b850e5e36e1" data="#n1pkbpqe">
+         <extData type="velocity">35</extData>
+         <extData type="duration">932ms</extData>
+         <extData type="onsetTicks">44494</extData>
+         <extData type="durationTicks">932</extData>
+      </when>
+      <when absolute="45344ms" abstype="smil" corresp="symbol_9be019ae-3898-478a-9569-859bd2f7872e" data="#n8cacvt">
+         <extData type="velocity">38</extData>
+         <extData type="duration">591ms</extData>
+         <extData type="onsetTicks">45344</extData>
+         <extData type="durationTicks">591</extData>
+      </when>
+      <when absolute="45824ms" abstype="smil" corresp="symbol_7bf15d23-3562-4b2e-ab94-f4393fd7477c" data="#n18s8imu">
+         <extData type="velocity">35</extData>
+         <extData type="duration">565ms</extData>
+         <extData type="onsetTicks">45824</extData>
+         <extData type="durationTicks">565</extData>
+      </when>
+      <when absolute="46351ms" abstype="smil" corresp="symbol_5faeef94-f789-4137-94d8-cbefa5bb15bc" data="#n1rj5zce">
+         <extData type="velocity">35</extData>
+         <extData type="duration">612ms</extData>
+         <extData type="onsetTicks">46351</extData>
+         <extData type="durationTicks">612</extData>
+      </when>
+      <when absolute="46979ms" abstype="smil" corresp="symbol_978ae676-bfe0-44d2-9485-be875e9d6786" data="#n3x6yrh">
+         <extData type="velocity">35</extData>
+         <extData type="duration">1068ms</extData>
+         <extData type="onsetTicks">46979</extData>
+         <extData type="durationTicks">1068</extData>
+      </when>
+      <when absolute="46857ms" abstype="smil" corresp="symbol_235a6a79-f28a-4ba0-8633-298bbf346489" data="#nrjozf4">
+         <extData type="velocity">35</extData>
+         <extData type="duration">592ms</extData>
+         <extData type="onsetTicks">46857</extData>
+         <extData type="durationTicks">592</extData>
+      </when>
+      <when absolute="47428ms" abstype="smil" corresp="symbol_c588eb39-73c6-4ec5-a74b-d8e6578b38f2" data="#n7e8ajb">
+         <extData type="velocity">35</extData>
+         <extData type="duration">485ms</extData>
+         <extData type="onsetTicks">47428</extData>
+         <extData type="durationTicks">485</extData>
+      </when>
+      <when absolute="29674ms" abstype="smil" corresp="symbol_08320782-9e79-44df-9f4f-363cfc087697 symbol_03f2b445-9652-4d43-9e68-ce15f23e1751" type="sustain">
+         <extData type="duration">2742ms</extData>
+         <extData type="onsetTicks">29674</extData>
+         <extData type="durationTicks">2742</extData>
+      </when>
+      <when absolute="34644ms" abstype="smil" corresp="symbol_d5c73884-40f0-4be6-b5fd-2515b89e0b90 symbol_2cf04461-2652-465c-8518-e8fb320a420e" type="sustain">
+         <extData type="duration">2899ms</extData>
+         <extData type="onsetTicks">34644</extData>
+         <extData type="durationTicks">2899</extData>
+      </when>
+      <when absolute="39009ms" abstype="smil" corresp="symbol_79a77270-97a6-45c3-a272-7ae2310a080a symbol_de3240d6-9b20-4609-bcb0-eb519e84f29f" type="sustain">
+         <extData type="duration">963ms</extData>
+         <extData type="onsetTicks">39009</extData>
+         <extData type="durationTicks">963</extData>
+      </when>
+      <when absolute="41371ms" abstype="smil" corresp="symbol_a7057c54-8019-4321-bc6f-3f17333aa9a1 symbol_53bf5879-06ae-4fae-8e21-f9d286c5e720" type="sustain">
+         <extData type="duration">1026ms</extData>
+         <extData type="onsetTicks">41371</extData>
+         <extData type="durationTicks">1026</extData>
+      </when>
+      <when absolute="43754ms" abstype="smil" corresp="symbol_43d875b7-ad0e-4a3c-a2b1-f5a5bf33c853 symbol_f09b36a9-1dda-4554-bcf0-749a3ceb6900" type="sustain">
+         <extData type="duration">805ms</extData>
+         <extData type="onsetTicks">43754</extData>
+         <extData type="durationTicks">805</extData>
+      </when>
+      </recording>
+</performance>
+</music>
+</mei>

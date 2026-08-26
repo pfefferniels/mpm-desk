@@ -1,5 +1,5 @@
 import { UnitWithDef } from "./ArticulationDesk"
-import { ArticulationProperty } from "mpmify"
+import type { ArticulationProperty } from "../../fitting/transformers/articulation/index"
 import { useState } from "react"
 import { useEffect } from "react"
 import {

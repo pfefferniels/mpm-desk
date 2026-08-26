@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mpm xmlns="http://www.cemfi.de/mpm/ns/1.0">
+    <metadata>
+        <author>meico</author>
+        <comment>This MPM has been generated from 'score(1).mei' using the meico MEI converter.</comment>
+        <relatedResources>
+            <resource uri="C:\Users\Pfeffer\Downloads\score(1).mei" type="mei"/>
+            <resource uri="C:\Users\Pfeffer\Downloads\score(1).msm" type="msm"/>
+        </relatedResources>
+    </metadata>
+    <performance name="MEI export performance" pulsesPerQuarter="720">
+        <global>
+            <header/>
+            <dated>
+                <tempoMap>
+                    <tempo date="0.0" bpm="60.0" beatLength="0.25"/> 
+                </tempoMap>
+            </dated>
+        </global>
+        <part name="" number="1" midi.channel="0" midi.port="0" xml:id="s191l644">
+            <header/>
+            <dated>
+                <articulationMap>
+                    <articulation date="720.0" relativeDuration="1.5"/>
+                    <articulation date="1440.0" relativeDuration="0.5"/>
+                    <articulation date="2160.0" relativeDuration="1.5"/> 
+                </articulationMap>
+                <rubatoMap>
+                    <rubato date="0.0" frameLength="1440.0" intensity="0.5" loop="true"/> 
+                </rubatoMap>
+            </dated>
+        </part>
+        <part name="" number="2" midi.channel="1" midi.port="0">
+            <header/>
+            <dated>
+                <rubatoMap/>
+            </dated>
+        </part>
+    </performance>
+</mpm>

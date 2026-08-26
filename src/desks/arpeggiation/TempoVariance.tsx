@@ -1,9 +1,10 @@
-import { MSM } from "mpmify";
+import type { Alignment } from "../../fitting/alignment";
 import { usePhysicalZoom } from "../../hooks/ZoomProvider";
+import { onsetSeconds } from "../noteTiming";
 import { Scope } from "../TransformerViewProps";
 import { useState } from "react";
 
-export const TempoVariance = ({ msm, part, beatLength }: { msm: MSM; part: Scope; beatLength: number }) => {
+export const TempoVariance = ({ msm, part, beatLength }: { msm: Alignment; part: Scope; beatLength: number }) => {
     const [hover, setHover] = useState<number | null>(null);
     const stretchX = usePhysicalZoom();
     const height = 250;
@@ -22,9 +23,9 @@ export const TempoVariance = ({ msm, part, beatLength }: { msm: MSM; part: Scope
         const currentNotes = msm.notesAtDate(date, part);
         if (!currentNotes.length) continue;
 
-        const minOnset = Math.min(...currentNotes.map(n => n["midi.onset"]));
-        const avgOnset = currentNotes.reduce((sum, n) => sum + n["midi.onset"], 0) / currentNotes.length;
-        const maxOnset = Math.max(...currentNotes.map(n => n["midi.onset"]));
+        const minOnset = Math.min(...currentNotes.map(onsetSeconds));
+        const avgOnset = currentNotes.reduce((sum, n) => sum + onsetSeconds(n), 0) / currentNotes.length;
+        const maxOnset = Math.max(...currentNotes.map(onsetSeconds));
         const onset: Range = { min: minOnset, max: maxOnset };
 
         if (prevOnset !== undefined && prevDate !== undefined) {

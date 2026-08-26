@@ -4,7 +4,7 @@ import { useLatest } from './useLatest';
 type ScrollDomain ='symbolic' | 'physical';
 
 interface ScrollSyncContextValue {
-    register: (id: string, element: HTMLElement, domain: ScrollDomain) => void;
+    register: (id: string, element: HTMLElement, domain?: ScrollDomain) => void;
     unregister: (id: string) => void;
     scrollToDate: (date: number) => void;
     adjustScrollForZoom: (clientX: number, ratio: number) => void;
@@ -15,9 +15,13 @@ const ScrollSyncContext = createContext<ScrollSyncContextValue | undefined>(unde
 interface ScrollSyncProviderProps {
     children: React.ReactNode;
     symbolicZoom: number;
-    physicalZoom: number;
-    tickToSeconds: ((tick: number) => number) | null;
-    secondsToTick: ((seconds: number) => number) | null;
+    /**
+     * Only needed once something physical is registered. A shell that shows the
+     * tree alone never supplies these, and the three below default to inert.
+     */
+    physicalZoom?: number;
+    tickToSeconds?: ((tick: number) => number) | null;
+    secondsToTick?: ((seconds: number) => number) | null;
 }
 
 interface RegistryEntry {
@@ -29,6 +33,21 @@ interface RegistryEntry {
  * ScrollSyncProvider synchronizes horizontal scroll position between registered elements.
  * Supports two scroll domains (symbolic/physical) with non-linear cross-domain conversion.
  *
+ * Within one domain nothing has to be converted: scrollLeft is `tick * zoom`
+ * everywhere symbolic and `seconds * zoom` everywhere physical, so syncing is a
+ * copy and `scrollToDate` is a multiplication. The conversion only appears where
+ * the two meet.
+ *
+ * **Why both domains.** The tree, and every desk that reads the score, live in
+ * ticks. The tempo desk does not: its x-axis is the *recording's* elapsed
+ * seconds, because the skyline it draws on is one box per inter-onset interval
+ * (`60 / (secs(end) - secs(start))`), and that is a fact about the recording
+ * rather than about the score. `utils/timeMapping.ts` holds the `[tick, seconds]`
+ * table the two are reconciled through — the alignment's own, built from the
+ * recorded onsets plus the hand-marked silent ones, and distinct from the
+ * tempo-derived mapping espressivo could give us. Choice, temporal-spread and
+ * dynamics-gradient are physical for the same reason.
+ *
  * PERFORMANCE: This provider uses NO React state for scroll position.
  * All synchronization happens via direct DOM manipulation to avoid re-renders
  * of heavy SVG components during scrolling.
@@ -36,9 +55,9 @@ interface RegistryEntry {
 export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
     children,
     symbolicZoom,
-    physicalZoom,
-    tickToSeconds,
-    secondsToTick,
+    physicalZoom = 1,
+    tickToSeconds = null,
+    secondsToTick = null,
 }) => {
     // Registry of scrollable elements - Map<id, { element, domain }>
     const registryRef = useRef<Map<string, RegistryEntry>>(new Map());
@@ -160,7 +179,9 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
         });
     }, []);
 
-    const register = useCallback((id: string, element: HTMLElement, domain: ScrollDomain) => {
+    // Defaulted, so a scroller that lives in ticks — the tree, and every desk
+    // that reads the score — registers by naming itself and nothing else.
+    const register = useCallback((id: string, element: HTMLElement, domain: ScrollDomain = 'symbolic') => {
         // If other elements in the same domain are registered, sync to their scroll position
         for (const entry of registryRef.current.values()) {
             if (entry.domain === domain) {

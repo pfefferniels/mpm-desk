@@ -1,7 +1,10 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, MenuItem, Select, SelectChangeEvent, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MouseEvent, useCallback, useState } from "react"
-import { MakeChoice, MsmNote, NoteChoice, Preference, RangeChoice } from "mpmify"
+import { MakeChoice } from "../../fitting/transformers/choice/MakeChoice"
+import type { NoteChoice, Preference, RangeChoice } from "../../fitting/transformers/choice/MakeChoice"
+import type { AlignedNote } from "../../fitting/alignment"
+import { onsetSeconds, pedalHeldSeconds, pedalOnsetSeconds, soundedSeconds } from "../noteTiming"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../../components/Ribbon"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
@@ -72,10 +75,10 @@ const SelectSource = ({ sources, value, onChange }: SelectSourceProps) => {
 }
 
 interface ArticulatedNoteProps {
-    notes: MsmNote[]
+    notes: AlignedNote[]
     stretchX: number
     stretchY: number
-    onClick: (e: MouseEvent<Element>, note: MsmNote) => void
+    onClick: (e: MouseEvent<Element>, note: AlignedNote) => void
     colorFor: (source: string) => string
 }
 
@@ -84,13 +87,13 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: Articulat
 
     if (!notes.length) return null
 
-    const refOnset = notes[0]["midi.onset"]
-    const refVel = notes[0]["midi.velocity"]
+    const refOnset = onsetSeconds(notes[0])
+    const refVel = notes[0].velocity
     const refPitch = notes[0]["midi.pitch"]
 
     const variationScore = notes.reduce((acc, note) => {
-        const velDiff = Math.abs(note["midi.velocity"] - refVel)
-        const onsetDiff = Math.abs(note["midi.onset"] - refOnset)
+        const velDiff = Math.abs(note.velocity - refVel)
+        const onsetDiff = Math.abs(onsetSeconds(note) - refOnset)
         return acc + (velDiff + onsetDiff * 1000)
     }, 0)
 
@@ -101,9 +104,9 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: Articulat
             onMouseLeave={() => setHovered(false)}
         >
             {notes.map((note, i) => {
-                const velocity = note["midi.velocity"]
-                const duration = note["midi.duration"]
-                const onset = note["midi.onset"]
+                const velocity = note.velocity
+                const duration = soundedSeconds(note)
+                const onset = onsetSeconds(note)
                 const yOffset = i - (notes.length / 2) + 0.5
                 const source = note.source || 'unknown'
                 const velDiff = Math.abs(velocity - refVel)
@@ -253,8 +256,8 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
             if (!pedals || !pedals.length) return
 
             for (const pedal of pedals) {
-                const onset = pedal["midi.onset"]
-                const duration = pedal["midi.duration"]
+                const onset = pedalOnsetSeconds(pedal)
+                const duration = pedalHeldSeconds(pedal)
                 const xmlId = pedal['xml:id']
                 const color = colorFor(pedal.source || 'unknown')
 
@@ -313,7 +316,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
             ), appBarRef?.current ?? document.body)}
 
             <div ref={scrollContainerRef} style={{ width: '80vw', height: 'calc(100vh - 370px)', overflowX: 'scroll', overflowY: 'hidden', position: 'relative' }}>
-                <svg width={Math.max(...msm.allNotes.map(n => n['midi.onset'] + n['midi.duration'])) * stretchX} height={containerHeight}>
+                <svg width={Math.max(...msm.allNotes.map(n => onsetSeconds(n) + soundedSeconds(n))) * stretchX} height={containerHeight}>
                     {groups}
                 </svg>
             </div>

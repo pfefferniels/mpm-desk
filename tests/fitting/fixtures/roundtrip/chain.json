@@ -1,0 +1,1288 @@
+{
+  "name": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Grünfeld spielt Robert Schumann, Träumerei",
+  "mei": "traeumerei.mei",
+  "mpm": "performance.mpm",
+  "provenance": [
+    {
+      "id": "cce2b0f1-099b-478c-8ca7-24b3c17eb879",
+      "name": "MakeChoice",
+      "options": {
+        "prefer": "c9050e75-97a8-4862-9533-0f4b1439802b"
+      }
+    },
+    {
+      "id": "9f8b5d24-4423-431f-80dc-5178e79af043",
+      "name": "Modify",
+      "options": {
+        "from": 1440,
+        "to": 1440,
+        "scope": "global",
+        "aspect": "velocity",
+        "change": -3
+      }
+    },
+    {
+      "id": "69f91e58-1ffa-4352-97a8-f797b3cb2fd4",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "before-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 1440
+      }
+    },
+    {
+      "id": "3193a830-ea95-4617-bee3-da0e973747b7",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "n1obi0t8",
+          "nd80ywu"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "absoluteDuration"
+          ]
+        },
+        "name": "c7c6b85f-215b-4c1a-b40f-5bf791f7be5f"
+      }
+    },
+    {
+      "id": "9080c9be-2bf7-4e8e-bea6-a261b673bf46",
+      "name": "Modify",
+      "options": {
+        "scope": "global",
+        "aspect": "velocity",
+        "change": -3,
+        "noteIDs": [
+          "ntu78d0"
+        ]
+      }
+    },
+    {
+      "id": "d6ed9ef4-635e-456b-9be4-092a6ad8cd97",
+      "name": "Modify",
+      "options": {
+        "scope": "global",
+        "aspect": "velocity",
+        "change": -2,
+        "noteIDs": [
+          "nh71je6"
+        ]
+      }
+    },
+    {
+      "id": "182b412f-fe92-4a94-8229-85b292b1b65b",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "before-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 4320
+      }
+    },
+    {
+      "id": "0140cee8-ca70-4505-8c14-1b75864a4316",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "scope": "global",
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": [
+            [
+              5760,
+              41
+            ]
+          ]
+        },
+        "from": 3600,
+        "to": 4320
+      }
+    },
+    {
+      "id": "0b1001e8-6b14-4891-9ede-d0223502570e",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "on-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 5760
+      }
+    },
+    {
+      "id": "88598cb0-fc30-4d72-b741-45c0d8e4833b",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "on-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 6120
+      }
+    },
+    {
+      "id": "2f6a7847-d776-44a9-85c9-c37cfc632f7a",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "on-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 6480
+      }
+    },
+    {
+      "id": "a0505e93-e57b-4a4d-9157-143dc6e878b8",
+      "name": "InsertTempo",
+      "options": {
+        "from": 5760,
+        "to": 7200,
+        "bpm": 64.15052032470703,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 40.15040588378906,
+        "meanTempoAt": 0.356328125
+      }
+    },
+    {
+      "id": "3e42e998-d096-4108-9ee7-8812e54e8b06",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 5760,
+        "length": 720
+      }
+    },
+    {
+      "id": "75cad33d-fe79-42e7-8e9b-6fafaaeaf3b6",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 6480,
+        "length": 720
+      }
+    },
+    {
+      "id": "5874fd63-6b6a-4739-abe5-c41b2738f292",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "scope": "global",
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": [
+            [
+              5760,
+              39
+            ],
+            [
+              7200,
+              37
+            ],
+            [
+              6480,
+              37
+            ]
+          ]
+        },
+        "from": 5760,
+        "to": 7200
+      }
+    },
+    {
+      "id": "5aea7c0e-2588-477f-b41b-b22aaa39102d",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 5760,
+        "to": 6480,
+        "beatLength": 0.125,
+        "name": "pattern-386dbf6a",
+        "scaleTolerance": 0,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "cdb39ae3-e1cc-4cc2-8685-b0db37d37d93",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 6480,
+        "to": 7200,
+        "beatLength": 0.125,
+        "name": "pattern-11f29f66",
+        "scaleTolerance": 0,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "dd4d687b-74f2-465f-aa82-452d6c543445",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "n116bigf",
+          "n1ml02qv"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "relativeDuration"
+          ]
+        },
+        "name": "shorten-by-half"
+      }
+    },
+    {
+      "id": "b374d476-071d-43bf-8bc1-2ff1d8de7d20",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-6840",
+        "start": -100,
+        "duration": 200,
+        "depth": 0.7,
+        "direction": "down"
+      }
+    },
+    {
+      "id": "a6d4d739-a6f0-43e5-a0b4-9739e12f9852",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-6840",
+        "start": -220,
+        "duration": 440,
+        "depth": 0.7,
+        "direction": "up"
+      }
+    },
+    {
+      "id": "94f08c1b-ada2-460a-8ad7-2e6e751033f9",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "estimate",
+        "noteOffShiftTolerance": 2,
+        "date": 7200
+      }
+    },
+    {
+      "id": "3d5aaf6f-39ab-45c0-a91b-c74613966165",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "on-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 7560
+      }
+    },
+    {
+      "id": "873b59f0-f8a3-46f8-81c4-0cd9cf9fa93e",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "on-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 7920
+      }
+    },
+    {
+      "id": "ddbdc2db-d2bf-45a3-9a79-5ad9f24df0ce",
+      "name": "InsertTempo",
+      "options": {
+        "from": 7200,
+        "to": 8640,
+        "bpm": 56.150482177734375,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 44.15042495727539,
+        "meanTempoAt": 0.4503125
+      }
+    },
+    {
+      "id": "ba8df537-bb70-482a-95c8-e235a686fc3d",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 7200,
+        "length": 720
+      }
+    },
+    {
+      "id": "2041acd1-0485-4a62-b74c-d1a10444f2b9",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 7920,
+        "length": 720
+      }
+    },
+    {
+      "id": "17d00847-d2dc-4a27-9d80-2b0b7b22899b",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 7200,
+        "to": 7920,
+        "beatLength": 0.125,
+        "name": "pattern-853eb85f",
+        "scaleTolerance": 0,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "1e86c694-c3d1-4255-a8f5-bde90ade3ba4",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 7920,
+        "to": 8640,
+        "beatLength": 0.125,
+        "name": "pattern-d265f253",
+        "scaleTolerance": 0,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "bd72589e-ad4e-48e8-82f7-4184df5f13aa",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "n1ix0t3p"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "relativeDuration"
+          ]
+        },
+        "name": "75b423b1-3fff-4e2d-a5ef-10284e6e9c2a"
+      }
+    },
+    {
+      "id": "a4d488ee-a086-4b12-8681-54feaacccab8",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-8280",
+        "start": -100,
+        "duration": 200,
+        "depth": 1,
+        "direction": "down"
+      }
+    },
+    {
+      "id": "0212420d-ca6a-4cb3-9ad6-ae350127dd4b",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-8280",
+        "start": -100,
+        "duration": 400,
+        "depth": 1,
+        "direction": "up"
+      }
+    },
+    {
+      "id": "9258acc5-b614-4fd2-ac2c-21bf29cdf376",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "before-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 720
+      }
+    },
+    {
+      "id": "f55da820-4a7c-4778-bff5-109b08f3e1b1",
+      "name": "InsertTempo",
+      "options": {
+        "from": 0,
+        "to": 720,
+        "bpm": 59.15049362182617,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 66.15052795410156,
+        "meanTempoAt": 0.565625
+      }
+    },
+    {
+      "id": "03c9d40a-feaf-4f91-a6cd-a458937c0635",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "from": 0,
+        "to": 720,
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": []
+        },
+        "scope": "global"
+      }
+    },
+    {
+      "id": "e0bbb3cd-9abd-411c-bd68-148fc2ecbcf3",
+      "name": "InsertDynamicsGradient",
+      "options": {
+        "scope": "global",
+        "crescendo": {
+          "from": -1,
+          "to": 0
+        },
+        "decrescendo": {
+          "from": 0,
+          "to": -1
+        },
+        "sortVelocities": true
+      }
+    },
+    {
+      "id": "d579f332-38c4-4d04-9fcc-b31ed355ccdd",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "estimate",
+        "noteOffShiftTolerance": 2,
+        "date": 10080
+      }
+    },
+    {
+      "id": "462251e2-a9c3-45ac-9db3-b5a5b6110229",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "estimate",
+        "noteOffShiftTolerance": 2,
+        "date": 9360
+      }
+    },
+    {
+      "id": "a94fde0c-010a-4e00-88cd-cbaeeee3b230",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "estimate",
+        "noteOffShiftTolerance": 2,
+        "date": 9000
+      }
+    },
+    {
+      "id": "1d4dab1d-ae12-4ea9-81a1-f6ebb299a001",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "estimate",
+        "noteOffShiftTolerance": 2,
+        "date": 8640
+      }
+    },
+    {
+      "id": "f20986ff-64ce-40d3-93e5-5a6ac8ad0392",
+      "name": "InsertTempo",
+      "options": {
+        "from": 8640,
+        "to": 10440,
+        "bpm": 62.150508880615234,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 45.150428771972656,
+        "meanTempoAt": 0.26984375000000005
+      }
+    },
+    {
+      "id": "cda19c36-d323-4a9a-8643-d46710114292",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 9360,
+        "length": 720
+      }
+    },
+    {
+      "id": "bdc38bcc-b172-42a4-a944-d1ff4bd64766",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 8640,
+        "length": 720
+      }
+    },
+    {
+      "id": "d8f39ca7-2efe-46f7-ade1-94b2e3b49fb1",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 8640,
+        "to": 9360,
+        "beatLength": 0.125,
+        "name": "pattern-18332938",
+        "scaleTolerance": 0,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "b3cb83a7-f9e2-41e4-a5cf-35ee62eb8daa",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 9360,
+        "to": 10080,
+        "beatLength": 0.125,
+        "name": "pattern-ebf5a34d",
+        "scaleTolerance": 0,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "26a3c15e-79a9-4643-be8f-8b3e175bc5d2",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "n1vmhu38",
+          "n1273g3u"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "relativeDuration"
+          ]
+        },
+        "name": "1addca35-efee-4dc0-852a-893b97e4f3dd"
+      }
+    },
+    {
+      "id": "e943d31f-ce33-4b98-a59e-639100332845",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "ncr5i92",
+          "nw4587c"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "relativeDuration"
+          ]
+        },
+        "name": "bass-overlegato"
+      }
+    },
+    {
+      "id": "85f355a8-a368-482b-8100-7f08ce7fd1b1",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "n1h9lqkp",
+          "nu3c214"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "relativeDuration"
+          ]
+        },
+        "name": "9e330a30-3bed-4716-ba73-69a52292872b"
+      }
+    },
+    {
+      "id": "e1cfef4d-6f6e-4e6b-8208-7d2cfa795418",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-9720",
+        "start": -100,
+        "duration": 200,
+        "depth": 1,
+        "direction": "down"
+      }
+    },
+    {
+      "id": "44ae014c-b415-4d15-8be2-fd4e8f6d7c19",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-9720",
+        "start": -100,
+        "duration": 400,
+        "depth": 1,
+        "direction": "up"
+      }
+    },
+    {
+      "id": "461e7864-2b21-40e3-a11c-39b585c853a0",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "before-beat",
+        "noteOffShiftTolerance": 2,
+        "date": 11520
+      }
+    },
+    {
+      "id": "e56c99bf-31f4-4bdb-a787-d035d92a0cea",
+      "name": "InsertTemporalSpread",
+      "options": {
+        "scope": "global",
+        "placement": "estimate",
+        "noteOffShiftTolerance": 2,
+        "date": 12240
+      }
+    },
+    {
+      "id": "06761281-3aa7-4272-8d78-83f6d8150913",
+      "name": "InsertTempo",
+      "options": {
+        "from": 10440,
+        "to": 12240,
+        "bpm": 45.150428771972656,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 70.15054321289062,
+        "meanTempoAt": 0.480078125
+      }
+    },
+    {
+      "id": "e9a52d0d-ec7b-46f2-9b4d-022c29aebb4e",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 10800,
+        "length": 720
+      }
+    },
+    {
+      "id": "30129449-231b-45ab-831d-c40200986242",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 11520,
+        "length": 720
+      }
+    },
+    {
+      "id": "3d64acc0-116d-425b-a805-2cf23854fdac",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "scope": "global",
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": [
+            [
+              11520,
+              38
+            ]
+          ]
+        },
+        "from": 10800,
+        "to": 12240
+      }
+    },
+    {
+      "id": "fc546b37-2e08-4720-b188-5aa2f5dd897a",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 10800,
+        "to": 11520,
+        "beatLength": 0.125,
+        "name": "pattern-973670c0",
+        "scaleTolerance": 1.5,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "16f8c156-4444-4afe-9f70-d4b80cdaa798",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 11520,
+        "to": 12240,
+        "beatLength": 0.125,
+        "name": "pattern-34972fd4",
+        "scaleTolerance": 1.5,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "af149d40-14f9-4d15-99e6-df7ce8a643c9",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "n1pkbpqe",
+          "n18s8imu",
+          "n1rj5zce",
+          "nrjozf4",
+          "n7e8ajb"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "relativeDuration"
+          ]
+        },
+        "name": "Überlegato"
+      }
+    },
+    {
+      "id": "1e3a886c-b56e-4cd6-9a7b-7cb3783f642f",
+      "name": "InsertTempo",
+      "options": {
+        "from": 720,
+        "to": 2160,
+        "bpm": 76.15057373046875,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 48.15044403076172,
+        "meanTempoAt": 0.29656250000000006
+      }
+    },
+    {
+      "id": "4bb70f78-63ab-4a7e-b513-7fdaff6a6310",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "from": 720,
+        "to": 2520,
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": []
+        },
+        "scope": "global"
+      }
+    },
+    {
+      "id": "afdb2d83-776f-4397-8b08-6c1da56945d4",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 720,
+        "to": 2520,
+        "beatLength": 0.125,
+        "name": "new-pattern",
+        "scaleTolerance": 0,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "0d04499f-9c3d-4e44-8749-18f5f2a1a8d9",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-1440",
+        "start": -100,
+        "duration": 200,
+        "depth": 1,
+        "direction": "down"
+      }
+    },
+    {
+      "id": "1287e51f-9ada-4a75-9405-df5084525847",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-1440",
+        "start": -100,
+        "duration": 420,
+        "depth": 1,
+        "direction": "up"
+      }
+    },
+    {
+      "id": "cbf5caab-5392-4a67-9839-ecb425493dab",
+      "name": "InsertTempo",
+      "options": {
+        "from": 2160,
+        "to": 2880,
+        "bpm": 45.518006928917025,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 77.55680834646711,
+        "meanTempoAt": 0.7946093750000001
+      }
+    },
+    {
+      "id": "0abf2a20-d740-47ae-9e7a-ff79fc4740df",
+      "name": "InsertTempo",
+      "options": {
+        "from": 2160,
+        "to": 2880,
+        "bpm": 52.15046310424805,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 85.15061950683594,
+        "meanTempoAt": 0.7475
+      }
+    },
+    {
+      "id": "1ae57fe3-7cca-4170-ad24-9ec24d2447a9",
+      "name": "InsertTempo",
+      "options": {
+        "from": 2880,
+        "to": 4320,
+        "bpm": 85.15061950683594,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 28.15035057067871,
+        "meanTempoAt": 0.38070312500000003
+      }
+    },
+    {
+      "id": "a1e4a439-d675-4ea8-91cc-24602165423d",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 2880,
+        "length": 720
+      }
+    },
+    {
+      "id": "68d087ca-7297-4d29-a359-9659af1016cc",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "from": 2520,
+        "to": 3600,
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": []
+        },
+        "scope": "global"
+      }
+    },
+    {
+      "id": "f3b540f3-4197-4d0d-b23e-4ac3e785801b",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 2880,
+        "to": 3600,
+        "beatLength": 0.125,
+        "name": "pattern-52b7ac2c",
+        "scaleTolerance": 1,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "3489ea66-aa3a-42c9-b74a-14b2a36df57d",
+      "name": "InsertArticulation",
+      "options": {
+        "scope": "global",
+        "noteIDs": [
+          "n1ogvejs",
+          "n1qzl4hr",
+          "n10g2bbj",
+          "nv84jxp"
+        ],
+        "aspects": {
+          "dataType": "Set",
+          "value": [
+            "relativeDuration"
+          ]
+        },
+        "name": "legato"
+      }
+    },
+    {
+      "id": "dd376dfc-d46a-45e9-a06b-4c17ab7d06b6",
+      "name": "InsertTempo",
+      "options": {
+        "from": 4320,
+        "to": 5760,
+        "bpm": 57.89453527782097,
+        "beatLength": 0.25,
+        "scope": "global",
+        "transitionTo": 44.11279229711415,
+        "meanTempoAt": 0.6551562499999999
+      }
+    },
+    {
+      "id": "ca94f33d-b75b-4a8c-81ef-87d00b4009a9",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "scope": "global",
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": [
+            [
+              5760,
+              39
+            ]
+          ]
+        },
+        "from": 4320,
+        "to": 5760
+      }
+    },
+    {
+      "id": "ee707653-aeb2-4056-9eb9-b443c24b509f",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-4320",
+        "start": -100,
+        "duration": 200,
+        "depth": 1,
+        "direction": "down"
+      }
+    },
+    {
+      "id": "dec47e2f-e3cb-4725-a329-ff340594be0c",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "sustain-4320",
+        "start": -100,
+        "duration": 200,
+        "depth": 1,
+        "direction": "up"
+      }
+    },
+    {
+      "id": "501e1f92-a117-42a2-a1fa-0a8cd3fc74cf",
+      "name": "TranslatePhyiscalTimeToTicks",
+      "options": {
+        "translatePhysicalModifiers": true
+      }
+    },
+    {
+      "id": "0067f398-9e85-4052-8ae4-655441b7ab78",
+      "name": "StylizeOrnamentation",
+      "options": {
+        "tickTolerance": 8,
+        "intensityTolerance": 0.3,
+        "gradientTolerance": 0.1
+      }
+    },
+    {
+      "id": "ae3ef7d5-dd3a-4d4a-9247-9e9da898aff1",
+      "name": "InsertRubato",
+      "options": {
+        "scope": "global",
+        "date": 10080,
+        "length": 720
+      }
+    },
+    {
+      "id": "3bcf55db-1a28-48a6-9025-06e4b0c96c38",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "scope": "global",
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": [
+            [
+              11520,
+              38
+            ]
+          ]
+        },
+        "from": 10080,
+        "to": 10800
+      }
+    },
+    {
+      "id": "ec23afd2-f9b5-4462-912d-6a71979fb6cf",
+      "name": "InsertMetricalAccentuation",
+      "options": {
+        "from": 10080,
+        "to": 10800,
+        "beatLength": 0.125,
+        "name": "pattern-a56877aa",
+        "scaleTolerance": 1.5,
+        "neutralEnd": true,
+        "scope": "global"
+      }
+    },
+    {
+      "id": "0085d53b-c2b2-4dda-8f6e-bcbae8a0edb4",
+      "name": "InsertDynamicsInstructions",
+      "options": {
+        "scope": "global",
+        "phantomVelocities": {
+          "dataType": "Map",
+          "value": [
+            [
+              5760,
+              39
+            ],
+            [
+              7200,
+              37
+            ],
+            [
+              6480,
+              37
+            ]
+          ]
+        },
+        "from": 7200,
+        "to": 10080
+      }
+    },
+    {
+      "id": "dab63316-8563-4561-9a9a-106d1b1a3032",
+      "name": "MergeMetricalAccentuations",
+      "options": {
+        "names": [
+          "pattern-11f29f66",
+          "pattern-853eb85f",
+          "pattern-d265f253",
+          "pattern-18332938",
+          "pattern-ebf5a34d"
+        ],
+        "into": "good-bad-experimental",
+        "scope": "global"
+      }
+    },
+    {
+      "id": "fdee86c3-5d22-4271-b2fc-df408b0cfb38",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "soft-0",
+        "start": -100,
+        "duration": 200,
+        "depth": 1,
+        "direction": "down"
+      }
+    },
+    {
+      "id": "32ca2d12-ba44-475c-850d-5b2dc3074970",
+      "name": "InsertPedal",
+      "options": {
+        "pedal": "soft-0",
+        "start": 200,
+        "duration": 7000,
+        "depth": 1,
+        "direction": "up"
+      }
+    },
+    {
+      "id": "eb650893-9eb1-42df-8f73-b8380a3cb49d",
+      "name": "InsertMetadata",
+      "options": {
+        "authors": [
+          {
+            "number": 0,
+            "text": "Niels Pfeffer"
+          }
+        ],
+        "comments": [
+          {
+            "text": "Rekonstruktion der Welte Mignon-Klavierrolle 225, Alfred Grünfeld spielt Robert Schumann, Träumerei"
+          }
+        ]
+      }
+    }
+  ],
+  "segments": [
+    {
+      "id": "segment-6d58daff",
+      "calls": [
+        "cce2b0f1-099b-478c-8ca7-24b3c17eb879"
+      ],
+      "elements": []
+    },
+    {
+      "id": "0fad3105-f846-4c6f-88da-0682d76b1afd",
+      "note": "Nachschlag als Ereignis: vor dem Schlag arpeggiert",
+      "calls": [
+        "9f8b5d24-4423-431f-80dc-5178e79af043",
+        "69f91e58-1ffa-4352-97a8-f797b3cb2fd4",
+        "3193a830-ea95-4617-bee3-da0e973747b7"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-95b79d89",
+      "calls": [
+        "9080c9be-2bf7-4e8e-bea6-a261b673bf46",
+        "d6ed9ef4-635e-456b-9be4-092a6ad8cd97",
+        "182b412f-fe92-4a94-8229-85b292b1b65b",
+        "0140cee8-ca70-4505-8c14-1b75864a4316"
+      ],
+      "elements": []
+    },
+    {
+      "id": "018ee72f-65e0-4cc7-bb81-2b0c050ab60d",
+      "note": "Hinspielen auf 1",
+      "calls": [
+        "0b1001e8-6b14-4891-9ede-d0223502570e",
+        "88598cb0-fc30-4d72-b741-45c0d8e4833b",
+        "2f6a7847-d776-44a9-85c9-c37cfc632f7a",
+        "a0505e93-e57b-4a4d-9157-143dc6e878b8",
+        "3e42e998-d096-4108-9ee7-8812e54e8b06",
+        "75cad33d-fe79-42e7-8e9b-6fafaaeaf3b6",
+        "5874fd63-6b6a-4739-abe5-c41b2738f292",
+        "5aea7c0e-2588-477f-b41b-b22aaa39102d",
+        "cdb39ae3-e1cc-4cc2-8685-b0db37d37d93",
+        "dd4d687b-74f2-465f-aa82-452d6c543445",
+        "b374d476-071d-43bf-8bc1-2ff1d8de7d20",
+        "a6d4d739-a6f0-43e5-a0b4-9739e12f9852"
+      ],
+      "elements": []
+    },
+    {
+      "id": "80d8e0d0-7814-4566-b9a0-b700191ebc2d",
+      "note": "Hinspielen auf Taktmitte",
+      "calls": [
+        "94f08c1b-ada2-460a-8ad7-2e6e751033f9",
+        "3d5aaf6f-39ab-45c0-a91b-c74613966165",
+        "873b59f0-f8a3-46f8-81c4-0cd9cf9fa93e",
+        "ddbdc2db-d2bf-45a3-9a79-5ad9f24df0ce",
+        "ba8df537-bb70-482a-95c8-e235a686fc3d",
+        "2041acd1-0485-4a62-b74c-d1a10444f2b9",
+        "17d00847-d2dc-4a27-9d80-2b0b7b22899b",
+        "1e86c694-c3d1-4255-a8f5-bde90ade3ba4",
+        "bd72589e-ad4e-48e8-82f7-4184df5f13aa",
+        "a4d488ee-a086-4b12-8681-54feaacccab8",
+        "0212420d-ca6a-4cb3-9ad6-ae350127dd4b"
+      ],
+      "elements": []
+    },
+    {
+      "id": "7938a94a-fe29-42d0-bca8-b134a6776a96",
+      "note": "Auftaktenergie hin zur 1",
+      "calls": [
+        "9258acc5-b614-4fd2-ac2c-21bf29cdf376",
+        "f55da820-4a7c-4778-bff5-109b08f3e1b1",
+        "03c9d40a-feaf-4f91-a6cd-a458937c0635"
+      ],
+      "elements": []
+    },
+    {
+      "id": "58eb812f-2628-49f4-af8b-85296eb0a48a",
+      "calls": [
+        "e0bbb3cd-9abd-411c-bd68-148fc2ecbcf3"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-a97a44c0",
+      "note": "Klang öffnen (\"gelüftete\" Artikulation + Pedal, Arpeggi)",
+      "calls": [
+        "d579f332-38c4-4d04-9fcc-b31ed355ccdd",
+        "462251e2-a9c3-45ac-9db3-b5a5b6110229",
+        "a94fde0c-010a-4e00-88cd-cbaeeee3b230",
+        "1d4dab1d-ae12-4ea9-81a1-f6ebb299a001",
+        "f20986ff-64ce-40d3-93e5-5a6ac8ad0392",
+        "cda19c36-d323-4a9a-8643-d46710114292",
+        "bdc38bcc-b172-42a4-a944-d1ff4bd64766",
+        "d8f39ca7-2efe-46f7-ade1-94b2e3b49fb1",
+        "b3cb83a7-f9e2-41e4-a5cf-35ee62eb8daa",
+        "26a3c15e-79a9-4643-be8f-8b3e175bc5d2",
+        "e943d31f-ce33-4b98-a59e-639100332845",
+        "85f355a8-a368-482b-8100-7f08ce7fd1b1",
+        "e1cfef4d-6f6e-4e6b-8208-7d2cfa795418",
+        "44ae014c-b415-4d15-8be2-fd4e8f6d7c19"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-c118a7a5",
+      "note": "Verbinden zur nächsten Phrase: \"nach vorne\", lombardische Achtel, legato",
+      "calls": [
+        "461e7864-2b21-40e3-a11c-39b585c853a0",
+        "e56c99bf-31f4-4bdb-a787-d035d92a0cea",
+        "06761281-3aa7-4272-8d78-83f6d8150913",
+        "e9a52d0d-ec7b-46f2-9b4d-022c29aebb4e",
+        "30129449-231b-45ab-831d-c40200986242",
+        "3d64acc0-116d-425b-a805-2cf23854fdac",
+        "fc546b37-2e08-4720-b188-5aa2f5dd897a",
+        "16f8c156-4444-4afe-9f70-d4b80cdaa798",
+        "af149d40-14f9-4d15-99e6-df7ce8a643c9"
+      ],
+      "elements": []
+    },
+    {
+      "id": "646f927c-8e4e-4e2b-b09a-6db176eee1c8",
+      "note": "der Harmonie \"nachlauschen\": dynamische Reduktion, leichte zeitliche Dehnung",
+      "calls": [
+        "1e3a886c-b56e-4cd6-9a7b-7cb3783f642f",
+        "4bb70f78-63ab-4a7e-b513-7fdaff6a6310",
+        "afdb2d83-776f-4397-8b08-6c1da56945d4",
+        "0d04499f-9c3d-4e44-8749-18f5f2a1a8d9",
+        "1287e51f-9ada-4a75-9405-df5084525847"
+      ],
+      "elements": []
+    },
+    {
+      "id": "decision-9bb1a3aa",
+      "note": "Hinspielen zur 1",
+      "calls": [
+        "cbf5caab-5392-4a67-9839-ecb425493dab",
+        "0abf2a20-d740-47ae-9e7a-ff79fc4740df",
+        "1ae57fe3-7cca-4170-ad24-9ec24d2447a9",
+        "a1e4a439-d675-4ea8-91cc-24602165423d",
+        "68d087ca-7297-4d29-a359-9659af1016cc",
+        "f3b540f3-4197-4d0d-b23e-4ac3e785801b",
+        "3489ea66-aa3a-42c9-b74a-14b2a36df57d"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-d6d50300",
+      "note": "\"Nachlauschen\"",
+      "calls": [
+        "dd376dfc-d46a-45e9-a06b-4c17ab7d06b6",
+        "ca94f33d-b75b-4a8c-81ef-87d00b4009a9",
+        "ee707653-aeb2-4056-9eb9-b443c24b509f",
+        "dec47e2f-e3cb-4725-a329-ff340594be0c"
+      ],
+      "elements": []
+    },
+    {
+      "id": "decision-0c50c753",
+      "calls": [
+        "501e1f92-a117-42a2-a1fa-0a8cd3fc74cf"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-7716eba3",
+      "calls": [
+        "0067f398-9e85-4052-8ae4-655441b7ab78"
+      ],
+      "elements": []
+    },
+    {
+      "id": "5222c4c2-639e-46d9-a153-e8ccd41ac893",
+      "note": "Kurzes Entspannen auf C-Dur",
+      "calls": [
+        "ae3ef7d5-dd3a-4d4a-9247-9e9da898aff1",
+        "3bcf55db-1a28-48a6-9025-06e4b0c96c38",
+        "ec23afd2-f9b5-4462-912d-6a71979fb6cf"
+      ],
+      "elements": []
+    },
+    {
+      "id": "decision-cfcd2188",
+      "note": "Konstantes \"Dranbleiben\" (dynamisch und agogisch)",
+      "calls": [
+        "0085d53b-c2b2-4dda-8f6e-bcbae8a0edb4"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-3fac2b08",
+      "calls": [
+        "dab63316-8563-4561-9a9a-106d1b1a3032"
+      ],
+      "elements": []
+    },
+    {
+      "id": "821fda57-7ea5-4a05-ab4f-2b221a141996",
+      "note": "Drücken des Verschiebungspedals",
+      "calls": [
+        "fdee86c3-5d22-4271-b2fc-df408b0cfb38"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-5bca80cd",
+      "note": "Klang langsam öffnen",
+      "calls": [
+        "32ca2d12-ba44-475c-850d-5b2dc3074970"
+      ],
+      "elements": []
+    },
+    {
+      "id": "segment-metadata",
+      "calls": [
+        "eb650893-9eb1-42df-8f73-b8380a3cb49d"
+      ],
+      "elements": []
+    }
+  ]
+}

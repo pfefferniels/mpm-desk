@@ -1,5 +1,6 @@
 import { Button, Slider, Stack, Typography } from "@mui/material";
-import { StylizeArticulation } from "mpmify";
+import { StylizeArticulation } from "../../fitting/transformers/articulation/StylizeArticulation";
+import { getInstructions } from "../../fitting/instructions/index";
 import { useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { Plot } from "./Plot";
@@ -18,7 +19,7 @@ export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransfor
     const articulationPoints = new StylizeArticulation({
         relativeDurationTolerance,
         volumeTolerance
-    }).generateClusters(mpm.getInstructions('articulation', part))
+    }).clustersOf(getInstructions(mpm, 'articulation', part), mpm)
 
     return (
         <div>

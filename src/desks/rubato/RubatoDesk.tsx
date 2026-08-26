@@ -3,18 +3,21 @@ import { Button } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { useCallback, useState } from "react"
 import { useScrollSync } from "../../hooks/ScrollSyncProvider"
-import { CombineAdjacentRubatos, InsertRubato, InsertRubatoOptions, Rubato } from "mpmify"
+import { CombineAdjacentRubatos } from "../../fitting/transformers/rubato/CombineAdjacentRubatos"
+import { InsertRubato } from "../../fitting/transformers/rubato/InsertRubato"
+import type { InsertRubatoOptions } from "../../fitting/transformers/rubato/InsertRubato"
+import { getInstructions } from "../../fitting/instructions/index"
 import { RubatoInstruction } from "./RubatoInstruction"
 import { DatesRow, Frame } from "./DatesRow"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
-import { useSelection } from "../../hooks/SelectionProvider"
+import { useCallSelection } from "../../hooks/CallSelection"
 import { createPortal } from "react-dom"
 import { Ribbon } from "../../components/Ribbon"
 import { Add } from "@mui/icons-material"
 import { usePiano } from "react-pianosound"
 
-export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
-    const { activeElements, setActiveElement } = useSelection();
+export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part, appBarRef }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
+    const { activeElements, setActiveElement } = useCallSelection();
     const { play, stop } = usePiano()
     const [frame, setFrame] = useState<Frame>()
     const stretchX = useSymbolicZoom()
@@ -63,20 +66,29 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
         })
     }
 
-    const allRubatos = mpm.getInstructions<Rubato>('rubato', part)
+    const allRubatos = getInstructions(mpm, 'rubato', part)
     const chords = msm.asChords(part)
 
     const rubatoElements = allRubatos.map(rubato => {
         const notes = msm.notesInPart(part)
+        // `@frameLength` is optional on a `<rubato>`: an instruction that carries no frame
+        // inherits one from the `rubatoDef` it names, and the fitting pipeline models no defs,
+        // so nothing is warped under one. Reading absence as a zero-length frame is what that
+        // amounts to on the desk — the instruction draws where it stands and covers no note.
+        const frameLength = rubato.frameLength ?? 0
         const affected = new Set(
             notes
-                .filter(note => note.date >= rubato.date && note.date < rubato.date + rubato.frameLength)
+                .filter(note => note.date >= rubato.date && note.date < rubato.date + frameLength)
                 .map(note => note.date)
         )
 
+        // Without an `@xml:id` a rubato cannot be traced back to the call that wrote it, so it
+        // draws but neither lights up nor selects.
+        const id = rubato.id
+
         return (
             <RubatoInstruction
-                active={activeElements.includes(rubato["xml:id"])}
+                active={id !== undefined && activeElements.includes(id)}
                 key={`rubatoInstruction_${rubato.date}`}
                 rubato={rubato}
                 onsetDates={Array.from(affected)}
@@ -86,7 +98,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
                 play={play}
                 stop={stop}
                 onClick={() => {
-                    setActiveElement(rubato["xml:id"])
+                    if (id !== undefined) setActiveElement(id)
                 }}
             />
         )
@@ -145,6 +157,7 @@ export const RubatoDesk = ({ msm, mpm, addTransformer, part, appBarRef }: Scoped
                         stretchX={stretchX}
                         width={svgWidth}
                         chords={chords}
+                        residual={residual}
                         onClickTick={addMarker}
                         instructions={rubatoElements}
                     />

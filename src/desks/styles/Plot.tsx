@@ -1,4 +1,4 @@
-import { IPoint } from "mpmify"
+import type { IPoint } from "../../fitting/dbscan"
 
 interface PlotProps {
     points: IPoint[]

@@ -1,11 +1,17 @@
 import { useState } from "react"
-import { MsmNote, Articulation, ArticulationDef } from "mpmify"
+import type { AlignedNote } from "../../fitting/alignment"
+import type { Instruction } from "../../fitting/instructions/index"
+import type { ArticulationModifiers } from "../../fitting/transformers/articulation/index"
+import type { Residual } from "../../fitting/residual"
+import type { ArticulationDef } from "espressivo"
 import { convexHull } from "../../utils/convexHull"
 
 interface ArticulationOverlayProps {
-    instruction: Articulation
+    instruction: Instruction<'articulation'>
     def?: ArticulationDef
-    notes: MsmNote[]
+    notes: AlignedNote[]
+    /** Where each note's recorded span sits on the tick grid — the same figures the notes are drawn from. */
+    residual: Residual
     stretchX: number
     stretchY: number
     active: boolean
@@ -15,7 +21,30 @@ interface ArticulationOverlayProps {
 const max = 90
 const padding = 4
 
-export const ArticulationOverlay = ({ instruction, def, notes, stretchX, stretchY, active, onClick }: ArticulationOverlayProps) => {
+/**
+ * The four modifiers the label shows, as the *document* states them.
+ *
+ * espressivo's `ArticulationDef` getters answer what the renderer will do, so an unstated
+ * `@relativeDuration` comes back as its neutral 1.0 — which would put "duration: 1" on every
+ * overlay naming a def, including ones that state nothing of the kind. The label shows the
+ * attributes actually written, so they are read off the element.
+ */
+const statedBy = (def: ArticulationDef): ArticulationModifiers => {
+    const xml = def.getXml()
+    const read = (name: string) => {
+        const value = xml.getAttributeValue(name)
+        return value === null ? undefined : parseFloat(value)
+    }
+
+    return {
+        relativeDuration: read('relativeDuration'),
+        relativeVelocity: read('relativeVelocity'),
+        absoluteDuration: read('absoluteDuration'),
+        absoluteDurationChange: read('absoluteDurationChange'),
+    }
+}
+
+export const ArticulationOverlay = ({ instruction, def, notes, residual, stretchX, stretchY, active, onClick }: ArticulationOverlayProps) => {
     const [hovered, setHovered] = useState(false)
 
     const noteIds = instruction.noteid?.split(' ') || []
@@ -26,9 +55,13 @@ export const ArticulationOverlay = ({ instruction, def, notes, stretchX, stretch
     const cornerPoints: { x: number; y: number }[] = []
 
     for (const note of affected) {
+        const placed = residual.of(note)
         const onset = note.date
-        const duration = note.tickDuration || note["midi.duration"]
-        const noteHeight = (note.absoluteVelocityChange || 1) + 2
+        // The same two decisions the note itself is drawn from, so the hull wraps what is on
+        // screen: an unplaceable note has a zero-length recorded span, and the bar thickness
+        // collapses an undefined velocity residual to the same minimum a zero one gets.
+        const duration = placed?.tickDuration ?? 0
+        const noteHeight = (placed?.velocity || 1) + 2
 
         const x = onset * stretchX
         const w = Math.max(1, (onset + duration) * stretchX - x)
@@ -52,7 +85,7 @@ export const ArticulationOverlay = ({ instruction, def, notes, stretchX, stretch
     const minY = Math.min(...hull.map(p => p.y))
     const centerX = (minX + maxX) / 2
 
-    const source = def ?? instruction
+    const source = def ? statedBy(def) : instruction
     const r = (n: number) => Math.round(n * 100) / 100
     const attrs: string[] = []
     if (source.relativeDuration !== undefined) attrs.push(`duration: ${r(source.relativeDuration)}`)

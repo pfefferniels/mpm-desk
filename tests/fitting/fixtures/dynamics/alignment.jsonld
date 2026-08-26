@@ -1,0 +1,701 @@
+{
+    "@context": {
+        "la": "https://measuring-early-records.org/linked_alignment#",
+        "crm": "http://www.cidoc-crm.org/cidoc-crm/",
+        "xsd": "http://www.w3.org/2001/XMLSchema#"
+    },
+    "@graph": [
+        {
+            "@id": "http://measuring-early-records.org/a6891c",
+            "@type": "la:Alignment",
+            "crm:P14_carried_out_by": {
+                "@id": "http://example_org/",
+                "@type": "E39_Actor"
+            },
+            "dcterms:created": "2022-11-04T17:49:03.429Z",
+            "la:hasAlignmentPair": [
+                "http://measuring-early-records.org/a6891c/pair_0",
+                "http://measuring-early-records.org/a6891c/pair_1",
+                "http://measuring-early-records.org/a6891c/pair_2",
+                "http://measuring-early-records.org/a6891c/pair_3",
+                "http://measuring-early-records.org/a6891c/pair_4",
+                "http://measuring-early-records.org/a6891c/pair_5",
+                "http://measuring-early-records.org/a6891c/pair_6",
+                "http://measuring-early-records.org/a6891c/pair_7",
+                "http://measuring-early-records.org/a6891c/pair_8",
+                "http://measuring-early-records.org/a6891c/pair_9",
+                "http://measuring-early-records.org/a6891c/pair_10",
+                "http://measuring-early-records.org/a6891c/pair_11",
+                "http://measuring-early-records.org/a6891c/pair_12",
+                "http://measuring-early-records.org/a6891c/pair_13",
+                "http://measuring-early-records.org/a6891c/pair_14",
+                "http://measuring-early-records.org/a6891c/pair_15",
+                "http://measuring-early-records.org/a6891c/pair_16",
+                "http://measuring-early-records.org/a6891c/pair_17",
+                "http://measuring-early-records.org/a6891c/pair_18",
+                "http://measuring-early-records.org/a6891c/pair_19",
+                "http://measuring-early-records.org/a6891c/pair_20",
+                "http://measuring-early-records.org/a6891c/pair_21",
+                "http://measuring-early-records.org/a6891c/pair_22",
+                "http://measuring-early-records.org/a6891c/pair_23",
+                "http://measuring-early-records.org/a6891c/pair_24",
+                "http://measuring-early-records.org/a6891c/pair_25",
+                "http://measuring-early-records.org/a6891c/pair_26",
+                "http://measuring-early-records.org/a6891c/pair_27",
+                "http://measuring-early-records.org/a6891c/pair_28",
+                "http://measuring-early-records.org/a6891c/pair_29",
+                "http://measuring-early-records.org/a6891c/pair_30",
+                "http://measuring-early-records.org/a6891c/pair_31",
+                "http://measuring-early-records.org/a6891c/pair_32",
+                "http://measuring-early-records.org/a6891c/pair_33",
+                "http://measuring-early-records.org/a6891c/pair_34",
+                "http://measuring-early-records.org/a6891c/pair_35",
+                "http://measuring-early-records.org/a6891c/pair_36",
+                "http://measuring-early-records.org/a6891c/pair_37",
+                "http://measuring-early-records.org/a6891c/pair_38",
+                "http://measuring-early-records.org/a6891c/pair_39",
+                "http://measuring-early-records.org/a6891c/pair_40",
+                "http://measuring-early-records.org/a6891c/pair_41",
+                "http://measuring-early-records.org/a6891c/pair_42",
+                "http://measuring-early-records.org/a6891c/pair_43",
+                "http://measuring-early-records.org/a6891c/pair_44",
+                "http://measuring-early-records.org/a6891c/pair_45",
+                "http://measuring-early-records.org/a6891c/pair_46",
+                "http://measuring-early-records.org/a6891c/pair_47",
+                "http://measuring-early-records.org/a6891c/pair_48",
+                "http://measuring-early-records.org/a6891c/pair_49",
+                "http://measuring-early-records.org/a6891c/pair_50",
+                "http://measuring-early-records.org/a6891c/pair_51",
+                "http://measuring-early-records.org/a6891c/pair_52",
+                "http://measuring-early-records.org/a6891c/pair_53",
+                "http://measuring-early-records.org/a6891c/pair_54",
+                "http://measuring-early-records.org/a6891c/pair_55",
+                "http://measuring-early-records.org/a6891c/pair_56",
+                "http://measuring-early-records.org/a6891c/pair_57",
+                "http://measuring-early-records.org/a6891c/pair_58",
+                "http://measuring-early-records.org/a6891c/pair_59",
+                "http://measuring-early-records.org/a6891c/pair_60",
+                "http://measuring-early-records.org/a6891c/pair_61",
+                "http://measuring-early-records.org/a6891c/pair_62",
+                "http://measuring-early-records.org/a6891c/pair_63",
+                "http://measuring-early-records.org/a6891c/pair_64",
+                "http://measuring-early-records.org/a6891c/pair_65",
+                "http://measuring-early-records.org/a6891c/pair_66",
+                "http://measuring-early-records.org/a6891c/pair_67",
+                "http://measuring-early-records.org/a6891c/pair_68",
+                "http://measuring-early-records.org/a6891c/pair_69",
+                "http://measuring-early-records.org/a6891c/pair_70",
+                "http://measuring-early-records.org/a6891c/pair_71",
+                "http://measuring-early-records.org/a6891c/pair_72",
+                "http://measuring-early-records.org/a6891c/pair_73",
+                "http://measuring-early-records.org/a6891c/pair_74",
+                "http://measuring-early-records.org/a6891c/pair_75",
+                "http://measuring-early-records.org/a6891c/pair_76",
+                "http://measuring-early-records.org/a6891c/pair_77",
+                "http://measuring-early-records.org/a6891c/pair_78",
+                "http://measuring-early-records.org/a6891c/pair_79",
+                "http://measuring-early-records.org/a6891c/pair_80",
+                "http://measuring-early-records.org/a6891c/pair_81",
+                "http://measuring-early-records.org/a6891c/pair_82",
+                "http://measuring-early-records.org/a6891c/pair_83",
+                "http://measuring-early-records.org/a6891c/pair_84",
+                "http://measuring-early-records.org/a6891c/pair_85"
+            ]
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_0",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-145",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_5"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_1",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-143",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_4"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_2",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-147",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_8"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_3",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-152",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_15"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_4",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-155",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_23"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_5",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-158",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_31"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_6",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-163",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_38"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_7",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-166",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_47"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_8",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-169",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_57"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_9",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-174",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_65"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_10",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-177",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_73"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_11",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-180",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_81"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_12",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-185",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_91"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_13",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-188",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_100"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_14",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-191",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_107"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_15",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-196",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_115"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_16",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-199",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_123"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_17",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-202",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_132"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_18",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-207",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_141"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_19",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-214",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_157"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_20",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Alteration",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-236",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_164"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_21",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-151",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_11"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_22",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-154",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_19"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_23",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-157",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_28"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_24",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-162",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_36"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_25",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-165",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_43"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_26",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-168",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_52"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_27",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-173",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_61"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_28",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-176",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_70"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_29",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-179",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_77"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_30",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-184",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_86"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_31",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-187",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_95"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_32",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-190",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_103"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_33",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-195",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_111"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_34",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-198",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_119"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_35",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-201",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_127"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_36",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-206",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_135"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_37",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-209",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_144"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_38",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-212",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_149"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_39",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-216",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_156"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_40",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-238",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_165"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_41",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-51",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_9"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_42",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-57",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_14"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_43",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-61",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_22"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_44",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-65",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_30"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_45",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-71",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_39"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_46",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-75",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_46"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_47",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-79",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_53"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_48",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-55",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_10"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_49",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-59",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_17"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_50",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-63",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_25"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_51",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-69",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_34"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_52",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-73",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_42"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_53",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-228",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_163"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_54",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-226",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_162"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_55",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-138",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_154"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_56",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Alteration",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-136",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_155"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_57",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-77",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_49"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_58",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-83",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_56"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_59",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-133",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_147"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_60",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-131",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_145"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_61",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-127",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_137"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_62",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-129",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_140"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_63",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-125",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_133"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_64",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-121",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_129"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_65",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-119",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_125"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_66",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-117",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_121"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_67",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-115",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_118"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_68",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-113",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_114"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_69",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Additon",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_98"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_70",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-111",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_110"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_71",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Additon",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_94"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_72",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-107",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_106"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_73",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-101",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_90"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_74",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-97",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_83"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_75",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-99",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_87"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_76",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-103",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_101"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_77",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-93",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_79"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_78",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-91",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_76"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_79",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Omission",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-89"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_80",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Additon",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_60"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_81",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-85",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_68"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_82",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Additon",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_64"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_83",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#ExactMatch",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-87",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_71"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_84",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Omission",
+            "la:hasScoreNote": "http://measuring-early-records.org/score/score.mei#m-105"
+        },
+        {
+            "@id": "http://measuring-early-records.org/a6891c/pair_85",
+            "@type": "la:AlignmentPair",
+            "la:hasMotivation": "http://measuring-early-records.org/alignment-motivation#Additon",
+            "la:hasMIDINote": "http://measuring-early-records.org/aa2492/track_0/event_98"
+        }
+    ]
+}

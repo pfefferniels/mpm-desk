@@ -1,10 +1,15 @@
-import { calculateRubatoOnDate, ChordMap, MsmNote, Rubato } from "mpmify"
+import { calculateRubatoOnDate } from "../../fitting/transformers/rubato/rubatoMath"
+import type { AlignedNote, ChordMap } from "../../fitting/alignment"
+import type { Instruction } from "../../fitting/instructions/index"
 import { MouseEventHandler, useState } from "react"
 import { MidiFile } from "midifile-ts"
 import { asMIDI } from "../../utils/utils"
 
+/** One note as `asMIDI` wants it, so the click preview follows whatever that function takes. */
+type PlayableNote = Parameters<typeof asMIDI>[0][number]
+
 interface RubatoInstructionProps {
-    rubato: Rubato
+    rubato: Instruction<'rubato'>
     onsetDates: number[]
     stretchX: number
     height: number
@@ -20,7 +25,7 @@ const getHighestPitchBeforeDate = (chords: ChordMap, date: number): number => {
     if (chordDates.length === 0) return 60 // C4
 
     const lastChord = chords.get(chordDates[0])!
-    const highestNote = lastChord.reduce((max: MsmNote, note: MsmNote) =>
+    const highestNote = lastChord.reduce((max: AlignedNote, note: AlignedNote) =>
         note['midi.pitch'] > max['midi.pitch'] ? note : max
     )
     return highestNote['midi.pitch']
@@ -30,18 +35,30 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
     const [hovered, setHovered] = useState(false)
     const lines: JSX.Element[] = []
 
+    // `@frameLength` is optional on a `<rubato>` — an instruction that carries none inherits it
+    // from the `rubatoDef` it names, which the fitting pipeline does not model, so nothing is
+    // warped under one. Zero is what that comes to here: a frame with no extent.
+    const frameLength = rubato.frameLength ?? 0
+
     const handleClick = () => {
         const n = 4
         const gap = 0.02
-        const notes = []
+        const notes: PlayableNote[] = []
 
         for (let i = 0; i < n; i++) {
-            const symbolicDate = rubato.date + rubato.frameLength / n * i
+            const symbolicDate = rubato.date + frameLength / n * i
             const tickDate = calculateRubatoOnDate(symbolicDate, rubato) - rubato.date
-            const nextSymbolicDate = rubato.date + rubato.frameLength / n * (i + 1)
+            const nextSymbolicDate = rubato.date + frameLength / n * (i + 1)
             const nextTickDate = calculateRubatoOnDate(nextSymbolicDate, rubato) - rubato.date
             const duration = (nextTickDate - tickDate) / 720 - gap
             const pitch = getHighestPitchBeforeDate(chords, symbolicDate)
+
+            // The preview sounds the warped frame at its own tempo, one quarter note per
+            // second, which is what dividing the tick date by 720 amounts to. Both values are
+            // seconds; the fields below take milliseconds, and the second of them an absolute
+            // release rather than a length.
+            const onsetInSeconds = tickDate / 720
+            const heldInSeconds = Math.max(duration, 0.05)
 
             notes.push({
                 'xml:id': `rubato_tick_${i}`,
@@ -51,11 +68,11 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
                 'pitchname': '',
                 'accidentals': 0,
                 'octave': 0,
-                'midi.onset': tickDate / 720,
-                'midi.duration': Math.max(duration, 0.05),
+                'milliseconds.date': onsetInSeconds * 1000,
+                'milliseconds.date.end': (onsetInSeconds + heldInSeconds) * 1000,
                 'midi.pitch': pitch,
-                'midi.velocity': 80
-            } as MsmNote)
+                velocity: 80
+            })
         }
 
         const midi = asMIDI(notes)
@@ -113,7 +130,7 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
                 key={`rubato_${rubato.date}`}
                 x={(rubato.date * stretchX) + margin}
                 y={0}
-                width={(rubato.frameLength * stretchX) - margin * 2}
+                width={(frameLength * stretchX) - margin * 2}
                 height={height}
                 fill={active ? 'blue' : 'gray'}
                 fillOpacity={hovered ? 0.5 : 0.2}
@@ -137,7 +154,7 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
 
             {rubato.loop && (
                 <text
-                    x={((rubato.date + rubato.frameLength) * stretchX) + margin}
+                    x={((rubato.date + frameLength) * stretchX) + margin}
                     y={height / 2}
                     fontSize={10}
                     fill='black'

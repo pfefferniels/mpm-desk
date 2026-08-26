@@ -1,0 +1,48 @@
+<?xml version='1.0'?>
+<msm title='aligned performance' pulsesPerQuarter='720'>
+    <global>
+        <header/>
+        <dated>
+            <timeSignatureMap>
+                <timeSignature date='0' numerator='4' denominator='4'/>
+            </timeSignatureMap>
+            <sectionMap>
+                <section date='0' date.end='5760'/>
+            </sectionMap>
+        </dated>
+    </global>
+    <part name='part0' number='1' midi.channel='0' midi.port='0'>
+        <header/>
+        <dated>
+            <programChangeMap>
+                <programChange date='0' value='0'/>
+            </programChangeMap>
+            <score>
+                <note xml:id='nmue11l' date='0' pitchname='c' octave='5' accidentals='0' midi.pitch='72' duration='720' midi.duration='0.707' midi.velocity='100'/>
+                <note xml:id='n1x4raxe' date='720' pitchname='c' octave='5' accidentals='0' midi.pitch='72' duration='720' midi.onset='0.707' midi.duration='0.29300000000000004' midi.velocity='100'/>
+                <note xml:id='ncgekhb' date='1440' pitchname='c' octave='5' accidentals='0' midi.pitch='72' duration='720' midi.onset='1' midi.duration='0.7070000000000001' midi.velocity='100'/>
+                <note xml:id='n1oiyzis' date='2160' pitchname='c' octave='5' accidentals='0' midi.pitch='72' duration='720' midi.onset='1.707' midi.duration='0.2929999999999999' midi.velocity='100'/>
+                <note xml:id='nv0rft9' date='2880' pitchname='b' octave='4' accidentals='0' midi.pitch='71' duration='720' midi.onset='2' midi.duration='0.7069999999999999' midi.velocity='100'/>
+                <note xml:id='n13ffnmq' date='3600' pitchname='b' octave='4' accidentals='0' midi.pitch='71' duration='720' midi.onset='2.707' midi.duration='0.29300000000000015' midi.velocity='100'/>
+                <note xml:id='nra5r9c' date='4320' pitchname='b' octave='4' accidentals='0' midi.pitch='71' duration='720' midi.onset='3' midi.duration='0.7070000000000003' midi.velocity='100'/>
+                <note xml:id='n1pbpp05' date='5040' pitchname='b' octave='4' accidentals='0' midi.pitch='71' duration='720' midi.onset='3.7070000000000003' midi.duration='0.2929999999999997' midi.velocity='100'/>
+                <note xml:id='nvmfawr' date='5760' pitchname='c' octave='5' accidentals='0' midi.pitch='72' duration='2880' midi.onset='4' midi.duration='2' midi.velocity='100'/>
+            </score>
+        </dated>
+    </part>
+    <part name='part1' number='2' midi.channel='1' midi.port='0'>
+        <header/>
+        <dated>
+            <programChangeMap>
+                <programChange date='0' value='0'/>
+            </programChangeMap>
+            <score>
+                <note xml:id='n1siarq9' date='0' pitchname='c' octave='3' accidentals='0' midi.pitch='48' duration='1440' midi.duration='1' midi.velocity='100'/>
+                <note xml:id='n193k49l' date='1440' pitchname='c' octave='3' accidentals='0' midi.pitch='48' duration='1440' midi.onset='1' midi.duration='1' midi.velocity='100'/>
+                <note xml:id='n117shwe' date='2880' pitchname='d' octave='3' accidentals='0' midi.pitch='50' duration='1440' midi.onset='2' midi.duration='1' midi.velocity='100'/>
+                <note xml:id='nv2eyod' date='4320' pitchname='d' octave='3' accidentals='0' midi.pitch='50' duration='1440' midi.onset='3' midi.duration='1' midi.velocity='100'/>
+                <note xml:id='n1a1n444' date='5760' pitchname='c' octave='3' accidentals='0' midi.pitch='48' duration='2880' midi.onset='4' midi.duration='2' midi.velocity='100'/>
+            </score>
+        </dated>
+    </part>
+</msm>

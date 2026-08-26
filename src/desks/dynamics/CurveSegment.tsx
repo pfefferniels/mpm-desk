@@ -1,4 +1,5 @@
-import { computeInnerControlPointsXPositions, DynamicsWithEndDate, volumeAtDate } from "mpmify"
+import { computeInnerControlPointsXPositions, volumeAtDate } from "../../fitting/transformers/dynamics/Approximation"
+import { DynamicsWithEndDate } from "../../fitting/transformers/dynamics/InsertDynamicsInstructions"
 import { useEffect, useState } from "react"
 
 interface CurveSegmentProps {
@@ -52,7 +53,7 @@ export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick 
     return (
         <g
             className='curveSegment'
-            data-id={`curve_${instruction["xml:id"]}`}
+            data-id={`curve_${instruction.id}`}
             data-startDate={instruction.date}
             data-endDate={instruction.endDate}
             onClick={onClick}

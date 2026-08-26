@@ -1,4 +1,6 @@
-import { ChordMap, InsertRubatoOptions } from "mpmify"
+import type { ChordMap } from "../../fitting/alignment"
+import type { InsertRubatoOptions } from "../../fitting/transformers/rubato/InsertRubato"
+import type { Residual } from "../../fitting/residual"
 import { asMIDI, PartialBy } from "../../utils/utils"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
@@ -12,12 +14,17 @@ interface DatesRowProps {
     height: number
     width: number
     chords: ChordMap
+    /**
+     * Where the recording put each note on the score grid, with rubato held out — the row's
+     * whole subject, derived per fit rather than carried on the note.
+     */
+    residual: Residual
     frame?: Frame
     onClickTick: (date: number) => void
     instructions: JSX.Element[]
 }
 
-export const DatesRow = ({ stretchX, height, width, chords, frame, onClickTick, instructions }: DatesRowProps) => {
+export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onClickTick, instructions }: DatesRowProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -51,7 +58,11 @@ export const DatesRow = ({ stretchX, height, width, chords, frame, onClickTick, 
     }
 
     for (const [date, notes] of chords) {
-        const tickDate = notes[0]?.tickDate
+        // `undefined` where the MPM cannot place the note yet — no `<tempo>` covers it. The
+        // row draws the distance from the score date to the recorded one, and a note with no
+        // recorded position on the grid has no such distance, so it gets no line at all.
+        const firstNote = notes[0]
+        const tickDate = firstNote === undefined ? undefined : residual.of(firstNote)?.tickDate
         if (tickDate === undefined) continue
 
 

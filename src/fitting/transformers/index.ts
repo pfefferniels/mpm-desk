@@ -1,0 +1,15 @@
+export * from './accentuation/index';
+export * from './articulation/index';
+export * from './dynamics/index';
+export * from './ornamentation/index';
+export * from './tempo/index';
+export * from './rubato/InsertRubato';
+export * from './rubato/CombineAdjacentRubatos';
+export type { TransformationOptions } from './Transformer';
+export * from './tempo/tempoCalculations';
+export * from './pedal/InsertPedalInstructions';
+export * from './Order';
+export * from './choice/MakeChoice';
+export * from './modification/Modify';
+export * from './metadata/index';
+export * from './TransformerRegistry';

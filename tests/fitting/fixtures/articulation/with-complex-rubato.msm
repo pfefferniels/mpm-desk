@@ -1,0 +1,62 @@
+<?xml version='1.0'?>
+<msm title='aligned performance' pulsesPerQuarter='720'>
+    <global>
+        <header/>
+        <dated>
+            <timeSignatureMap>
+                <timeSignature date='0' numerator='6' denominator='8'/>
+            </timeSignatureMap>
+            <sectionMap>
+                <section date='0' date.end='4140'/>
+            </sectionMap>
+        </dated>
+    </global>
+    <part name='part0' number='1' midi.channel='0' midi.port='0'>
+        <header/>
+        <dated>
+            <programChangeMap>
+                <programChange date='0' value='0'/>
+            </programChangeMap>
+            <score>
+                <note xml:id='note-L37F3' date='2160' pitchname='f' octave='5' accidentals='0' midi.pitch='77' duration='1080' midi.onset='5.079166666666667' midi.duration='2.5093750000000004' midi.velocity='48'/>
+                <note xml:id='note-L43F3' date='3240' pitchname='e' octave='5' accidentals='-1' midi.pitch='75' duration='360' midi.onset='7.457291666666666' midi.duration='1.0708333333333329' midi.velocity='48'/>
+                <note xml:id='note-L45F3' date='3600' pitchname='d' octave='5' accidentals='-1' midi.pitch='73' duration='540' midi.onset='8.417708333333334' midi.duration='1.6687499999999993' midi.velocity='52'/>
+                <note xml:id='note-L48F3' date='4140' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='9.496875' midi.duration='0.5708333333333346' midi.velocity='42'/>
+            </score>
+        </dated>
+    </part>
+    <part name='part1' number='2' midi.channel='1' midi.port='0'>
+        <header/>
+        <dated>
+            <programChangeMap>
+                <programChange date='0' value='0'/>
+            </programChangeMap>
+            <score>
+                <note xml:id='note-L23F1' date='0' pitchname='d' octave='2' accidentals='-1' midi.pitch='37' duration='180' midi.onset='0.6' midi.duration='0.6614583333333334' midi.velocity='36'/>
+                <note xml:id='note-L24F1' date='180' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='1.3083333333333333' midi.duration='0.3583333333333334' midi.velocity='33'/>
+                <note xml:id='note-L25F1' date='360' pitchname='a' octave='3' accidentals='-1' midi.pitch='56' duration='180' midi.onset='1.6229166666666666' midi.duration='0.5135416666666666' midi.velocity='33'/>
+                <note xml:id='note-L26F1' date='540' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='1.8875' midi.duration='0.49687499999999996' midi.velocity='33'/>
+                <note xml:id='note-L27F1' date='720' pitchname='d' octave='4' accidentals='-1' midi.pitch='61' duration='180' midi.onset='2.1489583333333333' midi.duration='0.4125000000000001' midi.velocity='33'/>
+                <note xml:id='note-L28F1' date='900' pitchname='f' octave='3' accidentals='0' midi.pitch='53' duration='180' midi.onset='2.4416666666666664' midi.duration='0.42500000000000027' midi.velocity='34'/>
+                <note xml:id='note-L29F1' date='1080' pitchname='d' octave='3' accidentals='-1' midi.pitch='49' duration='180' midi.onset='2.736458333333333' midi.duration='0.5562499999999999' midi.velocity='36'/>
+                <note xml:id='note-L30F1' date='1260' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='3.1822916666666665' midi.duration='0.4208333333333334' midi.velocity='33'/>
+                <note xml:id='note-L31F1' date='1440' pitchname='a' octave='3' accidentals='-1' midi.pitch='56' duration='180' midi.onset='3.4739583333333335' midi.duration='0.5187499999999998' midi.velocity='33'/>
+                <note xml:id='note-L32F1' date='1620' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='3.7864583333333335' midi.duration='0.49791666666666634' midi.velocity='33'/>
+                <note xml:id='note-L33F1' date='1800' pitchname='d' octave='4' accidentals='-1' midi.pitch='61' duration='180' midi.onset='4.141666666666667' midi.duration='0.3583333333333334' midi.velocity='33'/>
+                <note xml:id='note-L34F1' date='1980' pitchname='f' octave='3' accidentals='0' midi.pitch='53' duration='180' midi.onset='4.515625' midi.duration='0.4093749999999998' midi.velocity='34'/>
+                <note xml:id='note-L37F1' date='2160' pitchname='d' octave='3' accidentals='-1' midi.pitch='49' duration='180' midi.onset='4.782291666666667' midi.duration='0.7843749999999998' midi.velocity='36'/>
+                <note xml:id='note-L38F1' date='2340' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='5.7875' midi.duration='0.296875' midi.velocity='33'/>
+                <note xml:id='note-L39F1' date='2520' pitchname='a' octave='3' accidentals='-1' midi.pitch='56' duration='180' midi.onset='6.06875' midi.duration='0.4677083333333334' midi.velocity='33'/>
+                <note xml:id='note-L40F1' date='2700' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='6.348958333333333' midi.duration='0.35208333333333375' midi.velocity='33'/>
+                <note xml:id='note-L41F1' date='2880' pitchname='d' octave='4' accidentals='-1' midi.pitch='61' duration='180' midi.onset='6.621875' midi.duration='0.9052083333333334' midi.velocity='33'/>
+                <note xml:id='note-L42F1' date='3060' pitchname='f' octave='3' accidentals='0' midi.pitch='53' duration='180' midi.onset='6.953125' midi.duration='0.640625' midi.velocity='34'/>
+                <note xml:id='note-L43F1' date='3240' pitchname='d' octave='3' accidentals='-1' midi.pitch='49' duration='180' midi.onset='7.234375' midi.duration='0.6812499999999995' midi.velocity='37'/>
+                <note xml:id='note-L44F1' date='3420' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='8.057291666666666' midi.duration='0.3489583333333339' midi.velocity='33'/>
+                <note xml:id='note-L45F1' date='3600' pitchname='a' octave='3' accidentals='-1' midi.pitch='56' duration='180' midi.onset='8.267708333333333' midi.duration='0.6968750000000004' midi.velocity='33'/>
+                <note xml:id='note-L46F1' date='3780' pitchname='f' octave='4' accidentals='0' midi.pitch='65' duration='180' midi.onset='8.666666666666666' midi.duration='0.30625000000000036' midi.velocity='33'/>
+                <note xml:id='note-L47F1' date='3960' pitchname='d' octave='4' accidentals='-1' midi.pitch='61' duration='180' midi.onset='8.967708333333333' midi.duration='0.36979166666666785' midi.velocity='33'/>
+                <note xml:id='note-L48F1' date='4140' pitchname='f' octave='3' accidentals='0' midi.pitch='53' duration='180' midi.onset='9.283333333333333' midi.duration='0.36770833333333286' midi.velocity='34'/>
+            </score>
+        </dated>
+    </part>
+</msm>

@@ -1,8 +1,10 @@
 import { SVGProps, useEffect, useState } from "react"
-import { computeInnerControlPointsXPositions, positionAtDate, Movement } from "mpmify"
+import { computeInnerControlPointsXPositions, positionAtDate } from "../../fitting/transformers/dynamics/Approximation"
+import type { Instruction } from "../../fitting/instructions/index"
+import type { Normalized } from "espressivo"
 
 interface MovementSegmentProps extends SVGProps<SVGPathElement> {
-    instruction: Movement & { endDate: number }
+    instruction: Instruction<'movement'> & { endDate: number }
     stretchX: number
     stretchY: number
 }
@@ -22,7 +24,12 @@ export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: Mo
     useEffect(() => {
         const newPoints = []
         const instructionWithControlPoints = {
-            ...instruction, 
+            ...instruction,
+            // `@position` is optional on a `<movement>` — MPM lets one carry on from where the
+            // previous ended — but `positionAtDate` needs somewhere to ramp from. Every movement
+            // this desk draws was written by `InsertPedal`, which always states it; one without
+            // is drawn from a released pedal rather than not drawn at all.
+            position: (instruction.position ?? 0) as Normalized,
             ...computeInnerControlPointsXPositions(instruction.curvature || 0.5, instruction.protraction || 0)
         }
 
@@ -50,7 +57,7 @@ export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: Mo
     return (
         <g
             className='movementSegment'
-            data-id={`movementSegment_${instruction["xml:id"]}`}
+            data-id={`movementSegment_${instruction.id}`}
             data-startDate={instruction.date}
             data-endDate={instruction.endDate}
         >

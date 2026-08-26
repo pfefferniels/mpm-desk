@@ -1,6 +1,17 @@
 import { MouseEventHandler, useEffect, useRef, useState } from "react"
-import { computeMillisecondsAt, getTempoAt } from "mpmify"
-import type { TempoWithEndDate } from "mpmify"
+import { computeMillisecondsAt, getTempoAt } from "../../fitting/transformers/tempo/tempoCalculations"
+import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
+
+/**
+ * A `@bpm` as the hover label states it.
+ *
+ * `@bpm` and `@transition.to` are `number | string` — MPM lets either be a style-relative name
+ * such as "Allegro", which is why espressivo types them that way. The desk only ever writes
+ * numbers, so a name reaches this label only from a document somebody else wrote; it is shown
+ * verbatim rather than coerced into `NaN`.
+ */
+const bpmLabel = (bpm: number | string | undefined): string | undefined =>
+    typeof bpm === 'number' ? bpm.toFixed(2) : bpm
 
 interface TempoLineProps {
     tempo: TempoWithEndDate
@@ -50,10 +61,10 @@ export const TempoLine = ({ tempo, startTime, stretchX, stretchY, active, onClic
             {hovered && (
                 <>
                     <text x={curvePoints[0].time * stretchX} y={-stretchY * curvePoints[0].bpm - 10} fontSize={12}>
-                        {tempo.bpm.toFixed(2)}
+                        {bpmLabel(tempo.bpm)}
                     </text>
                     <text x={curvePoints[curvePoints.length - 1].time * stretchX} y={-stretchY * curvePoints[curvePoints.length - 1].bpm - 10} fontSize={12}>
-                        {tempo["transition.to"]?.toFixed(2)}
+                        {bpmLabel(tempo.transitionTo)}
                     </text>
                 </>
             )}

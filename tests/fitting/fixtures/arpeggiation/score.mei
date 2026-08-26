@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-16" ?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="4.0.0">
+    <meiHead>
+        <fileDesc>
+            <titleStmt>
+                <title>Arpeggiation Test</title>
+            </titleStmt>
+            <pubStmt>
+                <respStmt>
+                    <persName role="encoder">Niels Pfeffer</persName>
+                </respStmt>
+                <date isodate="2022">2022</date>
+            </pubStmt>
+            <seriesStmt>
+                <title>Measuring Early Records</title>
+            </seriesStmt>
+            <notesStmt>
+                <annot>
+                    Adam-Benard plays this with every chord clearly arpeggiated.
+                </annot>
+            </notesStmt>
+            <sourceDesc>
+                <source>
+                    <bibl>
+                        Excerpt from Händel's famous Largo, played by Eugenie Adam-Benard, WM 79.
+                    </bibl>
+                </source>
+            </sourceDesc>
+        </fileDesc>
+        <encodingDesc>
+            <appInfo />
+        </encodingDesc>
+    </meiHead>
+    <music>
+        <body>
+            <mdiv>
+                <score>
+                    <scoreDef meter.count="4" meter.sym="common" meter.unit="4">
+                        <staffGrp>
+                            <staffGrp n="1" symbol="brace">
+                                <staffDef clef.line="2" clef.shape="G" key.mode="major" key.sig="1s" lines="5" n="1" />
+                                <staffDef clef.line="4" clef.shape="F" key.mode="major" key.sig="1s" lines="5" n="2" />
+                            </staffGrp>
+                        </staffGrp>
+                    </scoreDef>
+                    <section>
+                        <measure xml:id="m-40" n="1">
+                            <staff xml:id="m-42" n="1">
+                                <layer xml:id="m-43" n="1">
+                                    <note xml:id="m-44" dots="1" dur="2" oct="4" pname="g" stem.dir="up"/>
+                                </layer>
+                                <layer xml:id="m-45" n="2">
+                                    <chord xml:id="m-46" dur="4" stem.dir="down">
+                                        <note xml:id="m-47" dur="4" oct="3" pname="b"/>
+                                        <note xml:id="m-48" dur="4" oct="4" pname="d"/>
+                                    </chord>
+                                    <chord xml:id="m-49" dur="4" stem.dir="down">
+                                        <note xml:id="m-50" dur="4" oct="3" pname="b"/>
+                                        <note xml:id="m-51" dur="4" oct="4" pname="d"/>
+                                    </chord>
+                                    <chord xml:id="m-52" dur="4" stem.dir="down">
+                                        <note xml:id="m-53" dur="4" oct="3" pname="b"/>
+                                        <note xml:id="m-54" dur="4" oct="4" pname="d"/>
+                                    </chord>
+                                </layer>
+                            </staff>
+                            <staff xml:id="m-55" n="2">
+                                <layer xml:id="m-56" n="1">
+                                    <chord xml:id="m-57" dur="4" stem.dir="up" tstamp.real="00:00:00">
+                                        <note xml:id="m-58" dur="4" oct="2" pname="g"/>
+                                        <note xml:id="m-59" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-60" dur="4" oct="3" pname="g"/>
+                                    </chord>
+                                    <chord xml:id="m-61" dur="4" stem.dir="up" tstamp.real="00:00:00.6">
+                                        <note xml:id="m-62" dur="4" oct="2" pname="g"/>
+                                        <note xml:id="m-63" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-64" dur="4" oct="3" pname="g"/>
+                                    </chord>
+                                    <chord xml:id="m-65" dur="4" stem.dir="up" tstamp.real="00:00:01.2">
+                                        <note xml:id="m-66" dur="4" oct="2" pname="g"/>
+                                        <note xml:id="m-67" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-68" dur="4" oct="3" pname="g"/>
+                                    </chord>
+                                </layer>
+                            </staff>
+                        </measure>
+                        <measure xml:id="m-69" n="2">
+                            <staff xml:id="m-70" n="1">
+                                <layer xml:id="m-71" n="1">
+                                    <note xml:id="m-72" dur="4" oct="4" pname="g" stem.dir="up" tstamp.real="00:00:01.8"/>
+                                    <note xml:id="m-77" dur="4" oct="4" pname="f" stem.dir="up" tstamp.real="00:00:02.4">
+                                        <accid xml:id="m-78" accid.ges="s"/>
+                                    </note>
+                                    <beam xml:id="m-83">
+                                        <note xml:id="m-82" dots="1" dur="8" dur.ppq="192" oct="4" pname="e" stem.dir="up"/>
+                                        <note xml:id="m-85" dur="16" dur.ppq="64" oct="4" pname="d" stem.dir="up"/>
+                                    </beam>
+                                </layer>
+                                <layer xml:id="m-73" n="2">
+                                    <chord xml:id="m-74" dur="4" stem.dir="down">
+                                        <note xml:id="m-75" dur="4" oct="4" pname="c"/>
+                                        <note xml:id="m-76" dur="4" oct="4" pname="d"/>
+                                    </chord>
+                                    <chord xml:id="m-79" dur="4" stem.dir="down">
+                                        <note xml:id="m-80" dur="4" oct="4" pname="c"/>
+                                        <note xml:id="m-81" dur="4" oct="4" pname="d"/>
+                                    </chord>
+                                    <note xml:id="m-84" dur="4" oct="4" pname="c" stem.dir="down"/>
+                                </layer>
+                            </staff>
+                            <staff xml:id="m-86" n="2">
+                                <layer xml:id="m-87" n="1">
+                                    <chord xml:id="m-88" dur="4" stem.dir="down">
+                                        <note xml:id="m-89" dur="4" oct="2" pname="a"/>
+                                        <note xml:id="m-90" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-91" dur="4" oct="3" pname="a"/>
+                                    </chord>
+                                    <chord xml:id="m-92" dur="4" stem.dir="down">
+                                        <note xml:id="m-93" dur="4" oct="2" pname="a"/>
+                                        <note xml:id="m-94" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-95" dur="4" oct="3" pname="a"/>
+                                    </chord>
+                                    <chord xml:id="m-96" dur="4" stem.dir="up">
+                                        <note xml:id="m-97" dur="4" oct="2" pname="a"/>
+                                        <note xml:id="m-98" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-99" dur="4" oct="3" pname="f">
+                                            <accid xml:id="m-100" accid.ges="s"/>
+                                        </note>
+                                    </chord>
+                                </layer>
+                            </staff>
+                        </measure>
+                        <measure xml:id="m-101" n="3" right="end">
+                            <staff xml:id="m-102" n="1">
+                                <layer xml:id="m-103" n="1">
+                                    <note xml:id="m-104" dots="1" dur="2" oct="4" pname="d" stem.dir="up"/>
+                                </layer>
+                            </staff>
+                            <staff xml:id="m-105" n="2">
+                                <layer xml:id="m-106" n="1">
+                                    <chord xml:id="m-107" dur="4" stem.dir="down">
+                                        <note xml:id="m-108" dur="4" oct="2" pname="b"/>
+                                        <note xml:id="m-109" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-110" dur="4" oct="3" pname="g"/>
+                                    </chord>
+                                    <chord xml:id="m-111" dur="4" stem.dir="down">
+                                        <note xml:id="m-112" dur="4" oct="2" pname="b"/>
+                                        <note xml:id="m-113" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-114" dur="4" oct="3" pname="g"/>
+                                    </chord>
+                                    <chord xml:id="m-115" dur="4" stem.dir="down">
+                                        <note xml:id="m-116" dur="4" oct="2" pname="b"/>
+                                        <note xml:id="m-117" dur="4" oct="3" pname="d"/>
+                                        <note xml:id="m-118" dur="4" oct="3" pname="g"/>
+                                    </chord>
+                                </layer>
+                            </staff>
+                        </measure>
+                    </section>
+                </score>
+            </mdiv>
+        </body>
+    </music>
+</mei>

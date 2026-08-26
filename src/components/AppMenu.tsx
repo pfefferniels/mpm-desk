@@ -1,18 +1,23 @@
 import React, { useCallback } from 'react';
 import { Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { Pause, PlayArrow, Save, UploadFile } from '@mui/icons-material';
-import { compareTransformers, exportWork, InsertMetadata, MakeChoice, MakeChoiceOptions, MPM, MSM, Transformer, exportMPM } from 'mpmify';
+import type { Alignment } from '../fitting/alignment';
+import { exportMPM, getInstructions, type Mpm } from '../fitting/instructions/index';
+import type { MakeChoiceOptions } from '../fitting/transformers/choice/MakeChoice';
+import { serializeWorkFile } from '../model/Work';
+import type { Call, WorkFile } from '../model/Work';
+import type { CallOutcome } from '../model/Reconstruction';
 import { SecondaryData } from '../desks/TransformerViewProps';
 import { Ribbon } from './Ribbon';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useMode } from '../hooks/ModeProvider';
-import { useSelection } from '../hooks/SelectionProvider';
+import { useCallSelection } from '../hooks/CallSelection';
 import { useScrollSync } from '../hooks/ScrollSyncProvider';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { downloadAsFile } from '../utils/utils';
 import JSZip from 'jszip';
 
-const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[], removeRecordings = false): string => {
+const injectChoices = (mei: string, msm: Alignment, choices: MakeChoiceOptions[], removeRecordings = false): string => {
     const meiDoc = new DOMParser().parseFromString(mei, 'application/xml')
 
     for (const choice of choices) {
@@ -62,9 +67,12 @@ const injectChoices = (mei: string, msm: MSM, choices: MakeChoiceOptions[], remo
 
 interface AppMenuProps {
     mei: string | undefined;
-    msm: MSM;
-    mpm: MPM;
-    transformers: Transformer[];
+    msm: Alignment;
+    mpm: Mpm;
+    transformers: Call[];
+    segments: WorkFile['segments'];
+    scoreMsm: string;
+    outcomes: readonly CallOutcome[];
     metadata: { author: string; title: string };
     secondary: SecondaryData;
     scope: 'global' | number;
@@ -78,6 +86,9 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     msm,
     mpm,
     transformers,
+    segments,
+    scoreMsm,
+    outcomes,
     metadata,
     secondary,
     scope,
@@ -87,19 +98,22 @@ export const AppMenu: React.FC<AppMenuProps> = ({
 }) => {
     const { isPlaying, play, stop } = usePlayback();
     const { isEditorMode } = useMode();
-    const { setActiveTransformerIds } = useSelection();
+    const { setActiveCallIds, callForElement } = useCallSelection();
     const { scrollToDate } = useScrollSync();
 
     // Follow behavior: update active transformers and scroll position based on playback position.
     const handleNoteEvent = useCallback((_noteId: string, date: number) => {
+        // Which calls are sounding: the elements in force at this date, mapped back through the
+        // fit's report. `callForElement` is the only thing that knows that mapping.
         const ids = new Set<string>();
-        for (const instruction of mpm.instructionsEffectiveAtDate(date)) {
-            const t = transformers.find(t => t.created.includes(instruction['xml:id']));
-            if (t) ids.add(t.id);
+        for (const instruction of getInstructions(mpm)) {
+            if (instruction.id === undefined || instruction.date > date) continue;
+            const owner = callForElement(instruction.id);
+            if (owner) ids.add(owner);
         }
-        if (ids.size > 0) setActiveTransformerIds(ids);
+        if (ids.size > 0) setActiveCallIds(ids);
         scrollToDate(date);
-    }, [setActiveTransformerIds, mpm, transformers, scrollToDate]);
+    }, [setActiveCallIds, callForElement, mpm, scrollToDate]);
 
     const handlePlay = useCallback(() => {
         if (isPlaying) {
@@ -113,42 +127,52 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     useHotkeys('meta+s', () => handleSave(), { preventDefault: true });
     useHotkeys('meta+o', () => onFileImport(), { preventDefault: true }, [onFileImport]);
 
+    /**
+     * Save: the archive the viewer reads.
+     *
+     *   transcription.mei   the score, with the recording aligned into it
+     *   work.json           the chain, its segments, and what each call wrote
+     *   performance.mpm     the MPM this run produced
+     *   score.msm           the MEI converted, so the viewer need not convert
+     *
+     * The viewer reads the last three and derives the tree from them. It needs no `segments.json`:
+     * every call records its own elements and range, so the projection is a few milliseconds of
+     * arithmetic rather than a fourth file that can fall out of step with the first three.
+     */
+    const outcomeById = new Map(outcomes.map((outcome) => [outcome.id, outcome]));
+
     const handleSave = async () => {
         if (!mei) return;
 
         const newMEI = injectChoices(
             mei, msm, transformers
-                .filter((t): t is MakeChoice => t.name === 'MakeChoice')
-                .map(t => t.options)
+                .filter(call => call.name === 'MakeChoice')
+                .map(call => call.options as unknown as MakeChoiceOptions)
         );
 
-        const metadataTransformer = new InsertMetadata({
-            authors: metadata.author ? [{ number: 0, text: metadata.author }] : [],
-            comments: metadata.title ? [{ text: metadata.title }] : []
-        });
-        metadataTransformer.argumentation = {
-            note: '',
-            id: 'argumentation-metadata',
-            conclusion: {
-                certainty: 'authentic',
-                id: 'belief-metadata',
-                motivation: 'calm'
-            },
-            type: 'simpleArgumentation'
+        const work: WorkFile = {
+            name: metadata.title || 'Reconstruction',
+            mei: 'transcription.mei',
+            mpm: 'performance.mpm',
+            provenance: transformers.map((call) => {
+                const outcome = outcomeById.get(call.id);
+                return outcome
+                    ? {
+                          ...call,
+                          ...(outcome.elements.length > 0 && { elements: [...outcome.elements] }),
+                          ...(outcome.range !== null && { range: outcome.range }),
+                      }
+                    : call;
+            }),
+            segments,
+            ...(secondary !== undefined && { secondary: secondary as WorkFile['secondary'] }),
         };
 
-        const allTransformers = [metadataTransformer, ...transformers].sort(compareTransformers);
-
-        const json = exportWork({
-            name: metadata.title || 'Reconstruction',
-            mpm: 'performance.mpm',
-            mei: 'transcription.mei'
-        }, allTransformers, secondary as Record<string, unknown>);
-
         const zip = new JSZip();
-        zip.file("performance.mpm", exportMPM(mpm));
         zip.file("transcription.mei", newMEI);
-        zip.file("info.json", json);
+        zip.file("work.json", serializeWorkFile(work));
+        zip.file("performance.mpm", exportMPM(mpm));
+        zip.file("score.msm", scoreMsm);
 
         const content = await zip.generateAsync({ type: "blob" });
         downloadAsFile(content, 'export.zip', 'application/zip');
@@ -188,7 +212,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({
 
                 </Ribbon>
 
-                {(mpm.getInstructions().length > 0) && (
+                {(getInstructions(mpm, ).length > 0) && (
                     <Ribbon title=' '>
                         <IconButton onClick={handlePlay}>
                             {isPlaying ? <Pause /> : <PlayArrow />}
@@ -220,7 +244,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({
     // View mode
     return (
         <>
-            {(mpm.getInstructions().length > 0) && (
+            {(getInstructions(mpm, ).length > 0) && (
                 <Ribbon title="">
                     <IconButton onClick={handlePlay}>
                         {isPlaying ? <Pause /> : <PlayArrow />}

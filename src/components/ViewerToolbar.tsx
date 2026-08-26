@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
 import { ZoomIn, Download, PlayArrow, Stop } from '@mui/icons-material';
 import { useZoom } from '../hooks/ZoomProvider';
-import { EXAGGERATION_MAX, usePlayback } from '../hooks/PlaybackProvider';
+import { usePlayback } from '../hooks/PlaybackProvider';
+import { EXAGGERATION_MAX } from '../utils/espressivo';
 
 const glassStyle = {
     backdropFilter: 'blur(20px) saturate(180%)',

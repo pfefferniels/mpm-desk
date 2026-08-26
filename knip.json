@@ -7,7 +7,17 @@
     "-lintignore"
   ],
   "ignoreDependencies": [
-    "mpmify",
-    "react-pianosound"
+    "react-pianosound",
+    "espressivo"
+  ],
+  "entry": [
+    "src/main.tsx",
+    "scripts/*.ts",
+    "src/fitting/fit.worker.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.ts",
+    "tests/**/*.ts"
   ]
 }

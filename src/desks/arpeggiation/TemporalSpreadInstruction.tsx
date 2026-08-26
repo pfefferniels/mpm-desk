@@ -1,13 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
-import { MsmNote, Ornament, TemporalSpread } from "mpmify";
+import type { AlignedNote } from "../../fitting/alignment";
+import type { Instruction } from "../../fitting/instructions/index";
+import type { TemporalSpread } from "espressivo";
 import { usePiano } from "react-pianosound";
 import { asMIDI, PartialBy } from "../../utils/utils";
+import { soundingAt } from "../noteTiming";
 import * as Tone from "tone";
 
 interface TemporalSpreadInstructionProps {
-    ornament: Ornament;
+    ornament: Instruction<'ornament'>;
     spread: TemporalSpread;
-    notes: MsmNote[];
+    notes: AlignedNote[];
     tickToSeconds: (tick: number) => number;
     stretch: number;
     height: number;
@@ -27,6 +30,9 @@ const getClickSynth = () => {
     }
     return clickSynth;
 };
+
+/** How long a preview note sounds. Long enough to hear the roll, short enough not to blur it. */
+const PREVIEW_SOUNDING_SECONDS = 0.3;
 
 export const TemporalSpreadInstruction = ({
     ornament,
@@ -50,7 +56,7 @@ export const TemporalSpreadInstruction = ({
 
     const sortedNotes = useMemo(() => {
         const sorted = [...notes];
-        if (ornament["note.order"] === "descending pitch") {
+        if (ornament.noteOrder === "descending pitch") {
             sorted.sort((a, b) => b["midi.pitch"] - a["midi.pitch"]);
         } else {
             sorted.sort((a, b) => a["midi.pitch"] - b["midi.pitch"]);
@@ -63,18 +69,19 @@ export const TemporalSpreadInstruction = ({
         if (n === 0) return;
 
         const intensity = spread.intensity ?? 1;
-        const frameStart = spread["frame.start"];
-        const frameLength = spread.frameLength;
+        const frameStart = spread.frameStart;
+        const frameLength = spread.getFrameLength();
 
-        const reconstructed: PartialBy<MsmNote, 'midi.onset' | 'midi.duration'>[] = sortedNotes.map((note, i) => {
+        // The one place a desk states `milliseconds.*` rather than asking `noteTiming` for it.
+        // These notes are not recorded — they are a preview, synthesized at computed offsets —
+        // and `asMIDI` reads a preview exactly as it reads a recording: an absolute onset and an
+        // absolute release, in milliseconds. `soundingAt` states both from seconds, which is
+        // what everything here computes in — the 0.3 s sounding length included.
+        const reconstructed: PartialBy<AlignedNote, 'milliseconds.date' | 'milliseconds.date.end'>[] = sortedNotes.map((note, i) => {
             const t = n === 1 ? 0 : Math.pow(i / (n - 1), intensity);
             const offsetTicks = frameStart + t * frameLength;
             const onsetSeconds = ticksToSeconds(offsetTicks);
-            return {
-                ...note,
-                "midi.onset": onsetSeconds,
-                "midi.duration": 0.3,
-            };
+            return { ...note, ...soundingAt(onsetSeconds, PREVIEW_SOUNDING_SECONDS) };
         });
 
         const midi = asMIDI(reconstructed);
@@ -92,8 +99,8 @@ export const TemporalSpreadInstruction = ({
         stop();
     }, [stop]);
 
-    const xStart = tickToSeconds(ornament.date + spread["frame.start"]) * stretch;
-    const xEnd = tickToSeconds(ornament.date + spread["frame.start"] + spread.frameLength) * stretch;
+    const xStart = tickToSeconds(ornament.date + spread.frameStart) * stretch;
+    const xEnd = tickToSeconds(ornament.date + spread.frameStart + spread.getFrameLength()) * stretch;
     const width = xEnd - xStart;
 
     if (width <= 0) return null;

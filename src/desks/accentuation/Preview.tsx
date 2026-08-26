@@ -1,7 +1,7 @@
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { MouseEventHandler } from "react";
 import { convexHull } from "../../utils/convexHull";
-import { InsertMetricalAccentuationOptions } from "mpmify";
+import { InsertMetricalAccentuationOptions } from "../../fitting/transformers/accentuation/InsertMetricalAccentuation";
 
 interface PreviewProps {
     cell: Omit<InsertMetricalAccentuationOptions, 'scope'>;

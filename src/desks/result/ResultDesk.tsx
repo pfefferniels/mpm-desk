@@ -1,9 +1,9 @@
 import { Button, Stack } from "@mui/material"
 import { ViewProps } from "../TransformerViewProps"
 import { downloadAsFile } from "../../utils/utils"
-import { exportMPM } from "mpmify"
+import { exportMPM } from "../../fitting/instructions/index"
 import { CopyAll, Download } from "@mui/icons-material"
-import { convertMpmToMidi } from "../../utils/backendApi"
+import { renderExpressiveMidi } from "espressivo"
 
 // todo rename to debugdesk
 export const ResultDesk = ({ mpm, msm }: ViewProps) => {
@@ -11,10 +11,15 @@ export const ResultDesk = ({ mpm, msm }: ViewProps) => {
         downloadAsFile(exportMPM(mpm), 'export.mpm', 'application/xml')
     }
 
-    const handleDownloadMIDI = async () => {
+    /**
+     * The performance as MIDI.
+     *
+     * Rendered in the browser by espressivo, in about forty milliseconds — no backend involved.
+     */
+    const handleDownloadMIDI = () => {
         try {
-            const midiBuffer = await convertMpmToMidi(exportMPM(mpm))
-            downloadAsFile(midiBuffer, 'export.midi', 'audio/midi')
+            const midi = renderExpressiveMidi({ msm: msm.serializeScore() ?? '', mpm: exportMPM(mpm) })
+            downloadAsFile(new Blob([midi as BlobPart]), 'export.midi', 'audio/midi')
         } catch (error) {
             console.error('Failed to export MIDI:', error)
         }
@@ -35,7 +40,7 @@ export const ResultDesk = ({ mpm, msm }: ViewProps) => {
                     {mpm && exportMPM(mpm)}
                 </pre>
                 <pre style={{ margin: '2rem', color: 'blue' }}>
-                    {msm && msm.serialize(false)}
+                    {msm && msm.serialize()}
                 </pre>
             </div>
 
