@@ -100,6 +100,29 @@ describe('MetadataDesk', () => {
         expect(setMetadata).not.toHaveBeenCalled()
     })
 
+    /**
+     * A title is a sentence — it arrives as the chain's `<comment>` — so the field wraps rather
+     * than scrolling sideways past its right edge. Enter still ends the edit; it never opens a
+     * second line.
+     */
+    it('wraps a long title instead of hiding it, and keeps Enter as commit', () => {
+        const setMetadata = vi.fn()
+        const long =
+            'Sonata in A major for violin and piano, with an unusually long descriptive subtitle'
+        render(
+            <MetadataDesk {...props} metadata={{ title: long, author: '' }} setMetadata={setMetadata} />
+        )
+
+        const title = screen.getByLabelText('Title')
+        expect(title.tagName).toBe('TEXTAREA')
+
+        fireEvent.keyDown(title, { key: 'Enter' })
+        fireEvent.blur(title)
+
+        expect(title).toHaveValue(long)
+        expect(setMetadata).not.toHaveBeenCalled()
+    })
+
     it('reads as set type, not as a form, in view mode', () => {
         render(
             <MetadataDesk

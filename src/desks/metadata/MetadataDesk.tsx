@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { WORD_FONT_FAMILY } from "../../segment-stack/words";
 
 interface Metadata {
@@ -25,7 +25,7 @@ const page = {
 
 const titleType = {
     fontFamily: WORD_FONT_FAMILY,
-    fontSize: 'clamp(2rem, 5vw, 3.25rem)',
+    fontSize: 'clamp(1.5rem, 3vw, 2rem)',
     fontWeight: 400,
     lineHeight: 1.15,
     color: '#111827',
@@ -34,11 +34,40 @@ const titleType = {
 const authorType = {
     fontFamily: WORD_FONT_FAMILY,
     fontSize: '1.125rem',
-    fontStyle: 'italic',
     fontWeight: 400,
     lineHeight: 1.4,
     color: '#6b7280',
 } as const;
+
+/** The gap the title and author keep between them, now that no rule stands in it. */
+const authorGap = { marginTop: '0.75rem' } as const;
+
+/**
+ * Holds a `textarea` at exactly the height its text needs.
+ *
+ * A title here is a sentence — the chain carries it as a `<comment>` — so a one-line field would
+ * keep everything past its right edge out of sight. Wrapping fixes that only if the box grows
+ * with the wrapping: `auto` first, so a shortened text is not measured against its old height,
+ * then whatever the content now scrolls to. Width decides where the lines break, so a resized
+ * window has to measure again.
+ */
+const useAutoHeight = (text: string) => {
+    const ref = useRef<HTMLTextAreaElement>(null);
+
+    useLayoutEffect(() => {
+        const fit = () => {
+            const element = ref.current;
+            if (!element) return;
+            element.style.height = 'auto';
+            element.style.height = `${element.scrollHeight}px`;
+        };
+        fit();
+        window.addEventListener('resize', fit);
+        return () => window.removeEventListener('resize', fit);
+    }, [text]);
+
+    return ref;
+};
 
 /**
  * A field that reads as set type until you go near it.
@@ -57,16 +86,13 @@ const field = {
     outline: 'none',
     borderRadius: '4px',
     backgroundColor: 'transparent',
+    // The height is the hook's to set, and a scrollbar would only appear between its two writes.
+    resize: 'none',
+    overflow: 'hidden',
     transition: 'background-color 120ms ease, box-shadow 120ms ease',
     '&::placeholder': { color: '#9ca3af', fontStyle: 'italic', opacity: 1 },
     '&:hover': { backgroundColor: '#f3f4f6' },
     '&:focus': { backgroundColor: '#ffffff', boxShadow: 'inset 0 -1px 0 #e5e7eb' },
-} as const;
-
-const rule = {
-    height: '1px',
-    backgroundColor: '#e5e7eb',
-    margin: '1.25rem 0 1rem',
 } as const;
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
@@ -96,6 +122,9 @@ export const MetadataDesk = ({
     // would still be holding the edited draft. The flag is how it knows not to commit it.
     const reverting = useRef(false);
 
+    const titleRef = useAutoHeight(draft.title);
+    const authorRef = useAutoHeight(draft.author);
+
     const commit = () => {
         if (reverting.current) {
             reverting.current = false;
@@ -105,8 +134,10 @@ export const MetadataDesk = ({
         setMetadata(draft);
     };
 
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Enter') {
+            // A title wraps, but it is still one line of text: Enter ends the edit, not the line.
+            event.preventDefault();
             event.currentTarget.blur();
         } else if (event.key === 'Escape') {
             reverting.current = true;
@@ -119,11 +150,13 @@ export const MetadataDesk = ({
         <Box sx={page}>
             {isEditorMode ? (
                 <Box
-                    component="input"
+                    component="textarea"
+                    ref={titleRef}
+                    rows={1}
                     aria-label="Title"
                     placeholder="Untitled"
                     value={draft.title}
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                    onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                         setDraft((current) => ({ ...current, title: event.target.value }));
                     }}
                     onKeyDown={handleKeyDown}
@@ -136,23 +169,23 @@ export const MetadataDesk = ({
                 </Box>
             )}
 
-            <Box sx={rule} />
-
             {isEditorMode ? (
                 <Box
-                    component="input"
+                    component="textarea"
+                    ref={authorRef}
+                    rows={1}
                     aria-label="Author"
                     placeholder="Unattributed"
                     value={draft.author}
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                    onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                         setDraft((current) => ({ ...current, author: event.target.value }));
                     }}
                     onKeyDown={handleKeyDown}
                     onBlur={commit}
-                    sx={{ ...authorType, ...field }}
+                    sx={{ ...authorType, ...field, ...authorGap }}
                 />
             ) : (
-                <Box component="span" sx={{ ...authorType, display: 'block' }}>
+                <Box component="span" sx={{ ...authorType, ...authorGap, display: 'block' }}>
                     {metadata.author || 'Unattributed'}
                 </Box>
             )}
