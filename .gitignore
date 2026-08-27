@@ -23,11 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# Claude and OpenSpec
+# Claude
 .claude/
 CLAUDE.md
 AGENTS.md
-openspec/
 
 # Generated test output
 coverage/
