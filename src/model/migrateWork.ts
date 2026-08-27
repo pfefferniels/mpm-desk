@@ -2,7 +2,7 @@
  * The one-way door out of the JSON-LD work file.
  *
  * `public/info.json` was written as a CIDOC-CRM / CRMinf graph: a `Reconstruction` whose
- * `creation` held 136 `I1_Argumentation`s, each with a `calls` list and an `I2_Belief` under
+ * `creation` held 137 `I1_Argumentation`s, each with a `calls` list and an `I2_Belief` under
  * `conclusion`. What is going in its place is {@link WorkFile} — a flat `provenance` of every
  * call, each naming the segment it is claimed under, and one prose `segment` per argumentation.
  *
@@ -26,7 +26,7 @@
  * them, and the viewer removed `certainty` from data and code in one commit. But `motivation` was
  * still doing one job at the moment of retirement — it was the fallback the tree wrote when a
  * segment had no prose of its own, through a placeholder table in `words.ts`. Deleting the field
- * and the table together would have left forty of the 136 segments with no word at all.
+ * and the table together would have left forty of the 137 segments with no word at all.
  *
  * So the migration cashes it in. Where a group has no `note`, its motivation is turned into the
  * word the table would have written and stored AS the note; then the field goes. After this runs,
@@ -53,7 +53,7 @@
  * ## What it drops, and why each is safe
  *
  * - **`@context`, `@type`, `argumentation.type`** — JSON-LD plumbing. `type` is
- *   `"simpleArgumentation"` on 132 of 136 and absent on the rest, so it discriminates nothing.
+ *   `"simpleArgumentation"` on 133 of 137 and absent on the rest, so it discriminates nothing.
  * - **`conclusion.id`** — the belief node's identity, 132 unique ids. Nothing in the document
  *   references one: the `continue` links all point at *argumentation* ids, never at a belief.
  *   It existed so the graph could be addressed as a graph, and there is no graph now.
@@ -408,7 +408,7 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
             id: argumentation.id,
             // Two prose fields become one. The gesture word lives on the conclusion and the
             // longer prose on the argumentation, which is the opposite of what the field names
-            // suggest — `conclusion.note` is 96 entries averaging 29 characters and carries
+            // suggest — `conclusion.note` is 97 entries averaging 29 characters and carries
             // every „schattieren", „Hineinfallen" and „Nachlauschen" in the file, and
             // `argumentation.note` is 3. All three of those sit on a segment that also has a
             // word, and two of them read as that word's sentence continued, so they are joined

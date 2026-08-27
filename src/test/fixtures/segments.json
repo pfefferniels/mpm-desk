@@ -1276,17 +1276,6 @@
           ]
         },
         {
-          "id": "ornament_29160",
-          "type": "ornament",
-          "from": 84735,
-          "to": 86231,
-          "elements": [
-            "ornament_29160",
-            "ornament_79200",
-            "ornament_88200"
-          ]
-        },
-        {
           "id": "sustain-84960_start",
           "type": "movement",
           "from": 84735,

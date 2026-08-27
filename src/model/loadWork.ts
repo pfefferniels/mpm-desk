@@ -106,7 +106,7 @@ export function liftSegmentLinks(work: WorkFile): WorkFile | null {
  * Fold a segment's second prose field into the one thing it says.
  *
  * The file used to carry `note` — the gesture word — and `commentary` — longer editorial prose —
- * side by side. Three of 136 segments ever carried both, and two of them read as one sentence
+ * side by side. Three of 137 segments ever carried both, and two of them read as one sentence
  * continued: „Großangelegtes Decrescendo" and "der dynamische Verlauf folgt dem Tonhöhenverlauf"
  * are not a label and an apparatus entry, they are a narrative and the rest of it. Keeping two
  * fields meant deciding per sentence which kind of writing it was, which is not a decision

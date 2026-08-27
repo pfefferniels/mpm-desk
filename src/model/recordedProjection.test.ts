@@ -50,8 +50,10 @@ describe('the projection the viewer derives', () => {
         for (const segment of reconstruction.segments)
             for (const span of segment.spans) tally[span.type] = (tally[span.type] ?? 0) + 1;
 
+        // 97 rather than 98: the piece-wide `InsertDynamicsGradient` sweep is claimed under
+        // „[Pauschale Werte, vorläufig]", which reports no range and so is drawn nowhere.
         expect(tally).toEqual({
-            ornament: 98,
+            ornament: 97,
             movement: 100,
             dynamics: 61,
             tempo: 59,
@@ -77,5 +79,44 @@ describe('the projection the viewer derives', () => {
         const { reconstruction } = project();
         for (const segment of reconstruction.segments)
             for (const span of segment.spans) expect(span.id).toBe(span.elements[0]);
+    });
+
+    /**
+     * A claim is about a spot in the piece, so what it holds has to be at that spot.
+     *
+     * The one way this breaks is a transformer whose bulk form sweeps the whole score —
+     * `InsertDynamicsGradient` with no `date` fits every arpeggio in the piece, and
+     * `StylizeOrnamentation` reshapes every ornament. Such a call reports no range, so the
+     * projection gives its span the *segment's* stretch, and the drawing looks right while the
+     * claim quietly owns instructions from bar 1 to the last bar. That is what `elementOwners`
+     * reads, so the word lights up across the whole performance during playback, and it is what
+     * `InstructionAttributes` quotes when the lane is pointed at.
+     *
+     * It happened: the sweep was claimed under its own „[Pauschale Werte, vorläufig]" until a
+     * consolidation pass dissolved that claim and left the call on „Beruhigen", a gesture at
+     * 84960. So the bound is deliberately loose — two bars, against a piece of thirty-odd —
+     * because what it has to catch is a claim reaching across the whole score, not a beat of
+     * overhang.
+     */
+    it('keeps a claim at the spot it is drawn at', () => {
+        const { reconstruction } = project();
+        const dateById = new Map(
+            performance.instructions.map((instruction) => [instruction.id, instruction.date]),
+        );
+        const beat = (4 * performance.meter.ppq) / performance.meter.denominator;
+        const slack = 2 * performance.meter.denominator * beat;
+
+        for (const segment of reconstruction.segments)
+            for (const span of segment.spans)
+                for (const id of span.elements) {
+                    const date = dateById.get(id);
+                    if (date === undefined) continue;
+                    // An `accentuationPattern` is in force until the next one, so four of them
+                    // legitimately start a beat or two past the claim they belong to.
+                    expect(
+                        Math.max(segment.from - date, date - segment.to, 0),
+                        `${segment.note ?? segment.id} is drawn over ${String(segment.from)}..${String(segment.to)} but holds ${id} at ${String(date)}`,
+                    ).toBeLessThanOrEqual(slack);
+                }
     });
 });

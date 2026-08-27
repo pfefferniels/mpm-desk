@@ -4,7 +4,7 @@ import { isMigrated, migrateWork, migrateWorkText } from '../src/model/migrateWo
 import type { Segment } from '../src/model/Work.ts'
 
 /**
- * `public/info.json` is the reconstruction of Welte roll 225 — 494 calls across 136
+ * `public/info.json` is the reconstruction of Welte roll 225 — 494 calls across 137
  * argumentations, written in the JSON-LD shape this migration reads. It is the only input this
  * migration has ever had to handle, so the numbers below are measurements of it rather than
  * round figures: a change that moves one of them has changed the reconstruction, not the test.
@@ -46,7 +46,7 @@ describe('the shipped reconstruction, migrated', () => {
     })
 
     it('makes one segment per argumentation, keeping its id', () => {
-        expect(report.segments).toBe(136)
+        expect(report.segments).toBe(137)
         expect(work.segments.map(segment => segment.id)).toEqual(argumentations.map(a => a.id))
     })
 
@@ -90,7 +90,7 @@ describe('what the ontology carried that is now dropped', () => {
      *
      * Both were retired upstream before this migration existed — espressivo's `work.ts` dropped
      * them because nothing read them, and the viewer removed `certainty` from data and code in one
-     * commit. A six-value enum was a worse version of the prose 96 of the 136 groups already
+     * commit. A six-value enum was a worse version of the prose 97 of the 137 groups already
      * carry. This asserts they are gone, so that reinstating one has to be a decision somebody
      * comes here and makes.
      */
@@ -106,7 +106,7 @@ describe('what the ontology carried that is now dropped', () => {
         expect(dropped.segments.every((segment) => (segment.note ?? '').trim().length > 0)).toBe(
             true,
         );
-        expect(dropped.segments).toHaveLength(136);
+        expect(dropped.segments).toHaveLength(137);
     });
 
     it('leaves a group that named itself alone, and words the forty that did not', () => {
@@ -119,7 +119,7 @@ describe('what the ontology carried that is now dropped', () => {
         const filled = dropped.segments.filter((segment) => wordless.has(segment.id));
 
         expect(filled).toHaveLength(40);
-        expect(dropped.segments.length - filled.length).toBe(96);
+        expect(dropped.segments.length - filled.length).toBe(97);
 
         const words: Record<string, number> = {};
         for (const segment of filled) words[segment.note ?? ''] = (words[segment.note ?? ''] ?? 0) + 1;
@@ -135,10 +135,10 @@ describe('what the ontology carried that is now dropped', () => {
 
 describe('what the ontology carried that is still read', () => {
     it('takes note from the conclusion, where the gesture words are', () => {
-        // 136 now, not 96: the forty groups that stated nothing are worded from their motivation
+        // 137 now, not 97: the forty groups that stated nothing are worded from their motivation
         // before it is dropped, so every segment carries one. The check below is that a group
         // which DID state something keeps exactly what it stated, untouched by that backfill.
-        expect(report.segmentsWithNote).toBe(136)
+        expect(report.segmentsWithNote).toBe(137)
         for (const a of argumentations) {
             const stated = a.conclusion.note?.trim()
             if (!stated) continue
@@ -214,7 +214,7 @@ describe('the migration is a one-way door that can be walked twice', () => {
         expect(twice.text).toBe(once)
         expect(twice.report.alreadyMigrated).toBe(true)
         expect(twice.report.calls).toBe(494)
-        expect(twice.report.segments).toBe(136)
+        expect(twice.report.segments).toBe(137)
     })
 
     it('knows which shape it is looking at', () => {
