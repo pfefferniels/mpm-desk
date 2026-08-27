@@ -89,8 +89,18 @@ const ViewerInner = () => {
                     <ScrollSyncProvider symbolicZoom={zoomContextValue.symbolic.stretchX}>
                         <PinchZoomHandler />
                         {/* The tree is the page: it takes the whole window, and the
-                            toolbar and the title lie over it. */}
-                        <SegmentStack segments={work.reconstruction.segments} mpm={mpm} />
+                            toolbar and the title lie over it (both are fixed, so they
+                            cost the tree no room).
+
+                            The window height is stated here rather than left to grow,
+                            because the stack sizes itself against its container: with
+                            nothing to measure it opens as tall as the tree, the card
+                            never overflows, and the reading starts at the top edge
+                            instead of on the stem. `dvh` so a phone's retracting
+                            toolbar does not cut the bottom off. */}
+                        <div style={{ height: '100dvh' }}>
+                            <SegmentStack segments={work.reconstruction.segments} mpm={mpm} />
+                        </div>
                     </ScrollSyncProvider>
                 </SelectionProvider>
             </PlaybackProvider>
