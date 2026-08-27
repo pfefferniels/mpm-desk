@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import JSZip from 'jszip';
 import { SegmentStack } from './segment-stack/SegmentStack';
 import { ZoomContext } from './hooks/ZoomProvider';
@@ -21,14 +21,19 @@ const ViewerInner = () => {
 
     const segments = work?.reconstruction.segments;
 
-    // Fit piece to viewport width once the segments are in
-    useEffect(() => {
-        if (fitted || !segments?.length) return;
-        const maxDate = segments.reduce((max, segment) => Math.max(max, segment.to), 0);
-        if (!maxDate) return;
+    const maxDate = useMemo(
+        () => segments?.reduce((max, segment) => Math.max(max, segment.to), 0) ?? 0,
+        [segments],
+    );
+
+    // Fit piece to viewport width once the segments are in. Adjusted while rendering the
+    // load that brings them rather than in an effect afterwards: React re-renders with the
+    // fitted zoom before it paints, so the tree is never shown at the placeholder zoom and
+    // then jerked to its real width. It happens once — after that the zoom is the reader's.
+    if (!fitted && maxDate > 0) {
         setStretchX(Math.min(60, Math.max(1, (window.innerWidth * 200) / maxDate)));
         setFitted(true);
-    }, [segments, fitted]);
+    }
 
     // Both are parsed once: the MPM for the instructions a popover shows and for
     // "what is in effect now", the MSM for note dates and the tick grid. Neither changes.

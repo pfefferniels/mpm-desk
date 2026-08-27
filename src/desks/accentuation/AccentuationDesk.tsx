@@ -1,5 +1,5 @@
-import { type JSX, useCallback, useEffect, useState } from "react";
-import { useScrollSync } from "../../hooks/ScrollSyncProvider";
+import { type JSX, useMemo, useState } from "react";
+import { useScrollRegistration } from "../../hooks/useScrollRegistration";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
@@ -19,7 +19,7 @@ import { NameDialog } from "./NameDialog";
 import { Preview } from "./Preview";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
-import { createPortal } from "react-dom";
+import { DeskToolbar } from "../../components/DeskToolbar";
 import { Ribbon } from "../../components/Ribbon";
 import { v4 } from "uuid";
 
@@ -74,25 +74,14 @@ const extractDynamicsSegments = (msm: Alignment, part: Scope, residual: Residual
     return segments
 }
 
-export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
+export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
     const { activeElements, setActiveElement } = useCallSelection();
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
-    // Scroll sync - use callback ref to register when element mounts
-    const { register, unregister } = useScrollSync();
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('accentuation-desk', element, 'symbolic');
-        } else {
-            unregister('accentuation-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('accentuation-desk', 'symbolic');
 
     const [datePlayed, setDatePlayed] = useState<number>()
-    const [segments, setSegments] = useState<DynamicsSegment[]>([])
-
-    const [patterns, setPatterns] = useState<Pattern[]>([])
     const [selectedPatterns, setSelectedPatterns] = useState<Pattern[]>([])
 
     // creating a new metrical accentuation
@@ -111,30 +100,30 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer, app
         return (1 - velocity) * stretchY + 100
     }
 
-    useEffect(() => setSegments(extractDynamicsSegments(msm, part, residual)), [msm, part, residual])
+    const segments = useMemo(
+        () => extractDynamicsSegments(msm, part, residual),
+        [msm, part, residual],
+    )
 
-    useEffect(() => {
-        const patterns = getInstructions(mpm, 'accentuationPattern', part)
-            .map(i => {
-                const def = getDefinition(mpm, 'accentuationPatternDef', i.accentuationPatternDefName)
-                if (!def) return null
+    const patterns = useMemo(() => getInstructions(mpm, 'accentuationPattern', part)
+        .map(i => {
+            const def = getDefinition(mpm, 'accentuationPatternDef', i.accentuationPatternDefName)
+            if (!def) return null
 
-                // The def's own accessors, rather than fields on a record: an
-                // `AccentuationPatternDef` is one of espressivo's live objects, and its
-                // accentuations come out as `[beat, value, transition.from, transition.to]`
-                // tuples paired with the elements they were read from.
-                return {
-                    length: def.getLength(),
-                    children: def.getAllAccentuations().map(({ key: [beat, value, transitionFrom, transitionTo] }) => ({
-                        beat, value, transitionFrom, transitionTo
-                    })),
-                    ...i
-                }
-            })
-            .filter((i): i is Pattern => i !== null)
-
-        setPatterns(patterns)
-    }, [mpm, part])
+            // The def's own accessors, rather than fields on a record: an
+            // `AccentuationPatternDef` is one of espressivo's live objects, and its
+            // accentuations come out as `[beat, value, transition.from, transition.to]`
+            // tuples paired with the elements they were read from.
+            return {
+                length: def.getLength(),
+                children: def.getAllAccentuations().map(({ key: [beat, value, transitionFrom, transitionTo] }) => ({
+                    beat, value, transitionFrom, transitionTo
+                })),
+                ...i
+            }
+        })
+        .filter((i): i is Pattern => i !== null),
+        [mpm, part])
 
     const handleInsert = (candidate: Omit<InsertMetricalAccentuationOptions, 'scope'>, newScaleTolerance: number) => {
         if (!candidate) return
@@ -203,8 +192,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer, app
         }
 
         if (candidate && e.shiftKey) {
-            candidate.to = segment.date.start
-            setCandidate({ ...candidate })
+            setCandidate({ ...candidate, to: segment.date.start })
         }
     }
 
@@ -231,41 +219,39 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer, app
                 <Box sx={{ m: 1 }}>
                     {part !== 'global' && `Part ${part + 1}`}
                 </Box>
-                {appBarRef && createPortal((
-                    <>
-                        <Ribbon title='Metrical Accentuation'>
-                            {selectedPatterns && (
-                                <Button
+                <DeskToolbar>
+                    <Ribbon title='Metrical Accentuation'>
+                        {selectedPatterns && (
+                            <Button
 
-                                    variant='contained'
-                                    onClick={() => setNameDialogOpen(true)}
+                                variant='contained'
+                                onClick={() => setNameDialogOpen(true)}
+                            >
+                                Merge ({selectedPatterns.length})
+                            </Button>
+                        )}
+                        {candidate && (
+                            <>
+                                <Button
+                                    size='small'
+                                    variant='outlined'
+                                    onClick={() => setInsertDialogOpen(true)}
+                                    startIcon={<Add />}
                                 >
-                                    Merge ({selectedPatterns.length})
+                                    Insert
                                 </Button>
-                            )}
-                            {candidate && (
-                                <>
-                                    <Button
-                                        size='small'
-                                        variant='outlined'
-                                        onClick={() => setInsertDialogOpen(true)}
-                                        startIcon={<Add />}
-                                    >
-                                        Insert
-                                    </Button>
-                                    <Button
-                                        size='small'
-                                        variant='outlined'
-                                        onClick={() => setCandidate(undefined)}
-                                        startIcon={<Delete />}
-                                    >
-                                        Clear Candidate
-                                    </Button>
-                                </>
-                            )}
-                        </Ribbon>
-                    </>
-                ), appBarRef?.current ?? document.body)}
+                                <Button
+                                    size='small'
+                                    variant='outlined'
+                                    onClick={() => setCandidate(undefined)}
+                                    startIcon={<Delete />}
+                                >
+                                    Clear Candidate
+                                </Button>
+                            </>
+                        )}
+                    </Ribbon>
+                </DeskToolbar>
             </Stack>
 
             <svg

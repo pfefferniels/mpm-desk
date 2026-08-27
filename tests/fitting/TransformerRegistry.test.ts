@@ -97,7 +97,11 @@ describe('TransformerRegistry', () => {
      * dropped from `Order.ts` but left exported.
      */
     test('every transformer the module exports is registered', () => {
-      const exported = Object.values(transformers).filter(
+      // `Object.values<unknown>` rather than plain `Object.values`: the barrel exports helper
+      // functions beside the transformer classes, so the inferred element type is a union of all
+      // of them, and a predicate narrowing to a constructor is not assignable to that. Widening
+      // to `unknown` first is what lets the predicate do its job without an assertion.
+      const exported = Object.values<unknown>(transformers).filter(
         (value): value is new () => Transformer =>
           typeof value === 'function' && value.prototype instanceof AbstractTransformer,
       );
@@ -135,7 +139,10 @@ describe('TransformerRegistry', () => {
         mei: 'test.mei',
         mpm: 'test.mpm',
         provenance: [
-          { id: transformer.id, name: transformer.name, options: transformer.options },
+          // Spread rather than passed through: a `Call`'s options are `Record<string, unknown>`
+          // — what a work file can hold — and a transformer's own `TransformationOptions` has no
+          // index signature, so it takes a fresh object literal to cross that boundary.
+          { id: transformer.id, name: transformer.name, options: { ...transformer.options } },
         ],
         segments: [],
       });

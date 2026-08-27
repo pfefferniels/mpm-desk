@@ -1,6 +1,6 @@
 import { computeInnerControlPointsXPositions, volumeAtDate } from "../../fitting/transformers/dynamics/Approximation"
 import { DynamicsWithEndDate } from "../../fitting/transformers/dynamics/InsertDynamicsInstructions"
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react"
 
 interface CurveSegmentProps {
     active: boolean
@@ -15,14 +15,13 @@ interface DynamicsPoint {
     volume: number
 }
 
+const stepSize = 1
+
 export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick }: CurveSegmentProps) => {
-    const [points, setPoints] = useState<DynamicsPoint[]>([])
     const [hovered, setHovered] = useState(false)
 
-    const stepSize = 1
-
-    useEffect(() => {
-        const newPoints = []
+    const points = useMemo(() => {
+        const newPoints: DynamicsPoint[] = []
         const instructionWithControlPoints = {
             ...instruction,
             // `<dynamics>` defaults both to 0.0 — what `resolveDynamics` fills in and what
@@ -38,7 +37,7 @@ export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick 
             })
         }
 
-        setPoints(newPoints)
+        return newPoints
     }, [instruction])
 
     const baselineY = 127 * stretchY

@@ -1,4 +1,4 @@
-import { SVGProps, useEffect, useState } from "react"
+import { SVGProps, useMemo, useState } from "react"
 import { computeInnerControlPointsXPositions, positionAtDate } from "../../fitting/transformers/dynamics/Approximation"
 import type { Instruction } from "../../fitting/instructions/index"
 import type { Normalized } from "espressivo"
@@ -14,15 +14,16 @@ interface MovementPoint {
     position: number
 }
 
+/** The sampling step, in ticks — one point per tick of the movement's span. */
+const stepSize = 1
 
 export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: MovementSegmentProps) => {
-    const [points, setPoints] = useState<MovementPoint[]>([])
     const [hovered, setHovered] = useState(false)
 
-    const stepSize = 1
-
-    useEffect(() => {
-        const newPoints = []
+    // The sampled curve is a function of the instruction and nothing else — zoom is applied
+    // below, in the path — so it is derived here rather than pushed into state from an effect.
+    const points = useMemo(() => {
+        const sampled: MovementPoint[] = []
         const instructionWithControlPoints = {
             ...instruction,
             // `@position` is optional on a `<movement>` — MPM lets one carry on from where the
@@ -37,13 +38,13 @@ export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: Mo
         }
 
         for (let date = instruction.date; date < instruction.endDate; date += stepSize) {
-            newPoints.push({
+            sampled.push({
                 date,
                 position: positionAtDate(instructionWithControlPoints, date)
             })
         }
 
-        setPoints(newPoints)
+        return sampled
     }, [instruction])
 
     let path = ""

@@ -1,4 +1,4 @@
-import { MouseEventHandler, useEffect, useRef, useState } from "react"
+import { MouseEventHandler, useState } from "react"
 import { computeMillisecondsAt, getTempoAt } from "../../fitting/transformers/tempo/tempoCalculations"
 import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
 
@@ -27,14 +27,16 @@ interface TempoLineProps {
 export const TempoLine = ({ tempo, startTime, stretchX, stretchY, active, onClick, onMouseEnter, onMouseLeave }: TempoLineProps) => {
     const [hovered, setHovered] = useState(false)
     const [flashKey, setFlashKey] = useState(0)
-    const prevActive = useRef(false)
 
-    useEffect(() => {
-        if (active && !prevActive.current) {
-            setFlashKey(k => k + 1)
-        }
-        prevActive.current = !!active
-    }, [active])
+    // The flash is a remount: a new `key` on the rect restarts the CSS animation, and only the
+    // edge into active is worth restarting it for. The previous value is held in state and
+    // compared during render — the effect that used to do this fired a second render pass on
+    // every activation, and the comparison never needed the DOM.
+    const [wasActive, setWasActive] = useState(false)
+    if (wasActive !== !!active) {
+        setWasActive(!!active)
+        if (active) setFlashKey(k => k + 1)
+    }
 
     const step = 20
     const curvePoints: { time: number, bpm: number }[] = []

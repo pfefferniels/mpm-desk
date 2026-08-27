@@ -3,7 +3,7 @@ import { Button } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
-import { MouseEventHandler, SVGProps, useCallback, useState } from "react"
+import { MouseEventHandler, SVGProps, useState } from "react"
 import { asMIDI } from "../../utils/utils"
 import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation } from "../../fitting/transformers/articulation/index"
 import type { AlignedNote } from "../../fitting/alignment"
@@ -13,10 +13,10 @@ import type { ArticulationDef } from "espressivo"
 import { v4 } from "uuid"
 import { UnitDialog } from "./UnitDialog"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
-import { useScrollSync } from "../../hooks/ScrollSyncProvider"
+import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { useCallSelection } from "../../hooks/CallSelection"
 import { Ribbon } from "../../components/Ribbon"
-import { createPortal } from "react-dom"
+import { DeskToolbar } from "../../components/DeskToolbar"
 import { Add } from "@mui/icons-material"
 import { ArticulationOverlay } from "./ArticulationOverlay"
 
@@ -130,19 +130,12 @@ export type UnitWithDef = {
     def?: ArticulationDef
 }
 
-export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
+export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
     const { activeElements, setActiveElement } = useCallSelection();
-    const { register, unregister } = useScrollSync();
     const [currentUnit, setCurrentUnit] = useState<UnitWithDef>()
     const [unitDialogOpen, setUnitDialogOpen] = useState(false)
 
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('articulation-desk', element, 'symbolic');
-        } else {
-            unregister('articulation-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('articulation-desk', 'symbolic');
 
     const insert = (unit: UnitWithDef) => {
         addTransformer(new InsertArticulation({
@@ -241,7 +234,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer, app
 
     return (
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll', position: 'relative' }}>
-            {appBarRef && createPortal((
+            <DeskToolbar>
                 <Ribbon title="Articulation">
                     {currentUnit && (
                         <>
@@ -273,7 +266,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer, app
                         Insert Default
                     </Button>
                 </Ribbon>
-            ), appBarRef?.current ?? document.body)}
+            </DeskToolbar>
 
             <svg width={msm.end * stretchX} height={900}>
                 {overlays}
@@ -282,6 +275,10 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer, app
 
             {(unitDialogOpen && currentUnit) && (
                 <UnitDialog
+                    // Keyed by the unit, so a dialog opened on a different unit is a fresh mount
+                    // with fresh fields. The dialog used to re-seed its own state from an effect,
+                    // which wrote over whatever had been typed in the meantime.
+                    key={currentUnit.name}
                     open={unitDialogOpen}
                     onClose={() => setUnitDialogOpen(false)}
                     unit={currentUnit}

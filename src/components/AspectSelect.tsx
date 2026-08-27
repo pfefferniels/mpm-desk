@@ -50,16 +50,9 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                     </ListItemButton>
                     <Divider />
                     <List>
-                        <ListItemButton
-                            selected={selectedDesk === 'metadata'}
-                            onClick={() => {
-                                setSelectedDesk('metadata');
-                                setToExpand(undefined);
-                            }}
-                        >
-                            <ListItemText>metadata</ListItemText>
-                        </ListItemButton>
-                        <Divider sx={{ my: 1 }} />
+                        {/* Metadata is an entry in `correspondingDesks` like any other now, so
+                            it is listed by the loop below rather than written in by hand. Its
+                            own group is what keeps the divider under it. */}
                         {aspectGroups.map(([aspect, info]) => {
                             if (info.length === 0) return null;
 

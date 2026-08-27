@@ -1,7 +1,7 @@
 import type { Alignment } from "../../fitting/alignment";
 import { usePhysicalZoom } from "../../hooks/ZoomProvider";
 import { onsetSeconds } from "../noteTiming";
-import { Scope } from "../TransformerViewProps";
+import type { Scope } from "../TransformerViewProps";
 import { useState } from "react";
 
 export const TempoVariance = ({ msm, part, beatLength }: { msm: Alignment; part: Scope; beatLength: number }) => {

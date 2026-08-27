@@ -3,11 +3,17 @@ import type { Mpm } from '../fitting/instructions/index';
 import type { Residual } from '../fitting/residual';
 import type { Scope } from '../fitting/instructions/index';
 import type { Transformer } from '../fitting/transformers/Transformer';
+import type { Segment as Gestures } from '../model/Reconstruction';
 import type { TempoSecondaryData } from './tempo/TempoDesk';
 
 /**
- * What every desk is handed: the score with the recording laid on it, the performance as it
- * stands, a way to add a call, and what the performance does not yet explain.
+ * What every desk is handed: **what the fit produced**, and nothing else.
+ *
+ * That is the whole rule for what belongs here. The document a desk edits reaches it through
+ * `useWorkDocument`, what is selected through `useCallSelection`, and where its controls go
+ * through `DeskToolbar` — three contexts, so that a desk needing more than the common bag does
+ * not widen the bag for the other twelve. Two of them used to, and the registry that was supposed
+ * to dispatch every desk had to be bypassed for both.
  *
  * **The remainder is not carried on the notes; it is derived.** A desk asks for it with its own
  * dimension held out:
@@ -25,6 +31,11 @@ import type { TempoSecondaryData } from './tempo/TempoDesk';
  *
  * **Reading instructions is a function, not a method.** `getInstructions(mpm, 'tempo')` is typed
  * by the name, so a wrong record type stops compiling.
+ *
+ * **There is no `setMSM` or `setMPM`.** There were, and they were passed as functions that did
+ * nothing, with a comment saying so: both documents are outputs of the fit and the next run
+ * overwrites anything written to them. A no-op in the props is an invitation to call it, so the
+ * invitation is withdrawn — a desk edits by adding a call, which is what `addTransformer` is.
  */
 export interface SecondaryData {
     tempo?: TempoSecondaryData;
@@ -33,11 +44,9 @@ export interface SecondaryData {
 export interface ViewProps {
     /** The score with the recording laid on it, as the chain left it. */
     msm: Alignment;
-    setMSM: (next: Alignment) => void;
 
     /** The performance as the chain has written it so far. */
     mpm: Mpm;
-    setMPM: (next: Mpm) => void;
 
     /**
      * What the MPM does not yet explain, with this desk's own dimension held out.
@@ -47,8 +56,18 @@ export interface ViewProps {
      */
     residual: Residual;
 
-    /** Where a desk portals its own tools, so they appear in the shared app bar. */
-    appBarRef: React.RefObject<HTMLDivElement | null> | null;
+    /**
+     * The claims as the last run projected them — one entry per claim that still has a gesture in
+     * the document, keyed by the same id.
+     *
+     * A fit output like the three above, and here for the same reason they are: not derivable
+     * from `mpm` alone, because a span's reach is reported by the call that wrote it rather than
+     * written on the instruction.
+     */
+    projected: readonly Gestures[];
+
+    /** The finished performance as XML, for the drawings that sample the document directly. */
+    performanceXml: string;
 
     /** Desk state that is editorial input and not derivable from the chain. */
     secondary: SecondaryData;

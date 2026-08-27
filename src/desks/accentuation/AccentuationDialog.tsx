@@ -15,7 +15,7 @@ import {
     Typography
 } from "@mui/material"
 import { InsertMetricalAccentuationOptions } from "../../fitting/transformers/accentuation/InsertMetricalAccentuation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface AccentuationDialogProps {
     open: boolean
@@ -45,12 +45,22 @@ export const AccentuationDialog = ({ open, onClose, cell, scaleTolerance: initia
     const [neutralEnd, setNeutralEnd] = useState(cell.neutralEnd || false);
     const [scaleTolerance, setScaleTolerance] = useState(initialScaleTolerance);
 
-    useEffect(() => {
+    // The four fields above are drafts: they start from the candidate and then belong to whoever
+    // is editing them, so they cannot just be derived from the props. But the desk keeps this
+    // dialog mounted for as long as a candidate exists, and shift-clicking another note hands
+    // over a *different* candidate while it stands — the draft then has to start again from the
+    // new one. React's way to do that is to compare the input against the last one seen during
+    // render; an effect would commit the stale draft first and only then correct it.
+    const [lastCell, setLastCell] = useState(cell);
+    const [lastScaleTolerance, setLastScaleTolerance] = useState(initialScaleTolerance);
+    if (cell !== lastCell || initialScaleTolerance !== lastScaleTolerance) {
+        setLastCell(cell);
+        setLastScaleTolerance(initialScaleTolerance);
         setBeatLength(cell.beatLength);
         setName(cell.name ?? "");
         setNeutralEnd(cell.neutralEnd || false);
         setScaleTolerance(initialScaleTolerance);
-    }, [cell, initialScaleTolerance]);
+    }
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>

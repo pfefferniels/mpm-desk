@@ -3,7 +3,7 @@ import type { AlignedNote } from "../../fitting/alignment";
 import type { Instruction } from "../../fitting/instructions/index";
 import type { TemporalSpread } from "espressivo";
 import { usePiano } from "react-pianosound";
-import { asMIDI, PartialBy } from "../../utils/utils";
+import { asMIDI, type PartialBy } from "../../utils/utils";
 import { soundingAt } from "../noteTiming";
 import * as Tone from "tone";
 

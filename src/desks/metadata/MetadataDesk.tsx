@@ -1,5 +1,8 @@
 import { Box } from "@mui/material";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMode } from "../../hooks/ModeProvider";
+import { useWorkDocument } from "../../hooks/WorkDocument";
+import { describesPerformance } from "../../model/workReducer";
 import { WORD_FONT_FAMILY } from "../../segment-stack/words";
 
 interface Metadata {
@@ -203,3 +206,35 @@ export const MetadataDesk = ({
         </Box>
     )
 }
+
+/**
+ * The metadata desk as the registry dispatches it.
+ *
+ * Split from the component above rather than folded into it, and the split is the point: the
+ * page is a function of five values and is worth testing as one — eight cases drive it directly,
+ * including a rerender that proves an externally replaced document does not lose an unsaved
+ * draft. Reading the document inside it would put a provider harness between every one of those
+ * assertions and the thing asserted.
+ *
+ * So the connection lives here instead, and it is the whole of it: the desk needs the document,
+ * not the fit, which is why it is the one entry in the registry that ignores the bag every other
+ * desk is handed.
+ */
+export const MetadataDeskEntry = () => {
+    const { metadata, setMetadata, segments, calls } = useWorkDocument();
+    const { isEditorMode } = useMode();
+
+    // `InsertMetadata` writes `<metadata>` rather than an instruction, so counting it would make
+    // an otherwise empty document report a call it does not have.
+    const callCount = useMemo(() => calls.filter(describesPerformance).length, [calls]);
+
+    return (
+        <MetadataDesk
+            metadata={metadata}
+            setMetadata={setMetadata}
+            isEditorMode={isEditorMode}
+            segmentCount={segments.length}
+            callCount={callCount}
+        />
+    );
+};

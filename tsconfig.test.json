@@ -1,0 +1,18 @@
+{
+  // Everything that is run but not shipped: the fitting suite under `tests/`, the one-shot
+  // migrations under `scripts/`, and their tests.
+  //
+  // These were invisible. `tsconfig.json` includes only `src`, so `tsc --noEmit` never looked at
+  // them while vitest ran them happily — which is how a broken import into `tests/fitting/` got
+  // committed and only died at run time. Widening the app's own `include` would have fixed that
+  // by making `npm run build` typecheck code that is never built, so the two projects are kept
+  // apart and `npm run typecheck` runs both.
+  //
+  // No `types` entry is needed: all 59 test files import `describe`/`it`/`expect` from `vitest`
+  // by name rather than leaning on `globals: true`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["tests", "scripts"]
+}

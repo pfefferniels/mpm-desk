@@ -1,13 +1,13 @@
 import { InsertDynamicsGradient } from "../../fitting/transformers/ornamentation/InsertDynamicsGradient"
 import type { Alignment, AlignedNote } from "../../fitting/alignment"
-import { getInstructions, ornamentDraftOf, type Instruction } from "../../fitting/instructions/index"
+import { getInstructions, ornamentDraftOf, type Instruction, type Mpm } from "../../fitting/instructions/index"
 import { onsetSeconds, releaseSeconds } from "../noteTiming"
-import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
+import type { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Button, Checkbox, FormControlLabel } from "@mui/material"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
-import { useScrollSync } from "../../hooks/ScrollSyncProvider"
-import { createPortal } from "react-dom"
+import { useScrollRegistration } from "../../hooks/useScrollRegistration"
+import { DeskToolbar } from "../../components/DeskToolbar"
 import { Ribbon } from "../../components/Ribbon"
 import { Add, DeleteOutline } from "@mui/icons-material"
 import { usePiano } from "react-pianosound"
@@ -230,7 +230,7 @@ const GradientInstruction = ({ notes, ornament, getY, active, onClick }: Gradien
     )
 }
 
-export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
+export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [sortVelocities, setSortVelocities] = useState(true)
     const stretchX = usePhysicalZoom()
     const physicalEnd = Math.max(...msm.allNotes.map(releaseSeconds))
@@ -240,24 +240,24 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
         t => t.name === 'InsertDynamicsGradient' && !('date' in t.options)
     )
 
-    const { register, unregister } = useScrollSync();
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('dynamics-gradient-desk', element, 'physical');
-        } else {
-            unregister('dynamics-gradient-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('dynamics-gradient-desk', 'physical');
 
     const height = 400
-    const [pendingDates, setPendingDates] = useState<Set<number>>(new Set())
 
-    useEffect(() => {
-        setPendingDates(new Set())
-    }, [mpm])
+    // Chords the user has clicked whose gradient the chain has not written back yet — drawn
+    // orange, between the raw data and a real instruction. The MPM they were recorded against is
+    // kept beside them, and that is what retires them: the moment `mpm` is a different document
+    // the refit has answered, and a mark it did not turn into an instruction is stale. Clearing
+    // them from an effect on `mpm` instead took one extra render to do the same thing, and the
+    // stale marks were on screen for it.
+    const [pending, setPending] = useState<{ mpm: Mpm, dates: Set<number> }>({ mpm, dates: new Set() })
+    const pendingDates = pending.mpm === mpm ? pending.dates : new Set<number>()
 
     const transform = (date: number, gradient: { from: number, to: number }) => {
-        setPendingDates(prev => new Set(prev).add(date))
+        setPending(prev => ({
+            mpm,
+            dates: prev.mpm === mpm ? new Set(prev.dates).add(date) : new Set([date])
+        }))
         addTransformer(new InsertDynamicsGradient({
             scope: part,
             date,
@@ -294,7 +294,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
 
     return (
         <div>
-            {appBarRef && createPortal((
+            <DeskToolbar>
                 <Ribbon title='Dynamics Gradient'>
                     <FormControlLabel
                         control={
@@ -322,7 +322,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer, appBarRef
                         {defaultCall ? 'Remove Default' : 'Insert Default'}
                     </Button>
                 </Ribbon>
-            ), appBarRef?.current ?? document.body)}
+            </DeskToolbar>
 
             <div style={{ overflow: 'scroll', position: 'relative', paddingBottom: 320 }}>
                 <svg height={height} width={100} style={{ position: 'absolute', top: 0, left: 0 }}>
