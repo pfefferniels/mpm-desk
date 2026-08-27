@@ -1,5 +1,6 @@
 import { parseWorkFile, type WorkFile } from './Work';
 import { migrateWork, isMigrated } from './migrateWork';
+import { isInjectedCall } from '../fitting/chain';
 
 /**
  * Open a work file, whichever of the three shapes it is in.
@@ -28,22 +29,53 @@ export function migrateIfNeeded(json: string): WorkFile {
         return lifted ? parseWorkFile(JSON.stringify(lifted)) : parseWorkFile(json);
     }
 
+    // Lifted as well as migrated. The first two lifts cannot fire on what `migrateWork` writes —
+    // it writes today's shape — but `dropInjectedCalls` can, because a JSON-LD graph records the
+    // tempo-desk button being pressed like any other call. Every path arrives at one shape.
     const { work } = migrateWork(parsed);
-    return parseWorkFile(JSON.stringify(work));
+    return parseWorkFile(JSON.stringify(lift(work) ?? work));
 }
 
 /**
  * Bring a flat work file up to the shape this build reads.
  *
- * Two changes have happened to that shape since it replaced the JSON-LD graph, and both are pure
- * rewrites of what the file already says — no rule, no decision, nothing lost. Returns `null`
- * when neither applies, so the caller can keep the original text and its option envelopes rather
- * than re-serializing a file that was already right.
+ * Three changes have happened to that shape since it replaced the JSON-LD graph, and all three
+ * are pure rewrites of what the file already says — no rule, no decision, nothing lost. Returns
+ * `null` when none applies, so the caller can keep the original text and its option envelopes
+ * rather than re-serializing a file that was already right.
  */
 function lift(work: WorkFile): WorkFile | null {
     const linked = liftSegmentLinks(work);
     const folded = foldCommentary(linked ?? work);
-    return folded ?? linked;
+    const dropped = dropInjectedCalls(folded ?? linked ?? work);
+    return dropped ?? folded ?? linked;
+}
+
+/**
+ * Drop the call the run now makes for itself.
+ *
+ * `TranslatePhysicalTimeToTicks` was a button on the tempo desk until it became a chain
+ * invariant, and `buildChain` both injects it and filters a saved one out. So a file written
+ * before that names a call that cannot run and cannot be edited: clicking it in the narrative
+ * desk would route to a tempo desk with no control for it, and it would sit in the document
+ * forever claiming instructions it no longer touches.
+ *
+ * Only the call goes. A segment left holding nothing keeps its prose and stays in the file — the
+ * shipped reconstruction has one, noted „Unbestimmt", and deleting somebody's writing because a
+ * transformer moved is exactly the silent alteration `migrateWork` refuses to make. An empty
+ * claim is visible in the narrative desk and can be dissolved there by whoever wrote it.
+ *
+ * The instructions it was answerable for are not orphaned: `Call.elements` credits reshaping as
+ * readily as writing, and every ornament here was *written* by the `InsertTemporalSpread` call
+ * that put it there, which still holds it. What is lost is the duplicate chip.
+ */
+export function dropInjectedCalls(work: WorkFile): WorkFile | null {
+    if (!work.provenance.some((call) => isInjectedCall(call.name))) return null;
+
+    return {
+        ...work,
+        provenance: work.provenance.filter((call) => !isInjectedCall(call.name)),
+    };
 }
 
 /** A segment as an earlier flat shape wrote it: the calls it held, and its second prose field. */

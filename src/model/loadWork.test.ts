@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { migrateIfNeeded, liftSegmentLinks, foldCommentary } from './loadWork';
+import { migrateIfNeeded, liftSegmentLinks, foldCommentary, dropInjectedCalls } from './loadWork';
 import { parseWorkFile, type WorkFile } from './Work';
 
 /** A work file in the shape that listed calls on the segment. */
@@ -91,6 +91,13 @@ describe('the shipped reconstruction', () => {
         const held = new Set(work.segments.map((segment) => segment.id));
         expect(work.provenance.filter((call) => !held.has(call.segment ?? ''))).toEqual([]);
     });
+
+    it('no longer names the call the run makes for itself', () => {
+        // Taken out of the file rather than only on open, because the viewer reads `work.json`
+        // without the lifts — `useReconstructionLoader` parses it and projects it as it stands.
+        // `null` here is the file saying it needs nothing done to it.
+        expect(dropInjectedCalls(work)).toBeNull();
+    });
 });
 
 describe('folding the second prose field into the note', () => {
@@ -139,5 +146,61 @@ describe('folding the second prose field into the note', () => {
 
         expect(work.provenance[0].segment).toBe('s1');
         expect(work.segments[0]).toEqual({ id: 's1', note: "Hinspielen auf 1 — zum a'" });
+    });
+});
+
+/**
+ * Opening a file written while `TranslatePhysicalTimeToTicks` was a button.
+ *
+ * `buildChain` injects it now and filters a saved one out, so a call naming it in the document is
+ * a call that cannot run and cannot be edited. Taking it out on open is what keeps the file and
+ * the chain saying the same thing — and it is the last of the three lifts, so it sees what the
+ * other two have already done.
+ */
+describe('dropping the call the run makes for itself', () => {
+    const withTranslate = (name: string): WorkFile =>
+        ({
+            ...legacy,
+            provenance: [
+                { id: 'a', name: 'InsertTempo', options: {}, segment: 's1' },
+                { id: 't', name, options: { translatePhysicalModifiers: true }, segment: 's2' },
+            ],
+            segments: [{ id: 's1', note: 'Hinspielen auf 1' }, { id: 's2', note: 'Unbestimmt' }],
+        } as unknown as WorkFile);
+
+    it.each(['TranslatePhysicalTimeToTicks', 'TranslatePhyiscalTimeToTicks'])(
+        'takes the call out, under either spelling (%s)',
+        (name) => {
+            const dropped = dropInjectedCalls(withTranslate(name));
+            expect(dropped!.provenance.map((call) => call.id)).toEqual(['a']);
+        },
+    );
+
+    it('leaves the claim it was made under, empty, for whoever wrote it to dissolve', () => {
+        // Deleting somebody's prose because a transformer moved is the silent alteration this
+        // whole module refuses to make. „Unbestimmt" is a placeholder the JSON-LD migration
+        // wrote, and it is still not this code's to remove.
+        const dropped = dropInjectedCalls(withTranslate('TranslatePhysicalTimeToTicks'));
+        expect(dropped!.segments.map((segment) => segment.id)).toEqual(['s1', 's2']);
+    });
+
+    it('says there is nothing to do for a file that never named it', () => {
+        expect(dropInjectedCalls(legacy as unknown as WorkFile)).toBeNull();
+    });
+
+    it('runs on open, alongside the other two lifts', () => {
+        const work = migrateIfNeeded(
+            JSON.stringify({
+                ...legacy,
+                provenance: [
+                    { id: 'a', name: 'InsertTempo', options: {} },
+                    { id: 't', name: 'TranslatePhyiscalTimeToTicks', options: {} },
+                ],
+                segments: [{ id: 's1', note: 'Hinspielen auf 1', calls: ['a', 't'] }],
+            }),
+        );
+
+        expect(work.provenance.map((call) => call.id)).toEqual(['a']);
+        expect(work.provenance[0].segment).toBe('s1');
     });
 });

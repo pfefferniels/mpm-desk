@@ -37,8 +37,12 @@ export interface TranslatePhysicalTimeToTicksOptions extends TransformationOptio
  * score grid is derived on demand by `deriveResidual`, so populating it here would serve nobody
  * and would make every later fit depend on this having run.
  *
- * The name is wider than the work, and stays so: saved work files name it, and `requires`
- * relations across the chain point at it.
+ * The name is wider than the work, and stays so: work files written before it stopped being a
+ * call still name it, and `requires` relations across the chain point at it.
+ *
+ * **Nobody calls this.** `buildChain` puts one in every chain and no desk offers it — see the
+ * note on `INJECTED` there for why it was never a decision. Which is also why `transform` has to
+ * be cheap on a document with no ornaments in it: it now runs on chains that have nothing for it.
  */
 export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslatePhysicalTimeToTicksOptions> {
   name = 'TranslatePhysicalTimeToTicks';
@@ -102,35 +106,43 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
    */
   translatePhysicalMPMModifiers(mpm: Mpm, msm: Alignment): void {
     for (const scope of scopesOf(mpm)) {
-      const segments = placeTempos(msm, mpm, scope);
-
-      const ornaments = getInstructions(mpm, 'ornament', scope);
-      for (const ornament of ornaments) {
+      // Which ornaments have something to translate is settled before the tempo map is built,
+      // because the map is the expensive half — `placeTempos` walks the tempo list and looks up
+      // the anchoring note at every boundary — and this transformer runs on every chain now,
+      // including the many that hold no ornament at all. Reading the drafts costs one pass over
+      // the scope's ornaments, and that pass is then the whole cost of a chain with nothing to do.
+      // `flatMap` rather than a filter, so that the two guards below also narrow the frame away
+      // from `number | undefined` — the arithmetic downstream is the reason they are here.
+      const pending = getInstructions(mpm, 'ornament', scope).flatMap((ornament) => {
         // The frame is not an `<ornament>` attribute and never was — it belongs to the
         // `<temporalSpread>` of the def `StylizeOrnamentation` will build, and until then
         // it is parked on the element as a draft. So it is read and written there rather
         // than through the instruction, which espressivo's options type has no field for.
         const draft = ornamentDraftOf(ornament.element);
 
-        if (draft.frameDomain === FrameDomain.Ticks) {
-          // the job is done already
-          continue;
-        }
+        // the job is done already
+        if (draft.frameDomain === FrameDomain.Ticks) return [];
 
         // An ornament fitted by `InsertDynamicsGradient` carries a velocity ramp and no
         // frame at all. There is nothing physical on it to translate, and translating the
         // absence wrote a `NaN` frame plus a `time.unit` claiming it had been converted —
         // which is what turned every gradient-only ornament into one that
         // `StylizeOrnamentation` would go on to discard.
-        if (draft.frameStart === undefined || draft.frameLength === undefined) {
-          continue;
-        }
+        if (draft.frameStart === undefined || draft.frameLength === undefined) return [];
 
+        return [{ ornament, frameStart: draft.frameStart, frameLength: draft.frameLength }];
+      });
+
+      if (pending.length === 0) continue;
+
+      const segments = placeTempos(msm, mpm, scope);
+
+      for (const { ornament, frameStart, frameLength } of pending) {
         const ornamentMs = this.ticksToMs(ornament.date, segments);
         if (ornamentMs === undefined) continue;
 
-        const frameStartMs = ornamentMs + draft.frameStart;
-        const frameEndMs = frameStartMs + draft.frameLength;
+        const frameStartMs = ornamentMs + frameStart;
+        const frameEndMs = frameStartMs + frameLength;
 
         const frameStartTicks = this.msToTicks(frameStartMs, segments);
         const frameEndTicks = this.msToTicks(frameEndMs, segments);

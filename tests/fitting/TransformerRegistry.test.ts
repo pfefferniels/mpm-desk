@@ -149,11 +149,17 @@ describe('TransformerRegistry', () => {
       const { transformers: chain, unknown } = buildChain(parseWorkFile(json).provenance);
 
       expect(unknown).toEqual([]);
-      // `buildChain` always adds an `InsertMetadata` of its own — an MPM needs a `<metadata>`
-      // whether or not the chain says so — and it sorts last, being last in reduction order.
-      expect(chain.map((t) => t.name)).toEqual(['InsertRubato', 'InsertMetadata']);
-      expect(at(chain, 0, 'transformer').id).toBe(transformer.id);
-      expect(at(chain, 0, 'transformer').options).toEqual(transformer.options);
+      // `buildChain` always adds two calls of its own — an `InsertMetadata`, because an MPM needs
+      // a `<metadata>` whether or not the chain says so, and a `TranslatePhysicalTimeToTicks`,
+      // because nothing downstream of the hinge may depend on somebody having asked for it. They
+      // sort to the two ends of what is left, being last and near-first in reduction order.
+      expect(chain.map((t) => t.name)).toEqual([
+        'TranslatePhysicalTimeToTicks',
+        'InsertRubato',
+        'InsertMetadata',
+      ]);
+      expect(at(chain, 1, 'transformer').id).toBe(transformer.id);
+      expect(at(chain, 1, 'transformer').options).toEqual(transformer.options);
     });
   });
 

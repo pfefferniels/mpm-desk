@@ -6,7 +6,7 @@ import {
   type Call,
   type WorkFile,
 } from '../../src/model/Work';
-import { buildChain } from '../../src/fitting/chain';
+import { buildChain, validateChain } from '../../src/fitting/chain';
 import '../../src/fitting/transformers/Order';
 import { at } from '../support/at';
 
@@ -132,15 +132,18 @@ describe('the chain built from it', () => {
     const { transformers, unknown } = buildChain(read.provenance);
 
     expect(unknown).toEqual([]);
-    // `buildChain` always heads the chain with an `InsertMetadata` of its own — an MPM needs a
-    // `<metadata>` whether or not the chain says so — and sorts into reduction order.
+    // Two of the three the file never asked for. `buildChain` always heads the chain with an
+    // `InsertMetadata` of its own — an MPM needs a `<metadata>` whether or not the chain says so
+    // — and always adds a `TranslatePhysicalTimeToTicks`, which is not a decision any file gets
+    // to make. Then it sorts into reduction order, which is why they are not where they were put.
     expect(transformers.map((t) => t.name)).toEqual([
       'MakeChoice',
+      'TranslatePhysicalTimeToTicks',
       'InsertRubato',
       'InsertMetadata',
     ]);
-    expect(at(transformers, 1, 'transformer').id).toBe('call-InsertRubato');
-    expect(at(transformers, 1, 'transformer').options).toEqual({
+    expect(at(transformers, 2, 'transformer').id).toBe('call-InsertRubato');
+    expect(at(transformers, 2, 'transformer').options).toEqual({
       scope: 'global',
       date: 0,
       length: 2880,
@@ -183,16 +186,61 @@ describe('the chain built from it', () => {
     // `InventASonata` never existed anywhere — a chain can name either, and both have to come
     // back named rather than quietly missing from the result.
     expect(unknown.map((c) => c.name)).toEqual(['InsertAsynchrony', 'InventASonata']);
-    expect(transformers.map((t) => t.name)).toEqual(['InsertRubato', 'InsertMetadata']);
-  });
-
-  test('follows the registry alias, so the misspelling in the shipped file still builds', () => {
-    const { transformers, unknown } = buildChain([call('TranslatePhyiscalTimeToTicks', {})]);
-
-    expect(unknown).toEqual([]);
     expect(transformers.map((t) => t.name)).toEqual([
       'TranslatePhysicalTimeToTicks',
+      'InsertRubato',
       'InsertMetadata',
     ]);
+  });
+
+  /**
+   * The one call a run makes for itself, and the reason a file may not make it twice.
+   *
+   * `TranslatePhysicalTimeToTicks` was a button on the tempo desk, and every file written while
+   * it was one names it — the shipped reconstruction under the misspelling. Injecting it without
+   * filtering those out would put two in the chain: harmless to the document, since the second
+   * finds every ornament already in ticks, and still wrong, because one call would be credited
+   * with all of them and the other with none.
+   *
+   * Both spellings, because the alias is what decides which name the file is allowed to use and
+   * the filter has to ask the same question `createTransformer` does.
+   */
+  test.each(['TranslatePhysicalTimeToTicks', 'TranslatePhyiscalTimeToTicks'])(
+    'substitutes rather than repeats the injected call, spelled %s',
+    (name) => {
+      const { transformers, unknown } = buildChain([call(name, {}), rubato()]);
+
+      expect(unknown).toEqual([]);
+      expect(transformers.map((t) => t.name)).toEqual([
+        'TranslatePhysicalTimeToTicks',
+        'InsertRubato',
+        'InsertMetadata',
+      ]);
+      // Rebuilt, not reused — the same thing the metadata call proves above, and the reason
+      // neither injected call can carry a segment: it is not in the document at all.
+      expect(at(transformers, 0, 'transformer').id).not.toBe(`call-${name}`);
+      expect(at(transformers, 0, 'transformer').options).toEqual({
+        translatePhysicalModifiers: true,
+      });
+    },
+  );
+
+  /**
+   * The `requires` that used to be a trap.
+   *
+   * Four transformers name `TranslatePhysicalTimeToTicks` in `requires`, and a chain missing it
+   * did not fit worse — `runFit` threw and nothing rendered. Whether it was there depended on
+   * somebody having pressed a button on the tempo desk. Injection is what closes that, so the
+   * assertion is that a chain naming none of it validates clean.
+   */
+  test('a chain that never mentions it still satisfies what requires it', () => {
+    const { transformers } = buildChain([
+      call('InsertRubato', { scope: 'global', date: 0, length: 2880 }),
+      call('InsertPedal', { scope: 'global', date: 0 }),
+      call('InsertArticulation', { scope: 'global', date: 0 }),
+      call('MakeDefaultArticulation', { scope: 'global' }),
+    ]);
+
+    expect(validateChain(transformers)).toEqual([]);
   });
 });

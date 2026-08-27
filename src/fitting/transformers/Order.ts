@@ -70,6 +70,12 @@ registerTransformer(InsertTempo);
 // of them rewrite the recorded onsets as they go. After it the question is where a recorded onset
 // falls on the score grid, in ticks — which only a tempo map can answer. Everything below names it
 // in `requires` for that reason.
+//
+// Registered, but no longer reachable from a desk: `buildChain` puts one in every chain, so this
+// entry is what gives the injected call its rank and what a `requires` naming it resolves
+// against. The `requires` relations below are therefore satisfied by construction — they are kept
+// because they state which side of the hinge a fitter belongs on, which is worth stating whether
+// or not anything can now break it.
 registerTransformer(TranslatePhysicalTimeToTicks);
 registerTransformer(StylizeOrnamentation);
 registerTransformer(InsertRubato);

@@ -1,7 +1,6 @@
 import { ToggleButton, ToggleButtonGroup } from "@mui/material"
 import { computeMillisecondsAt } from "../../fitting/transformers/tempo/tempoCalculations"
 import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
-import { TranslatePhysicalTimeToTicks } from "../../fitting/transformers/tempo/TranslatePhysicalTimeToTicks"
 import { InsertTempo } from "../../fitting/transformers/tempo/InsertTempo"
 import { createMpm, getInstructions, requireMap } from "../../fitting/instructions/index"
 import { useCallback, useMemo, useState } from "react"
@@ -46,7 +45,7 @@ export type TempoSecondaryData = {
 /** One array, so that a desk with no drawn curve keeps the same identity from render to render. */
 const noDrawnLines: DrawnLine[] = []
 
-export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhysicalTimeToTicks | InsertTempo>) => {
+export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecondary }: ScopedTransformerViewProps<InsertTempo>) => {
     const { activeElements, setActiveElement } = useCallSelection()
     const tempoData = secondary?.tempo
 
@@ -287,12 +286,6 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
         updateDrawnLines([])
     }
 
-    const translate = () => {
-        addTransformer(new TranslatePhysicalTimeToTicks({
-            translatePhysicalModifiers: true
-        }))
-    }
-
     const selectedSegments = tempoCluster.segments.filter(s => s.selected)
 
     /**
@@ -366,24 +359,6 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                         onClick={combineSegments}
                     >
                         Combine
-                    </ToolbarButton>
-                </ToolGroup>
-
-                {/*
-                    Not beside Insert, and not called "Tick Time".
-
-                    This one rewrites the whole timeline across every aspect at once, where the
-                    two above it edit the passage the user is looking at. Sitting next to the
-                    button pressed fifty times an hour, at the same weight, it read as another
-                    tempo edit.
-                */}
-                <ToolGroup label='Document'>
-                    <ToolbarButton
-                        label='Translate To Ticks'
-                        tooltip='Rewrite the whole timeline in ticks, across every aspect'
-                        onClick={translate}
-                    >
-                        Translate To Ticks
                     </ToolbarButton>
                 </ToolGroup>
             </DeskToolbar>

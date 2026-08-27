@@ -60,6 +60,18 @@ export function registerAlias(formerName: string, currentName: string): void {
 }
 
 /**
+ * The name a transformer is registered under, following a rename if `name` is a retired one.
+ *
+ * For asking about a name without building the transformer behind it — which is what a caller
+ * comparing a saved call's name against a known one has to do, because the file may spell it
+ * either way. An unregistered name is answered with itself: the registry has nothing better to
+ * say about it, and a caller that gets its own name back can tell that nothing was resolved.
+ */
+export function canonicalName(name: string): string {
+  return aliases.get(name) ?? name;
+}
+
+/**
  * Create a transformer instance by name, following a rename if the name is a retired one.
  * Returns `null` if not registered.
  */

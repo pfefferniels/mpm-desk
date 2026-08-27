@@ -79,11 +79,13 @@ for (const type of new Set([...Object.keys(expected), ...Object.keys(actual)]))
             `${type}: ${String(actual[type] ?? 0)} derived vs ${String(expected[type] ?? 0)} baked`,
         );
 
-// One call names no segment and always will: `buildChain` substitutes an `InsertMetadata` that
-// is not in the file's provenance at all, so there is nothing to read a `segment` off. It writes
-// `<metadata>` rather than an instruction, so it would contribute nothing either way.
-if (projection.ungroupedCalls !== 1)
-    failures.push(`ungrouped calls: ${String(projection.ungroupedCalls)}, expected 1`);
+// Two calls name no segment and always will, because `buildChain` injects both and neither is in
+// the file's provenance to read a `segment` off. `InsertMetadata` writes `<metadata>` rather than
+// an instruction, so it would contribute nothing either way; `TranslatePhysicalTimeToTicks`
+// reshapes ornaments the `InsertTemporalSpread` calls wrote and still hold, which is why the
+// ornament tally below is unmoved by its call leaving the file.
+if (projection.ungroupedCalls !== 2)
+    failures.push(`ungrouped calls: ${String(projection.ungroupedCalls)}, expected 2`);
 if (projection.droppedElements !== 0)
     failures.push(`dropped elements: ${String(projection.droppedElements)}`);
 
