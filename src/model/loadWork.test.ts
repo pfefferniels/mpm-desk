@@ -176,12 +176,37 @@ describe('dropping the call the run makes for itself', () => {
         },
     );
 
-    it('leaves the claim it was made under, empty, for whoever wrote it to dissolve', () => {
-        // Deleting somebody's prose because a transformer moved is the silent alteration this
-        // whole module refuses to make. „Unbestimmt" is a placeholder the JSON-LD migration
-        // wrote, and it is still not this code's to remove.
+    it('takes the claim the call was the only thing under with it', () => {
+        // A claim that only ever held plumbing was never a claim. „Unbestimmt" is the word the
+        // JSON-LD migration writes for a group with no motivation, and it existed because the
+        // call had to be filed somewhere.
         const dropped = dropInjectedCalls(withTranslate('TranslatePhysicalTimeToTicks'));
-        expect(dropped!.segments.map((segment) => segment.id)).toEqual(['s1', 's2']);
+        expect(dropped!.segments.map((segment) => segment.id)).toEqual(['s1']);
+    });
+
+    it('leaves a claim something else is still made under', () => {
+        const shared = {
+            ...legacy,
+            provenance: [
+                { id: 'a', name: 'InsertTempo', options: {}, segment: 's2' },
+                { id: 't', name: 'TranslatePhysicalTimeToTicks', options: {}, segment: 's2' },
+            ],
+            segments: [{ id: 's2', note: 'Hinspielen auf 1' }],
+        } as unknown as WorkFile;
+
+        const dropped = dropInjectedCalls(shared);
+        expect(dropped!.provenance.map((call) => call.id)).toEqual(['a']);
+        expect(dropped!.segments.map((segment) => segment.id)).toEqual(['s2']);
+    });
+
+    it('leaves a claim somebody else emptied, which is theirs to dissolve', () => {
+        const alreadyEmpty = {
+            ...legacy,
+            provenance: [{ id: 't', name: 'TranslatePhysicalTimeToTicks', options: {} }],
+            segments: [{ id: 's3', note: 'Großangelegtes Decrescendo' }],
+        } as unknown as WorkFile;
+
+        expect(dropInjectedCalls(alreadyEmpty)!.segments.map((s) => s.id)).toEqual(['s3']);
     });
 
     it('says there is nothing to do for a file that never named it', () => {

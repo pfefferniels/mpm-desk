@@ -60,21 +60,33 @@ function lift(work: WorkFile): WorkFile | null {
  * desk would route to a tempo desk with no control for it, and it would sit in the document
  * forever claiming instructions it no longer touches.
  *
- * Only the call goes. A segment left holding nothing keeps its prose and stays in the file — the
- * shipped reconstruction has one, noted „Unbestimmt", and deleting somebody's writing because a
- * transformer moved is exactly the silent alteration `migrateWork` refuses to make. An empty
- * claim is visible in the narrative desk and can be dissolved there by whoever wrote it.
+ * A claim the call was the only thing made under goes with it. That is not this code deciding an
+ * empty claim is worthless — an empty claim somebody else emptied is theirs to dissolve, and is
+ * left alone. It is that a claim which only ever held plumbing was never a claim: the shipped
+ * reconstruction's was noted „Unbestimmt", the word the JSON-LD migration writes for a group with
+ * no motivation, and it existed because the call had to be filed somewhere.
  *
- * The instructions it was answerable for are not orphaned: `Call.elements` credits reshaping as
- * readily as writing, and every ornament here was *written* by the `InsertTemporalSpread` call
- * that put it there, which still holds it. What is lost is the duplicate chip.
+ * The instructions the call was answerable for are not orphaned: `Call.elements` credits
+ * reshaping as readily as writing, and every ornament here was *written* by the
+ * `InsertTemporalSpread` call that put it there, which still holds it. What goes is the
+ * duplicate chip.
  */
 export function dropInjectedCalls(work: WorkFile): WorkFile | null {
-    if (!work.provenance.some((call) => isInjectedCall(call.name))) return null;
+    const injected = work.provenance.filter((call) => isInjectedCall(call.name));
+    if (!injected.length) return null;
+
+    const provenance = work.provenance.filter((call) => !isInjectedCall(call.name));
+    const stillNamed = new Set(provenance.map((call) => call.segment));
+    const emptied = new Set(
+        injected
+            .map((call) => call.segment)
+            .filter((id) => id !== undefined && !stillNamed.has(id)),
+    );
 
     return {
         ...work,
-        provenance: work.provenance.filter((call) => !isInjectedCall(call.name)),
+        provenance,
+        segments: work.segments.filter((segment) => !emptied.has(segment.id)),
     };
 }
 
