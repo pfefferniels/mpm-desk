@@ -5,6 +5,7 @@ import type { TemporalSpread } from "espressivo";
 import { usePiano } from "react-pianosound";
 import { asMIDI, type PartialBy } from "../../utils/utils";
 import { soundingAt } from "../noteTiming";
+import { sequenceOf } from "../../fitting/transformers/ornamentation/noteOrder";
 // Two named imports rather than `import * as Tone`. The namespace import defeats tree
 // shaking, and the whole of Tone — 345 KB — was landing in this desk's chunk *as well as*
 // in the entry, where `react-pianosound` already pulls it. All this file wants is a click.
@@ -57,15 +58,15 @@ export const TemporalSpreadInstruction = ({
         [refBPM, beatLength]
     );
 
-    const sortedNotes = useMemo(() => {
-        const sorted = [...notes];
-        if (ornament.noteOrder === "descending pitch") {
-            sorted.sort((a, b) => b["midi.pitch"] - a["midi.pitch"]);
-        } else {
-            sorted.sort((a, b) => a["midi.pitch"] - b["midi.pitch"]);
-        }
-        return sorted;
-    }, [notes, ornament]);
+    // The order the ornament states, not the order pitch happens to give. A roll that turns —
+    // struck low, high, then in between — is named note by note rather than by a keyword, and
+    // reading only the two keywords auditioned those chords in an order they were never played
+    // in. `sequenceOf` reads the attribute the way the renderer reads it, so the preview and
+    // the performance roll alike. See issue #20.
+    const sortedNotes = useMemo(
+        () => sequenceOf(ornament.noteOrder, notes),
+        [notes, ornament],
+    );
 
     const handlePlay = useCallback(() => {
         const n = sortedNotes.length;

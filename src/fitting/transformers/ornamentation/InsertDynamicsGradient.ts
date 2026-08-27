@@ -13,6 +13,7 @@ import {
   type ScopedTransformationOptions,
 } from '../Transformer';
 import { elementAt, numberAt } from 'espressivo';
+import { noteOrderOf } from './noteOrder';
 
 /**
  * The velocity ramp across an arpeggio, in the normalized units a `<dynamicsGradient>`'s
@@ -138,6 +139,12 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
       date,
       nameRef: 'neutralArpeggio',
       scale,
+      // The ramp above was measured from the first note struck to the last, so the element has
+      // to say which notes those were. Left off, espressivo does not abstain — it walks the
+      // chord by ascending pitch — and the ramp is rendered along a sequence nothing fitted it
+      // to. `InsertTemporalSpread` used to be the only writer of this, which held for as long
+      // as a spread was always asked for over the same chord and no longer than that: issue #20.
+      noteOrder: noteOrderOf(arpeggioNotes),
     };
     const element = fillInAt(map, options, {
       localName: 'ornament',

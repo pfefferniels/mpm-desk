@@ -9,12 +9,13 @@ import {
 } from '../../instructions/index';
 import { Alignment } from '../../alignment';
 import { isDefined } from '../../utils';
-import { elementAt, foldl, head, isNonEmpty, pairwise } from 'espressivo';
+import { elementAt, foldl, pairwise } from 'espressivo';
 import {
   AbstractTransformer,
   generateId,
   type ScopedTransformationOptions,
 } from '../Transformer';
+import { noteOrderOf } from './noteOrder';
 
 export type ArpeggioPlacement = 'on-beat' | 'before-beat' | 'estimate' | 'none';
 export type DatedArpeggioPlacement = Map<number, ArpeggioPlacement>;
@@ -53,22 +54,6 @@ export const determineIntensity = (onsets: number[]): number => {
   }
 
   return (lower + upper) / 2;
-};
-
-/**
- * A little helper function to determine how an array is sorted.
- *
- * @param arr The array to check
- * @returns -1 if the array is sorted in descending order, 1 if its
- * sorted in ascending order, 0 if it isn't sorted.
- */
-const determineSortDirection = (arr: number[]) => {
-  const steps = pairwise(arr);
-  if (!isNonEmpty(steps)) return 0;
-
-  const [firstFrom, firstTo] = head(steps);
-  const direction = Math.sign(firstTo - firstFrom);
-  return steps.every(([from, to]) => Math.sign(to - from) === direction) ? direction : 0;
 };
 
 export type InsertTemporalSpreadOptions = ScopedTransformationOptions & {
@@ -122,14 +107,9 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
       const firstNote = elementAt(sortedByOnset, 0, 'the arpeggiated chord');
       const lastNote = elementAt(sortedByOnset, sortedByOnset.length - 1, 'the arpeggiated chord');
 
-      // detecting the direction of the arpeggiated notes.
-      const arpeggioDirection = determineSortDirection(
-        sortedByOnset.map((note) => note['midi.pitch']),
-      );
-      let noteOrder = '';
-      if (arpeggioDirection === 1) noteOrder = 'ascending pitch';
-      else if (arpeggioDirection === -1) noteOrder = 'descending pitch';
-      else noteOrder = sortedByOnset.map((note) => `#${note['xml:id']}`).join(' ');
+      // Which notes the roll visits, and in what order. Shared with `InsertDynamicsGradient`,
+      // which measures its ramp along the same sequence and writes the same attribute.
+      const noteOrder = noteOrderOf(sortedByOnset);
 
       // the arpeggio's duration is the time distance between first and last onset, in ms
       const duration = lastNote['milliseconds.date'] - firstNote['milliseconds.date'];
