@@ -54,7 +54,7 @@ import {
 import { migrateIfNeeded } from './model/loadWork';
 import { buildWorkArchive } from './model/exportWork';
 import type { WorkFile } from './model/Work';
-import { downloadAsFile } from './utils/utils';
+import { documentSlug, downloadAsFile } from './utils/utils';
 import { readNoteDates } from './utils/score';
 
 /**
@@ -323,34 +323,11 @@ export const App = () => {
     const dirty = work !== savedWork;
 
     /**
-     * What to call the file, given that a title here is a sentence.
-     *
-     * The metadata desk holds the title in a growing `textarea` precisely because it is prose —
-     * the chain carries it as a `<comment>` — so it arrives with spaces, punctuation and no
-     * length worth trusting. Handing that straight to a download turns a slash into a path
-     * separator and a colon into one on macOS, and the archive lands somewhere nobody asked for
-     * or not at all.
-     *
-     * So: the first few words, letters and digits only, hyphen-joined. `reconstruction` where
-     * that leaves nothing — which is the case for a title of pure punctuation as well as for no
-     * title at all, and is why the fallback is tested after the stripping rather than before it.
-     *
-     * The two lines that are not obvious. Decomposing to NFKD and then dropping the combining
-     * marks is what turns `Überschrift` into `uberschrift`; without the second step the mark is
-     * simply not a letter, and a German title comes out as `u-berschrift`. And the trim runs
-     * *after* the truncation, because a cut at sixty characters usually lands mid-word and would
-     * otherwise leave the hyphen it made dangling on the end of the name.
+     * What to call the archive. The slug itself is `documentSlug`, shared with the markup desk's
+     * MIDI render — the two files are the same document under two extensions, and the reasoning
+     * about a title that is prose belongs in one place.
      */
-    const archiveName = useMemo(() => {
-        const slug = metadata.title
-            .normalize('NFKD')
-            .replace(/\p{Mark}+/gu, '')
-            .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
-            .slice(0, 60)
-            .replace(/^-+|-+$/g, '')
-            .toLowerCase();
-        return `${slug || 'reconstruction'}.zip`;
-    }, [metadata.title]);
+    const archiveName = useMemo(() => `${documentSlug(metadata.title)}.zip`, [metadata.title]);
 
     /**
      * Save, which is a download: the four-file archive the viewer reads.

@@ -125,7 +125,7 @@ describe('the desk registry', () => {
                     : [{ aspect: entry.aspect, name: entry.transformerName }],
             );
 
-            // Several desks carry no transformer — metadata, narrative, result — so the list is a
+            // Several desks carry no transformer — metadata, narrative, markup — so the list is a
             // subset of the registry, but it is not supposed to be an empty one.
             expect(claimed.length).toBeGreaterThan(0);
 

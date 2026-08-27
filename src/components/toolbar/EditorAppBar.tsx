@@ -45,6 +45,17 @@ interface EditorAppBarProps {
 /** How wide the fit indicator's slot is, occupied or not. See the note where it is rendered. */
 const STATUS_WIDTH = 92;
 
+/** One row of the bar. Both rows are this tall, and neither ever changes height — see below. */
+const ROW_HEIGHT = 44;
+
+/**
+ * How much of the window the bar occupies, for a desk that has to size itself against what is
+ * left. It is `position: sticky`, so it takes its height out of the desk's share of the viewport
+ * without any layout saying so — a desk written as `height: 70vh` overflows a short window and
+ * leaves a wide one part empty, which is what the markup desk did before it read this.
+ */
+export const APP_BAR_HEIGHT = 2 * ROW_HEIGHT;
+
 /**
  * The editor's chrome, in two rows.
  *
@@ -109,7 +120,7 @@ export const EditorAppBar = ({
                 direction="row"
                 alignItems="center"
                 spacing={1}
-                sx={{ minHeight: 44, px: 1 }}
+                sx={{ minHeight: ROW_HEIGHT, px: 1 }}
             >
                 <Stack
                     direction="row"
@@ -300,7 +311,7 @@ export const EditorAppBar = ({
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    minHeight: 44,
+                    minHeight: ROW_HEIGHT,
                     px: 1,
                     gap: 1,
                     borderTop: 1,

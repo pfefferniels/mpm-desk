@@ -221,10 +221,16 @@ export const correspondingDesks: DeskEntry[] = [
         ),
         group: 'argument',
     },
-    // Result
+    // The artefact itself. Last, and a group of its own, because it is what every desk above it
+    // has been writing rather than another aspect of the performance.
+    //
+    // It was `aspect: 'result'`, which named a stage of a pipeline run — the vocabulary the
+    // rewrite left behind — and was the only entry with neither a `displayName` nor a name worth
+    // showing, so the menu printed a bare `result` and the bar capitalised it into a claim the
+    // desk did not make. MPM is Music Performance Markup; the desk shows the markup.
     {
-        aspect: 'result',
-        desk: lazy(() => import('./result/ResultDesk').then((m) => ({ default: m.ResultDesk }))),
-        group: 'result',
+        aspect: 'markup',
+        desk: lazy(() => import('./markup/MarkupDesk').then((m) => ({ default: m.MarkupDesk }))),
+        group: 'markup',
     },
 ];

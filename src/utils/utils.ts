@@ -15,6 +15,38 @@ export const downloadAsFile = (
     URL.revokeObjectURL(url);
 }
 
+/**
+ * What to call a file, given that a title here is a sentence.
+ *
+ * The metadata desk holds the title in a growing `textarea` precisely because it is prose — the
+ * chain carries it as a `<comment>` — so it arrives with spaces, punctuation and no length worth
+ * trusting. Handing that straight to a download turns a slash into a path separator and a colon
+ * into one on macOS, and the file lands somewhere nobody asked for or not at all.
+ *
+ * So: the first few words, letters and digits only, hyphen-joined. `reconstruction` where that
+ * leaves nothing — which is the case for a title of pure punctuation as well as for no title at
+ * all, and is why the fallback is tested after the stripping rather than before it.
+ *
+ * The two lines that are not obvious. Decomposing to NFKD and then dropping the combining marks
+ * is what turns `Überschrift` into `uberschrift`; without the second step the mark is simply not
+ * a letter, and a German title comes out as `u-berschrift`. And the trim runs *after* the
+ * truncation, because a cut at sixty characters usually lands mid-word and would otherwise leave
+ * the hyphen it made dangling on the end of the name.
+ *
+ * The extension is the caller's: the archive is `.zip`, the markup desk's render is `.mid`, and
+ * they are the same document under two names.
+ */
+export const documentSlug = (title: string): string => {
+    const slug = title
+        .normalize('NFKD')
+        .replace(/\p{Mark}+/gu, '')
+        .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
+        .slice(0, 60)
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase();
+    return slug || 'reconstruction';
+};
+
 export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
 /** Whether two sets hold the same members — for a state setter that must not re-render on an equal set. */
