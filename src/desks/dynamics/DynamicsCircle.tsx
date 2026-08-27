@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DynamicsSegment } from "./DynamicsDesk";
+import type { DynamicsSegment } from "./segments";
 
 interface DynamicsCircleProps {
     segment: DynamicsSegment;
@@ -7,9 +7,23 @@ interface DynamicsCircleProps {
     stretchX: number;
     screenY: (velocity: number) => number;
     handlePlay: (from: number, to?: number) => void;
-    handleClick: (e: MouseEvent, segment: DynamicsSegment) => void;
+    /**
+     * A click on the dot, once it has sounded.
+     *
+     * Optional, because a plot that acts on the press has nothing left for the click to do — see
+     * `onDragStart`.
+     */
+    handleClick?: (e: MouseEvent, segment: DynamicsSegment) => void;
     cursor?: string;
-    onDragStart?: (segment: DynamicsSegment, clientY: number) => void;
+    /**
+     * The press, with the event rather than just its `clientY`.
+     *
+     * A plot where the dot can be dragged has to act here rather than on the click: a drag that
+     * ends off the dot fires no click on it at all, so a selection made on click would be missing
+     * for exactly the gesture that needs it. The modifier keys come with the event for the same
+     * reason — cmd and shift mean something at the moment of the press.
+     */
+    onDragStart?: (segment: DynamicsSegment, event: React.MouseEvent<SVGCircleElement>) => void;
     yOffset?: number;
 }
 export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handlePlay, handleClick, cursor, onDragStart, yOffset = 0 }: DynamicsCircleProps) => {
@@ -68,7 +82,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                 style={cursor ? { cursor } : undefined}
                 onMouseDown={onDragStart ? (e) => {
                     e.preventDefault();
-                    onDragStart(segment, e.clientY);
+                    onDragStart(segment, e);
                 } : undefined}
                 onMouseOver={() => {
                     setHovered(true);
@@ -77,7 +91,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                 onMouseOut={() => setHovered(false)}
                 onClick={(e) => {
                     handlePlay(segment.date.start);
-                    handleClick(e as unknown as MouseEvent, segment);
+                    handleClick?.(e as unknown as MouseEvent, segment);
                 }} />
         </>
     );

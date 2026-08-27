@@ -12,7 +12,7 @@ import { elementAt } from 'espressivo';
  * `milliseconds.date` and `milliseconds.date.end` onto a note, and `readPerformanceData` reads
  * them back. Every caller that wanted a duration wanted `onset + duration` anyway.
  */
-interface PerformedAttributes {
+export interface PerformedAttributes {
   'milliseconds.date': number;
   'milliseconds.date.end': number;
 }

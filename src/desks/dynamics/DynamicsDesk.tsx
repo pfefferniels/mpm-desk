@@ -1,79 +1,59 @@
-import { type JSX, useEffect, useMemo, useRef, useState } from "react";
+import { type JSX, useEffect, useMemo, useState } from "react";
 import { useScrollRegistration } from "../../hooks/useScrollRegistration";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
-import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
+import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { DynamicsWithEndDate, InsertDynamicsInstructions } from "../../fitting/transformers/dynamics/InsertDynamicsInstructions";
-import { Modify, ModifyOptions } from "../../fitting/transformers/modification/Modify";
-import { Alignment, AlignedNote } from "../../fitting/alignment";
+import { AlignedNote } from "../../fitting/alignment";
 import { getInstructions } from "../../fitting/instructions/index";
-import { Range } from "../tempo/Tempo";
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
+import { extractDynamicsSegments } from "./segments";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
 import { DeskToolbar } from "../../components/DeskToolbar";
 import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
-import { ToolStatus } from "../../components/toolbar/ToolStatus";
-import { Add, Clear } from "@mui/icons-material";
-import { MarkedRegion } from "./MarkedRegion";
+import { Clear } from "@mui/icons-material";
+import { COMMITTED_GHOST, DeltaGhost } from "../corrections/DeltaGhost";
+import { useModifyDeltas } from "../corrections/useModifyDeltas";
 import { svgPoint, svgUnitsPerPixel } from "../../utils/svgPoint";
 
-export interface DynamicsSegment {
-    date: Range
-    velocity: number
-    active: boolean
-    noteID?: string
-}
+export type { DynamicsSegment } from "./segments";
 
-const extractDynamicsSegments = (msm: Alignment, part: Scope) => {
-    const segments: DynamicsSegment[] = []
-    msm.asChords(part).forEach((notes, date) => {
-        if (!notes.length) return
-
-        for (const note of notes) {
-            if (segments.findIndex(s => s.date.start === date && s.velocity === note.velocity) !== -1) continue
-            segments.push({
-                date: {
-                    start: date,
-                    end: date
-                },
-                velocity: note.velocity,
-                active: false,
-                noteID: note['xml:id']
-            })
-        }
-    })
-
-    return segments
-}
-
+/**
+ * Where dynamics curves are drawn over what the recording played.
+ *
+ * The desk used to have a third mode, Modify, which dragged a recorded velocity to a new value.
+ * That is a correction to the *recording*, made from the desk for writing instructions *about*
+ * the recording — and it left the three other things `Modify` can correct with nowhere to be made
+ * from at all, since none of them can be shown on a plot of velocity against date. They share a
+ * desk of their own now, in `../corrections`.
+ *
+ * What stayed is the evidence rather than the editing: a velocity somebody corrected by hand is
+ * still marked here, by a grey ghost at the value the roll scan read. Fitting a curve over a dot
+ * means knowing whether the dot is what was recorded.
+ */
 export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<
-    InsertDynamicsInstructions | Modify
+    InsertDynamicsInstructions
 >) => {
-    const { activeElements, setActiveElement, calls } = useCallSelection();
+    const { activeElements, setActiveElement } = useCallSelection();
     const [datePlayed, setDatePlayed] = useState<number>()
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
-    const [mode, setMode] = useState<'insert' | 'modify' | 'phantom'>('insert')
+    const [mode, setMode] = useState<'insert' | 'phantom'>('insert')
 
     const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
     const [dragFrom, setDragFrom] = useState<{ date: number, x: number, y: number }>()
     const [dragMouse, setDragMouse] = useState<{ x: number, y: number }>()
     const [dragSnapDate, setDragSnapDate] = useState<number>()
     const [pendingInsert, setPendingInsert] = useState<{ from: number, to: number }>()
-    const [modifyOptions, setModifyOptions] = useState<ModifyOptions>()
-    const [pendingCommitOptions, setPendingCommitOptions] = useState<ModifyOptions>()
-    const [modifyDrag, setModifyDrag] = useState<{ startSvgY: number }>()
-    const [modifyDragDelta, setModifyDragDelta] = useState(0)
 
     const { play, stop } = usePiano()
     const { slice } = useNotes()
     const stretchX = useSymbolicZoom()
-    const svgRef = useRef<SVGSVGElement>(null);
 
     const scrollContainerRef = useScrollRegistration('dynamics-desk', 'symbolic');
 
@@ -122,16 +102,15 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
 
     const segments = useMemo(() => extractDynamicsSegments(msm, part), [msm, part])
 
-    // Both optimistic previews are answered by the next fit: the drawn curve is in `mpm` by then,
-    // the dragged velocities are in `msm`. Clearing them is the one thing the effects that used to
-    // derive `instructions` and `segments` did besides deriving, and it is not derived state, so
-    // it stays. It runs during render — React's way of adjusting state when a prop changes — and
-    // not in an effect, which would commit the stale preview over the new fit for one frame.
-    const [lastFit, setLastFit] = useState({ mpm, msm, part })
-    if (lastFit.mpm !== mpm || lastFit.msm !== msm || lastFit.part !== part) {
-        if (lastFit.mpm !== mpm || lastFit.part !== part) setPendingInsert(undefined)
-        if (lastFit.msm !== msm || lastFit.part !== part) setPendingCommitOptions(undefined)
-        setLastFit({ mpm, msm, part })
+    // The optimistic preview is answered by the next fit: the drawn curve is in `mpm` by then.
+    // Clearing it is the one thing the effect that used to derive `instructions` did besides
+    // deriving, and it is not derived state, so it stays. It runs during render — React's way of
+    // adjusting state when a prop changes — and not in an effect, which would commit the stale
+    // preview over the new fit for one frame.
+    const [lastFit, setLastFit] = useState({ mpm, part })
+    if (lastFit.mpm !== mpm || lastFit.part !== part) {
+        setPendingInsert(undefined)
+        setLastFit({ mpm, part })
     }
 
     const stretchY = 3
@@ -143,47 +122,14 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     // past it — an outermost <svg> clips to its viewport, and half the stroke would go missing.
     const axisBleed = 1
 
-    const modifyDeltas = useMemo(() => {
-        const deltas = new Map<string, number>()
-        // The chain as the work file records it: a call is a name and the options it ran with.
-        // The options of a `Modify` are plain JSON, so they can be read straight off the call.
-        for (const t of calls) {
-            if (t.name !== 'Modify') continue
-            const opts = t.options as unknown as ModifyOptions
-            if (opts.aspect !== 'velocity') continue
-            if (opts.scope !== undefined && opts.scope !== 'global' && opts.scope !== part) continue
-            if ('noteIDs' in opts) {
-                for (const nid of opts.noteIDs) {
-                    deltas.set(nid, (deltas.get(nid) ?? 0) + opts.change)
-                }
-            } else if ('from' in opts && 'to' in opts) {
-                for (const note of msm.notesInRange(opts.from, opts.to, part)) {
-                    const nid = note['xml:id']
-                    deltas.set(nid, (deltas.get(nid) ?? 0) + opts.change)
-                }
-            }
-        }
-
-        // Subtract pending commit delta — it's in the transformer list but not yet
-        // reflected in the MSM, so including it would flip the committed ghost direction
-        if (pendingCommitOptions && pendingCommitOptions.aspect === 'velocity') {
-            const applyDelta = (nid: string) => {
-                const cur = deltas.get(nid) ?? 0
-                const adjusted = cur - pendingCommitOptions.change
-                if (adjusted === 0) deltas.delete(nid)
-                else deltas.set(nid, adjusted)
-            }
-            if ('noteIDs' in pendingCommitOptions) {
-                for (const nid of pendingCommitOptions.noteIDs) applyDelta(nid)
-            } else if ('from' in pendingCommitOptions && 'to' in pendingCommitOptions) {
-                for (const note of msm.notesInRange(pendingCommitOptions.from, pendingCommitOptions.to, part)) {
-                    applyDelta(note['xml:id'])
-                }
-            }
-        }
-
-        return deltas
-    }, [calls, msm, part, pendingCommitOptions])
+    /**
+     * Which velocities were corrected by hand, and by how much.
+     *
+     * Read-only here: this desk emits no `Modify` of its own any more, so there is nothing
+     * pending to hold out of the sum and the ghosts are a pure function of the chain and the
+     * alignment. The corrections desk is where the dots themselves are moved.
+     */
+    const modifyDeltas = useModifyDeltas(msm, part, 'velocity')
 
     const findNearestDate = (svgX: number, snapThreshold: number) => {
         let bestDate: number | undefined
@@ -203,93 +149,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         setDragFrom(undefined)
         setDragMouse(undefined)
         setDragSnapDate(undefined)
-    }
-
-    const isNoteAffectedBy = (noteID: string | undefined, options: ModifyOptions | undefined) => {
-        if (!noteID || !options) return false
-        if ('noteIDs' in options) return options.noteIDs.includes(noteID)
-        if ('from' in options && 'to' in options) {
-            return msm.notesInRange(options.from, options.to, part)
-                .some(n => n['xml:id'] === noteID)
-        }
-        return false
-    }
-
-    const isNoteAffected = (noteID: string | undefined) => isNoteAffectedBy(noteID, modifyOptions)
-
-    const handleModifyDragStart = (segment: DynamicsSegment, clientY: number) => {
-        if (mode !== 'modify') return
-        const svg = svgRef.current
-        if (!svg) return
-
-        const noteid = msm.allNotes.find(n => n.velocity === segment.velocity && n.date === segment.date.start)?.["xml:id"]
-        if (!noteid) return
-
-        // Where the drag starts is what every later delta is measured against, so without it
-        // there is no drag to begin — and no selection to change either.
-        const pt = svgPoint(svg, 0, clientY)
-        if (!pt) return
-
-        // If dragged circle is not in current selection, replace selection with just this note
-        if (!modifyOptions || !isNoteAffected(noteid)) {
-            setModifyOptions({
-                scope: part,
-                aspect: 'velocity',
-                change: 0,
-                noteIDs: [noteid]
-            })
-        }
-
-        setModifyDrag({ startSvgY: pt.y })
-        setModifyDragDelta(0)
-    }
-
-    const handleModifyMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-        if (!modifyDrag) return
-        const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
-        if (!pt) return
-        let delta = Math.round((modifyDrag.startSvgY - pt.y) / stretchY)
-
-        // Clamp: ensure no selected note goes below 0 or above 127
-        const affectedSegments = segments.filter(s => isNoteAffected(s.noteID))
-        for (const seg of affectedSegments) {
-            const newVel = seg.velocity + delta
-            if (newVel > 127) delta = 127 - seg.velocity
-            if (newVel < 0) delta = -seg.velocity
-        }
-
-        setModifyDragDelta(delta)
-    }
-
-    const handleModifyMouseUp = () => {
-        if (!modifyDrag) return
-        if (modifyOptions) {
-            setModifyOptions({ ...modifyOptions, change: modifyDragDelta })
-        }
-        setModifyDrag(undefined)
-    }
-
-    const handleModifyMouseLeave = () => {
-        if (modifyDrag) {
-            setModifyDrag(undefined)
-            setModifyDragDelta(0)
-        }
-    }
-
-    /**
-     * The dragged change becomes a `Modify` call.
-     *
-     * `pendingCommitOptions` holds what was just sent until the fit comes back with it: the note
-     * is drawn at its new velocity straight away, and the ghost that marks the committed delta
-     * subtracts this until the MSM agrees — see `modifyDeltas`.
-     */
-    const commitModify = () => {
-        if (!modifyOptions) return
-
-        addTransformer(new Modify(modifyOptions))
-        setPendingCommitOptions(modifyOptions)
-        setModifyOptions(undefined)
-        setModifyDragDelta(0)
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -313,59 +172,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                     setDatePlayed(+e.text)
                 }
             })
-        }
-    }
-
-    const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
-        if (mode === 'phantom') {
-            setPhantomVelocities(prev => {
-                const next = new Map(prev)
-                next.set(segment.date.start, segment.velocity)
-                return next
-            })
-            setCurrentPhantomDate(segment.date.start)
-            return
-        }
-        else if (mode === 'modify') {
-            const noteid = msm.allNotes.find(n => n.velocity === segment.velocity && n.date === segment.date.start)?.["xml:id"]
-            if (!noteid) {
-                return
-            }
-
-            if (!modifyOptions) {
-                // Create a noteid choice if none exists.
-                setModifyOptions({
-                    scope: part,
-                    aspect: 'velocity',
-                    change: 0,
-                    noteIDs: [noteid]
-                })
-            }
-            else if ('noteIDs' in modifyOptions && e.metaKey) {
-                // Cmd/Ctrl key adds a noteid to the existing choice. A new array, because the
-                // spread below is shallow: pushing into the old one would carry the same array
-                // into the "new" options, and a consumer comparing references sees no change.
-                setModifyOptions({ ...modifyOptions, noteIDs: [...modifyOptions.noteIDs, noteid] })
-            }
-            else if (e.shiftKey) {
-                // Shift key always refers to a range choice. 
-                // If the existing choice is a pure noteid choice,
-                // we convert it to a range choice.
-                if ('noteIDs' in modifyOptions) {
-                    const existingNotes = msm.allNotes.filter(n => modifyOptions.noteIDs.includes(n["xml:id"]))
-                    const fromDate = Math.min(...existingNotes.map(n => n.date))
-                    setModifyOptions({
-                        from: fromDate,
-                        to: segment.date.start,
-                        scope: part,
-                        aspect: 'velocity',
-                        change: 0
-                    })
-                }
-                else {
-                    setModifyOptions({ ...modifyOptions, to: segment.date.start })
-                }
-            }
         }
     }
 
@@ -397,83 +203,16 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
 
     segments.forEach((segment, i) => {
         const committedDelta = segment.noteID ? modifyDeltas.get(segment.noteID) : undefined
-        if (committedDelta && committedDelta !== 0) {
-            const originalVelocity = segment.velocity - committedDelta
-            const curX = segment.date.start * stretchX
-            const curY = (127 - segment.velocity) * stretchY
-            const origY = (127 - originalVelocity) * stretchY
+        if (committedDelta) {
+            const x = segment.date.start * stretchX
             circles.push(
-                <line
-                    key={`ghost_line_${segment.date}_${i}`}
-                    x1={curX}
-                    y1={origY}
-                    x2={curX}
-                    y2={curY}
-                    stroke="#999"
-                    strokeWidth={1}
-                    strokeDasharray="3 2"
-                    strokeOpacity={0.5}
-                />
-            )
-            circles.push(
-                <circle
-                    key={`ghost_dot_${segment.date}_${i}`}
-                    cx={curX}
-                    cy={origY}
-                    r={3}
-                    fill="none"
-                    stroke="#999"
-                    strokeWidth={1.5}
-                    strokeOpacity={0.6}
-                />
-            )
-        }
-
-        // Compute yOffset for pending modification preview
-        const affected = isNoteAffected(segment.noteID)
-        const affectedByPendingCommit = isNoteAffectedBy(segment.noteID, pendingCommitOptions)
-        let yOffset = 0
-        if (affected) {
-            if (modifyDrag) {
-                // During active drag
-                yOffset = -modifyDragDelta * stretchY
-            } else if (modifyOptions && modifyOptions.change !== 0) {
-                // After drag release, pending commit
-                yOffset = -modifyOptions.change * stretchY
-            }
-        }
-        if (affectedByPendingCommit && pendingCommitOptions) {
-            // Waiting for pipeline to process committed transformer
-            yOffset = -pendingCommitOptions.change * stretchY
-        }
-
-        // Pending modification ghost indicators (distinct from committed ghosts)
-        if ((affected || affectedByPendingCommit) && yOffset !== 0) {
-            const curX = segment.date.start * stretchX
-            const origY = (127 - segment.velocity) * stretchY
-            circles.push(
-                <line
-                    key={`pending_ghost_line_${segment.date}_${i}`}
-                    x1={curX}
-                    y1={origY}
-                    x2={curX}
-                    y2={origY + yOffset}
-                    stroke="hsl(220, 60%, 50%)"
-                    strokeWidth={1}
-                    strokeDasharray="3 2"
-                    strokeOpacity={0.6}
-                />
-            )
-            circles.push(
-                <circle
-                    key={`pending_ghost_dot_${segment.date}_${i}`}
-                    cx={curX}
-                    cy={origY}
-                    r={3}
-                    fill="none"
-                    stroke="hsl(220, 60%, 50%)"
-                    strokeWidth={1.5}
-                    strokeOpacity={0.7}
+                <DeltaGhost
+                    key={`ghost_${segment.date.start}_${i}`}
+                    x1={x}
+                    y1={(127 - (segment.velocity - committedDelta)) * stretchY}
+                    x2={x}
+                    y2={(127 - segment.velocity) * stretchY}
+                    color={COMMITTED_GHOST}
                 />
             )
         }
@@ -486,10 +225,16 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                 stretchX={stretchX}
                 screenY={(velocity: number) => (127 - velocity) * stretchY}
                 handlePlay={handlePlay}
-                handleClick={handleClick}
-                cursor={mode === 'insert' ? 'crosshair' : mode === 'modify' ? 'ns-resize' : undefined}
-                onDragStart={mode === 'modify' ? handleModifyDragStart : undefined}
-                yOffset={yOffset}
+                handleClick={() => {
+                    if (mode !== 'phantom') return
+                    setPhantomVelocities(prev => {
+                        const next = new Map(prev)
+                        next.set(segment.date.start, segment.velocity)
+                        return next
+                    })
+                    setCurrentPhantomDate(segment.date.start)
+                }}
+                cursor={mode === 'insert' ? 'crosshair' : undefined}
             />
         )
     })
@@ -522,7 +267,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         exclusive
                         // An exclusive group answers a click on the pressed button with `null`,
                         // and this desk has no "no mode" — dropping that click leaves the mode
-                        // where it was, which is what a three-way switch should do.
+                        // where it was, which is what a two-way switch should do.
                         onChange={(_, newMode) => {
                             if (newMode !== null) {
                                 setMode(newMode)
@@ -531,47 +276,26 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         size='small'
                     >
                         <ToggleButton value='insert'>Insert</ToggleButton>
-                        <ToggleButton value='modify'>Modify</ToggleButton>
                         <ToggleButton value='phantom'>Phantom</ToggleButton>
                     </ToggleButtonGroup>
                 </ToolGroup>
 
                 {/*
-                    Both buttons, in every mode.
+                    Shown in both modes, disabled in the one it cannot act in.
 
-                    These were two groups behind `mode === 'modify' &&` and `mode === 'phantom'
-                    &&`, so switching mode mounted a whole captioned group and shoved everything
-                    to its right — the largest reflow in the bar, on the control the user reaches
-                    for most. Disabled says the same thing without moving anything, and the
-                    tooltip says which mode would make it live.
+                    It was behind `mode === 'phantom' &&`, so switching mode mounted a whole
+                    captioned group and shoved everything to its right — the largest reflow in the
+                    bar. Disabled says the same thing without moving anything, and the tooltip
+                    says which mode would make it live.
 
                     It also makes the modes self-documenting: Phantom's one action is legible from
                     Insert mode, so the user can see what a mode offers before entering it.
+
+                    Still "Clear Phantoms" rather than "Clear" now that it is the group's only
+                    button: what it discards is a set of pencilled-in velocities, not the curve
+                    the desk is drawing, and the shorter label would read as the latter.
                 */}
                 <ToolGroup>
-                    <ToolbarButton
-                        primary
-                        icon={<Add />}
-                        label='Modify'
-                        tooltip={mode !== 'modify'
-                            ? 'Switch to Modify mode to change velocities'
-                            : !modifyOptions || modifyOptions.change === 0
-                                ? 'Drag a note up or down first — there is no change to apply'
-                                : `Apply ${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change} to the selected notes`}
-                        disabled={mode !== 'modify' || !modifyOptions || modifyOptions.change === 0}
-                        onClick={commitModify}
-                    >
-                        Modify
-                    </ToolbarButton>
-                    {/* The change was in the button's label, so committing `+9` and then `+10`
-                        resized the button between two clicks at the same place. */}
-                    <ToolStatus width={40}>
-                        {modifyOptions && modifyOptions.change !== 0
-                            ? `${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change}`
-                            : '—'}
-                    </ToolStatus>
-                    {/* "Clear", with the "Phantoms" caption gone and the button never leaving the
-                        bar, would read as clearing the modification beside it. */}
                     <ToolbarButton
                         icon={<Clear />}
                         label='Clear Phantoms'
@@ -618,7 +342,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                     style={{ flex: 1, minWidth: 0, overflowX: 'auto', overflowY: 'hidden' }}
                 >
                     <svg
-                        ref={svgRef}
                         width={msm.end * stretchX + margin}
                         height={chartHeight}
                         viewBox={
@@ -646,7 +369,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             setDragMouse(pt)
                             const snap = findNearestDate(pt.x, 20 * svgUnitsPerPixel(svg))
                             setDragSnapDate(snap !== undefined && snap > dragFrom.date ? snap : undefined)
-                        } : mode === 'modify' ? handleModifyMouseMove : undefined}
+                        } : undefined}
                         onMouseUp={mode === 'insert' ? () => {
                             if (dragFrom && dragSnapDate) {
                                 setPendingInsert({ from: dragFrom.date, to: dragSnapDate })
@@ -658,8 +381,8 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                                 }))
                             }
                             cancelDrag()
-                        } : mode === 'modify' ? handleModifyMouseUp : undefined}
-                        onMouseLeave={mode === 'insert' ? () => cancelDrag() : mode === 'modify' ? handleModifyMouseLeave : undefined}
+                        } : undefined}
+                        onMouseLeave={mode === 'insert' ? () => cancelDrag() : undefined}
                     >
                         {curves}
                         {circles}
@@ -719,12 +442,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                                 </path>
                             )
                         })()}
-
-                        <MarkedRegion
-                            from={(modifyOptions && ('from' in modifyOptions)) ? modifyOptions.from : undefined}
-                            to={(modifyOptions && ('to' in modifyOptions)) ? modifyOptions.to : undefined}
-                            svgRef={svgRef}
-                        />
                     </svg>
                 </div>
             </div>

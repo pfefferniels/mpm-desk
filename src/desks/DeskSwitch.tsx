@@ -95,6 +95,24 @@ export const correspondingDesks: DeskEntry[] = [
         transformerName: 'MakeChoice',
         group: 'general',
     },
+    // Beside Base Text, and not by accident: these two are the desks that edit the *recording*
+    // rather than the performance, which is the one distinction the menu's groups can make that
+    // the aspect names cannot.
+    //
+    // Its place in this list is load-bearing beyond the ordering the user sees. `AspectSelect`
+    // draws a divider wherever `group` changes from one entry to the next, walking the array —
+    // so an entry of an existing group written anywhere but beside its group splits that group in
+    // two on screen.
+    {
+        transformerName: 'Modify',
+        aspect: 'corrections',
+        desk: lazy(() =>
+            import('./corrections/CorrectionsDesk').then((m) => ({ default: m.CorrectionsDesk })),
+        ),
+        group: 'general',
+        // No hold-out: like the dynamics desk, this one plots the recording raw. There is nothing
+        // for the MPM to explain away when the subject is what the roll scan read.
+    },
     // Timing
     {
         transformerName: 'InsertTempo',
