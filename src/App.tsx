@@ -276,6 +276,17 @@ export const App = () => {
         };
     }, [work.provenance]);
 
+    /**
+     * How many calls describe the performance.
+     *
+     * `InsertMetadata` is not one of them — it writes `<metadata>`, not an instruction — so an
+     * otherwise empty document would report a call it does not have.
+     */
+    const metadataFreeCallCount = useMemo(
+        () => work.provenance.filter((entry) => entry.name !== 'InsertMetadata').length,
+        [work.provenance],
+    );
+
     const setMetadata = useCallback<
         React.Dispatch<React.SetStateAction<{ author: string; title: string }>>
     >((update) => {
@@ -293,6 +304,9 @@ export const App = () => {
                 id: existing?.id ?? crypto.randomUUID(),
                 name: 'InsertMetadata',
                 options: {
+                    // Spread first: `relatedResources` has no UI, and rebuilding the options
+                    // from the two fields alone would drop whatever a loaded work.json carried.
+                    ...options,
                     authors: after.author ? [{ number: 0, text: after.author }] : [],
                     comments: after.title ? [{ text: after.title }] : [],
                 },
@@ -474,8 +488,9 @@ export const App = () => {
                                     <MetadataDesk
                                         metadata={metadata}
                                         setMetadata={setMetadata}
-                                        appBarRef={isEditorMode ? appBarRef : null}
                                         isEditorMode={isEditorMode}
+                                        segmentCount={work.segments.length}
+                                        callCount={metadataFreeCallCount}
                                     />
                                 ) : isNarrativeSelected ? (
                                     <NarrativeDesk
