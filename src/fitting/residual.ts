@@ -94,6 +94,9 @@ interface DeriveResidualOptions {
   /**
    * Instruction types to take out of the MPM before measuring — normally the one dimension
    * the caller is about to fit, so that what comes back is what it has to account for.
+   *
+   * Added to {@link ALWAYS_WITHOUT} rather than replacing it: `ornament` comes out whatever
+   * the caller says, and for a reason that is not the caller's to weigh up.
    */
   readonly without?: readonly InstructionType[];
 }
@@ -190,13 +193,40 @@ export const clearResidualCache = (): void => {
   }
 };
 
+/**
+ * The ornamentation map is held out of **every** probe, on top of whatever the caller asks for.
+ *
+ * An arpeggio is the one dimension the chain still takes out of the recording rather than
+ * leaving for the residual to find. `InsertDynamicsGradient` flattens the chord's recorded
+ * velocities onto the ramp's base and writes the ramp into an `<ornament>`; `InsertTemporalSpread`
+ * collapses the chord's recorded onsets onto one date and writes the spread into the same
+ * element. What reaches `Ground` is a chord with no arpeggio left in it.
+ *
+ * So an `<ornament>` in the probe re-imposes what the recording no longer has, and the
+ * subtraction below returns the ramp inverted: a chord flattened to 42 rendering at 42/37/32
+ * reads as a residual of 0/5/10, which the accentuation desk draws as three notes at three
+ * heights and `InsertMetricalAccentuation` fits a pattern to. Held out, the same chord reads
+ * flat, which is what a chord whose arpeggio has already been accounted for is.
+ *
+ * The tick domain has always worked this way without having to say so: `computeTickTimes` reads
+ * the tempo and rubato maps and nothing else, so the temporal half of an ornament never entered
+ * a residual. This is the velocity half of the same rule.
+ *
+ * It is not `expandOrnaments: false` in {@link renderedVelocities}, which looks like it should
+ * cover this and does not: that flag only gates ornaments that pass espressivo's `isV3Ornament`
+ * test — a note pool, a `@noteid`, `@repetitions`, or the v3 `@note.order` grammar — and the
+ * `<ornament>` these two transformers write carries `@date`, `@name.ref` and `@scale` alone. It
+ * renders down the v2 path, which the flag does not reach.
+ */
+const ALWAYS_WITHOUT: readonly InstructionType[] = ['ornament'];
+
 export const deriveResidual = (
   msm: Alignment,
   mpm: Mpm,
   options: DeriveResidualOptions = {},
 ): Residual => {
   const _t0 = Date.now();
-  const probe = options.without?.length ? withoutMaps(mpm, options.without) : mpm;
+  const probe = withoutMaps(mpm, [...ALWAYS_WITHOUT, ...(options.without ?? [])]);
   residualStats.withoutMs += Date.now() - _t0;
   residualStats.asks++;
 
@@ -266,6 +296,11 @@ const renderedVelocities = (
     // No ornament expansion: a v3 ornament generates notes the score never had, and a
     // generated note has no recorded counterpart to be a residual against. Held out, every
     // performed note answers to an `xml:id` the score also knows.
+    //
+    // It is not what keeps an arpeggio's ramp out of the velocities — the flag reaches only
+    // ornaments that pass `isV3Ornament`, and the ones this package writes do not. That is
+    // `ALWAYS_WITHOUT`'s job, and it has already removed the whole map from `mpmXml`; this
+    // stands for a document that arrives carrying an ornament nobody here wrote.
     { expandOrnaments: false, seed: RESIDUAL_SEED },
   );
 
