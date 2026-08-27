@@ -5,7 +5,6 @@ import React, {
     useEffectEvent,
     useMemo,
     useReducer,
-    useRef,
     useState,
 } from 'react';
 import JSZip from 'jszip';
@@ -152,10 +151,20 @@ export const App = () => {
         holdOut: deskEntry?.holdOut,
     });
 
-    useEffect(() => {
-        if (problems) setMessage(problems.join('\n'));
-        else if (error) setMessage(error);
-    }, [problems, error]);
+    /**
+     * What the last fit had to say, raised as a message.
+     *
+     * Adjusted during render against the last one seen, rather than set from an effect. The
+     * message is not purely derived — a failed load writes one too, and dismissing clears it —
+     * so it stays state; what this does is notice that the fit is now saying something *else*.
+     * As an effect it cost a second render of the whole editor for every problem reported.
+     */
+    const fitMessage = problems ? problems.join('\n') : (error ?? undefined);
+    const [reportedFitMessage, setReportedFitMessage] = useState(fitMessage);
+    if (fitMessage !== reportedFitMessage) {
+        setReportedFitMessage(fitMessage);
+        if (fitMessage) setMessage(fitMessage);
+    }
 
     // ── loading ───────────────────────────────────────────────────
 
@@ -172,7 +181,20 @@ export const App = () => {
 
     const loadWorkFromJson = useCallback((content: string) => {
         try {
-            dispatch({ type: 'load', work: migrateIfNeeded(content) });
+            const loaded = migrateIfNeeded(content);
+            dispatch({ type: 'load', work: loaded });
+
+            // A link into a call selects it, and this is the moment that can be decided: the
+            // document is in hand and the URL has not moved. It used to be an effect waiting for
+            // `provenance` to become non-empty, guarded by a ref so it fired once — which is an
+            // effect standing in for "when the file loads", when the file loading is an event
+            // right here.
+            const hash = window.location.hash.slice(1);
+            const match = hash
+                ? loaded.provenance.find((call) => call.id.startsWith(hash))
+                : undefined;
+            if (match) setActiveCallIds(new Set([match.id]));
+
             setMessage(undefined);
         } catch (reason) {
             setMessage(reason instanceof Error ? reason.message : String(reason));
@@ -291,16 +313,6 @@ export const App = () => {
         },
         [callsRef],
     );
-
-    const initialHashSynced = useRef(false);
-    useEffect(() => {
-        if (initialHashSynced.current || !work.provenance.length) return;
-        initialHashSynced.current = true;
-        const hash = window.location.hash.slice(1);
-        if (!hash) return;
-        const match = work.provenance.find((call) => call.id.startsWith(hash));
-        if (match) setActiveCallIds(new Set([match.id]));
-    }, [work.provenance]);
 
     const onHashChange = useEffectEvent(() => {
         const hash = window.location.hash.slice(1);

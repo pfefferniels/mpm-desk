@@ -1,3 +1,7 @@
+/* eslint-disable react-refresh/only-export-components -- This is the entry point: it mounts the
+   tree and exports nothing, by design. Fast refresh has no module here to swap, so the rule's
+   advice — move the components to a file with exports — would only undo the bundle split the two
+   `lazy` calls below exist to make. */
 import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PianoContextProvider } from 'react-pianosound';
