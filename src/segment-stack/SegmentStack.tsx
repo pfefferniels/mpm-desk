@@ -3,6 +3,7 @@ import { useCallback, useDeferredValue, useEffect, useEffectEvent, useMemo, useR
 import { useLatest } from "../hooks/useLatest";
 import { useSymbolicZoom } from "../hooks/ZoomProvider";
 import { useScrollSync } from "../hooks/ScrollSyncProvider";
+import { useScrollRegistration } from "../hooks/useScrollRegistration";
 import type { PerformanceReader } from "../utils/mpm";
 import type { Segment } from "../model/Reconstruction";
 import { useSelection } from "../hooks/SelectionProvider";
@@ -44,7 +45,18 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const { activeSpanIds, setActiveSpanIds } = useSelection();
     const stretchX = useSymbolicZoom();
 
-    const svgRef = useRef<SVGSVGElement>(null);
+    /**
+     * The drawing itself, held as state rather than in a ref.
+     *
+     * The card is anchored to a point *inside* the SVG, which means turning tick
+     * space into client space through the element's own CTM — so the anchor is
+     * not just a position, it is a position that only exists once the element
+     * does. A ref cannot say that: the anchor would be worked out on the first
+     * render, when there is no node yet, and nothing would recompute it when one
+     * arrived. This costs a single extra render on mount, which the memo'd labels
+     * sit out.
+     */
+    const [svg, setSvg] = useState<SVGSVGElement | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
     const [hoveredSegmentId, setHoveredSegmentId] = useState<string | null>(null);
     /** The word a click has opened: spotlit, and with the card held on it. */
@@ -63,16 +75,19 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const stopRef = useLatest(stop);
     const exaggerationRef = useLatest(exaggeration);
 
-    // Scroll sync
-    const { register, unregister, scrollToDate } = useScrollSync();
+    // Scroll sync. The card is both the scroller that joins it and the box the
+    // tree measures itself against, so the one ref does both jobs.
+    const { scrollToDate } = useScrollSync();
+    const registerScroll = useScrollRegistration('segment-stack');
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
         cardRef.current = element;
-        if (element) {
-            register('segment-stack', element);
-        } else {
-            unregister('segment-stack');
-        }
-    }, [register, unregister]);
+        if (!element) return;
+        const unregister = registerScroll(element);
+        return () => {
+            cardRef.current = null;
+            unregister?.();
+        };
+    }, [registerScroll]);
 
     const maxDate = useMemo(
         () => segments.reduce((max, segment) => Math.max(max, segment.to), 0),
@@ -247,14 +262,24 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         handleClearSelection();
     }, [stopRef, handleClearSelection]);
 
-    // Lock the parent segment when a single span is selected
-    useEffect(() => {
+    /**
+     * Lock the parent segment when a single span is selected.
+     *
+     * The selection is what this follows, so it is the selection that is remembered — the
+     * map is a fact about the segments, which are parsed once, and looking a span up in it
+     * is not a reason to open a word. Done while rendering the selection rather than in an
+     * effect after it, so the word is already held open in the frame that shows the span
+     * selected instead of one frame later.
+     */
+    const [selectionLockedFor, setSelectionLockedFor] = useState<Set<string> | null>(null);
+    if (selectionLockedFor !== activeSpanIds) {
+        setSelectionLockedFor(activeSpanIds);
         if (activeSpanIds.size === 1) {
             const [id] = activeSpanIds;
             const segmentId = spanToSegment.get(id);
             if (segmentId) setLockedSegmentIds(new Set([segmentId]));
         }
-    }, [activeSpanIds, spanToSegment]);
+    }
 
     // Follow playback: light up the words whose instructions are currently
     // sounding, so the reading moves with the playing. Only the spotlight — the
@@ -275,9 +300,15 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     // The playhead's spotlight goes out with the sound. A clicked word keeps its
     // own — its preview stops itself after a few seconds, and the reader is still
     // looking at what they opened.
-    useEffect(() => {
+    //
+    // The sound stopping is the moment this answers to, so that is what is remembered;
+    // reading the lit words off `isPlaying` instead would leave the last playing's
+    // spotlight to flash up again between pressing play and the first note arriving.
+    const [wasPlaying, setWasPlaying] = useState(isPlaying);
+    if (wasPlaying !== isPlaying) {
+        setWasPlaying(isPlaying);
         if (!isPlaying) setPlayingSegmentIds(prev => (prev.size > 0 ? new Set() : prev));
-    }, [isPlaying]);
+    }
 
     /**
      * Anchor a popover at the foot of the given segments' branches.
@@ -300,15 +331,15 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             : centreY + Math.max(...placed.map(l => l.offset));
         return {
             getBoundingClientRect: () => {
-                const ctm = svgRef.current?.getScreenCTM();
+                const ctm = svg?.getScreenCTM();
                 if (!ctm) return new DOMRect(0, 0, 0, 0);
                 const x1 = ctm.a * from + ctm.e;
                 const x2 = ctm.a * to + ctm.e;
                 return new DOMRect(x1, ctm.d * y + ctm.f, x2 - x1, 0);
             },
-            contextElement: svgRef.current ?? undefined,
+            contextElement: svg ?? undefined,
         };
-    }, [labelById, centreY, stretchX]);
+    }, [labelById, centreY, stretchX, svg]);
 
     const lockedSegments = useMemo(() => {
         if (lockedSegmentIds.size === 0) return [];
@@ -399,7 +430,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                 <svg
                     width={maxX}
                     height={totalHeight}
-                    ref={svgRef}
+                    ref={setSvg}
                     viewBox={`0 0 ${maxDate} ${totalHeight}`}
                     preserveAspectRatio="none"
                 >
@@ -496,7 +527,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                 <InstructionPopover
                     mpm={mpm}
                     activeSpanIds={activeSpanIds}
-                    svgRef={svgRef}
+                    svg={svg}
                 />
             )}
         </Card>

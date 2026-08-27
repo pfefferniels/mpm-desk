@@ -6,6 +6,7 @@ import { deriveResidual, type Residual } from '../fitting/residual';
 import type { FitResult } from '../fitting/fit';
 import type { FitReply, FitRequest } from '../fitting/fit.worker';
 import type { WorkFile } from '../model/Work';
+import { useLatest } from './useLatest';
 
 /**
  * Running the chain for the editor, and giving the desks what they draw against.
@@ -130,8 +131,7 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
         [work.provenance, work.segments],
     );
 
-    const workRef = useRef(work);
-    workRef.current = work;
+    const workRef = useLatest(work);
 
     useEffect(() => {
         const worker = workerRef.current;
@@ -144,7 +144,7 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
             requestId,
             work: workRef.current,
         } satisfies FitRequest);
-    }, [chainKey, ready]);
+    }, [chainKey, ready, workRef]);
 
     const mpm = useMemo(() => (result ? parseMPM(result.mpm) : null), [result]);
 
@@ -155,17 +155,28 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
         return rebuilt;
     }, [result]);
 
+    /**
+     * The hold-out, as one value that only changes when the hold-out does.
+     *
+     * The registry hands over a fresh array literal on every render, so depending on the array
+     * would re-derive the residual — a whole render of the document — on every keystroke in a
+     * desk. Going through the joined key and back is what makes the identity follow the content.
+     *
+     * It used to depend on the key while reading the array, behind an `exhaustive-deps` disable.
+     * That was correct and cost more than it looked: the React Compiler refuses to optimize any
+     * component or hook in a file where a React lint rule is switched off, so one suppression
+     * here opted the editor's central hook out of compilation entirely.
+     */
     const holdOutKey = holdOut?.join(',') ?? '';
+    const without = useMemo(
+        () => (holdOutKey ? (holdOutKey.split(',') as InstructionType[]) : undefined),
+        [holdOutKey],
+    );
+
     const residual = useMemo(() => {
         if (!alignment || !mpm) return null;
-        return deriveResidual(alignment, mpm, {
-            ...(holdOut?.length ? { without: holdOut } : {}),
-        });
-        // `holdOutKey` rather than `holdOut`: the registry hands over a fresh array literal on
-        // every render, and depending on it would re-derive — a whole render of the document —
-        // on every keystroke in a desk.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [alignment, mpm, holdOutKey]);
+        return deriveResidual(alignment, mpm, without ? { without } : {});
+    }, [alignment, mpm, without]);
 
     return { result, mpm, alignment, residual, pending, problems, error };
 };

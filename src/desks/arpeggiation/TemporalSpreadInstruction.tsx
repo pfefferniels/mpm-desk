@@ -3,9 +3,12 @@ import type { AlignedNote } from "../../fitting/alignment";
 import type { Instruction } from "../../fitting/instructions/index";
 import type { TemporalSpread } from "espressivo";
 import { usePiano } from "react-pianosound";
-import { asMIDI, PartialBy } from "../../utils/utils";
+import { asMIDI, type PartialBy } from "../../utils/utils";
 import { soundingAt } from "../noteTiming";
-import * as Tone from "tone";
+// Two named imports rather than `import * as Tone`. The namespace import defeats tree
+// shaking, and the whole of Tone — 345 KB — was landing in this desk's chunk *as well as*
+// in the entry, where `react-pianosound` already pulls it. All this file wants is a click.
+import { NoiseSynth, now as toneNow } from "tone";
 
 interface TemporalSpreadInstructionProps {
     ornament: Instruction<'ornament'>;
@@ -20,10 +23,10 @@ interface TemporalSpreadInstructionProps {
     refBPM?: number;
 }
 
-let clickSynth: Tone.NoiseSynth | null = null;
+let clickSynth: NoiseSynth | null = null;
 const getClickSynth = () => {
     if (!clickSynth) {
-        clickSynth = new Tone.NoiseSynth({
+        clickSynth = new NoiseSynth({
             noise: { type: "white" },
             envelope: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.01 },
         }).toDestination();
@@ -91,7 +94,7 @@ export const TemporalSpreadInstruction = ({
         }
 
         const beatOffsetSeconds = ticksToSeconds(-frameStart);
-        const now = Tone.now();
+        const now = toneNow();
         getClickSynth().triggerAttackRelease("32n", now + beatOffsetSeconds);
     }, [sortedNotes, spread, ticksToSeconds, play, stop]);
 

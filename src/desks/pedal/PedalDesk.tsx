@@ -3,13 +3,13 @@ import type { AlignedPedal } from "../../fitting/alignment"
 import { getInstructions } from "../../fitting/instructions/index"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MovementSegment } from "./MovementSegment"
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
 import { PedalDialog } from "./PedalDialog"
 import { usePiano } from "react-pianosound"
 import { asMIDI } from "../../utils/utils"
-import { useScrollSync } from "../../hooks/ScrollSyncProvider"
+import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 
 export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
     const { activeElements, setActiveElement } = useCallSelection();
@@ -18,14 +18,7 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
     const stretchX = useSymbolicZoom()
     const { play, stop } = usePiano()
 
-    const { register, unregister } = useScrollSync();
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('pedal-desk', element, 'symbolic');
-        } else {
-            unregister('pedal-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('pedal-desk', 'symbolic')
 
     const transform = (options: InsertPedalOptions) => {
         if (!options) return

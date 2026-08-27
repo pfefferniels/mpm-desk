@@ -4,7 +4,7 @@ import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCal
 import { TranslatePhysicalTimeToTicks } from "../../fitting/transformers/tempo/TranslatePhysicalTimeToTicks"
 import { InsertTempo } from "../../fitting/transformers/tempo/InsertTempo"
 import { createMpm, getInstructions, requireMap } from "../../fitting/instructions/index"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import type { SkylineMode } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, resolveOverlaps } from "./Tempo"
@@ -14,10 +14,10 @@ import { ZoomControls } from "../../components/ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Add, Merge } from "@mui/icons-material"
 import { Ribbon } from "../../components/Ribbon"
-import { createPortal } from "react-dom"
+import { DeskToolbar } from "../../components/DeskToolbar"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
-import { useScrollSync } from "../../hooks/ScrollSyncProvider"
+import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { useTimeMapping } from "../../hooks/useTimeMapping"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
@@ -42,18 +42,34 @@ export type TempoSecondaryData = {
     drawnLines?: DrawnLine[]
 }
 
-export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhysicalTimeToTicks | InsertTempo>) => {
+/** One array, so that a desk with no drawn curve keeps the same identity from render to render. */
+const noDrawnLines: DrawnLine[] = []
+
+export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecondary }: ScopedTransformerViewProps<TranslatePhysicalTimeToTicks | InsertTempo>) => {
     const { activeElements, setActiveElement } = useCallSelection()
     const tempoData = secondary?.tempo
 
-    const [tempoCluster, setTempoClusterState] = useState<TempoCluster>(() => {
-        if (tempoData?.tempoCluster && tempoData.tempoCluster.length > 0) {
-            return new TempoCluster(tempoData.tempoCluster)
-        }
-        return new TempoCluster()
-    })
-    const [silentOnsets, setSilentOnsetsState] = useState<Map<number, number>>(
-        () => new Map((tempoData?.silentOnsets ?? []).map(o => [o.date, o.onset]))
+    /**
+     * The boxes, the split onsets and the drawn curves live in the work file alone.
+     *
+     * They were never two values to begin with: a `TempoCluster` wraps the very array it is
+     * handed, so the copy mirrored into `secondary` was the same array under another name — three
+     * hand-written mirrors of one thing, each free to drift. The setters below write only to
+     * `secondary`, and everything the desk draws is read back out of it.
+     *
+     * With nothing stored, the segments the recording itself implies stand in. That seed is not
+     * written back: opening a file would otherwise dirty it before the editor had touched
+     * anything, so it is the first real edit that puts boxes in the work file.
+     */
+    const tempoCluster = useMemo(() => {
+        const stored = tempoData?.tempoCluster
+        if (stored && stored.length > 0) return new TempoCluster(stored)
+        return new TempoCluster(extractTempoSegments(msm, part))
+    }, [tempoData?.tempoCluster, msm, part])
+
+    const silentOnsets = useMemo<Map<number, number>>(
+        () => new Map((tempoData?.silentOnsets ?? []).map(o => [o.date, o.onset])),
+        [tempoData?.silentOnsets]
     )
 
     const silentOnsetPairs = useMemo<[number, number][]>(
@@ -61,24 +77,15 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
         [silentOnsets]
     )
     const { tickToSeconds, secondsToTick } = useTimeMapping(msm, silentOnsetPairs)
-    const [committedTempos, setCommittedTempos] = useState<TempoWithEndDate[]>([])
-    const [drawnLines, setDrawnLines] = useState<DrawnLine[]>(tempoData?.drawnLines ?? [])
+    const drawnLines = tempoData?.drawnLines ?? noDrawnLines
     const [mode, setMode] = useState<SkylineMode>(undefined)
 
     const stretchX = usePhysicalZoom()
     const [stretchY, setStretchY] = useState(1)
 
-    const { register, unregister } = useScrollSync();
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('tempo-desk', element, 'physical');
-        } else {
-            unregister('tempo-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('tempo-desk', 'physical')
 
     const setTempoCluster = (newCluster: TempoCluster) => {
-        setTempoClusterState(newCluster)
         setSecondary(prev => ({
             ...prev,
             tempo: {
@@ -89,22 +96,20 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     }
 
     const setSilentOnset = (date: number, onset: number) => {
-        setSilentOnsetsState(prev => {
-            const next = new Map(prev)
+        setSecondary(prev => {
+            const next = new Map((prev.tempo?.silentOnsets ?? []).map(o => [o.date, o.onset]))
             next.set(date, onset)
-            setSecondary(prevSecondary => ({
-                ...prevSecondary,
+            return {
+                ...prev,
                 tempo: {
-                    ...prevSecondary.tempo,
+                    ...prev.tempo,
                     silentOnsets: [...next].map(([date, onset]) => ({ date, onset }))
                 }
-            }))
-            return next
+            }
         })
     }
 
     const updateDrawnLines = (newLines: DrawnLine[]) => {
-        setDrawnLines(newLines)
         setSecondary(prev => ({
             ...prev,
             tempo: {
@@ -117,25 +122,18 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     // A <tempo> has no end in MPM: it is in force until the next one, and the last
     // one until the piece ends. (The fitting chain reads the same span through
     // `resolveSpan`. There is no `endDate` attribute in the format to read instead.)
-    useEffect(() => {
+    const committedTempos = useMemo<TempoWithEndDate[]>(() => {
         const tempos = getInstructions(mpm, 'tempo', part)
             .slice()
             .sort((a, b) => a.date - b.date)
-        setCommittedTempos(tempos
+        return tempos
             .map((tempo, i) => {
                 const endDate = tempos[i + 1]?.date ?? msm.end
                 if (!endDate || endDate <= tempo.date) return null
                 return { ...tempo, endDate }
             })
-            .filter((t): t is NonNullable<typeof t> => t !== null))
+            .filter((t): t is NonNullable<typeof t> => t !== null)
     }, [mpm, msm, part])
-
-    useEffect(() => {
-        setTempoClusterState((prev) => {
-            if (prev.segments.length > 0) return prev
-            return new TempoCluster(extractTempoSegments(msm, part))
-        })
-    }, [msm, part])
 
     const onsets = useMemo(() => {
         const base = extractOnsets(msm, part)
@@ -297,73 +295,71 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, appBarRef, secondary
     return (
         <div>
             <Stack direction='row' spacing={1}>
-                {appBarRef && createPortal((
-                    <>
-                        <Ribbon title='Tempo'>
-                            <Button
-                                size='small'
-                                startIcon={<Add />}
-                                variant='contained'
-                                onClick={insertTempoValues}
-                                disabled={drawnLines.length === 0}
-                            >
-                                Insert
-                            </Button>
-                        </Ribbon>
-                        <Ribbon title='Tick Time'>
-                            <Button
-                                variant='contained'
-                                onClick={translate}
-                                size='small'
-                            >
-                                Translate To Ticks
-                            </Button>
-                        </Ribbon>
-                        <Ribbon title='Mode'>
-                            <ToggleButton
-                                value='draw'
-                                size='small'
-                                selected={mode === 'draw'}
-                                onChange={() => setMode(prev => prev === 'draw' ? undefined : 'draw')}
-                            >
-                                Draw
-                            </ToggleButton>
-                        </Ribbon>
-                        <Ribbon title='Segments'>
-                            <ToggleButton
-                                value='check'
-                                size='small'
-                                selected={mode === 'split'}
-                                onChange={() => mode === 'split' ? setMode(undefined) : setMode('split')}
-                            >
-                                Split
-                            </ToggleButton>
+                <DeskToolbar>
+                    <Ribbon title='Tempo'>
+                        <Button
+                            size='small'
+                            startIcon={<Add />}
+                            variant='contained'
+                            onClick={insertTempoValues}
+                            disabled={drawnLines.length === 0}
+                        >
+                            Insert
+                        </Button>
+                    </Ribbon>
+                    <Ribbon title='Tick Time'>
+                        <Button
+                            variant='contained'
+                            onClick={translate}
+                            size='small'
+                        >
+                            Translate To Ticks
+                        </Button>
+                    </Ribbon>
+                    <Ribbon title='Mode'>
+                        <ToggleButton
+                            value='draw'
+                            size='small'
+                            selected={mode === 'draw'}
+                            onChange={() => setMode(prev => prev === 'draw' ? undefined : 'draw')}
+                        >
+                            Draw
+                        </ToggleButton>
+                    </Ribbon>
+                    <Ribbon title='Segments'>
+                        <ToggleButton
+                            value='check'
+                            size='small'
+                            selected={mode === 'split'}
+                            onChange={() => mode === 'split' ? setMode(undefined) : setMode('split')}
+                        >
+                            Split
+                        </ToggleButton>
 
-                            <Button
-                                size='small'
-                                variant='outlined'
-                                startIcon={<Merge />}
-                                disabled={tempoCluster.segments.filter(s => s.selected).length < 2}
-                                onClick={() => {
-                                    const selected = tempoCluster.segments.filter(s => s.selected)
-                                    if (selected.length < 2) return
-                                    const fromDate = Math.min(...selected.map(s => s.date.start))
-                                    const toDate = Math.max(...selected.map(s => s.date.end))
-                                    const combined = {
-                                        date: { start: fromDate, end: toDate },
-                                        selected: false,
-                                        silent: false
-                                    }
-                                    tempoCluster.unselectAll()
-                                    setTempoCluster(new TempoCluster([...tempoCluster.segments, combined]))
-                                }}
-                            >
-                                Combine
-                            </Button>
+                        <Button
+                            size='small'
+                            variant='outlined'
+                            startIcon={<Merge />}
+                            disabled={tempoCluster.segments.filter(s => s.selected).length < 2}
+                            onClick={() => {
+                                const selected = tempoCluster.segments.filter(s => s.selected)
+                                if (selected.length < 2) return
+                                const fromDate = Math.min(...selected.map(s => s.date.start))
+                                const toDate = Math.max(...selected.map(s => s.date.end))
+                                const combined = {
+                                    date: { start: fromDate, end: toDate },
+                                    selected: false,
+                                    silent: false
+                                }
+                                tempoCluster.unselectAll()
+                                setTempoCluster(new TempoCluster([...tempoCluster.segments, combined]))
+                            }}
+                        >
+                            Combine
+                        </Button>
 
-                        </Ribbon>
-                    </>
-                ), appBarRef?.current ?? document.body)}
+                    </Ribbon>
+                </DeskToolbar>
             </Stack>
 
             <div style={{ position: 'relative' }}>

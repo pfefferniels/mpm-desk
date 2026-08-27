@@ -9,6 +9,7 @@ import HorizontalScale from "./HorizontalScale"
 import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
 import type { Alignment } from "../../fitting/alignment"
 import { onsetSeconds } from "../noteTiming"
+import { svgPoint } from "../../utils/svgPoint"
 import type { MidiFile } from "midifile-ts"
 import type { Scope } from "../TransformerViewProps"
 
@@ -76,16 +77,6 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
     return best
   }
 
-  const clientToSvg = (clientX: number, clientY: number, svg: SVGSVGElement) => {
-    const point = svg.createSVGPoint()
-    point.x = clientX
-    point.y = clientY
-    const ctm = svg.getScreenCTM()
-    if (!ctm) return { x: 0, y: 0 }
-    const p = point.matrixTransform(ctm.inverse())
-    return { x: p.x, y: p.y }
-  }
-
   const cancelDraw = () => {
     setDrawStart(undefined)
     setDrawEnd(undefined)
@@ -137,8 +128,10 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
       onMouseDown={(e) => {
         e.currentTarget.focus()
         if (!isDrawMode || e.button !== 0) return
-        const svg = e.currentTarget as SVGSVGElement
-        const pt = clientToSvg(e.clientX, e.clientY, svg)
+        // No screen CTM means the skyline is not laid out, and the origin it used to fall back
+        // to would start a curve at 0 seconds / 0 bpm — a stroke the user never made.
+        const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
+        if (!pt) return
         const snapped = { x: snapX(pt.x), y: pt.y }
         setDrawStart(snapped)
         setDrawEnd(snapped)
@@ -146,8 +139,10 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
       }}
       onMouseMove={(e) => {
         if (!drawStart) return
-        const svg = e.currentTarget as SVGSVGElement
-        const pt = clientToSvg(e.clientX, e.clientY, svg)
+        // Same reading as the mouse down: a move that cannot be placed contributes nothing to
+        // the trail rather than a point at the origin, which would bend the fitted curve.
+        const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
+        if (!pt) return
         setDrawEnd({ x: snapX(pt.x), y: pt.y })
         setDrawTrail(prev => [...prev, { seconds: pt.x / stretchX, bpm: -pt.y / stretchY }])
       }}

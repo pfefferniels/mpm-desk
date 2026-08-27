@@ -3,12 +3,12 @@ import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { StylizeOrnamentation } from "../../fitting/transformers/ornamentation/StylizeOrnamentation";
 import { Stack, Box, Typography, Slider, Button } from "@mui/material";
 import { Plot } from "./Plot";
-import { createPortal } from "react-dom";
+import { DeskToolbar } from "../../components/DeskToolbar";
 import { Ribbon } from "../../components/Ribbon";
 import { DeleteOutline } from "@mui/icons-material";
 import { useCallSelection } from "../../hooks/CallSelection";
 
-export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
+export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const { calls, removeCall } = useCallSelection()
     const existingTransformer = calls.find(t => t.name === 'StylizeOrnamentation')
     const [tickTolerance, setTickTolerance] = useState(10)
@@ -88,7 +88,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
                 rStretch={2}
             />
 
-            {appBarRef && createPortal((
+            <DeskToolbar>
                 <Ribbon title='Style'>
                     {existingTransformer ? (
                         <Button
@@ -109,7 +109,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part, appBarRef }: Sc
                         </Button>
                     )}
                 </Ribbon>
-            ), appBarRef?.current ?? document.body)}
+            </DeskToolbar>
         </div>
     )
 }

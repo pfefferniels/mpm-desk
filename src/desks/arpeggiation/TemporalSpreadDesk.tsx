@@ -1,23 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScopedTransformerViewProps } from "../TransformerViewProps";
+import { useMemo, useState } from "react";
+import type { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { type ArpeggioPlacement, InsertTemporalSpread } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
 import { getDefinition, getInstructions, type Instruction } from "../../fitting/instructions/index";
 import { FrameDomain, type TemporalSpread } from "espressivo";
 import { onsetSeconds, releaseSeconds } from "../noteTiming";
 import { ChordSpread } from "./ChordSpread";
 import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
-import { createPortal } from "react-dom";
+import { DeskToolbar } from "../../components/DeskToolbar";
 import { Ribbon } from "../../components/Ribbon";
 import { usePhysicalZoom } from "../../hooks/ZoomProvider";
-import { useScrollSync } from "../../hooks/ScrollSyncProvider";
+import { useScrollRegistration } from "../../hooks/useScrollRegistration";
 import { Add, DeleteOutline } from "@mui/icons-material";
 import { TempoVariance } from "./TempoVariance";
 import { TemporalSpreadInstruction } from "./TemporalSpreadInstruction";
 import { useTimeMapping } from "../../hooks/useTimeMapping";
 import { useCallSelection } from "../../hooks/CallSelection";
 
-export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
-    const [temporalSpreads, setTemporalSpreads] = useState<(Instruction<'ornament'> & { def: TemporalSpread })[]>([])
+export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const [insert, setInsert] = useState(false);
 
     // these are being defined in the drawer
@@ -47,17 +46,13 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
         return (totalTicks / beatLength) / (totalSeconds / 60)
     }, [msm, beatLength])
 
-    const { register, unregister } = useScrollSync();
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('temporal-spread-desk', element, 'physical');
-        } else {
-            unregister('temporal-spread-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('temporal-spread-desk', 'physical');
 
-    useEffect(() => {
-        const spreads = getInstructions(mpm, 'ornament', part)
+    // Derived, not held in state behind an effect: these are a pure function of the MPM and the
+    // scope, and stored they lagged a render behind — the first paint after a refit still drew
+    // the previous fit's spreads.
+    const temporalSpreads = useMemo(
+        () => getInstructions(mpm, 'ornament', part)
             .map(ornament => {
                 const def = getDefinition(mpm, 'ornamentDef', ornament.nameRef)
                 return {
@@ -67,9 +62,9 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
                     def: def?.getTemporalSpread() ?? undefined
                 }
             })
-            .filter((spread): spread is (Instruction<'ornament'> & { def: TemporalSpread }) => spread.def !== undefined);
-        setTemporalSpreads(spreads);
-    }, [mpm, part])
+            .filter((spread): spread is (Instruction<'ornament'> & { def: TemporalSpread }) => spread.def !== undefined),
+        [mpm, part]
+    )
 
     const transform = () => {
         if (currentDate) {
@@ -129,47 +124,41 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer, appBarRef }
 
     return (
         <div>
-            {appBarRef && (
-                <>
-                    {appBarRef && createPortal((
-                        <>
-                            <Ribbon title="Temporal Spread">
-                                {!currentDate && defaultCall ? (
-                                    <Button
-                                        size='small'
-                                        variant='outlined'
-                                        onClick={() => removeCall(defaultCall.id)}
-                                        startIcon={<DeleteOutline />}
-                                    >
-                                        Remove Default
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        size='small'
-                                        variant='outlined'
-                                        onClick={() => setInsert(true)}
-                                        startIcon={<Add />}
-                                    >
-                                        Insert {!currentDate && 'Default'}
-                                    </Button>
-                                )}
-                            </Ribbon>
-                            <Ribbon title='Tempo Curve'>
-                                <TextField
-                                    size='small'
-                                    label="Beat Length"
-                                    type="number"
-                                    value={beatLength}
-                                    onChange={(e) => setBeatLength(Number(e.target.value))}
-                                    InputLabelProps={{ shrink: true }}
-                                    variant="outlined"
-                                    sx={{ width: '100px' }}
-                                />
-                            </Ribbon>
-                        </>
-                    ), appBarRef?.current ?? document.body)}
-                </>
-            )}
+            <DeskToolbar>
+                <Ribbon title="Temporal Spread">
+                    {!currentDate && defaultCall ? (
+                        <Button
+                            size='small'
+                            variant='outlined'
+                            onClick={() => removeCall(defaultCall.id)}
+                            startIcon={<DeleteOutline />}
+                        >
+                            Remove Default
+                        </Button>
+                    ) : (
+                        <Button
+                            size='small'
+                            variant='outlined'
+                            onClick={() => setInsert(true)}
+                            startIcon={<Add />}
+                        >
+                            Insert {!currentDate && 'Default'}
+                        </Button>
+                    )}
+                </Ribbon>
+                <Ribbon title='Tempo Curve'>
+                    <TextField
+                        size='small'
+                        label="Beat Length"
+                        type="number"
+                        value={beatLength}
+                        onChange={(e) => setBeatLength(Number(e.target.value))}
+                        InputLabelProps={{ shrink: true }}
+                        variant="outlined"
+                        sx={{ width: '100px' }}
+                    />
+                </Ribbon>
+            </DeskToolbar>
 
             <div style={{ position: 'relative', width: '80vw' }}>
                 <svg style={{ position: 'absolute', left: 0, top: 0, width: 30, height: height, pointerEvents: 'none', zIndex: 1 }}>

@@ -1,8 +1,8 @@
 
 import { Button } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { useCallback, useState } from "react"
-import { useScrollSync } from "../../hooks/ScrollSyncProvider"
+import { useState } from "react"
+import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { CombineAdjacentRubatos } from "../../fitting/transformers/rubato/CombineAdjacentRubatos"
 import { InsertRubato } from "../../fitting/transformers/rubato/InsertRubato"
 import type { InsertRubatoOptions } from "../../fitting/transformers/rubato/InsertRubato"
@@ -11,26 +11,18 @@ import { RubatoInstruction } from "./RubatoInstruction"
 import { DatesRow, Frame } from "./DatesRow"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
-import { createPortal } from "react-dom"
+import { DeskToolbar } from "../../components/DeskToolbar"
 import { Ribbon } from "../../components/Ribbon"
 import { Add } from "@mui/icons-material"
 import { usePiano } from "react-pianosound"
 
-export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part, appBarRef }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
+export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
     const { activeElements, setActiveElement } = useCallSelection();
     const { play, stop } = usePiano()
     const [frame, setFrame] = useState<Frame>()
     const stretchX = useSymbolicZoom()
 
-    // Scroll sync - use callback ref to register when element mounts
-    const { register, unregister } = useScrollSync();
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('rubato-desk', element, 'symbolic');
-        } else {
-            unregister('rubato-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('rubato-desk', 'symbolic')
 
     const svgWidth = msm.end * stretchX
     const svgHeight = 200
@@ -106,7 +98,7 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part, appBarRef
 
     return (
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
-            {appBarRef && createPortal((
+            <DeskToolbar>
                 <Ribbon title='Rubato'>
                     <Button
                         size='small'
@@ -140,7 +132,7 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part, appBarRef
                         Clear Frame
                     </Button>
                 </Ribbon>
-            ), appBarRef?.current ?? document.body)}
+            </DeskToolbar>
 
             <h3 style={{ position: 'sticky', left: 0 }}>
                 Tick Dates

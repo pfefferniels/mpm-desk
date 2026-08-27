@@ -1,22 +1,42 @@
-import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import React, {
+    Suspense,
+    useCallback,
+    useEffect,
+    useEffectEvent,
+    useMemo,
+    useReducer,
+    useState,
+} from 'react';
 import JSZip from 'jszip';
 import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { convertMeiToMsm } from 'espressivo';
 import './App.css';
+// Populates the transformer registry for this thread. Stated at the editor's own root rather
+// than left to whichever module happens to be imported first: the registry is module-level
+// state, and a chain reconstructed before it is populated silently loses every call it cannot
+// name. The fitting worker imports it on its own side for the same reason.
+//
+// It sat in `main.tsx` until the two routes were split apart. The viewer never rebuilds a chain
+// — nothing under `src/segment-stack/` touches the registry — so stating it at the shared entry
+// only meant every reader of a finished reconstruction downloading the whole fitting chain.
+import './fitting/transformers/Order';
 
 import { correspondingDesks } from './desks/DeskSwitch';
 import type { SecondaryData } from './desks/TransformerViewProps';
-import { MetadataDesk } from './desks/metadata/MetadataDesk';
-import { NarrativeDesk } from './desks/narrative/NarrativeDesk';
 import { NotesProvider } from './hooks/NotesProvider';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { CallSelectionProvider } from './hooks/CallSelection';
+import { WorkDocumentProvider } from './hooks/WorkDocument';
+import { useLatest } from './hooks/useLatest';
 import { useMode } from './hooks/ModeProvider';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { AppMenu } from './components/AppMenu';
+import { DeskToolbarProvider } from './components/DeskToolbar';
+import { DeskErrorBoundary } from './components/DeskErrorBoundary';
 import { FollowPlayback } from './components/FollowPlayback';
 import { AspectSelect } from './components/AspectSelect';
 import { FloatingZoom } from './components/FloatingZoom';
@@ -29,9 +49,14 @@ import type {
     ScopedTransformationOptions,
     Transformer,
 } from './fitting/transformers/Transformer';
+import {
+    initialHistory,
+    metadataOf,
+    workHistoryReducer,
+    type Secondary,
+} from './model/workReducer';
 import { migrateIfNeeded } from './model/loadWork';
 import { readNoteDates } from './utils/score';
-import type { Call, Segment, WorkFile } from './model/Work';
 
 /**
  * The editor.
@@ -43,6 +68,23 @@ import type { Call, Segment, WorkFile } from './model/Work';
  * transformer call. Below them sits the chain in `src/fitting/`, which runs in a worker over a
  * document that is a `WorkFile`: a flat list of calls and a flat list of segments.
  *
+ * ## The document is a reducer, and every desk is a desk
+ *
+ * Both of those used to be otherwise, and they were the same problem twice.
+ *
+ * The document was seven `setWork(current => …)` updaters here, with the rules that hold it
+ * together — a claim nothing is made under is not a claim; grouping is one act and not two —
+ * written in comments beside them rather than anywhere they could be checked. They are
+ * `workReducer` now, tested without React, which is also what made undo cost twenty lines
+ * instead of a rewrite. An editor that holds the only copy of the work should have had it long
+ * ago.
+ *
+ * And the registry that says which desk edits which aspect was bypassed by two of its own
+ * entries, because the narrative desk needed the document and the metadata desk needed neither
+ * the fit nor a scope, so both were rendered by name out of a branch here. What they needed is
+ * in a context now (`useWorkDocument`), so there is one dispatch and the registry means what it
+ * says.
+ *
  * ## A new call lands ungrouped
  *
  * Grouping is its own step, with its own desk, so a call arrives with no `segment` and the
@@ -51,18 +93,6 @@ import type { Call, Segment, WorkFile } from './model/Work';
  * claims nobody had made.
  */
 
-/**
- * A call with its `segment` taken off.
- *
- * Deleted rather than set to `undefined`: `JSON.stringify` drops an undefined value, so the two
- * write the same file — but only one of them says so in the object anybody reads in a debugger.
- */
-const ungrouped = (call: Call): Call => {
-    const next = { ...call };
-    delete next.segment;
-    return next;
-};
-
 /** Legacy transformer names that should still resolve to a desk when a saved call names one. */
 const TRANSFORMER_ALIASES: Record<string, string> = {
     ApproximateLogarithmicTempo: 'InsertTempo',
@@ -70,12 +100,16 @@ const TRANSFORMER_ALIASES: Record<string, string> = {
     TranslatePhyiscalTimeToTicks: 'InsertTempo',
 };
 
-const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [], segments: [] };
-
 export const App = () => {
     const { isEditorMode } = useMode();
 
-    const [work, setWork] = useState<WorkFile>(EMPTY_WORK);
+    // Named `workHistory`, not `history`: the global of that name is what `pushState` below is
+    // reached through, and shadowing it here made an undo stack look like a browser one.
+    const [workHistory, dispatch] = useReducer(workHistoryReducer, undefined, () =>
+        initialHistory(),
+    );
+    const work = workHistory.present;
+
     const [pristine, setPristine] = useState<Alignment | null>(null);
     const [scoreMsm, setScoreMsm] = useState<string>('');
     const [mei, setMEI] = useState<string>();
@@ -86,7 +120,16 @@ export const App = () => {
     const [activeCallIds, setActiveCallIds] = useState<Set<string>>(new Set());
     const [stretchX, setStretchX] = useState<number>(20);
 
-    const appBarRef = useRef<HTMLDivElement>(null);
+    /**
+     * The app bar's node, held in state rather than a ref.
+     *
+     * A desk portals its own controls into it (`DeskToolbar`), and a ref cannot serve that: on
+     * the commit where the bar and the desk first render together the ref is still null, so
+     * every desk's toolbar mounted into `document.body` and moved to the bar on some later
+     * render. A callback ref into state re-renders when the node attaches, which is the whole
+     * difference.
+     */
+    const [appBar, setAppBar] = useState<HTMLDivElement | null>(null);
 
     /**
      * The desk currently open, and the hold-out its residual must be derived with.
@@ -108,10 +151,20 @@ export const App = () => {
         holdOut: deskEntry?.holdOut,
     });
 
-    useEffect(() => {
-        if (problems) setMessage(problems.join('\n'));
-        else if (error) setMessage(error);
-    }, [problems, error]);
+    /**
+     * What the last fit had to say, raised as a message.
+     *
+     * Adjusted during render against the last one seen, rather than set from an effect. The
+     * message is not purely derived — a failed load writes one too, and dismissing clears it —
+     * so it stays state; what this does is notice that the fit is now saying something *else*.
+     * As an effect it cost a second render of the whole editor for every problem reported.
+     */
+    const fitMessage = problems ? problems.join('\n') : (error ?? undefined);
+    const [reportedFitMessage, setReportedFitMessage] = useState(fitMessage);
+    if (fitMessage !== reportedFitMessage) {
+        setReportedFitMessage(fitMessage);
+        if (fitMessage) setMessage(fitMessage);
+    }
 
     // ── loading ───────────────────────────────────────────────────
 
@@ -128,7 +181,20 @@ export const App = () => {
 
     const loadWorkFromJson = useCallback((content: string) => {
         try {
-            setWork(migrateIfNeeded(content));
+            const loaded = migrateIfNeeded(content);
+            dispatch({ type: 'load', work: loaded });
+
+            // A link into a call selects it, and this is the moment that can be decided: the
+            // document is in hand and the URL has not moved. It used to be an effect waiting for
+            // `provenance` to become non-empty, guarded by a ref so it fired once — which is an
+            // effect standing in for "when the file loads", when the file loading is an event
+            // right here.
+            const hash = window.location.hash.slice(1);
+            const match = hash
+                ? loaded.provenance.find((call) => call.id.startsWith(hash))
+                : undefined;
+            if (match) setActiveCallIds(new Set([match.id]));
+
             setMessage(undefined);
         } catch (reason) {
             setMessage(reason instanceof Error ? reason.message : String(reason));
@@ -178,80 +244,36 @@ export const App = () => {
      *
      * A desk hands over a constructed `Transformer` and only its three data fields are kept —
      * a call is a name, an id and its options. It lands in no segment: see the note at the top.
+     *
+     * Kept here rather than on `useWorkDocument` because it is two things at once: the document
+     * gains a call, and that call becomes the selection. The second half is `CallSelection`'s,
+     * and this is where the two meet.
      */
     const addTransformer = useCallback((transformer: Transformer) => {
-        const call: Call = {
+        const call = {
             id: transformer.id,
             name: transformer.name,
-            options: transformer.options as Call['options'],
+            options: transformer.options as Record<string, unknown>,
         };
-        setWork((current) => ({ ...current, provenance: [...current.provenance, call] }));
+        dispatch({ type: 'add-call', call });
         setActiveCallIds(new Set([call.id]));
     }, []);
 
     const removeCalls = useCallback((ids: readonly string[]) => {
-        const dropping = new Set(ids);
-        setWork((current) => {
-            const provenance = current.provenance.filter((call) => !dropping.has(call.id));
-            // A claim nothing is made under any more is not a claim about the performance. The
-            // segments hold no lists to prune — the calls named them — so this is the only place
-            // the removal touches them at all.
-            const standing = new Set(provenance.map((call) => call.segment));
-            return {
-                ...current,
-                provenance,
-                segments: current.segments.filter((segment) => standing.has(segment.id)),
-            };
-        });
-    }, []);
-
-    const setSegments = useCallback((segments: Segment[]) => {
-        setWork((current) => ({ ...current, segments }));
-    }, []);
-
-    /**
-     * Put calls under a claim — an existing one, a new one, or none at all.
-     *
-     * One update rather than two, because creating a segment and putting the first calls under it
-     * is one act: done in two, the render in between holds a claim nothing is made under, which
-     * `removeCalls` would be within its rights to sweep away.
-     */
-    const groupCalls = useCallback((callIds: readonly string[], segment: Segment | null) => {
-        if (callIds.length === 0) return;
-        const moving = new Set(callIds);
-        setWork((current) => ({
-            ...current,
-            provenance: current.provenance.map((call) =>
-                moving.has(call.id)
-                    ? segment
-                        ? { ...call, segment: segment.id }
-                        : ungrouped(call)
-                    : call,
-            ),
-            segments:
-                segment && !current.segments.some(({ id }) => id === segment.id)
-                    ? [...current.segments, segment]
-                    : current.segments,
-        }));
-    }, []);
-
-    /** Remove a claim. The calls survive and become unclaimed — the honest place for them. */
-    const dissolveSegment = useCallback((segmentId: string) => {
-        setWork((current) => ({
-            ...current,
-            provenance: current.provenance.map((call) =>
-                call.segment === segmentId ? ungrouped(call) : call,
-            ),
-            segments: current.segments.filter(({ id }) => id !== segmentId),
-        }));
+        dispatch({ type: 'remove-calls', ids });
     }, []);
 
     const setSecondary = useCallback<React.Dispatch<React.SetStateAction<SecondaryData>>>(
         (update) => {
-            setWork((current) => {
-                const previous = (current.secondary ?? {}) as SecondaryData;
-                const next = typeof update === 'function' ? update(previous) : update;
-                return { ...current, secondary: next as WorkFile['secondary'] };
+            // The bag is `Record<string, unknown>` to the document and typed per desk to the
+            // desks — deliberately both, because `Work.ts` says nothing outside a desk may
+            // depend on its shape. This is that boundary, and the only place it is crossed.
+            dispatch({
+                type: 'set-secondary',
+                update:
+                    typeof update === 'function'
+                        ? (previous: Secondary) => update(previous as SecondaryData) as Secondary
+                        : (update as Secondary),
             });
         },
         [],
@@ -259,108 +281,49 @@ export const App = () => {
 
     const secondary = (work.secondary ?? {}) as SecondaryData;
 
-    /**
-     * The title and author, read off and written back through the chain's `InsertMetadata` call.
-     *
-     * They are not editor state beside the document: the runner builds `<metadata>` from whatever
-     * call the chain carries, so anywhere else would be a second copy the next fit ignores.
-     */
-    const metadata = useMemo(() => {
-        const call = work.provenance.find((entry) => entry.name === 'InsertMetadata');
-        const options = call?.options as
-            | { authors?: { text: string }[]; comments?: { text: string }[] }
-            | undefined;
-        return {
-            author: options?.authors?.[0]?.text ?? '',
-            title: options?.comments?.[0]?.text ?? '',
-        };
-    }, [work.provenance]);
+    /** Title and author, read off the chain's own `InsertMetadata` call — see `workReducer`. */
+    const metadata = useMemo(() => metadataOf(work), [work]);
 
-    /**
-     * How many calls describe the performance.
-     *
-     * `InsertMetadata` is not one of them — it writes `<metadata>`, not an instruction — so an
-     * otherwise empty document would report a call it does not have.
-     */
-    const metadataFreeCallCount = useMemo(
-        () => work.provenance.filter((entry) => entry.name !== 'InsertMetadata').length,
-        [work.provenance],
-    );
 
-    const setMetadata = useCallback<
-        React.Dispatch<React.SetStateAction<{ author: string; title: string }>>
-    >((update) => {
-        setWork((current) => {
-            const existing = current.provenance.find((entry) => entry.name === 'InsertMetadata');
-            const options = existing?.options as
-                | { authors?: { text: string }[]; comments?: { text: string }[] }
-                | undefined;
-            const before = {
-                author: options?.authors?.[0]?.text ?? '',
-                title: options?.comments?.[0]?.text ?? '',
-            };
-            const after = typeof update === 'function' ? update(before) : update;
-            const call: Call = {
-                id: existing?.id ?? crypto.randomUUID(),
-                name: 'InsertMetadata',
-                options: {
-                    // Spread first: `relatedResources` has no UI, and rebuilding the options
-                    // from the two fields alone would drop whatever a loaded work.json carried.
-                    ...options,
-                    authors: after.author ? [{ number: 0, text: after.author }] : [],
-                    comments: after.title ? [{ text: after.title }] : [],
-                },
-            };
-            return {
-                ...current,
-                provenance: existing
-                    ? current.provenance.map((entry) => (entry.id === call.id ? call : entry))
-                    : [...current.provenance, call],
-            };
-        });
-    }, []);
+    useHotkeys('mod+z', () => dispatch({ type: 'undo' }), { preventDefault: true });
+    useHotkeys('mod+shift+z', () => dispatch({ type: 'redo' }), { preventDefault: true });
 
     // ── selection ↔ desk ↔ URL hash ───────────────────────────────
 
-    const callsRef = useRef(work.provenance);
-    callsRef.current = work.provenance;
+    const callsRef = useLatest(work.provenance);
 
     /** Switch to the desk that made a call, put the scope on it, and name it in the hash. */
-    const focusCall = useCallback((id: string) => {
-        const call = callsRef.current.find((entry) => entry.id === id);
-        if (!call) return;
+    const focusCall = useCallback(
+        (id: string) => {
+            const call = callsRef.current.find((entry) => entry.id === id);
+            if (!call) return;
 
-        const name = TRANSFORMER_ALIASES[call.name] ?? call.name;
-        const entry = correspondingDesks
-            .filter((candidate) => !!candidate.transformer)
-            .find(({ transformer }) => transformer?.name === name);
-        if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
+            const name = TRANSFORMER_ALIASES[call.name] ?? call.name;
+            const entry = correspondingDesks.find(({ transformerName }) => transformerName === name);
+            if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
 
-        const options = call.options as Partial<ScopedTransformationOptions>;
-        if (options.scope !== undefined) setScope(options.scope);
+            const options = call.options as Partial<ScopedTransformationOptions>;
+            if (options.scope !== undefined) setScope(options.scope);
 
-        const prefix = call.id.slice(0, 8);
-        if (window.location.hash.slice(1) !== prefix) history.pushState(null, '', '#' + prefix);
+            const prefix = call.id.slice(0, 8);
+            if (window.location.hash.slice(1) !== prefix)
+                window.history.pushState(null, '', '#' + prefix);
 
-        setActiveCallIds(new Set([id]));
-    }, []);
-
-    const initialHashSynced = useRef(false);
-    useEffect(() => {
-        if (initialHashSynced.current || !work.provenance.length) return;
-        initialHashSynced.current = true;
-        const hash = window.location.hash.slice(1);
-        if (!hash) return;
-        const match = work.provenance.find((call) => call.id.startsWith(hash));
-        if (match) setActiveCallIds(new Set([match.id]));
-    }, [work.provenance]);
+            setActiveCallIds(new Set([id]));
+        },
+        [callsRef],
+    );
 
     const onHashChange = useEffectEvent(() => {
         const hash = window.location.hash.slice(1);
         if (!hash) {
             if (activeCallIds.size > 0) {
                 setActiveCallIds(new Set());
-                history.replaceState(null, '', window.location.pathname + window.location.search);
+                window.history.replaceState(
+                    null,
+                    '',
+                    window.location.pathname + window.location.search,
+                );
             }
             return;
         }
@@ -413,19 +376,15 @@ export const App = () => {
         return <LoadingScreen message={pending ? 'Running the chain' : undefined} />;
     }
 
-    const isMetadataSelected = selectedDesk === 'metadata';
     const isNarrativeSelected = deskEntry?.aspect === 'narrative';
     const DeskComponent = deskEntry?.desk;
 
     const deskProps = {
-        appBarRef: isEditorMode ? appBarRef : null,
         msm: alignment,
         mpm,
-        // A desk edits the document by adding a call, never by writing the MSM or MPM in place —
-        // both are outputs of the fit and the next run would overwrite anything set here.
-        setMSM: () => undefined,
-        setMPM: () => undefined,
         residual,
+        projected: result.reconstruction.segments,
+        performanceXml: result.mpm,
         secondary,
         setSecondary,
     };
@@ -433,100 +392,100 @@ export const App = () => {
     return (
         <ZoomContext value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
-                <PlaybackProvider
-                    scoreMsm={scoreMsm}
-                    performanceMpm={result.mpm}
-                    dateByNoteId={dateByNoteId}
-                >
-                    <CallSelectionProvider
-                        calls={work.provenance}
-                        outcomes={result.outcomes}
-                        activeCallIds={activeCallIds}
-                        setActiveCallIds={setActiveCallIds}
-                        onRemoveCalls={removeCalls}
-                        focusCall={focusCall}
+                <WorkDocumentProvider history={workHistory} dispatch={dispatch}>
+                    <PlaybackProvider
+                        scoreMsm={scoreMsm}
+                        performanceMpm={result.mpm}
+                        dateByNoteId={dateByNoteId}
                     >
-                        <ScrollSyncProvider
-                            symbolicZoom={zoomContextValue.symbolic.stretchX}
-                            physicalZoom={zoomContextValue.physical.stretchX}
-                            tickToSeconds={tickToSeconds}
-                            secondsToTick={secondsToTick}
+                        <CallSelectionProvider
+                            calls={work.provenance}
+                            outcomes={result.outcomes}
+                            activeCallIds={activeCallIds}
+                            setActiveCallIds={setActiveCallIds}
+                            onRemoveCalls={removeCalls}
+                            focusCall={focusCall}
                         >
-                            <AppBar position="static" color="transparent" elevation={1}>
-                                <Stack direction="row" ref={appBarRef} spacing={1} sx={{ p: 1 }}>
-                                    <AppMenu
-                                        mei={mei}
-                                        msm={alignment}
-                                        mpm={mpm}
-                                        transformers={work.provenance}
-                                        segments={work.segments}
-                                        scoreMsm={scoreMsm}
-                                        outcomes={result.outcomes}
-                                        metadata={metadata}
-                                        secondary={secondary}
-                                        scope={scope}
-                                        setScope={setScope}
-                                        onFileImport={handleFileImport}
-                                        onFileChange={handleFileChange}
-                                    />
-                                    {pending && (
-                                        <span
-                                            style={{
-                                                alignSelf: 'center',
-                                                fontSize: 12,
-                                                color: '#b45309',
-                                            }}
-                                        >
-                                            refitting…
-                                        </span>
-                                    )}
-                                </Stack>
-                            </AppBar>
-
-                            <NotesProvider notes={alignment.allNotes}>
-                                {isMetadataSelected ? (
-                                    <MetadataDesk
-                                        metadata={metadata}
-                                        setMetadata={setMetadata}
-                                        isEditorMode={isEditorMode}
-                                        segmentCount={work.segments.length}
-                                        callCount={metadataFreeCallCount}
-                                    />
-                                ) : isNarrativeSelected ? (
-                                    <NarrativeDesk
-                                        {...deskProps}
-                                        segments={work.segments}
-                                        setSegments={setSegments}
-                                        groupCalls={groupCalls}
-                                        dissolveSegment={dissolveSegment}
-                                        calls={work.provenance}
-                                        projected={result.reconstruction.segments}
-                                        performanceXml={result.mpm}
-                                    />
-                                ) : (
-                                    DeskComponent && (
-                                        <DeskComponent
-                                            {...deskProps}
-                                            addTransformer={addTransformer}
-                                            part={scope}
+                            <ScrollSyncProvider
+                                symbolicZoom={zoomContextValue.symbolic.stretchX}
+                                physicalZoom={zoomContextValue.physical.stretchX}
+                                tickToSeconds={tickToSeconds}
+                                secondsToTick={secondsToTick}
+                            >
+                                <AppBar position="static" color="transparent" elevation={1}>
+                                    <Stack
+                                        direction="row"
+                                        ref={setAppBar}
+                                        spacing={1}
+                                        sx={{ p: 1 }}
+                                    >
+                                        <AppMenu
+                                            mei={mei}
+                                            msm={alignment}
+                                            mpm={mpm}
+                                            transformers={work.provenance}
+                                            segments={work.segments}
+                                            scoreMsm={scoreMsm}
+                                            outcomes={result.outcomes}
+                                            metadata={metadata}
+                                            secondary={secondary}
+                                            scope={scope}
+                                            setScope={setScope}
+                                            onFileImport={handleFileImport}
+                                            onFileChange={handleFileChange}
                                         />
-                                    )
-                                )}
-                            </NotesProvider>
+                                        {pending && (
+                                            <span
+                                                style={{
+                                                    alignSelf: 'center',
+                                                    fontSize: 12,
+                                                    color: '#b45309',
+                                                }}
+                                            >
+                                                refitting…
+                                            </span>
+                                        )}
+                                    </Stack>
+                                </AppBar>
 
-                            {/* The narrative desk follows the playhead on its own terms —
-                                rows lit, selection left alone — see `FollowPlayback`. */}
-                            {!isNarrativeSelected && (
-                                <FollowPlayback
-                                    mpm={mpm}
-                                    beatDenominator={alignment.timeSignature?.denominator ?? 4}
-                                />
-                            )}
-                            <PinchZoomHandler />
-                            <FloatingZoom />
-                        </ScrollSyncProvider>
-                    </CallSelectionProvider>
-                </PlaybackProvider>
+                                <DeskToolbarProvider target={isEditorMode ? appBar : null}>
+                                    <NotesProvider notes={alignment.allNotes}>
+                                        {/* A desk that throws must not take the editor with it:
+                                            the work is unsaved and Save lives in the bar above.
+                                            The open desk is the reset key, so switching away
+                                            from a broken one clears it. */}
+                                        <DeskErrorBoundary resetKey={selectedDesk}>
+                                            <Suspense
+                                                fallback={
+                                                    <LoadingScreen message="Opening the desk" />
+                                                }
+                                            >
+                                                {DeskComponent && (
+                                                    <DeskComponent
+                                                        {...deskProps}
+                                                        addTransformer={addTransformer}
+                                                        part={scope}
+                                                    />
+                                                )}
+                                            </Suspense>
+                                        </DeskErrorBoundary>
+                                    </NotesProvider>
+                                </DeskToolbarProvider>
+
+                                {/* The narrative desk follows the playhead on its own terms —
+                                    rows lit, selection left alone — see `FollowPlayback`. */}
+                                {!isNarrativeSelected && (
+                                    <FollowPlayback
+                                        mpm={mpm}
+                                        beatDenominator={alignment.timeSignature?.denominator ?? 4}
+                                    />
+                                )}
+                                <PinchZoomHandler />
+                                <FloatingZoom />
+                            </ScrollSyncProvider>
+                        </CallSelectionProvider>
+                    </PlaybackProvider>
+                </WorkDocumentProvider>
 
                 <AspectSelect selectedDesk={selectedDesk} setSelectedDesk={setSelectedDesk} />
 

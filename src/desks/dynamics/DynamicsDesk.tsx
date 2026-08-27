@@ -1,5 +1,5 @@
-import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useScrollSync } from "../../hooks/ScrollSyncProvider";
+import { type JSX, useEffect, useMemo, useRef, useState } from "react";
+import { useScrollRegistration } from "../../hooks/useScrollRegistration";
 import { usePiano } from "react-pianosound";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
@@ -15,10 +15,11 @@ import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
-import { createPortal } from "react-dom";
+import { DeskToolbar } from "../../components/DeskToolbar";
 import { Ribbon } from "../../components/Ribbon";
 import { Add, Clear } from "@mui/icons-material";
 import { MarkedRegion } from "./MarkedRegion";
+import { svgPoint, svgUnitsPerPixel } from "../../utils/svgPoint";
 
 export interface DynamicsSegment {
     date: Range
@@ -49,15 +50,13 @@ const extractDynamicsSegments = (msm: Alignment, part: Scope) => {
     return segments
 }
 
-export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: ScopedTransformerViewProps<
+export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<
     InsertDynamicsInstructions | Modify
 >) => {
     const { activeElements, setActiveElement, calls } = useCallSelection();
     const [datePlayed, setDatePlayed] = useState<number>()
-    const [segments, setSegments] = useState<DynamicsSegment[]>([])
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
     const [mode, setMode] = useState<'insert' | 'modify' | 'phantom'>('insert')
-    const [instructions, setInstructions] = useState<DynamicsWithEndDate[]>([])
 
     const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
     const [dragFrom, setDragFrom] = useState<{ date: number, x: number, y: number }>()
@@ -74,15 +73,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     const stretchX = useSymbolicZoom()
     const svgRef = useRef<SVGSVGElement>(null);
 
-    // Scroll sync - use callback ref to register when element mounts
-    const { register, unregister } = useScrollSync();
-    const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('dynamics-desk', element, 'symbolic');
-        } else {
-            unregister('dynamics-desk');
-        }
-    }, [register, unregister]);
+    const scrollContainerRef = useScrollRegistration('dynamics-desk', 'symbolic');
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -95,8 +86,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 const entry = prev.get(currentPhantomDate)
                 if (entry === undefined) return prev
 
-                prev.set(currentPhantomDate, entry + (e.key === 'ArrowUp' ? 1 : -1))
-                return new Map(prev)
+                const next = new Map(prev)
+                next.set(currentPhantomDate, entry + (e.key === 'ArrowUp' ? 1 : -1))
+                return next
             })
         }
 
@@ -107,9 +99,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         };
     }, [currentPhantomDate, mode]);
 
-    useEffect(() => {
+    const instructions = useMemo(() => {
         const dynamics = getInstructions(mpm, 'dynamics', part)
-        const withEndDate = []
+        const withEndDate: DynamicsWithEndDate[] = []
         for (let i = 0; i < dynamics.length; i++) {
             // Where the curve stops is the next `<dynamics>`, and nothing else. There is no
             // `@endDate` attribute in MPM to prefer instead: `InsertDynamicsInstructions` takes
@@ -123,9 +115,22 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 endDate
             })
         }
-        setInstructions(withEndDate)
-        setPendingInsert(undefined)
+        return withEndDate
     }, [mpm, part])
+
+    const segments = useMemo(() => extractDynamicsSegments(msm, part), [msm, part])
+
+    // Both optimistic previews are answered by the next fit: the drawn curve is in `mpm` by then,
+    // the dragged velocities are in `msm`. Clearing them is the one thing the effects that used to
+    // derive `instructions` and `segments` did besides deriving, and it is not derived state, so
+    // it stays. It runs during render — React's way of adjusting state when a prop changes — and
+    // not in an effect, which would commit the stale preview over the new fit for one frame.
+    const [lastFit, setLastFit] = useState({ mpm, msm, part })
+    if (lastFit.mpm !== mpm || lastFit.msm !== msm || lastFit.part !== part) {
+        if (lastFit.mpm !== mpm || lastFit.part !== part) setPendingInsert(undefined)
+        if (lastFit.msm !== msm || lastFit.part !== part) setPendingCommitOptions(undefined)
+        setLastFit({ mpm, msm, part })
+    }
 
     const stretchY = 3
     const margin = 20
@@ -172,21 +177,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         return deltas
     }, [calls, msm, part, pendingCommitOptions])
 
-    useEffect(() => {
-        setSegments(extractDynamicsSegments(msm, part))
-        setPendingCommitOptions(undefined)
-    }, [msm, part])
-
-    const clientToSvg = (clientX: number, clientY: number, svg: SVGSVGElement) => {
-        const point = svg.createSVGPoint()
-        point.x = clientX
-        point.y = clientY
-        const ctm = svg.getScreenCTM()
-        if (!ctm) return { x: 0, y: 0 }
-        const p = point.matrixTransform(ctm.inverse())
-        return { x: p.x, y: p.y }
-    }
-
     const findNearestDate = (svgX: number, snapThreshold: number) => {
         let bestDate: number | undefined
         let bestDist = Infinity
@@ -227,6 +217,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
         const noteid = msm.allNotes.find(n => n.velocity === segment.velocity && n.date === segment.date.start)?.["xml:id"]
         if (!noteid) return
 
+        // Where the drag starts is what every later delta is measured against, so without it
+        // there is no drag to begin — and no selection to change either.
+        const pt = svgPoint(svg, 0, clientY)
+        if (!pt) return
+
         // If dragged circle is not in current selection, replace selection with just this note
         if (!modifyOptions || !isNoteAffected(noteid)) {
             setModifyOptions({
@@ -237,15 +232,14 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
             })
         }
 
-        const pt = clientToSvg(0, clientY, svg)
         setModifyDrag({ startSvgY: pt.y })
         setModifyDragDelta(0)
     }
 
     const handleModifyMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
         if (!modifyDrag) return
-        const svg = e.currentTarget
-        const pt = clientToSvg(e.clientX, e.clientY, svg)
+        const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
+        if (!pt) return
         let delta = Math.round((modifyDrag.startSvgY - pt.y) / stretchY)
 
         // Clamp: ensure no selected note goes below 0 or above 127
@@ -300,8 +294,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
 
     const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
         if (mode === 'phantom') {
-            phantomVelocities.set(segment.date.start, segment.velocity)
-            setPhantomVelocities(new Map(phantomVelocities))
+            setPhantomVelocities(prev => {
+                const next = new Map(prev)
+                next.set(segment.date.start, segment.velocity)
+                return next
+            })
             setCurrentPhantomDate(segment.date.start)
             return
         }
@@ -321,9 +318,10 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 })
             }
             else if ('noteIDs' in modifyOptions && e.metaKey) {
-                // Cmd/Ctrl key adds a noteid to the existing choice.
-                modifyOptions.noteIDs.push(noteid)
-                setModifyOptions({ ...modifyOptions })
+                // Cmd/Ctrl key adds a noteid to the existing choice. A new array, because the
+                // spread below is shallow: pushing into the old one would carry the same array
+                // into the "new" options, and a consumer comparing references sees no change.
+                setModifyOptions({ ...modifyOptions, noteIDs: [...modifyOptions.noteIDs, noteid] })
             }
             else if (e.shiftKey) {
                 // Shift key always refers to a range choice. 
@@ -341,8 +339,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                     })
                 }
                 else {
-                    modifyOptions.to = segment.date.start
-                    setModifyOptions({ ...modifyOptions })
+                    setModifyOptions({ ...modifyOptions, to: segment.date.start })
                 }
             }
         }
@@ -361,8 +358,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                 dominantBaseline='middle'
                 onClick={(e) => {
                     if (e.altKey && e.shiftKey) {
-                        phantomVelocities.delete(date)
-                        setPhantomVelocities(new Map(phantomVelocities))
+                        setPhantomVelocities(prev => {
+                            const next = new Map(prev)
+                            next.delete(date)
+                            return next
+                        })
                     }
                 }}
             >
@@ -491,61 +491,59 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
     return (
         <div>
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
-            {appBarRef && createPortal((
-                <>
-                    <Ribbon title='Mode'>
-                        <ToggleButtonGroup
-                            value={mode}
-                            exclusive
-                            onChange={(_, newMode) => {
-                                if (newMode !== null) {
-                                    setMode(newMode)
-                                }
-                            }}
+            <DeskToolbar>
+                <Ribbon title='Mode'>
+                    <ToggleButtonGroup
+                        value={mode}
+                        exclusive
+                        onChange={(_, newMode) => {
+                            if (newMode !== null) {
+                                setMode(newMode)
+                            }
+                        }}
+                        size='small'
+                    >
+                        <ToggleButton size='small' value='insert'>Insert</ToggleButton>
+                        <ToggleButton size='small' value='modify'>Modify</ToggleButton>
+                        <ToggleButton size='small' value='phantom'>Phantom</ToggleButton>
+                    </ToggleButtonGroup>
+                </Ribbon>
+
+                {mode === 'modify' && (
+                    <Ribbon title='Modification'>
+                        <Button
                             size='small'
+                            variant='contained'
+                            disabled={!modifyOptions || modifyOptions.change === 0}
+                            startIcon={<Add />}
+                            onClick={() => {
+                                if (!modifyOptions) return
+
+                                addTransformer(new Modify(modifyOptions))
+                                setPendingCommitOptions(modifyOptions)
+                                setModifyOptions(undefined)
+                                setModifyDragDelta(0)
+                            }}
                         >
-                            <ToggleButton size='small' value='insert'>Insert</ToggleButton>
-                            <ToggleButton size='small' value='modify'>Modify</ToggleButton>
-                            <ToggleButton size='small' value='phantom'>Phantom</ToggleButton>
-                        </ToggleButtonGroup>
+                            {modifyOptions && modifyOptions.change !== 0
+                                ? `Modify ${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change}`
+                                : 'Modify'}
+                        </Button>
                     </Ribbon>
-
-                    {mode === 'modify' && (
-                        <Ribbon title='Modification'>
-                            <Button
-                                size='small'
-                                variant='contained'
-                                disabled={!modifyOptions || modifyOptions.change === 0}
-                                startIcon={<Add />}
-                                onClick={() => {
-                                    if (!modifyOptions) return
-
-                                    addTransformer(new Modify(modifyOptions))
-                                    setPendingCommitOptions(modifyOptions)
-                                    setModifyOptions(undefined)
-                                    setModifyDragDelta(0)
-                                }}
-                            >
-                                {modifyOptions && modifyOptions.change !== 0
-                                    ? `Modify ${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change}`
-                                    : 'Modify'}
-                            </Button>
-                        </Ribbon>
-                    )}
-                    {mode === 'phantom' && (
-                        <Ribbon title='Phantoms'>
-                            <Button
-                                size='small'
-                                variant='outlined'
-                                onClick={() => setPhantomVelocities(new Map())}
-                                startIcon={<Clear />}
-                            >
-                                Clear
-                            </Button>
-                        </Ribbon>
-                    )}
-                </>
-            ), appBarRef?.current ?? document.body)}
+                )}
+                {mode === 'phantom' && (
+                    <Ribbon title='Phantoms'>
+                        <Button
+                            size='small'
+                            variant='outlined'
+                            onClick={() => setPhantomVelocities(new Map())}
+                            startIcon={<Clear />}
+                        >
+                            Clear
+                        </Button>
+                    </Ribbon>
+                )}
+            </DeskToolbar>
 
             <div style={{ position: 'relative' }}>
                 <svg style={{
@@ -577,22 +575,20 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer, appBarRef }: Scop
                         }
                         onMouseDown={mode === 'insert' ? (e) => {
                             const svg = e.currentTarget
-                            const pt = clientToSvg(e.clientX, e.clientY, svg)
-                            const ctm = svg.getScreenCTM()
-                            const threshold = ctm ? 20 / ctm.a : 30
-                            const snapDate = findNearestDate(pt.x, threshold)
+                            const pt = svgPoint(svg, e.clientX, e.clientY)
+                            if (!pt) return
+                            const snapDate = findNearestDate(pt.x, 20 * svgUnitsPerPixel(svg))
                             if (snapDate !== undefined) {
                                 setDragFrom({ date: snapDate, x: snapDate * stretchX, y: pt.y })
                             }
                         } : undefined}
                         onMouseMove={mode === 'insert' ? (e) => {
                             if (!dragFrom) return
-                            const svg = e.currentTarget as SVGSVGElement
-                            const pt = clientToSvg(e.clientX, e.clientY, svg)
+                            const svg = e.currentTarget
+                            const pt = svgPoint(svg, e.clientX, e.clientY)
+                            if (!pt) return
                             setDragMouse(pt)
-                            const ctm = svg.getScreenCTM()
-                            const threshold = ctm ? 20 / ctm.a : 30
-                            const snap = findNearestDate(pt.x, threshold)
+                            const snap = findNearestDate(pt.x, 20 * svgUnitsPerPixel(svg))
                             setDragSnapDate(snap !== undefined && snap > dragFrom.date ? snap : undefined)
                         } : mode === 'modify' ? handleModifyMouseMove : undefined}
                         onMouseUp={mode === 'insert' ? () => {

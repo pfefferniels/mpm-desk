@@ -256,15 +256,23 @@ export const SegmentTimeline = ({
             return lane;
         };
 
-        let top = 0;
-        return timelineRows(segment, from, to, trackWidth, BAR_HEIGHT, laneOf).map<Row>(row => {
-            const controller = controllers.get(row.lane) ?? null;
-            const drawn = row.type === "movement" ? controller !== null : DRAWN.has(row.type);
-            const height = drawn ? CURVE_ROW : BAR_ROW;
-            const placed = { ...row, controller, drawn, label: controller ?? row.type, top, height };
-            top += height;
-            return placed;
-        });
+        // Stacked by folding rather than by running a counter alongside the rows: a row's
+        // top is the bottom of the one before it, and saying so leaves nothing to keep in
+        // step. Rows come in the order they are drawn in, so the fold reads down the card.
+        return timelineRows(segment, from, to, trackWidth, BAR_HEIGHT, laneOf)
+            .reduce<Row[]>((placed, row) => {
+                const controller = controllers.get(row.lane) ?? null;
+                const drawn = row.type === "movement" ? controller !== null : DRAWN.has(row.type);
+                const above = placed[placed.length - 1];
+                return [...placed, {
+                    ...row,
+                    controller,
+                    drawn,
+                    label: controller ?? row.type,
+                    top: above ? above.top + above.height : 0,
+                    height: drawn ? CURVE_ROW : BAR_ROW,
+                }];
+            }, []);
     }, [segment, from, to, mpm, trackWidth]);
 
     const height = rows.reduce((sum, row) => sum + row.height, 0);

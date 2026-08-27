@@ -108,10 +108,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({
         }
     }, [isPlaying, play, stop]);
 
-    useHotkeys('space', () => handlePlay(), { preventDefault: true }, [handlePlay]);
-    useHotkeys('meta+s', () => handleSave(), { preventDefault: true });
-    useHotkeys('meta+o', () => onFileImport(), { preventDefault: true }, [onFileImport]);
-
     /**
      * Save: the archive the viewer reads.
      *
@@ -123,6 +119,9 @@ export const AppMenu: React.FC<AppMenuProps> = ({
      * The viewer reads the last three and derives the tree from them. It needs no `segments.json`:
      * every call records its own elements and range, so the projection is a few milliseconds of
      * arithmetic rather than a fourth file that can fall out of step with the first three.
+     *
+     * Declared above the hotkeys because ⌘S calls it: a registration that reads it earlier in the
+     * body only ever sees the binding it was created with.
      */
     const outcomeById = new Map(outcomes.map((outcome) => [outcome.id, outcome]));
 
@@ -162,6 +161,10 @@ export const AppMenu: React.FC<AppMenuProps> = ({
         const content = await zip.generateAsync({ type: "blob" });
         downloadAsFile(content, 'export.zip', 'application/zip');
     };
+
+    useHotkeys('space', () => handlePlay(), { preventDefault: true }, [handlePlay]);
+    useHotkeys('meta+s', () => handleSave(), { preventDefault: true });
+    useHotkeys('meta+o', () => onFileImport(), { preventDefault: true }, [onFileImport]);
 
     if (isEditorMode) {
         return (

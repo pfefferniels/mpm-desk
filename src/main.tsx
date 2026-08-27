@@ -1,15 +1,13 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+/* eslint-disable react-refresh/only-export-components -- This is the entry point: it mounts the
+   tree and exports nothing, by design. Fast refresh has no module here to swap, so the rule's
+   advice — move the components to a file with exports — would only undo the bundle split the two
+   `lazy` calls below exist to make. */
+import { StrictMode, Suspense, lazy } from 'react';
+import { createRoot } from 'react-dom/client';
 import { PianoContextProvider } from 'react-pianosound';
-import { App } from './App';
-import { Viewer } from './Viewer';
 import { ModeProvider } from './hooks/ModeProvider';
+import { LoadingScreen } from './components/LoadingScreen';
 import './index.css';
-// Populates the transformer registry for this thread. Stated at the entry point rather than
-// left to whichever module happens to be imported first: the registry is module-level state,
-// and a chain reconstructed before it is populated silently loses every call it cannot name.
-// The fitting worker imports it on its own side for the same reason.
-import './fitting/transformers/Order';
 
 /**
  * Two routes, and deliberately two component trees.
@@ -27,22 +25,38 @@ import './fitting/transformers/Order';
  *
  * What they do share is underneath both: `src/fitting/` runs the chain, `src/model/` says what a
  * work file is, and `src/utils/espressivo.ts` renders. That is the part worth having in common.
+ *
+ * ## Two trees, and now two downloads
+ *
+ * The split was real in the source and not in the build. Both were imported here unconditionally,
+ * so one bundle held both and each route paid for the other: measured over a per-package split of
+ * the old bundle, the viewer's tree was 545 KB and the desks with the chain behind them well over
+ * that, and every reader of the finished reconstruction downloaded all of it to look at some
+ * words on a line.
+ *
+ * `lazy` at the one place that already knew which tree it wanted costs a dynamic import and gets
+ * the source's own boundary back in the output.
  */
 const isEditor = window.location.pathname === '/editor';
+
+const Editor = lazy(async () => ({ default: (await import('./App')).App }));
+const Viewer = lazy(async () => ({ default: (await import('./Viewer')).Viewer }));
 
 const root = document.getElementById('root');
 if (!root) throw new Error('no #root to mount on');
 
-ReactDOM.createRoot(root).render(
-    <React.StrictMode>
-        {isEditor ? (
-            <ModeProvider>
-                <PianoContextProvider velocities={3}>
-                    <App />
-                </PianoContextProvider>
-            </ModeProvider>
-        ) : (
-            <Viewer />
-        )}
-    </React.StrictMode>,
+createRoot(root).render(
+    <StrictMode>
+        <Suspense fallback={<LoadingScreen />}>
+            {isEditor ? (
+                <ModeProvider>
+                    <PianoContextProvider velocities={3}>
+                        <Editor />
+                    </PianoContextProvider>
+                </ModeProvider>
+            ) : (
+                <Viewer />
+            )}
+        </Suspense>
+    </StrictMode>,
 );

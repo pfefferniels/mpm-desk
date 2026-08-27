@@ -3,11 +3,11 @@ import { v4 } from 'uuid';
 import { getInstructions } from '../../fitting/instructions/index';
 import { PULSES_PER_QUARTER } from '../../fitting/ppq';
 import { useCallSelection } from '../../hooks/CallSelection';
+import { useWorkDocument } from '../../hooks/WorkDocument';
 import { usePlayback, type PlaybackNoteEvent } from '../../hooks/PlaybackProvider';
 import { useLatest } from '../../hooks/useLatest';
 import type { ViewProps } from '../TransformerViewProps';
-import type { Call, Segment } from '../../model/Work';
-import type { Segment as Gestures } from '../../model/Reconstruction';
+import type { Segment } from '../../model/Work';
 import { readPerformance } from '../../utils/mpm';
 import { setsEqual } from '../../utils/utils';
 import { pointSpanFallback, tickRange } from '../../segment-stack/StackModel';
@@ -72,33 +72,12 @@ import { UngroupedInstructions } from './UngroupedInstructions';
  * which is what a click on the word in the viewer plays: the question here is what *this one*
  * does, on its way into or out of a claim.
  */
-interface NarrativeDeskProps extends ViewProps {
-    segments: Segment[];
-    setSegments: (next: Segment[]) => void;
-    /** Put calls under a claim — an existing one, a new one, or none. */
-    groupCalls: (callIds: readonly string[], segment: Segment | null) => void;
-    dissolveSegment: (segmentId: string) => void;
-    calls: readonly Call[];
-    /**
-     * The claims as the last run projected them — one entry per claim that still has a gesture in
-     * the document, keyed by the same id.
-     */
-    projected: readonly Gestures[];
-    /** The finished performance as XML, read here into what the drawings sample from. */
-    performanceXml: string;
-}
-
-export const NarrativeDesk = ({
-    msm,
-    mpm,
-    segments,
-    setSegments,
-    groupCalls,
-    dissolveSegment,
-    calls,
-    projected,
-    performanceXml,
-}: NarrativeDeskProps) => {
+export const NarrativeDesk = ({ msm, mpm, projected, performanceXml }: ViewProps) => {
+    // The document itself, rather than six more props. This desk edits the claims — it is the
+    // only one whose subject is the argument rather than a dimension of the sound — and used to
+    // say so by taking props no other desk took, which is what kept it out of the registry the
+    // registry was for.
+    const { segments, setSegments, groupCalls, dissolveSegment, calls } = useWorkDocument();
     const { activeCallIds, setActiveCallIds, toggleActiveCall } = useCallSelection();
     const { play, exaggeration, isPlaying, subscribeNoteEvents } = usePlayback();
     const [filter, setFilter] = useState('');
@@ -153,11 +132,18 @@ export const NarrativeDesk = ({
 
     // The spotlight goes out with the sound — the playhead's and the clicked chip's alike. A
     // preview stops itself once its stretch is through, and a row lit for nothing is a row lying.
-    useEffect(() => {
-        if (isPlaying) return;
-        setPlayingSegmentIds((prev) => (prev.size > 0 ? new Set() : prev));
-        setPreviewing(null);
-    }, [isPlaying]);
+    //
+    // Adjusted during render off the last `isPlaying` seen, rather than in an effect: this is a
+    // reset on a changed input and nothing outside React is being synchronised. An effect would
+    // paint the rows still lit once after the sound had already stopped.
+    const [wasPlaying, setWasPlaying] = useState(isPlaying);
+    if (wasPlaying !== isPlaying) {
+        setWasPlaying(isPlaying);
+        if (!isPlaying) {
+            setPlayingSegmentIds((prev) => (prev.size > 0 ? new Set() : prev));
+            setPreviewing(null);
+        }
+    }
 
     const performanceRef = useLatest(performance);
     const playRef = useLatest(play);

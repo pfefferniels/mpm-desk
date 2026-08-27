@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, RefObject } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Popper, Paper } from "@mui/material";
 import type { PerformanceReader } from "../utils/mpm";
 import { TempoInstructionView } from "./TempoInstructionView";
@@ -8,13 +8,14 @@ import { GenericInstructionView } from "./GenericInstructionView";
 interface InstructionPopoverProps {
     mpm: PerformanceReader;
     activeSpanIds: Set<string>;
-    svgRef: RefObject<SVGSVGElement | null>;
+    /** The drawing a click in it opens this popover — the node, so the listener follows it. */
+    svg: SVGSVGElement | null;
 }
 
 export const InstructionPopover = ({
     mpm,
     activeSpanIds,
-    svgRef,
+    svg,
 }: InstructionPopoverProps) => {
     // A span's id is the MPM element it leads with, so the selection names the
     // instruction to show outright.
@@ -44,22 +45,26 @@ export const InstructionPopover = ({
     // Anchor at the click position
     const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
 
-    useEffect(() => {
-        if (activeSpanIds.size !== 1) {
-            setAnchorPos(null);
-        }
-    }, [activeSpanIds]);
+    /**
+     * A click position belongs to the selection it was made for: once the selection is no
+     * longer a single span there is nothing left for it to point at, and keeping it would
+     * open the next popover where the last click happened rather than where this one did.
+     *
+     * Dropped while rendering the selection that invalidates it, not in an effect after it:
+     * the stale position then never reaches the screen at all.
+     */
+    const [selectionAnchoredFor, setSelectionAnchoredFor] = useState(activeSpanIds);
+    if (selectionAnchoredFor !== activeSpanIds) {
+        setSelectionAnchoredFor(activeSpanIds);
+        if (activeSpanIds.size !== 1) setAnchorPos(null);
+    }
 
     useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (activeSpanIds.size === 1) {
-                setAnchorPos({ x: e.clientX, y: e.clientY });
-            }
-        };
-        svgRef.current?.addEventListener("click", handler);
-        const svg = svgRef.current;
-        return () => svg?.removeEventListener("click", handler);
-    }, [activeSpanIds, svgRef]);
+        if (!svg || activeSpanIds.size !== 1) return;
+        const handler = (e: MouseEvent) => setAnchorPos({ x: e.clientX, y: e.clientY });
+        svg.addEventListener("click", handler);
+        return () => svg.removeEventListener("click", handler);
+    }, [activeSpanIds, svg]);
 
     const virtualElement = useMemo(() => {
         if (!anchorPos) return null;

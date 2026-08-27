@@ -21,6 +21,8 @@ import { parseMPM } from '../../fitting/instructions/index';
 import type { Alignment } from '../../fitting/alignment';
 import type { Residual } from '../../fitting/residual';
 import { ZoomContext } from '../../hooks/ZoomProvider';
+import { WorkDocumentProvider } from '../../hooks/WorkDocument';
+import { initialHistory } from '../../model/workReducer';
 import { PlaybackProvider, usePlayback } from '../../hooks/PlaybackProvider';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { outcomesOf, type Reconstruction } from '../../model/Reconstruction';
@@ -120,27 +122,33 @@ const mount = async () => {
                 >
                     <Capture />
                     <Selection>
-                        <NarrativeDesk
-                            msm={
-                                {
-                                    timeSignature: { denominator: meter.denominator },
-                                } as unknown as Alignment
-                            }
-                            mpm={mpm}
-                            setMSM={() => {}}
-                            setMPM={() => {}}
-                            residual={{} as Residual}
-                            appBarRef={null}
-                            secondary={{}}
-                            setSecondary={() => {}}
-                            segments={segments}
-                            setSegments={() => {}}
-                            groupCalls={() => {}}
-                            dissolveSegment={() => {}}
-                            calls={calls}
-                            projected={projected}
-                            performanceXml={performanceMpm}
-                        />
+                        {/* The desk reads the document off `useWorkDocument` rather than out of
+                            its props, so the fixture supplies one. Nothing here dispatches: the
+                            two tests below only look and listen. */}
+                        <WorkDocumentProvider
+                            history={initialHistory({
+                                name: '',
+                                mei: '',
+                                mpm: '',
+                                provenance: [...calls],
+                                segments: [...segments],
+                            })}
+                            dispatch={() => {}}
+                        >
+                            <NarrativeDesk
+                                msm={
+                                    {
+                                        timeSignature: { denominator: meter.denominator },
+                                    } as unknown as Alignment
+                                }
+                                mpm={mpm}
+                                residual={{} as Residual}
+                                secondary={{}}
+                                setSecondary={() => {}}
+                                projected={projected}
+                                performanceXml={performanceMpm}
+                            />
+                        </WorkDocumentProvider>
                     </Selection>
                 </PlaybackProvider>
             </ZoomContext>,

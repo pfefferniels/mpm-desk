@@ -1,7 +1,6 @@
 import { UnitWithDef } from "./ArticulationDesk"
 import type { ArticulationProperty } from "../../fitting/transformers/articulation/index"
 import { useState } from "react"
-import { useEffect } from "react"
 import {
     Dialog,
     DialogTitle,
@@ -22,15 +21,11 @@ interface UnitDialogProps {
 }
 
 export const UnitDialog = ({ unit, open, onClose, onDone }: UnitDialogProps) => {
+    // Seeded from the unit once, at mount. The caller keys this dialog by the unit and only
+    // renders it while it is open, so arriving at a different unit is a new mount with new
+    // fields — no effect has to copy the props back over what the user has typed.
     const [aspects, setAspects] = useState<Set<ArticulationProperty>>(unit.aspects)
     const [name, setName] = useState(unit.name)
-
-    useEffect(() => {
-        if (open) {
-            setName(unit.name)
-            setAspects(unit.aspects)
-        }
-    }, [open, unit])
 
     const handleCheckboxChange = (property: ArticulationProperty) => (e: React.ChangeEvent<HTMLInputElement>) => {
         const newAspects = new Set(aspects)

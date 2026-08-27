@@ -5,10 +5,10 @@ import { MakeChoice } from "../../fitting/transformers/choice/MakeChoice"
 import type { NoteChoice, Preference, RangeChoice } from "../../fitting/transformers/choice/MakeChoice"
 import type { AlignedNote } from "../../fitting/alignment"
 import { onsetSeconds, pedalHeldSeconds, pedalOnsetSeconds, soundedSeconds } from "../noteTiming"
-import { createPortal } from "react-dom"
 import { Ribbon } from "../../components/Ribbon"
+import { DeskToolbar } from "../../components/DeskToolbar"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
-import { useScrollSync } from "../../hooks/ScrollSyncProvider"
+import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
 // returns <path> attribute @d.
@@ -166,7 +166,7 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: Articulat
     )
 }
 
-export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformerViewProps<MakeChoice>) => {
+export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
     const [currentChoice, setCurrentChoice] = useState<RangeChoice | NoteChoice>()
     const [prefer, setPrefer] = useState<Preference>()
     const [insert, setInsert] = useState(false)
@@ -175,15 +175,13 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
     const [containerHeight, setContainerHeight] = useState(600)
     const stretchY = containerHeight / 100
 
-    const { register, unregister } = useScrollSync();
+    // This desk's vertical scale is whatever height the container ends up with, so the node is
+    // measured on the way past — the scroll registration is the one moment it is in hand.
+    const registerScroll = useScrollRegistration('choice-desk', 'physical');
     const scrollContainerRef = useCallback((element: HTMLDivElement | null) => {
-        if (element) {
-            register('choice-desk', element, 'physical');
-            setContainerHeight(element.clientHeight)
-        } else {
-            unregister('choice-desk');
-        }
-    }, [register, unregister]);
+        if (element) setContainerHeight(element.clientHeight)
+        return registerScroll(element)
+    }, [registerScroll]);
 
     const sourceIDs = Array.from(new Set(msm.allNotes.map(note => note.source || 'unknown')))
     const colorFor = (source: string) => {
@@ -214,13 +212,10 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                     }
                     else if (currentChoice && e.metaKey && 'noteIDs' in currentChoice) {
                         const noteId = notes[0]['xml:id']
-                        if (currentChoice.noteIDs.includes(noteId)) {
-                            currentChoice.noteIDs = currentChoice.noteIDs.filter(id => id !== noteId)
-                        }
-                        else {
-                            currentChoice.noteIDs.push(noteId)
-                        }
-                        setCurrentChoice({ ...currentChoice })
+                        const noteIDs = currentChoice.noteIDs.includes(noteId)
+                            ? currentChoice.noteIDs.filter(id => id !== noteId)
+                            : [...currentChoice.noteIDs, noteId]
+                        setCurrentChoice({ ...currentChoice, noteIDs })
                     }
                     else if (currentChoice && e.shiftKey) {
                         if ('noteIDs' in currentChoice) {
@@ -233,8 +228,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                             })
                         }
                         else {
-                            currentChoice.to = notes[0].date
-                            setCurrentChoice({ ...currentChoice })
+                            setCurrentChoice({ ...currentChoice, to: notes[0].date })
                         }
                     }
                 }}
@@ -287,7 +281,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
 
     return (
         <>
-            {appBarRef && createPortal((
+            <DeskToolbar>
                 <Ribbon title="Range Choice">
                     <Button
                         size='small'
@@ -313,7 +307,7 @@ export const ChoiceDesk = ({ msm, addTransformer, appBarRef }: ScopedTransformer
                         Clear Choice
                     </Button>
                 </Ribbon>
-            ), appBarRef?.current ?? document.body)}
+            </DeskToolbar>
 
             <div ref={scrollContainerRef} style={{ width: '80vw', height: 'calc(100vh - 370px)', overflowX: 'scroll', overflowY: 'hidden', position: 'relative' }}>
                 <svg width={Math.max(...msm.allNotes.map(n => onsetSeconds(n) + soundedSeconds(n))) * stretchX} height={containerHeight}>
