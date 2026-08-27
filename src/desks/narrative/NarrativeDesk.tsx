@@ -1,13 +1,17 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { v4 } from 'uuid';
 import { getInstructions } from '../../fitting/instructions/index';
 import { PULSES_PER_QUARTER } from '../../fitting/ppq';
 import { useCallSelection } from '../../hooks/CallSelection';
+import { usePlayback, type PlaybackNoteEvent } from '../../hooks/PlaybackProvider';
+import { useLatest } from '../../hooks/useLatest';
 import type { ViewProps } from '../TransformerViewProps';
 import type { Call, Segment } from '../../model/Work';
 import type { Segment as Gestures } from '../../model/Reconstruction';
 import { readPerformance } from '../../utils/mpm';
-import { pointSpanFallback } from '../../segment-stack/StackModel';
+import { setsEqual } from '../../utils/utils';
+import { pointSpanFallback, tickRange } from '../../segment-stack/StackModel';
+import { elementOwners, segmentsSoundingAt } from '../../segment-stack/sounding';
 import { SegmentRow } from './SegmentRow';
 import type { Instruction } from './InstructionChips';
 import { gatherInstructions } from './gather';
@@ -53,6 +57,20 @@ import { UngroupedInstructions } from './UngroupedInstructions';
  * instruction quoted from. Both come out of the same fit as the `mpm` every desk gets; neither is
  * derivable from it alone, because a span's reach is reported by the call rather than written on
  * the instruction.
+ *
+ * ## Hearing it
+ *
+ * The desk follows the playhead the way the viewer's tree does, and by the same rule: a row is
+ * lit while any instruction its claim holds is in effect (`segmentsSoundingAt`), and scrolled
+ * into view as it lights. It follows on its own rather than through `FollowPlayback`, because
+ * that follow *selects* the sounding calls — and here the selection is the grouping in progress,
+ * which a passing playhead must not touch.
+ *
+ * Clicking a chip plays that one instruction, spotlit: everything else damped, over the stretch
+ * the instruction itself is in effect (`reachOf`) — a `<tempo>` until the next tempo, a ramp's
+ * end until the other end, an ornament for the notes it sits on. Not the claim's whole stretch,
+ * which is what a click on the word in the viewer plays: the question here is what *this one*
+ * does, on its way into or out of a claim.
  */
 export interface NarrativeDeskProps extends ViewProps {
     segments: Segment[];
@@ -82,7 +100,16 @@ export const NarrativeDesk = ({
     performanceXml,
 }: NarrativeDeskProps) => {
     const { activeCallIds, setActiveCallIds, toggleActiveCall } = useCallSelection();
+    const { play, exaggeration, isPlaying, subscribeNoteEvents } = usePlayback();
     const [filter, setFilter] = useState('');
+
+    /** The claims the playhead is inside — the viewer's spotlight, in a table. */
+    const [playingSegmentIds, setPlayingSegmentIds] = useState<Set<string>>(new Set());
+    /** The instruction a click is auditioning, and the row it was clicked in — `null` for an ungrouped one. */
+    const [previewing, setPreviewing] = useState<{
+        segmentId: string | null;
+        instructionId: string;
+    } | null>(null);
 
     /**
      * The document read the way the drawings read it, once per fit.
@@ -109,6 +136,62 @@ export const NarrativeDesk = ({
     const gesturesById = useMemo(
         () => new Map(projected.map((segment) => [segment.id, segment])),
         [projected],
+    );
+
+    /** MPM element id ⇒ the claim that holds it, for following the playhead. */
+    const owners = useMemo(() => elementOwners(projected), [projected]);
+
+    const followPlayback = useEffectEvent(({ date, scoped }: PlaybackNoteEvent) => {
+        // A clicked chip previews itself, and its row is lit for that reason already.
+        if (scoped) return;
+        setPreviewing(null);
+        const sounding = segmentsSoundingAt(performance, date, owners);
+        setPlayingSegmentIds((prev) => (setsEqual(prev, sounding) ? prev : sounding));
+    });
+
+    useEffect(() => subscribeNoteEvents(followPlayback), [subscribeNoteEvents]);
+
+    // The spotlight goes out with the sound — the playhead's and the clicked chip's alike. A
+    // preview stops itself once its stretch is through, and a row lit for nothing is a row lying.
+    useEffect(() => {
+        if (isPlaying) return;
+        setPlayingSegmentIds((prev) => (prev.size > 0 ? new Set() : prev));
+        setPreviewing(null);
+    }, [isPlaying]);
+
+    const performanceRef = useLatest(performance);
+    const playRef = useLatest(play);
+    const exaggerationRef = useLatest(exaggeration);
+    const minPointSpanRef = useLatest(minPointSpan);
+
+    /**
+     * Audition one instruction: its own reach of the piece, with everything else damped.
+     *
+     * Through refs, so the callback every row and chip is handed stays the same one across
+     * fits and knob moves — the rows are memo'd on it.
+     */
+    const playInstruction = useCallback(
+        (instruction: Instruction, segmentId: string | null) => {
+            const reader = performanceRef.current;
+            const read = reader.byId(instruction.id);
+            playRef.current({
+                mpmIds: [instruction.id],
+                isolate: true,
+                exaggerate: exaggerationRef.current,
+                ...(read && { range: tickRange(reader.reachOf(read), minPointSpanRef.current) }),
+            });
+            // Whatever the playhead had lit belongs to the run this just replaced.
+            setPlayingSegmentIds((prev) => (prev.size > 0 ? new Set() : prev));
+            setPreviewing({ segmentId, instructionId: instruction.id });
+        },
+        [performanceRef, playRef, exaggerationRef, minPointSpanRef],
+    );
+
+    const playUngrouped = useCallback(
+        (instruction: Instruction) => {
+            playInstruction(instruction, null);
+        },
+        [playInstruction],
     );
 
     /** Element id ⇒ what kind of instruction it is; absent means the document no longer holds it. */
@@ -280,8 +363,18 @@ export const NarrativeDesk = ({
                                 minPointSpan={minPointSpan}
                                 beatLength={beatLength}
                                 activeCallIds={activeCallIds}
+                                playing={
+                                    playingSegmentIds.has(segment.id) ||
+                                    previewing?.segmentId === segment.id
+                                }
+                                playingInstructionId={
+                                    previewing?.segmentId === segment.id
+                                        ? previewing.instructionId
+                                        : null
+                                }
                                 onPatch={patch}
                                 onToggleCall={toggleActiveCall}
+                                onPlayInstruction={playInstruction}
                                 onAssignSelected={() => {
                                     assignTo(segment);
                                 }}
@@ -298,6 +391,10 @@ export const NarrativeDesk = ({
                     instructions={ungrouped}
                     activeCallIds={activeCallIds}
                     onToggleCall={toggleActiveCall}
+                    onPlayInstruction={playUngrouped}
+                    playingInstructionId={
+                        previewing?.segmentId === null ? previewing.instructionId : null
+                    }
                 />
             </div>
         </div>

@@ -17,6 +17,7 @@ import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { AppMenu } from './components/AppMenu';
+import { FollowPlayback } from './components/FollowPlayback';
 import { AspectSelect } from './components/AspectSelect';
 import { FloatingZoom } from './components/FloatingZoom';
 import { StartScreen } from './components/StartScreen';
@@ -29,6 +30,7 @@ import type {
     Transformer,
 } from './fitting/transformers/Transformer';
 import { migrateIfNeeded } from './model/loadWork';
+import { readNoteDates } from './utils/score';
 import type { Call, Segment, WorkFile } from './model/Work';
 
 /**
@@ -381,6 +383,15 @@ export const App = () => {
 
     const { tickToSeconds, secondsToTick } = useTimeMapping(alignment);
 
+    /**
+     * Note `xml:id` ⇒ symbolic date, off the score the performance is rendered against.
+     *
+     * What turns a sounding note back into a place on the timeline: every follow reads it, and
+     * a preview's tick range is placed in a rendering through it. Without it playback reports
+     * nothing and a ranged preview falls back to the piece whole.
+     */
+    const dateByNoteId = useMemo(() => readNoteDates(scoreMsm), [scoreMsm]);
+
     if (isEditorMode && !mei) {
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
     }
@@ -411,7 +422,7 @@ export const App = () => {
                 <PlaybackProvider
                     scoreMsm={scoreMsm}
                     performanceMpm={result.mpm}
-                    dateByNoteId={new Map()}
+                    dateByNoteId={dateByNoteId}
                 >
                     <CallSelectionProvider
                         calls={work.provenance}
@@ -488,6 +499,14 @@ export const App = () => {
                                 )}
                             </NotesProvider>
 
+                            {/* The narrative desk follows the playhead on its own terms —
+                                rows lit, selection left alone — see `FollowPlayback`. */}
+                            {!isNarrativeSelected && (
+                                <FollowPlayback
+                                    mpm={mpm}
+                                    beatDenominator={alignment.timeSignature?.denominator ?? 4}
+                                />
+                            )}
                             <PinchZoomHandler />
                             <FloatingZoom />
                         </ScrollSyncProvider>

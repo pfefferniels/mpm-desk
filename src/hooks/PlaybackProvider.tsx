@@ -57,7 +57,6 @@ interface PlayOptions {
      * Playback starts at the first note inside it and stops once it is through.
      */
     range?: { from: number; to: number };
-    onNoteEvent?: (noteId: string, date: number) => void;
 }
 
 export interface PlaybackNoteEvent {
@@ -76,7 +75,12 @@ interface PlaybackContextValue {
     stop: () => void;
     exaggeration: number;
     setExaggeration: (value: number) => void;
-    /** Subscribe to note events during playback. Returns an unsubscribe function. */
+    /**
+     * Hear every note as it sounds — how anything follows the playhead. Returns the unsubscribe.
+     *
+     * A subscription rather than an option on `play()`: who plays and who follows are different
+     * questions, and the same run may be followed by the tree, a desk, or nothing at all.
+     */
     subscribeNoteEvents: (listener: NoteEventListener) => () => void;
 }
 
@@ -152,12 +156,10 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         // on the fallback path, restart the piece from bar 1.
         if (event.text !== UNIDENTIFIED_NOTE) lastNoteIdRef.current = event.text;
 
-        const { onNoteEvent, mpmIds } = playOptionsRef.current || {};
-        if (!onNoteEvent && noteEventListenersRef.current.size === 0) return;
+        if (noteEventListenersRef.current.size === 0) return;
         const date = dateByNoteIdRef.current.get(event.text);
         if (date === undefined) return;
-        const scoped = mpmIds !== undefined;
-        onNoteEvent?.(event.text, date);
+        const scoped = playOptionsRef.current?.mpmIds !== undefined;
         noteEventListenersRef.current.forEach(listener => listener({ noteId: event.text, date, scoped }));
     }, [dateByNoteIdRef]);
 

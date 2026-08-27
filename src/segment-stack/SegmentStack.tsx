@@ -14,14 +14,8 @@ import { useTickAnchors } from "./useTickAnchors";
 import { wordFor, wordWidth } from "./words";
 import { InstructionPopover } from "./InstructionPopover";
 import { SegmentTimelinePopover } from "./SegmentTimeline";
-
-function setsEqual(a: Set<string>, b: Set<string>): boolean {
-    if (a.size !== b.size) return false;
-    for (const item of a) {
-        if (!b.has(item)) return false;
-    }
-    return true;
-}
+import { elementOwners, segmentsSoundingAt } from "./sounding";
+import { setsEqual } from "../utils/utils";
 
 /**
  * The viewport the tree sits in: the window, whole.
@@ -115,15 +109,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     }, [segments]);
 
     /** MPM element id → the segment that claims it, for following playback. */
-    const elementToSegment = useMemo(() => {
-        const map = new Map<string, string>();
-        for (const s of segments) {
-            for (const span of s.spans) {
-                for (const element of span.elements) map.set(element, s.id);
-            }
-        }
-        return map;
-    }, [segments]);
+    const owners = useMemo(() => elementOwners(segments), [segments]);
 
     const minPointSpan = useMemo(() => pointSpanFallback(segments), [segments]);
     const minPointSpanRef = useLatest(minPointSpan);
@@ -276,14 +262,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const followPlayback = useEffectEvent(({ date, scoped }: PlaybackNoteEvent) => {
         // A clicked word previews itself, and is already lit for its own reason.
         if (scoped) return;
-        const types = ['tempo', 'dynamics', 'rubato', 'articulation', 'asynchrony', 'movement', 'ornament', 'accentuationPattern'] as const;
-        const segmentIds = new Set<string>();
-        for (const type of types) {
-            for (const instruction of mpm.effectiveAt(date, type)) {
-                const segmentId = elementToSegment.get(instruction.id);
-                if (segmentId) segmentIds.add(segmentId);
-            }
-        }
+        const segmentIds = segmentsSoundingAt(mpm, date, owners);
 
         if (segmentIds.size > 0) {
             setPlayingSegmentIds(prev => setsEqual(prev, segmentIds) ? prev : segmentIds);

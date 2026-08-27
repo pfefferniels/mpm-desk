@@ -96,6 +96,18 @@ export interface PerformanceReader {
      * before it where that type's span rule says it still reaches.
      */
     effectiveAt(date: number, type: string): Instruction[];
+    /**
+     * The stretch over which `instruction` is what you hear — {@link effectiveAt} the other
+     * way round, so the two always agree.
+     *
+     * From its own date to wherever its kind's span rule stops it: the next of its kind for
+     * the types that hold until replaced, the end of its frame for a `<rubato>` and of its
+     * pattern for an `<accentuationPattern>` unless either loops, and its own date for the
+     * kinds that act only on the notes there — so `from` and `to` are equal for those. `to`
+     * is `Infinity` for the last of an unbounded kind, which holds to the end of the piece;
+     * where that is, the performance does not say.
+     */
+    reachOf(instruction: Instruction): { from: number; to: number };
     /** Every instruction of `type`, in date order — what a curve is sampled from. */
     ofType(type: string): readonly Instruction[];
     /** The resolved `<tempo>` for `instruction`, with its neighbours; null if unreadable. */
@@ -200,30 +212,48 @@ export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader
     };
 
     /**
-     * Does the `<accentuationPattern>` at `instruction` still cover `date`?
+     * The date an instruction's own kind stops it at, regardless of what follows it.
      *
-     * espressivo's rule (`MetricalAccentuationMap.ts:167`), both halves: the next pattern
-     * bounds the span regardless of length or loop, and `@length` is counted in beats
-     * relative to the time-signature denominator rather than in ticks.
+     * `Infinity` for the kinds that hold until the next of their kind replaces them, and for
+     * a `<rubato>` or `<accentuationPattern>` that loops; its own date for the kinds that act
+     * only on the notes there, and for an instruction espressivo cannot resolve. What the
+     * *next* instruction does to the span is left to the caller, because the two callers
+     * already know it differently: `effectiveAt` has picked the last one before its date,
+     * `reachOf` looks the next one up.
+     *
+     * The `<accentuationPattern>` rule is espressivo's (`MetricalAccentuationMap.ts:167`),
+     * both halves: `@length` is counted in beats relative to the time-signature denominator
+     * rather than in ticks, and the next pattern bounds the span regardless of length or loop
+     * — `endDate` is that pattern's date, so it is kept here rather than trusted to the
+     * caller's lookup.
      */
-    const accentuationCovers = (instruction: Instruction, date: number) => {
-        const { map, index } = instruction;
-        if (!(map instanceof MetricalAccentuationMap)) return false;
-        const accentuation = map.getMetricalAccentuationDataOf(index);
-        if (!accentuation || date >= accentuation.endDate) return false;
-        if (accentuation.loop) return true;
-        const length = accentuation.accentuationPatternDef?.getLength();
-        if (length === undefined || length === null) return false;
-        return date < accentuation.startDate + (length * 4 * meter.ppq) / meter.denominator;
-    };
+    const boundOf = (instruction: Instruction): number => {
+        const { type, date, map, index } = instruction;
+        if (UNBOUNDED.has(type)) return Infinity;
 
-    /** Does the `<rubato>` at `instruction` still cover `date`? */
-    const rubatoCovers = (instruction: Instruction, date: number) => {
-        const { map, index } = instruction;
-        if (!(map instanceof RubatoMap)) return false;
-        const rubato = map.getRubatoDataOf(index);
-        if (!rubato) return false;
-        return rubato.loop || date < rubato.startDate + rubato.frameLength;
+        if (type === 'rubato') {
+            if (!(map instanceof RubatoMap)) return date;
+            const rubato = map.getRubatoDataOf(index);
+            if (!rubato) return date;
+            return rubato.loop ? Infinity : rubato.startDate + rubato.frameLength;
+        }
+
+        if (type === 'accentuationPattern') {
+            if (!(map instanceof MetricalAccentuationMap)) return date;
+            const accentuation = map.getMetricalAccentuationDataOf(index);
+            if (!accentuation) return date;
+            if (accentuation.loop) return accentuation.endDate;
+            const length = accentuation.accentuationPatternDef?.getLength();
+            if (length === undefined || length === null) return date;
+            return Math.min(
+                accentuation.endDate,
+                accentuation.startDate + (length * 4 * meter.ppq) / meter.denominator,
+            );
+        }
+
+        // articulation, asynchrony and ornament act on the notes at their own date and reach
+        // no further.
+        return date;
     };
 
     const around = <T>(
@@ -257,18 +287,21 @@ export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader
             const ongoing = ongoingAt(list, date);
             if (!ongoing || result.includes(ongoing)) return result;
 
-            const covers = UNBOUNDED.has(type)
-                ? true
-                : type === 'rubato'
-                    ? rubatoCovers(ongoing, date)
-                    : type === 'accentuationPattern'
-                        ? accentuationCovers(ongoing, date)
-                        // articulation, asynchrony and ornament act on the notes at their
-                        // own date and reach no further, so the exact matches above are all.
-                        : false;
-
-            if (covers) result.push(ongoing);
+            if (date < boundOf(ongoing)) result.push(ongoing);
             return result;
+        },
+
+        reachOf: instruction => {
+            // The next of its kind in date order replaces it — even one on the same date,
+            // which `ongoingAt` prefers from that date on, so the earlier one's reach is a
+            // point. Anything else and the two directions would disagree.
+            const list = byType.get(instruction.type) ?? EMPTY;
+            const at = list.indexOf(instruction);
+            const next = at >= 0 ? list[at + 1] : undefined;
+            const to = Math.min(boundOf(instruction), next?.date ?? Infinity);
+            // espressivo closes a span nothing follows at `Number.MAX_VALUE`; this reader says
+            // `Infinity` for that, and nothing else it returns is anywhere near either.
+            return { from: instruction.date, to: to >= Number.MAX_VALUE ? Infinity : to };
         },
 
         ofType: type => byType.get(type) ?? EMPTY,

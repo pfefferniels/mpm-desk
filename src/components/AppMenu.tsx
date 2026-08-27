@@ -11,8 +11,6 @@ import { SecondaryData } from '../desks/TransformerViewProps';
 import { Ribbon } from './Ribbon';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useMode } from '../hooks/ModeProvider';
-import { useCallSelection } from '../hooks/CallSelection';
-import { useScrollSync } from '../hooks/ScrollSyncProvider';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { downloadAsFile } from '../utils/utils';
 import JSZip from 'jszip';
@@ -98,30 +96,17 @@ export const AppMenu: React.FC<AppMenuProps> = ({
 }) => {
     const { isPlaying, play, stop } = usePlayback();
     const { isEditorMode } = useMode();
-    const { setActiveCallIds, callForElement } = useCallSelection();
-    const { scrollToDate } = useScrollSync();
 
-    // Follow behavior: update active transformers and scroll position based on playback position.
-    const handleNoteEvent = useCallback((_noteId: string, date: number) => {
-        // Which calls are sounding: the elements in force at this date, mapped back through the
-        // fit's report. `callForElement` is the only thing that knows that mapping.
-        const ids = new Set<string>();
-        for (const instruction of getInstructions(mpm)) {
-            if (instruction.id === undefined || instruction.date > date) continue;
-            const owner = callForElement(instruction.id);
-            if (owner) ids.add(owner);
-        }
-        if (ids.size > 0) setActiveCallIds(ids);
-        scrollToDate(date);
-    }, [setActiveCallIds, callForElement, mpm, scrollToDate]);
-
+    // Only plays. Following the playhead is a subscription — `FollowPlayback` for the desks
+    // that plot one dimension, the narrative desk for itself — because what following means
+    // depends on which desk is open, and this button does not know.
     const handlePlay = useCallback(() => {
         if (isPlaying) {
             stop();
         } else {
-            play({ onNoteEvent: handleNoteEvent });
+            play();
         }
-    }, [isPlaying, play, stop, handleNoteEvent]);
+    }, [isPlaying, play, stop]);
 
     useHotkeys('space', () => handlePlay(), { preventDefault: true }, [handlePlay]);
     useHotkeys('meta+s', () => handleSave(), { preventDefault: true });

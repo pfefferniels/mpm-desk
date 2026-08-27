@@ -5,6 +5,9 @@ interface UngroupedInstructionsProps {
     instructions: readonly Instruction[];
     activeCallIds: ReadonlySet<string>;
     onToggleCall: (id: string) => void;
+    /** An ungrouped instruction sounds too, and hearing it is half of deciding where it goes. */
+    onPlayInstruction: (instruction: Instruction) => void;
+    playingInstructionId: string | null;
 }
 
 /**
@@ -22,7 +25,13 @@ interface UngroupedInstructionsProps {
  * anyone keeping a list of which transformers count.
  */
 export const UngroupedInstructions = memo(
-    ({ instructions, activeCallIds, onToggleCall }: UngroupedInstructionsProps) => {
+    ({
+        instructions,
+        activeCallIds,
+        onToggleCall,
+        onPlayInstruction,
+        playingInstructionId,
+    }: UngroupedInstructionsProps) => {
         const byName = useMemo(() => {
             const groups = new Map<string, Instruction[]>();
             for (const instruction of instructions) {
@@ -61,6 +70,8 @@ export const UngroupedInstructions = memo(
                             instructions={group}
                             activeCallIds={activeCallIds}
                             onToggleCall={onToggleCall}
+                            onPlay={onPlayInstruction}
+                            playingId={playingInstructionId}
                         />
                     </div>
                 ))}

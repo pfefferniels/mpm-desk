@@ -17,6 +17,15 @@ export const downloadAsFile = (
 
 export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
+/** Whether two sets hold the same members — for a state setter that must not re-render on an equal set. */
+export const setsEqual = <T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean => {
+    if (a.size !== b.size) return false;
+    for (const item of a) {
+        if (!b.has(item)) return false;
+    }
+    return true;
+};
+
 /**
  * A few notes as an in-memory MIDI file, for a desk to audition on hover.
  *

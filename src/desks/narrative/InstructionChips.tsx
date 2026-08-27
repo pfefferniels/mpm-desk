@@ -30,6 +30,10 @@ interface InstructionChipsProps {
     instructions: readonly Instruction[];
     activeCallIds: ReadonlySet<string>;
     onToggleCall: (id: string) => void;
+    /** Hear this one: the click plays the instruction as well as selecting its call. */
+    onPlay?: (instruction: Instruction) => void;
+    /** The instruction sounding right now, ringed so the ear and the eye agree on which. */
+    playingId?: string | null;
 }
 
 /**
@@ -41,9 +45,15 @@ interface InstructionChipsProps {
  * and splitting one across two claims would be a claim about half a gesture. The chip is the
  * instruction because the instruction is what a reader recognises; the selection is the call
  * because the call is what can honestly move.
+ *
+ * **The same click plays the instruction**, alone, over its own reach of the piece — the way a
+ * click on a word in the viewer plays the word. Selecting is the call's business and hearing is
+ * the instruction's, and one click does both because a reader deciding where an instruction
+ * belongs wants to hear it at the moment of deciding, not after a second gesture. The ring
+ * marks which one is sounding, since the selection colours the whole call.
  */
 export const InstructionChips = memo(
-    ({ instructions, activeCallIds, onToggleCall }: InstructionChipsProps) => {
+    ({ instructions, activeCallIds, onToggleCall, onPlay, playingId = null }: InstructionChipsProps) => {
         const [all, setAll] = useState(false);
 
         if (!instructions.length)
@@ -55,6 +65,7 @@ export const InstructionChips = memo(
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, maxWidth: 420 }}>
                 {shown.map((instruction) => {
                     const on = activeCallIds.has(instruction.call);
+                    const sounding = instruction.id === playingId;
                     const prefix = `${instruction.type}_`;
                     const rest = instruction.id.startsWith(prefix)
                         ? instruction.id.slice(prefix.length)
@@ -65,7 +76,10 @@ export const InstructionChips = memo(
                             type="button"
                             onClick={() => {
                                 onToggleCall(instruction.call);
+                                onPlay?.(instruction);
                             }}
+                            aria-pressed={on}
+                            data-sounding={sounding ? 'true' : undefined}
                             title={
                                 `${instruction.id} · ${instruction.type}\n` +
                                 (instruction.written
@@ -78,6 +92,8 @@ export const InstructionChips = memo(
                                 background: on ? '#111827' : instruction.written ? '#ffffff' : 'transparent',
                                 color: on ? '#ffffff' : instruction.written ? '#374151' : '#9ca3af',
                                 borderStyle: instruction.written ? 'solid' : 'dashed',
+                                outline: sounding ? '2px solid #111827' : undefined,
+                                outlineOffset: 1,
                                 borderRadius: 4,
                                 padding: '1px 5px',
                                 fontSize: 10,

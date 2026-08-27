@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import type { Segment } from '../../model/Work';
 import type { Segment as Gestures } from '../../model/Reconstruction';
 import type { PerformanceReader } from '../../utils/mpm';
@@ -19,8 +19,13 @@ interface SegmentRowProps {
     /** One beat in ticks, for the grid behind the drawn lanes. */
     beatLength: number;
     activeCallIds: Set<string>;
+    /** The playhead is inside this claim, or one of its instructions is being auditioned. */
+    playing: boolean;
+    /** The instruction of this row being auditioned, if the click was here. */
+    playingInstructionId: string | null;
     onPatch: (id: string, changes: Partial<Segment>) => void;
     onToggleCall: (id: string) => void;
+    onPlayInstruction: (instruction: Instruction, segmentId: string) => void;
     onAssignSelected: () => void;
     canAssign: boolean;
     onDissolve: () => void;
@@ -43,6 +48,11 @@ interface SegmentRowProps {
  *
  * The one thing a drawing cannot show is what is no longer there, so the count of instructions a
  * later call overwrote is still written out beneath it.
+ *
+ * **A row lights up while it sounds** — the viewer's spotlight, in a table. The playhead lights
+ * every claim with an instruction in effect and scrolls the row into view, so the reading moves
+ * with the playing; a clicked chip lights its own row for as long as its preview runs. One look
+ * for both, as in the viewer: the table has only the one way of saying "this one".
  */
 export const SegmentRow = memo(
     ({
@@ -54,15 +64,44 @@ export const SegmentRow = memo(
         minPointSpan,
         beatLength,
         activeCallIds,
+        playing,
+        playingInstructionId,
         onPatch,
         onToggleCall,
+        onPlayInstruction,
         onAssignSelected,
         canAssign,
         onDissolve,
     }: SegmentRowProps) => {
+        const rowRef = useRef<HTMLTableRowElement>(null);
+
+        // Follow the playhead down the table. `nearest`, so a row already on screen — the one
+        // whose chip was just clicked — stays exactly where the hand left it.
+        useEffect(() => {
+            if (playing) rowRef.current?.scrollIntoView?.({ block: 'nearest' });
+        }, [playing]);
+
+        const play = useCallback(
+            (instruction: Instruction) => {
+                onPlayInstruction(instruction, segment.id);
+            },
+            [onPlayInstruction, segment.id],
+        );
+
         return (
-            <tr style={{ borderBottom: '1px solid #f3f4f6', verticalAlign: 'top' }}>
-                <td style={cell}>
+            <tr
+                ref={rowRef}
+                data-segment-id={segment.id}
+                aria-current={playing ? 'true' : undefined}
+                style={{
+                    borderBottom: '1px solid #f3f4f6',
+                    verticalAlign: 'top',
+                    background: playing ? '#f3f4f6' : undefined,
+                    // Clear of the sticky header when the follow scrolls the row to the top.
+                    scrollMarginTop: 36,
+                }}
+            >
+                <td style={{ ...cell, borderLeft: `3px solid ${playing ? '#111827' : 'transparent'}` }}>
                     <textarea
                         value={segment.note ?? ''}
                         placeholder="unnamed"
@@ -77,6 +116,8 @@ export const SegmentRow = memo(
                             padding: '3px 5px',
                             fontFamily: '"EB Garamond", Garamond, serif',
                             fontSize: 14,
+                            fontWeight: playing ? 600 : 400,
+                            color: playing ? '#111827' : undefined,
                             lineHeight: 1.3,
                             resize: 'vertical',
                             background: segment.note ? 'transparent' : '#fffbeb',
@@ -108,6 +149,8 @@ export const SegmentRow = memo(
                         instructions={instructions}
                         activeCallIds={activeCallIds}
                         onToggleCall={onToggleCall}
+                        onPlay={play}
+                        playingId={playingInstructionId}
                     />
                 </td>
 
