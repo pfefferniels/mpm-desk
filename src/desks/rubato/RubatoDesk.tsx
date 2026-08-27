@@ -1,5 +1,4 @@
 
-import { Button } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { useState } from "react"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
@@ -12,8 +11,9 @@ import { DatesRow, Frame } from "./DatesRow"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
 import { DeskToolbar } from "../../components/DeskToolbar"
-import { Ribbon } from "../../components/Ribbon"
-import { Add } from "@mui/icons-material"
+import { ToolGroup } from "../../components/toolbar/ToolGroup"
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
+import { Add, Clear, Merge } from "@mui/icons-material"
 import { usePiano } from "react-pianosound"
 
 export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
@@ -99,39 +99,62 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
     return (
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
             <DeskToolbar>
-                <Ribbon title='Rubato'>
-                    <Button
-                        size='small'
-                        variant='outlined'
+                <ToolGroup>
+                    {/*
+                        `disabled` is `handleInsertRubato`'s own `if (!frame || !frame.length)
+                        return` made visible, which is the pattern this whole bar follows: where a
+                        handler already knows it cannot run, the button says so before it is
+                        pressed rather than swallowing the click.
+                    */}
+                    <ToolbarButton
+                        primary
+                        icon={<Add />}
+                        label='Insert'
+                        tooltip={!frame?.length
+                            ? 'Mark a frame on the plot first — click a start date, then an end'
+                            : 'Write a rubato over the marked frame'}
+                        disabled={!frame?.length}
                         onClick={handleInsertRubato}
-                        startIcon={<Add />}
                     >
                         Insert
-                    </Button>
-                    <Button
-                        variant='outlined'
-                        size='small'
+                    </ToolbarButton>
+                    {/*
+                        `handleInsertDelay` is an empty `// TODO`. Disabled rather than removed:
+                        the button is the only record that an absolute delay is meant to live on
+                        this desk, and deleting it would take the intention with it.
+                    */}
+                    <ToolbarButton
+                        icon={<Add />}
+                        label='Insert Absolute Delay'
+                        tooltip='Not implemented yet'
+                        disabled
                         onClick={handleInsertDelay}
-                        startIcon={<Add />}
                     >
                         Insert Absolute Delay
-                    </Button>
-
-                    <Button
-                        variant='outlined'
-                        onClick={handleCombine}
+                    </ToolbarButton>
+                    <ToolbarButton
+                        icon={<Merge />}
+                        label='Combine'
+                        tooltip={allRubatos.length <= 1
+                            ? 'Needs two or more rubatos to combine'
+                            : 'Merge adjacent rubatos of similar intensity and compression'}
                         disabled={allRubatos.length <= 1}
+                        onClick={handleCombine}
                     >
                         Combine
-                    </Button>
-
-                    <Button
-                        variant='outlined'
+                    </ToolbarButton>
+                    <ToolbarButton
+                        icon={<Clear />}
+                        label='Clear Frame'
+                        tooltip={!frame
+                            ? 'No frame marked'
+                            : 'Discard the marked frame'}
+                        disabled={!frame}
                         onClick={() => setFrame(undefined)}
                     >
                         Clear Frame
-                    </Button>
-                </Ribbon>
+                    </ToolbarButton>
+                </ToolGroup>
             </DeskToolbar>
 
             <h3 style={{ position: 'sticky', left: 0 }}>

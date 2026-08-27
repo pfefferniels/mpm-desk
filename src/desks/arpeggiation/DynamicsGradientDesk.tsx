@@ -3,12 +3,13 @@ import type { Alignment, AlignedNote } from "../../fitting/alignment"
 import { getInstructions, ornamentDraftOf, type Instruction, type Mpm } from "../../fitting/instructions/index"
 import { onsetSeconds, releaseSeconds } from "../noteTiming"
 import type { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
-import { Button, Checkbox, FormControlLabel } from "@mui/material"
 import { useRef, useState } from "react"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { DeskToolbar } from "../../components/DeskToolbar"
-import { Ribbon } from "../../components/Ribbon"
+import { ToolGroup } from "../../components/toolbar/ToolGroup"
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
+import { ToolCheckbox } from "../../components/toolbar/ToolCheckbox"
 import { Add, DeleteOutline } from "@mui/icons-material"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
@@ -236,8 +237,11 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
     const physicalEnd = Math.max(...msm.allNotes.map(releaseSeconds))
     const { calls, activeElements, setActiveElement, removeCall } = useCallSelection()
 
+    // Scoped, and it has to be: `transformDefault` writes one default per part, so a lookup by
+    // name alone reports part 1's default while part 2 is on screen — which left `Insert Default`
+    // permanently dead in every part but the one that happened to hold the call.
     const defaultCall = calls.find(
-        t => t.name === 'InsertDynamicsGradient' && !('date' in t.options)
+        t => t.name === 'InsertDynamicsGradient' && t.options.scope === part && !('date' in t.options)
     )
 
     const scrollContainerRef = useScrollRegistration('dynamics-gradient-desk', 'physical');
@@ -295,33 +299,57 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
     return (
         <div>
             <DeskToolbar>
-                <Ribbon title='Dynamics Gradient'>
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                size='small'
-                                checked={sortVelocities}
-                                onChange={(e) => setSortVelocities(e.target.checked)}
-                                color="primary"
-                            />
-                        }
-                        label="Sort Velocities"
-                    />
-                    <Button
-                        size='small'
-                        onClick={() => {
-                            if (defaultCall) {
-                                removeCall(defaultCall.id)
-                            } else {
-                                transformDefault()
-                            }
-                        }}
-                        startIcon={defaultCall ? <DeleteOutline /> : <Add />}
-                        variant='outlined'
+                {/*
+                    `Default` is the first group and still carries its caption, which is the one
+                    place in the bar where that is right rather than an oversight. Every other desk
+                    leads with an unlabelled group holding the action it exists to perform; this
+                    desk's per-chord gradients are committed by dragging on the plot below —
+                    `transform(date, gradient)`, off `RawGradient`'s own handles — and never from
+                    the bar. So there is no unlabelled group to lead with, and the caption is what
+                    says that the two buttons under it are about the *default* rather than about
+                    the chord the user was just dragging.
+
+                    The two of them were one button that flipped between `Insert Default` and
+                    `Remove Default`; see the note in `TemporalSpreadDesk` for why that is now two.
+                */}
+                <ToolGroup label='Default'>
+                    <ToolbarButton
+                        primary
+                        icon={<Add />}
+                        label='Insert Default'
+                        tooltip={defaultCall
+                            ? 'This part already has a default dynamics gradient'
+                            : 'Ramp every arpeggio in this part, up or down with its direction'}
+                        disabled={defaultCall !== undefined}
+                        onClick={transformDefault}
                     >
-                        {defaultCall ? 'Remove Default' : 'Insert Default'}
-                    </Button>
-                </Ribbon>
+                        Insert Default
+                    </ToolbarButton>
+                    <ToolbarButton
+                        icon={<DeleteOutline />}
+                        label='Remove Default'
+                        tooltip={defaultCall
+                            ? 'Remove the default dynamics gradient from this part'
+                            : 'This part has no default dynamics gradient'}
+                        disabled={!defaultCall}
+                        onClick={() => { if (defaultCall) removeCall(defaultCall.id) }}
+                    >
+                        Remove Default
+                    </ToolbarButton>
+                </ToolGroup>
+                {/*
+                    `Settings` and not `View`: both `transform` and `transformDefault` pass
+                    `sortVelocities` into the call they write, so this changes the performance and
+                    not the drawing of it.
+                */}
+                <ToolGroup label='Settings'>
+                    <ToolCheckbox
+                        checked={sortVelocities}
+                        onChange={setSortVelocities}
+                        label='Sort Velocities'
+                        tooltip='Order the notes of each chord by velocity, so the ramp runs monotonically'
+                    />
+                </ToolGroup>
             </DeskToolbar>
 
             <div style={{ overflow: 'scroll', position: 'relative', paddingBottom: 320 }}>

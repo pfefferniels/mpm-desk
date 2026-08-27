@@ -7,7 +7,10 @@ import { onsetSeconds, releaseSeconds } from "../noteTiming";
 import { ChordSpread } from "./ChordSpread";
 import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
 import { DeskToolbar } from "../../components/DeskToolbar";
-import { Ribbon } from "../../components/Ribbon";
+import { ToolGroup } from "../../components/toolbar/ToolGroup";
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
+import { ToolField } from "../../components/toolbar/ToolField";
+import { ToolStatus } from "../../components/toolbar/ToolStatus";
 import { usePhysicalZoom } from "../../hooks/ZoomProvider";
 import { useScrollRegistration } from "../../hooks/useScrollRegistration";
 import { Add, DeleteOutline } from "@mui/icons-material";
@@ -17,7 +20,11 @@ import { useTimeMapping } from "../../hooks/useTimeMapping";
 import { useCallSelection } from "../../hooks/CallSelection";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
-    const [insert, setInsert] = useState(false);
+    /**
+     * Which insert the dialog is collecting options for. Held rather than derived from
+     * `currentDate`, so that "Insert Default" means the default even while a chord is selected.
+     */
+    const [insert, setInsert] = useState<'chord' | 'default'>()
 
     // these are being defined in the drawer
     const [currentDate, setCurrentDate] = useState<number>()
@@ -25,14 +32,33 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     const [durationThreshold, setDurationThreshold] = useState<number>()
 
     // this is used for drawing the preview of a tempo curve
-    const [beatLength, setBeatLength] = useState(720);
+    /**
+     * The beat the tempo-curve preview is drawn against, as typed and as read.
+     *
+     * Two values rather than one, because a number field has a state no number represents: the
+     * empty box you are halfway through retyping. Holding only the number meant rejecting `''` on
+     * the way in, and a controlled input restores its DOM value from the state it was given — so
+     * backspacing through `720` stopped dead at `7` and the box could never be cleared.
+     *
+     * So the text is what the field holds and the number is derived from it, falling back to the
+     * last sensible beat while the box is empty or mid-edit. `averageBPM` divides by this, so a
+     * zero would take the whole preview to infinity.
+     */
+    const [beatLengthText, setBeatLengthText] = useState('720');
+    const parsedBeatLength = Number(beatLengthText);
+    const beatLength =
+        Number.isFinite(parsedBeatLength) && parsedBeatLength > 0 ? parsedBeatLength : 720;
 
     const stretchX = usePhysicalZoom()
     const { tickToSeconds } = useTimeMapping(msm)
     const { calls, activeElements, setActiveElement, removeCall } = useCallSelection()
 
+    // Scoped, and it has to be: `InsertTemporalSpread` writes one default per part, so a lookup
+    // by name alone reports part 1's default while part 2 is on screen. Under the old flip button
+    // that showed up as "Remove Default" offered in a part that has none; under the split it would
+    // be a permanently dead `Insert Default` in every part but the one holding the call.
     const defaultCall = calls.find(
-        t => t.name === 'InsertTemporalSpread' && !('date' in t.options)
+        t => t.name === 'InsertTemporalSpread' && t.options.scope === part && !('date' in t.options)
     )
 
     const averageBPM = useMemo(() => {
@@ -67,7 +93,11 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     )
 
     const transform = () => {
-        if (currentDate) {
+        // What the user asked for, not what the selection happens to be: the dialog was opened by
+        // one of two buttons and `insert` records which. Reading `currentDate` here — as this did
+        // — meant "Insert Default" silently inserted a single spread whenever a chord was still
+        // selected, and it was a truthiness test besides, so a chord at tick 0 was a default.
+        if (insert === 'chord' && currentDate !== undefined) {
             // This is a single temporal spread
             addTransformer(new InsertTemporalSpread({
                 scope: part,
@@ -117,7 +147,9 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                 height={height}
                 spread={existingSpread?.def}
                 onClick={() => setCurrentDate(date)}
-                placement={(currentDate && (date === currentDate)) ? placement : undefined}
+                // `!== undefined`, not truthiness — tick 0 is a real chord, and the first
+                // chord of the piece is exactly the one at it.
+                placement={currentDate !== undefined && date === currentDate ? placement : undefined}
             />
         ))
     }
@@ -125,39 +157,79 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     return (
         <div>
             <DeskToolbar>
-                <Ribbon title="Temporal Spread">
-                    {!currentDate && defaultCall ? (
-                        <Button
-                            size='small'
-                            variant='outlined'
-                            onClick={() => removeCall(defaultCall.id)}
-                            startIcon={<DeleteOutline />}
-                        >
-                            Remove Default
-                        </Button>
-                    ) : (
-                        <Button
-                            size='small'
-                            variant='outlined'
-                            onClick={() => setInsert(true)}
-                            startIcon={<Add />}
-                        >
-                            Insert {!currentDate && 'Default'}
-                        </Button>
-                    )}
-                </Ribbon>
-                <Ribbon title='Tempo Curve'>
-                    <TextField
-                        size='small'
-                        label="Beat Length"
-                        type="number"
-                        value={beatLength}
-                        onChange={(e) => setBeatLength(Number(e.target.value))}
-                        InputLabelProps={{ shrink: true }}
-                        variant="outlined"
-                        sx={{ width: '100px' }}
+                {/*
+                    Two buttons where there was one, and the reason generalises to every desk that
+                    contributes to this bar.
+
+                    What stood here was a single control that read `Insert`, `Insert Default` or
+                    `Remove Default` depending on whether a chord was selected and whether a
+                    default call already existed. Four things were wrong with that. The same pixel
+                    performed opposite actions, so a double-click inserted and then deleted. Both
+                    the label *and* the icon changed with the state, so the button changed width
+                    under a cursor on its way to it. Which state you were in could not be read off
+                    the bar at all — you had to work it out from the label and know the rule. And
+                    here the flip was not even insert/remove but *three* actions on one button,
+                    chosen by a selection the button never displayed.
+
+                    Split, always mounted, and disabled rather than hidden: which state you are in
+                    now shows in which button is live, and the readout beside them names the chord.
+                */}
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        icon={<Add />}
+                        label='Insert'
+                        tooltip={currentDate === undefined
+                            ? 'Select a chord in the plot below to spread it'
+                            : 'Insert a temporal spread on the selected chord'}
+                        disabled={currentDate === undefined}
+                        onClick={() => setInsert('chord')}
+                    >
+                        Insert
+                    </ToolbarButton>
+                    <ToolStatus width={88}>
+                        {currentDate === undefined ? 'no chord' : `tick ${currentDate}`}
+                    </ToolStatus>
+                </ToolGroup>
+                <ToolGroup label='Default'>
+                    <ToolbarButton
+                        icon={<Add />}
+                        label='Insert Default'
+                        tooltip={defaultCall
+                            ? 'This part already has a default temporal spread'
+                            : 'Spread every chord in this part that is long enough'}
+                        disabled={defaultCall !== undefined}
+                        onClick={() => setInsert('default')}
+                    >
+                        Insert Default
+                    </ToolbarButton>
+                    <ToolbarButton
+                        icon={<DeleteOutline />}
+                        label='Remove Default'
+                        tooltip={defaultCall
+                            ? 'Remove the default temporal spread from this part'
+                            : 'This part has no default temporal spread'}
+                        disabled={!defaultCall}
+                        onClick={() => { if (defaultCall) removeCall(defaultCall.id) }}
+                    >
+                        Remove Default
+                    </ToolbarButton>
+                </ToolGroup>
+                {/*
+                    `View` and not `Settings`: the beat length reaches `averageBPM` and
+                    `<TempoVariance>`, both of which only draw the tempo-curve preview under the
+                    chords. No transformer ever reads it, so changing it cannot alter the
+                    performance — only how this desk plots it.
+                */}
+                <ToolGroup label='View'>
+                    <ToolField
+                        label='Beat Length'
+                        type='number'
+                        width={84}
+                        value={beatLengthText}
+                        onChange={setBeatLengthText}
                     />
-                </Ribbon>
+                </ToolGroup>
             </DeskToolbar>
 
             <div style={{ position: 'relative', width: '80vw' }}>
@@ -199,14 +271,14 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                 </div>
             </div>
             <Dialog
-                open={insert}
-                onClose={() => {
-                    setCurrentDate(undefined)
-                    setInsert(false)
-                }}
+                open={insert !== undefined}
+                // Closing no longer clears `currentDate`. Cancelling a dialog is a decision about
+                // the dialog, and it was deselecting the chord underneath it — so backing out of
+                // the options meant hunting the chord down again to try a different placement.
+                onClose={() => setInsert(undefined)}
             >
                 <DialogTitle>
-                    {currentDate ? `Temporal Spread @${currentDate}` : 'Insert Default'}
+                    {insert === 'chord' ? `Temporal Spread @${currentDate}` : 'Insert Default'}
                 </DialogTitle>
                 <DialogContent>
                     <Stack direction="row" spacing={2} alignItems="center" m={2}>
@@ -226,7 +298,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                             </Select>
                         </FormControl>
 
-                        {!currentDate && (
+                        {insert === 'default' && (
                             <FormControl>
                                 <TextField
                                     label="Duration Threshold"
@@ -244,8 +316,12 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                 <DialogActions>
                     <Button onClick={() => {
                         transform();
-                        setCurrentDate(undefined);
-                        setInsert(false)
+                        setInsert(undefined)
+                        // The chord is spent once its spread is written. Cancelling leaves it
+                        // selected — that is a decision about the dialog — but confirming must
+                        // not, or Insert stays live over a date that already has a call and a
+                        // second click writes a duplicate onto it.
+                        setCurrentDate(undefined)
                     }}>
                         Insert
                     </Button>

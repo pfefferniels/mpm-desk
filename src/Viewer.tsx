@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import JSZip from 'jszip';
 import { SegmentStack } from './segment-stack/SegmentStack';
-import { ZoomContext } from './hooks/ZoomProvider';
+import { ZoomContext, ZOOM_MAX, ZOOM_MIN } from './hooks/ZoomProvider';
 import { SelectionProvider } from './hooks/SelectionProvider';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
@@ -31,7 +31,7 @@ const ViewerInner = () => {
     // fitted zoom before it paints, so the tree is never shown at the placeholder zoom and
     // then jerked to its real width. It happens once — after that the zoom is the reader's.
     if (!fitted && maxDate > 0) {
-        setStretchX(Math.min(60, Math.max(1, (window.innerWidth * 200) / maxDate)));
+        setStretchX(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, (window.innerWidth * 200) / maxDate)));
         setFitted(true);
     }
 

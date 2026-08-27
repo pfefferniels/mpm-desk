@@ -1,9 +1,6 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef } from 'react';
-import { useZoom } from './ZoomProvider';
+import { useZoom, ZOOM_MAX, ZOOM_MIN } from './ZoomProvider';
 import { useScrollSync } from './ScrollSyncProvider';
-
-const MIN_STRETCH = 1;
-const MAX_STRETCH = 60;
 
 function usePinchZoom() {
     const { stretchX, setStretchX } = useZoom();
@@ -21,7 +18,7 @@ function usePinchZoom() {
 
     // useEffectEvent: always reads latest stretchX without re-attaching listeners
     const applyZoom = useEffectEvent((zoomFactor: number, clientX: number) => {
-        const newStretch = Math.min(MAX_STRETCH, Math.max(MIN_STRETCH, stretchX * zoomFactor));
+        const newStretch = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, stretchX * zoomFactor));
         if (newStretch === stretchX) return;
         pendingAdjustment.current = { clientX, ratio: newStretch / stretchX };
         setStretchX(newStretch);

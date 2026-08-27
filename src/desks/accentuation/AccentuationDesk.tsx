@@ -9,18 +9,20 @@ import { MergeMetricalAccentuations } from "../../fitting/transformers/accentuat
 import { getDefinition, getInstructions, Instruction } from "../../fitting/instructions/index";
 import { Alignment, AlignedNote } from "../../fitting/alignment";
 import { Residual } from "../../fitting/residual";
-import { Box, Button, Stack } from "@mui/material";
+import { Box } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
 import { Pattern } from "./Pattern";
-import { Add, Delete } from "@mui/icons-material";
+import { Add, Delete, Merge } from "@mui/icons-material";
 import { AccentuationDialog } from "./AccentuationDialog";
 import { NameDialog } from "./NameDialog";
 import { Preview } from "./Preview";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
 import { DeskToolbar } from "../../components/DeskToolbar";
-import { Ribbon } from "../../components/Ribbon";
+import { ToolGroup } from "../../components/toolbar/ToolGroup";
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
+import { ToolStatus } from "../../components/toolbar/ToolStatus";
 import { v4 } from "uuid";
 
 /**
@@ -215,44 +217,76 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
 
     return (
         <div ref={scrollContainerRef} style={{ height: '400', overflow: 'scroll' }}>
-            <Stack spacing={1} direction='column' sx={{ position: 'sticky', left: 0 }}>
-                <Box sx={{ m: 1 }}>
-                    {part !== 'global' && `Part ${part + 1}`}
-                </Box>
-                <DeskToolbar>
-                    <Ribbon title='Metrical Accentuation'>
-                        {selectedPatterns && (
-                            <Button
+            {/*
+                The `Stack` that used to be here wrapped this `Box` and the `DeskToolbar`, and the
+                toolbar portals into the app bar — so the stack was laying out one child and a hole.
+                What it was really doing was holding the caption still while the plot scrolls
+                sideways under it, which is a property of the caption; the sticky positioning moves
+                onto the caption and the stack goes.
+            */}
+            <Box sx={{ m: 1, position: 'sticky', left: 0 }}>
+                {part !== 'global' && `Part ${part + 1}`}
+            </Box>
+            <DeskToolbar>
+                {/*
+                    Unlabelled, because a group caption is never the desk's own name and `Metrical
+                    Accentuation` was exactly that.
 
-                                variant='contained'
-                                onClick={() => setNameDialogOpen(true)}
-                            >
-                                Merge ({selectedPatterns.length})
-                            </Button>
-                        )}
-                        {candidate && (
-                            <>
-                                <Button
-                                    size='small'
-                                    variant='outlined'
-                                    onClick={() => setInsertDialogOpen(true)}
-                                    startIcon={<Add />}
-                                >
-                                    Insert
-                                </Button>
-                                <Button
-                                    size='small'
-                                    variant='outlined'
-                                    onClick={() => setCandidate(undefined)}
-                                    startIcon={<Delete />}
-                                >
-                                    Clear Candidate
-                                </Button>
-                            </>
-                        )}
-                    </Ribbon>
-                </DeskToolbar>
-            </Stack>
+                    Every control in this bar used to be conditional, which made this the desk that
+                    proved the rule: with no candidate and nothing selected the group collapsed to
+                    an empty labelled box and a dangling rule, and that was the state it sat in most
+                    of the time. All four are mounted now and say why they cannot be used.
+
+                    Merge was `contained` and is not the primary. It tidies patterns the desk has
+                    already written; `Insert` is the one that writes one, so `Insert` is what this
+                    desk is for.
+
+                    The bug the `disabled` fixes: Merge was guarded by `{selectedPatterns && …}`
+                    over a `useState<Pattern[]>([])`, and an empty array is truthy — so `Merge (0)`
+                    rendered always, and clicking it opened the name dialog and committed a
+                    `MergeMetricalAccentuations` with `names: []`. A merge of one was reachable the
+                    same way. Two is the smallest number of patterns a merge means anything for.
+                */}
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        icon={<Add fontSize='small' />}
+                        label='Insert'
+                        tooltip={candidate
+                            ? 'Fit a metrical accentuation pattern to the candidate range'
+                            : 'Click a dot on the plot to mark a candidate range first'}
+                        disabled={!candidate}
+                        onClick={() => setInsertDialogOpen(true)}
+                    >
+                        Insert
+                    </ToolbarButton>
+                    {/* No readout for the candidate: `Preview` draws it on the plot, where it is
+                        far more legible than a range of ticks would be here. */}
+                    <ToolbarButton
+                        icon={<Delete fontSize='small' />}
+                        label='Clear Candidate'
+                        tooltip={candidate
+                            ? 'Drop the candidate range and start marking again'
+                            : 'No candidate to clear'}
+                        disabled={!candidate}
+                        onClick={() => setCandidate(undefined)}
+                    >
+                        Clear Candidate
+                    </ToolbarButton>
+                    <ToolbarButton
+                        icon={<Merge fontSize='small' />}
+                        label='Merge'
+                        tooltip={selectedPatterns.length < 2
+                            ? 'Shift-click two or more patterns on the plot to merge them'
+                            : `Merge the ${selectedPatterns.length} selected patterns into one`}
+                        disabled={selectedPatterns.length < 2}
+                        onClick={() => setNameDialogOpen(true)}
+                    >
+                        Merge
+                    </ToolbarButton>
+                    <ToolStatus width={88}>{`${selectedPatterns.length} selected`}</ToolStatus>
+                </ToolGroup>
+            </DeskToolbar>
 
             <svg
                 width={width + margin}

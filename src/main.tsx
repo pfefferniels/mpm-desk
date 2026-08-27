@@ -4,9 +4,12 @@
    `lazy` calls below exist to make. */
 import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
+import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider } from '@mui/material/styles';
 import { PianoContextProvider } from 'react-pianosound';
 import { ModeProvider } from './hooks/ModeProvider';
 import { LoadingScreen } from './components/LoadingScreen';
+import { theme } from './theme';
 import './index.css';
 
 /**
@@ -45,18 +48,37 @@ const Viewer = lazy(async () => ({ default: (await import('./Viewer')).Viewer })
 const root = document.getElementById('root');
 if (!root) throw new Error('no #root to mount on');
 
+/**
+ * The theme goes outside the split, and above `Suspense`.
+ *
+ * Above `Suspense` because `CssBaseline` has to have set the body background and `color-scheme`
+ * before the first paint, and the first paint is the loading screen — put it inside and the fallback
+ * flashes in the user agent's colours while the route's chunk is still arriving.
+ *
+ * Around both branches because both need it. The obvious reading is that the desks are the MUI tree
+ * and the viewer is hand-drawn SVG, but the viewer's glass toolbar reads `text.secondary` and
+ * `text.disabled` in four places, and has been resolving them against a theme nobody configured.
+ *
+ * `enableColorScheme` is a bug fix rather than tidying. The deleted `:root` said
+ * `color-scheme: light dark`, which told a dark-mode browser it could paint form controls dark —
+ * so the narrative desk's native `<textarea>` and its filter `<input>` came out dark-on-dark
+ * inside a white table, on a machine set to dark, for a UI that has no dark mode.
+ */
 createRoot(root).render(
     <StrictMode>
-        <Suspense fallback={<LoadingScreen />}>
-            {isEditor ? (
-                <ModeProvider>
-                    <PianoContextProvider velocities={3}>
-                        <Editor />
-                    </PianoContextProvider>
-                </ModeProvider>
-            ) : (
-                <Viewer />
-            )}
-        </Suspense>
+        <ThemeProvider theme={theme}>
+            <CssBaseline enableColorScheme />
+            <Suspense fallback={<LoadingScreen />}>
+                {isEditor ? (
+                    <ModeProvider>
+                        <PianoContextProvider velocities={3}>
+                            <Editor />
+                        </PianoContextProvider>
+                    </ModeProvider>
+                ) : (
+                    <Viewer />
+                )}
+            </Suspense>
+        </ThemeProvider>
     </StrictMode>,
 );

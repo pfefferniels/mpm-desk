@@ -20,7 +20,7 @@ interface State {
  * unfinished fit — unmounted the whole tree and the session's work went with it.
  *
  * So the boundary sits around the desk slot **only**. The app bar above it survives, which means
- * `AppMenu`'s Save survives, which is the entire point: the answer to a desk crashing is to save
+ * the app bar's Save survives, which is the entire point: the answer to a desk crashing is to save
  * and reload, and that has to still be reachable.
  *
  * A boundary has to be a class — `getDerivedStateFromError` has no hook form.

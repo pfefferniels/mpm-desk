@@ -5,8 +5,11 @@ import { MakeChoice } from "../../fitting/transformers/choice/MakeChoice"
 import type { NoteChoice, Preference, RangeChoice } from "../../fitting/transformers/choice/MakeChoice"
 import type { AlignedNote } from "../../fitting/alignment"
 import { onsetSeconds, pedalHeldSeconds, pedalOnsetSeconds, soundedSeconds } from "../noteTiming"
-import { Ribbon } from "../../components/Ribbon"
 import { DeskToolbar } from "../../components/DeskToolbar"
+import { ToolGroup } from "../../components/toolbar/ToolGroup"
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
+import { ToolStatus } from "../../components/toolbar/ToolStatus"
+import { Clear } from "@mui/icons-material"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 
@@ -279,34 +282,61 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
 
     const sources = new Set(msm.allNotes.map(note => note.source || 'unknown'))
 
+    // What the choice is about to cover, said beside the button rather than inside its label.
+    //
+    // This used to be spelled into the label itself — `Make Choice (12)`, `Make Choice
+    // (1200-4800)`, `Make Choice (Default)` — and it is the worst case of that mistake in the app,
+    // because the three states are not merely different widths but different *shapes*: a
+    // meta-click grows a note count by a digit, and a shift-click replaces the whole count with a
+    // pair of tick numbers. The button is the one the user is aiming for while clicking on the plot
+    // beside it, so it was reflowing under the cursor on its way over.
+    const choiceScope = currentChoice
+        ? 'noteIDs' in currentChoice
+            ? `${currentChoice.noteIDs.length} notes`
+            : `ticks ${currentChoice.from}–${currentChoice.to}`
+        : 'default'
+
     return (
         <>
             <DeskToolbar>
-                <Ribbon title="Range Choice">
-                    <Button
-                        size='small'
-                        variant='outlined'
+                {/*
+                    Unlabelled, because the group's caption is never the desk's own name and `Range
+                    Choice` was exactly that. The desk name leads the toolbar row now.
+
+                    `Make Choice` is the primary and is deliberately *not* disabled when nothing is
+                    selected: a choice with no range is the documented way to state a preferred
+                    source for the whole piece, so no selection is a legitimate scope rather than a
+                    missing precondition. The readout beside it says which of the three scopes is in
+                    force, which is the information the old label was carrying.
+                */}
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        label='Make Choice'
+                        tooltip={currentChoice
+                            ? `Choose a preferred source for ${choiceScope}`
+                            : 'Choose a preferred source for the whole piece — click notes to narrow it'}
                         onClick={() => setInsert(true)}
                     >
-                        Make Choice ({
-                            currentChoice
-                                ? 'noteIDs' in currentChoice
-                                    ? currentChoice.noteIDs.length
-                                    : `${currentChoice.from}-${currentChoice.to}`
-                                : 'Default'
-                        })
-                    </Button>
-                    <Button
-                        size='small'
-                        variant='outlined'
-                        onClick={() => {
-                            setCurrentChoice(undefined)
-                        }}
+                        Make Choice
+                    </ToolbarButton>
+                    {/* 120px, measured for `ticks 12345–67890` at ten-point tabular figures —
+                        104 was short of it, so the very case it was sized for was the one that
+                        ellipsized. Anything longer still truncates, which is the point: the
+                        button after it does not move. */}
+                    <ToolStatus width={120}>{choiceScope}</ToolStatus>
+                    <ToolbarButton
+                        icon={<Clear fontSize='small' />}
+                        label='Clear Choice'
+                        tooltip={currentChoice
+                            ? 'Forget the selected notes and go back to the default scope'
+                            : 'Nothing selected to clear'}
                         disabled={!currentChoice}
+                        onClick={() => setCurrentChoice(undefined)}
                     >
                         Clear Choice
-                    </Button>
-                </Ribbon>
+                    </ToolbarButton>
+                </ToolGroup>
             </DeskToolbar>
 
             <div ref={scrollContainerRef} style={{ width: '80vw', height: 'calc(100vh - 370px)', overflowX: 'scroll', overflowY: 'hidden', position: 'relative' }}>

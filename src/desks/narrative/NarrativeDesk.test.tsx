@@ -21,6 +21,7 @@ import { parseMPM } from '../../fitting/instructions/index';
 import type { Alignment } from '../../fitting/alignment';
 import type { Residual } from '../../fitting/residual';
 import { ZoomContext } from '../../hooks/ZoomProvider';
+import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { WorkDocumentProvider } from '../../hooks/WorkDocument';
 import { initialHistory } from '../../model/workReducer';
 import { PlaybackProvider, usePlayback } from '../../hooks/PlaybackProvider';
@@ -105,6 +106,17 @@ const Selection = ({ children }: { children: ReactNode }) => {
 const mount = async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
+
+    // The app bar, standing in for `EditorAppBar`'s second row. A sibling of the desk and not a
+    // child of it, which is where it really is — so `container` stays a view of the table alone
+    // and the two tests below go on asking their questions of it unchanged.
+    //
+    // Present at all because `DeskToolbar` renders `null` where there is no target: without a
+    // provider the desk's New Segment button, filter and counters do not exist in the DOM, and a
+    // test of them would be indistinguishable from a test of a desk that had lost them.
+    const toolbar = document.createElement('div');
+    document.body.appendChild(toolbar);
+
     const root = createRoot(container);
     await act(async () => {
         root.render(
@@ -135,19 +147,21 @@ const mount = async () => {
                             })}
                             dispatch={() => {}}
                         >
-                            <NarrativeDesk
-                                msm={
-                                    {
-                                        timeSignature: { denominator: meter.denominator },
-                                    } as unknown as Alignment
-                                }
-                                mpm={mpm}
-                                residual={{} as Residual}
-                                secondary={{}}
-                                setSecondary={() => {}}
-                                projected={projected}
-                                performanceXml={performanceMpm}
-                            />
+                            <DeskToolbarProvider target={toolbar}>
+                                <NarrativeDesk
+                                    msm={
+                                        {
+                                            timeSignature: { denominator: meter.denominator },
+                                        } as unknown as Alignment
+                                    }
+                                    mpm={mpm}
+                                    residual={{} as Residual}
+                                    secondary={{}}
+                                    setSecondary={() => {}}
+                                    projected={projected}
+                                    performanceXml={performanceMpm}
+                                />
+                            </DeskToolbarProvider>
                         </WorkDocumentProvider>
                     </Selection>
                 </PlaybackProvider>
@@ -163,10 +177,12 @@ const mount = async () => {
 
     return {
         container,
+        toolbar,
         lit,
         unmount: async () => {
             await act(async () => root.unmount());
             container.remove();
+            toolbar.remove();
         },
     };
 };

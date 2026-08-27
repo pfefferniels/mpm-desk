@@ -5,13 +5,12 @@ import React, {
     useEffectEvent,
     useMemo,
     useReducer,
+    useRef,
     useState,
 } from 'react';
 import JSZip from 'jszip';
-import { Alert, AppBar, Snackbar, Stack } from '@mui/material';
-import { useHotkeys } from 'react-hotkeys-hook';
+import { Alert, Box, Snackbar } from '@mui/material';
 import { convertMeiToMsm } from 'espressivo';
-import './App.css';
 // Populates the transformer registry for this thread. Stated at the editor's own root rather
 // than left to whichever module happens to be imported first: the registry is module-level
 // state, and a chain reconstructed before it is populated silently loses every call it cannot
@@ -29,26 +28,23 @@ import { ZoomContext } from './hooks/ZoomProvider';
 import { CallSelectionProvider } from './hooks/CallSelection';
 import { WorkDocumentProvider } from './hooks/WorkDocument';
 import { useLatest } from './hooks/useLatest';
-import { useMode } from './hooks/ModeProvider';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
-import { AppMenu } from './components/AppMenu';
 import { DeskToolbarProvider } from './components/DeskToolbar';
 import { DeskErrorBoundary } from './components/DeskErrorBoundary';
+import { EditorHotkeys } from './components/EditorHotkeys';
+import { EditorAppBar } from './components/toolbar/EditorAppBar';
 import { FollowPlayback } from './components/FollowPlayback';
 import { AspectSelect } from './components/AspectSelect';
-import { FloatingZoom } from './components/FloatingZoom';
 import { StartScreen } from './components/StartScreen';
 import { LoadingScreen } from './components/LoadingScreen';
 import { useEditorFit } from './hooks/useEditorFit';
 import { asMSM } from './fitting/asMSM';
 import type { Alignment } from './fitting/alignment';
-import type {
-    ScopedTransformationOptions,
-    Transformer,
-} from './fitting/transformers/Transformer';
+import { getInstructions } from './fitting/instructions/index';
+import type { ScopedTransformationOptions, Transformer } from './fitting/transformers/Transformer';
 import {
     initialHistory,
     metadataOf,
@@ -56,6 +52,9 @@ import {
     type Secondary,
 } from './model/workReducer';
 import { migrateIfNeeded } from './model/loadWork';
+import { buildWorkArchive } from './model/exportWork';
+import type { WorkFile } from './model/Work';
+import { downloadAsFile } from './utils/utils';
 import { readNoteDates } from './utils/score';
 
 /**
@@ -101,8 +100,6 @@ const TRANSFORMER_ALIASES: Record<string, string> = {
 };
 
 export const App = () => {
-    const { isEditorMode } = useMode();
-
     // Named `workHistory`, not `history`: the global of that name is what `pushState` below is
     // reached through, and shadowing it here made an undo stack look like a browser one.
     const [workHistory, dispatch] = useReducer(workHistoryReducer, undefined, () =>
@@ -121,15 +118,34 @@ export const App = () => {
     const [stretchX, setStretchX] = useState<number>(20);
 
     /**
-     * The app bar's node, held in state rather than a ref.
+     * The desk row's node, held in state rather than a ref.
      *
      * A desk portals its own controls into it (`DeskToolbar`), and a ref cannot serve that: on
      * the commit where the bar and the desk first render together the ref is still null, so
      * every desk's toolbar mounted into `document.body` and moved to the bar on some later
      * render. A callback ref into state re-renders when the node attaches, which is the whole
      * difference.
+     *
+     * It is the app bar's *second* row, and specifically a box in it that holds nothing React
+     * owns. React inserts a child of its own by finding the next host sibling it tracks and
+     * calling `insertBefore`; among children that all arrived through portals there is none, so
+     * it appends instead. Anything rendered into the target would therefore land after every
+     * desk's controls — which is what the old `{pending && <span>refitting…</span>}` did in the
+     * one-row bar it shared with nine portals, and why that span always sat at the far right.
      */
-    const [appBar, setAppBar] = useState<HTMLDivElement | null>(null);
+    const [deskRow, setDeskRow] = useState<HTMLDivElement | null>(null);
+
+    /**
+     * The document as it was last written out, and the hidden input Open reaches through.
+     *
+     * Dirtiness is `work !== savedWork`, by reference. That is sound because `workHistoryReducer`
+     * hands back the state it was given when an edit changed nothing, so a blur on an untouched
+     * field is not a change here either; because `load` stores the very object it dispatched; and
+     * because undo and redo step between the objects the history already holds, so saving,
+     * undoing and redoing back lands on the saved reference again and the dot goes out.
+     */
+    const [savedWork, setSavedWork] = useState<WorkFile>(() => workHistory.present);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     /**
      * The desk currently open, and the hold-out its residual must be derived with.
@@ -177,12 +193,17 @@ export const App = () => {
         }
         setScoreMsm(converted);
         setPristine(asMSM(content, converted));
+        // A new score has new part indices, and the scope picker is a `Select`: left holding a
+        // part the score does not have, it renders blank and warns. The `ToggleButtonGroup` it
+        // replaced hid this by simply showing nothing selected.
+        setScope('global');
     }, []);
 
     const loadWorkFromJson = useCallback((content: string) => {
         try {
             const loaded = migrateIfNeeded(content);
             dispatch({ type: 'load', work: loaded });
+            setSavedWork(loaded);
 
             // A link into a call selects it, and this is the moment that can be decided: the
             // document is in hand and the URL has not moved. It used to be an effect waiting for
@@ -226,16 +247,22 @@ export const App = () => {
         [loadMei, loadWorkFromJson],
     );
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        if (file.name.endsWith('.zip')) void handleOpenZip(file);
-        else if (file.name.endsWith('.mei') || file.name.endsWith('.xml')) void handleOpenMei(file);
-    };
+    const handleOpenFile = useCallback(
+        (file: File) => {
+            if (file.name.endsWith('.zip')) void handleOpenZip(file);
+            else if (file.name.endsWith('.mei') || file.name.endsWith('.xml'))
+                void handleOpenMei(file);
+            // The old branch had no `else`, so an unrecognised suffix did nothing and said
+            // nothing — indistinguishable from a file that failed to parse.
+            else setMessage(`Cannot open ${file.name} — expected a .zip, .mei or .xml.`);
+        },
+        [handleOpenZip, handleOpenMei],
+    );
 
-    const handleFileImport = () => {
-        document.getElementById('fileInput')?.click();
-    };
+    /** Opens the picker below. It used to be `document.getElementById('fileInput')?.click()`
+        into an input that the toolbar rendered — a round trip through the DOM between two
+        components that could simply share a ref. */
+    const openFilePicker = useCallback(() => fileInputRef.current?.click(), []);
 
     // ── editing the document ──────────────────────────────────────
 
@@ -279,14 +306,84 @@ export const App = () => {
         [],
     );
 
-    const secondary = (work.secondary ?? {}) as SecondaryData;
+    /**
+     * Per-desk working state, defaulted.
+     *
+     * Memoised on `work.secondary` rather than left as a bare expression, because the `?? {}`
+     * built a fresh object on every render of the editor whenever a document had no secondary
+     * state yet — which is most of them. That object is in `deskProps`, so it reached all
+     * thirteen desks as a prop that never compared equal, and it is a dependency of the save
+     * below, which would then have been rebuilt every render too.
+     */
+    const secondary = useMemo(() => (work.secondary ?? {}) as SecondaryData, [work.secondary]);
 
     /** Title and author, read off the chain's own `InsertMetadata` call — see `workReducer`. */
     const metadata = useMemo(() => metadataOf(work), [work]);
 
+    const dirty = work !== savedWork;
 
-    useHotkeys('mod+z', () => dispatch({ type: 'undo' }), { preventDefault: true });
-    useHotkeys('mod+shift+z', () => dispatch({ type: 'redo' }), { preventDefault: true });
+    /**
+     * What to call the file, given that a title here is a sentence.
+     *
+     * The metadata desk holds the title in a growing `textarea` precisely because it is prose —
+     * the chain carries it as a `<comment>` — so it arrives with spaces, punctuation and no
+     * length worth trusting. Handing that straight to a download turns a slash into a path
+     * separator and a colon into one on macOS, and the archive lands somewhere nobody asked for
+     * or not at all.
+     *
+     * So: the first few words, letters and digits only, hyphen-joined. `reconstruction` where
+     * that leaves nothing — which is the case for a title of pure punctuation as well as for no
+     * title at all, and is why the fallback is tested after the stripping rather than before it.
+     *
+     * The two lines that are not obvious. Decomposing to NFKD and then dropping the combining
+     * marks is what turns `Überschrift` into `uberschrift`; without the second step the mark is
+     * simply not a letter, and a German title comes out as `u-berschrift`. And the trim runs
+     * *after* the truncation, because a cut at sixty characters usually lands mid-word and would
+     * otherwise leave the hyphen it made dangling on the end of the name.
+     */
+    const archiveName = useMemo(() => {
+        const slug = metadata.title
+            .normalize('NFKD')
+            .replace(/\p{Mark}+/gu, '')
+            .replace(/[^\p{Letter}\p{Number}]+/gu, '-')
+            .slice(0, 60)
+            .replace(/^-+|-+$/g, '')
+            .toLowerCase();
+        return `${slug || 'reconstruction'}.zip`;
+    }, [metadata.title]);
+
+    /**
+     * Save, which is a download: the four-file archive the viewer reads.
+     *
+     * Building it is `buildWorkArchive`, which is pure and tested; this is the half that cannot
+     * be — the download itself, and noticing that the document on disk is now this one.
+     *
+     * It lives here rather than in the toolbar because the shortcut calls it too, and that is
+     * registered in a different subtree. One owner, two callers.
+     */
+    const handleSave = useCallback(async () => {
+        if (!mei || !mpm || !alignment || !result) return;
+
+        const archive = await buildWorkArchive({
+            mei,
+            msm: alignment,
+            mpm,
+            scoreMsm,
+            calls: work.provenance,
+            segments: work.segments,
+            outcomes: result.outcomes,
+            metadata,
+            // The same boundary `setSecondary` crosses in the other direction, and the only
+            // other place it is crossed: the bag is typed per desk here and opaque to the
+            // document, because nothing outside a desk may depend on its shape.
+            secondary: secondary as WorkFile['secondary'],
+        });
+
+        downloadAsFile(archive, archiveName, 'application/zip');
+        setSavedWork(work);
+    }, [mei, mpm, alignment, result, scoreMsm, work, metadata, secondary, archiveName]);
+
+    const saveWork = useCallback(() => void handleSave(), [handleSave]);
 
     // ── selection ↔ desk ↔ URL hash ───────────────────────────────
 
@@ -299,7 +396,9 @@ export const App = () => {
             if (!call) return;
 
             const name = TRANSFORMER_ALIASES[call.name] ?? call.name;
-            const entry = correspondingDesks.find(({ transformerName }) => transformerName === name);
+            const entry = correspondingDesks.find(
+                ({ transformerName }) => transformerName === name,
+            );
             if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
 
             const options = call.options as Partial<ScopedTransformationOptions>;
@@ -342,10 +441,28 @@ export const App = () => {
         };
     }, []);
 
+    /**
+     * Warn on reload, but only when there is something to lose.
+     *
+     * This used to assign `window.onbeforeunload` once, unconditionally and without ever
+     * clearing it, under a comment saying nothing wrote the work file back — which stopped
+     * being true when Save shipped. So the browser asked every time, including immediately
+     * after saving, which is the fastest way to teach somebody to click through the dialog.
+     */
     useEffect(() => {
-        // Nothing writes the work file back yet, so every edit is unsaved.
-        if (isEditorMode) window.onbeforeunload = () => '';
-    }, [isEditorMode]);
+        if (!dirty) return;
+
+        const warn = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            // Safari still wants the legacy assignment.
+            event.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', warn);
+        return () => {
+            window.removeEventListener('beforeunload', warn);
+        };
+    }, [dirty]);
 
     // ── rendering ─────────────────────────────────────────────────
 
@@ -369,7 +486,7 @@ export const App = () => {
      */
     const dateByNoteId = useMemo(() => readNoteDates(scoreMsm), [scoreMsm]);
 
-    if (isEditorMode && !mei) {
+    if (!mei) {
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
     }
     if (!alignment || !mpm || !result || !residual) {
@@ -378,6 +495,13 @@ export const App = () => {
 
     const isNarrativeSelected = deskEntry?.aspect === 'narrative';
     const DeskComponent = deskEntry?.desk;
+
+    /** What the open desk calls itself, and what the parts of the score are called. */
+    const deskName = deskEntry ? (deskEntry.displayName ?? deskEntry.aspect) : selectedDesk;
+    // `parts()` is a `Set` built by mapping `allNotes`, which the alignment sorts by *date* —
+    // so its order is whichever part enters first, not part order. The scope picker is the one
+    // reader that never sorted it.
+    const parts = Array.from(alignment.parts()).sort((a, b) => a - b);
 
     const deskProps = {
         msm: alignment,
@@ -412,65 +536,59 @@ export const App = () => {
                                 tickToSeconds={tickToSeconds}
                                 secondsToTick={secondsToTick}
                             >
-                                <AppBar position="static" color="transparent" elevation={1}>
-                                    <Stack
-                                        direction="row"
-                                        ref={setAppBar}
-                                        spacing={1}
-                                        sx={{ p: 1 }}
-                                    >
-                                        <AppMenu
-                                            mei={mei}
-                                            msm={alignment}
-                                            mpm={mpm}
-                                            transformers={work.provenance}
-                                            segments={work.segments}
-                                            scoreMsm={scoreMsm}
-                                            outcomes={result.outcomes}
-                                            metadata={metadata}
-                                            secondary={secondary}
-                                            scope={scope}
-                                            setScope={setScope}
-                                            onFileImport={handleFileImport}
-                                            onFileChange={handleFileChange}
-                                        />
-                                        {pending && (
-                                            <span
-                                                style={{
-                                                    alignSelf: 'center',
-                                                    fontSize: 12,
-                                                    color: '#b45309',
-                                                }}
-                                            >
-                                                refitting…
-                                            </span>
-                                        )}
-                                    </Stack>
-                                </AppBar>
+                                <EditorAppBar
+                                    deskRowRef={setDeskRow}
+                                    deskName={deskName}
+                                    parts={parts}
+                                    scope={scope}
+                                    setScope={setScope}
+                                    pending={pending}
+                                    dirty={dirty}
+                                    canPlay={getInstructions(mpm).length > 0}
+                                    canSave={work.provenance.length > 0}
+                                    onSave={saveWork}
+                                    onOpen={openFilePicker}
+                                />
 
-                                <DeskToolbarProvider target={isEditorMode ? appBar : null}>
-                                    <NotesProvider notes={alignment.allNotes}>
-                                        {/* A desk that throws must not take the editor with it:
+                                <EditorHotkeys onSave={saveWork} onOpen={openFilePicker} />
+
+                                {/* The desk, and the aspect menu that floats over it.
+
+                                    The menu is `position: absolute`, and until this box existed
+                                    no ancestor of it established a containing block — so `top: 0`
+                                    resolved against the page and the card painted on top of the
+                                    bar's right end. `MetadataDesk` has been carrying a 15rem
+                                    right gutter to stay out from under it. */}
+                                <Box sx={{ position: 'relative' }}>
+                                    <DeskToolbarProvider target={deskRow}>
+                                        <NotesProvider notes={alignment.allNotes}>
+                                            {/* A desk that throws must not take the editor with it:
                                             the work is unsaved and Save lives in the bar above.
                                             The open desk is the reset key, so switching away
                                             from a broken one clears it. */}
-                                        <DeskErrorBoundary resetKey={selectedDesk}>
-                                            <Suspense
-                                                fallback={
-                                                    <LoadingScreen message="Opening the desk" />
-                                                }
-                                            >
-                                                {DeskComponent && (
-                                                    <DeskComponent
-                                                        {...deskProps}
-                                                        addTransformer={addTransformer}
-                                                        part={scope}
-                                                    />
-                                                )}
-                                            </Suspense>
-                                        </DeskErrorBoundary>
-                                    </NotesProvider>
-                                </DeskToolbarProvider>
+                                            <DeskErrorBoundary resetKey={selectedDesk}>
+                                                <Suspense
+                                                    fallback={
+                                                        <LoadingScreen message="Opening the desk" />
+                                                    }
+                                                >
+                                                    {DeskComponent && (
+                                                        <DeskComponent
+                                                            {...deskProps}
+                                                            addTransformer={addTransformer}
+                                                            part={scope}
+                                                        />
+                                                    )}
+                                                </Suspense>
+                                            </DeskErrorBoundary>
+                                        </NotesProvider>
+                                    </DeskToolbarProvider>
+
+                                    <AspectSelect
+                                        selectedDesk={selectedDesk}
+                                        setSelectedDesk={setSelectedDesk}
+                                    />
+                                </Box>
 
                                 {/* The narrative desk follows the playhead on its own terms —
                                     rows lit, selection left alone — see `FollowPlayback`. */}
@@ -481,13 +599,25 @@ export const App = () => {
                                     />
                                 )}
                                 <PinchZoomHandler />
-                                <FloatingZoom />
                             </ScrollSyncProvider>
                         </CallSelectionProvider>
                     </PlaybackProvider>
                 </WorkDocumentProvider>
 
-                <AspectSelect selectedDesk={selectedDesk} setSelectedDesk={setSelectedDesk} />
+                {/* Open reaches this through `fileInputRef`. It resets its own value on change,
+                    which the old one did not — so opening a file, editing, and opening the
+                    same file again fired no `change` event at all, silently. */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/xml,.mei,.zip"
+                    style={{ display: 'none' }}
+                    onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) handleOpenFile(file);
+                        event.target.value = '';
+                    }}
+                />
 
                 <Snackbar
                     open={message !== undefined}

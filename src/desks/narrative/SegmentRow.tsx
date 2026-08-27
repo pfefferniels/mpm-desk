@@ -110,8 +110,18 @@ export const SegmentRow = memo(
                             onPatch(segment.id, { note: event.target.value || undefined });
                         }}
                         style={{
-                            width: 260,
-                            border: '1px solid transparent',
+                            // 272 and not 260, because `CssBaseline` now sets `box-sizing:
+                            // border-box` app-wide: the 5px of padding and 1px of border on each
+                            // side used to sit outside the stated width and now come out of it.
+                            width: 272,
+                            // An empty word is marked by a dashed outline rather than by a fill.
+                            // It was amber-50 — a cream, which the app does not use anywhere else
+                            // — and a filled cell reads as loudly as the genuine `#fcd34d`
+                            // warning in `UngroupedInstructions.tsx`, for something that is only
+                            // an invitation to type. Solid-transparent in the other state so the
+                            // box keeps its 1px on every side and the field does not jump width
+                            // the moment it is named.
+                            border: segment.note ? '1px solid transparent' : '1px dashed #e5e7eb',
                             borderRadius: 4,
                             padding: '3px 5px',
                             fontFamily: '"EB Garamond", Garamond, serif',
@@ -120,7 +130,7 @@ export const SegmentRow = memo(
                             color: playing ? '#111827' : undefined,
                             lineHeight: 1.3,
                             resize: 'vertical',
-                            background: segment.note ? 'transparent' : '#fffbeb',
+                            background: 'transparent',
                         }}
                     />
                 </td>

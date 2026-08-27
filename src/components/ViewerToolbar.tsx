@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
 import { ZoomIn, Download, PlayArrow, Stop } from '@mui/icons-material';
-import { useZoom } from '../hooks/ZoomProvider';
+import { useZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../hooks/ZoomProvider';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { EXAGGERATION_MAX } from '../utils/espressivo';
 
@@ -43,7 +43,10 @@ const ExpandableRow = ({ icon, tooltip, expanded, onExpandChange, onClick, child
             pr: 1.5,
             ...glassStyle,
             background: expanded ? 'rgba(255, 255, 255, 1)' : glassStyle.background,
-            width: expanded ? 156 : 0,
+            // 184 and not 156, because `CssBaseline` now sets `box-sizing: border-box` app-wide:
+            // the 28px of `pl: 2, pr: 1.5` used to sit outside the stated width and now eats into
+            // it, which would leave the slider 28px narrower than it was drawn to be.
+            width: expanded ? 184 : 0,
             opacity: expanded ? 1 : 0,
             overflow: expanded ? 'visible' : 'hidden',
             transition: 'width 200ms ease, opacity 200ms ease, background 200ms ease',
@@ -109,9 +112,9 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                     <Slider
                         size="small"
                         value={stretchX}
-                        min={1}
-                        max={60}
-                        step={0.5}
+                        min={ZOOM_MIN}
+                        max={ZOOM_MAX}
+                        step={ZOOM_STEP}
                         onChange={(_, v) => setStretchX(v as number)}
                         onClick={e => e.stopPropagation()}
                     />

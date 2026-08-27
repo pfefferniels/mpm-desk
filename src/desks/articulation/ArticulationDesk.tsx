@@ -1,5 +1,4 @@
 
-import { Button } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { usePiano } from "react-pianosound"
 import { useNotes } from "../../hooks/NotesProvider"
@@ -15,9 +14,11 @@ import { UnitDialog } from "./UnitDialog"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { useCallSelection } from "../../hooks/CallSelection"
-import { Ribbon } from "../../components/Ribbon"
 import { DeskToolbar } from "../../components/DeskToolbar"
-import { Add } from "@mui/icons-material"
+import { ToolGroup } from "../../components/toolbar/ToolGroup"
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
+import { ToolStatus } from "../../components/toolbar/ToolStatus"
+import { Add, Clear } from "@mui/icons-material"
 import { ArticulationOverlay } from "./ArticulationOverlay"
 
 interface ArticulatedNoteProps extends SVGProps<SVGRectElement> {
@@ -235,37 +236,64 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
     return (
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll', position: 'relative' }}>
             <DeskToolbar>
-                <Ribbon title="Articulation">
-                    {currentUnit && (
-                        <>
-                            <Button
-                                size='small'
-                                variant='outlined'
-                                onClick={() => setUnitDialogOpen(true)}
-                                startIcon={<Add />}
-                            >
-                                Insert
-                            </Button>
-                            <Button
-                                size='small'
-                                variant='outlined'
-                                onClick={() => {
-                                    setCurrentUnit(undefined)
-                                }}
-                            >
-                                Clear Unit
-                            </Button>
-                        </>
-                    )}
-                    <Button
-                        size='small'
-                        variant='outlined'
+                {/*
+                    Unlabelled, because a group caption is never the desk's own name and
+                    `Articulation` was exactly that.
+
+                    The two unit controls used to sit behind `{currentUnit && …}`, in front of a
+                    permanent `Insert Default`. So the moment a note was clicked two buttons
+                    materialised and shoved `Insert Default` to the right — and dropping the unit
+                    shoved it back — which meant the one control that was always available was the
+                    one that never held still. They stay mounted and disabled now; the readout
+                    between them is what carries the signal their appearing and disappearing used
+                    to carry.
+                */}
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        icon={<Add fontSize='small' />}
+                        label='Insert'
+                        tooltip={currentUnit
+                            ? 'Name this unit and write an articulation for its notes'
+                            : 'Click a note on the plot to start a unit first'}
+                        disabled={!currentUnit}
+                        onClick={() => setUnitDialogOpen(true)}
+                    >
+                        Insert
+                    </ToolbarButton>
+                    {/*
+                        The note count, not `currentUnit.name`. The name looks like the identifier
+                        to reach for and is not one: a unit is born with `name: v4()` and only ever
+                        gets a readable name inside `UnitDialog`, whose result goes straight to
+                        `insert` and then clears the unit — so the name this bar could ever show is
+                        a raw UUID, every time. What the user is actually building by clicking is
+                        the set of notes, so that is what the readout counts.
+                    */}
+                    <ToolStatus width={112}>
+                        {currentUnit ? `${currentUnit.notes.length} notes` : 'no unit'}
+                    </ToolStatus>
+                    <ToolbarButton
+                        icon={<Clear fontSize='small' />}
+                        label='Clear Unit'
+                        tooltip={currentUnit
+                            ? 'Drop the unit and start selecting again'
+                            : 'No unit to clear'}
+                        disabled={!currentUnit}
+                        onClick={() => setCurrentUnit(undefined)}
+                    >
+                        Clear Unit
+                    </ToolbarButton>
+                </ToolGroup>
+                <ToolGroup label='Default'>
+                    <ToolbarButton
+                        icon={<Add fontSize='small' />}
+                        label='Insert Default'
+                        tooltip='Write the part-wide default articulation, which needs no selection'
                         onClick={makeDefault}
-                        startIcon={<Add />}
                     >
                         Insert Default
-                    </Button>
-                </Ribbon>
+                    </ToolbarButton>
+                </ToolGroup>
             </DeskToolbar>
 
             <svg width={msm.end * stretchX} height={900}>

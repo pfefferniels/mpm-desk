@@ -1,15 +1,23 @@
 import { useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { StylizeOrnamentation } from "../../fitting/transformers/ornamentation/StylizeOrnamentation";
-import { Stack, Box, Typography, Slider, Button } from "@mui/material";
+import { Stack, Box, Typography, Slider } from "@mui/material";
 import { Plot } from "./Plot";
 import { DeskToolbar } from "../../components/DeskToolbar";
-import { Ribbon } from "../../components/Ribbon";
+import { ToolGroup } from "../../components/toolbar/ToolGroup";
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
 import { DeleteOutline } from "@mui/icons-material";
 import { useCallSelection } from "../../hooks/CallSelection";
 
 export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const { calls, removeCall } = useCallSelection()
+
+    // By name alone, and unlike the two arpeggiation desks that is correct here.
+    // `StylizeOrnamentationOptions` carries no `scope` — `transform` loops over `scopesOf(mpm)`
+    // and defines the whole document's ornaments in one pass — so there is exactly one such call
+    // to find. `part` narrows what the plot below shows, not what the call covers; adding
+    // `t.options.scope === part` would compare against an attribute that is never written and
+    // leave `Stylize Ornaments` live forever.
     const existingTransformer = calls.find(t => t.name === 'StylizeOrnamentation')
     const [tickTolerance, setTickTolerance] = useState(10)
     const [intensityTolerance, setIntensityTolerance] = useState(0.2)
@@ -31,6 +39,42 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
 
     return (
         <div>
+            {/*
+                First in the tree, where every other desk puts it. It portals into the app bar
+                either way, so the position here changes nothing on screen — but a reader looking
+                for this desk's controls had to scroll past three sliders and a plot to find them.
+
+                One button became two; see the note in `TemporalSpreadDesk` for the four reasons.
+                The tolerance sliders stay in the page: a continuous input needs travel, and 200px
+                of slider in a 44px row is not a control.
+            */}
+            <DeskToolbar>
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        label='Stylize Ornaments'
+                        tooltip={existingTransformer
+                            ? 'The ornaments are already stylized'
+                            : 'Cluster the fitted ornaments and define one style per cluster'}
+                        disabled={existingTransformer !== undefined}
+                        onClick={transformOrnaments}
+                    >
+                        Stylize Ornaments
+                    </ToolbarButton>
+                    <ToolbarButton
+                        icon={<DeleteOutline />}
+                        label='Remove Style'
+                        tooltip={existingTransformer
+                            ? 'Drop the ornament definitions and leave the ornaments as fitted'
+                            : 'The ornaments are not stylized yet'}
+                        disabled={!existingTransformer}
+                        onClick={() => { if (existingTransformer) removeCall(existingTransformer.id) }}
+                    >
+                        Remove Style
+                    </ToolbarButton>
+                </ToolGroup>
+            </DeskToolbar>
+
             <Stack direction='row' spacing={1} sx={{ maxWidth: '80%' }}>
                 <Box>
                     <Typography gutterBottom>
@@ -87,29 +131,6 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                 yStretch={1.5}
                 rStretch={2}
             />
-
-            <DeskToolbar>
-                <Ribbon title='Style'>
-                    {existingTransformer ? (
-                        <Button
-                            variant='outlined'
-                            onClick={() => removeCall(existingTransformer.id)}
-                            size='small'
-                            startIcon={<DeleteOutline />}
-                        >
-                            Remove Style
-                        </Button>
-                    ) : (
-                        <Button
-                            variant='contained'
-                            onClick={transformOrnaments}
-                            size='small'
-                        >
-                            Stylize Ornaments
-                        </Button>
-                    )}
-                </Ribbon>
-            </DeskToolbar>
         </div>
     )
 }

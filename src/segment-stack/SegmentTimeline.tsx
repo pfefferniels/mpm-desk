@@ -531,7 +531,10 @@ export const SegmentTimelinePopover = ({
             ]}
             style={{ zIndex: 10, pointerEvents: interactive ? "auto" : "none" }}
         >
-            <Paper elevation={4} sx={{ borderRadius: 2, px: 1.5, py: 1.25, position: "relative" }}>
+            {/* `'8px'` and not `2`: an `sx` number multiplies `shape.borderRadius`, which the
+                theme raised from 4 to 6, so this card silently rounded from 8 to 12 the day a
+                theme existed. The radius was chosen for the card, not derived from the shape. */}
+            <Paper elevation={4} sx={{ borderRadius: "8px", px: 1.5, py: 1.25, position: "relative" }}>
                 <Stack direction="row" divider={<Divider orientation="vertical" flexItem />} spacing={1.5}>
                     {segments.map(segment => (
                         <div key={segment.id} style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -568,7 +571,11 @@ export const SegmentTimelinePopover = ({
                             width: TYPE_COLUMN + TRACK_WIDTH,
                             maxHeight: 168,
                             overflow: "auto",
-                            borderRadius: 1,
+                            // 4px, stated. This card and `SegmentGestures`' in the editor are the
+                            // same card built twice, one per tree, down to the width and padding;
+                            // that one writes a raw `4`, so a multiplied `1` here would have made
+                            // the two disagree the moment the theme changed the shape.
+                            borderRadius: "4px",
                             padding: "6px 8px",
                         }}
                     >

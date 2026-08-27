@@ -1,4 +1,4 @@
-import { Button, Stack, ToggleButton } from "@mui/material"
+import { ToggleButton, ToggleButtonGroup } from "@mui/material"
 import { computeMillisecondsAt } from "../../fitting/transformers/tempo/tempoCalculations"
 import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
 import { TranslatePhysicalTimeToTicks } from "../../fitting/transformers/tempo/TranslatePhysicalTimeToTicks"
@@ -13,7 +13,8 @@ import { VerticalScale } from "./VerticalScale"
 import { ZoomControls } from "../../components/ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { Add, Merge } from "@mui/icons-material"
-import { Ribbon } from "../../components/Ribbon"
+import { ToolGroup } from "../../components/toolbar/ToolGroup"
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
 import { DeskToolbar } from "../../components/DeskToolbar"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
@@ -292,75 +293,100 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
         }))
     }
 
+    const selectedSegments = tempoCluster.segments.filter(s => s.selected)
+
+    /**
+     * Two or more boxes become the one box that spans them all.
+     *
+     * The guard repeats what the button's `disabled` already says, and is kept: the button is one
+     * way in, and nothing stops a later caller from being another.
+     */
+    const combineSegments = () => {
+        if (selectedSegments.length < 2) return
+
+        const fromDate = Math.min(...selectedSegments.map(s => s.date.start))
+        const toDate = Math.max(...selectedSegments.map(s => s.date.end))
+        const combined = {
+            date: { start: fromDate, end: toDate },
+            selected: false,
+            silent: false
+        }
+        tempoCluster.unselectAll()
+        setTempoCluster(new TempoCluster([...tempoCluster.segments, combined]))
+    }
+
     return (
         <div>
-            <Stack direction='row' spacing={1}>
-                <DeskToolbar>
-                    <Ribbon title='Tempo'>
-                        <Button
-                            size='small'
-                            startIcon={<Add />}
-                            variant='contained'
-                            onClick={insertTempoValues}
-                            disabled={drawnLines.length === 0}
-                        >
-                            Insert
-                        </Button>
-                    </Ribbon>
-                    <Ribbon title='Tick Time'>
-                        <Button
-                            variant='contained'
-                            onClick={translate}
-                            size='small'
-                        >
-                            Translate To Ticks
-                        </Button>
-                    </Ribbon>
-                    <Ribbon title='Mode'>
-                        <ToggleButton
-                            value='draw'
-                            size='small'
-                            selected={mode === 'draw'}
-                            onChange={() => setMode(prev => prev === 'draw' ? undefined : 'draw')}
-                        >
-                            Draw
-                        </ToggleButton>
-                    </Ribbon>
-                    <Ribbon title='Segments'>
-                        <ToggleButton
-                            value='check'
-                            size='small'
-                            selected={mode === 'split'}
-                            onChange={() => mode === 'split' ? setMode(undefined) : setMode('split')}
-                        >
-                            Split
-                        </ToggleButton>
+            <DeskToolbar>
+                {/*
+                    Draw and Split are one state, so they are one group.
 
-                        <Button
-                            size='small'
-                            variant='outlined'
-                            startIcon={<Merge />}
-                            disabled={tempoCluster.segments.filter(s => s.selected).length < 2}
-                            onClick={() => {
-                                const selected = tempoCluster.segments.filter(s => s.selected)
-                                if (selected.length < 2) return
-                                const fromDate = Math.min(...selected.map(s => s.date.start))
-                                const toDate = Math.max(...selected.map(s => s.date.end))
-                                const combined = {
-                                    date: { start: fromDate, end: toDate },
-                                    selected: false,
-                                    silent: false
-                                }
-                                tempoCluster.unselectAll()
-                                setTempoCluster(new TempoCluster([...tempoCluster.segments, combined]))
-                            }}
-                        >
-                            Combine
-                        </Button>
+                    They were two — a "Mode" holding Draw and a "Segments" holding Split beside
+                    Combine — which put two values of the same `SkylineMode` under different
+                    captions with a rule between them, reading as two independent switches that
+                    could both be on. An exclusive `ToggleButtonGroup` says what the state
+                    actually is, and says it in one place.
 
-                    </Ribbon>
-                </DeskToolbar>
-            </Stack>
+                    The `?? undefined` keeps today's click-to-deselect: an exclusive group
+                    answers a click on the pressed button with `null`, which is a third spelling
+                    of "no mode" that `SkylineMode` does not have.
+                */}
+                <ToolGroup label='Mode'>
+                    <ToggleButtonGroup
+                        size='small'
+                        exclusive
+                        value={mode ?? null}
+                        onChange={(_, next: SkylineMode | null) => setMode(next ?? undefined)}
+                    >
+                        <ToggleButton value='draw'>Draw</ToggleButton>
+                        <ToggleButton value='split'>Split</ToggleButton>
+                    </ToggleButtonGroup>
+                </ToolGroup>
+
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        icon={<Add />}
+                        label='Insert'
+                        tooltip={drawnLines.length === 0
+                            ? 'Draw a tempo curve first — there is nothing to insert'
+                            : `Write ${drawnLines.length} drawn ${drawnLines.length === 1 ? 'curve' : 'curves'} into the document`}
+                        disabled={drawnLines.length === 0}
+                        onClick={insertTempoValues}
+                    >
+                        Insert
+                    </ToolbarButton>
+                    <ToolbarButton
+                        icon={<Merge />}
+                        label='Combine'
+                        tooltip={selectedSegments.length < 2
+                            ? 'Select two or more segments to combine them'
+                            : `Combine the ${selectedSegments.length} selected segments into one`}
+                        disabled={selectedSegments.length < 2}
+                        onClick={combineSegments}
+                    >
+                        Combine
+                    </ToolbarButton>
+                </ToolGroup>
+
+                {/*
+                    Not beside Insert, and not called "Tick Time".
+
+                    This one rewrites the whole timeline across every aspect at once, where the
+                    two above it edit the passage the user is looking at. Sitting next to the
+                    button pressed fifty times an hour, at the same weight, it read as another
+                    tempo edit.
+                */}
+                <ToolGroup label='Document'>
+                    <ToolbarButton
+                        label='Translate To Ticks'
+                        tooltip='Rewrite the whole timeline in ticks, across every aspect'
+                        onClick={translate}
+                    >
+                        Translate To Ticks
+                    </ToolbarButton>
+                </ToolGroup>
+            </DeskToolbar>
 
             <div style={{ position: 'relative' }}>
                 <ZoomControls

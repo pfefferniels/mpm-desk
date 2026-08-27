@@ -9,14 +9,16 @@ import { Modify, ModifyOptions } from "../../fitting/transformers/modification/M
 import { Alignment, AlignedNote } from "../../fitting/alignment";
 import { getInstructions } from "../../fitting/instructions/index";
 import { Range } from "../tempo/Tempo";
-import { Box, Button, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
 import { DeskToolbar } from "../../components/DeskToolbar";
-import { Ribbon } from "../../components/Ribbon";
+import { ToolGroup } from "../../components/toolbar/ToolGroup";
+import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
+import { ToolStatus } from "../../components/toolbar/ToolStatus";
 import { Add, Clear } from "@mui/icons-material";
 import { MarkedRegion } from "./MarkedRegion";
 import { svgPoint, svgUnitsPerPixel } from "../../utils/svgPoint";
@@ -268,6 +270,22 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         }
     }
 
+    /**
+     * The dragged change becomes a `Modify` call.
+     *
+     * `pendingCommitOptions` holds what was just sent until the fit comes back with it: the note
+     * is drawn at its new velocity straight away, and the ghost that marks the committed delta
+     * subtracts this until the MSM agrees — see `modifyDeltas`.
+     */
+    const commitModify = () => {
+        if (!modifyOptions) return
+
+        addTransformer(new Modify(modifyOptions))
+        setPendingCommitOptions(modifyOptions)
+        setModifyOptions(undefined)
+        setModifyDragDelta(0)
+    }
+
     const handlePlay = (from: number, to?: number) => {
         let notes =
             slice(from, to).map(n => {
@@ -492,10 +510,13 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         <div>
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
             <DeskToolbar>
-                <Ribbon title='Mode'>
+                <ToolGroup label='Mode'>
                     <ToggleButtonGroup
                         value={mode}
                         exclusive
+                        // An exclusive group answers a click on the pressed button with `null`,
+                        // and this desk has no "no mode" — dropping that click leaves the mode
+                        // where it was, which is what a three-way switch should do.
                         onChange={(_, newMode) => {
                             if (newMode !== null) {
                                 setMode(newMode)
@@ -503,46 +524,60 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         }}
                         size='small'
                     >
-                        <ToggleButton size='small' value='insert'>Insert</ToggleButton>
-                        <ToggleButton size='small' value='modify'>Modify</ToggleButton>
-                        <ToggleButton size='small' value='phantom'>Phantom</ToggleButton>
+                        <ToggleButton value='insert'>Insert</ToggleButton>
+                        <ToggleButton value='modify'>Modify</ToggleButton>
+                        <ToggleButton value='phantom'>Phantom</ToggleButton>
                     </ToggleButtonGroup>
-                </Ribbon>
+                </ToolGroup>
 
-                {mode === 'modify' && (
-                    <Ribbon title='Modification'>
-                        <Button
-                            size='small'
-                            variant='contained'
-                            disabled={!modifyOptions || modifyOptions.change === 0}
-                            startIcon={<Add />}
-                            onClick={() => {
-                                if (!modifyOptions) return
+                {/*
+                    Both buttons, in every mode.
 
-                                addTransformer(new Modify(modifyOptions))
-                                setPendingCommitOptions(modifyOptions)
-                                setModifyOptions(undefined)
-                                setModifyDragDelta(0)
-                            }}
-                        >
-                            {modifyOptions && modifyOptions.change !== 0
-                                ? `Modify ${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change}`
-                                : 'Modify'}
-                        </Button>
-                    </Ribbon>
-                )}
-                {mode === 'phantom' && (
-                    <Ribbon title='Phantoms'>
-                        <Button
-                            size='small'
-                            variant='outlined'
-                            onClick={() => setPhantomVelocities(new Map())}
-                            startIcon={<Clear />}
-                        >
-                            Clear
-                        </Button>
-                    </Ribbon>
-                )}
+                    These were two groups behind `mode === 'modify' &&` and `mode === 'phantom'
+                    &&`, so switching mode mounted a whole captioned group and shoved everything
+                    to its right — the largest reflow in the bar, on the control the user reaches
+                    for most. Disabled says the same thing without moving anything, and the
+                    tooltip says which mode would make it live.
+
+                    It also makes the modes self-documenting: Phantom's one action is legible from
+                    Insert mode, so the user can see what a mode offers before entering it.
+                */}
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        icon={<Add />}
+                        label='Modify'
+                        tooltip={mode !== 'modify'
+                            ? 'Switch to Modify mode to change velocities'
+                            : !modifyOptions || modifyOptions.change === 0
+                                ? 'Drag a note up or down first — there is no change to apply'
+                                : `Apply ${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change} to the selected notes`}
+                        disabled={mode !== 'modify' || !modifyOptions || modifyOptions.change === 0}
+                        onClick={commitModify}
+                    >
+                        Modify
+                    </ToolbarButton>
+                    {/* The change was in the button's label, so committing `+9` and then `+10`
+                        resized the button between two clicks at the same place. */}
+                    <ToolStatus width={40}>
+                        {modifyOptions && modifyOptions.change !== 0
+                            ? `${modifyOptions.change > 0 ? '+' : ''}${modifyOptions.change}`
+                            : '—'}
+                    </ToolStatus>
+                    {/* "Clear", with the "Phantoms" caption gone and the button never leaving the
+                        bar, would read as clearing the modification beside it. */}
+                    <ToolbarButton
+                        icon={<Clear />}
+                        label='Clear Phantoms'
+                        tooltip={phantomVelocities.size === 0
+                            ? 'No phantom velocities to clear'
+                            : `Discard the ${phantomVelocities.size} phantom ${phantomVelocities.size === 1 ? 'velocity' : 'velocities'}`}
+                        disabled={phantomVelocities.size === 0}
+                        onClick={() => setPhantomVelocities(new Map())}
+                    >
+                        Clear Phantoms
+                    </ToolbarButton>
+                </ToolGroup>
             </DeskToolbar>
 
             <div style={{ position: 'relative' }}>

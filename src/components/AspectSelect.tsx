@@ -23,21 +23,51 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
 
     return (
         <Card
-            elevation={5}
+            elevation={0}
             sx={{
+                // Against the desk area, not the page. Nothing above this used to establish a
+                // containing block, so `top: 0` resolved against the initial one and the card
+                // painted over the app bar's right end; `App` wraps the desk in a positioned
+                // box now, and this is what that box is for.
                 position: 'absolute',
                 top: 0,
                 right: 0,
-                backdropFilter: 'blur(17px)',
-                background: 'rgba(255, 255, 255, 0.6)',
                 marginTop: '1rem',
                 marginRight: '1rem',
+                // Above the desks, below the bar. The desks position their own overlays at
+                // `zIndex: 1` and `5`, and an absolutely-positioned card at `auto` loses to
+                // every one of them.
+                zIndex: (theme) => theme.zIndex.appBar - 1,
+                // Opaque, where this was `blur(17px)` under 60% white.
+                //
+                // What is behind it is a plot: note rectangles, gridlines and saturated curve
+                // fills at high spatial frequency. Blurring that gives a mottled ground whose
+                // luminance moves with whatever has been scrolled underneath, so the list's
+                // own contrast is a function of the scroll position — and over the amber spans
+                // the `saturate` boost averaged the plot's chroma into the panel and came out
+                // as a cream wash. Covering the plot honestly beats half-showing it.
+                bgcolor: 'background.paper',
+                border: 1,
+                borderColor: 'divider',
                 width: 'fit-content',
                 minWidth: collapsed ? undefined : '200px',
+                // `ListItemButton.Mui-selected` tints with `alpha(primary.main, …)` rather than
+                // `action.selected`, and against a near-black primary that tint is a hair off
+                // the hover fill. A rule down the left edge says "this one" at a glance, which
+                // is the device `SegmentRow` already uses for the sounding row.
+                '& .Mui-selected': {
+                    bgcolor: 'action.hover',
+                    boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.primary.main}`,
+                },
             }}
         >
             {collapsed ? (
-                <IconButton onClick={() => setCollapsed(false)} size="small" sx={{ m: 0.5 }}>
+                <IconButton
+                    onClick={() => setCollapsed(false)}
+                    size="small"
+                    aria-label="Show the aspect list"
+                    sx={{ m: 0.5 }}
+                >
                     <ChevronRight fontSize="small" />
                 </IconButton>
             ) : (

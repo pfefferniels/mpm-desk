@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import { Add } from '@mui/icons-material';
 import { v4 } from 'uuid';
+import { DeskToolbar } from '../../components/DeskToolbar';
+import { ToolGroup } from '../../components/toolbar/ToolGroup';
+import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
+import { ToolField } from '../../components/toolbar/ToolField';
+import { ToolStatus } from '../../components/toolbar/ToolStatus';
 import { getInstructions } from '../../fitting/instructions/index';
 import { PULSES_PER_QUARTER } from '../../fitting/ppq';
 import { useCallSelection } from '../../hooks/CallSelection';
@@ -271,54 +277,90 @@ export const NarrativeDesk = ({ msm, mpm, projected, performanceXml }: ViewProps
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 12px',
-                    borderBottom: '1px solid #e5e7eb',
-                    fontFamily: 'Inter, system-ui, sans-serif',
-                    fontSize: 12,
-                }}
-            >
-                <input
-                    value={filter}
-                    onChange={(event) => {
-                        setFilter(event.target.value);
-                    }}
-                    placeholder="Filter by word"
-                    style={{
-                        flex: '0 1 320px',
-                        padding: '4px 8px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 6,
-                        fontSize: 12,
-                    }}
-                />
-                <button
-                    type="button"
-                    onClick={newSegment}
-                    disabled={activeCallIds.size === 0}
-                    style={{
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 6,
-                        padding: '4px 10px',
-                        background: activeCallIds.size ? '#111827' : '#f3f4f6',
-                        color: activeCallIds.size ? '#ffffff' : '#9ca3af',
-                        cursor: activeCallIds.size ? 'pointer' : 'default',
-                        fontSize: 12,
-                    }}
-                >
-                    New segment from {selectedInstructions} selected
-                </button>
-                <span style={{ marginLeft: 'auto', color: '#6b7280' }}>
-                    {segments.length} segments · {grouped} instructions ·{' '}
-                    <span style={{ color: ungrouped.length ? '#b45309' : '#6b7280' }}>
-                        {ungrouped.length} ungrouped
-                    </span>
-                </span>
-            </div>
+            {/*
+                This desk's controls, in the app bar the other nine already share.
+
+                It had its own header instead — a flex row with a `borderBottom`, a raw `<input>`
+                and a hand-styled `<button>` whose disabled state was six colour literals — so
+                the editor showed two bars stacked one above the other, the app's and this one's,
+                spelling the same three ideas (a field, a primary action, a readout) in two
+                different visual languages. Nothing about grouping instructions needs its own
+                chrome; what it needed was a home in the shared one.
+            */}
+            <DeskToolbar>
+                <ToolGroup>
+                    <ToolbarButton
+                        primary
+                        icon={<Add />}
+                        label='New Segment'
+                        tooltip={
+                            activeCallIds.size === 0
+                                ? 'Select instructions in a row first — a claim is made out of them, and none are selected'
+                                : `Group the ${selectedInstructions} selected ${selectedInstructions === 1 ? 'instruction' : 'instructions'} into a new claim`
+                        }
+                        disabled={activeCallIds.size === 0}
+                        onClick={newSegment}
+                    >
+                        New Segment
+                    </ToolbarButton>
+                    {/*
+                        Beside the button, not inside its label. It read `New segment from 12
+                        selected`, and a label is what sizes a button — so it changed width on
+                        every click on a chip, which is to say while the user was selecting
+                        *for* it. `ToolStatus` holds a fixed slot in tabular figures instead, so
+                        the button the cursor is travelling towards stays where it was.
+                    */}
+                    <ToolStatus width={96}>{`${selectedInstructions} selected`}</ToolStatus>
+                </ToolGroup>
+
+                {/*
+                    Unlabelled, where the vocabulary would say `View`.
+
+                    A group caption names what its controls act on, and this group's one control
+                    already carries that name: side by side they rendered as `VIEW FILTER`, two
+                    near-synonyms in the same ten-point capitals, which reads as one confused
+                    label rather than as a category and a field. `TemporalSpreadDesk` keeps its
+                    `View` because `Beat length` does not say by itself that it only redraws.
+                */}
+                <ToolGroup>
+                    <ToolField
+                        label='Filter'
+                        value={filter}
+                        onChange={setFilter}
+                        placeholder='by word'
+                        width={200}
+                        clearable
+                    />
+                </ToolGroup>
+
+                {/*
+                    What the document is, at a glance — and it never moves.
+
+                    Both readouts render whatever the counts are; only the *tone* of the second
+                    one switches. The amber said "there is unfinished work here" by being the
+                    only thing on the bar in `#b45309`, which is `warning.main` now — the same
+                    token the app bar's fit indicator and the row's overwritten count use, so
+                    the three finally mean one colour rather than three transcriptions of one.
+                    Mounting it only when `ungrouped.length > 0` would have been the smaller
+                    diff and the wrong one: the last instruction leaving the ungrouped list is
+                    the moment the whole row would jump.
+
+                    They stay in flow at the end of the bar rather than being pushed to its
+                    right edge. `ToolGroup` takes no `sx`, and `ml: 'auto'` would be inert here
+                    even if it did: the portal target in `EditorAppBar` is `flexShrink: 0` with
+                    no `flexGrow`, so it is exactly as wide as its content and there is no free
+                    space inside it for an auto margin to absorb. Pushing right is a decision
+                    for the bar, not for a desk reaching into it.
+                */}
+                <ToolGroup>
+                    <ToolStatus width={200}>
+                        {`${segments.length} segments · ${grouped} instructions`}
+                    </ToolStatus>
+                    <ToolStatus width={96} tone={ungrouped.length ? 'warning' : 'default'}>
+                        {`${ungrouped.length} ungrouped`}
+                    </ToolStatus>
+                </ToolGroup>
+            </DeskToolbar>
 
             <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                 <table

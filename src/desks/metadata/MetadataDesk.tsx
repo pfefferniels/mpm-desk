@@ -20,8 +20,16 @@ interface MetadataDeskProps {
 
 const UI_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 
-/** The column, kept clear of the `AspectSelect` card that floats at the top right. */
+/**
+ * The column, kept clear of the `AspectSelect` card that floats at the top right.
+ *
+ * `boxSizing: 'content-box'`, against the app-wide `border-box` that `CssBaseline` now sets,
+ * because the 46rem here is the *measure of the text* and not the width of the block. Under
+ * border-box the 18rem of side padding comes out of it, leaving 28rem — a column 39% narrower
+ * than the one this type was set for, on the desk the editor opens with.
+ */
 const page = {
+    boxSizing: 'content-box',
     padding: '5rem 15rem 4rem 3rem',
     maxWidth: '46rem',
 } as const;

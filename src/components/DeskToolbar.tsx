@@ -32,9 +32,13 @@ export const DeskToolbarProvider = ({
  *
  * ```tsx
  * <DeskToolbar>
- *     <Ribbon title='Mode'>…</Ribbon>
+ *     <ToolGroup label='Mode'>…</ToolGroup>
  * </DeskToolbar>
  * ```
+ *
+ * The target is the app bar's second row, and it holds nothing but groups — see the note beside
+ * `deskRow` in `App.tsx` for why anything else put there lands in the wrong place, and
+ * `ToolGroup` for what its separator rule assumes about its siblings.
  *
  * Renders nothing at all where there is no bar, which is what the old `appBarRef && …` guard was
  * for. A desk no longer needs `appBarRef` in its props, nor to import `react-dom`.

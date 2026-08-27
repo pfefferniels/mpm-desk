@@ -1,4 +1,4 @@
-import { Slider } from "@mui/material"
+import { Box, Slider } from "@mui/material"
 
 type OptionPair<P extends string, T> =
     | ({
@@ -36,8 +36,22 @@ export const ZoomControls = ({ stretchX, setStretchX, rangeX, stretchY, setStret
                 </div>
             )}
 
+            {/* The vertical slider's wrapper was `.verticalStretch` in `src/App.css`. Its
+                declarations are unchanged: auto top and bottom margins against a stated height
+                are the old trick for centring an absolutely positioned box vertically. It moves
+                here because the containing block it positions itself against belongs to
+                `TempoDesk`, and a stylesheet two directories away could not say so — the rule's
+                whole meaning sat in a class name that only this one element ever used. */}
             {(stretchY && rangeY) && (
-                <div className='verticalStretch'>
+                <Box sx={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    marginTop: 'auto',
+                    marginBottom: 'auto',
+                    height: 300,
+                }}>
                     <Slider
                         sx={{
                             '& input[type="range"]': {
@@ -55,7 +69,7 @@ export const ZoomControls = ({ stretchX, setStretchX, rangeX, stretchY, setStret
                         value={stretchY}
                         onChange={(_: Event, value: number | number[]) => setStretchY(value as number)}
                     />
-                </div>
+                </Box>
             )}
         </>
     )

@@ -89,7 +89,9 @@ export const InstructionPopover = ({
             <Paper
                 elevation={4}
                 sx={{
-                    borderRadius: 2,
+                    // Stated in pixels, not as a multiple of `shape.borderRadius` — see the note
+                    // on the same value in `SegmentTimeline`.
+                    borderRadius: "8px",
                     overflow: "hidden",
                 }}
             >
