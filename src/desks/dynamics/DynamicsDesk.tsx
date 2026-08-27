@@ -136,6 +136,12 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
 
     const stretchY = 3
     const margin = 20
+    const chartHeight = 300 + margin
+    // Wide enough for the tick, its gap and a three-digit velocity at font size 8.
+    const scaleWidth = 34
+    // The axis line sits on x = 0 and is 1.5 wide, so the gutter's viewBox has to reach a hair
+    // past it — an outermost <svg> clips to its viewport, and half the stroke would go missing.
+    const axisBleed = 1
 
     const modifyDeltas = useMemo(() => {
         const deltas = new Map<string, number>()
@@ -580,32 +586,47 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                 </ToolGroup>
             </DeskToolbar>
 
-            <div style={{ position: 'relative' }}>
-                <svg style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    width: 40,
-                    height: 300 + margin,
-                    pointerEvents: 'none',
-                    zIndex: 1,
-                }}
-                    viewBox={`-30 0 35 ${300 + margin}`}
+            {/*
+                The scale used to float over the chart in an absolutely positioned overlay, so
+                the plot began underneath it: the axis landed 12px to the right of velocity at
+                date 0, the labels sat on top of the first notes, and every note scrolled *under*
+                the axis rather than past it.
+
+                It has a column of its own now. The gutter is laid out beside the scroller, so
+                the chart simply starts where the scale ends and nothing can be drawn behind it.
+                Both are `chartHeight` tall with a viewBox of the same extent, so one pixel is one
+                unit in both and a tick still meets the velocity it names.
+            */}
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                <svg
+                    style={{ flex: '0 0 auto' }}
+                    width={scaleWidth}
+                    height={chartHeight}
+                    viewBox={`${-scaleWidth + axisBleed} 0 ${scaleWidth} ${chartHeight}`}
                 >
-                    <VerticalScale min={10} max={80} step={5} stretchY={stretchY} />
+                    <VerticalScale
+                        min={10}
+                        max={80}
+                        step={5}
+                        height={chartHeight}
+                        stretchY={stretchY}
+                    />
                 </svg>
 
-                <div ref={scrollContainerRef} style={{ height: '400', overflow: 'scroll' }}>
+                <div
+                    ref={scrollContainerRef}
+                    style={{ flex: 1, minWidth: 0, overflowX: 'auto', overflowY: 'hidden' }}
+                >
                     <svg
                         ref={svgRef}
                         width={msm.end * stretchX + margin}
-                        height={300 + margin}
+                        height={chartHeight}
                         viewBox={
                             [
                                 -margin,
-                                -0,
+                                0,
                                 msm.end * stretchX + margin,
-                                300 + margin
+                                chartHeight
                             ].join(' ')
                         }
                         onMouseDown={mode === 'insert' ? (e) => {
