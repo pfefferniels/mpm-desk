@@ -16,7 +16,7 @@ import { InsertMetadata } from './transformers/metadata/InsertMetadata';
 import type { Transformer, TransformationOptions } from './transformers/Transformer';
 import type { Call } from '../model/Work';
 
-export interface BuiltChain {
+interface BuiltChain {
     /** The chain as it will run: metadata substituted, in reduction order. */
     transformers: Transformer[];
     /**

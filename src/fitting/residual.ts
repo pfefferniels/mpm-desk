@@ -90,7 +90,7 @@ export interface Residual {
   readonly pedals: readonly PedalResidual[];
 }
 
-export interface DeriveResidualOptions {
+interface DeriveResidualOptions {
   /**
    * Instruction types to take out of the MPM before measuring — normally the one dimension
    * the caller is about to fit, so that what comes back is what it has to account for.

@@ -55,5 +55,3 @@ export const buildScore = (spec: ScoreSpec): Alignment => {
   return new Alignment(notes, spec.timeSignature ?? { numerator: 4, denominator: 4 });
 };
 
-/** The date of the last note — the `to` every fitting window ends at. */
-export const lastDate = (spec: ScoreSpec) => (spec.beats - 1) * (spec.beatTicks ?? QUARTER);

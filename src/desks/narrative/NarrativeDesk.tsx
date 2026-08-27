@@ -72,7 +72,7 @@ import { UngroupedInstructions } from './UngroupedInstructions';
  * which is what a click on the word in the viewer plays: the question here is what *this one*
  * does, on its way into or out of a claim.
  */
-export interface NarrativeDeskProps extends ViewProps {
+interface NarrativeDeskProps extends ViewProps {
     segments: Segment[];
     setSegments: (next: Segment[]) => void;
     /** Put calls under a claim — an existing one, a new one, or none. */

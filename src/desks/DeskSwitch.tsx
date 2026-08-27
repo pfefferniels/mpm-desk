@@ -54,7 +54,7 @@ type AnyTransformer =
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDesk = React.FC<ScopedTransformerViewProps<any>> | React.FC<ViewProps>;
 
-export interface DeskEntry {
+interface DeskEntry {
     transformer?: AnyTransformer;
     aspect: string;
     desk: AnyDesk;

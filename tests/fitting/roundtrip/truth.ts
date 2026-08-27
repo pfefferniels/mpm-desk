@@ -27,7 +27,7 @@ export interface DynamicsSpan {
   protraction?: number;
 }
 
-export interface ArticulationDefSpec {
+interface ArticulationDefSpec {
   name: string;
   relativeDuration?: number;
   relativeVelocity?: number;
@@ -65,7 +65,7 @@ export interface AccentuationTruth {
   accentuations: { beat: number; value: number; 'transition.to'?: number }[];
 }
 
-export interface OrnamentDefSpec {
+interface OrnamentDefSpec {
   name: string;
   /**
    * The roll. `frame.start` and `frameLength` are in `time.unit`, and the pool is spread
@@ -147,7 +147,7 @@ const articulationInstructions = (truth: ArticulationTruth, notes: ScoreNote[]) 
 
 /** Just enough of a note for the articulation map: taken as an argument so this file need not
  * know about the `Alignment` class. */
-export interface ScoreNote {
+interface ScoreNote {
   id: string;
   date: number;
 }

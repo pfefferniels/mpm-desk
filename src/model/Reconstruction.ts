@@ -88,7 +88,7 @@ export interface CallOutcome {
 }
 
 /** The one thing the projection needs from the finished MPM: what type each element is. */
-export type ElementTypes = ReadonlyMap<string, string>;
+type ElementTypes = ReadonlyMap<string, string>;
 
 /**
  * The outcomes a work file already records, as the projection wants them.

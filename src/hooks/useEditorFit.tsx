@@ -38,7 +38,7 @@ import type { WorkFile } from '../model/Work';
  * While a newer fit is running the last finished one stays on screen and `pending` says so.
  * Blanking every desk for three seconds after each gesture would make the editor unusable.
  */
-export interface EditorFit {
+interface EditorFit {
     result: FitResult | null;
     /** The performance the chain wrote, parsed once. */
     mpm: Mpm | null;

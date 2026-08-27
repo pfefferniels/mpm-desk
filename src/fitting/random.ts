@@ -7,7 +7,7 @@
  * its own inputs makes each fit a pure function of what it was asked to fit — which is also what
  * lets a desk's preview agree with what the pipeline will actually insert.
  */
-export type Random = () => number;
+type Random = () => number;
 
 /**
  * mulberry32: a 32-bit generator that is small, fast and well-distributed enough for annealing.

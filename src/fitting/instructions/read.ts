@@ -137,7 +137,7 @@ export const removeInstruction = (mpm: Mpm, instruction: AnyInstruction): void =
  * interior at logs-and-returns), so the guard is this module's. A sweep rather than a check on the
  * way in, which is what lets writes go straight through an espressivo map.
  */
-export interface InstructionAudit {
+interface InstructionAudit {
   readonly fingerprints: Map<string, string>;
   readonly unnamed: string[];
   readonly nonFinite: string[];

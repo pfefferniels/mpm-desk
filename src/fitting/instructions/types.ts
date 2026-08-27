@@ -56,7 +56,8 @@ export type InstructionType = keyof OptionsOfType;
 /**
  * What a given instruction type is written from — so a caller states the type once.
  *
- * Not `OptionsOf`, which `Transformer.ts` already uses for the options of a *transformer*.
+ * Named from the instruction, not from the transformer that writes it — a transformer's own
+ * options are a separate thing.
  */
 export type InstructionOptions<K extends InstructionType> = OptionsOfType[K];
 
@@ -119,11 +120,6 @@ export interface DefOfType {
 export type DefinitionType = keyof DefOfType;
 export type DefOf<T extends DefinitionType> = DefOfType[T];
 
-export const definitionTypes = [
-  'ornamentDef',
-  'articulationDef',
-  'accentuationPatternDef',
-] as const satisfies readonly DefinitionType[];
 
 /**
  * The style kind each definition type belongs to. espressivo names the `<header>` collection

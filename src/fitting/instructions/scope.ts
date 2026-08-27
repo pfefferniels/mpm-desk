@@ -69,7 +69,7 @@ export const exportMPM = (mpm: Mpm): string => mpm.writeMpm() ?? '';
  * Every scope-addressed function below goes through this, so a document parsed from a file
  * without a performance behaves like a fresh one rather than silently answering nothing.
  */
-export const performanceOf = (mpm: Mpm): Performance => {
+const performanceOf = (mpm: Mpm): Performance => {
   const existing = mpm.getPerformance(0);
   if (existing) return existing;
   const performance = unwrap(
@@ -80,9 +80,6 @@ export const performanceOf = (mpm: Mpm): Performance => {
   return performance;
 };
 
-export const setPerformanceName = (mpm: Mpm, name: string): void => {
-  performanceOf(mpm).setName(name);
-};
 
 /**
  * Every scope the document has something in — `'global'` first, then parts by number.

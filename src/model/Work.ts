@@ -20,7 +20,7 @@
  */
 
 /** What a reconstruction is *of*: a name, and the two documents it moves between. */
-export interface Work {
+interface Work {
     name: string;
     /** Path to the MEI, relative to the file. Always `transcription.mei` so far. */
     mei: string;

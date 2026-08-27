@@ -2,7 +2,7 @@ import type { Call, Segment } from '../../model/Work';
 import type { Instruction } from './InstructionChips';
 
 /** What one segment holds: the instructions still in the document, and a count of those gone. */
-export interface Held {
+interface Held {
     instructions: Instruction[];
     /**
      * Instructions its calls wrote that a later call removed or merged away again.
@@ -13,7 +13,7 @@ export interface Held {
     overwritten: number;
 }
 
-export interface Gathered {
+interface Gathered {
     bySegment: Map<string, Held>;
     /** Instructions whose call names no segment, or names one this file no longer holds. */
     ungrouped: Instruction[];

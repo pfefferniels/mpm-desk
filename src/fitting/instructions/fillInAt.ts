@@ -6,7 +6,7 @@ import { requireElement } from './scope';
  * The three calls this makes on a map, which the caller names because it knows which map it is
  * holding. There is deliberately no table of instruction types behind this.
  */
-export interface FillIn<O> {
+interface FillIn<O> {
   /** The element name to match on, so a `<style>` switch sharing the date is not filled in. */
   readonly localName: string;
   readonly add: (options: O) => number;

@@ -19,7 +19,7 @@ import {
 import { at } from '../../support/at';
 
 /** A recorded pedal: onset and release in milliseconds, and no symbolic date. */
-export interface FixturePedal {
+interface FixturePedal {
   id: string;
   type: 'sustain' | 'soft';
   date: number;
@@ -32,36 +32,16 @@ export interface FixturePedal {
  * document. A note the alignment holds twice, once per reading, is two `<note>` elements under
  * one `xml:id`, so `id` is a checksum and not a key.
  */
-export interface FixtureSource {
+interface FixtureSource {
   id: string;
   source?: string;
 }
 
-export interface AlignmentFixture {
+interface AlignmentFixture {
   msm: string;
   pedals: FixturePedal[];
   sources: FixtureSource[];
 }
-
-export const serializeAlignment = (alignment: Alignment): AlignmentFixture => {
-  const msm = alignment.serialize();
-  if (msm === undefined) throw new Error('the alignment has no notes to serialize');
-
-  return {
-    msm,
-    pedals: alignment.pedals.map((pedal) => ({
-      id: pedal['xml:id'],
-      type: pedal.type,
-      date: pedal['milliseconds.date'],
-      end: pedal['milliseconds.date.end'],
-      ...(pedal.source !== undefined && { source: pedal.source }),
-    })),
-    sources: inDocumentOrder(alignment).map((note) => ({
-      id: note['xml:id'],
-      ...(note.source !== undefined && { source: note.source }),
-    })),
-  };
-};
 
 export const deserializeAlignment = (fixture: AlignmentFixture): Alignment => {
   const root = new Builder().build(fixture.msm).getRootElement();
@@ -107,12 +87,6 @@ export const parseAlignmentFixture = (
   pedals: records(pedals, 'the pedals').map(readFixturePedal),
   sources: records(sources, 'the sources').map(readFixtureSource),
 });
-
-/** The order `Alignment.serialize` writes the notes in: parts ascending, each in its own order. */
-const inDocumentOrder = (alignment: Alignment): AlignedNote[] =>
-  [...alignment.parts()]
-    .sort((a, b) => a - b)
-    .flatMap((part) => alignment.allNotes.filter((note) => note.part === part + 1));
 
 const readNote = (element: Element, part: number, source: FixtureSource): AlignedNote => {
   const options = Msm.noteOptionsOf(element);

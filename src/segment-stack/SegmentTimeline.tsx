@@ -11,7 +11,7 @@ import { wordFor } from "./words";
 /** Wide enough for `accentuationPattern`, the longest type name in the corpus. */
 export const TYPE_COLUMN = 106;
 /** The track a card is drawn on. A caller with more room of its own may say otherwise. */
-export const TRACK_WIDTH = 250;
+const TRACK_WIDTH = 250;
 /** A row that only has to say *when* — a bar and a beat grid fit in this. */
 const BAR_ROW = 15;
 /**

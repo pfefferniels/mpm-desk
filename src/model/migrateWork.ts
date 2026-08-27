@@ -142,7 +142,7 @@ interface OldWorkFile {
  * Returned rather than logged, so the test can assert on it and the CLI can print it. Every
  * field is something that was counted during the walk, not something the script expected.
  */
-export interface MigrationReport {
+interface MigrationReport {
     /** True when the input was already a {@link WorkFile} and nothing was done to it. */
     alreadyMigrated: boolean;
     argumentations: number;
@@ -274,7 +274,7 @@ export const isMigrated = (value: unknown): value is WorkFile => {
  * same reason `sourcesOf` reads both — a file using the split form is still a file whose sources
  * are recoverable.
  */
-export const checkIncorporatesIsDerivable = (old: OldWorkFile): string[] => {
+const checkIncorporatesIsDerivable = (old: OldWorkFile): string[] => {
     const declared = old.creation.incorporates ?? [];
     if (declared.length === 0) return [];
 

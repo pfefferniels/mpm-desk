@@ -19,7 +19,7 @@ const MAP_DEFINITIONS: Record<string, string> = {
 /** Instruction elements whose `transition.to` needs a successor to render as a transition. */
 const TRANSITIONING = new Set(['tempo', 'dynamics', 'movement']);
 
-export interface Violation {
+interface Violation {
   check: string;
   detail: string;
 }

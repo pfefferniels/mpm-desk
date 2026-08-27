@@ -201,7 +201,7 @@ const withPerformance = (score: Alignment, performance: PerformanceData): Alignm
  * removes that freedom, and `compareTransformers` — the registry's own order, not a hand-picked
  * one — decides what runs when.
  */
-export const chainFor = (spec: Case, msm: Alignment): Transformer[] => {
+const chainFor = (spec: Case, msm: Alignment): Transformer[] => {
   const transformers: Transformer[] = [];
   const end = msm.lastDate();
 
@@ -469,7 +469,7 @@ export const statistics = (values: number[]): AspectError => {
   };
 };
 
-export const compare = (truth: PerformanceData, refit: PerformanceData): Errors => {
+const compare = (truth: PerformanceData, refit: PerformanceData): Errors => {
   const byId = new Map<string, PerformedNote>();
   for (const part of refit.parts) {
     for (const note of part.notes) if (note.id) byId.set(note.id, note);

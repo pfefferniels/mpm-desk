@@ -30,7 +30,7 @@ import type { CallOutcome } from '../model/Reconstruction';
  * The callbacks are stable across chain changes (`useLatest`), because everything a desk draws
  * sits under this and a fresh callback per render would re-render all of it.
  */
-export interface CallSelectionValue {
+interface CallSelectionValue {
     /** The calls of the chain, in the order the file records them. */
     calls: readonly Call[];
     activeCallIds: Set<string>;

@@ -114,8 +114,6 @@ export abstract class AbstractTransformer<
   protected abstract transform(msm: Alignment, mpm: Mpm): void;
 }
 
-export type OptionsOf<T> = T extends AbstractTransformer<infer O> ? O : never;
-
 /**
  * An `xml:id` for a new instruction of `type` at `date` that nothing in `mpm` already uses.
  *
@@ -140,19 +138,19 @@ export const generateId = (type: InstructionType, date: number, mpm: Mpm): strin
   return candidate;
 };
 
-export const isRangeBased = (
+const isRangeBased = (
   transformer: TransformationOptions,
 ): transformer is TransformationOptions & { from: number; to: number } => {
   return 'from' in transformer && 'to' in transformer;
 };
 
-export const isDateBased = (
+const isDateBased = (
   transformer: TransformationOptions,
 ): transformer is TransformationOptions & { date: number } => {
   return 'date' in transformer;
 };
 
-export const isNoteBased = (
+const isNoteBased = (
   transformer: TransformationOptions,
 ): transformer is TransformationOptions & { noteIDs: string[] } => {
   return 'noteIDs' in transformer;
