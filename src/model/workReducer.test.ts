@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+    alignmentsOf,
     canRedo,
     canUndo,
     describesPerformance,
@@ -22,6 +23,7 @@ import {
     type WorkAction,
 } from './workReducer';
 import type { Call, WorkFile } from './Work';
+import type { Resolution } from '../alignment/readings';
 
 /** A `Set`-valued option, held so the tests can ask for it by identity. */
 const aspects = new Set(['relativeDuration']);
@@ -654,5 +656,130 @@ describe('the voice layout', () => {
         // Laying out voices is a statement about the score's encoding: a reconstruction that has
         // only sorted its voices into parts has claimed nothing yet about how the piece was played.
         expect(describesPerformance(processVoices)).toBe(false);
+    });
+});
+
+describe('the alignment', () => {
+    const resolutions = new Map<string, Resolution>([
+        ['missing-n7', { reading: 'omitted-passage', action: 'mark-simplification' }],
+    ]);
+
+    const align: Call = {
+        id: 'al',
+        name: 'Align',
+        options: {
+            source: 'take-1',
+            midi: 'take-1.mid',
+            model: 'v3',
+            minConfidence: 0.25,
+            resolutions,
+            resp: 'NP',
+            certainty: 'medium',
+            // No UI reaches this; it stands in for whatever a later build adds.
+            note: 'hand-written',
+        },
+        segment: 's1',
+    };
+
+    const aligned = (): WorkFile =>
+        deepFrozen({ ...base(), provenance: [...base().provenance, align] });
+
+    it('reads what was decided about each take off the chain', () => {
+        expect(alignmentsOf(aligned())).toEqual([
+            {
+                source: 'take-1',
+                midi: 'take-1.mid',
+                model: 'v3',
+                minConfidence: 0.25,
+                resolutions,
+                resp: 'NP',
+                certainty: 'medium',
+            },
+        ]);
+    });
+
+    it('reads nothing out of a chain that has aligned nothing', () => {
+        expect(alignmentsOf(base())).toEqual([]);
+    });
+
+    it('drops a call that does not say which recording it is about', () => {
+        const nameless: Call = { id: 'al', name: 'Align', options: { midi: 'take-1.mid' } };
+        expect(alignmentsOf({ ...base(), provenance: [nameless] })).toEqual([]);
+    });
+
+    it('reads a resolution that says something else entirely as no resolution', () => {
+        const odd: Call = {
+            id: 'al',
+            name: 'Align',
+            options: {
+                source: 'take-1',
+                resolutions: [['missing-n7', { reading: 7 }], 'nonsense'],
+            },
+        };
+        expect(alignmentsOf({ ...base(), provenance: [odd] })[0].resolutions.size).toBe(0);
+    });
+
+    it('writes back through the call that names the same take', () => {
+        const next = workReducer(aligned(), {
+            type: 'set-alignment',
+            alignment: {
+                ...alignmentsOf(aligned())[0],
+                resolutions: new Map([
+                    ...resolutions,
+                    ['added-p3', { reading: 'ornamentation', action: 'record' }],
+                ]),
+            },
+            newCallId: 'unused',
+        });
+
+        expect(next.provenance.filter(({ name }) => name === 'Align')).toHaveLength(1);
+        expect(alignmentsOf(next)[0].resolutions.size).toBe(2);
+    });
+
+    it('opens a second call for a second take', () => {
+        const next = workReducer(aligned(), {
+            type: 'set-alignment',
+            alignment: {
+                source: 'take-2',
+                midi: 'take-2.mid',
+                model: 'v3',
+                minConfidence: 0,
+                resolutions: new Map(),
+                resp: 'NP',
+                certainty: 'medium',
+            },
+            newCallId: 'a2',
+        });
+
+        expect(alignmentsOf(next).map((entry) => entry.source)).toEqual(['take-1', 'take-2']);
+    });
+
+    it('says nothing changed, by reference, when the same review comes back', () => {
+        const work = aligned();
+        expect(
+            workReducer(work, {
+                type: 'set-alignment',
+                alignment: alignmentsOf(work)[0],
+                newCallId: 'unused',
+            }),
+        ).toBe(work);
+    });
+
+    it('keeps what has no UI: the other options, and the rest of the call', () => {
+        const next = workReducer(aligned(), {
+            type: 'set-alignment',
+            alignment: { ...alignmentsOf(aligned())[0], resp: 'somebody else' },
+            newCallId: 'unused',
+        });
+
+        const call = byId(next, 'al');
+        expect(call.options['note']).toBe('hand-written');
+        expect(call.segment).toBe('s1');
+    });
+
+    it('says nothing about the performance, so it is not counted as a claim', () => {
+        // Which sounding event realises which written note is what a reconstruction reads before
+        // it has claimed anything at all about how the piece was played.
+        expect(describesPerformance(align)).toBe(false);
     });
 });

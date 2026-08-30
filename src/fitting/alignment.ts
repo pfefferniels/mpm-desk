@@ -238,10 +238,11 @@ export class Alignment {
    * document with no layout serializes as it did before.
    */
   private build(performed: boolean, names?: PartNames) {
-    if (this.allNotes.length === 0) {
-      console.error('no notes to serialize');
-      return;
-    }
+    // Not an error, and it used to say it was. A score whose `<performance>` is still empty is
+    // where every project now starts — the alignment desk is what fills it — and an editor
+    // opening one wrote this to the console four times before anybody had done anything wrong.
+    // The `undefined` is the report; every caller already reads it as one.
+    if (this.allNotes.length === 0) return;
 
     // A fixed root id, because the chain is compared run against run and `createMsm` mints a
     // random UUID for a null one.

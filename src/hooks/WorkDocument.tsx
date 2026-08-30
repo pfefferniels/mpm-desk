@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import {
+    alignmentsOf,
     canRedo as historyCanRedo,
     canUndo as historyCanUndo,
     metadataOf,
     voicesOf,
     type MetadataUpdate,
     type VoicesUpdate,
+    type WorkAlignment,
     type WorkHistory,
     type WorkHistoryAction,
     type WorkMetadata,
@@ -57,6 +59,8 @@ interface WorkDocumentValue {
     metadata: WorkMetadata;
     /** The voice layout, read off the chain's own `ProcessVoices` call. */
     voices: WorkVoices;
+    /** What was decided about each take that has been aligned, one entry per `<recording>`. */
+    alignments: readonly WorkAlignment[];
 
     removeCalls: (ids: readonly string[]) => void;
     /** Put calls under a claim — an existing one, a new one, or none at all. */
@@ -66,6 +70,8 @@ interface WorkDocumentValue {
     setSegments: (segments: Segment[]) => void;
     setMetadata: (update: MetadataUpdate) => void;
     setVoices: (update: VoicesUpdate) => void;
+    /** Record what was decided about one take, on the `Align` call that names its `@source`. */
+    setAlignment: (alignment: WorkAlignment) => void;
 
     undo: () => void;
     redo: () => void;
@@ -139,6 +145,14 @@ export const WorkDocumentProvider = ({
         [dispatch],
     );
 
+    /** Likewise, and used only for a take the document has no `Align` call for yet. */
+    const setAlignment = useCallback(
+        (alignment: WorkAlignment) => {
+            dispatch({ type: 'set-alignment', alignment, newCallId: crypto.randomUUID() });
+        },
+        [dispatch],
+    );
+
     const undo = useCallback(() => {
         dispatch({ type: 'undo' });
     }, [dispatch]);
@@ -149,6 +163,7 @@ export const WorkDocumentProvider = ({
 
     const metadata = useMemo(() => metadataOf(work), [work]);
     const voices = useMemo(() => voicesOf(work), [work]);
+    const alignments = useMemo(() => alignmentsOf(work), [work]);
 
     const value = useMemo<WorkDocumentValue>(
         () => ({
@@ -156,12 +171,14 @@ export const WorkDocumentProvider = ({
             segments: work.segments,
             metadata,
             voices,
+            alignments,
             removeCalls,
             groupCalls,
             dissolveSegment,
             setSegments,
             setMetadata,
             setVoices,
+            setAlignment,
             undo,
             redo,
             canUndo: historyCanUndo(history),
@@ -172,12 +189,14 @@ export const WorkDocumentProvider = ({
             work.segments,
             metadata,
             voices,
+            alignments,
             removeCalls,
             groupCalls,
             dissolveSegment,
             setSegments,
             setMetadata,
             setVoices,
+            setAlignment,
             undo,
             redo,
             history,

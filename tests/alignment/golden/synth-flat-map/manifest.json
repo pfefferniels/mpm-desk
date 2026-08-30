@@ -1,0 +1,353 @@
+{
+ "schema": "mlign-golden/1",
+ "piece": "synth-flat-map",
+ "meta": {
+  "synthetic": true,
+  "seed": 60,
+  "covers": "s2p_time is the len(ax)<2 zeros fallback; single assignment round",
+  "generator": "scripts/make_golden.py:synth_case",
+  "n": 8,
+  "m": 11,
+  "windowed": false,
+  "git_commit": "5269095ad71d9ffea765e4a522712f02b4dd9c18",
+  "git_dirty": true,
+  "created_utc": "2026-08-27T22:30:36Z",
+  "versions": {
+   "python": "3.13.5",
+   "numpy": "2.2.6"
+  },
+  "constants": {
+   "MARKER_PITCH": 128,
+   "PPQ": 720.0,
+   "MAX_SINGLE_TOKENS": 2000,
+   "WIN_SCORE": 384,
+   "WIN_STRIDE": 192,
+   "MARGIN_SEC": 3.0,
+   "UNCOVERED_SIM": -1000000000.0,
+   "UNCOVERED_NULL": 1000000000.0,
+   "ANCHOR_CONF": 0.35,
+   "TOL_SEC": 1.0,
+   "SKIP_FACTOR": 0.6,
+   "ASSIGN_INF": 1e+18,
+   "CONF_BONUS_FACTOR": 0.5,
+   "RESCUE_SEC": 0.35,
+   "DTW_GAP_DECODE": 0.6,
+   "DTW_GAP_BASELINE": 0.75,
+   "DTW_CONF_GAIN": 20.0,
+   "SCORE_CLUSTER_EPS": 1e-09,
+   "PERF_CLUSTER_EPS": 0.05
+  },
+  "counts": {
+   "match": 1,
+   "deletion": 7,
+   "insertion": 10
+  }
+ },
+ "arrays": {
+  "sim": {
+   "file": "sim.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    8,
+    11
+   ],
+   "offset": 0,
+   "bytes": 352,
+   "sha256": "7b1011a1002ada7468294ca63ce6a251d0cc92ec2fe610f80471ddb4e9ed9a57",
+   "note": "fabricated logits, not model output"
+  },
+  "null_s": {
+   "file": "null_s.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    8
+   ],
+   "offset": 0,
+   "bytes": 32,
+   "sha256": "696555903513e40f755b0fcf4cf44a785da879ecc690b0c5433418fea0b6da2f",
+   "note": "fabricated"
+  },
+  "null_p": {
+   "file": "null_p.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    11
+   ],
+   "offset": 0,
+   "bytes": 44,
+   "sha256": "5f07b58275703534efabd660419004a5162e072bbf23c90e05c9433265aa83db",
+   "note": "fabricated"
+  },
+  "conf": {
+   "file": "conf.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    8,
+    11
+   ],
+   "offset": 0,
+   "bytes": 352,
+   "sha256": "d2ddab05167ae4d0f2e4ae7f040eff761702ab076eac24c0d88ef6736d857dcf",
+   "note": "dual-softmax sm_s * sm_p.T"
+  }
+ },
+ "score": null,
+ "perf": null,
+ "row": {
+  "score": [
+   [
+    0.0,
+    720.0,
+    70,
+    0
+   ],
+   [
+    0.0,
+    720.0,
+    70,
+    1
+   ],
+   [
+    0.0,
+    720.0,
+    70,
+    2
+   ],
+   [
+    0.0,
+    720.0,
+    70,
+    3
+   ],
+   [
+    0.0,
+    720.0,
+    70,
+    4
+   ],
+   [
+    0.0,
+    720.0,
+    70,
+    0
+   ],
+   [
+    0.0,
+    720.0,
+    69,
+    1
+   ],
+   [
+    0.0,
+    720.0,
+    70,
+    2
+   ]
+  ],
+  "perf": [
+   [
+    0.04858455963363984,
+    300.0,
+    75,
+    40
+   ],
+   [
+    4.445061765927103,
+    300.0,
+    69,
+    41
+   ],
+   [
+    8.381419645017738,
+    300.0,
+    71,
+    42
+   ],
+   [
+    11.74110045465332,
+    300.0,
+    72,
+    43
+   ],
+   [
+    17.250201580903656,
+    300.0,
+    71,
+    44
+   ],
+   [
+    20.039943429419274,
+    300.0,
+    75,
+    45
+   ],
+   [
+    20.960511205072617,
+    300.0,
+    73,
+    46
+   ],
+   [
+    21.851418905054793,
+    300.0,
+    73,
+    47
+   ],
+   [
+    22.89663566368587,
+    300.0,
+    69,
+    48
+   ],
+   [
+    24.128287372878482,
+    300.0,
+    71,
+    49
+   ],
+   [
+    31.180419153003935,
+    300.0,
+    72,
+    50
+   ]
+  ]
+ },
+ "windows": [
+  [
+   0,
+   8,
+   0,
+   11
+  ]
+ ],
+ "baseline_pairs": null,
+ "featurized": null,
+ "stages": {
+  "anchors_raw": [],
+  "anchors": [],
+  "dtw_ax": [
+   0.0
+  ],
+  "dtw_ay": [
+   4.858455963363984e-05
+  ],
+  "map1_ax": [],
+  "map1_ay": [],
+  "map2_ax": [],
+  "map2_ay": [],
+  "rounds_run": 1,
+  "round1_matched_s": [
+   -1,
+   -1,
+   -1,
+   -1,
+   -1,
+   -1,
+   1,
+   -1
+  ],
+  "rescued": []
+ },
+ "triples": [
+  {
+   "label": "deletion",
+   "score_idx": 0,
+   "confidence": 0.0002594954858068377
+  },
+  {
+   "label": "deletion",
+   "score_idx": 1,
+   "confidence": 9.75280454440508e-06
+  },
+  {
+   "label": "deletion",
+   "score_idx": 2,
+   "confidence": 0.011779352091252804
+  },
+  {
+   "label": "deletion",
+   "score_idx": 3,
+   "confidence": 0.0003021112352143973
+  },
+  {
+   "label": "deletion",
+   "score_idx": 4,
+   "confidence": 0.0009703629184514284
+  },
+  {
+   "label": "deletion",
+   "score_idx": 5,
+   "confidence": 1.0379224477219395e-05
+  },
+  {
+   "label": "match",
+   "score_idx": 6,
+   "perf_idx": 1,
+   "confidence": 5.842146492796019e-06
+  },
+  {
+   "label": "deletion",
+   "score_idx": 7,
+   "confidence": 0.0018494108226150274
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 0,
+   "confidence": 0.0006870231591165066
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 2,
+   "confidence": 0.0002497186360415071
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 3,
+   "confidence": 0.00024068274069577456
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 4,
+   "confidence": 0.00038048086571507156
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 5,
+   "confidence": 1.1504826034069993e-05
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 6,
+   "confidence": 0.0008353943703696132
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 7,
+   "confidence": 8.252079715020955e-05
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 8,
+   "confidence": 0.0017411718145012856
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 9,
+   "confidence": 0.00011668031947920099
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 10,
+   "confidence": 0.00012587574019562453
+  }
+ ]
+}

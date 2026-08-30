@@ -23,7 +23,11 @@ import './fitting/transformers/Order';
 
 import { correspondingDesks } from './desks/DeskSwitch';
 import type { SecondaryData } from './desks/TransformerViewProps';
+import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
+import { PerformancesProvider, type Performance } from './hooks/Performances';
+import { parseMetadata } from './mei/insertMetadata';
+import { checkPerformance } from './alignment/mlign';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { CallSelectionProvider } from './hooks/CallSelection';
 import { WorkDocumentProvider } from './hooks/WorkDocument';
@@ -110,6 +114,7 @@ export const App = () => {
 
     const [pristine, setPristine] = useState<Alignment | null>(null);
     const [mei, setMEI] = useState<string>();
+    const [performances, setPerformances] = useState<readonly Performance[]>([]);
     const [message, setMessage] = useState<string>();
 
     const [selectedDesk, setSelectedDesk] = useState<string>('metadata');
@@ -184,7 +189,14 @@ export const App = () => {
 
     // ── loading ───────────────────────────────────────────────────
 
-    const loadMei = useCallback((content: string) => {
+    /**
+     * The MEI, and the alignment read out of it.
+     *
+     * Called on open and again whenever the alignment desk commits — which is why it takes the
+     * content rather than reading state, and why nothing here resets the scope: a rewritten
+     * `<performance>` is the same score.
+     */
+    const readMei = useCallback((content: string) => {
         setMEI(content);
         const converted = convertMeiToMsm(content)[0]?.msm;
         if (!converted) {
@@ -192,11 +204,24 @@ export const App = () => {
             return;
         }
         setPristine(asMSM(content, converted));
-        // A new score has new part indices, and the scope picker is a `Select`: left holding a
-        // part the score does not have, it renders blank and warns. The `ToggleButtonGroup` it
-        // replaced hid this by simply showing nothing selected.
-        setScope('global');
     }, []);
+
+    const loadMei = useCallback(
+        (content: string) => {
+            readMei(content);
+            // A new score has new part indices, and the scope picker is a `Select`: left holding a
+            // part the score does not have, it renders blank and warns. The `ToggleButtonGroup` it
+            // replaced hid this by simply showing nothing selected.
+            setScope('global');
+            // And a new score is not the one the takes in hand were played from.
+            setPerformances([]);
+            // A score with no recording aligned into it has nothing for any other desk to draw:
+            // every one of them plots what the performance did, and there is no performance yet.
+            // So it opens where the work actually starts.
+            if (!content.includes('<when')) setSelectedDesk('alignment');
+        },
+        [readMei],
+    );
 
     const loadWorkFromJson = useCallback((content: string) => {
         try {
@@ -229,6 +254,60 @@ export const App = () => {
         [loadMei],
     );
 
+    /**
+     * A performance, read and kept as it arrived.
+     *
+     * The bytes as well as the parse: the parse is what the aligner works on, and the bytes are
+     * what the archive stores — `midifile-ts` reads a file and does not write one back.
+     *
+     * The `@source` is the file's stem unless the file names one itself, which a piano-roll scan
+     * does. Minted here rather than in the desk because it has to be unique against the takes
+     * already in hand, and this is what holds them.
+     */
+    const readPerformance = useCallback(
+        async (file: File): Promise<Performance | undefined> => {
+            const buffer = await file.arrayBuffer();
+            const problem = checkPerformance(buffer);
+            if (problem) {
+                setMessage(problem);
+                return undefined;
+            }
+
+            let midi: MidiFile;
+            try {
+                midi = read(buffer);
+            } catch {
+                setMessage(`${file.name} could not be read as MIDI.`);
+                return undefined;
+            }
+
+            const stem = file.name.replace(/\.[^.]+$/, '');
+            return { source: parseMetadata(midi).source ?? stem, name: file.name, midi, bytes: new Uint8Array(buffer) };
+        },
+        [],
+    );
+
+    const addPerformance = useCallback((performance: Performance) => {
+        setPerformances((current) => {
+            // By file name, because that is what the archive stores it under: a second take of
+            // the same name would replace the first in the zip and leave its `Align` call naming
+            // a file that holds somebody else's playing.
+            if (current.some((held) => held.name === performance.name)) {
+                setMessage(`${performance.name} is already open.`);
+                return current;
+            }
+            return [...current, performance];
+        });
+    }, []);
+
+    const handleOpenMidi = useCallback(
+        async (file: File) => {
+            const performance = await readPerformance(file);
+            if (performance) addPerformance(performance);
+        },
+        [readPerformance, addPerformance],
+    );
+
     const handleOpenZip = useCallback(
         async (file: File) => {
             const zip = await JSZip.loadAsync(file);
@@ -236,14 +315,25 @@ export const App = () => {
             // `work.json` is the current name; older archives carry `info.json`, and those are
             // worth being able to open.
             const jsonFile = zip.file('work.json') ?? zip.file('info.json');
+            // Read before the MEI is: `loadMei` empties the takes, because opening a score is
+            // opening a different piece, and an archive's takes are that score's own.
+            const midiFiles = zip.file(/^recordings\//);
 
             if (meiFile) {
                 loadMei(await meiFile.async('string'));
                 document.title = `${file.name} - MPM Desk`;
             }
             if (jsonFile) loadWorkFromJson(await jsonFile.async('string'));
+
+            for (const entry of midiFiles) {
+                const bytes = await entry.async('uint8array');
+                const name = entry.name.replace(/^recordings\//, '');
+                const midi = read(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+                const stem = name.replace(/\.[^.]+$/, '');
+                addPerformance({ source: parseMetadata(midi).source ?? stem, name, midi, bytes });
+            }
         },
-        [loadMei, loadWorkFromJson],
+        [loadMei, loadWorkFromJson, addPerformance],
     );
 
     const handleOpenFile = useCallback(
@@ -251,11 +341,13 @@ export const App = () => {
             if (file.name.endsWith('.zip')) void handleOpenZip(file);
             else if (file.name.endsWith('.mei') || file.name.endsWith('.xml'))
                 void handleOpenMei(file);
+            else if (file.name.endsWith('.mid') || file.name.endsWith('.midi'))
+                void handleOpenMidi(file);
             // The old branch had no `else`, so an unrecognised suffix did nothing and said
             // nothing — indistinguishable from a file that failed to parse.
-            else setMessage(`Cannot open ${file.name} — expected a .zip, .mei or .xml.`);
+            else setMessage(`Cannot open ${file.name} — expected a .zip, .mei, .xml or .mid.`);
         },
-        [handleOpenZip, handleOpenMei],
+        [handleOpenZip, handleOpenMei, handleOpenMidi],
     );
 
     /** Opens the picker below. It used to be `document.getElementById('fileInput')?.click()`
@@ -382,11 +474,23 @@ export const App = () => {
             // other place it is crossed: the bag is typed per desk here and opaque to the
             // document, because nothing outside a desk may depend on its shape.
             secondary: secondary as WorkFile['secondary'],
+            recordings: performances.map(({ name, bytes }) => ({ name, bytes })),
         });
 
         downloadAsFile(archive, archiveName, 'application/zip');
         setSavedWork(work);
-    }, [mei, mpm, alignment, result, scoreMsm, work, metadata, secondary, archiveName]);
+    }, [
+        mei,
+        mpm,
+        alignment,
+        result,
+        scoreMsm,
+        work,
+        metadata,
+        secondary,
+        archiveName,
+        performances,
+    ]);
 
     const saveWork = useCallback(() => void handleSave(), [handleSave]);
 
@@ -482,6 +586,11 @@ export const App = () => {
 
     const { tickToSeconds, secondsToTick } = useTimeMapping(alignment);
 
+    const performancesValue = useMemo(
+        () => ({ performances, openPerformance: (file: File) => void handleOpenMidi(file) }),
+        [performances, handleOpenMidi],
+    );
+
     /**
      * Why the open desk may not leave Global, or null while it may.
      *
@@ -556,7 +665,8 @@ export const App = () => {
         <ZoomContext value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
                 <WorkDocumentProvider history={workHistory} dispatch={dispatch}>
-                    <ScoreDocumentProvider mei={mei} recording={recording}>
+                    <ScoreDocumentProvider mei={mei} setMei={readMei} recording={recording}>
+                        <PerformancesProvider value={performancesValue}>
                         <PlaybackProvider
                             scoreMsm={scoreMsm}
                             performanceMpm={result.mpm}
@@ -643,6 +753,7 @@ export const App = () => {
                                 </ScrollSyncProvider>
                             </CallSelectionProvider>
                         </PlaybackProvider>
+                        </PerformancesProvider>
                     </ScoreDocumentProvider>
                 </WorkDocumentProvider>
 
@@ -652,7 +763,7 @@ export const App = () => {
                 <input
                     ref={fileInputRef}
                     type="file"
-                    accept="application/xml,.mei,.zip"
+                    accept="application/xml,.mei,.zip,.mid,.midi"
                     style={{ display: 'none' }}
                     onChange={(event) => {
                         const file = event.target.files?.[0];

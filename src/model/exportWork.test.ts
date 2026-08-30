@@ -340,6 +340,20 @@ describe('buildWorkArchive', () => {
         ]);
     });
 
+    it('carries the performances the score was aligned against, under their own names', async () => {
+        // Not needed to *read* the alignment — that is in the MEI — but needed to make it again,
+        // and to hear the playing rather than a rendering of what was made of it.
+        const bytes = new Uint8Array([0x4d, 0x54, 0x68, 0x64]);
+        const zip = await readBack(
+            await buildWorkArchive(input({ recordings: [{ name: 'take-1.mid', bytes }] })),
+        );
+
+        expect(Object.keys(zip.files)).toContain('recordings/take-1.mid');
+        expect(await zip.file('recordings/take-1.mid')!.async('uint8array')).toEqual(bytes);
+        // The name is the link: it is what an `Align` call records in `midi`
+        expect(zip.folder('recordings')).not.toBeNull();
+    });
+
     it('writes the score with the choices already folded in', async () => {
         const zip = await readBack(await buildWorkArchive(input()));
 

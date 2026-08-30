@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Button, Divider, Stack } from '@mui/material';
+import { Button, Divider, Stack, Typography } from '@mui/material';
 import { FolderOpen, NoteAdd } from '@mui/icons-material';
 
 interface StartScreenProps {
@@ -7,6 +7,14 @@ interface StartScreenProps {
     onOpenMei: (file: File) => void;
 }
 
+/**
+ * The two ways in, and what happens after the second.
+ *
+ * A project is a score and what was played of it, but the recordings are not chosen here: a
+ * recording of nothing is nothing, and until a score is open there is nothing to say a MIDI file
+ * is a performance *of*. So an unaligned score opens on the alignment desk, and the takes are
+ * added there, against the score they belong to.
+ */
 export const StartScreen: React.FC<StartScreenProps> = ({ onOpenZip, onOpenMei }) => {
     const zipInputRef = useRef<HTMLInputElement>(null);
     const meiInputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +58,12 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onOpenZip, onOpenMei }
                     e.target.value = '';
                 }}
             />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, maxWidth: '32rem', textAlign: 'center' }}>
+                A new project starts from a score. A score nobody has aligned opens on the
+                alignment desk, where you add the recordings it was played in and put the two note
+                against note.
+            </Typography>
+
             <input
                 ref={meiInputRef}
                 type="file"

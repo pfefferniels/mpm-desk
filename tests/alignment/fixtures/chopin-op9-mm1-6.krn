@@ -1,0 +1,167 @@
+!!!!SEGMENT: 009-1-KI-001.krn
+!!!COM: Chopin, Fryderyk
+!!!OTL: Nocturne 1er
+!!!OPS: Op. 9
+!!!PTL: Trois Nocturnes pour le Pianoforte
+!!!PPR: Kistner
+!!!PPP: Leipzig
+!!!AGN: Nocturne
+!!!NIFC-rismID: 1001013448
+!!!NIFC-shelfmark: PL-Wbfc 4255/n
+!!!OMD: M. M. [quarter] = 116
+!!!OMD: Larghetto.
+**kern	**fing	**kern	**fing	**dynam
+*part1	*	*part1	*	*part1
+*staff2	*	*staff1	*	*
+*clefF4	*	*clefG2	*	*
+*k[b-e-a-d-g-]	*	*k[b-e-a-d-g-]	*	*
+*b-:	*	*b-:	*	*
+*M6/4	*	*M6/4	*	*
+*MM116	*	*MM116	*	*
+!	!	!LO:TX:i:t=espress.	!	!
+4r	.	(8bb-L	.	p
+.	.	8ccc	.	.
+4r	.	8ddd-	.	.
+.	.	8aan	.	.
+4r	.	8bb-	.	.
+.	.	8gg-J	.	.
+=1	=1	=1	=1	=1
+*ped	*	*	*	*
+(8BB-L	.	4ff'	.	<
+8F	.	.	.	.
+8d-	.	4ff'	.	.
+8B-	.	.	.	.
+8f	.	4ff'	.	.
+*Xped	*	*	*	*
+8FJ)	.	.	.	.
+*ped	*	*	*	*
+(8BB-L	.	4ff)	.	[
+8F	.	.	.	.
+8e-	.	(8gg-L	.	>
+8An	.	8ff	.	.
+8f	.	8ee-	.	.
+*Xped	*	*	*	*
+8FJ)	.	8ccJ)	.	]
+=2	=2	=2	=2	=2
+(8BB-L	.	(2dd-	.	>
+8F	.	.	.	.
+8d-	.	.	.	.
+8B-	.	.	.	.
+8f	.	4b-)	.	]
+8FJ)	.	.	.	.
+!	!	!LO:TX:a:t=P:note-head-side tuplet number:problem	!	!
+(8BB-L	.	(44%3bb-L	.	.
+.	.	44%3ccc	.	.
+8F	.	.	.	.
+.	.	44%3ddd-	.	.
+.	.	44%3aan	.	.
+8d-	.	.	.	.
+.	.	44%3bb-	.	.
+.	.	44%3aa	.	.
+8B-	.	.	.	.
+.	.	44%3gg#X	.	.
+.	.	44%3aa	.	.
+8f	.	.	.	.
+.	.	44%3ccc	.	.
+.	.	44%3bb-	.	.
+8FJ)	.	.	.	.
+.	.	44%3gg-XJ)	.	.
+!!LO:LB:g=original
+=3	=3	=3	=3	=3
+!	!	!LO:TX:a:t=P:note-head-side tuplet number:problem	!	!
+(8BB-L	.	(44%3ffL	.	.
+.	.	44%3gg-X	.	.
+8F	.	.	.	.
+.	.	44%3een	.	.
+.	.	44%3ff	.	.
+8d-	.	.	.	.
+.	.	44%3bb-	.	.
+.	.	44%3aan'	.	.
+8B-	.	.	.	.
+.	.	44%3aa-'	.	.
+.	.	44%3ggn'	.	.
+8f	.	.	.	.
+.	.	44%3gg-'	.	.
+.	.	44%3ff'	.	.
+8FJ)	.	.	.	.
+.	.	44%3ee'	.	.
+(8BB-L	.	44%3ee-'	.	.
+.	.	44%3ddn'	.	.
+8F	.	.	.	.
+.	.	44%3dd-'	.	.
+.	.	44%3cc'	.	.
+8e-	.	.	.	.
+.	.	44%3dd-	.	.
+.	.	44%3cc	.	.
+8An	.	.	.	.
+.	.	44%3bn	.	.
+.	.	44%3cc	.	.
+8f	.	.	.	.
+.	.	44%3ff	.	.
+.	.	44%3een	.	.
+8FJ)	.	.	.	.
+.	.	44%3ee-J)	.	.
+=4	=4	=4	=4	=4
+(>8BB-L	.	(2dd-	.	>
+8F	.	.	.	]
+8d-	.	.	.	.
+8B-	.	.	.	.
+8f	.	4b-)	.	.
+8FJ)	.	.	.	.
+(>8BB-L	.	(4bb-'	.	<
+8F	.	.	.	.
+8d-	.	4bb-'	.	.
+8B-	.	.	.	.
+8f	.	4bb-')	.	.
+8FJ)	.	.	.	[[
+=5	=5	=5	=5	=5
+*	*	*^	*	*
+!	!	!LO:N:vis=2.	!	!	!
+(8DD-L	.	[1aa-	2.aa-	.	fz
+8F	.	.	.	.	p
+8d-	.	.	.	.	.
+8A-	.	.	.	.	.
+8f	.	.	.	.	.
+8FJ)	.	.	.	.	.
+(8GG-XL	.	.	4dd-^<	.	.
+8D-	.	.	.	.	.
+8B-	.	4.aa-]	8b-L	.	<
+8G-	.	.	8cc	.	.
+8d-	.	.	8dd-	.	.
+8D-J)	.	8gg-	8gg-J	.	.
+.	.	.	.	.	[
+*	*	*v	*v	*	*
+!!LO:LB:g=original
+=6	=6	=6	=6	=6
+(8DD-L	.	2.ff	.	[
+8D-	.	.	.	.
+8A-	.	.	.	.
+8F	.	.	.	.
+8d-	.	.	.	.
+8D-J)	.	.	.	.
+(8GG-L	.	(4ee-	.	.
+8D-	.	.	.	.
+8B--	.	8ffL	.	>
+8G-	.	8ee-	.	.
+8d-	.	8dd-	.	.
+8D-J)	.	8b--J	.	]
+*-	*-	*-	*-	*-
+!!!RDF**kern: > = above
+!!!RDF**kern: < = below
+!!!RDF**dynam: < = "cres."
+!!!RDF**dynam: > = "dimin."
+!!!ENC: Tomasz Sierawski
+!!!END: 2018-06-18
+!!!EED: Wojciech Jakubiak-Danek
+!!!EST: 2018-06-20
+!!!EED: Jacek Iwaszko
+!!!EST: 2018-07-18
+!!!EED2: Jędrzej Mróz
+!!!EST: 2019-07-31
+!!!rism-genre: Nocturne
+!!!rism-key: B-flat minor
+!!!rism-opus: op.  9, no. 1
+!!!rism-title: Nocturne in B-flat minor op.  9, no. 1
+!!!rism-permalink: https://opac.rism.info/search?id=1001013448&View=rism
+!!!rism-773a-OPR: 1001013447
+!!!rism-parent-permalink: https://opac.rism.info/search?id=1001013447&View=rism

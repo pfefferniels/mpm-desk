@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [react({ babel: { plugins: [['babel-plugin-react-compiler', {}]] } })],
   // As in `vite.config.ts`; the two configs are separate files here, so it has to be said twice.
   optimizeDeps: {
-    exclude: ['verovio'],
+    exclude: ['verovio', 'onnxruntime-web'],
   },
   test: {
     globals: true,
@@ -30,10 +30,11 @@ export default defineConfig({
     include: [
       'src/**/*.{test,spec}.{ts,tsx}',
       'scripts/**/*.{test,spec}.ts',
-      // The fitting suite, which came across with `src/fitting/**` from espressivo. It sits at
-      // the root rather than beside the code because that is where it was written, and moving
-      // ~40 files into `src/` would have made every fixture path in it a lie.
-      'tests/**/*.{test,spec}.ts',
+      // The fitting suite, which came across with `src/fitting/**` from espressivo, and the
+      // alignment suite, which came across with `src/alignment/**` from aligned-mei. Both sit at
+      // the root rather than beside the code because that is where they were written, and moving
+      // them into `src/` would have made every fixture path in them a lie.
+      'tests/**/*.{test,spec}.{ts,tsx}',
     ],
     coverage: {
       provider: 'v8',
