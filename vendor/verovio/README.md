@@ -17,6 +17,9 @@ commit it came from.
     dist/verovio.mjs          the JavaScript wrapper, as ES module
     dist/verovio.cjs          the same, as CommonJS
 
+`COPYING` and `COPYING.LESSER` are upstream's license texts, carried along because `dist/` ships
+here: verovio is LGPL-3.0-or-later, where the rest of this repository is GPL-3.0-only.
+
 The entry-point names are upstream's on purpose (`verovio/wasm`, `verovio/esm`), so
 `@types/verovio` still applies. The eleven `performance*` options the fork adds are not in those
 types and are declared in `src/verovio/toolkit.ts`.
