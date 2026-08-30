@@ -669,13 +669,17 @@ export const AlignmentDesk = () => {
 
                 {drawn?.failed && <Alert severity="error">{drawn.failed}</Alert>}
 
-                <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                    <PlaybackBar playback={playback} />
-                    <Typography variant="body2" color="text.secondary">
-                        Listen back, and the notes light up as they sound. Drag either end of the
-                        bar to hear one passage on its own.
-                    </Typography>
-                </Stack>
+                {/* Only where there is a recording to hear. A transport over nothing, with a
+                    sentence under it about notes lighting up, is an offer that cannot be taken. */}
+                {(alignment?.spans.length ?? 0) > 0 && (
+                    <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                        <PlaybackBar playback={playback} />
+                        <Typography variant="body2" color="text.secondary">
+                            Listen back, and the notes light up as they sound. Drag either end of
+                            the bar to hear one passage on its own.
+                        </Typography>
+                    </Stack>
+                )}
 
                 <Box
                     ref={setRoot}
@@ -686,7 +690,7 @@ export const AlignmentDesk = () => {
                         height: `calc(100vh - ${String(APP_BAR_HEIGHT)}px - 12rem)`,
                     }}
                 >
-                    {drawn?.mei && (
+                    {drawn?.mei ? (
                         <Score
                             className="alignment-score"
                             mei={drawn.mei}
@@ -697,6 +701,24 @@ export const AlignmentDesk = () => {
                             omissions={marks.omissions}
                             style={{ width: 'max-content' }}
                         />
+                    ) : (
+                        /* What a new project opens on, and the only screen in the editor a reader
+                           reaches before there is anything to look at. It says the next thing to
+                           do rather than leaving the page blank. */
+                        <Stack spacing={1} sx={{ p: 4, maxWidth: '34rem' }}>
+                            <Typography variant="h6">Nothing aligned yet</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                This score has no recording in it. Add a MIDI performance of it and
+                                press Align: the two are put note against note here, and every
+                                other desk reads what comes out.
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                The matching is worked out in the browser, note by note. It is a
+                                proposal — what the score and the recording disagree about is
+                                yours to read, and nothing is written into the score until you
+                                press Apply.
+                            </Typography>
+                        </Stack>
                     )}
                 </Box>
             </Stack>
