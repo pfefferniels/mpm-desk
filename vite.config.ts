@@ -1,5 +1,27 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+
+/**
+ * `/editor` as a file GitHub Pages can find.
+ *
+ * Pages resolves a path to a file and offers no rewrite rule, so `/editor` matches nothing and it
+ * falls back to `404.html`, leaving the URL alone. Leaving the URL alone is the whole requirement:
+ * `main.tsx` reads the route straight off `location.pathname`, so the fallback page only has to BE
+ * the app. Hence a copy of the built index.html, taken from the bundle so it carries the same
+ * hashed asset names.
+ *
+ * `enforce: 'post'` because index.html is emitted by Vite's own build plugins, which run after
+ * ordinary user plugins.
+ */
+const spaFallback = (): Plugin => ({
+  name: 'spa-fallback',
+  enforce: 'post',
+  generateBundle(_options, bundle) {
+    const index = bundle['index.html']
+    if (index?.type !== 'asset') throw new Error('no built index.html to copy to 404.html')
+    this.emitFile({ type: 'asset', fileName: '404.html', source: index.source })
+  },
+})
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -24,6 +46,7 @@ export default defineConfig({
         plugins: [['babel-plugin-react-compiler', {}]],
       },
     }),
+    spaFallback(),
   ],
   resolve: {
     dedupe: ['react', 'react-dom', 'vite'],
