@@ -12,6 +12,11 @@ export function renderToPng(svgString: string): Buffer {
   const resvg = new Resvg(svgString, {
     fitTo: { mode: 'width', value: 1200 },
     background: 'white',
+    // Verovio sets its measure numbers and tempo marks in `Times, serif`, which resolves to a
+    // different face on every machine and then differs by more pixels than a layout change does.
+    // Without system fonts the picture is the engraving alone, and that is what the baseline is
+    // for. The faces under `public/fonts` cannot stand in: resvg reads no woff2.
+    font: { loadSystemFonts: false },
   })
   return Buffer.from(resvg.render().asPng())
 }
