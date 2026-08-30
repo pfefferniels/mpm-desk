@@ -15,7 +15,10 @@ import { ToolStatus } from '../../components/toolbar/ToolStatus';
 import { paintParts, partStyles } from './paintParts';
 import { colorForPart } from './partColors';
 import { measureTicks, tickRange } from './measures';
-import { PartsLegend, type LegendPart } from './PartsLegend';
+import { PartsLegend } from './PartsLegend';
+import { legendParts, type LegendPart } from './legendParts';
+import type { PartLayout, VoiceMove } from '../../fitting/transformers/voices/ProcessVoices';
+import type { WorkVoices } from '../../model/workReducer';
 
 /** What is selected for a move: notes picked in the score, or a voice over a stretch of bars. */
 type Selection =
@@ -74,33 +77,15 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
 
     const bars = useMemo(() => (mei ? measureTicks(mei, dates) : new Map<number, number>()), [mei, dates]);
 
-    /**
-     * The parts as the legend shows them: what the chain produced, named by the layout.
-     *
-     * Read off the alignment rather than off the layout, so a part the layout names but nothing is
-     * in does not appear, and a part the layout has not mentioned does.
-     */
-    const parts = useMemo<LegendPart[]>(() => {
-        const named = new Map(layout.parts.map((part) => [part.number, part.name]));
-        const byNumber = new Map<number, LegendPart>();
-
-        for (const voice of voices) {
-            const existing = byNumber.get(voice.part);
-            if (existing) {
-                existing.voices.push(voice);
-                existing.notes += voice.notes;
-                continue;
-            }
-            byNumber.set(voice.part, {
-                number: voice.part,
-                name: named.get(voice.part) ?? '',
-                voices: [voice],
-                notes: voice.notes,
-            });
-        }
-
-        return [...byNumber.values()].sort((a, b) => a.number - b.number);
-    }, [voices, layout.parts]);
+    const parts = useMemo(
+        () =>
+            legendParts(
+                msm,
+                voices,
+                new Map(layout.parts.map((part) => [part.number, part.name])),
+            ),
+        [msm, voices, layout.parts],
+    );
 
     const selectedIds = useMemo(
         () => new Set(selection?.noteIDs ?? []),
@@ -172,25 +157,18 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
             const moving = pickedVoice;
             setPickedVoice(undefined);
             setVoices((previous) => {
-                const withoutIt = (previous.parts.length > 0 ? previous.parts : asLayout(parts)).map(
-                    (entry) => ({ ...entry, voices: entry.voices.filter((key) => key !== moving) }),
-                );
-                const target = withoutIt.find((entry) => entry.number === part);
-                const placed = target
+                const withoutIt = baseLayout(previous, parts).map((entry) => ({
+                    ...entry,
+                    voices: entry.voices.filter((key) => key !== moving),
+                }));
+                const placed = withoutIt.some((entry) => entry.number === part)
                     ? withoutIt.map((entry) =>
                           entry.number === part
                               ? { ...entry, voices: [...entry.voices, moving] }
                               : entry,
                       )
                     : [...withoutIt, { number: part, name: '', voices: [moving] }];
-                // A part left holding nothing is not a part. Dropping it here is what keeps the
-                // numbering dense, which `scope.ts` and `Alignment.build` both require.
-                return {
-                    ...previous,
-                    parts: placed
-                        .filter((entry) => entry.voices.length > 0)
-                        .sort((a, b) => a.number - b.number),
-                };
+                return { ...previous, parts: tidy(placed, previous.moves) };
             });
             return;
         }
@@ -198,14 +176,12 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
         if (!selection) return;
         setSelection(null);
 
-        setVoices((previous) => ({
-            ...previous,
+        setVoices((previous) => {
             // The two selections record different things on purpose. A range keeps meaning what it
             // says after the notes under it are re-selected; a note list is what a click produced
             // and nothing more. Enumerating twenty bars of ids would record the same fact hundreds
             // of times.
-            moves: [
-                ...previous.moves,
+            const move: VoiceMove =
                 selection.kind === 'range'
                     ? {
                           part,
@@ -215,9 +191,19 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                               to: selection.to,
                           },
                       }
-                    : { part, select: { noteIDs: selection.noteIDs } },
-            ],
-        }));
+                    : { part, select: { noteIDs: selection.noteIDs } };
+
+            // The destination joins the layout even though no voice is in it. A part is what the
+            // layout says exists — it is where the name lives, and `ProcessVoices` reports a move
+            // naming a part nothing declares — and a move to a new part declares nothing otherwise.
+            const base = baseLayout(previous, parts);
+            const placed = base.some((entry) => entry.number === part)
+                ? base
+                : [...base, { number: part, name: '', voices: [] }];
+            const moves = [...previous.moves, move];
+
+            return { ...previous, parts: tidy(placed, moves), moves };
+        });
     };
 
     const combine = () => {
@@ -232,17 +218,19 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
         setSelectedParts(new Set([target]));
         setVoices((previous) => {
             const kept = previous.parts.filter((part) => !folded.has(part.number));
-            const existing = kept.find((part) => part.number === target);
-            return {
-                ...previous,
-                parts: existing
-                    ? kept.map((part) =>
-                          part.number === target ? { ...part, voices: voiceKeys } : part,
-                      )
-                    : [...kept, { number: target, name: '', voices: voiceKeys }].sort(
-                          (a, b) => a.number - b.number,
-                      ),
-            };
+            const placed = kept.some((part) => part.number === target)
+                ? kept.map((part) =>
+                      part.number === target ? { ...part, voices: voiceKeys } : part,
+                  )
+                : [...kept, { number: target, name: '', voices: voiceKeys }];
+            // The moves are re-pointed, not left behind. A part a move filled holds notes no voice
+            // as a whole belongs to, so folding its entry away would take its name and leave its
+            // notes exactly where they were.
+            const moves = previous.moves.map((move) =>
+                folded.has(move.part) ? { ...move, part: target } : move,
+            );
+
+            return { ...previous, parts: tidy(placed, moves), moves };
         });
     };
 
@@ -450,12 +438,30 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
  * layout rather than an addition to it: a first edit that named only the part it touched would
  * silently drop every other voice into the part its options never mention.
  */
-const asLayout = (parts: readonly LegendPart[]) =>
+const asLayout = (parts: readonly LegendPart[]): PartLayout[] =>
     parts.map((part) => ({
         number: part.number,
         name: part.name,
         voices: part.voices.map((voice) => voice.key),
     }));
+
+/** The layout an edit starts from: the one that is written, else the one being run implicitly. */
+const baseLayout = (previous: WorkVoices, parts: readonly LegendPart[]): PartLayout[] =>
+    previous.parts.length > 0 ? [...previous.parts] : asLayout(parts);
+
+/**
+ * The layout with the parts that hold nothing dropped, in order.
+ *
+ * A part left holding neither a voice nor a move is not a part, and dropping it is what keeps the
+ * numbering dense — which `scope.ts` and `Alignment.build` both read. A move's destination stays:
+ * it holds notes no voice as a whole belongs to, and it is where the name of that part lives.
+ */
+const tidy = (parts: readonly PartLayout[], moves: readonly VoiceMove[]): PartLayout[] => {
+    const filled = new Set(moves.map((move) => move.part));
+    return parts
+        .filter((part) => part.voices.length > 0 || filled.has(part.number))
+        .sort((a, b) => a.number - b.number);
+};
 
 const labelOf = (key: string, voices: readonly Voice[]): string => {
     const voice = voices.find((entry) => entry.key === key);

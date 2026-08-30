@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { Box, InputBase, Typography } from '@mui/material';
-import type { Voice } from '../../fitting/voices';
 import { colorForPart } from './partColors';
-
-export interface LegendPart {
-    number: number;
-    name: string;
-    voices: Voice[];
-    notes: number;
-}
+import type { LegendPart } from './legendParts';
 
 interface PartsLegendProps {
     parts: readonly LegendPart[];

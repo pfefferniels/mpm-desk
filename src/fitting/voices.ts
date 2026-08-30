@@ -8,6 +8,7 @@
  *
  * Plain data and no DOM, so the worker and the desk can both read it.
  */
+import { elementAt } from 'espressivo';
 import type { AlignedNote, Alignment } from './alignment';
 
 export interface Voice {
@@ -26,7 +27,13 @@ export interface Voice {
    * rather than the music's.
    */
   notes: number;
-  /** The part it is in as the alignment stands, 1-based. */
+  /**
+   * The part it is in as the alignment stands, 1-based.
+   *
+   * Where *most* of it is, rather than where its first note is. A move takes notes out of a voice
+   * without taking the voice, so the two answers differ the moment anything has been moved, and
+   * the first note is the one a `Modify` is most likely to have moved on its own.
+   */
   part: number;
 }
 
@@ -57,26 +64,54 @@ const compareN = (a: string, b: string): number => {
   return a.localeCompare(b);
 };
 
+/** What a voice's notes were found to be, before it is said in one line. */
+interface Tally {
+  staff: string;
+  layer: string;
+  /** Distinct `xml:id`s, which is what {@link Voice.notes} reports. */
+  ids: Set<string>;
+  /** Part ⇒ how many of the voice's notes are in it, for {@link homePart}. */
+  perPart: Map<number, number>;
+}
+
 /** Every voice the notes use, in score order: by staff, then by layer. */
 export const voicesOf = (msm: Alignment): Voice[] => {
-  const found = new Map<string, Voice>();
-  const counted = new Map<string, Set<string>>();
+  const tallies = new Map<string, Tally>();
 
   for (const note of msm.allNotes) {
     const key = voiceKey(note);
-    const existing = found.get(key);
-    if (!existing) {
-      found.set(key, { staff: note.staff, layer: note.layer, key, notes: 0, part: note.part });
-      counted.set(key, new Set());
-    }
-    counted.get(key)?.add(note['xml:id']);
+    const tally = tallies.get(key) ?? {
+      staff: note.staff,
+      layer: note.layer,
+      ids: new Set<string>(),
+      perPart: new Map<number, number>(),
+    };
+    tallies.set(key, tally);
+    tally.ids.add(note['xml:id']);
+    tally.perPart.set(note.part, (tally.perPart.get(note.part) ?? 0) + 1);
   }
 
-  for (const voice of found.values()) {
-    voice.notes = counted.get(voice.key)?.size ?? 0;
-  }
-
-  return [...found.values()].sort(
-    (a, b) => compareN(a.staff, b.staff) || compareN(a.layer, b.layer),
-  );
+  return [...tallies]
+    .map(([key, tally]) => ({
+      staff: tally.staff,
+      layer: tally.layer,
+      key,
+      notes: tally.ids.size,
+      part: homePart(tally.perPart),
+    }))
+    .sort((a, b) => compareN(a.staff, b.staff) || compareN(a.layer, b.layer));
 };
+
+/**
+ * The part holding most of a voice, the lowest-numbered where two hold as much.
+ *
+ * Counted over rows rather than over distinct ids, which is the same answer: the alignment holds
+ * every note once per `<recording>` until a `MakeChoice` collapses the readings, and a note's
+ * copies are all in one part.
+ */
+const homePart = (perPart: ReadonlyMap<number, number>): number =>
+  elementAt(
+    [...perPart].sort(([aPart, a], [bPart, b]) => b - a || aPart - bPart),
+    0,
+    'the parts a voice is spread over',
+  )[0];

@@ -100,9 +100,9 @@ describe('voiceLabel', () => {
 });
 
 describe('voicesOf ordering', () => {
-  const note = (staff: string, layer: string): AlignedNote => ({
-    'xml:id': `${staff}-${layer}`,
-    part: Number(staff) || 1,
+  const note = (staff: string, layer: string, part = Number(staff) || 1): AlignedNote => ({
+    'xml:id': `${staff}-${layer}-${String(part)}`,
+    part,
     staff,
     layer,
     date: 0,
@@ -120,5 +120,19 @@ describe('voicesOf ordering', () => {
     // Lexically, "10" sorts before "9" — which would put the tenth voice of a staff second.
     const found = voicesOf(new Alignment([note('2', '1'), note('1', '10'), note('1', '9')]));
     expect(found.map((voice) => voice.key)).toEqual(['1/9', '1/10', '2/1']);
+  });
+
+  test('puts a voice in the part holding most of it, not the part its first note is in', () => {
+    // A move takes notes out of a voice without taking the voice. Reading the part off the first
+    // note then reports the voice from wherever that one note went.
+    const found = voicesOf(
+      new Alignment([note('1', '1', 3), note('1', '1', 1), note('1', '1', 1)]),
+    );
+    expect(found.map((voice) => voice.part)).toEqual([1]);
+  });
+
+  test('gives a voice split evenly to the lower-numbered part, so the answer is stable', () => {
+    const found = voicesOf(new Alignment([note('1', '1', 3), note('1', '1', 1)]));
+    expect(found.map((voice) => voice.part)).toEqual([1]);
   });
 });
