@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="5.0">
+   <meiHead>
+      <fileDesc>
+         <titleStmt><title>Ornament, tempo and grace probe</title></titleStmt>
+         <pubStmt/>
+      </fileDesc>
+   </meiHead>
+   <music>
+      <body>
+         <mdiv>
+            <score>
+               <scoreDef midi.bpm="120">
+                  <staffGrp>
+                     <staffDef n="1" lines="5" clef.shape="G" clef.line="2" meter.count="4" meter.unit="4"/>
+                  </staffGrp>
+               </scoreDef>
+               <section>
+                  <!-- measure 1: a trilled note, then an arpeggiated chord -->
+                  <measure xml:id="m1" n="1">
+                     <staff n="1">
+                        <layer n="1">
+                           <note xml:id="trilled" pname="c" oct="5" dur="2"/>
+                           <chord xml:id="ch1" dur="2">
+                              <note xml:id="ch1a" pname="c" oct="4"/>
+                              <note xml:id="ch1b" pname="e" oct="4"/>
+                              <note xml:id="ch1c" pname="g" oct="4"/>
+                           </chord>
+                        </layer>
+                     </staff>
+                     <trill startid="#trilled"/>
+                     <arpeg plist="#ch1"/>
+                  </measure>
+                  <!-- measure 2: a plain grace, and a grace tied into its principal -->
+                  <measure xml:id="m2" n="2">
+                     <staff n="1">
+                        <layer n="1">
+                           <note xml:id="grace1" pname="b" oct="4" dur="8" grace="acc"/>
+                           <note xml:id="principal1" pname="c" oct="5" dur="4"/>
+                           <note xml:id="grace2" pname="a" oct="4" dur="8" grace="acc"/>
+                           <note xml:id="principal2" pname="a" oct="4" dur="4"/>
+                           <note xml:id="plain" pname="e" oct="5" dur="2"/>
+                        </layer>
+                     </staff>
+                     <tie startid="#grace2" endid="#principal2"/>
+                  </measure>
+                  <!-- measure 3: the tempo halves; the notation does not change -->
+                  <measure xml:id="m3" n="3">
+                     <staff n="1">
+                        <layer n="1">
+                           <note xml:id="slow1" pname="c" oct="5" dur="4"/>
+                           <note xml:id="slow2" pname="d" oct="5" dur="4"/>
+                           <note xml:id="slow3" pname="e" oct="5" dur="4"/>
+                           <note xml:id="slow4" pname="f" oct="5" dur="4"/>
+                        </layer>
+                     </staff>
+                     <tempo tstamp="1" mm="30" place="above" staff="1">Adagio</tempo>
+                  </measure>
+                  <!-- measure 4: the other ornaments -->
+                  <measure xml:id="m4" n="4">
+                     <staff n="1">
+                        <layer n="1">
+                           <note xml:id="morded" pname="c" oct="5" dur="4"/>
+                           <note xml:id="turned" pname="d" oct="5" dur="4"/>
+                           <bTrem xml:id="btrem1">
+                              <note xml:id="tremmed" pname="e" oct="5" dur="2"/>
+                           </bTrem>
+                        </layer>
+                     </staff>
+                     <mordent startid="#morded"/>
+                     <turn startid="#turned"/>
+                  </measure>
+               </section>
+            </score>
+         </mdiv>
+      </body>
+   </music>
+</mei>

@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://music-encoding.org/schema/dev/mei-all.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="https://music-encoding.org/schema/dev/mei-all.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" meiversion="6.0-dev">
+   <meiHead>
+      <fileDesc>
+         <titleStmt>
+            <title>Nocturne 1er, Larghetto.</title>
+         </titleStmt>
+         <pubStmt>
+            <unpub>This MEI file was created by Verovio's Humdrum converter. When published, this unpub element should be removed, and the enclosing pubStmt element should be properly filled out.</unpub>
+         </pubStmt>
+         <sourceDesc>
+            <source type="digital">
+               <bibl xml:id="source0_digital">
+                  <title>Nocturne 1er, Larghetto.</title>
+                  <composer>
+                     <persName>Chopin, Fryderyk</persName>
+                  </composer>
+                  <editor analog="humdrum:EED">Wojciech Jakubiak-Danek</editor>
+                  <editor analog="humdrum:EED">Jacek Iwaszko</editor>
+                  <editor analog="humdrum:EED">Jędrzej Mróz</editor>
+                  <respStmt>
+                     <resp>encoder</resp>
+                     <persName analog="humdrum:ENC">Tomasz Sierawski</persName>
+                  </respStmt>
+                  <imprint>
+                     <date type="encodingDate" analog="humdrum:END">2018-06-18</date>
+                  </imprint>
+                  <relatedItem rel="otherFormat" target="#source1_printed" />
+               </bibl>
+            </source>
+            <source type="printed">
+               <bibl xml:id="source1_printed">
+                  <title>Nocturne 1er, Larghetto.</title>
+                  <composer>
+                     <persName>Chopin, Fryderyk</persName>
+                  </composer>
+                  <imprint>
+                     <publisher analog="humdrum:PPR">Kistner</publisher>
+                     <geogName role="locationPublished" analog="humdrum:PPP">Leipzig</geogName>
+                  </imprint>
+                  <relatedItem rel="host">
+                     <bibl>
+                        <title analog="humdrum:PTL">Trois Nocturnes pour le Pianoforte</title>
+                     </bibl>
+                  </relatedItem>
+                  <relatedItem rel="otherFormat" target="#source0_digital" />
+               </bibl>
+            </source>
+         </sourceDesc>
+      </fileDesc>
+      <encodingDesc>
+         <appInfo>
+            <application isodate="2026-08-28T09:35:49" version="6.3.0-425dd7b">
+               <name>Verovio</name>
+               <p>Transcoded from Humdrum</p>
+            </application>
+         </appInfo>
+      </encodingDesc>
+      <workList>
+         <work xml:id="work0_encoded" type="encoded">
+            <identifier analog="humdrum:OPS">Op. 9</identifier>
+            <title type="uniform">
+               <titlePart type="main" analog="humdrum:OTL">Nocturne 1er</titlePart>
+               <titlePart type="movementName" analog="humdrum:OMD">Larghetto.</titlePart>
+               <titlePart type="opusNumber" analog="humdrum:OPS">Op. 9</titlePart>
+            </title>
+            <composer>
+               <persName analog="humdrum:COM">Chopin, Fryderyk</persName>
+            </composer>
+            <classification>
+               <termList>
+                  <term label="genre" analog="humdrum:AGN">Nocturne</term>
+               </termList>
+            </classification>
+         </work>
+      </workList>
+      <extMeta>
+         <frames xmlns="http://www.humdrum.org/ns/humxml">
+            <metaFrame n="0" token="!!!!SEGMENT: 009-1-KI-001.krn" xml:id="L1">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>ureference</frameType>
+                  <referenceKey>SEGMENT</referenceKey>
+                  <referenceValue>009-1-KI-001.krn</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="1" token="!!!COM: Chopin, Fryderyk" xml:id="L2">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>COM</referenceKey>
+                  <referenceValue>Chopin, Fryderyk</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="2" token="!!!OTL: Nocturne 1er" xml:id="L3">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>OTL</referenceKey>
+                  <referenceValue>Nocturne 1er</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="3" token="!!!OPS: Op. 9" xml:id="L4">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>OPS</referenceKey>
+                  <referenceValue>Op. 9</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="4" token="!!!PTL: Trois Nocturnes pour le Pianoforte" xml:id="L5">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>PTL</referenceKey>
+                  <referenceValue>Trois Nocturnes pour le Pianoforte</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="5" token="!!!PPR: Kistner" xml:id="L6">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>PPR</referenceKey>
+                  <referenceValue>Kistner</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="6" token="!!!PPP: Leipzig" xml:id="L7">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>PPP</referenceKey>
+                  <referenceValue>Leipzig</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="7" token="!!!AGN: Nocturne" xml:id="L8">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>AGN</referenceKey>
+                  <referenceValue>Nocturne</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="8" token="!!!NIFC-rismID: 1001013448" xml:id="L9">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>NIFC-rismID</referenceKey>
+                  <referenceValue>1001013448</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="9" token="!!!NIFC-shelfmark: PL-Wbfc 4255/n" xml:id="L10">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>NIFC-shelfmark</referenceKey>
+                  <referenceValue>PL-Wbfc 4255/n</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="10" token="!!!OMD: M. M. [quarter] = 116" xml:id="L11">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>OMD</referenceKey>
+                  <referenceValue>M. M. [quarter] = 116</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="11" token="!!!OMD: Larghetto." xml:id="L12">
+               <frameInfo>
+                  <startTime float="0" />
+                  <frameType>reference</frameType>
+                  <referenceKey>OMD</referenceKey>
+                  <referenceValue>Larghetto.</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="148" token="!!!RDF**kern: > = above" xml:id="L149">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>RDF**kern</referenceKey>
+                  <referenceValue>&gt; = above</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="149" token="!!!RDF**kern: &lt; = below" xml:id="L150">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>RDF**kern</referenceKey>
+                  <referenceValue>&lt; = below</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="150" token="!!!RDF**dynam: &lt; = &quot;cres.&quot;" xml:id="L151">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>RDF**dynam</referenceKey>
+                  <referenceValue>&lt; = "cres."</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="151" token="!!!RDF**dynam: > = &quot;dimin.&quot;" xml:id="L152">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>RDF**dynam</referenceKey>
+                  <referenceValue>&gt; = "dimin."</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="152" token="!!!ENC: Tomasz Sierawski" xml:id="L153">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>ENC</referenceKey>
+                  <referenceValue>Tomasz Sierawski</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="153" token="!!!END: 2018-06-18" xml:id="L154">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>END</referenceKey>
+                  <referenceValue>2018-06-18</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="154" token="!!!EED: Wojciech Jakubiak-Danek" xml:id="L155">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>EED</referenceKey>
+                  <referenceValue>Wojciech Jakubiak-Danek</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="155" token="!!!EST: 2018-06-20" xml:id="L156">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>EST</referenceKey>
+                  <referenceValue>2018-06-20</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="156" token="!!!EED: Jacek Iwaszko" xml:id="L157">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>EED</referenceKey>
+                  <referenceValue>Jacek Iwaszko</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="157" token="!!!EST: 2018-07-18" xml:id="L158">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>EST</referenceKey>
+                  <referenceValue>2018-07-18</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="158" token="!!!EED2: Jędrzej Mróz" xml:id="L159">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>EED2</referenceKey>
+                  <referenceValue>Jędrzej Mróz</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="159" token="!!!EST: 2019-07-31" xml:id="L160">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>EST</referenceKey>
+                  <referenceValue>2019-07-31</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="160" token="!!!rism-genre: Nocturne" xml:id="L161">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>rism-genre</referenceKey>
+                  <referenceValue>Nocturne</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="161" token="!!!rism-key: B-flat minor" xml:id="L162">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>rism-key</referenceKey>
+                  <referenceValue>B-flat minor</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="162" token="!!!rism-opus: op.  9, no. 1" xml:id="L163">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>rism-opus</referenceKey>
+                  <referenceValue>op.  9, no. 1</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="163" token="!!!rism-title: Nocturne in B-flat minor op.  9, no. 1" xml:id="L164">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>rism-title</referenceKey>
+                  <referenceValue>Nocturne in B-flat minor op.  9, no. 1</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="164" token="!!!rism-permalink: https://opac.rism.info/search?id=1001013448&amp;View=rism" xml:id="L165">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>rism-permalink</referenceKey>
+                  <referenceValue>https://opac.rism.info/search?id=1001013448&amp;View=rism</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="165" token="!!!rism-773a-OPR: 1001013447" xml:id="L166">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>rism-773a-OPR</referenceKey>
+                  <referenceValue>1001013447</referenceValue>
+               </frameInfo>
+            </metaFrame>
+            <metaFrame n="166" token="!!!rism-parent-permalink: https://opac.rism.info/search?id=1001013447&amp;View=rism" xml:id="L167">
+               <frameInfo>
+                  <startTime float="39" />
+                  <frameType>reference</frameType>
+                  <referenceKey>rism-parent-permalink</referenceKey>
+                  <referenceValue>https://opac.rism.info/search?id=1001013447&amp;View=rism</referenceValue>
+               </frameInfo>
+            </metaFrame>
+         </frames>
+      </extMeta>
+   </meiHead>
+   <music decls="#work0_encoded">
+      <body>
+         <mdiv xml:id="ywl0o66">
+            <score xml:id="zui6qu8">
+               <scoreDef xml:id="al00g49" midi.bpm="116" tempo.dist="3vu">
+                  <pgHead xml:id="l1fblhad" func="first">
+                     <rend xml:id="m15ern17" halign="center" valign="middle">
+                        <rend xml:id="n1898ovl" fontsize="large">Nocturne 1er</rend>
+                        <lb xml:id="p15jgteo" /> 
+<lb xml:id="rnv2bya" /> </rend>
+                     <rend xml:id="t9pf1hy" halign="right" valign="bottom" fontsize="small">Fryderyk Chopin</rend>
+                  </pgHead>
+                  <staffGrp xml:id="y1f32k69" bar.thru="true" symbol="brace">
+                     <staffDef xml:id="staffdef-L13F3" n="1" lines="5">
+                        <clef xml:id="clef-L16F3" shape="G" line="2" />
+                        <keySig xml:id="keysig-L17F3" accid="f" mode="minor" sig="5f" pname="b" />
+                        <meterSig xml:id="metersig-L19F3" count="6" unit="4" />
+                     </staffDef>
+                     <staffDef xml:id="staffdef-L13F1" n="2" lines="5">
+                        <clef xml:id="clef-L16F1" shape="F" line="4" />
+                        <keySig xml:id="keysig-L17F1" accid="f" mode="minor" sig="5f" pname="b" />
+                        <meterSig xml:id="metersig-L19F1" count="6" unit="4" />
+                     </staffDef>
+                  </staffGrp>
+               </scoreDef>
+               <section xml:id="section-L13F1">
+                  <pb xml:id="cq4yk9t" />
+                  <measure xml:id="measure-L1">
+                     <staff xml:id="staff-L13F3" n="1">
+                        <layer xml:id="layer-L1F3N1" n="1">
+                           <beam xml:id="beam-L22F3-L27F3">
+                              <note xml:id="note-L22F3" dur="8" oct="5" pname="b" />
+                              <note xml:id="note-L23F3" dur="8" oct="6" pname="c" />
+                              <note xml:id="note-L24F3" dur="8" oct="6" pname="d" />
+                              <note xml:id="note-L25F3" dur="8" oct="5" pname="a" accid="n" />
+                              <note xml:id="note-L26F3" dur="8" oct="5" pname="b" />
+                              <note xml:id="note-L27F3" dur="8" oct="5" pname="g" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="staff-L13F1" n="2">
+                        <layer xml:id="layer-L1F1N1" n="1">
+                           <rest xml:id="rest-L22F1" dur="4" />
+                           <rest xml:id="rest-L24F1" dur="4" />
+                           <rest xml:id="rest-L26F1" dur="4" />
+                        </layer>
+                     </staff>
+                     <tempo xml:id="tempo-L12F1" staff="1" tstamp="1">Larghetto.</tempo>
+                     <dynam xml:id="dynam-L22F5" place="between" staff="1 2" tstamp="1">p</dynam>
+                     <dir xml:id="dir-L21F3" place="above" staff="1" tstamp="1">
+                        <rend xml:id="u7qvz28" fontstyle="italic">espress.</rend>
+                     </dir>
+                     <slur xml:id="slur-L22F3-L38F3" staff="1" startid="#note-L22F3" endid="#note-L38F3" />
+                  </measure>
+                  <measure xml:id="measure-L28" n="1">
+                     <staff xml:id="staff-L28F3N1" n="1">
+                        <layer xml:id="layer-L28F3N1" n="1">
+                           <note xml:id="note-L30F3" dur="4" oct="5" pname="f">
+                              <artic xml:id="artic-L30F3" artic="stacc" />
+                           </note>
+                           <note xml:id="note-L32F3" dur="4" oct="5" pname="f">
+                              <artic xml:id="artic-L32F3" artic="stacc" />
+                           </note>
+                           <note xml:id="note-L34F3" dur="4" oct="5" pname="f">
+                              <artic xml:id="artic-L34F3" artic="stacc" />
+                           </note>
+                           <note xml:id="note-L38F3" dur="4" oct="5" pname="f" />
+                           <beam xml:id="beam-L40F3-L44F3">
+                              <note xml:id="note-L40F3" dur="8" oct="5" pname="g" />
+                              <note xml:id="note-L41F3" dur="8" oct="5" pname="f" />
+                              <note xml:id="note-L42F3" dur="8" oct="5" pname="e" />
+                              <note xml:id="note-L44F3" dur="8" oct="5" pname="c" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="staff-L28F1N1" n="2">
+                        <layer xml:id="layer-L28F1N1" n="1">
+                           <beam xml:id="beam-L30F1-L36F1">
+                              <note xml:id="note-L30F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L31F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L32F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L33F1" dur="8" oct="3" pname="b" />
+                              <note xml:id="note-L34F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L36F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                           <beam xml:id="beam-L38F1-L44F1">
+                              <note xml:id="note-L38F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L39F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L40F1" dur="8" oct="4" pname="e" />
+                              <note xml:id="note-L41F1" dur="8" oct="3" pname="a" accid="n" />
+                              <note xml:id="note-L42F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L44F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <hairpin xml:id="hairpin-L30F5" staff="1 2" tstamp="1" tstamp2="0m+4" form="cres" place="between" />
+                     <hairpin xml:id="hairpin-L40F5" staff="1 2" tstamp="5" tstamp2="0m+6.5" form="dim" place="between" vgrp="100" />
+                     <slur xml:id="slur-L40F3-L44F3" staff="1" startid="#note-L40F3" endid="#note-L44F3" />
+                     <pedal xml:id="pedal-L29F1" staff="2" tstamp="1" dir="down" vgrp="200" />
+                     <pedal xml:id="pedal-L35F1" staff="2" tstamp="3.5" dir="up" vgrp="200" />
+                     <slur xml:id="slur-L30F1-L36F1" staff="2" startid="#note-L30F1" endid="#note-L36F1" />
+                     <pedal xml:id="pedal-L37F1" staff="2" tstamp="4" dir="down" vgrp="200" />
+                     <pedal xml:id="pedal-L43F1" staff="2" tstamp="6.5" dir="up" vgrp="200" />
+                     <slur xml:id="slur-L38F1-L44F1" staff="2" startid="#note-L38F1" endid="#note-L44F1" />
+                  </measure>
+                  <measure xml:id="measure-L45" n="2">
+                     <staff xml:id="staff-L45F3N1" n="1">
+                        <layer xml:id="layer-L45F3N1" n="1">
+                           <note xml:id="note-L46F3" dur="2" oct="5" pname="d" />
+                           <note xml:id="note-L50F3" dur="4" oct="4" pname="b" />
+                           <tuplet xml:id="tuplet-L53F3-L68F3" num="11" numbase="6" bracket.visible="false" num.format="count">
+                              <beam xml:id="beam-L53F3-L68F3">
+                                 <note xml:id="note-L53F3" dur="8" oct="5" pname="b" />
+                                 <note xml:id="note-L54F3" dur="8" oct="6" pname="c" />
+                                 <note xml:id="note-L56F3" dur="8" oct="6" pname="d" />
+                                 <note xml:id="note-L57F3" dur="8" oct="5" pname="a" accid="n" />
+                                 <note xml:id="note-L59F3" dur="8" oct="5" pname="b" />
+                                 <note xml:id="note-L60F3" dur="8" oct="5" pname="a" />
+                                 <note xml:id="note-L62F3" dur="8" oct="5" pname="g" accid="s" />
+                                 <note xml:id="note-L63F3" dur="8" oct="5" pname="a" />
+                                 <note xml:id="note-L65F3" dur="8" oct="6" pname="c" />
+                                 <note xml:id="note-L66F3" dur="8" oct="5" pname="b" />
+                                 <note xml:id="note-L68F3" dur="8" oct="5" pname="g" accid="f" />
+                              </beam>
+                           </tuplet>
+                        </layer>
+                     </staff>
+                     <staff xml:id="staff-L45F1N1" n="2">
+                        <layer xml:id="layer-L45F1N1" n="1">
+                           <beam xml:id="beam-L46F1-L51F1">
+                              <note xml:id="note-L46F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L47F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L48F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L49F1" dur="8" oct="3" pname="b" />
+                              <note xml:id="note-L50F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L51F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                           <beam xml:id="beam-L53F1-L67F1">
+                              <note xml:id="note-L53F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L55F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L58F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L61F1" dur="8" oct="3" pname="b" />
+                              <note xml:id="note-L64F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L67F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <hairpin xml:id="hairpin-L46F5" staff="1 2" tstamp="1" tstamp2="0m+3" form="dim" place="between" vgrp="100" />
+                     <slur xml:id="slur-L46F3-L50F3" staff="1" startid="#note-L46F3" endid="#note-L50F3" />
+                     <dir xml:id="dir-L52F3" label="true" type="problem" place="above" staff="1" tstamp="4">
+                        <rend xml:id="ys7p4u9" color="crimson" fontstyle="normal">⚠</rend>
+                     </dir>
+                     <slur xml:id="slur-L53F3-L68F3" staff="1" startid="#note-L53F3" endid="#note-L68F3" />
+                     <slur xml:id="slur-L46F1-L51F1" staff="2" startid="#note-L46F1" endid="#note-L51F1" />
+                     <slur xml:id="slur-L53F1-L67F1" staff="2" startid="#note-L53F1" endid="#note-L67F1" />
+                  </measure>
+                  <sb xml:id="sb-L70F1" type="original" />
+                  <measure xml:id="measure-L70" n="3">
+                     <staff xml:id="staff-L70F3N1" n="1">
+                        <layer xml:id="layer-L70F3N1" n="1">
+                           <tuplet xml:id="tuplet-L72F3-L103F3" num="22" numbase="12" bracket.visible="false" num.format="count">
+                              <beam xml:id="beam-L72F3-L103F3">
+                                 <note xml:id="note-L72F3" dur="8" oct="5" pname="f" />
+                                 <note xml:id="note-L73F3" dur="8" oct="5" pname="g">
+                                    <accid xml:id="accid-L73F3" type="caution" accid="f" func="caution" />
+                                 </note>
+                                 <note xml:id="note-L75F3" dur="8" oct="5" pname="e" accid="n" />
+                                 <note xml:id="note-L76F3" dur="8" oct="5" pname="f" />
+                                 <note xml:id="note-L78F3" dur="8" oct="5" pname="b" />
+                                 <note xml:id="note-L79F3" dur="8" oct="5" pname="a" accid="n">
+                                    <artic xml:id="artic-L79F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L81F3" dur="8" oct="5" pname="a" accid="f">
+                                    <artic xml:id="artic-L81F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L82F3" dur="8" oct="5" pname="g" accid="n">
+                                    <artic xml:id="artic-L82F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L84F3" dur="8" oct="5" pname="g" accid="f">
+                                    <artic xml:id="artic-L84F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L85F3" dur="8" oct="5" pname="f">
+                                    <artic xml:id="artic-L85F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L87F3" dur="8" oct="5" pname="e">
+                                    <artic xml:id="artic-L87F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L88F3" dur="8" oct="5" pname="e" accid="f">
+                                    <artic xml:id="artic-L88F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L89F3" dur="8" oct="5" pname="d" accid="n">
+                                    <artic xml:id="artic-L89F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L91F3" dur="8" oct="5" pname="d" accid="f">
+                                    <artic xml:id="artic-L91F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L92F3" dur="8" oct="5" pname="c">
+                                    <artic xml:id="artic-L92F3" artic="stacc" />
+                                 </note>
+                                 <note xml:id="note-L94F3" dur="8" oct="5" pname="d" />
+                                 <note xml:id="note-L95F3" dur="8" oct="5" pname="c" />
+                                 <note xml:id="note-L97F3" dur="8" oct="4" pname="b" accid="n" />
+                                 <note xml:id="note-L98F3" dur="8" oct="5" pname="c" />
+                                 <note xml:id="note-L100F3" dur="8" oct="5" pname="f" />
+                                 <note xml:id="note-L101F3" dur="8" oct="5" pname="e" accid="n" />
+                                 <note xml:id="note-L103F3" dur="8" oct="5" pname="e" accid="f" />
+                              </beam>
+                           </tuplet>
+                        </layer>
+                     </staff>
+                     <staff xml:id="staff-L70F1N1" n="2">
+                        <layer xml:id="layer-L70F1N1" n="1">
+                           <beam xml:id="beam-L72F1-L86F1">
+                              <note xml:id="note-L72F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L74F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L77F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L80F1" dur="8" oct="3" pname="b" />
+                              <note xml:id="note-L83F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L86F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                           <beam xml:id="beam-L88F1-L102F1">
+                              <note xml:id="note-L88F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L90F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L93F1" dur="8" oct="4" pname="e" />
+                              <note xml:id="note-L96F1" dur="8" oct="3" pname="a" accid="n" />
+                              <note xml:id="note-L99F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L102F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <dir xml:id="dir-L71F3" label="true" type="problem" place="above" staff="1" tstamp="1">
+                        <rend xml:id="qmao6vd" color="crimson" fontstyle="normal">⚠</rend>
+                     </dir>
+                     <slur xml:id="slur-L72F3-L103F3" staff="1" startid="#note-L72F3" endid="#note-L103F3" />
+                     <slur xml:id="slur-L72F1-L86F1" staff="2" startid="#note-L72F1" endid="#note-L86F1" />
+                     <slur xml:id="slur-L88F1-L102F1" staff="2" startid="#note-L88F1" endid="#note-L102F1" />
+                  </measure>
+                  <measure xml:id="measure-L104" n="4">
+                     <staff xml:id="staff-L104F3N1" n="1">
+                        <layer xml:id="layer-L104F3N1" n="1">
+                           <note xml:id="note-L105F3" dur="2" oct="5" pname="d" />
+                           <note xml:id="note-L109F3" dur="4" oct="4" pname="b" />
+                           <note xml:id="note-L111F3" dur="4" oct="5" pname="b">
+                              <artic xml:id="artic-L111F3" artic="stacc" />
+                           </note>
+                           <note xml:id="note-L113F3" dur="4" oct="5" pname="b">
+                              <artic xml:id="artic-L113F3" artic="stacc" />
+                           </note>
+                           <note xml:id="note-L115F3" dur="4" oct="5" pname="b">
+                              <artic xml:id="artic-L115F3" artic="stacc" />
+                           </note>
+                        </layer>
+                     </staff>
+                     <staff xml:id="staff-L104F1N1" n="2">
+                        <layer xml:id="layer-L104F1N1" n="1">
+                           <beam xml:id="beam-L105F1-L110F1">
+                              <note xml:id="note-L105F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L106F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L107F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L108F1" dur="8" oct="3" pname="b" />
+                              <note xml:id="note-L109F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L110F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                           <beam xml:id="beam-L111F1-L116F1">
+                              <note xml:id="note-L111F1" dur="8" oct="2" pname="b" />
+                              <note xml:id="note-L112F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L113F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L114F1" dur="8" oct="3" pname="b" />
+                              <note xml:id="note-L115F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L116F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <hairpin xml:id="hairpin-L105F5" staff="1 2" tstamp="1" tstamp2="0m+1.5" form="dim" place="between" vgrp="100" />
+                     <slur xml:id="slur-L105F3-L109F3" staff="1" startid="#note-L105F3" endid="#note-L109F3" />
+                     <hairpin xml:id="hairpin-L111F5" staff="1 2" tstamp="4" tstamp2="0m+7" form="cres" place="between" />
+                     <slur xml:id="slur-L111F3-L115F3" staff="1" startid="#note-L111F3" endid="#note-L115F3" />
+                     <slur xml:id="slur-L105F1-L110F1" type="placed" staff="2" startid="#note-L105F1" endid="#note-L110F1" curvedir="above" />
+                     <slur xml:id="slur-L111F1-L116F1" type="placed" staff="2" startid="#note-L111F1" endid="#note-L116F1" curvedir="above" />
+                  </measure>
+                  <measure xml:id="measure-L117" n="5">
+                     <staff xml:id="staff-L117F3N1" n="1">
+                        <layer xml:id="layer-L117F3N1" n="1">
+                           <note xml:id="note-L120F3" dots="1" dur.ges="1" dots.ges="0" dur="2" oct="5" pname="a" />
+                           <note xml:id="note-L128F3" dots="1" dur="4" oct="5" pname="a" />
+                           <note xml:id="note-L131F3" dur="8" oct="5" pname="g" />
+                        </layer>
+                        <layer xml:id="layer-L117F4N2" n="2">
+                           <note xml:id="note-L120F4" dots="1" dur="2" oct="5" pname="a" />
+                           <note xml:id="note-L126F4" dur="4" oct="5" pname="d">
+                              <artic xml:id="artic-L126F4" artic="acc" place="below" />
+                           </note>
+                           <beam xml:id="beam-L128F4-L131F4">
+                              <note xml:id="note-L128F4" dur="8" oct="4" pname="b" />
+                              <note xml:id="note-L129F4" dur="8" oct="5" pname="c" />
+                              <note xml:id="note-L130F4" dur="8" oct="5" pname="d" />
+                              <note xml:id="note-L131F4" dur="8" oct="5" pname="g" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="staff-L117F1N1" n="2">
+                        <layer xml:id="layer-L117F1N1" n="1">
+                           <beam xml:id="beam-L120F1-L125F1">
+                              <note xml:id="note-L120F1" dur="8" oct="2" pname="d" />
+                              <note xml:id="note-L121F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L122F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L123F1" dur="8" oct="3" pname="a" />
+                              <note xml:id="note-L124F1" dur="8" oct="4" pname="f" />
+                              <note xml:id="note-L125F1" dur="8" oct="3" pname="f" />
+                           </beam>
+                           <beam xml:id="beam-L126F1-L131F1">
+                              <note xml:id="note-L126F1" dur="8" oct="2" pname="g">
+                                 <accid xml:id="accid-L126F1" type="caution" accid="f" func="caution" />
+                              </note>
+                              <note xml:id="note-L127F1" dur="8" oct="3" pname="d" />
+                              <note xml:id="note-L128F1" dur="8" oct="3" pname="b" />
+                              <note xml:id="note-L129F1" dur="8" oct="3" pname="g" />
+                              <note xml:id="note-L130F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L131F1" dur="8" oct="3" pname="d" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <dynam xml:id="dynam-L121F6" place="between" staff="1 2" tstamp="1.5">p</dynam>
+                     <tie xml:id="tie-L120F3-L128F3" startid="#note-L120F3" endid="#note-L128F3" />
+                     <dynam xml:id="dynam-L120F6" place="between" staff="1 2" tstamp="1">fz</dynam>
+                     <hairpin xml:id="hairpin-L128F6" staff="1 2" tstamp="5" tstamp2="0m+6.75" form="cres" place="between" />
+                     <slur xml:id="slur-L120F1-L125F1" staff="2" startid="#note-L120F1" endid="#note-L125F1" />
+                     <slur xml:id="slur-L126F1-L131F1" staff="2" startid="#note-L126F1" endid="#note-L131F1" />
+                  </measure>
+                  <sb xml:id="sb-L135F1" type="original" />
+                  <measure xml:id="measure-L135" right="invis" n="6">
+                     <staff xml:id="staff-L135F3N1" n="1">
+                        <layer xml:id="layer-L135F3N1" n="1">
+                           <note xml:id="note-L136F3" dots="1" dur="2" oct="5" pname="f" />
+                           <note xml:id="note-L142F3" dur="4" oct="5" pname="e" />
+                           <beam xml:id="beam-L144F3-L147F3">
+                              <note xml:id="note-L144F3" dur="8" oct="5" pname="f" />
+                              <note xml:id="note-L145F3" dur="8" oct="5" pname="e" />
+                              <note xml:id="note-L146F3" dur="8" oct="5" pname="d" />
+                              <note xml:id="note-L147F3" dur="8" oct="4" pname="b" accid="ff" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="staff-L135F1N1" n="2">
+                        <layer xml:id="layer-L135F1N1" n="1">
+                           <beam xml:id="beam-L136F1-L141F1">
+                              <note xml:id="note-L136F1" dur="8" oct="2" pname="d" />
+                              <note xml:id="note-L137F1" dur="8" oct="3" pname="d" />
+                              <note xml:id="note-L138F1" dur="8" oct="3" pname="a" />
+                              <note xml:id="note-L139F1" dur="8" oct="3" pname="f" />
+                              <note xml:id="note-L140F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L141F1" dur="8" oct="3" pname="d" />
+                           </beam>
+                           <beam xml:id="beam-L142F1-L147F1">
+                              <note xml:id="note-L142F1" dur="8" oct="2" pname="g" />
+                              <note xml:id="note-L143F1" dur="8" oct="3" pname="d" />
+                              <note xml:id="note-L144F1" dur="8" oct="3" pname="b" accid="ff" />
+                              <note xml:id="note-L145F1" dur="8" oct="3" pname="g" />
+                              <note xml:id="note-L146F1" dur="8" oct="4" pname="d" />
+                              <note xml:id="note-L147F1" dur="8" oct="3" pname="d" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <hairpin xml:id="hairpin-L144F5" staff="1 2" tstamp="5" tstamp2="0m+6.5" form="dim" place="between" vgrp="100" />
+                     <slur xml:id="slur-L136F1-L141F1" staff="2" startid="#note-L136F1" endid="#note-L141F1" />
+                     <slur xml:id="slur-L142F1-L147F1" staff="2" startid="#note-L142F1" endid="#note-L147F1" />
+                  </measure>
+               </section>
+            </score>
+         </mdiv>
+      </body>
+   </music>
+</mei>

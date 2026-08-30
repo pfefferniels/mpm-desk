@@ -27,6 +27,7 @@
     "espressivo": "^0.10.0",
     "jszip": "^3.10.1",
     "midifile-ts": "^1.5.2",
+    "onnxruntime-web": "^1.29.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hotkeys-hook": "^5.2.4",
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jsdom": "^30.0.0",

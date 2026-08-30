@@ -1,0 +1,251 @@
+{
+  "format": "mlign-onnx-sidecar",
+  "version": 1,
+  "model": {
+    "file": "mlign-v3-fp16.onnx",
+    "checkpoint": "mlign-v3.pt",
+    "opset": 17,
+    "weight_storage": "float16",
+    "params": 1599049,
+    "d_model": 192,
+    "n_layers": 4,
+    "n_heads": 4,
+    "d_ff": 512,
+    "max_rel": 64,
+    "matchability": true,
+    "attribution": true,
+    "attr_conditioned": "factored"
+  },
+  "graph": {
+    "batch": 1,
+    "dynamic_axis": {
+      "name": "T",
+      "index": 1
+    },
+    "inputs": [
+      {
+        "name": "pitch",
+        "dtype": "int64",
+        "shape": [
+          1,
+          "T"
+        ],
+        "doc": "MIDI pitch per token; MARKER_PITCH for the two segment markers"
+      },
+      {
+        "name": "cont",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          6
+        ],
+        "doc": "continuous features, see featurize.cont_channels"
+      },
+      {
+        "name": "segment",
+        "dtype": "int64",
+        "shape": [
+          1,
+          "T"
+        ],
+        "doc": "0 for the score half (marker included), 1 for the perf half"
+      },
+      {
+        "name": "position",
+        "dtype": "int64",
+        "shape": [
+          1,
+          "T"
+        ],
+        "doc": "index within the segment; restarts at 0 at the perf marker"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "s",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          192
+        ],
+        "doc": "out_s(encoder output) per token"
+      },
+      {
+        "name": "p",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          192
+        ],
+        "doc": "out_p(encoder output) per token"
+      },
+      {
+        "name": "match_s",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          1
+        ],
+        "doc": "null (deletion) logit per token \u2014 matchability_s applied to the PRE-projection encoder output"
+      },
+      {
+        "name": "match_p",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          1
+        ],
+        "doc": "null (insertion) logit per token \u2014 matchability_p applied to the PRE-projection encoder output"
+      },
+      {
+        "name": "scale",
+        "dtype": "float32",
+        "shape": [],
+        "doc": "the learned logit scale, identical to head.scale below"
+      },
+      {
+        "name": "attr_s",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          192
+        ],
+        "doc": "attr_s(encoder output) per token \u2014 the attribution head's score side"
+      },
+      {
+        "name": "attr_p",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          192
+        ],
+        "doc": "attr_p(encoder output) per token \u2014 its perf side"
+      },
+      {
+        "name": "attr_none",
+        "dtype": "float32",
+        "shape": [
+          192
+        ],
+        "doc": "the learned 'not an ornament' vector, constant per model"
+      },
+      {
+        "name": "attr_scale",
+        "dtype": "float32",
+        "shape": [],
+        "doc": "the attribution head's own logit scale, separate from `scale`"
+      },
+      {
+        "name": "attr_gate",
+        "dtype": "float32",
+        "shape": [
+          1,
+          "T",
+          1
+        ],
+        "doc": "attr_gate(encoder output) per token \u2014 the logit of P(this insertion elaborates a written note); see head.attribution.conditioned"
+      }
+    ]
+  },
+  "featurize": {
+    "token_layout": "[MARKER] s_1 .. s_n [MARKER] p_1 .. p_m   (T = 2 + n + m)",
+    "marker_pitch": 128,
+    "marker_cont": "all zeros",
+    "n_cont": 6,
+    "score_ppq": 720.0,
+    "perf_ms_per_sec": 1000.0,
+    "voice_mod": 5,
+    "segment": {
+      "score_marker": 0,
+      "score_notes": 0,
+      "perf_marker": 1,
+      "perf_notes": 1
+    },
+    "position": "arange(1 + n) for the score half, then arange(1 + m) for the perf half",
+    "cont_channels": [
+      {
+        "index": 0,
+        "name": "delta",
+        "expr": "log1p(max(onset - prev_onset, 0) * 2)",
+        "units": "score: quarters; perf: seconds",
+        "note": "the first note of each half has delta 0 (numpy diff prepends its own onset)"
+      },
+      {
+        "index": 1,
+        "name": "duration",
+        "expr": "log1p(max(duration, 0) * 2)",
+        "units": "score: quarters; perf: seconds"
+      },
+      {
+        "index": 2,
+        "name": "pitch_abs",
+        "expr": "pitch / 64 - 1"
+      },
+      {
+        "index": 3,
+        "name": "pitch_class",
+        "expr": "(pitch % 12) / 11 * 2 - 1"
+      },
+      {
+        "index": 4,
+        "name": "extra",
+        "expr": "score: (voice % 5) / 4   |   perf: velocity / 64 - 1"
+      },
+      {
+        "index": 5,
+        "name": "segment_flag",
+        "expr": "0.0 for score notes, 1.0 for perf notes"
+      }
+    ]
+  },
+  "head": {
+    "scale": 0.26039618253707886,
+    "score_token_slice": "[1, 1 + n)",
+    "perf_token_slice": "[2 + n, 2 + n + m)",
+    "sim": "sim[i][j] = dot(s[1 + i], p[2 + n + j]) * scale        # (n, m)",
+    "null_col": "null_col[i] = match_s[1 + i]                       # (n,) deletion logit",
+    "null_row": "null_row[j] = match_p[2 + n + j]                   # (m,) insertion logit",
+    "logits_s2p": "concat([sim, null_col[:, None]], axis=1)          # (n, m + 1)",
+    "logits_p2s": "concat([sim.T, null_row[:, None]], axis=1)        # (m, n + 1)",
+    "matchability_applies_to": "the encoder output BEFORE out_s/out_p \u2014 the graph already does this, so the host must NOT re-derive the null logits from s/p",
+    "null_s": null,
+    "null_p": null,
+    "attribution": {
+      "attr_scale": 0.34824129939079285,
+      "attr": "attr[j][i] = dot(attr_p[2 + n + j], attr_s[1 + i]) * attr_scale   # (m, n)",
+      "attr_none_col": "none[j] = dot(attr_p[2 + n + j], attr_none) * attr_scale  # (m,)",
+      "logits_attr": "concat([attr, none[:, None]], axis=1)  \u2014 but NOT the final row: `conditioned` below replaces it",
+      "read_as": "argmax over each row: the written note this played note ornaments, or the last column for 'not an ornament'. Softmax over the row gives a usable confidence. \u2014 except in 'factored' mode, where the row is already normalized; see conditioned.already_normalized",
+      "accumulate": "exactly as `sim` is accumulated, and with the same window bookkeeping: attr += the window's block, then divide by the window count. The none column averages the same way. The conditioning is applied once, after that averaging; see conditioned.when.",
+      "supervision": "trained only on espressivo-rendered rows, where ornament provenance is exhaustive. It has never been asked about a real trill with a known answer, because no corpus annotates one.",
+      "optional": "the two per-token attribution outputs double the bytes a window returns. A host that does not want them can name only the outputs it needs when it runs the session.",
+      "conditioned": {
+        "mode": "factored",
+        "log_floor": -12.0,
+        "match_evidence": "from the host's own p->s logits, but NOT the accumulated matrix it feeds the decode \u2014 that one holds 2x the raw sim (see host.accumulate), while training saw the UNDOUBLED logits_p2s this file's `head` block defines. Halve the sim half and leave null_row alone, which is already single because it appears in only one of the two accumulated directions:\n  logits_p2s[j] = concat([accumulated_sim.T[j] / 2, null_row[j]])\nGetting this wrong is not a rounding error: doubling sharpens the log_softmax, and on a real flourish it moved per-note attribution confidence from .987 to .112 \u2014 under any sane acceptance threshold, a dropped ornament.\nThe graph emits nothing extra for this, and must not: inside a window the p->s softmax runs over that window's score notes only.\n  lp             = log_softmax(logits_p2s, axis=1)   # (m, n + 1)\n  log_ins[j]     = max(lp[j][n], log_floor)\n  log_matched[j] = max(logsumexp(lp[j][0:n]), log_floor)\nThe floor is NoteAligner.LOG_FLOOR \u2014 an unclamped certain match head puts an unbounded term into the row.",
+        "when": "ONCE, after window accumulation, on the full rows: accumulate attr / none / gate exactly as above, then apply this to the averaged result. It is a nonlinear function of the whole p->s row, so averaging conditioned windows is not the same thing.",
+        "detached": "the match term carries no gradient in training either \u2014 the attribution loss must stay unable to move the alignment. It changes nothing for a host, but it is why the two heads can be reproduced independently.",
+        "gate": "gate[j] = attr_gate[2 + n + j][0]   # (m,), read at the PERF tokens",
+        "logits_attr": "the whole row is rebuilt, and `none` (the attr_none dot product) is NOT part of it \u2014 attr_none stays in the output list only so the attribution block keeps its shape:\n  log_rank[j][i] = attr[j][i] - logsumexp(attr[j][0:n])   # (m, n)\n  ins[j], rest[j] = log_ins[j], log_matched[j]\n  row[j][i] = ins[j] + logsigmoid(gate[j]) + log_rank[j][i]\n  row[j][n] = logaddexp(ins[j] + logsigmoid(-gate[j]), rest[j])\nwith logsigmoid(x) = -log1p(exp(-x)) and logaddexp(a, b) = max(a, b) + log1p(exp(-|a - b|)).\nReads as P(anchor = i) = P(insertion) * P(attributable | insertion) * P(i | attributable); the none column collects both ways of not being an ornament \u2014 matched, or an unattributable insertion.",
+        "already_normalized": "the row IS a log-distribution over the n + 1 options: exp() it for a confidence, do NOT softmax it again. Softmaxing would discard exactly the match-head calibration this mode buys."
+      }
+    }
+  },
+  "host": {
+    "max_single_tokens": 2000,
+    "win_score": 384,
+    "margin_sec": 3.0,
+    "window_stride": 192,
+    "accumulate": "per window: sim += logits_s2p[:n, :m] + logits_p2s[:m, :n].T (so every covered cell holds 2x the raw sim), then divide by the window count; the null logits are averaged the same way",
+    "uncovered_sim": -1000000000.0,
+    "uncovered_null": 1000000000.0,
+    "decode_constants": "not duplicated here on purpose \u2014 they belong to the decode (mlign.infer.decode), not to the model contract"
+  }
+}

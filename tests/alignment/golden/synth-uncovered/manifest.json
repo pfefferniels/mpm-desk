@@ -1,0 +1,385 @@
+{
+ "schema": "mlign-golden/1",
+ "piece": "synth-uncovered",
+ "meta": {
+  "synthetic": true,
+  "seed": 185,
+  "covers": "score and perf notes no window covered: sim row/col at -1e9 and the matching null at +1e9, as accumulate_logits leaves them",
+  "generator": "scratchpad/gen-uncovered.py (synth_case + sentinel injection)",
+  "uncovered_score": [
+   3
+  ],
+  "uncovered_perf": [
+   1
+  ],
+  "n": 10,
+  "m": 9,
+  "windowed": false,
+  "overrides": {},
+  "coverage": null,
+  "git_commit": "5269095ad71d9ffea765e4a522712f02b4dd9c18",
+  "git_dirty": true,
+  "created_utc": "2026-08-27T22:55:13Z",
+  "versions": {
+   "python": "3.13.5",
+   "numpy": "2.2.6"
+  },
+  "constants": {
+   "MARKER_PITCH": 128,
+   "PPQ": 720.0,
+   "MAX_SINGLE_TOKENS": 2000,
+   "WIN_SCORE": 384,
+   "WIN_STRIDE": 192,
+   "MARGIN_SEC": 3.0,
+   "UNCOVERED_SIM": -1000000000.0,
+   "UNCOVERED_NULL": 1000000000.0,
+   "ANCHOR_CONF": 0.35,
+   "TOL_SEC": 1.0,
+   "SKIP_FACTOR": 0.6,
+   "ASSIGN_INF": 1e+18,
+   "CONF_BONUS_FACTOR": 0.5,
+   "RESCUE_SEC": 0.35,
+   "DTW_GAP_DECODE": 0.6,
+   "DTW_GAP_BASELINE": 0.75,
+   "DTW_CONF_GAIN": 20.0,
+   "SCORE_CLUSTER_EPS": 1e-09,
+   "PERF_CLUSTER_EPS": 0.05
+  },
+  "counts": {
+   "match": 4,
+   "deletion": 6,
+   "insertion": 5
+  }
+ },
+ "arrays": {
+  "sim": {
+   "file": "sim.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    10,
+    9
+   ],
+   "offset": 0,
+   "bytes": 360,
+   "sha256": "773d355bc88bbdcf5bccc60c0e6d3c0b99807f0a782ff9da2f7bf16aaa499a79",
+   "note": "fabricated; -1e9 rows/cols = never covered"
+  },
+  "null_s": {
+   "file": "null_s.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    10
+   ],
+   "offset": 0,
+   "bytes": 40,
+   "sha256": "188fb4d5034163ffd9bb75cf78ce131f9d75f1ce3b0b598b3eeb3403135e10a4",
+   "note": "fabricated; +1e9 = never covered"
+  },
+  "null_p": {
+   "file": "null_p.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    9
+   ],
+   "offset": 0,
+   "bytes": 36,
+   "sha256": "8892b5549030c7e396344ec1fb4b007bda90a78de4b42309ef0827b39bb2e42b",
+   "note": "fabricated; +1e9 = never covered"
+  },
+  "conf": {
+   "file": "conf.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    10,
+    9
+   ],
+   "offset": 0,
+   "bytes": 360,
+   "sha256": "ccf0cfc6d8bfe0979d0e9a38ab50f84c25ce87d8f67a4319b7816761fcfa330b",
+   "note": "dual-softmax sm_s * sm_p.T"
+  }
+ },
+ "score": null,
+ "perf": null,
+ "row": {
+  "score": [
+   [
+    0.0,
+    720.0,
+    68,
+    0
+   ],
+   [
+    720.0,
+    720.0,
+    69,
+    1
+   ],
+   [
+    1440.0,
+    720.0,
+    70,
+    2
+   ],
+   [
+    2160.0,
+    720.0,
+    69,
+    3
+   ],
+   [
+    2880.0,
+    720.0,
+    71,
+    4
+   ],
+   [
+    3600.0,
+    720.0,
+    68,
+    0
+   ],
+   [
+    5040.0,
+    720.0,
+    70,
+    1
+   ],
+   [
+    5040.0,
+    720.0,
+    68,
+    2
+   ],
+   [
+    6480.0,
+    720.0,
+    68,
+    3
+   ],
+   [
+    6480.0,
+    720.0,
+    69,
+    4
+   ]
+  ],
+  "perf": [
+   [
+    1924.7254625749565,
+    300.0,
+    72,
+    40
+   ],
+   [
+    2559.3163053303306,
+    300.0,
+    69,
+    41
+   ],
+   [
+    2872.5248185286587,
+    300.0,
+    69,
+    42
+   ],
+   [
+    3872.3268844122094,
+    300.0,
+    72,
+    43
+   ],
+   [
+    5140.479171833509,
+    300.0,
+    69,
+    44
+   ],
+   [
+    5645.6898262084105,
+    300.0,
+    68,
+    45
+   ],
+   [
+    5964.621962852312,
+    300.0,
+    69,
+    46
+   ],
+   [
+    6088.617174907378,
+    300.0,
+    73,
+    47
+   ],
+   [
+    6271.387618246728,
+    300.0,
+    74,
+    48
+   ]
+  ]
+ },
+ "windows": [
+  [
+   0,
+   10,
+   0,
+   9
+  ]
+ ],
+ "baseline_pairs": null,
+ "featurized": null,
+ "stages": {
+  "anchors_raw": [
+   [
+    9,
+    2
+   ]
+  ],
+  "anchors": [
+   [
+    9,
+    2
+   ]
+  ],
+  "dtw_ax": [
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   5.0,
+   9.0
+  ],
+  "dtw_ay": [
+   1.9247254625749566,
+   2.8725248185286585,
+   3.8723268844122094,
+   5.140479171833509,
+   5.64568982620841,
+   5.964621962852312
+  ],
+  "map1_ax": [
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   5.0,
+   9.0
+  ],
+  "map1_ay": [
+   1.9247254625749566,
+   2.8725248185286585,
+   3.8723268844122094,
+   5.140479171833509,
+   5.64568982620841,
+   5.964621962852312
+  ],
+  "map2_ax": [],
+  "map2_ay": [],
+  "rounds_run": 1,
+  "round1_matched_s": [
+   -1,
+   2,
+   -1,
+   4,
+   -1,
+   5,
+   -1,
+   -1,
+   -1,
+   6
+  ],
+  "rescued": []
+ },
+ "triples": [
+  {
+   "label": "deletion",
+   "score_idx": 0,
+   "confidence": 0.0002887275186367333
+  },
+  {
+   "label": "match",
+   "score_idx": 1,
+   "perf_idx": 2,
+   "confidence": 0.05936724692583084
+  },
+  {
+   "label": "deletion",
+   "score_idx": 2,
+   "confidence": 0.0004821902548428625
+  },
+  {
+   "label": "match",
+   "score_idx": 3,
+   "perf_idx": 4,
+   "confidence": 0.0
+  },
+  {
+   "label": "deletion",
+   "score_idx": 4,
+   "confidence": 0.005325679667294025
+  },
+  {
+   "label": "match",
+   "score_idx": 5,
+   "perf_idx": 5,
+   "confidence": 0.08136062324047089
+  },
+  {
+   "label": "deletion",
+   "score_idx": 6,
+   "confidence": 0.00019889688701368868
+  },
+  {
+   "label": "deletion",
+   "score_idx": 7,
+   "confidence": 0.00017533481877762824
+  },
+  {
+   "label": "deletion",
+   "score_idx": 8,
+   "confidence": 0.017439888790249825
+  },
+  {
+   "label": "match",
+   "score_idx": 9,
+   "perf_idx": 6,
+   "confidence": 2.1812012265809422e-11
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 0,
+   "confidence": 0.0011726103257387877
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 1,
+   "confidence": 1.0
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 3,
+   "confidence": 8.60573272802867e-05
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 7,
+   "confidence": 0.003659277455881238
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 8,
+   "confidence": 0.0017785505624487996
+  }
+ ]
+}

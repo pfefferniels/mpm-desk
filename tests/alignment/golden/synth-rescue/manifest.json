@@ -1,0 +1,384 @@
+{
+ "schema": "mlign-golden/1",
+ "piece": "synth-rescue",
+ "meta": {
+  "synthetic": true,
+  "seed": 185,
+  "covers": "residual rescue fires (2 notes); single assignment round",
+  "generator": "scripts/make_golden.py:synth_case",
+  "n": 10,
+  "m": 9,
+  "windowed": false,
+  "git_commit": "5269095ad71d9ffea765e4a522712f02b4dd9c18",
+  "git_dirty": true,
+  "created_utc": "2026-08-27T22:30:36Z",
+  "versions": {
+   "python": "3.13.5",
+   "numpy": "2.2.6"
+  },
+  "constants": {
+   "MARKER_PITCH": 128,
+   "PPQ": 720.0,
+   "MAX_SINGLE_TOKENS": 2000,
+   "WIN_SCORE": 384,
+   "WIN_STRIDE": 192,
+   "MARGIN_SEC": 3.0,
+   "UNCOVERED_SIM": -1000000000.0,
+   "UNCOVERED_NULL": 1000000000.0,
+   "ANCHOR_CONF": 0.35,
+   "TOL_SEC": 1.0,
+   "SKIP_FACTOR": 0.6,
+   "ASSIGN_INF": 1e+18,
+   "CONF_BONUS_FACTOR": 0.5,
+   "RESCUE_SEC": 0.35,
+   "DTW_GAP_DECODE": 0.6,
+   "DTW_GAP_BASELINE": 0.75,
+   "DTW_CONF_GAIN": 20.0,
+   "SCORE_CLUSTER_EPS": 1e-09,
+   "PERF_CLUSTER_EPS": 0.05
+  },
+  "counts": {
+   "match": 4,
+   "deletion": 6,
+   "insertion": 5
+  }
+ },
+ "arrays": {
+  "sim": {
+   "file": "sim.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    10,
+    9
+   ],
+   "offset": 0,
+   "bytes": 360,
+   "sha256": "c3f1116ca22dce369d3b259071564f4116fdbc8644b27886b0ecd48d4e918221",
+   "note": "fabricated logits, not model output"
+  },
+  "null_s": {
+   "file": "null_s.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    10
+   ],
+   "offset": 0,
+   "bytes": 40,
+   "sha256": "3bf1184425c90611033687b635dac3f840e65f383f48478cd708c0854bd909c0",
+   "note": "fabricated"
+  },
+  "null_p": {
+   "file": "null_p.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    9
+   ],
+   "offset": 0,
+   "bytes": 36,
+   "sha256": "eb05bee6280ba6a8fc054fb086f43d4908c747f755044958554139633d7d4aa3",
+   "note": "fabricated"
+  },
+  "conf": {
+   "file": "conf.f32.bin",
+   "dtype": "float32",
+   "endianness": "little",
+   "order": "C",
+   "shape": [
+    10,
+    9
+   ],
+   "offset": 0,
+   "bytes": 360,
+   "sha256": "6e9a21bddb1365282ea429673f645e4d0f929ec4b94c5f2e17bd67daf9ec70ed",
+   "note": "dual-softmax sm_s * sm_p.T"
+  }
+ },
+ "score": null,
+ "perf": null,
+ "row": {
+  "score": [
+   [
+    0.0,
+    720.0,
+    68,
+    0
+   ],
+   [
+    720.0,
+    720.0,
+    69,
+    1
+   ],
+   [
+    1440.0,
+    720.0,
+    70,
+    2
+   ],
+   [
+    2160.0,
+    720.0,
+    69,
+    3
+   ],
+   [
+    2880.0,
+    720.0,
+    71,
+    4
+   ],
+   [
+    3600.0,
+    720.0,
+    68,
+    0
+   ],
+   [
+    5040.0,
+    720.0,
+    70,
+    1
+   ],
+   [
+    5040.0,
+    720.0,
+    68,
+    2
+   ],
+   [
+    6480.0,
+    720.0,
+    68,
+    3
+   ],
+   [
+    6480.0,
+    720.0,
+    69,
+    4
+   ]
+  ],
+  "perf": [
+   [
+    1924.7254625749565,
+    300.0,
+    72,
+    40
+   ],
+   [
+    2559.3163053303306,
+    300.0,
+    69,
+    41
+   ],
+   [
+    2872.5248185286587,
+    300.0,
+    69,
+    42
+   ],
+   [
+    3872.3268844122094,
+    300.0,
+    72,
+    43
+   ],
+   [
+    5140.479171833509,
+    300.0,
+    69,
+    44
+   ],
+   [
+    5645.6898262084105,
+    300.0,
+    68,
+    45
+   ],
+   [
+    5964.621962852312,
+    300.0,
+    69,
+    46
+   ],
+   [
+    6088.617174907378,
+    300.0,
+    73,
+    47
+   ],
+   [
+    6271.387618246728,
+    300.0,
+    74,
+    48
+   ]
+  ]
+ },
+ "windows": [
+  [
+   0,
+   10,
+   0,
+   9
+  ]
+ ],
+ "baseline_pairs": null,
+ "featurized": null,
+ "stages": {
+  "anchors_raw": [
+   [
+    9,
+    2
+   ]
+  ],
+  "anchors": [
+   [
+    9,
+    2
+   ]
+  ],
+  "dtw_ax": [
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   5.0,
+   7.0
+  ],
+  "dtw_ay": [
+   1.9247254625749566,
+   2.5593163053303307,
+   3.8723268844122094,
+   5.140479171833509,
+   5.64568982620841,
+   6.271387618246728
+  ],
+  "map1_ax": [
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   5.0,
+   7.0,
+   9.0
+  ],
+  "map1_ay": [
+   1.9247254625749566,
+   2.5593163053303307,
+   3.8723268844122094,
+   5.140479171833509,
+   5.64568982620841,
+   6.271387618246728,
+   2.8725248185286585
+  ],
+  "map2_ax": [],
+  "map2_ay": [],
+  "rounds_run": 1,
+  "round1_matched_s": [
+   -1,
+   1,
+   -1,
+   -1,
+   -1,
+   5,
+   -1,
+   -1,
+   -1,
+   2
+  ],
+  "rescued": [
+   [
+    3,
+    4
+   ]
+  ]
+ },
+ "triples": [
+  {
+   "label": "deletion",
+   "score_idx": 0,
+   "confidence": 0.00010305729665560648
+  },
+  {
+   "label": "match",
+   "score_idx": 1,
+   "perf_idx": 1,
+   "confidence": 0.07915005832910538
+  },
+  {
+   "label": "deletion",
+   "score_idx": 2,
+   "confidence": 0.0004821637994609773
+  },
+  {
+   "label": "match",
+   "score_idx": 3,
+   "perf_idx": 4,
+   "confidence": 7.575795279990416e-08
+  },
+  {
+   "label": "deletion",
+   "score_idx": 4,
+   "confidence": 0.005147069692611694
+  },
+  {
+   "label": "match",
+   "score_idx": 5,
+   "perf_idx": 5,
+   "confidence": 0.08133532106876373
+  },
+  {
+   "label": "deletion",
+   "score_idx": 6,
+   "confidence": 8.309772965731099e-05
+  },
+  {
+   "label": "deletion",
+   "score_idx": 7,
+   "confidence": 0.00017529386968817562
+  },
+  {
+   "label": "deletion",
+   "score_idx": 8,
+   "confidence": 0.002047434216365218
+  },
+  {
+   "label": "match",
+   "score_idx": 9,
+   "perf_idx": 2,
+   "confidence": 0.48841002583503723
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 0,
+   "confidence": 0.0011725665535777807
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 3,
+   "confidence": 8.599684224463999e-05
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 6,
+   "confidence": 0.011682044714689255
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 7,
+   "confidence": 0.0008973363437689841
+  },
+  {
+   "label": "insertion",
+   "perf_idx": 8,
+   "confidence": 0.0005329280975274742
+  }
+ ]
+}

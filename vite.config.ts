@@ -31,7 +31,10 @@ export default defineConfig({
   optimizeDeps: {
     // The vendored verovio toolkit is emscripten output and is loaded as it is: the prebundler
     // mangles the glue code around the WebAssembly. See vendor/verovio.
-    exclude: ['verovio'],
+    //
+    // `onnxruntime-web` is excluded for exactly the same reason — it is the alignment model's
+    // runtime and ships its own WebAssembly with its own glue.
+    exclude: ['verovio', 'onnxruntime-web'],
   },
   // No dev proxy. There used to be one, forwarding `/convert` and `/perform` to the meico server
   // on :8080; espressivo does both in the browser now — `convertMeiToMsm` and
