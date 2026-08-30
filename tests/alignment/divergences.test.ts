@@ -810,7 +810,10 @@ describe('what a divergence is called', () => {
   it('names it after the note it opens on', () => {
     const all = withExtras([span('x9', 3000, 62)], ['n3'])
 
-    expect(addedOnes(all).map((d) => d.id)).toEqual(['added-x9'])
+    // A written note by its `xml:id`, which is the document's own; a played one by when it was
+    // struck and at what pitch, because its id is minted differently by the two readers of an
+    // alignment — see `playedId`.
+    expect(addedOnes(all).map((d) => d.id)).toEqual(['added-3000ms-62'])
     expect(missingOnes(all).map((d) => d.id)).toEqual(['missing-n3'])
   })
 

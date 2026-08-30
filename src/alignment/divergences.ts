@@ -278,7 +278,17 @@ interface PlayedGroup {
  * A note belongs to exactly one group, so the note a group opens on names it uniquely. A group
  * that gains or loses its first note is a different disagreement, and gets a different name —
  * which is the answer that leaves the decision unattached rather than misattached.
+ *
+ * A *written* note is named by its `xml:id`, which is the document's own. A *played* one is named
+ * by when it was struck and at what pitch, because its id is not one thing: `asSpans` mints one
+ * from the MIDI while `parseRecordings` takes `@corresp`, which is the scanned symbol the note
+ * came from wherever the file names one. So the two readers of one alignment disagree about what
+ * to call the same note, and a decision made against a fresh run would not find it again in a
+ * reopened project. The moment and the pitch they do agree about — to the millisecond, which is
+ * the resolution `@absolute` is written at.
  */
+const playedId = (span: NoteSpan) => `${String(Math.round(span.onsetMs))}ms-${String(span.pitch)}`;
+
 const divergenceId = (kind: "added" | "missing", first: string) => `${kind}-${first}`;
 
 /** The head's answer about one played note, once it has been believed. */
@@ -491,7 +501,7 @@ function groupPlayed(
         const current = groups[groups.length - 1];
         const previous = current?.entries[current.entries.length - 1];
         if (previous === undefined) {
-            groups.push({ id: divergenceId("added", entry.span.id), entries: [entry] });
+            groups.push({ id: divergenceId("added", playedId(entry.span)), entries: [entry] });
             continue;
         }
 
@@ -514,7 +524,7 @@ function groupPlayed(
                       anchorFor(entry.span.onsetMs, anchors)?.scoreId;
 
         if (sameEvent) current.entries.push(entry);
-        else groups.push({ id: divergenceId("added", entry.span.id), entries: [entry] });
+        else groups.push({ id: divergenceId("added", playedId(entry.span)), entries: [entry] });
     }
 
     return groups;
