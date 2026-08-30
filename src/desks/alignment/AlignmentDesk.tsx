@@ -3,7 +3,7 @@ import { Alert, Box, GlobalStyles, Slider, Stack, Typography } from '@mui/materi
 import { applyAlignment } from '../../alignment/applyAlignment';
 import { divergencesOf, type Divergence } from '../../alignment/divergences';
 import { MismatchedPairError, hasRepeatSigns, toMatches } from '../../alignment/mlign';
-import { MLIGN_MODELS, type MlignModelId } from '../../alignment/mlign/models';
+import { DEFAULT_MODEL, MLIGN_MODELS, type MlignModelId } from '../../alignment/mlign/models';
 import { recordedAlignment, type RecordedAlignment } from '../../alignment/recorded';
 import { CERTAINTIES, changesNotation, type Attribution, type Resolution } from '../../alignment/readings';
 import { ornamentSignsOf } from '../../mei/ornamentSigns';
@@ -71,7 +71,7 @@ export const AlignmentDesk = () => {
 
     /** The take under review. The first there is, until somebody picks another. */
     const [picked, setPicked] = useState<string>();
-    const [model, setModel] = useState<MlignModelId>('v3');
+    const [model, setModel] = useState<MlignModelId>(DEFAULT_MODEL);
     const [minConfidence, setMinConfidence] = useState(0);
     const [sliderValue, setSliderValue] = useState(0);
     const [scale, setScale] = useState(DEFAULT_PERFORMANCE_SCALE);

@@ -7,45 +7,71 @@
  * runs in is not recorded here. A file name is not evidence about weights: which
  * attribution head a checkpoint carries is read off the loaded graph's own
  * outputs, in `session.ts`.
+ *
+ * Only v4 is shipped. v1, v2 and v3 were offered until 2026-08-30 and are
+ * dominated: on the 740 ornament figures of Batik-plays-Mozart that carry
+ * ground truth, v4 attributes .4784 of them entirely correctly against v3's
+ * .3297, paired over the same figures, while tying v3 and v2 on every alignment
+ * measure (match, insertion and deletion F, p = .95, .95, .74 against v3).
+ * There is no repertoire on which an older one is the better choice, and three
+ * superseded checkpoints cost ~9.7 MB of download to offer a worse answer.
+ *
+ * Reading a document written by an older model needs no model at all. Only
+ * re-aligning does, and re-aligning with v4 is the point.
  */
 
-/** Which checkpoint to align with. Every one of them is shipped in `public/`. */
-export type MlignModelId = "v1" | "v2" | "v3";
+/** Which checkpoint to align with — the ones whose weights ship. */
+export type MlignModelId = "v4";
 
 /**
- * The checkpoints, newest first, as shipped in `public/`. Fetched at run time,
- * never imported.
+ * What a document may say ran, which is not the same set.
  *
- * They differ in the ornament-attribution head and in nothing else a host can
- * see: the alignment outputs have the same names, shapes and meaning in all
- * three, so an older file still aligns exactly as it did.
+ * A provenance chain records a fact about the past, so reading one must return
+ * what it says even when those weights are gone. Coercing `v3` to `v4` on the
+ * way in would not make the older run reproducible, it would only lose the
+ * record that it happened.
+ */
+export type RecordedModelId = MlignModelId | "v1" | "v2" | "v3";
+
+/**
+ * The checkpoints, as shipped in `public/`. Fetched at run time, never imported.
  */
 export const MLIGN_MODELS: Record<
     MlignModelId,
     { file: string; label: string; note: string }
 > = {
-    v3: {
-        file: "mlign-v3-fp16.onnx",
-        label: "v3",
+    v4: {
+        file: "mlign-v4-fp16.onnx",
+        label: "v4",
         note:
-            "Attribution conditioned on the match head, so that whether a played " +
-            "note is an ornament at all is answered by the alignment rather than " +
-            "guessed again.",
-    },
-    v2: {
-        file: "mlign-v2-fp16.onnx",
-        label: "v2",
-        note: "The first model with an attribution head, read as a raw softmax.",
-    },
-    v1: {
-        file: "mlign-v1-fp16.onnx",
-        label: "v1",
-        note: "Alignment only — it cannot be asked what a played note ornaments.",
+            "Attribution conditioned on the match head, trained on trills that " +
+            "move at the speed real ones do and that re-strike their principal " +
+            "the way real ones do — which is what the head had never been shown.",
     },
 };
 
 /** The model an alignment uses unless the caller names another. */
-export const DEFAULT_MODEL: MlignModelId = "v3";
+export const DEFAULT_MODEL: MlignModelId = "v4";
+
+const RECORDED: readonly string[] = ["v1", "v2", "v3", "v4"];
+
+/** Whether a stored value names a model this build knows of, shipped or not. */
+export function isRecordedModelId(value: unknown): value is RecordedModelId {
+    return typeof value === "string" && RECORDED.includes(value);
+}
+
+/**
+ * The model to actually run for a recorded one.
+ *
+ * Documents written before 2026-08-30 name v1, v2 or v3, whose weights no longer
+ * ship. Such a document re-aligns with v4, which is a better answer than the one
+ * it recorded and the only one available. What it recorded is untouched.
+ */
+export function runnableModel(recorded: RecordedModelId | undefined): MlignModelId {
+    return recorded !== undefined && recorded in MLIGN_MODELS
+        ? (recorded as MlignModelId)
+        : DEFAULT_MODEL;
+}
 
 /** Where a given checkpoint sits, as a URL the browser can fetch. */
 export function modelUrl(model: MlignModelId = DEFAULT_MODEL): string {

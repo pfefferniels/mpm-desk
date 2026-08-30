@@ -38,7 +38,7 @@ import type {
     VoiceSelection,
 } from '../fitting/transformers/voices/ProcessVoices';
 import type { Action, Resolution } from '../alignment/readings';
-import type { MlignModelId } from '../alignment/mlign/models';
+import { isRecordedModelId, type RecordedModelId } from '../alignment/mlign/models';
 
 /** The empty document the editor starts on, before a file is opened. */
 export const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [], segments: [] };
@@ -303,8 +303,8 @@ export interface WorkAlignment {
     source: string;
     /** The performance file it was aligned against, by name. Nothing reads it; a reader does. */
     midi: string;
-    /** Which model ran, so the run can be repeated. */
-    model: MlignModelId;
+    /** Which model ran. A fact about the past: it survives the model retiring. */
+    model: RecordedModelId;
     /** Matches the model was less sure of than this were not written. */
     minConfidence: number;
     /**
@@ -348,7 +348,9 @@ const readAlignment = (options: Call['options']): WorkAlignment | null => {
     return {
         source,
         midi: typeof options['midi'] === 'string' ? options['midi'] : '',
-        model: typeof options['model'] === 'string' ? (options['model'] as MlignModelId) : 'v3',
+        // Kept as recorded, including v1-v3, whose weights no longer ship —
+        // `runnableModel` decides what a RE-run uses, and only at that moment.
+        model: isRecordedModelId(options['model']) ? options['model'] : 'v4',
         minConfidence:
             typeof options['minConfidence'] === 'number' ? options['minConfidence'] : 0,
         resolutions: readResolutions(options['resolutions']),
