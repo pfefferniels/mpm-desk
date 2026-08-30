@@ -33,6 +33,12 @@ interface EditorAppBarProps {
     parts: readonly { scope: number; label: string }[];
     scope: Scope;
     setScope: (scope: Scope) => void;
+    /**
+     * Why the open desk may not leave Global, or null while it may. The parts are offered but
+     * unselectable, and this says what would have to change first — see `writes` in
+     * `DeskSwitch.tsx`. Not hidden: a picker that loses its options teaches nothing.
+     */
+    scopeLock: string | null;
     /** True while the chain is refitting. */
     pending: boolean;
     /** True when the document has changed since the last save. */
@@ -93,6 +99,7 @@ export const EditorAppBar = ({
     parts,
     scope,
     setScope,
+    scopeLock,
     pending,
     dirty,
     canPlay,
@@ -231,16 +238,34 @@ export const EditorAppBar = ({
                 <Select<Scope>
                     size="small"
                     value={scope}
-                    onChange={(event) => setScope(event.target.value as Scope)}
+                    // The disabled options are the visible half of the lock; this is the enforcing
+                    // half. MUI disables a `MenuItem` with `pointer-events: none`, which is a
+                    // style and not a rule.
+                    onChange={(event) => {
+                        const next = event.target.value as Scope;
+                        if (scopeLock !== null && next !== 'global') return;
+                        setScope(next);
+                    }}
                     inputProps={{ 'aria-label': 'Scope' }}
                     sx={{ minWidth: 108, flexShrink: 0 }}
                 >
                     <MenuItem value="global">Global</MenuItem>
                     {parts.map(({ scope: part, label }) => (
-                        <MenuItem key={part} value={part}>
+                        <MenuItem key={part} value={part} disabled={scopeLock !== null}>
                             {label}
                         </MenuItem>
                     ))}
+                    {/* The reason sits with the options it greys out. Not a tooltip on the
+                        control: the menu covers the control the moment it opens. */}
+                    {scopeLock !== null && (
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', maxWidth: 280, px: 2, py: 1 }}
+                        >
+                            {scopeLock}
+                        </Typography>
+                    )}
                 </Select>
 
                 <Divider orientation="vertical" flexItem sx={{ my: 1 }} />

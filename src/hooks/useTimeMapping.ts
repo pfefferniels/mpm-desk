@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import type { Alignment } from '../fitting/alignment';
+import type { Scope } from '../fitting/instructions/index';
 import { onsetSeconds, wasSounded } from '../desks/noteTiming';
 import { buildLookupTable, tickToSeconds as tickToSecondsImpl, secondsToTick as secondsToTickImpl } from '../utils/timeMapping';
 
@@ -20,19 +21,28 @@ type TimeMapping = {
  * notes are in milliseconds and are converted. Mixing the two units here would tilt the whole
  * axis by a factor of a thousand at eighteen points of the piece and nowhere else, which is the
  * kind of wrongness that looks like a bad recording rather than a bad conversion.
+ *
+ * `scope` narrows the anchors to one part. It matters wherever a date is sounded twice: the table
+ * deduplicates by tick and keeps the first pair it is handed, so a chord the hands spread across
+ * two parts is timed by whichever part comes first in the score. Reading the whole score is the
+ * default and gives the recording's own timeline.
  */
-export const useTimeMapping = (msm: Alignment | null | undefined, extraPairs?: [number, number][]): TimeMapping => {
+export const useTimeMapping = (
+    msm: Alignment | null | undefined,
+    extraPairs?: [number, number][],
+    scope: Scope = 'global',
+): TimeMapping => {
     const lookupTable = useMemo(() => {
-        if (!msm || msm.allNotes.length === 0) return null;
+        if (!msm) return null;
 
         const pairs: [number, number][] = [];
-        for (const note of msm.allNotes) {
+        for (const note of msm.notesInPart(scope)) {
             if (!wasSounded(note)) continue;
             pairs.push([note.date, onsetSeconds(note)]);
         }
 
         return buildLookupTable(pairs, extraPairs);
-    }, [msm, extraPairs]);
+    }, [msm, extraPairs, scope]);
 
     const tickToSeconds = useCallback(
         (tick: number) => tickToSecondsImpl(lookupTable!, tick),

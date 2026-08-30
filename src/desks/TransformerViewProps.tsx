@@ -4,7 +4,7 @@ import type { Residual } from '../fitting/residual';
 import type { Scope } from '../fitting/instructions/index';
 import type { Transformer } from '../fitting/transformers/Transformer';
 import type { Segment as Gestures } from '../model/Reconstruction';
-import type { TempoSecondaryData } from './tempo/TempoDesk';
+import type { TempoSecondaryData } from './tempo/secondary';
 
 /**
  * What every desk is handed: **what the fit produced**, and nothing else.

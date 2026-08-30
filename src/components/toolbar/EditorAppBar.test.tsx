@@ -67,6 +67,7 @@ const mount = ({ history = initialHistory(), ...props }: Overrides = {}) =>
                 parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
                 scope='global'
                 setScope={() => {}}
+                scopeLock={null}
                 pending={false}
                 dirty={false}
                 canPlay
@@ -125,6 +126,26 @@ describe('EditorAppBar', () => {
         expect(setScope).not.toHaveBeenCalledWith(null);
     });
 
+    it('locks the parts, and says why, where a part map would shadow the global one', () => {
+        const setScope = vi.fn();
+        const reason = 'The global tempo map already has instructions';
+        mount({ setScope, scopeLock: reason });
+
+        fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Scope' }));
+        const listbox = within(screen.getByRole('listbox'));
+
+        // Offered, not hidden: a picker that loses its options teaches nothing about why.
+        expect(listbox.getByRole('option', { name: 'Global' })).toBeEnabled();
+        expect(listbox.getByRole('option', { name: 'Part 1' })).toHaveAttribute(
+            'aria-disabled',
+            'true',
+        );
+        expect(listbox.getByText(reason)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('option', { name: 'Part 2' }));
+        expect(setScope).not.toHaveBeenCalled();
+    });
+
     it('keeps the fit indicator in the tree while it is idle', () => {
         // A live region that is unmounted while idle announces nothing when it comes back: the
         // region has to already be in the accessibility tree for a change inside it to be seen.
@@ -142,6 +163,7 @@ describe('EditorAppBar', () => {
                     parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
                     scope='global'
                     setScope={() => {}}
+                    scopeLock={null}
                     pending
                     dirty={false}
                     canPlay

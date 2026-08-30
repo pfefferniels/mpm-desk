@@ -7,7 +7,9 @@ import { useCallback, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import type { SkylineMode } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, resolveOverlaps } from "./Tempo"
-import type { TempoSegment as LocalTempoSegment, DrawnLine } from "./Tempo"
+import type { DrawnLine } from "./Tempo"
+import { scopeData, withScopeData } from "./secondary"
+import type { TempoScopeData } from "./secondary"
 import { VerticalScale } from "./VerticalScale"
 import { ZoomControls } from "../../components/ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
@@ -24,33 +26,16 @@ import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
 import { MidiFile } from "midifile-ts"
 
-/**
- * The onset of a date the recording does not sound — the second half of a segment the user
- * split, in seconds, as `work.json` stores it.
- *
- * Stated here rather than imported: it is this desk's own editorial input, it never reaches the
- * chain, and nothing else reads it.
- */
-export type SilentOnset = {
-    date: number
-    onset: number
-}
-
-export type TempoSecondaryData = {
-    tempoCluster?: LocalTempoSegment[]
-    silentOnsets?: SilentOnset[]
-    drawnLines?: DrawnLine[]
-}
-
 /** One array, so that a desk with no drawn curve keeps the same identity from render to render. */
 const noDrawnLines: DrawnLine[] = []
 
 export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecondary }: ScopedTransformerViewProps<InsertTempo>) => {
     const { activeElements, setActiveElement } = useCallSelection()
-    const tempoData = secondary?.tempo
+    const tempoData = useMemo(() => scopeData(secondary.tempo, part), [secondary.tempo, part])
 
     /**
-     * The boxes, the split onsets and the drawn curves live in the work file alone.
+     * The boxes, the split onsets and the drawn curves live in the work file alone, under the
+     * scope they were measured in.
      *
      * They were never two values to begin with: a `TempoCluster` wraps the very array it is
      * handed, so the copy mirrored into `secondary` was the same array under another name — three
@@ -62,22 +47,25 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
      * anything, so it is the first real edit that puts boxes in the work file.
      */
     const tempoCluster = useMemo(() => {
-        const stored = tempoData?.tempoCluster
+        const stored = tempoData.tempoCluster
         if (stored && stored.length > 0) return new TempoCluster(stored)
         return new TempoCluster(extractTempoSegments(msm, part))
-    }, [tempoData?.tempoCluster, msm, part])
+    }, [tempoData.tempoCluster, msm, part])
 
     const silentOnsets = useMemo<Map<number, number>>(
-        () => new Map((tempoData?.silentOnsets ?? []).map(o => [o.date, o.onset])),
-        [tempoData?.silentOnsets]
+        () => new Map((tempoData.silentOnsets ?? []).map(o => [o.date, o.onset])),
+        [tempoData.silentOnsets]
     )
 
     const silentOnsetPairs = useMemo<[number, number][]>(
         () => [...silentOnsets],
         [silentOnsets]
     )
-    const { tickToSeconds, secondsToTick } = useTimeMapping(msm, silentOnsetPairs)
-    const drawnLines = tempoData?.drawnLines ?? noDrawnLines
+    // Anchored on this part's own onsets. The table deduplicates by tick, keeping the first pair
+    // it is handed, so a chord the hands spread across two parts is timed by whichever part comes
+    // first in the score — which is the wrong reading of every other part's tempo.
+    const { tickToSeconds, secondsToTick } = useTimeMapping(msm, silentOnsetPairs, part)
+    const drawnLines = tempoData.drawnLines ?? noDrawnLines
     const [mode, setMode] = useState<SkylineMode>(undefined)
 
     const stretchX = usePhysicalZoom()
@@ -85,38 +73,30 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
 
     const scrollContainerRef = useScrollRegistration('tempo-desk', 'physical')
 
+    const updateScope = (update: TempoScopeData) => {
+        setSecondary(prev => ({ ...prev, tempo: withScopeData(prev.tempo, part, update) }))
+    }
+
     const setTempoCluster = (newCluster: TempoCluster) => {
-        setSecondary(prev => ({
-            ...prev,
-            tempo: {
-                ...prev.tempo,
-                tempoCluster: newCluster.segments
-            }
-        }))
+        updateScope({ tempoCluster: newCluster.segments })
     }
 
     const setSilentOnset = (date: number, onset: number) => {
         setSecondary(prev => {
-            const next = new Map((prev.tempo?.silentOnsets ?? []).map(o => [o.date, o.onset]))
+            const stored = scopeData(prev.tempo, part).silentOnsets ?? []
+            const next = new Map(stored.map(o => [o.date, o.onset]))
             next.set(date, onset)
             return {
                 ...prev,
-                tempo: {
-                    ...prev.tempo,
+                tempo: withScopeData(prev.tempo, part, {
                     silentOnsets: [...next].map(([date, onset]) => ({ date, onset }))
-                }
+                })
             }
         })
     }
 
     const updateDrawnLines = (newLines: DrawnLine[]) => {
-        setSecondary(prev => ({
-            ...prev,
-            tempo: {
-                ...prev.tempo,
-                drawnLines: newLines
-            }
-        }))
+        updateScope({ drawnLines: newLines })
     }
 
     // A <tempo> has no end in MPM: it is in force until the next one, and the last

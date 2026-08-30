@@ -57,6 +57,24 @@ interface DeskEntry {
      * arpeggiation desks read recorded onsets, and none of them wants anything subtracted.
      */
     holdOut?: readonly InstructionType[];
+
+    /**
+     * The instruction types this desk writes into whichever scope the picker is on, where a part
+     * may not hold its own map beside a global one.
+     *
+     * MPM does not merge the two. espressivo resolves a part's maps as
+     * `dated.getMapOfKind(kind) ?? globalMaps[kind]` (`Performance.resolvePartMaps`), so a part's
+     * own map of a type **shadows** the global one of that type outright: one part-local `<tempo>`
+     * and that part stops following every global one. Declaring the type here locks the scope
+     * picker to Global for as long as `<global>` holds instructions of it, which is the point at
+     * which the choice stops being a view and starts being a document the renderer reads
+     * differently.
+     *
+     * Only the tempo desk declares it. The shadowing is per map kind and the hazard is the same
+     * for the others, but locking eleven pickers is a change to how the whole editor is used, and
+     * that is a decision to take on its own.
+     */
+    writes?: readonly InstructionType[];
 }
 
 /**
@@ -132,6 +150,7 @@ export const correspondingDesks: DeskEntry[] = [
         desk: lazy(() => import('./tempo/TempoDesk').then((m) => ({ default: m.TempoDesk }))),
         aspect: 'tempo',
         group: 'timing',
+        writes: ['tempo'],
     },
     {
         transformerName: 'InsertRubato',

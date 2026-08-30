@@ -483,6 +483,22 @@ export const App = () => {
     const { tickToSeconds, secondsToTick } = useTimeMapping(alignment);
 
     /**
+     * Why the open desk may not leave Global, or null while it may.
+     *
+     * A part's map of a type shadows the global one of that type rather than adding to it — see
+     * `writes` in `DeskSwitch.tsx`. So once `<global>` holds instructions of what this desk
+     * writes, offering a part is offering to silently take that part out of the global reading.
+     */
+    const scopeLock = useMemo(() => {
+        if (!mpm) return null;
+        const written = (deskEntry?.writes ?? []).filter(
+            (type) => getInstructions(mpm, type, 'global').length > 0,
+        );
+        if (written.length === 0) return null;
+        return `The global ${written.join(' and ')} map already has instructions, and a part's own map replaces the global one rather than adding to it. Remove those calls to fit this aspect per part.`;
+    }, [mpm, deskEntry]);
+
+    /**
      * Note `xml:id` ⇒ symbolic date, off the score the performance is rendered against.
      *
      * What turns a sounding note back into a place on the timeline: every follow reads it, and
@@ -566,6 +582,7 @@ export const App = () => {
                                         parts={parts}
                                         scope={scope}
                                         setScope={setScope}
+                                        scopeLock={scopeLock}
                                         pending={pending}
                                         dirty={dirty}
                                         canPlay={getInstructions(mpm).length > 0}
