@@ -100,7 +100,22 @@ export const correspondingDesks: DeskEntry[] = [
         // and there is nothing for the MPM to explain away when the subject is which staff a note
         // is written on.
     },
-    // General
+    // General — the three desks whose subject is the recording rather than the performance, in
+    // the order they are used. This one is first because nothing else can say anything until it
+    // has: until the score and the recording have been put note against note there is no
+    // recording to fit to, and the takes it writes are what Base Text then chooses between.
+    //
+    // No `transformerName`: the `Align` call it writes is one the chain does not run, so there is
+    // no transformer to name — see `chain.ts`. Nothing looks for a desk by that name either,
+    // because an `Align` writes no instruction and so reaches neither the narrative nor the
+    // markup desk, which is where `focusCall` is reached from.
+    {
+        aspect: 'alignment',
+        desk: lazy(() =>
+            import('./alignment/AlignmentDesk').then((m) => ({ default: m.AlignmentDesk })),
+        ),
+        group: 'general',
+    },
     {
         aspect: 'source choice',
         displayName: 'Base Text',

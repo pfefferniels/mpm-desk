@@ -11,7 +11,7 @@
 
 import { IconButton, LinearProgress, Slider, Stack, Typography } from "@mui/material";
 import { PlayArrow, Stop, SettingsBackupRestore } from "@mui/icons-material";
-import { clock, type Playback } from "./usePlayback";
+import { clock, type Playback } from "./useRecordingPlayback";
 
 interface PlaybackBarProps {
     playback: Playback;

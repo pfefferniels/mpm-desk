@@ -215,6 +215,10 @@ export const App = () => {
             setScope('global');
             // And a new score is not the one the takes in hand were played from.
             setPerformances([]);
+            // A score with no recording aligned into it has nothing for any other desk to draw:
+            // every one of them plots what the performance did, and there is no performance yet.
+            // So it opens where the work actually starts.
+            if (!content.includes('<when')) setSelectedDesk('alignment');
         },
         [readMei],
     );
@@ -583,8 +587,8 @@ export const App = () => {
     const { tickToSeconds, secondsToTick } = useTimeMapping(alignment);
 
     const performancesValue = useMemo(
-        () => ({ performances, addPerformance }),
-        [performances, addPerformance],
+        () => ({ performances, openPerformance: (file: File) => void handleOpenMidi(file) }),
+        [performances, handleOpenMidi],
     );
 
     /**

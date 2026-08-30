@@ -35,8 +35,13 @@ export interface Performance {
 
 interface PerformancesValue {
     performances: readonly Performance[];
-    /** Take on one more. Refused, with a reason, where the name is already in use. */
-    addPerformance: (performance: Performance) => void;
+    /**
+     * Read one more off disk and take it on, reporting whatever is wrong with it.
+     *
+     * The reading is `App`'s rather than the desk's because minting a `@source` needs to know
+     * every take already in hand, and this is what holds them.
+     */
+    openPerformance: (file: File) => void;
 }
 
 const PerformancesContext = createContext<PerformancesValue | null>(null);

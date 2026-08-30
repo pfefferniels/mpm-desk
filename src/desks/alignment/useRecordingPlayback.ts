@@ -1,17 +1,17 @@
 /**
- * Hearing a performance, or any stretch of one, while the score follows along.
+ * Hearing the *recording*, or any stretch of it, while the score follows along.
  *
- * Both views that show a performance want the same thing and used to have only
- * half of it: press play, hear the recording from the top, watch the notes light
- * up. Checking one bar of an alignment by ear meant sitting through everything
- * before it, which in practice meant not checking it at all. So the stretch to
- * play is chosen here, and the piano is handed exactly that stretch rebased to
- * its own start.
+ * Not `hooks/PlaybackProvider`, which plays what the chain wrote: espressivo rendering an MSM
+ * through an MPM, which does not exist until something has been fitted. This plays the MIDI file
+ * itself, which is the only thing there is to hear while an alignment is being checked — and
+ * checking one is exactly listening to whether the right notes light up.
  *
- * What lights up is left to the caller. The Viewer plays notes the document
- * already holds, so a note's id is the id of the thing to light; the aligner
- * plays what was *performed*, where a note may answer to a written note, to a
- * cross drawn where nothing was written, or to nothing on screen at all.
+ * The stretch to play is chosen here and the piano is handed that stretch rebased to its own
+ * start, because checking one bar by ear otherwise means sitting through everything before it,
+ * which in practice means not checking it.
+ *
+ * What lights up is left to the caller: a played note may answer to a written note, to a cross
+ * drawn where nothing was written, or to nothing on screen at all.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -76,7 +76,7 @@ function clearHighlights() {
     }
 }
 
-export function usePlayback({ notes, pedals, elementFor }: PlaybackOptions): Playback {
+export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOptions): Playback {
     const piano = usePiano();
     const [playing, setPlaying] = useState(false);
     /**
