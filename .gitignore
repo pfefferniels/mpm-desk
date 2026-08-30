@@ -32,3 +32,5 @@ AGENTS.md
 # Generated test output
 coverage/
 test-results/
+tests/alignment/__snapshots__/performance-rendered.png
+tests/alignment/__snapshots__/performance-overlay.png

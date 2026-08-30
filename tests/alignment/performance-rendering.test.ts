@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom'
 import type { VerovioToolkit } from 'verovio/esm'
 import { loadVerovio, renderPerformance, defaultOptions } from '../../src/verovio/toolkit'
 import { readPerformedNote } from '../../src/verovio/performedNote'
-import { loadFixture, renderToPng, pixelDiff } from './setup'
+import { loadFixture, renderToPng, comparePng } from './setup'
 
 const SNAPSHOT_DIR = join(__dirname, '__snapshots__')
 /**
@@ -16,6 +16,13 @@ const SNAPSHOT_DIR = join(__dirname, '__snapshots__')
  * and re-run to take a new one, after checking by eye that the change was the intended one.
  */
 const BASELINE_PNG = join(SNAPSHOT_DIR, 'performance-baseline.png')
+
+/** Written only when the comparison fails, so a red run leaves something to look at */
+const RENDERED_PNG = join(SNAPSHOT_DIR, 'performance-rendered.png')
+const OVERLAY_PNG = join(SNAPSHOT_DIR, 'performance-overlay.png')
+
+/** Percent of the page allowed to differ */
+const TOLERATED_SHARE = 0.1
 
 /** MEI units one second of performed time covers, before the page is scaled down */
 const UNITS_PER_SECOND = defaultOptions.performanceScale! * 90
@@ -187,7 +194,15 @@ describe('visual regression', () => {
       return
     }
 
-    const diff = pixelDiff(readFileSync(BASELINE_PNG), png)
-    expect(diff, `Visual diff is ${diff.toFixed(2)}% — exceeds 0.1% threshold`).toBeLessThan(0.1)
+    const { share, overlay } = comparePng(readFileSync(BASELINE_PNG), png)
+    if (share >= TOLERATED_SHARE) {
+      writeFileSync(RENDERED_PNG, png)
+      writeFileSync(OVERLAY_PNG, overlay)
+    }
+
+    expect(
+      share,
+      `Visual diff is ${share.toFixed(2)}% — exceeds ${TOLERATED_SHARE}%. What differs is in ${OVERLAY_PNG}`,
+    ).toBeLessThan(TOLERATED_SHARE)
   })
 })

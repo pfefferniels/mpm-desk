@@ -38,6 +38,16 @@ jobs:
       - name: Test
         run: npm run test:run
 
+      - name: Keep what the visual regression saw
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-regression
+          path: |
+            tests/alignment/__snapshots__/performance-rendered.png
+            tests/alignment/__snapshots__/performance-overlay.png
+          if-no-files-found: ignore
+
       - name: Build
         run: npm run build
 
