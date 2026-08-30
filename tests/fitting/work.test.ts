@@ -243,4 +243,27 @@ describe('the chain built from it', () => {
 
     expect(validateChain(transformers)).toEqual([]);
   });
+
+  /**
+   * The call the document holds and the chain does not run.
+   *
+   * `Align` says which sounding event realises which written note, and that is applied to the MEI
+   * — before it is converted — rather than to the `Alignment` the fold runs over. So there is
+   * nothing left for it to do here, and the two wrong answers are both worth ruling out: running
+   * it would need a transformer whose body is empty, and *not knowing about it* would report it
+   * as a name this build cannot run, which is the report that is supposed to mean something.
+   */
+  test('leaves an Align to the document: neither run, nor reported as unknown', () => {
+    const { transformers, unknown } = buildChain([
+      call('Align', { source: 'take-1', midi: 'take-1.mid' }),
+      rubato(),
+    ]);
+
+    expect(unknown).toEqual([]);
+    expect(transformers.map((t) => t.name)).toEqual([
+      'TranslatePhysicalTimeToTicks',
+      'InsertRubato',
+      'InsertMetadata',
+    ]);
+  });
 });

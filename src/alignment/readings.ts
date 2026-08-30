@@ -1,9 +1,15 @@
 /**
  * What each kind of disagreement is called, and what may be done about it.
  *
- * Kept apart from any component because the score is now the only place these
- * are decided: the popover that opens on a notehead needs them, and so does the
- * pass that carries the decisions into the document.
+ * Kept apart from any component because the score is only where these are *decided*: the popover
+ * that opens on a notehead needs them, and so does the pass that carries the decisions into the
+ * MEI.
+ *
+ * And so does the work file. An {@link Action} is the one part of a reader's decision the MEI
+ * cannot hold — `applyAlignment` writes the reading, the responsibility and the certainty into the
+ * `<when>`, and nothing there says what was to be *done* — so the work file records it, and this
+ * is the vocabulary it records it in. That is why this sits beside `divergences.ts` rather than
+ * beside the desk: `src/model` reads it, and the document may not depend on a desk.
  */
 
 import type {
@@ -11,7 +17,7 @@ import type {
     Divergence,
     MissingReading,
     ReplacedReading,
-} from "../../alignment/divergences";
+} from "./divergences";
 
 /** What the reader wants done about a divergence. */
 export type Action =

@@ -37,6 +37,7 @@ export default tseslint.config(
             'useCallSelection',
             'useMode',
             'useNotes',
+            'usePerformances',
             'usePlayback',
             'useScoreDocument',
             'useScrollSync',

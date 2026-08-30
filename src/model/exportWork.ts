@@ -133,7 +133,17 @@ export const provenanceOf = (
     });
 };
 
-/** Everything the archive is written out of: the document, the run, and the two source files. */
+/** One performance the score was aligned against, as it was opened. */
+export interface ArchivedRecording {
+    /**
+     * The file's own name, which is what an `Align` call records in `midi` — that is the link
+     * between a take in here and the decisions made about it.
+     */
+    name: string;
+    bytes: Uint8Array;
+}
+
+/** Everything the archive is written out of: the document, the run, and the source files. */
 export interface WorkArchiveInput {
     mei: string;
     msm: Alignment;
@@ -144,6 +154,14 @@ export interface WorkArchiveInput {
     outcomes: readonly CallOutcome[];
     metadata: WorkMetadata;
     secondary?: WorkFile['secondary'];
+    /**
+     * The MIDI performances, so that a reopened project can be aligned again.
+     *
+     * The alignment itself is in `transcription.mei` and needs none of this to be read back — but
+     * re-running the model does, and so does anything that wants to hear the recording rather than
+     * a rendering of what was made of it. They are the evidence; a few tens of kilobytes each.
+     */
+    recordings?: readonly ArchivedRecording[];
 }
 
 /**
@@ -153,6 +171,7 @@ export interface WorkArchiveInput {
  *   work.json           the chain, what each call wrote, and the segment it wrote it under
  *   performance.mpm     the MPM this run produced
  *   score.msm           the MEI converted, so the viewer need not convert
+ *   recordings/*.mid    the performances the score was aligned against, where there are any
  *
  * The viewer reads the last three and derives the tree from them. It needs no `segments.json`:
  * every call records its own elements and range, so the projection is a few milliseconds of
@@ -190,6 +209,9 @@ export const buildWorkArchive = async (input: WorkArchiveInput): Promise<Blob> =
     zip.file('work.json', serializeWorkFile(work));
     zip.file('performance.mpm', exportMPM(input.mpm));
     zip.file('score.msm', input.scoreMsm);
+    for (const recording of input.recordings ?? []) {
+        zip.file(`recordings/${recording.name}`, recording.bytes);
+    }
 
     return zip.generateAsync({ type: 'blob' });
 };

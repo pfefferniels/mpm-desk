@@ -47,6 +47,24 @@ import type { Call } from '../model/Work';
 const INJECTED = 'TranslatePhysicalTimeToTicks';
 
 /**
+ * Calls the chain does not run, because what they decided is already in the document it runs over.
+ *
+ * `Align` says which sounding event realises which written note. That decision is written into the
+ * MEI — by `applyAlignment`, before the MEI is converted — so by the time there is an `Alignment`
+ * to fold over, there is nothing left for a `transform` to do. Registering a transformer whose
+ * body is empty would be a worse way of saying that: it would claim a rank in the reduction order
+ * it has no use for, and would have to be excluded from `validate`'s reckoning anyway.
+ *
+ * Named here rather than dropped silently, because the alternative is worse in both directions: an
+ * `Align` call this did not know about would be reported as a transformer this build does not
+ * have, which is exactly the report that is supposed to mean something.
+ */
+const APPLIED_TO_THE_SCORE = new Set(['Align']);
+
+/** Whether the chain leaves this call to the document rather than running it. */
+export const isDocumentCall = (name: string): boolean => APPLIED_TO_THE_SCORE.has(name);
+
+/**
  * Whether `name` names the call the run makes for itself — under either spelling, since the
  * shipped file carries the misspelled one.
  */
@@ -83,12 +101,17 @@ interface BuiltChain {
  * Neither injected call is in `provenance`, so neither reaches the narrative desk (which reads
  * the document) or a saved file (`provenanceOf` enriches only calls the document holds). They
  * exist for the length of a run.
+ *
+ * The traffic runs the other way for {@link APPLIED_TO_THE_SCORE}: those calls are in the
+ * document and not in the chain.
  */
 export function buildChain(provenance: readonly Call[]): BuiltChain {
     const transformers: Transformer[] = [];
     const unknown: Call[] = [];
 
     for (const call of provenance) {
+        if (isDocumentCall(call.name)) continue;
+
         const transformer = createTransformer(call.name);
         if (!transformer) {
             unknown.push(call);

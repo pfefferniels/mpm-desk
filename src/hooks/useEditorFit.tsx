@@ -4,6 +4,7 @@ import { parseMPM, type Mpm } from '../fitting/instructions/index';
 import type { InstructionType } from '../fitting/instructions/index';
 import { deriveResidual, type Residual } from '../fitting/residual';
 import type { FitResult } from '../fitting/fit';
+import { isDocumentCall } from '../fitting/chain';
 import type { FitReply, FitRequest } from '../fitting/fit.worker';
 import type { WorkFile } from '../model/Work';
 import { useLatest } from './useLatest';
@@ -125,9 +126,19 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
      * boxes, the hand-marked silent onsets, the drawn trails — and none of it reaches the chain.
      * A refit on every stroke of a drawn curve would cost three seconds and produce byte for byte
      * the same document.
+     *
+     * So are the calls the chain does not run. An `Align` records what a reader decided about the
+     * score and the recording disagreeing, and that decision reaches the fit through the MEI it
+     * was written into — which arrives here as a new `pristine` and reloads the worker. Left in,
+     * every one of forty divergences settled in a review would cost a three-second fold and
+     * produce the same document each time.
      */
     const chainKey = useMemo(
-        () => JSON.stringify({ provenance: work.provenance, segments: work.segments }),
+        () =>
+            JSON.stringify({
+                provenance: work.provenance.filter((call) => !isDocumentCall(call.name)),
+                segments: work.segments,
+            }),
         [work.provenance, work.segments],
     );
 

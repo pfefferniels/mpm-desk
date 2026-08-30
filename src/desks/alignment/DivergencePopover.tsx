@@ -9,7 +9,7 @@ import {
     timestamp,
     type Action,
     type Resolution,
-} from "./divergenceReadings";
+} from "../../alignment/readings";
 
 interface DivergencePopoverProps {
     divergence?: Divergence;

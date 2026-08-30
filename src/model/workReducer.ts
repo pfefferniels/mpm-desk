@@ -37,6 +37,8 @@ import type {
     VoiceMove,
     VoiceSelection,
 } from '../fitting/transformers/voices/ProcessVoices';
+import type { Action, Resolution } from '../alignment/readings';
+import type { MlignModelId } from '../alignment/mlign/models';
 
 /** The empty document the editor starts on, before a file is opened. */
 export const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [], segments: [] };
@@ -96,7 +98,15 @@ export type WorkAction =
      * `newCallId` arrives in the action for the reason `set-metadata`'s does — the reducer stays a
      * function of its arguments.
      */
-    | { type: 'set-voices'; update: VoicesUpdate; newCallId: string };
+    | { type: 'set-voices'; update: VoicesUpdate; newCallId: string }
+    /**
+     * What was decided about one take, on the one `Align` call that names its `@source`.
+     *
+     * A whole value rather than an updater: the desk holds the review it is conducting, so it
+     * always knows the alignment it means. `newCallId` arrives in the action for the reason the
+     * two above give — the reducer stays a function of its arguments.
+     */
+    | { type: 'set-alignment'; alignment: WorkAlignment; newCallId: string };
 
 /**
  * A call with its `segment` taken off.
@@ -267,6 +277,98 @@ export const partNamesOf = (work: WorkFile): Map<number, string> => {
     return names;
 };
 
+// ── the alignment ─────────────────────────────────────────────────
+//
+// The third of these, and the one that is *not* a transformer call.
+//
+// What a reader decides about the score and the recording disagreeing — that this run of played
+// notes is the trill the score already writes, that those written notes were passed over, who
+// decided and how sure they were — is written into the MEI by `applyAlignment`, and the MEI is
+// what the chain then runs over. So by the time there is an `Alignment` to fit, the decision has
+// already been applied and there is nothing left for a `transform` to do; `chain.ts` says so, and
+// says it in a list rather than in an empty transformer.
+//
+// One thing does not survive the MEI, and it is why this is recorded at all: an {@link Action}.
+// A `<when>` carries the reading, the responsibility and the certainty, and nothing there says
+// what was to be *done* about it — whether the played notes are to be written into the score,
+// whether the unplayed ones are a marked simplification. That is a decision, so the document
+// keeps it, and keeps it beside the settings the run was made with so the run can be made again.
+//
+// One call per take, unlike the two above: a score may be aligned against several performances,
+// and each is its own decision about its own <recording>.
+
+/** What the alignment desk records about one take. */
+export interface WorkAlignment {
+    /** The `<recording @source>` this call is about, and what `MakeChoice` selects it by. */
+    source: string;
+    /** The performance file it was aligned against, by name. Nothing reads it; a reader does. */
+    midi: string;
+    /** Which model ran, so the run can be repeated. */
+    model: MlignModelId;
+    /** Matches the model was less sure of than this were not written. */
+    minConfidence: number;
+    /**
+     * What the reader decided about each divergence, by the id `divergencesOf` gives it.
+     *
+     * A `Map`, which `Work.ts`'s replacer and reviver carry across the round trip. The ids are
+     * named after the notes they cover precisely so that they can be read back against a grouping
+     * made fresh — see `divergenceId`.
+     */
+    resolutions: ReadonlyMap<string, Resolution>;
+    /** Who decided, and how sure. Written into every `<when>` the decisions reach. */
+    resp: string;
+    certainty: string;
+}
+
+const readResolutions = (value: unknown): ReadonlyMap<string, Resolution> => {
+    // A `Map` once the reviver has been through it, and a list of pairs in a file that lost the
+    // envelope. Read rather than cast, as everything else here is.
+    const entries: unknown[] =
+        value instanceof Map ? [...value.entries()] : Array.isArray(value) ? value : [];
+
+    return new Map(
+        entries.flatMap((entry: unknown) => {
+            if (!Array.isArray(entry) || entry.length !== 2) return [];
+            const [id, resolution] = entry as [unknown, unknown];
+            if (typeof id !== 'string') return [];
+            if (typeof resolution !== 'object' || resolution === null) return [];
+
+            const held = resolution as Record<string, unknown>;
+            if (typeof held['reading'] !== 'string') return [];
+            if (typeof held['action'] !== 'string') return [];
+            return [[id, { reading: held['reading'], action: held['action'] as Action }]];
+        }),
+    );
+};
+
+const readAlignment = (options: Call['options']): WorkAlignment | null => {
+    const source = options['source'];
+    if (typeof source !== 'string' || !source) return null;
+
+    return {
+        source,
+        midi: typeof options['midi'] === 'string' ? options['midi'] : '',
+        model: typeof options['model'] === 'string' ? (options['model'] as MlignModelId) : 'v3',
+        minConfidence:
+            typeof options['minConfidence'] === 'number' ? options['minConfidence'] : 0,
+        resolutions: readResolutions(options['resolutions']),
+        resp: typeof options['resp'] === 'string' ? options['resp'] : '',
+        certainty: typeof options['certainty'] === 'string' ? options['certainty'] : 'unknown',
+    };
+};
+
+/**
+ * Every take the document says was aligned, in the order the calls were made.
+ *
+ * A call naming no `@source` is dropped rather than repaired: it cannot say which `<recording>` it
+ * is about, so there is nothing it can be read as.
+ */
+export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
+    work.provenance
+        .filter((call) => call.name === 'Align')
+        .map((call) => readAlignment(call.options))
+        .filter((alignment): alignment is WorkAlignment => alignment !== null);
+
 /**
  * Does this call say anything about the performance?
  *
@@ -275,6 +377,10 @@ export const partNamesOf = (work: WorkFile): Map<number, string> => {
  * started yet report a call it does not have. `ProcessVoices` says which MEI voice goes into which
  * MSM part, which is a statement about the *score's encoding*: a reconstruction that has done
  * nothing but sort its voices into parts has claimed nothing yet about how the piece was played.
+ *
+ * `Align` is the third, and the plainest: it says which sounding event realises which written
+ * note, which is what a reconstruction reads *before* it has claimed anything about how the piece
+ * was played.
  *
  * `Modify` and `MakeChoice` are not exceptions: correcting the recording and picking between
  * readings are statements about the performance, made by reshaping rather than by adding.
@@ -286,7 +392,7 @@ export const partNamesOf = (work: WorkFile): Map<number, string> => {
  * run, a call made a moment ago has none yet, and "how much has been claimed so far" has to
  * answer before the fit comes back.
  */
-const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices']);
+const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices', 'Align']);
 
 export const describesPerformance = (call: Call): boolean => !WRITES_NO_INSTRUCTION.has(call.name);
 
@@ -440,6 +546,42 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             const call: Call = existing
                 ? { ...existing, options }
                 : { id: action.newCallId, name: 'ProcessVoices', options };
+
+            return {
+                ...state,
+                provenance: existing
+                    ? state.provenance.map((entry) => (entry.id === call.id ? call : entry))
+                    : [...state.provenance, call],
+            };
+        }
+
+        case 'set-alignment': {
+            const { alignment } = action;
+            // The call for *this* take. A document may hold several, so the name is what picks
+            // one out — the same string that picks out the `<recording>` it is about.
+            const existing = state.provenance.find(
+                (entry) => entry.name === 'Align' && entry.options['source'] === alignment.source,
+            );
+
+            // Compared by serializing, as `set-voices` is. Sound for the same reason and one
+            // more: `resolutions` is a `Map` of plain records, which `JSON.stringify` renders as
+            // `{}` — so it is unwrapped here rather than trusted to compare itself.
+            const flattened = { ...alignment, resolutions: [...alignment.resolutions] };
+            const before = existing ? readAlignment(existing.options) : null;
+            if (
+                before &&
+                JSON.stringify(flattened) ===
+                    JSON.stringify({ ...before, resolutions: [...before.resolutions] })
+            ) {
+                return state;
+            }
+
+            // Spread first, so an option with no UI survives being edited through one — the rule
+            // the two cases above keep.
+            const options: Call['options'] = { ...existing?.options, ...alignment };
+            const call: Call = existing
+                ? { ...existing, options }
+                : { id: action.newCallId, name: 'Align', options };
 
             return {
                 ...state,

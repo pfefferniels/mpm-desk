@@ -6,7 +6,7 @@ import {
   type MissingDivergence,
   type ReplacedDivergence,
 } from '../../src/alignment/divergences'
-import { defaultAction, isOmittedPassage } from '../../src/desks/alignment/divergenceReadings'
+import { defaultAction, isOmittedPassage } from '../../src/alignment/readings'
 import type { OrnamentSign } from '../../src/mei/ornamentSigns'
 import type { NoteSpan } from '../../src/performance/midiSpans'
 import type { ScoreNote } from '../../src/score/scoreNotes'
