@@ -47,6 +47,7 @@ describe('TransformerRegistry', () => {
      */
     test('the reduction order is exactly the seventeen fitters this build has', () => {
       expect(getTransformerOrder()).toEqual([
+        'ProcessVoices',
         'MakeChoice',
         'Modify',
         'InsertDynamicsGradient',

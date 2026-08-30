@@ -42,6 +42,26 @@ export type AlignedPedal = {
 export type AlignedNote = {
   readonly 'xml:id': string;
   readonly part: number;
+  /**
+   * The `<staff>` the note is written on — `staff@n`, verbatim.
+   *
+   * Not `Mei.getStaffId`'s `@def`-before-`@n` rule: what has to be recoverable here is the number
+   * the MSM `<part @number>` carries, and that is `staffDef@n`. Checked against the shipped
+   * transcription — 476 of 476 notes, no disagreement with `part`.
+   */
+  readonly staff: string;
+  /**
+   * The `<layer>` it is written in — `layer@def` if it has one, else `layer@n`, else `''`.
+   *
+   * espressivo's own identity rule (`Mei.getLayerId`), and for its reason: `@def` names a
+   * `<layerDef>` and so is stable across measures where `@n` need not be. `''` means "unlayered",
+   * which is a value rather than a miss.
+   *
+   * The layer is the one thing the conversion throws away. One MSM `<part>` is made per
+   * `<staffDef>`, so the staff survives as the part number and every layer of a staff arrives
+   * merged into it — which is what {@link ProcessVoices} exists to undo.
+   */
+  readonly layer: string;
   readonly date: number;
   duration: number;
   readonly pitchname: string;
@@ -61,6 +81,17 @@ export interface TimeSignature {
   numerator: number;
   denominator: number;
 }
+
+/**
+ * What to call each part, by the `@number` it carries — 1-based, i.e. {@link AlignedNote.part}.
+ *
+ * Passed in rather than held on the alignment, because a part's name is the *document's*: it is
+ * read off the `ProcessVoices` call the way the title is read off `InsertMetadata`. An alignment
+ * carrying it would have to carry it across the worker boundary for a fact that never leaves the
+ * main thread, and `deriveResidual` — which renders a probe, not an artefact — would have to pass
+ * one to get an answer it does not read.
+ */
+type PartNames = ReadonlyMap<number, string>;
 
 /**
  * A score and a recording of it, note by note.
@@ -174,8 +205,8 @@ export class Alignment {
    * instructions. The pedals live here, which is where `InsertPedal`, `deriveResidual` and
    * `tickTimes` read them.
    */
-  public serialize(): string | undefined {
-    return this.build(true);
+  public serialize(names?: PartNames): string | undefined {
+    return this.build(true, names);
   }
 
   /**
@@ -187,8 +218,8 @@ export class Alignment {
    * timing it means, and the whole point of the residual is to keep the recording and the
    * rendering apart.
    */
-  public serializeScore(): string | undefined {
-    return this.build(false);
+  public serializeScore(names?: PartNames): string | undefined {
+    return this.build(false, names);
   }
 
   /**
@@ -202,8 +233,11 @@ export class Alignment {
    *
    * @param performed whether to carry the recording — `velocity`, `milliseconds.date` and
    * `milliseconds.date.end` — as well as the score.
+   * @param names what to call each part, by the `@number` it carries — which is `note.part`,
+   * 1-based. A part nothing names keeps `part<index>`, the string this has always written, so a
+   * document with no layout serializes as it did before.
    */
-  private build(performed: boolean) {
+  private build(performed: boolean, names?: PartNames) {
     if (this.allNotes.length === 0) {
       console.error('no notes to serialize');
       return;
@@ -229,17 +263,34 @@ export class Alignment {
     // One `<part>` per part the notes actually use, ascending. `@number` is the part index
     // plus one and `@midi.channel` is the index itself, which is the numbering
     // `notesInPart` and `MPM`'s `requireMap` both assume.
+    // An MSM cannot hold one `xml:id` twice, and until a `MakeChoice` has collapsed the readings
+    // this alignment does: `asMSM` makes one note per `<when>`, so a transcription carrying two
+    // recordings holds every note once per recording — 926 notes over 463 ids in the shipped one.
+    // Nothing noticed while the raw conversion was what got rendered; a document built from here
+    // and played would sound every note twice.
+    //
+    // First wins, which is what every reader downstream already assumes: `renderedVelocities` and
+    // `computeTickTimes` both key by id.
+    const written = new Set<string>();
+
     for (const part of [...this.parts()].sort((a, b) => a - b)) {
       const element = Msm.makePart({
-        name: `part${String(part)}`,
+        name: names?.get(part + 1) ?? `part${String(part)}`,
         number: part + 1,
         midiChannel: part,
         midiPort: 0,
       });
       msm.addPart(element);
+      // Explicit, and load-bearing beyond stating the instrument: espressivo suppresses the
+      // program change it would otherwise derive from `@name` when a part has a
+      // `<programChangeMap>` (meico-ts `Msm.ts:931`), and that derivation is a *fuzzy* name
+      // match — without this line a part named "melody" renders as GM 53, Voice Oohs, and one
+      // named "accompaniment" as GM 21, Accordion. See `tests/fitting/alignment/serialize.test.ts`.
       msm.addProgramChange(element, { date: 0, value: 0 });
 
       for (const note of this.allNotes.filter((n) => n.part === part + 1)) {
+        if (written.has(note['xml:id'])) continue;
+        written.add(note['xml:id']);
         msm.addNote(element, {
           id: note['xml:id'],
           date: note.date,

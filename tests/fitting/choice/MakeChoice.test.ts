@@ -17,6 +17,8 @@ import { only } from '../../support/at';
 const note = (id: string, source: string, velocity: number): AlignedNote => ({
   'xml:id': id,
   part: 1,
+  staff: '1',
+  layer: '1',
   date: 0,
   duration: 720,
   pitchname: 'c',

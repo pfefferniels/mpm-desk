@@ -27,6 +27,7 @@ import { NotesProvider } from './hooks/NotesProvider';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { CallSelectionProvider } from './hooks/CallSelection';
 import { WorkDocumentProvider } from './hooks/WorkDocument';
+import { ScoreDocumentProvider } from './hooks/ScoreDocument';
 import { useLatest } from './hooks/useLatest';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { useTimeMapping } from './hooks/useTimeMapping';
@@ -48,14 +49,14 @@ import type { ScopedTransformationOptions, Transformer } from './fitting/transfo
 import {
     initialHistory,
     metadataOf,
+    partNamesOf,
     workHistoryReducer,
     type Secondary,
 } from './model/workReducer';
 import { migrateIfNeeded } from './model/loadWork';
 import { buildWorkArchive } from './model/exportWork';
-import type { WorkFile } from './model/Work';
+import { sourcesOf, type WorkFile } from './model/Work';
 import { documentSlug, downloadAsFile } from './utils/utils';
-import { readNoteDates } from './utils/score';
 
 /**
  * The editor.
@@ -108,7 +109,6 @@ export const App = () => {
     const work = workHistory.present;
 
     const [pristine, setPristine] = useState<Alignment | null>(null);
-    const [scoreMsm, setScoreMsm] = useState<string>('');
     const [mei, setMEI] = useState<string>();
     const [message, setMessage] = useState<string>();
 
@@ -191,7 +191,6 @@ export const App = () => {
             setMessage('The MEI holds no convertible movement.');
             return;
         }
-        setScoreMsm(converted);
         setPristine(asMSM(content, converted));
         // A new score has new part indices, and the scope picker is a `Select`: left holding a
         // part the score does not have, it renders blank and warns. The `ToggleButtonGroup` it
@@ -319,6 +318,35 @@ export const App = () => {
 
     /** Title and author, read off the chain's own `InsertMetadata` call — see `workReducer`. */
     const metadata = useMemo(() => metadataOf(work), [work]);
+
+    /**
+     * Which reading the chain prefers, as the `@source` a `MakeChoice` named — which is also what
+     * the MEI's `<recording>` elements carry, so verovio's `performanceRecording` takes it as is.
+     */
+    const recording = useMemo(() => sourcesOf(work.provenance)[0] ?? '', [work.provenance]);
+
+    /** What to call each part, read off the chain's own `ProcessVoices` call — likewise. */
+    const partNames = useMemo(() => partNamesOf(work), [work]);
+
+    /**
+     * The score the performance is rendered against — the alignment's score half, not the raw
+     * conversion.
+     *
+     * They used to be the same document, and stop being one the moment a layout can combine two
+     * voices into one part: the chain fits against the alignment and the MPM's parts are numbered
+     * from it, so a score numbered from the MEI's staves would send a part-local instruction to
+     * whichever part happened to carry that number, or to none. Taking the score from the thing
+     * that was fitted is the only arrangement in which the two cannot disagree.
+     *
+     * It is also what makes a named part safe. espressivo derives a program change from a part's
+     * `@name` by *fuzzy* match unless that part carries a `<programChangeMap>` — "melody" renders
+     * as GM 53, Voice Oohs — and the raw conversion has no such map, while `Alignment.build`
+     * writes one for every part.
+     */
+    const scoreMsm = useMemo(
+        () => alignment?.serializeScore(partNames) ?? '',
+        [alignment, partNames],
+    );
 
     const dirty = work !== savedWork;
 
@@ -460,8 +488,14 @@ export const App = () => {
      * What turns a sounding note back into a place on the timeline: every follow reads it, and
      * a preview's tick range is placed in a rendering through it. Without it playback reports
      * nothing and a ranged preview falls back to the piece whole.
+     *
+     * Read off the notes rather than back out of the XML now that the two are the same document.
+     * It follows `MakeChoice` as a consequence: an id the chain discarded is no longer reported.
      */
-    const dateByNoteId = useMemo(() => readNoteDates(scoreMsm), [scoreMsm]);
+    const dateByNoteId = useMemo(
+        () => new Map(alignment?.allNotes.map((note) => [note['xml:id'], note.date]) ?? []),
+        [alignment],
+    );
 
     if (!mei) {
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
@@ -478,7 +512,19 @@ export const App = () => {
     // `parts()` is a `Set` built by mapping `allNotes`, which the alignment sorts by *date* —
     // so its order is whichever part enters first, not part order. The scope picker is the one
     // reader that never sorted it.
-    const parts = Array.from(alignment.parts()).sort((a, b) => a - b);
+    const parts = Array.from(alignment.parts())
+        .sort((a, b) => a - b)
+        .map((scope) => ({
+            scope,
+            label: partNames.get(scope + 1) || `Part ${String(scope + 1)}`,
+        }));
+
+    // A layout that empties a part leaves the picker holding a scope no note is in — the same
+    // blank `Select` that opening a new score used to produce, now reachable without opening
+    // anything. Adjusted during render rather than from an effect, as `fitMessage` above is.
+    if (scope !== 'global' && !parts.some((part) => part.scope === scope)) {
+        setScope('global');
+    }
 
     const deskProps = {
         msm: alignment,
@@ -494,91 +540,93 @@ export const App = () => {
         <ZoomContext value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
                 <WorkDocumentProvider history={workHistory} dispatch={dispatch}>
-                    <PlaybackProvider
-                        scoreMsm={scoreMsm}
-                        performanceMpm={result.mpm}
-                        dateByNoteId={dateByNoteId}
-                    >
-                        <CallSelectionProvider
-                            calls={work.provenance}
-                            outcomes={result.outcomes}
-                            activeCallIds={activeCallIds}
-                            setActiveCallIds={setActiveCallIds}
-                            onRemoveCalls={removeCalls}
-                            focusCall={focusCall}
+                    <ScoreDocumentProvider mei={mei} recording={recording}>
+                        <PlaybackProvider
+                            scoreMsm={scoreMsm}
+                            performanceMpm={result.mpm}
+                            dateByNoteId={dateByNoteId}
                         >
-                            <ScrollSyncProvider
-                                symbolicZoom={zoomContextValue.symbolic.stretchX}
-                                physicalZoom={zoomContextValue.physical.stretchX}
-                                tickToSeconds={tickToSeconds}
-                                secondsToTick={secondsToTick}
+                            <CallSelectionProvider
+                                calls={work.provenance}
+                                outcomes={result.outcomes}
+                                activeCallIds={activeCallIds}
+                                setActiveCallIds={setActiveCallIds}
+                                onRemoveCalls={removeCalls}
+                                focusCall={focusCall}
                             >
-                                <EditorAppBar
-                                    deskRowRef={setDeskRow}
-                                    deskName={deskName}
-                                    parts={parts}
-                                    scope={scope}
-                                    setScope={setScope}
-                                    pending={pending}
-                                    dirty={dirty}
-                                    canPlay={getInstructions(mpm).length > 0}
-                                    canSave={work.provenance.length > 0}
-                                    onSave={saveWork}
-                                    onOpen={openFilePicker}
-                                />
-
-                                <EditorHotkeys onSave={saveWork} onOpen={openFilePicker} />
-
-                                {/* The desk, and the aspect menu that floats over it.
-
-                                    The menu is `position: absolute`, and until this box existed
-                                    no ancestor of it established a containing block — so `top: 0`
-                                    resolved against the page and the card painted on top of the
-                                    bar's right end. `MetadataDesk` has been carrying a 15rem
-                                    right gutter to stay out from under it. */}
-                                <Box sx={{ position: 'relative' }}>
-                                    <DeskToolbarProvider target={deskRow}>
-                                        <NotesProvider notes={alignment.allNotes}>
-                                            {/* A desk that throws must not take the editor with it:
-                                            the work is unsaved and Save lives in the bar above.
-                                            The open desk is the reset key, so switching away
-                                            from a broken one clears it. */}
-                                            <DeskErrorBoundary resetKey={selectedDesk}>
-                                                <Suspense
-                                                    fallback={
-                                                        <LoadingScreen message="Opening the desk" />
-                                                    }
-                                                >
-                                                    {DeskComponent && (
-                                                        <DeskComponent
-                                                            {...deskProps}
-                                                            addTransformer={addTransformer}
-                                                            part={scope}
-                                                        />
-                                                    )}
-                                                </Suspense>
-                                            </DeskErrorBoundary>
-                                        </NotesProvider>
-                                    </DeskToolbarProvider>
-
-                                    <AspectSelect
-                                        selectedDesk={selectedDesk}
-                                        setSelectedDesk={setSelectedDesk}
+                                <ScrollSyncProvider
+                                    symbolicZoom={zoomContextValue.symbolic.stretchX}
+                                    physicalZoom={zoomContextValue.physical.stretchX}
+                                    tickToSeconds={tickToSeconds}
+                                    secondsToTick={secondsToTick}
+                                >
+                                    <EditorAppBar
+                                        deskRowRef={setDeskRow}
+                                        deskName={deskName}
+                                        parts={parts}
+                                        scope={scope}
+                                        setScope={setScope}
+                                        pending={pending}
+                                        dirty={dirty}
+                                        canPlay={getInstructions(mpm).length > 0}
+                                        canSave={work.provenance.length > 0}
+                                        onSave={saveWork}
+                                        onOpen={openFilePicker}
                                     />
-                                </Box>
 
-                                {/* The narrative desk follows the playhead on its own terms —
-                                    rows lit, selection left alone — see `FollowPlayback`. */}
-                                {!isNarrativeSelected && (
-                                    <FollowPlayback
-                                        mpm={mpm}
-                                        beatDenominator={alignment.timeSignature?.denominator ?? 4}
-                                    />
-                                )}
-                                <PinchZoomHandler />
-                            </ScrollSyncProvider>
-                        </CallSelectionProvider>
-                    </PlaybackProvider>
+                                    <EditorHotkeys onSave={saveWork} onOpen={openFilePicker} />
+
+                                    {/* The desk, and the aspect menu that floats over it.
+
+                                        The menu is `position: absolute`, and until this box existed
+                                        no ancestor of it established a containing block — so `top: 0`
+                                        resolved against the page and the card painted on top of the
+                                        bar's right end. `MetadataDesk` has been carrying a 15rem
+                                        right gutter to stay out from under it. */}
+                                    <Box sx={{ position: 'relative' }}>
+                                        <DeskToolbarProvider target={deskRow}>
+                                            <NotesProvider notes={alignment.allNotes}>
+                                                {/* A desk that throws must not take the editor with it:
+                                                the work is unsaved and Save lives in the bar above.
+                                                The open desk is the reset key, so switching away
+                                                from a broken one clears it. */}
+                                                <DeskErrorBoundary resetKey={selectedDesk}>
+                                                    <Suspense
+                                                        fallback={
+                                                            <LoadingScreen message="Opening the desk" />
+                                                        }
+                                                    >
+                                                        {DeskComponent && (
+                                                            <DeskComponent
+                                                                {...deskProps}
+                                                                addTransformer={addTransformer}
+                                                                part={scope}
+                                                            />
+                                                        )}
+                                                    </Suspense>
+                                                </DeskErrorBoundary>
+                                            </NotesProvider>
+                                        </DeskToolbarProvider>
+
+                                        <AspectSelect
+                                            selectedDesk={selectedDesk}
+                                            setSelectedDesk={setSelectedDesk}
+                                        />
+                                    </Box>
+
+                                    {/* The narrative desk follows the playhead on its own terms —
+                                        rows lit, selection left alone — see `FollowPlayback`. */}
+                                    {!isNarrativeSelected && (
+                                        <FollowPlayback
+                                            mpm={mpm}
+                                            beatDenominator={alignment.timeSignature?.denominator ?? 4}
+                                        />
+                                    )}
+                                    <PinchZoomHandler />
+                                </ScrollSyncProvider>
+                            </CallSelectionProvider>
+                        </PlaybackProvider>
+                    </ScoreDocumentProvider>
                 </WorkDocumentProvider>
 
                 {/* Open reaches this through `fileInputRef`. It resets its own value on change,

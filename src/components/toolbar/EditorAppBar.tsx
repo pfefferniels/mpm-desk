@@ -26,8 +26,11 @@ interface EditorAppBarProps {
     deskRowRef: Ref<HTMLDivElement>;
     /** What the open desk calls itself, off the registry — `displayName ?? aspect`. */
     deskName: string;
-    /** The parts of the score, ascending, for the scope picker. */
-    parts: readonly number[];
+    /**
+     * The parts of the score, ascending, for the scope picker — each with the name the voice
+     * layout gives it, or `Part n` where nothing has named it.
+     */
+    parts: readonly { scope: number; label: string }[];
     scope: Scope;
     setScope: (scope: Scope) => void;
     /** True while the chain is refitting. */
@@ -233,8 +236,10 @@ export const EditorAppBar = ({
                     sx={{ minWidth: 108, flexShrink: 0 }}
                 >
                     <MenuItem value="global">Global</MenuItem>
-                    {parts.map((part) => (
-                        <MenuItem key={part} value={part}>{`Part ${part + 1}`}</MenuItem>
+                    {parts.map(({ scope: part, label }) => (
+                        <MenuItem key={part} value={part}>
+                            {label}
+                        </MenuItem>
                     ))}
                 </Select>
 

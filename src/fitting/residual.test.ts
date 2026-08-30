@@ -24,6 +24,8 @@ const buildAlignment = () => {
     const notes: AlignedNote[] = Array.from({ length: 16 }, (_, i) => ({
         'xml:id': `n_${String(i)}`,
         part: 1,
+        staff: '1',
+        layer: '1',
         date: i * BEAT,
         duration: BEAT,
         pitchname: 'g',

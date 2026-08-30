@@ -32,6 +32,8 @@ const buildMsm = () => {
       'xml:id': `n_1_${i}`,
       date: i * BEAT,
       part: 1,
+      staff: '1',
+      layer: '1',
       pitchname: 'g' as const,
       octave: 4,
       duration: BEAT,

@@ -99,6 +99,8 @@ const readNote = (element: Element, part: number, source: FixtureSource): Aligne
 
   return {
     part,
+    staff: String(part),
+    layer: '1',
     'xml:id': id,
     date: options.date,
     duration: options.duration,

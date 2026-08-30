@@ -64,7 +64,7 @@ const mount = ({ history = initialHistory(), ...props }: Overrides = {}) =>
             <EditorAppBar
                 deskRowRef={() => {}}
                 deskName='tempo'
-                parts={[0, 1]}
+                parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
                 scope='global'
                 setScope={() => {}}
                 pending={false}
@@ -139,7 +139,7 @@ describe('EditorAppBar', () => {
                 <EditorAppBar
                     deskRowRef={() => {}}
                     deskName='tempo'
-                    parts={[0, 1]}
+                    parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
                     scope='global'
                     setScope={() => {}}
                     pending

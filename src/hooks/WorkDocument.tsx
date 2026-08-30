@@ -3,10 +3,13 @@ import {
     canRedo as historyCanRedo,
     canUndo as historyCanUndo,
     metadataOf,
+    voicesOf,
     type MetadataUpdate,
+    type VoicesUpdate,
     type WorkHistory,
     type WorkHistoryAction,
     type WorkMetadata,
+    type WorkVoices,
 } from '../model/workReducer';
 import type { Call, Segment } from '../model/Work';
 
@@ -52,6 +55,8 @@ interface WorkDocumentValue {
     segments: readonly Segment[];
     /** Title and author, read off the chain's own `InsertMetadata` call. */
     metadata: WorkMetadata;
+    /** The voice layout, read off the chain's own `ProcessVoices` call. */
+    voices: WorkVoices;
 
     removeCalls: (ids: readonly string[]) => void;
     /** Put calls under a claim — an existing one, a new one, or none at all. */
@@ -60,6 +65,7 @@ interface WorkDocumentValue {
     dissolveSegment: (segmentId: string) => void;
     setSegments: (segments: Segment[]) => void;
     setMetadata: (update: MetadataUpdate) => void;
+    setVoices: (update: VoicesUpdate) => void;
 
     undo: () => void;
     redo: () => void;
@@ -125,6 +131,14 @@ export const WorkDocumentProvider = ({
         [dispatch],
     );
 
+    /** Likewise, and used only when the chain carries no `ProcessVoices` yet. */
+    const setVoices = useCallback(
+        (update: VoicesUpdate) => {
+            dispatch({ type: 'set-voices', update, newCallId: crypto.randomUUID() });
+        },
+        [dispatch],
+    );
+
     const undo = useCallback(() => {
         dispatch({ type: 'undo' });
     }, [dispatch]);
@@ -134,17 +148,20 @@ export const WorkDocumentProvider = ({
     }, [dispatch]);
 
     const metadata = useMemo(() => metadataOf(work), [work]);
+    const voices = useMemo(() => voicesOf(work), [work]);
 
     const value = useMemo<WorkDocumentValue>(
         () => ({
             calls: work.provenance,
             segments: work.segments,
             metadata,
+            voices,
             removeCalls,
             groupCalls,
             dissolveSegment,
             setSegments,
             setMetadata,
+            setVoices,
             undo,
             redo,
             canUndo: historyCanUndo(history),
@@ -154,11 +171,13 @@ export const WorkDocumentProvider = ({
             work.provenance,
             work.segments,
             metadata,
+            voices,
             removeCalls,
             groupCalls,
             dissolveSegment,
             setSegments,
             setMetadata,
+            setVoices,
             undo,
             redo,
             history,

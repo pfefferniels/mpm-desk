@@ -121,6 +121,22 @@ const datedOf = (mpm: Mpm, scope: Scope, create: boolean): Dated | null => {
   return create ? environment.requireDated() : environment.getDated();
 };
 
+/**
+ * Name a part, creating it if the performance has none yet.
+ *
+ * `ProcessVoices` calls this, so that the `<part>` a later `requireMap` reaches already knows what
+ * it is called and {@link environmentOf}'s `part_${scope}` only ever names a part nobody laid out.
+ *
+ * An MPM part's `@name` is not output-visible: `Performance.getCorrespondingPart` matches on
+ * `@number` first, and the number always matches. The MSM `<part @name>` is the one that reaches a
+ * renderer — see the note on the program change in `Alignment.build`.
+ */
+export const nameScope = (mpm: Mpm, scope: Scope, name: string): void => {
+  if (scope === 'global') return;
+  const environment = environmentOf(mpm, scope, true);
+  if (environment instanceof Part) environment.setName(name);
+};
+
 /** The `<header>` of a scope. Only the style functions need it. */
 export const headerOf = (mpm: Mpm, scope: Scope, create: boolean): Header | null =>
   environmentOf(mpm, scope, create)?.getHeader() ?? null;

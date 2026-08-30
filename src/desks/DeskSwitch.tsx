@@ -87,6 +87,19 @@ export const correspondingDesks: DeskEntry[] = [
         ),
         group: 'document',
     },
+    // Beside metadata, in the document's own group: which MEI voice goes into which MSM part is a
+    // statement about the score's encoding rather than about a dimension of the sound, and it is
+    // upstream of everything — it decides what the scope picker offers every other desk.
+    {
+        transformerName: 'ProcessVoices',
+        aspect: 'voices',
+        desk: lazy(() => import('./voices/VoicesDesk').then((m) => ({ default: m.VoicesDesk }))),
+        group: 'document',
+        // No hold-out: `holdOut` is for a desk that plots a residual, and this one never asks for
+        // one. It draws the score verovio engraves and colours it by the part the chain resolved,
+        // and there is nothing for the MPM to explain away when the subject is which staff a note
+        // is written on.
+    },
     // General
     {
         aspect: 'source choice',

@@ -40,6 +40,29 @@ export const asMSM = (mei: string, msmXml: string) => {
         }
     }
 
+    // Which voice each note is written in, by `xml:id`.
+    //
+    // Read off the MEI, because the MSM has already thrown it away: espressivo makes one `<part>`
+    // per `<staffDef>` and merges every layer of a staff into it, so the staff survives as the
+    // part number and the layer survives nowhere.
+    //
+    // `Mei.layersToStaffs()` answers the same question by rewriting the score into one staff per
+    // layer, and is deliberately not used: measured against this transcription it breaks the one
+    // tie that crosses two layers (`niduwx5`, 1800 ⇒ 360 ticks, plus a 477th orphan note), drops
+    // the `@staff`-borne hairpins and dynamics, and numbers the parts 11/12/13/21/22/23 — three
+    // changes to the score for a fact that is one `closest()` away.
+    const voiceByNoteId = new Map<string, { staff: string; layer: string }>()
+    for (const note of meiDoc.querySelectorAll('note')) {
+        const id = note.getAttribute('xml:id')
+        if (!id) continue
+        const layer = note.closest('layer')
+        voiceByNoteId.set(id, {
+            staff: note.closest('staff')?.getAttribute('n') ?? '',
+            // `@def` before `@n`, which is `Mei.getLayerId`'s rule and not this file's invention.
+            layer: layer?.getAttribute('def') ?? layer?.getAttribute('n') ?? '',
+        })
+    }
+
     // Pre-index all when[data] elements by referenced ID for O(1) lookup
     const whensByRefId = new Map<string, Element[]>()
     for (const when of meiDoc.querySelectorAll('when[data]')) {
@@ -89,8 +112,16 @@ export const asMSM = (mei: string, msmXml: string) => {
 
             if (!absolute || !duration || !velocity) continue
 
+            const part = Number(note.closest('part')?.getAttribute('number'))
+            const voice = voiceByNoteId.get(noteId ?? '')
+
             msmNotes.push({
-                part: Number(note.closest('part')?.getAttribute('number')),
+                part,
+                // A note the MEI does not place falls back to the part it is in, so `staff` is
+                // total and always agrees with `part`. It does not arise in practice — 476 of 476
+                // notes resolve — but a partial `staff` is a layout that half-applies.
+                staff: voice?.staff || String(part),
+                layer: voice?.layer ?? '',
                 'xml:id': note.getAttribute('xml:id') || v4(),
                 'date': Number(note.getAttribute('date')),
                 'duration': Number(note.getAttribute('duration')),

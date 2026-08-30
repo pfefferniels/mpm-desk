@@ -50,6 +50,8 @@ beforeAll(() => {
 const note = (id: string, date: number, over: Partial<AlignedNote> = {}): AlignedNote => ({
     'xml:id': id,
     part: 1,
+    staff: '1',
+    layer: '1',
     date,
     duration: 720,
     pitchname: 'c',

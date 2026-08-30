@@ -1,0 +1,17 @@
+{
+    "name": "verovio",
+    "version": "6.4.0-aligned-mei",
+    "description": "Verovio toolkit built from the fork that lays out a score in performed time",
+    "license": "LGPL-3.0-or-later",
+    "type": "module",
+    "exports": {
+        "./esm": {
+            "import": "./dist/verovio.mjs",
+            "require": "./dist/verovio.cjs"
+        },
+        "./wasm": "./dist/verovio-module.mjs"
+    },
+    "files": [
+        "dist"
+    ]
+}

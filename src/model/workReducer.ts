@@ -32,6 +32,11 @@
  */
 
 import type { Call, Segment, WorkFile } from './Work';
+import type {
+    PartLayout,
+    VoiceMove,
+    VoiceSelection,
+} from '../fitting/transformers/voices/ProcessVoices';
 
 /** The empty document the editor starts on, before a file is opened. */
 export const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [], segments: [] };
@@ -80,7 +85,18 @@ export type WorkAction =
      * `newCallId` is used only when the chain carries no such call yet. It arrives in the action
      * rather than being generated here so that this stays a function of its arguments.
      */
-    | { type: 'set-metadata'; update: MetadataUpdate; newCallId: string };
+    | { type: 'set-metadata'; update: MetadataUpdate; newCallId: string }
+    /**
+     * The voice layout, edited in place on the one `ProcessVoices` call.
+     *
+     * A layout is a *state*, not a sequence of gestures: a call per combine would make undo mean
+     * "take back one click" rather than "go back to the layout before", and would leave the part
+     * numbers every other call names as an emergent property of the whole sequence.
+     *
+     * `newCallId` arrives in the action for the reason `set-metadata`'s does — the reducer stays a
+     * function of its arguments.
+     */
+    | { type: 'set-voices'; update: VoicesUpdate; newCallId: string };
 
 /**
  * A call with its `segment` taken off.
@@ -145,14 +161,123 @@ export const metadataOf = (work: WorkFile): WorkMetadata => {
     };
 };
 
+// ── the voice layout ──────────────────────────────────────────────
+//
+// The same arrangement as the title above, for the same reason: the layout travels on the chain,
+// as the options of the one `ProcessVoices` call, so a copy held anywhere else is one the next fit
+// ignores. Reader and writer are written next to each other because they have to agree about a
+// shape neither of them owns.
+
+/**
+ * What the voices desk edits: the layout, as parts and the moves that override it.
+ *
+ * Typed in `ProcessVoices`'s own vocabulary rather than in a second shape of its own. The two
+ * would otherwise describe the same fact twice and be free to drift, which is exactly what the
+ * reader below and the transformer cannot afford — the transformer is the only thing that acts on
+ * it. `exportWork` reaches for `MakeChoiceOptions` the same way and for the same reason.
+ */
+export interface WorkVoices {
+    parts: readonly PartLayout[];
+    moves: readonly VoiceMove[];
+}
+
+export type VoicesUpdate = WorkVoices | ((previous: WorkVoices) => WorkVoices);
+
+/** The empty layout — one part per staff, which is what the conversion already produced. */
+const NO_VOICES: WorkVoices = { parts: [], moves: [] };
+
+const readParts = (value: unknown): WorkVoices['parts'] => {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((entry: unknown) => {
+        if (typeof entry !== 'object' || entry === null) return [];
+        const part = entry as Record<string, unknown>;
+        if (typeof part['number'] !== 'number') return [];
+        return [
+            {
+                number: part['number'],
+                name: typeof part['name'] === 'string' ? part['name'] : '',
+                voices: Array.isArray(part['voices'])
+                    ? part['voices'].filter((v: unknown): v is string => typeof v === 'string')
+                    : [],
+            },
+        ];
+    });
+};
+
+/**
+ * A move's selector, validated into one of the two forms the transformer acts on.
+ *
+ * Validated here rather than carried as an opaque bag, so that a selector the transformer could
+ * not use is dropped at the boundary instead of silently matching nothing later.
+ */
+const readSelection = (value: unknown): VoiceSelection | null => {
+    if (typeof value !== 'object' || value === null) return null;
+    const select = value as Record<string, unknown>;
+
+    if (Array.isArray(select['noteIDs'])) {
+        return { noteIDs: select['noteIDs'].filter((id: unknown): id is string => typeof id === 'string') };
+    }
+    if (
+        typeof select['voice'] === 'string' &&
+        typeof select['from'] === 'number' &&
+        typeof select['to'] === 'number'
+    ) {
+        return { voice: select['voice'], from: select['from'], to: select['to'] };
+    }
+    return null;
+};
+
+const readMoves = (value: unknown): WorkVoices['moves'] => {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((entry: unknown) => {
+        if (typeof entry !== 'object' || entry === null) return [];
+        const move = entry as Record<string, unknown>;
+        if (typeof move['part'] !== 'number') return [];
+        const select = readSelection(move['select']);
+        if (!select) return [];
+        return [{ part: move['part'], select }];
+    });
+};
+
+/**
+ * The layout, read off the chain's `ProcessVoices` call.
+ *
+ * Read structurally rather than cast, for the reason {@link firstText} gives: `options` is what a
+ * file happened to contain. The *first* such call wins and a file holding two is left holding two,
+ * as with metadata.
+ */
+export const voicesOf = (work: WorkFile): WorkVoices => {
+    const options = work.provenance.find((entry) => entry.name === 'ProcessVoices')?.options;
+    if (!options) return NO_VOICES;
+    return { parts: readParts(options['parts']), moves: readMoves(options['moves']) };
+};
+
+/**
+ * Part `@number` ⇒ name, for the places a part's name is written out: the MSM `Alignment.build`
+ * serializes, the archive's `score.msm`, and the rendered MIDI's track names.
+ *
+ * A part nobody named is left out, so it keeps the `part<index>` `Alignment.build` has always
+ * written.
+ */
+export const partNamesOf = (work: WorkFile): Map<number, string> => {
+    const names = new Map<number, string>();
+    for (const part of voicesOf(work).parts) {
+        if (part.name) names.set(part.number, part.name);
+    }
+    return names;
+};
+
 /**
  * Does this call say anything about the performance?
  *
- * Every call does but one. `InsertMetadata` writes the document's `<metadata>` — who made this
- * description, and what they said about it — and no instruction, so counting it makes a
- * reconstruction nobody has started yet report a call it does not have. `Modify` and `MakeChoice`
- * are not exceptions: correcting the recording and picking between readings are statements about
- * the performance, made by reshaping rather than by adding.
+ * Two do not. `InsertMetadata` writes the document's `<metadata>` — who made this description, and
+ * what they said about it — and no instruction, so counting it makes a reconstruction nobody has
+ * started yet report a call it does not have. `ProcessVoices` says which MEI voice goes into which
+ * MSM part, which is a statement about the *score's encoding*: a reconstruction that has done
+ * nothing but sort its voices into parts has claimed nothing yet about how the piece was played.
+ *
+ * `Modify` and `MakeChoice` are not exceptions: correcting the recording and picking between
+ * readings are statements about the performance, made by reshaping rather than by adding.
  *
  * **By name, and only for counting.** The narrative excludes a call that wrote no instruction by
  * its having no elements to show rather than by a list of transformer names (see
@@ -161,7 +286,9 @@ export const metadataOf = (work: WorkFile): WorkMetadata => {
  * run, a call made a moment ago has none yet, and "how much has been claimed so far" has to
  * answer before the fit comes back.
  */
-export const describesPerformance = (call: Call): boolean => call.name !== 'InsertMetadata';
+const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices']);
+
+export const describesPerformance = (call: Call): boolean => !WRITES_NO_INSTRUCTION.has(call.name);
 
 /**
  * Apply one edit to the document.
@@ -277,6 +404,42 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             const call: Call = existing
                 ? { ...existing, options }
                 : { id: action.newCallId, name: 'InsertMetadata', options };
+
+            return {
+                ...state,
+                provenance: existing
+                    ? state.provenance.map((entry) => (entry.id === call.id ? call : entry))
+                    : [...state.provenance, call],
+            };
+        }
+
+        case 'set-voices': {
+            const existing = state.provenance.find((entry) => entry.name === 'ProcessVoices');
+            const before = voicesOf(state);
+            const after =
+                typeof action.update === 'function' ? action.update(before) : action.update;
+
+            // Compared by serializing, which this file warns against in general and which is sound
+            // here in particular: a layout is numbers, names, voice keys and tick ranges — plain
+            // JSON with no `Map` or `Set` in it, so `JSON.stringify` is a total and faithful
+            // comparison. A no-op must return the state by reference, or every blur of an
+            // untouched part name pushes a step onto the undo stack that undoes nothing.
+            if (JSON.stringify(after) === JSON.stringify(before)) return state;
+            // An empty layout says nothing, so there is nothing to write a call for.
+            if (!existing && after.parts.length === 0 && after.moves.length === 0) return state;
+
+            // Spread first, so an option with no UI survives being edited through one — the rule
+            // the metadata case keeps for `relatedResources`.
+            const options: Call['options'] = {
+                ...existing?.options,
+                parts: after.parts,
+                moves: after.moves,
+            };
+            // Likewise the rest of the call: a `ProcessVoices` may carry a segment, and a rename is
+            // not the moment to drop it.
+            const call: Call = existing
+                ? { ...existing, options }
+                : { id: action.newCallId, name: 'ProcessVoices', options };
 
             return {
                 ...state,

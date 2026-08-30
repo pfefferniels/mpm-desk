@@ -1,7 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "ignore": [
-    "coverage/**"
+    "coverage/**",
+    "vendor/**"
   ],
   "tags": [
     "-lintignore"
@@ -17,5 +18,8 @@
   ],
   "exclude": [
     "duplicates"
+  ],
+  "ignoreBinaries": [
+    "tools/build-verovio.sh"
   ]
 }

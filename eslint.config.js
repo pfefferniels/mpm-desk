@@ -4,7 +4,9 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default tseslint.config(
-  { ignores: ['dist', '.claude'] },
+  // `vendor` is the verovio toolkit: 7 MB of emscripten output, which is not ours to lint and
+  // which overflows the stack of at least `no-nonoctal-decimal-escape` if offered to it.
+  { ignores: ['dist', '.claude', 'vendor'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -36,6 +38,7 @@ export default tseslint.config(
             'useMode',
             'useNotes',
             'usePlayback',
+            'useScoreDocument',
             'useScrollSync',
             'useSelection',
             'useWorkDocument',

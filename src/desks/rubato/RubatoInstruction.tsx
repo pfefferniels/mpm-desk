@@ -63,6 +63,10 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
             notes.push({
                 'xml:id': `rubato_tick_${i}`,
                 'part': 1,
+                // A tick of the preview is written on no staff and in no voice; it is not part of
+                // the score and never reaches `voicesOf`.
+                'staff': '',
+                'layer': '',
                 'date': symbolicDate,
                 'duration': 180,
                 'pitchname': '',

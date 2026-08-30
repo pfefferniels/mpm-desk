@@ -7,6 +7,10 @@ export default defineConfig({
   // is to change when a component re-renders, which is exactly what the desk and stack tests
   // assert about.
   plugins: [react({ babel: { plugins: [['babel-plugin-react-compiler', {}]] } })],
+  // As in `vite.config.ts`; the two configs are separate files here, so it has to be said twice.
+  optimizeDeps: {
+    exclude: ['verovio'],
+  },
   test: {
     globals: true,
     environment: 'jsdom',
@@ -16,6 +20,10 @@ export default defineConfig({
     // kind of failure that teaches people to ignore failures.
     testTimeout: 20000,
     setupFiles: './src/test/setup.ts',
+    // The toolkit is a 7 MB single file with the WebAssembly base64'd into it, symlinked in as a
+    // `file:` dependency — which Vitest would otherwise treat as source and push through the SSR
+    // transform. Externalised, Node imports it directly.
+    server: { deps: { external: [/[\\/]vendor[\\/]verovio[\\/]/] } },
     // `scripts/` is not app source and is out of tsconfig's `include`, but its one-shot
     // migrations are the code most in need of a test: they run once, against a file that has no
     // second copy.

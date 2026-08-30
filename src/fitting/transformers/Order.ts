@@ -17,6 +17,7 @@ import {
   InsertTempo,
   TranslatePhysicalTimeToTicks,
 } from './tempo/index';
+import { ProcessVoices } from './voices/index';
 import type { Transformer } from './Transformer';
 import {
   getTransformerOrder,
@@ -28,8 +29,8 @@ import {
 // Register the transformers, in reduction order — which is the order a chain runs in, whatever
 // order its calls were written.
 //
-// Seventeen of them. What is registered is decided not by how often a transformer is used but
-// by whether anything in the editor can reach it.
+// Eighteen of them. What is registered is decided by whether anything in the editor can reach it,
+// rather than by how often a transformer is used.
 //
 // Not registered: `InsertAsynchrony` and `CompressOrnamentation` appear nowhere in this
 // codebase at all, and `ApproximateLogarithmicTempo` is unreachable — the app aliases it to
@@ -44,6 +45,14 @@ import {
 //
 // No registered transformer `requires` an unregistered one — checked, not assumed. A saved work
 // file naming one is reported as unknown rather than silently skipped; see `validate` below.
+// First, and it has to be. Everything after it that takes a scope answers through `notesInPart`,
+// `notesAtDate`, `notesInRange` or `asChords`, and all four filter on `note.part` — so a fitter
+// running before the layout was applied would fit the wrong notes and say nothing about it.
+// `requires` cannot carry this: it asserts what came *earlier*, and nothing comes earlier.
+//
+// Registered by position rather than with `{ before: 'MakeChoice' }`, which would have to be
+// written after the anchor it names and would read as though it ran there.
+registerTransformer(ProcessVoices);
 registerTransformer(MakeChoice);
 registerTransformer(Modify);
 // The gradient before the spread, because the spread destroys what the gradient reads.

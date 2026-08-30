@@ -17,6 +17,8 @@ const generateNote = (position: number, duration: number, id: string, part = 1) 
   'xml:id': id,
   date: position * 4 * 720,
   part: part,
+  staff: String(part),
+  layer: '1',
   pitchname: 'g',
   octave: 4,
   duration: duration * 4 * 720,

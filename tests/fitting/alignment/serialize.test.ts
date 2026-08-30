@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { renderExpressiveMidi } from 'espressivo';
 import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
 
 const note = (id: string, part: number, date: number): AlignedNote =>
@@ -105,5 +106,60 @@ describe('Alignment.serialize pedals', () => {
     expect(xml).not.toContain('pedalMap');
     expect(xml).not.toContain('"p1"');
     expect(msm.pedals).toHaveLength(1);
+  });
+});
+
+describe('part names', () => {
+  const named = (names?: Map<number, string>) =>
+    new Alignment([note('n1', 1, 0), note('n2', 2, 0)]).serializeScore(names)!;
+
+  /** Each `<part>`'s `@name`, in document order. */
+  const partNames = (xml: string) =>
+    [...xml.matchAll(/<part name="([^"]*)"/g)].map((m) => m[1]);
+
+  test('a part nobody names keeps the string this has always written', () => {
+    expect(partNames(named())).toEqual(['part0', 'part1']);
+  });
+
+  test('a named part takes its name, and an unnamed one beside it does not', () => {
+    expect(partNames(named(new Map([[1, 'melody']])))).toEqual(['melody', 'part1']);
+  });
+
+  test('every part carries an explicit program change', () => {
+    // Load-bearing, and not merely descriptive of the instrument. espressivo derives a program
+    // change from a part's `@name` unless the part has a `<programChangeMap>` (meico-ts
+    // `Msm.ts:931`), and that derivation is a *fuzzy* name match: without this element a part
+    // named "melody" renders as GM 53 (Voice Oohs) and one named "accompaniment" as GM 21
+    // (Accordion). `renders a named part as a piano` below is the proof; this is the mechanism.
+    expect([...named(new Map([[1, 'melody']])).matchAll(/<programChange [^>]*value="0"/g)])
+      .toHaveLength(2);
+  });
+
+  test('renders a named part as a piano, not as whatever its name sounds like', () => {
+    // The performed serialization, because a bare score carries no timing and espressivo will not
+    // render one without an MPM. What is under test is `Alignment.build`, which both share.
+    const performed = (id: string, part: number): AlignedNote => ({
+      ...note(id, part, 0),
+      velocity: 64,
+      'milliseconds.date': 0,
+      'milliseconds.date.end': 500,
+    });
+    const msm = new Alignment([performed('n1', 1), performed('n2', 2)]).serialize(
+      new Map([
+        [1, 'melody'],
+        [2, 'accompaniment'],
+      ]),
+    )!;
+
+    const midi = renderExpressiveMidi({ msm });
+
+    // Every program change in the file, by its program number. `0xC0` is the status nibble.
+    const programs: number[] = [];
+    for (let i = 0; i < midi.length - 1; i++) {
+      if ((midi[i]! & 0xf0) === 0xc0) programs.push(midi[i + 1]!);
+    }
+
+    expect(programs.length).toBeGreaterThan(0);
+    expect(new Set(programs)).toEqual(new Set([0]));
   });
 });

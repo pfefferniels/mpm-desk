@@ -28,6 +28,11 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom', 'vite'],
   },
+  optimizeDeps: {
+    // The vendored verovio toolkit is emscripten output and is loaded as it is: the prebundler
+    // mangles the glue code around the WebAssembly. See vendor/verovio.
+    exclude: ['verovio'],
+  },
   // No dev proxy. There used to be one, forwarding `/convert` and `/perform` to the meico server
   // on :8080; espressivo does both in the browser now — `convertMeiToMsm` and
   // `renderExpressiveMidi` — so there is no backend to forward to.

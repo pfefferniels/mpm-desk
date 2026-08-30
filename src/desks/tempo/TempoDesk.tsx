@@ -233,6 +233,9 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                 'midi.pitch': i === tempo.endDate ? 120 : 127,
                 'xml:id': `metronome-${i}`,
                 part: 0,
+                // The click is on no staff and in no voice — it is not part of the score.
+                staff: '',
+                layer: '',
                 pitchname: 'C',
                 accidentals: 0,
                 octave: 4,

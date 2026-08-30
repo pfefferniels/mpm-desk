@@ -21,6 +21,8 @@ const note = (id: string, date: number, velocity = 100, part = 1): AlignedNote =
   return {
     'xml:id': id,
     part,
+    staff: String(part),
+    layer: '1',
     date,
     duration: 720,
     pitchname: 'c',

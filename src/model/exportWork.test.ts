@@ -51,6 +51,8 @@ const mei = (): string => `<?xml version="1.0" encoding="UTF-8"?>
 const note = (id: string, date: number): AlignedNote => ({
     'xml:id': id,
     part: 0,
+    staff: '0',
+    layer: '1',
     date,
     duration: 720,
     pitchname: 'c',

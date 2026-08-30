@@ -15,6 +15,8 @@ import {
     initialHistory,
     MAX_HISTORY,
     metadataOf,
+    partNamesOf,
+    voicesOf,
     workHistoryReducer,
     workReducer,
     type WorkAction,
@@ -540,5 +542,117 @@ describe('undo and redo', () => {
         expect(edited.past).toHaveLength(MAX_HISTORY);
         // The cap drops the oldest, so the reachable floor is not the opened file any more.
         expect(edited.past[0].provenance).toHaveLength(4 + 20);
+    });
+});
+
+describe('the voice layout', () => {
+    const processVoices: Call = {
+        id: 'v',
+        name: 'ProcessVoices',
+        options: {
+            parts: [{ number: 1, name: 'melody', voices: ['1/1'] }],
+            moves: [],
+            // No UI reaches this; it stands in for whatever a later build adds.
+            note: 'hand-written',
+        },
+        segment: 's1',
+    };
+
+    const withVoices = (): WorkFile =>
+        deepFrozen({ ...base(), provenance: [...base().provenance, processVoices] });
+
+    it('reads the layout off the chain', () => {
+        expect(voicesOf(withVoices())).toEqual({
+            parts: [{ number: 1, name: 'melody', voices: ['1/1'] }],
+            moves: [],
+        });
+    });
+
+    it('reads an empty layout out of a chain that has no such call', () => {
+        expect(voicesOf(base())).toEqual({ parts: [], moves: [] });
+    });
+
+    it('reads nothing out of options that say something else entirely', () => {
+        const odd: Call = { id: 'v', name: 'ProcessVoices', options: { parts: 7, moves: [{}] } };
+        expect(voicesOf({ ...base(), provenance: [odd] })).toEqual({ parts: [], moves: [] });
+    });
+
+    it('names only the parts somebody named', () => {
+        const two: Call = {
+            id: 'v',
+            name: 'ProcessVoices',
+            options: {
+                parts: [
+                    { number: 1, name: 'melody', voices: [] },
+                    { number: 2, name: '', voices: [] },
+                ],
+                moves: [],
+            },
+        };
+        expect(partNamesOf({ ...base(), provenance: [two] })).toEqual(new Map([[1, 'melody']]));
+    });
+
+    it('writes back through that call, and round-trips', () => {
+        const next = workReducer(withVoices(), {
+            type: 'set-voices',
+            update: (previous) => ({
+                ...previous,
+                parts: [...previous.parts, { number: 2, name: 'accompaniment', voices: ['1/2'] }],
+            }),
+            newCallId: 'unused',
+        });
+
+        expect(voicesOf(next).parts.map((part) => part.name)).toEqual([
+            'melody',
+            'accompaniment',
+        ]);
+        expect(next.provenance.filter(({ name }) => name === 'ProcessVoices')).toHaveLength(1);
+    });
+
+    it('keeps what has no UI: the other options, and the rest of the call', () => {
+        const next = workReducer(withVoices(), {
+            type: 'set-voices',
+            update: (previous) => ({ ...previous, moves: [{ part: 1, select: { noteIDs: ['n1'] } }] }),
+            newCallId: 'unused',
+        });
+
+        const call = byId(next, 'v');
+        expect(call.options['note']).toBe('hand-written');
+        expect(call.segment).toBe('s1');
+    });
+
+    it('adds the call, with the id the action carried, when the chain has none', () => {
+        const next = workReducer(base(), {
+            type: 'set-voices',
+            update: { parts: [{ number: 1, name: 'melody', voices: ['1/1'] }], moves: [] },
+            newCallId: 'minted',
+        });
+
+        expect(byId(next, 'minted').name).toBe('ProcessVoices');
+    });
+
+    it('says nothing changed, by reference, when the layout comes back the same', () => {
+        const work = withVoices();
+        // What a blur on an untouched part name arrives as. A step here undoes nothing.
+        expect(workReducer(work, { type: 'set-voices', update: (p) => p, newCallId: 'x' })).toBe(
+            work,
+        );
+    });
+
+    it('writes no call for an empty layout on a chain that has none', () => {
+        const work = base();
+        expect(
+            workReducer(work, {
+                type: 'set-voices',
+                update: { parts: [], moves: [] },
+                newCallId: 'x',
+            }),
+        ).toBe(work);
+    });
+
+    it('says nothing about the performance, so it is not counted as a claim', () => {
+        // Laying out voices is a statement about the score's encoding: a reconstruction that has
+        // only sorted its voices into parts has claimed nothing yet about how the piece was played.
+        expect(describesPerformance(processVoices)).toBe(false);
     });
 });
