@@ -261,9 +261,25 @@ interface Anchor {
 }
 
 interface PlayedGroup {
+    /** {@link divergenceId} of the first note in it. */
     id: string;
     entries: { insertion: InsertedNote; span: NoteSpan }[];
 }
+
+/**
+ * What a divergence is called: its kind, and the note it opens on.
+ *
+ * **Named after its material, not its position.** These ids are what a reader's decisions are
+ * filed under, and those outlive the run that produced them — they are saved in the work file and
+ * read back against a fresh grouping. A counter (`added-0`, `added-1`, …) is stable only while
+ * nothing before it changes, so one more insertion anywhere earlier silently re-points every
+ * decision after it at the wrong disagreement, with nothing to show that it happened.
+ *
+ * A note belongs to exactly one group, so the note a group opens on names it uniquely. A group
+ * that gains or loses its first note is a different disagreement, and gets a different name —
+ * which is the answer that leaves the decision unattached rather than misattached.
+ */
+const divergenceId = (kind: "added" | "missing", first: string) => `${kind}-${first}`;
 
 /** The head's answer about one played note, once it has been believed. */
 interface AcceptedAnchor {
@@ -347,6 +363,7 @@ function acceptAttribution(
 }
 
 interface UnplayedGroup {
+    /** {@link divergenceId} of the first note in it. */
     id: string;
     entries: { deletion: DeletedNote; note: ScoreNote }[];
 }
@@ -474,7 +491,7 @@ function groupPlayed(
         const current = groups[groups.length - 1];
         const previous = current?.entries[current.entries.length - 1];
         if (previous === undefined) {
-            groups.push({ id: `added-${groups.length}`, entries: [entry] });
+            groups.push({ id: divergenceId("added", entry.span.id), entries: [entry] });
             continue;
         }
 
@@ -497,7 +514,7 @@ function groupPlayed(
                       anchorFor(entry.span.onsetMs, anchors)?.scoreId;
 
         if (sameEvent) current.entries.push(entry);
-        else groups.push({ id: `added-${groups.length}`, entries: [entry] });
+        else groups.push({ id: divergenceId("added", entry.span.id), entries: [entry] });
     }
 
     return groups;
@@ -537,7 +554,7 @@ function groupUnplayed(
             (thinning ? previous.note.onset === entry.note.onset : true);
 
         if (sameEvent) current.entries.push(entry);
-        else groups.push({ id: `missing-${groups.length}`, entries: [entry] });
+        else groups.push({ id: divergenceId("missing", entry.note.note), entries: [entry] });
     }
 
     return groups;

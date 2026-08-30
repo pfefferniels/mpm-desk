@@ -19,6 +19,21 @@ export type Resolutions = ReadonlyMap<
 >;
 
 export interface AlignmentExtras {
+    /**
+     * What this take is called: the `@source` of the `<recording>` written here.
+     *
+     * **Required, and required because a document holds more than one.** It is the name a
+     * `MakeChoice` selects a reading by and the name verovio's `performanceRecording` lays out by,
+     * so two takes that share it are one take and a take without it can be named by nobody.
+     *
+     * It used to default to the source the MIDI gives itself — the second text meta event, which
+     * is a piano-roll scanner's convention — and an ordinary `.mid` carries none. With none,
+     * {@link insertRecording} took `<recording>` to mean *the first one*, so aligning a second
+     * performance against a score deleted the first. The caller knows the file it opened and what
+     * the document already holds, so the caller says; `parseMetadata` is still where the roll's
+     * own answer comes from.
+     */
+    source: string;
     /** The disagreements, so that they survive the document rather than the page */
     divergences?: readonly Divergence[];
     /** Readings the reader has confirmed or overruled */
@@ -47,14 +62,14 @@ export function applyAlignment(
     mei: string,
     midi: MidiFile,
     pairs: Match[],
-    extras: AlignmentExtras = {}
+    extras: AlignmentExtras
 ): string {
     const meiDoc = new DOMParser().parseFromString(mei, "application/xml");
+    const { source } = extras;
 
-    const metadata = parseMetadata(midi);
-    insertMetadata(metadata, meiDoc);
+    insertMetadata({ ...parseMetadata(midi), source }, meiDoc);
 
-    const recording = insertRecording(meiDoc, metadata?.source);
+    const recording = insertRecording(meiDoc, source);
     if (!recording) {
         throw new Error("Could not create the <recording> element");
     }
@@ -142,7 +157,7 @@ export function applyAlignment(
         spans.filter((span) => span.type === "soft" || span.type === "sustain"),
         [],
         meiDoc,
-        metadata?.source || ""
+        source
     );
 
     return new XMLSerializer().serializeToString(meiDoc);

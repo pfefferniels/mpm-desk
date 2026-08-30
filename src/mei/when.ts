@@ -2,20 +2,30 @@ import { AnySpan, NoteSpan } from "../performance/midiSpans";
 
 const MEI_NS = "http://www.music-encoding.org/ns/mei";
 
-export const insertRecording = (newMEI: Document, source?: string) => {
-    let recording = source
-        ? newMEI.querySelector(`recording[source="${source}"]`)
-        : newMEI.querySelector('recording');
+/**
+ * An empty `<recording>` for `source`, replacing the one the document already had under that name.
+ *
+ * Replacing rather than appending is what makes aligning the same take twice idempotent, and
+ * naming which one to replace is what leaves the *other* takes alone. `source` is therefore
+ * required: it used to be optional, and without it this took `<recording>` to mean the first one
+ * in the document, so a second performance aligned against the same score deleted the first.
+ */
+export const insertRecording = (newMEI: Document, source: string) => {
+    const recording = newMEI.createElementNS(MEI_NS, 'recording');
+    recording.setAttribute('source', source);
 
-    if (recording) {
-        // remove the existing recording
-        recording.remove()
+    // In place, not removed and appended: a `<recording>` can also be named by position —
+    // verovio's `performanceRecording` takes a 1-based index as readily as a `@source` — so
+    // aligning one take again would otherwise send it to the end and renumber every other.
+    const existing = newMEI.querySelector(`recording[source="${source}"]`);
+    if (existing) {
+        existing.replaceWith(recording);
+        return recording;
     }
 
-    recording = newMEI.createElementNS('http://www.music-encoding.org/ns/mei', 'recording');
     let performance = newMEI.querySelector('performance');
     if (!performance) {
-        performance = newMEI.createElementNS('http://www.music-encoding.org/ns/mei', 'performance');
+        performance = newMEI.createElementNS(MEI_NS, 'performance');
 
         const music = newMEI.querySelector('music');
         if (!music) {
@@ -25,10 +35,6 @@ export const insertRecording = (newMEI: Document, source?: string) => {
         music.appendChild(performance);
     }
     performance.appendChild(recording);
-
-    if (source && !recording.hasAttribute('source')) {
-        recording.setAttribute('source', source);
-    }
 
     return recording
 }

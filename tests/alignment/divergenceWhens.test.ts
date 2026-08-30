@@ -18,10 +18,13 @@ let midi: MidiFile
 let spans: NoteSpan[]
 let scoreId: string
 let otherScoreId: string
+/** The take being written: the one this MIDI was built from, so each run replaces it in place. */
+let source: string
 
 beforeAll(() => {
   const { recordings, pitchMap } = parseRecordings(mei)
   midi = buildMidiFile(recordings[0], pitchMap)
+  source = recordings[0].source
   spans = asSpans(midi, true).filter((s): s is NoteSpan => s.type === 'note')
 
   const ids = [...recordings[0].noteSpans.keys()]
@@ -81,6 +84,7 @@ const missing = (scoreIds: string[]): Divergence => ({
 describe('writing divergences into the recording', () => {
   it('gives a played note with no score note a <when> with no @data', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], scoreId)],
     })
 
@@ -94,7 +98,7 @@ describe('writing divergences into the recording', () => {
   })
 
   it('gives a written note that was never played a <when> with no @absolute', () => {
-    const result = applyAlignment(mei, midi, [], { divergences: [missing([scoreId])] })
+    const result = applyAlignment(mei, midi, [], { source, divergences: [missing([scoreId])] })
 
     const when = new DOMParser()
       .parseFromString(result, 'application/xml')
@@ -107,6 +111,7 @@ describe('writing divergences into the recording', () => {
 
   it('carries the ornament anchor under espressivo’s own name', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id, spans[1].id], scoreId)],
     })
 
@@ -124,6 +129,7 @@ describe('writing divergences into the recording', () => {
 
   it('says whether the model named the anchor or the timing was guessed from', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], scoreId)],
     })
 
@@ -134,6 +140,7 @@ describe('writing divergences into the recording', () => {
 
   it('leaves the provenance out where there is no anchor to have one', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], null)],
     })
 
@@ -148,6 +155,7 @@ describe('writing divergences into the recording', () => {
    */
   it('names which quantity the anchor confidence is', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], scoreId)],
     })
 
@@ -158,6 +166,7 @@ describe('writing divergences into the recording', () => {
 
   it('never writes the number without saying which number it is', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], scoreId), added([spans[1].id], null)],
     })
 
@@ -173,6 +182,7 @@ describe('writing divergences into the recording', () => {
    */
   it('reads a file written before the token, and leaves it unlabelled', () => {
     const withToken = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], scoreId)],
     })
     const asItWasWritten = withToken.replace(
@@ -188,13 +198,14 @@ describe('writing divergences into the recording', () => {
   })
 
   it('leaves out a deletion against a note the document does not hold', () => {
-    const result = applyAlignment(mei, midi, [], { divergences: [missing(['no-such-note'])] })
+    const result = applyAlignment(mei, midi, [], { source, divergences: [missing(['no-such-note'])] })
 
     expect(result).not.toContain('no-such-note')
   })
 
   it('reads both shapes back out again', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], scoreId), missing([otherScoreId])],
     })
 
@@ -213,6 +224,7 @@ describe('writing divergences into the recording', () => {
 
   it('gives a written note played as another note a <when> carrying both', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [replaced(scoreId, spans[0].id, [60, 61])],
     })
 
@@ -233,6 +245,7 @@ describe('writing divergences into the recording', () => {
 
   it('reads a substitution back as both a divergence and a note that sounded', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [replaced(scoreId, spans[0].id, [60, spans[0].pitch])],
     })
 
@@ -253,6 +266,7 @@ describe('writing divergences into the recording', () => {
 
   it('writes a pair the reader confirmed the aligner should have made as a plain match', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [replaced(scoreId, spans[0].id, [60, 60])],
       resolutions: new Map([
         ['replaced-missing-0', { reading: 'unmatched-pair', action: 'count-as-played' }],
@@ -270,6 +284,7 @@ describe('writing divergences into the recording', () => {
 
   it('records the reading the reader settled on rather than the proposed one', () => {
     const result = applyAlignment(mei, midi, [], {
+      source,
       divergences: [added([spans[0].id], scoreId)],
       resolutions: new Map([
         ['added-0', { reading: 'added-octave', resp: 'NP', certainty: 'high' }],
@@ -317,8 +332,9 @@ describe('the vendored fork, given those <when>s in the recording it lays out fr
       .slice(0, 20)
       .map(([score_id, span]) => ({ score_id, performance_id: span.id }))
 
-    const before = applyAlignment(mei, midi, pairs)
+    const before = applyAlignment(mei, midi, pairs, { source })
     const after = applyAlignment(mei, midi, pairs, {
+      source,
       divergences: [added([spans[0].id, spans[1].id], scoreId), missing([otherScoreId])],
     })
 
@@ -338,8 +354,9 @@ describe('the vendored fork, given those <when>s in the recording it lays out fr
       .slice(0, 20)
       .map(([score_id, span]) => ({ score_id, performance_id: span.id }))
 
-    const asMatch = applyAlignment(mei, midi, pairs)
+    const asMatch = applyAlignment(mei, midi, pairs, { source })
     const asSubstitution = applyAlignment(mei, midi, pairs.slice(1), {
+      source,
       divergences: [replaced(pairs[0].score_id, pairs[0].performance_id, [60, 61])],
     })
 

@@ -786,3 +786,56 @@ describe('how sure the attribution head has to be', () => {
     expect(added.map((d) => d.anchorFrom)).toEqual(['timing', 'timing'])
   })
 })
+
+/**
+ * The names a reader's decisions are filed under, which outlive the run that produced them: an
+ * `Align` call in the work file holds a resolution per divergence id, and reads it back against a
+ * grouping made fresh. They used to be counters, so one more disagreement anywhere earlier moved
+ * every later name by one and quietly re-pointed the decisions filed under them.
+ */
+describe('what a divergence is called', () => {
+  const withExtras = (extras: NoteSpan[], deletions: string[] = []) =>
+    build({
+      spans: [span('p1', 0, 60), span('p2', 4000, 67), ...extras],
+      insertions: extras.map((extra) => extra.id),
+      deletions,
+      scoreNotes: [
+        scoreNote('n1', 0, 60),
+        scoreNote('n2', 4, 67),
+        scoreNote('n3', 8, 72),
+        scoreNote('n4', 12, 74),
+      ],
+    })
+
+  it('names it after the note it opens on', () => {
+    const all = withExtras([span('x9', 3000, 62)], ['n3'])
+
+    expect(addedOnes(all).map((d) => d.id)).toEqual(['added-x9'])
+    expect(missingOnes(all).map((d) => d.id)).toEqual(['missing-n3'])
+  })
+
+  it('keeps the name when an unrelated disagreement appears before it', () => {
+    const before = withExtras([span('x9', 3000, 62)], ['n3'])
+    const after = withExtras([span('x1', 500, 61), span('x9', 3000, 62)], ['n2', 'n3'])
+
+    // One more of each, and both of the new ones sort *before* the old ones — which is the case
+    // a counter gets wrong, since it hands the old disagreement the index the new one now has
+    expect(addedOnes(after)).toHaveLength(2)
+    expect(missingOnes(after)).toHaveLength(2)
+
+    const addedFor = (all: ReturnType<typeof build>, perfId: string) =>
+      addedOnes(all).find((d) => d.perfIds.includes(perfId))!.id
+    const missingFor = (all: ReturnType<typeof build>, scoreId: string) =>
+      missingOnes(all).find((d) => d.scoreIds.includes(scoreId))!.id
+
+    expect(addedFor(after, 'x9')).toBe(addedFor(before, 'x9'))
+    expect(missingFor(after, 'n3')).toBe(missingFor(before, 'n3'))
+  })
+
+  it('gives every disagreement a name of its own', () => {
+    const all = withExtras([span('x1', 500, 61), span('x9', 3000, 62)], ['n2', 'n3'])
+    const ids = all.map((d) => d.id)
+
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})
