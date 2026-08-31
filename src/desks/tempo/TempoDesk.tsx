@@ -3,6 +3,7 @@ import { computeMillisecondsAt } from "../../fitting/transformers/tempo/tempoCal
 import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
 import { InsertTempo } from "../../fitting/transformers/tempo/InsertTempo"
 import { createMpm, getInstructions, requireMap } from "../../fitting/instructions/index"
+import type { Mpm } from "../../fitting/instructions/index"
 import { useCallback, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import type { SkylineMode } from "./Skyline"
@@ -13,6 +14,7 @@ import type { TempoScopeData } from "./secondary"
 import { VerticalScale } from "./VerticalScale"
 import { ZoomControls } from "../../components/ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
+import type { Scope } from "../TransformerViewProps"
 import { Add, Merge } from "@mui/icons-material"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
@@ -99,6 +101,27 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
         updateScope({ drawnLines: newLines })
     }
 
+    /**
+     * The curves the Insert click has handed to the chain, and the document they were handed
+     * against.
+     *
+     * The fold answers in seconds. In the work file the curves are gone at the click — they are
+     * the chain's now — but on the skyline they stay until the fit carrying them lands, which is
+     * the `mpm` arriving as a new object. Otherwise the desk would show neither the stroke nor
+     * the tempo it becomes for as long as the fold runs.
+     *
+     * Held here rather than in the work file: a desk switch drops them, and dropping them is
+     * right, because what is left behind is a document the fit will draw on its own.
+     */
+    const [inFlight, setInFlight] = useState<{ against: Mpm, scope: Scope, lines: DrawnLine[] }>()
+    if (inFlight && (inFlight.against !== mpm || inFlight.scope !== part)) setInFlight(undefined)
+
+    /** What the skyline draws: what is still to be inserted, and what is on its way in. */
+    const shownLines = useMemo(
+        () => (inFlight ? [...inFlight.lines, ...drawnLines] : drawnLines),
+        [inFlight, drawnLines]
+    )
+
     // A <tempo> has no end in MPM: it is in force until the next one, and the last
     // one until the piece ends. (The fitting chain reads the same span through
     // `resolveSpan`. There is no `endDate` attribute in the format to read instead.)
@@ -132,7 +155,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
 
     // Local preview: run InsertTempo transformers for drawn lines to produce preview tempos
     const previewTempos = useMemo<TempoWithEndDate[]>(() => {
-        if (drawnLines.length === 0) return []
+        if (shownLines.length === 0) return []
 
         const scratchMPM = createMpm()
 
@@ -154,7 +177,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
         }
 
         // Then apply drawn lines as InsertTempo transformers
-        for (const line of drawnLines) {
+        for (const line of shownLines) {
             if (line.startTick === undefined || line.endTick === undefined) continue
             const isTransition = Math.abs(line.from.bpm - line.to.bpm) > 0.01
             const transformer = new InsertTempo({
@@ -182,10 +205,16 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                 return { ...tempo, endDate }
             })
             .filter((t): t is NonNullable<typeof t> => t !== null)
-    }, [drawnLines, committedTempos, msm, part])
+    }, [shownLines, committedTempos, msm, part])
 
-    // Use preview tempos if there are drawn lines, otherwise committed tempos
-    const displayTempos = drawnLines.length > 0 ? previewTempos : committedTempos
+    /**
+     * The curves the skyline draws.
+     *
+     * What the document says, always. A drawn curve is shown as the tempo it will become on top
+     * of that — except under Draw, where the stroke itself is already on the skyline and the
+     * preview would be a second reading of the same line.
+     */
+    const displayTempos = shownLines.length > 0 && mode !== 'draw' ? previewTempos : committedTempos
 
     const buildTempoMidi = useCallback((tempo: TempoWithEndDate): MidiFile | undefined => {
         const notes = structuredClone(slice(tempo.date, tempo.endDate))
@@ -266,6 +295,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                 } : {})
             }))
         }
+        setInFlight({ against: mpm, scope: part, lines: drawnLines })
         updateDrawnLines([])
     }
 
@@ -380,10 +410,10 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                             stretchX={stretchX}
                             stretchY={stretchY}
                             mode={mode}
-                            committedTempos={mode !== 'draw' ? displayTempos : []}
+                            committedTempos={displayTempos}
                             silentOnsets={silentOnsets}
                             msm={msm}
-                            drawnLines={drawnLines}
+                            drawnLines={shownLines}
                             onDrawLine={(line) => updateDrawnLines([...resolveOverlaps(drawnLines, line), line])}
                             onToggleSplitMode={() => setMode(prev => prev === 'split' ? undefined : 'split')}
                             onSplit={(first, second, onset) => {

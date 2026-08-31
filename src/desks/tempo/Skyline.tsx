@@ -253,34 +253,38 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
         )
       })}
 
-      {/* Committed tempo curves */}
-      {committedTempos.map((t, i) => {
-        // The skyline is in seconds throughout, and `silentOnsets` already is; the recording
-        // states its onsets in milliseconds, so the conversion goes through `noteTiming`.
-        const recorded = msm.notesAtDate(t.date, part)[0]
-        let startTime: number | undefined = recorded === undefined ? undefined : onsetSeconds(recorded)
-        if (startTime === undefined) {
-          startTime = silentOnsets.get(t.date)
-        }
+      {/* Committed tempo curves. Under Draw the surface belongs to the stroke, so they are drawn
+          but do not take the pointer — a curve crossed mid-stroke would otherwise audition itself
+          and take the selection with it. */}
+      <g pointerEvents={isDrawMode ? 'none' : undefined}>
+        {committedTempos.map((t, i) => {
+          // The skyline is in seconds throughout, and `silentOnsets` already is; the recording
+          // states its onsets in milliseconds, so the conversion goes through `noteTiming`.
+          const recorded = msm.notesAtDate(t.date, part)[0]
+          let startTime: number | undefined = recorded === undefined ? undefined : onsetSeconds(recorded)
+          if (startTime === undefined) {
+            startTime = silentOnsets.get(t.date)
+          }
 
-        // `@xml:id` is optional on an instruction. One without an id cannot be traced back to
-        // the call that wrote it, so it draws but neither lights up nor selects.
-        const id = t.id
+          // `@xml:id` is optional on an instruction. One without an id cannot be traced back to
+          // the call that wrote it, so it draws but neither lights up nor selects.
+          const id = t.id
 
-        return (
-          <TempoLine
-            key={`tempo_${i}`}
-            tempo={t}
-            startTime={startTime || 0}
-            stretchX={stretchX}
-            stretchY={stretchY}
-            active={id !== undefined && activeElements?.includes(id)}
-            onClick={onActivateElement && id !== undefined ? () => onActivateElement(id) : undefined}
-            onMouseEnter={onPlayTempo ? () => onPlayTempo(committedTempoMidis[i]) : undefined}
-            onMouseLeave={onStopTempo}
-          />
-        )
-      })}
+          return (
+            <TempoLine
+              key={`tempo_${i}`}
+              tempo={t}
+              startTime={startTime || 0}
+              stretchX={stretchX}
+              stretchY={stretchY}
+              active={id !== undefined && activeElements?.includes(id)}
+              onClick={onActivateElement && id !== undefined ? () => onActivateElement(id) : undefined}
+              onMouseEnter={onPlayTempo ? () => onPlayTempo(committedTempoMidis[i]) : undefined}
+              onMouseLeave={onStopTempo}
+            />
+          )
+        })}
+      </g>
 
       {/* Committed drawn curves */}
       {drawnLines.map((dl, i) => {
@@ -303,7 +307,7 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
         const prev = drawnLines[i - 1]
         const isConnected = prev && prev.to.seconds === dl.from.seconds && prev.to.bpm === dl.from.bpm
         return (
-          <g key={`drawn_${i}`}>
+          <g key={`drawn_${i}`} className='drawnLine'>
             <polyline
               points={points.join(' ')}
               fill='none'

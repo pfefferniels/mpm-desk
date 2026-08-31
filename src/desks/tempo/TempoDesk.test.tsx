@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { useMemo, useState } from 'react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
+import { InsertTempo } from '../../fitting/transformers/tempo/InsertTempo';
+import { scopeData } from './secondary';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { ZoomContext } from '../../hooks/ZoomProvider';
-import { createMpm } from '../../fitting/instructions/index';
+import { createMpm, requireMap } from '../../fitting/instructions/index';
+import type { Mpm } from '../../fitting/instructions/index';
 import { deriveResidual } from '../../fitting/residual';
 import type { Scope } from '../../fitting/instructions/index';
 import type { SecondaryData } from '../TransformerViewProps';
@@ -49,13 +53,29 @@ const alignment = () =>
         note('b2', 1440, 2, 1),
     ]);
 
-const mount = (part: Scope, secondary: SecondaryData = {}) => {
-    const msm = alignment();
-    const mpm = createMpm();
-    const bar = document.createElement('div');
-    document.body.appendChild(bar);
+/**
+ * The desk under the five contexts it reads, with its own `secondary` held as state.
+ *
+ * Holding it is what lets a test watch the desk edit it — which for the drawn curves is the whole
+ * behaviour: they are written at one click and dropped at a later fit.
+ */
+const Desk = ({
+    part,
+    mpm,
+    initial = {},
+    bar,
+    addTransformer = vi.fn(),
+}: {
+    part: Scope;
+    mpm: Mpm;
+    initial?: SecondaryData;
+    bar: HTMLElement;
+    addTransformer?: (transformer: InsertTempo) => void;
+}) => {
+    const msm = useMemo(() => alignment(), []);
+    const [secondary, setSecondary] = useState(initial);
 
-    const { unmount } = render(
+    return (
         <ZoomContext
             value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
         >
@@ -75,6 +95,9 @@ const mount = (part: Scope, secondary: SecondaryData = {}) => {
                         focusCall={vi.fn()}
                     >
                         <DeskToolbarProvider target={bar}>
+                            <span data-testid="drawn">
+                                {scopeData(secondary.tempo, part).drawnLines?.length ?? 0}
+                            </span>
                             <TempoDesk
                                 part={part}
                                 msm={msm}
@@ -83,23 +106,57 @@ const mount = (part: Scope, secondary: SecondaryData = {}) => {
                                 projected={[]}
                                 performanceXml=""
                                 secondary={secondary}
-                                setSecondary={vi.fn()}
-                                addTransformer={vi.fn()}
+                                setSecondary={setSecondary}
+                                addTransformer={addTransformer}
                             />
                         </DeskToolbarProvider>
                     </CallSelectionProvider>
                 </ScrollSyncProvider>
             </NotesProvider>
-        </ZoomContext>,
+        </ZoomContext>
+    );
+};
+
+const renderDesk = (part: Scope, secondary: SecondaryData = {}, mpm: Mpm = createMpm()) => {
+    const bar = document.createElement('div');
+    document.body.appendChild(bar);
+    const addTransformer = vi.fn();
+
+    const { rerender, unmount } = render(
+        <Desk part={part} mpm={mpm} initial={secondary} bar={bar} addTransformer={addTransformer} />,
     );
 
+    return {
+        bar,
+        addTransformer,
+        /** The curves the skyline is drawing, against the ones the work file still holds. */
+        drawn: () => document.querySelectorAll('g.drawnLine'),
+        drawnLines: () => Number(screen.getByTestId('drawn').textContent),
+        /** The next fit landing: the chain's answer is a new document every time. */
+        fit: (next: Mpm) =>
+            rerender(
+                <Desk
+                    part={part}
+                    mpm={next}
+                    initial={secondary}
+                    bar={bar}
+                    addTransformer={addTransformer}
+                />,
+            ),
+        dispose: () => {
+            unmount();
+            bar.remove();
+        },
+    };
+};
+
+const mount = (part: Scope, secondary: SecondaryData = {}) => {
+    const { dispose } = renderDesk(part, secondary);
     const boxes = [...document.querySelectorAll('polygon.box')].map((box) => ({
         start: Number(box.getAttribute('data-start')),
         length: Number(box.getAttribute('data-length')),
     }));
-
-    unmount();
-    bar.remove();
+    dispose();
     return boxes.sort((a, b) => a.start - b.start);
 };
 
@@ -133,5 +190,103 @@ describe('the skyline follows the scope', () => {
             { start: 0, length: 1440 },
             { start: 1440, length: 720 },
         ]);
+    });
+});
+
+const withOneTempo = () => {
+    const mpm = createMpm();
+    requireMap(mpm, 'tempo', 0).addTempo({ date: 0, bpm: 90, beatLength: 0.25, id: 't1' });
+    return mpm;
+};
+
+const oneDrawnLine: SecondaryData = {
+    tempo: {
+        byScope: {
+            '0': {
+                drawnLines: [
+                    {
+                        from: { seconds: 0.5, bpm: 90 },
+                        to: { seconds: 1, bpm: 120 },
+                        meanTempoAt: 0.5,
+                        beatLength: 0.25,
+                        startTick: 720,
+                        endTick: 1440,
+                    },
+                ],
+            },
+        },
+    },
+};
+
+describe('what the skyline draws in draw mode', () => {
+    it('keeps the written tempo curves on screen', () => {
+        // Insert leaves the mode as it found it, so the curve the click wrote would be drawn
+        // under Draw or not at all.
+        const { bar, dispose } = renderDesk(0, {}, withOneTempo());
+        expect(document.querySelectorAll('g.tempoLine')).toHaveLength(1);
+
+        fireEvent.click(within(bar).getByRole('button', { name: 'Draw' }));
+        expect(document.querySelectorAll('g.tempoLine')).toHaveLength(1);
+        dispose();
+    });
+
+    it('does not restate a drawn curve as a tempo line', () => {
+        const { bar, dispose } = renderDesk(0, oneDrawnLine, withOneTempo());
+        fireEvent.click(within(bar).getByRole('button', { name: 'Draw' }));
+
+        // The blue polyline the stroke left is on screen already; the preview of what it will
+        // become is the other mode's reading.
+        expect(document.querySelectorAll('g.tempoLine')).toHaveLength(1);
+        dispose();
+    });
+});
+
+describe('inserting the drawn curves', () => {
+    /** The fit the click asks for: the drawn curve, as the chain writes it. */
+    const withTheDrawnTempo = () => {
+        const mpm = withOneTempo();
+        requireMap(mpm, 'tempo', 0).addTempo({
+            date: 720,
+            bpm: 90,
+            transitionTo: 120,
+            meanTempoAt: 0.5,
+            beatLength: 0.25,
+            id: 't2',
+        });
+        return mpm;
+    };
+
+    it('keeps the curve on the skyline until the fit carrying it lands', () => {
+        const { bar, addTransformer, drawn, drawnLines, fit, dispose } = renderDesk(
+            0,
+            oneDrawnLine,
+            withOneTempo(),
+        );
+        expect(drawn()).toHaveLength(1);
+
+        fireEvent.click(within(bar).getByRole('button', { name: 'Insert' }));
+        expect(addTransformer).toHaveBeenCalledTimes(1);
+        expect(addTransformer.mock.calls[0][0]).toBeInstanceOf(InsertTempo);
+
+        // The chain owns the curve now and the work file says so, but the fold takes seconds and
+        // the skyline has nothing else to show for it yet.
+        expect(drawnLines()).toBe(0);
+        expect(drawn()).toHaveLength(1);
+
+        fit(withTheDrawnTempo());
+        expect(drawn()).toHaveLength(0);
+        expect(document.querySelectorAll('g.tempoLine')).toHaveLength(2);
+        dispose();
+    });
+
+    it('keeps it where the chain answers nothing', () => {
+        const mpm = withOneTempo();
+        const { bar, drawn, fit, dispose } = renderDesk(0, oneDrawnLine, mpm);
+
+        fireEvent.click(within(bar).getByRole('button', { name: 'Insert' }));
+        // A refused chain hands back no new document, and a curve that was not written stays.
+        fit(mpm);
+        expect(drawn()).toHaveLength(1);
+        dispose();
     });
 });
