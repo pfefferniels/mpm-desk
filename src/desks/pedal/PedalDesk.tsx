@@ -10,6 +10,9 @@ import { PedalDialog } from "./PedalDialog"
 import { usePiano } from "../../performance/piano"
 import { asMIDI } from "../../utils/utils"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
+import { filterMap } from "espressivo"
+import { PedalGutter, TickScale } from "./PedalAxes"
+import { GUTTER_WIDTH, LANE_HEIGHT, MOVEMENT_TOP, ROW_HEIGHT, pedalPlot, rowY } from "./layout"
 
 export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
     const { activeElements, setActiveElement } = useCallSelection();
@@ -26,13 +29,27 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
         addTransformer(new InsertPedal(options))
     }
 
-    const stretchY = 30
-
     // `@controller` is optional on a `<movement>`. Every one this desk draws was written by
     // `InsertPedal`, which always states it, so the fallback lane exists only so that a
     // movement from somewhere else is still drawn rather than dropped.
     const movementsByController = Object
         .groupBy(getInstructions(mpm, 'movement'), m => m.controller ?? 'unknown')
+
+    // A recorded pedal carries no symbolic date of its own, so where it falls on the tick grid
+    // is the residual's answer and nothing else's. An undefined `tickDate` means the MPM cannot
+    // place it yet — no `<tempo>` covers it — and an unplaceable pedal is neither drawn nor named.
+    const presses = filterMap(msm.pedals, pedal => {
+        const placed = residual.ofPedal(pedal)
+        if (placed?.tickDate === undefined || !placed.tickDuration) return null
+
+        return { pedal, date: placed.tickDate, duration: placed.tickDuration }
+    })
+
+    const plot = pedalPlot(
+        presses.map(press => press.pedal.type),
+        Object.keys(movementsByController),
+    )
+    const width = msm.end * stretchX
 
     return (
         <div>
@@ -48,92 +65,102 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                     }}
                 />
             )}
-            <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
-                <svg width={msm.end * stretchX} height={400}>
-                    {msm.pedals.map(p => {
-                        // A recorded pedal carries no symbolic date of its own, so where it falls
-                        // on the tick grid is the residual's answer and nothing else's. An
-                        // undefined `tickDate` means the MPM cannot place it yet — no `<tempo>`
-                        // covers it — and an unplaceable pedal is not drawn.
-                        const placed = residual.ofPedal(p)
-                        if (placed?.tickDate === undefined || !placed.tickDuration) return null
-
-                        return (
-                            <g key={`pedal_${p["xml:id"]}`}>
-                                <rect
-                                    x={placed.tickDate * stretchX}
-                                    y={p.type === 'soft' ? 20 : 0}
-                                    width={placed.tickDuration * stretchX}
-                                    height={20}
-                                    fill='lightblue'
-                                    onClick={() => {
-                                        setCurrentPedal(p)
-                                    }}
-                                />
-                            </g>
-                        )
-                    })}
-
-                    {Array.from(msm.asChords().entries()).map(([date, chord]) => {
-                        return (
-                            <g key={`chord_${date}`}>
-                                <line
-                                    x1={date * stretchX}
-                                    y1={0}
-                                    x2={date * stretchX}
-                                    y2={100}
-                                    stroke='black'
-                                    strokeOpacity={0.2}
-                                    strokeWidth={3}
-                                    onMouseOver={() => {
-                                        const midi = asMIDI(chord)
-                                        if (!midi) return
-
-                                        stop()
-                                        play(midi)
-                                    }}
-                                />
-                            </g>
-                        )
-                    })}
-
-                    <g transform='translate(0, 100)'>
-                        {Object
-                            .entries(movementsByController)
-                            .map(([controller, movements], i) => {
-                                if (!movements) return null
-
-                                return (
-                                    <g
-                                        key={controller}
-                                        className={`controller_${controller}`}
-                                        transform={`translate(0, ${i * stretchY})`}
-                                    >
-                                        {movements
-                                            .sort((a, b) => a.date - b.date)
-                                            .map((movement, i) => {
-                                                if (i === movements.length - 1)
-                                                    return null
-
-                                                const endDate = movements[i + 1].date
-
-                                                return (
-                                                    <MovementSegment
-                                                        instruction={{ ...movement, endDate }}
-                                                        key={`movement_${movement.id}`}
-                                                        stretchX={stretchX}
-                                                        stretchY={stretchY}
-                                                        onClick={() => movement.id && setActiveElement(movement.id)}
-                                                        fill={movement.id && activeElements.includes(movement.id) ? 'orange' : 'lightblue'}
-                                                    />
-                                                )
-                                            })}
-                                    </g>
-                                )
-                            })
-                        }
-                    </g>
+            {/*
+                The names have a column of their own beside the scroller, as on the choice and
+                corrections desks, so `sustain` still says which row it belongs to once the plot
+                has been scrolled on. Both halves are `plot.height` tall over the same viewBox
+                extent, so a name meets its own row.
+            */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', width: '100vw' }}>
+                <svg
+                    style={{ flex: '0 0 auto' }}
+                    width={GUTTER_WIDTH}
+                    height={plot.height}
+                    viewBox={[-GUTTER_WIDTH, 0, GUTTER_WIDTH, plot.height].join(' ')}
+                >
+                    <PedalGutter plot={plot} />
                 </svg>
+
+                <div
+                    ref={scrollContainerRef}
+                    style={{ flex: 1, minWidth: 0, overflowX: 'scroll', overflowY: 'hidden' }}
+                >
+                    <svg width={width} height={plot.height}>
+                        {presses.map(({ pedal, date, duration }) => (
+                            <rect
+                                key={`pedal_${pedal["xml:id"]}`}
+                                x={date * stretchX}
+                                y={rowY(pedal.type)}
+                                width={duration * stretchX}
+                                height={ROW_HEIGHT}
+                                fill='lightblue'
+                                onClick={() => {
+                                    setCurrentPedal(pedal)
+                                }}
+                            />
+                        ))}
+
+                        {Array.from(msm.asChords().entries()).map(([date, chord]) => {
+                            return (
+                                <g key={`chord_${date}`}>
+                                    <line
+                                        x1={date * stretchX}
+                                        y1={0}
+                                        x2={date * stretchX}
+                                        y2={MOVEMENT_TOP}
+                                        stroke='black'
+                                        strokeOpacity={0.2}
+                                        strokeWidth={3}
+                                        onMouseOver={() => {
+                                            const midi = asMIDI(chord)
+                                            if (!midi) return
+
+                                            stop()
+                                            play(midi)
+                                        }}
+                                    />
+                                </g>
+                            )
+                        })}
+
+                        {plot.lanes.map(lane => {
+                            const movements = [...(movementsByController[lane.controller] ?? [])]
+                                .sort((a, b) => a.date - b.date)
+
+                            return (
+                                <g
+                                    key={lane.controller}
+                                    className={`controller_${lane.controller}`}
+                                    transform={`translate(0, ${lane.y})`}
+                                >
+                                    {/* The rail the lane hangs from, so the depth of a movement has
+                                        something to be read against where none is written. */}
+                                    <line x1={0} y1={0} x2={width} y2={0} stroke='#e5e7eb' />
+
+                                    {movements.map((movement, i) => {
+                                        if (i === movements.length - 1)
+                                            return null
+
+                                        const endDate = movements[i + 1].date
+
+                                        return (
+                                            <MovementSegment
+                                                instruction={{ ...movement, endDate }}
+                                                key={`movement_${movement.id}`}
+                                                stretchX={stretchX}
+                                                stretchY={LANE_HEIGHT}
+                                                onClick={() => movement.id && setActiveElement(movement.id)}
+                                                fill={movement.id && activeElements.includes(movement.id) ? 'orange' : 'lightblue'}
+                                            />
+                                        )
+                                    })}
+                                </g>
+                            )
+                        })}
+
+                        <TickScale end={msm.end} stretchX={stretchX} y={plot.axisY} />
+                    </svg>
+                </div>
             </div>
         </div>
     )
