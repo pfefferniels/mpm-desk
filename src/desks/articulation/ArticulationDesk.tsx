@@ -1,6 +1,6 @@
 
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { usePiano } from "react-pianosound"
+import { usePiano } from "../../performance/piano"
 import { useNotes } from "../../hooks/NotesProvider"
 import { MouseEventHandler, SVGProps, useState } from "react"
 import { asMIDI } from "../../utils/utils"

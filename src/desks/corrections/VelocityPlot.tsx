@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type JSX } from 'react';
-import { usePiano } from 'react-pianosound';
+import { usePiano } from '../../performance/piano';
 import type { Alignment, AlignedNote } from '../../fitting/alignment';
 import type { Scope } from '../TransformerViewProps';
 import { useNotes } from '../../hooks/NotesProvider';

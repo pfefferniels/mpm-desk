@@ -13,6 +13,8 @@ import { readPerformance } from './utils/mpm';
 import { useReconstruction } from './hooks/useReconstructionLoader';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { LoadingScreen } from './components/LoadingScreen';
+import { SampleLoadingNotice } from './components/SampleLoading';
+import { PIANO_VELOCITIES } from './performance/piano';
 
 const ViewerInner = () => {
     const { work, error } = useReconstruction();
@@ -90,6 +92,7 @@ const ViewerInner = () => {
                 dateByNoteId={dateByNoteId}
             >
                 <ViewerToolbar onDownload={handleDownload} metadata={work.reconstruction} />
+                <SampleLoadingNotice />
                 <SelectionProvider>
                     <ScrollSyncProvider symbolicZoom={zoomContextValue.symbolic.stretchX}>
                         <PinchZoomHandler />
@@ -114,7 +117,7 @@ const ViewerInner = () => {
 };
 
 export const Viewer = () => (
-    <PianoContextProvider velocities={3}>
+    <PianoContextProvider velocities={PIANO_VELOCITIES}>
         <ViewerInner />
     </PianoContextProvider>
 );

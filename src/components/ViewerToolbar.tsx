@@ -3,6 +3,8 @@ import { Box, IconButton, Slider, Tooltip, Typography } from '@mui/material';
 import { ZoomIn, Download, PlayArrow, Stop } from '@mui/icons-material';
 import { useZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../hooks/ZoomProvider';
 import { usePlayback } from '../hooks/PlaybackProvider';
+import { sampleLoadingHint, useSampleLoading } from '../performance/piano';
+import { SampleProgress } from './SampleLoading';
 import { EXAGGERATION_MAX } from '../utils/espressivo';
 
 const glassStyle = {
@@ -65,6 +67,7 @@ interface ViewerToolbarProps {
 export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
     const { stretchX, setStretchX } = useZoom();
     const { play, stop, isPlaying, exaggeration, setExaggeration } = usePlayback();
+    const samples = useSampleLoading();
     const [zoomHovered, setZoomHovered] = useState(false);
     const [playHovered, setPlayHovered] = useState(false);
 
@@ -127,8 +130,10 @@ export const ViewerToolbar = ({ onDownload, metadata }: ViewerToolbarProps) => {
                 </Tooltip>
 
                 <ExpandableRow
-                    icon={isPlaying ? <Stop /> : <PlayArrow />}
-                    tooltip={isPlaying ? 'Stop' : 'Play'}
+                    icon={samples.loading ? <SampleProgress size={22} /> : isPlaying ? <Stop /> : <PlayArrow />}
+                    tooltip={samples.loading || samples.failed
+                        ? sampleLoadingHint(samples)
+                        : isPlaying ? 'Stop' : 'Play'}
                     expanded={playHovered}
                     onExpandChange={setPlayHovered}
                     onClick={handlePlayToggle}

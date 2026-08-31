@@ -9,8 +9,10 @@
  * fault.
  */
 
-import { IconButton, LinearProgress, Slider, Stack, Typography } from "@mui/material";
+import { IconButton, Slider, Stack, Typography } from "@mui/material";
 import { PlayArrow, Stop, SettingsBackupRestore } from "@mui/icons-material";
+import { SampleProgress } from "../../components/SampleLoading";
+import { sampleLoadingHint, useSampleLoading } from "../../performance/piano";
 import { clock, type Playback } from "./useRecordingPlayback";
 
 interface PlaybackBarProps {
@@ -20,8 +22,8 @@ interface PlaybackBarProps {
 }
 
 export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => {
-    const { durationMs, range, setRange, whole, playing, play, stop, status, samples } =
-        playback;
+    const { durationMs, range, setRange, whole, playing, play, stop, status } = playback;
+    const samples = useSampleLoading();
 
     if (durationMs === 0) return null;
 
@@ -31,9 +33,15 @@ export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => 
                 color="primary"
                 onClick={playing ? stop : play}
                 disabled={status !== "done"}
-                title={playing ? "Stop" : `Play ${clock(range[0])} to ${clock(range[1])}`}
+                title={
+                    samples.loading || samples.failed
+                        ? sampleLoadingHint(samples)
+                        : playing
+                          ? "Stop"
+                          : `Play ${clock(range[0])} to ${clock(range[1])}`
+                }
             >
-                {playing ? <Stop /> : <PlayArrow />}
+                {samples.loading ? <SampleProgress size={24} /> : playing ? <Stop /> : <PlayArrow />}
             </IconButton>
 
             <Stack sx={{ width }}>
@@ -66,18 +74,13 @@ export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => 
                 </IconButton>
             )}
 
-            {status === "loading" && (
-                <Stack sx={{ minWidth: "11rem" }}>
-                    <Typography variant="caption" color="text.secondary">
-                        Loading piano samples
-                        {samples.samples > 0 && ` · ${samples.samples} loaded`}
-                        {samples.bytes > 0 && ` · ${(samples.bytes / 1_000_000).toFixed(1)} MB`}
-                    </Typography>
-                    <LinearProgress sx={{ mt: 0.5, borderRadius: 1 }} />
-                </Stack>
+            {samples.loading && (
+                <Typography variant="caption" color="text.secondary">
+                    Loading piano samples · {samples.loaded} of {samples.total}
+                </Typography>
             )}
 
-            {status === "error" && (
+            {samples.failed && (
                 <Typography variant="body2" color="error">
                     The piano samples could not be loaded
                 </Typography>

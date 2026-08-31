@@ -7,7 +7,7 @@ import { useState } from "react"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
 import { PedalDialog } from "./PedalDialog"
-import { usePiano } from "react-pianosound"
+import { usePiano } from "../../performance/piano"
 import { asMIDI } from "../../utils/utils"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 

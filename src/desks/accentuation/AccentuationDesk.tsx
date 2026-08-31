@@ -1,6 +1,6 @@
 import { type JSX, useMemo, useState } from "react";
 import { useScrollRegistration } from "../../hooks/useScrollRegistration";
-import { usePiano } from "react-pianosound";
+import { usePiano } from "../../performance/piano";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";

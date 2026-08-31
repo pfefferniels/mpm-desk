@@ -40,6 +40,7 @@ import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { DeskToolbarProvider } from './components/DeskToolbar';
 import { DeskErrorBoundary } from './components/DeskErrorBoundary';
 import { EditorHotkeys } from './components/EditorHotkeys';
+import { SampleLoadingNotice } from './components/SampleLoading';
 import { EditorAppBar } from './components/toolbar/EditorAppBar';
 import { FollowPlayback } from './components/FollowPlayback';
 import { AspectSelect } from './components/AspectSelect';
@@ -702,6 +703,8 @@ export const App = () => {
                                     />
 
                                     <EditorHotkeys onSave={saveWork} onOpen={openFilePicker} />
+
+                                    <SampleLoadingNotice />
 
                                     {/* The desk, and the aspect menu that floats over it.
 

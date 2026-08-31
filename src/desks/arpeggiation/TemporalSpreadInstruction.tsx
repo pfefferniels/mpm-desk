@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { AlignedNote } from "../../fitting/alignment";
 import type { Instruction } from "../../fitting/instructions/index";
 import type { TemporalSpread } from "espressivo";
-import { usePiano } from "react-pianosound";
+import { usePiano } from "../../performance/piano";
 import { asMIDI, type PartialBy } from "../../utils/utils";
 import { soundingAt } from "../noteTiming";
 import { sequenceOf } from "../../fitting/transformers/ornamentation/noteOrder";

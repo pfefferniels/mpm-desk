@@ -8,6 +8,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import { PianoContextProvider } from 'react-pianosound';
 import { ModeProvider } from './hooks/ModeProvider';
+import { PIANO_VELOCITIES } from './performance/piano';
 import { LoadingScreen } from './components/LoadingScreen';
 import { theme } from './theme';
 import './index.css';
@@ -71,7 +72,7 @@ createRoot(root).render(
             <Suspense fallback={<LoadingScreen />}>
                 {isEditor ? (
                     <ModeProvider>
-                        <PianoContextProvider velocities={3}>
+                        <PianoContextProvider velocities={PIANO_VELOCITIES}>
                             <Editor />
                         </PianoContextProvider>
                     </ModeProvider>

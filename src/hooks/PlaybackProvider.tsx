@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
-import { usePiano } from 'react-pianosound';
+import { usePiano } from '../performance/piano';
 import type { AnyEvent } from 'midifile-ts';
 import { renderCached, type RenderRequest, type Rendered } from '../utils/espressivo';
 import { UNIDENTIFIED_NOTE, pickAnchor, renderedRange } from '../utils/anchor';

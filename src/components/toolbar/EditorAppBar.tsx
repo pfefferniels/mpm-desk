@@ -15,7 +15,9 @@ import type { Scope } from '../../fitting/instructions/index';
 import { usePlayback } from '../../hooks/PlaybackProvider';
 import { useWorkDocument } from '../../hooks/WorkDocument';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, useZoom } from '../../hooks/ZoomProvider';
+import { sampleLoadingHint, useSampleLoading } from '../../performance/piano';
 import { shortcut } from '../../utils/shortcut';
+import { SampleProgress } from '../SampleLoading';
 import { ToolbarButton } from './ToolbarButton';
 
 interface EditorAppBarProps {
@@ -109,6 +111,7 @@ export const EditorAppBar = ({
 }: EditorAppBarProps) => {
     const { metadata, undo, redo, canUndo, canRedo } = useWorkDocument();
     const { isPlaying, play, stop } = usePlayback();
+    const samples = useSampleLoading();
     const { stretchX, setStretchX } = useZoom();
 
     return (
@@ -206,16 +209,22 @@ export const EditorAppBar = ({
                     than only when the MPM has something in it — a control that disappears
                     teaches nothing about why it is unavailable. */}
                 <ToolbarButton
-                    icon={isPlaying ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />}
+                    icon={
+                        samples.loading
+                            ? <SampleProgress size={18} />
+                            : isPlaying ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />
+                    }
                     label={isPlaying ? 'Stop' : 'Play'}
                     tooltip={
-                        canPlay
-                            ? isPlaying
-                                ? 'Stop (Space)'
-                                : 'Play (Space)'
-                            : 'Nothing to play yet — the chain has written no instructions'
+                        samples.loading || samples.failed
+                            ? sampleLoadingHint(samples)
+                            : canPlay
+                                ? isPlaying
+                                    ? 'Stop (Space)'
+                                    : 'Play (Space)'
+                                : 'Nothing to play yet — the chain has written no instructions'
                     }
-                    disabled={!canPlay}
+                    disabled={!canPlay || samples.failed}
                     onClick={() => {
                         if (isPlaying) stop();
                         else play();

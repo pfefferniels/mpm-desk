@@ -15,14 +15,13 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePiano } from "react-pianosound";
+import { usePiano } from "../../performance/piano";
 import type { AnyEvent } from "midifile-ts";
 import {
     midiFileOf,
     type PlayableNote,
     type PlayablePedal,
 } from "../../performance/buildMidiFile";
-import { useSampleProgress, type SampleProgress } from "./pianoLoading";
 
 /** How long a note stays lit after it is struck */
 const HIGHLIGHT_MS = 600;
@@ -56,7 +55,6 @@ export interface Playback {
     stop: () => void;
     /** Whether the piano is ready, still fetching its samples, or has failed */
     status: "loading" | "done" | "error" | undefined;
-    samples: SampleProgress;
 }
 
 /** A moment of a performance, as minutes and seconds */
@@ -86,8 +84,6 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
      */
     const [chosen, setChosen] = useState<{ of: number; range: [number, number] }>();
     const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-    const samples = useSampleProgress(piano.status === "loading");
 
     const durationMs = useMemo(
         () => notes.reduce((longest, note) => Math.max(longest, note.offsetMs), 0),
@@ -152,6 +148,5 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         play,
         stop,
         status: piano.status,
-        samples,
     };
 }

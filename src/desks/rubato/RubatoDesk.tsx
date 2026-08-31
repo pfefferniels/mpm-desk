@@ -14,7 +14,7 @@ import { DeskToolbar } from "../../components/DeskToolbar"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
 import { Add, Clear, Merge } from "@mui/icons-material"
-import { usePiano } from "react-pianosound"
+import { usePiano } from "../../performance/piano"
 
 export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
     const { activeElements, setActiveElement } = useCallSelection();

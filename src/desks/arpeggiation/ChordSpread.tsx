@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { usePiano } from "react-pianosound";
+import { usePiano } from "../../performance/piano";
 import { asMIDI } from "../../utils/utils";
 import { onsetSeconds } from "../noteTiming";
 import type { ArpeggioPlacement } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
