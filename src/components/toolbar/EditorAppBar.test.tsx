@@ -224,4 +224,28 @@ describe('EditorAppBar', () => {
         mount({ deskName: 'metrical accentuation' });
         expect(screen.getByText('metrical accentuation')).toBeInTheDocument();
     });
+
+    it('offers the open desk its help, from beside the desk name', () => {
+        mount({
+            deskName: 'tempo',
+            help: {
+                summary: 'The skyline.',
+                actions: [{ gesture: 'Shift-click a box', does: 'add it to the selection' }],
+            },
+        });
+
+        // Beside the name, and so ahead of the portal target: row two scrolls sideways once a
+        // desk contributes more controls than fit, and this must not be what scrolls away.
+        const button = screen.getByRole('button', { name: 'About the tempo desk' });
+        expect(button.previousElementSibling).toHaveTextContent('tempo');
+
+        fireEvent.click(button);
+        expect(screen.getByText('The skyline.')).toBeInTheDocument();
+        expect(screen.getByText('add it to the selection')).toBeInTheDocument();
+    });
+
+    it('says nothing about a desk the registry does not hold', () => {
+        mount({ deskName: 'tempo', help: undefined });
+        expect(screen.queryByRole('button', { name: /^About the/ })).toBeNull();
+    });
 });

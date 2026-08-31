@@ -33,6 +33,34 @@ export interface DocumentFacts {
     readings: number;
 }
 
+/**
+ * One thing the reader can do on a desk.
+ *
+ * A key counts as a gesture here. Splitting the two would buy a heading on the five desks that
+ * have both and an empty half on the rest, and the reader is looking for "how do I do X", not for
+ * which input device X belongs to.
+ */
+export interface DeskAction {
+    /** How it is performed — `Shift-click a box`, `Drag in Draw mode`, `Esc`. */
+    gesture: string;
+    /** What it does. A phrase, MPM assumed. */
+    does: string;
+}
+
+/**
+ * What a desk is for, and what can be done on it.
+ *
+ * Here rather than in each desk, because the aspect menu and the app bar are what the reader asks
+ * from, and neither of them has loaded the desk yet — see the note on `lazy` below. Required, so a
+ * new desk cannot ship without it; `DeskSwitch.test.ts` checks the rows are filled in.
+ */
+export interface DeskHelp {
+    /** What the desk shows, in a line. */
+    summary: string;
+    /** Pointer first, then keys. Absent on a desk that is only read. */
+    actions?: readonly DeskAction[];
+}
+
 interface DeskEntry {
     /**
      * The transformer whose calls this desk makes, **by name**.
@@ -53,6 +81,8 @@ interface DeskEntry {
     desk: DeskComponent;
     displayName?: string;
     group?: string;
+    /** What this desk is for, and what can be done on it — the info button in the app bar. */
+    help: DeskHelp;
     /**
      * The instruction types this desk's `residual` must be derived **without**.
      *
@@ -128,6 +158,15 @@ export const correspondingDesks: DeskEntry[] = [
             import('./metadata/MetadataDesk').then((m) => ({ default: m.MetadataDeskEntry })),
         ),
         group: 'document',
+        help: {
+            summary:
+                'Title and author, set as a title page, over a count of what the document holds.',
+            actions: [
+                { gesture: 'Click a line', does: 'edit it in place. Leaving the field commits' },
+                { gesture: 'Enter', does: 'commit and leave the field' },
+                { gesture: 'Esc', does: 'discard the edit' },
+            ],
+        },
     },
     // Beside metadata, in the document's own group: which MEI voice goes into which MSM part is a
     // statement about the score's encoding rather than about a dimension of the sound, and it is
@@ -137,6 +176,21 @@ export const correspondingDesks: DeskEntry[] = [
         aspect: 'voices',
         desk: lazy(() => import('./voices/VoicesDesk').then((m) => ({ default: m.VoicesDesk }))),
         group: 'document',
+        help: {
+            summary:
+                'Which MEI voice goes into which MSM part: the engraved score coloured by part, ' +
+                'with the parts listed beside it.',
+            actions: [
+                { gesture: 'Click a notehead', does: 'select that note' },
+                { gesture: '⌘-click a notehead', does: 'add it to the selection, or drop it' },
+                { gesture: 'Hover a part', does: 'fade every other part in the score' },
+                { gesture: 'Click a part', does: 'select it alone' },
+                { gesture: '⌘-click a part', does: 'add it. Two or more allow Combine' },
+                { gesture: 'Click a voice chip', does: 'pick that voice whole, for Move to…' },
+                { gesture: 'Esc', does: 'drop the notes, the voice and the parts' },
+                { gesture: 'Enter, Esc in a name field', does: 'commit, revert the rename' },
+            ],
+        },
         // No hold-out: `holdOut` is for a desk that plots a residual, and this one never asks for
         // one. It draws the score verovio engraves and colours it by the part the chain resolved,
         // and there is nothing for the MPM to explain away when the subject is which staff a note
@@ -157,6 +211,19 @@ export const correspondingDesks: DeskEntry[] = [
             import('./alignment/AlignmentDesk').then((m) => ({ default: m.AlignmentDesk })),
         ),
         group: 'general',
+        help: {
+            summary:
+                'Which sounding event realises which written note. Align runs the model and ' +
+                'leaves a draft; Apply writes it into the score.',
+            actions: [
+                {
+                    gesture: 'Click a disagreement mark',
+                    does: 'open its question: a cross, a bracket or a coloured notehead',
+                },
+                { gesture: 'Click elsewhere in the score', does: 'close it' },
+                { gesture: 'Drag the range slider', does: 'narrow what the transport plays' },
+            ],
+        },
     },
     {
         aspect: 'source choice',
@@ -164,6 +231,19 @@ export const correspondingDesks: DeskEntry[] = [
         desk: lazy(() => import('./choice/ChoiceDesk').then((m) => ({ default: m.ChoiceDesk }))),
         transformerName: 'MakeChoice',
         group: 'general',
+        help: {
+            summary:
+                'Every reading on one roll, a brace over each set of readings of a note, so that ' +
+                'one source can be preferred for the piece or for a narrower scope.',
+            actions: [
+                { gesture: 'Click a note', does: 'scope the choice to it' },
+                {
+                    gesture: '⌘-click a note',
+                    does: 'add it, where a note scope is already standing',
+                },
+                { gesture: 'Shift-click a later note', does: 'reach from the scope to it' },
+            ],
+        },
         // A choice needs something to choose between. With one take the desk draws that take's
         // notes under a curly brace that brackets nothing, and every preference the dialog offers
         // names the same recording, so a `MakeChoice` here can only restate what the document
@@ -191,6 +271,26 @@ export const correspondingDesks: DeskEntry[] = [
             import('./corrections/CorrectionsDesk').then((m) => ({ default: m.CorrectionsDesk })),
         ),
         group: 'general',
+        help: {
+            summary:
+                'What the roll scan read wrong. A Modify corrects the recording itself, so it ' +
+                'writes no instruction; a drag is a draft until Apply.',
+            actions: [
+                { gesture: 'Press a note or pedal', does: 'select it' },
+                { gesture: '⌘-press', does: 'add it to the selection, or drop it' },
+                { gesture: 'Shift-press', does: 'reach from the selection to it' },
+                {
+                    gesture: 'Drag up or down',
+                    does: 'shift velocity by whole steps, on the Velocity plot',
+                },
+                {
+                    gesture: 'Drag sideways',
+                    does: 'shift the onset, on the Timing plot. Near the right edge, the release',
+                },
+                { gesture: 'Hover a dot', does: 'sound the chord there, on the Velocity plot' },
+                { gesture: 'Esc', does: 'drop the selection and the drawn correction' },
+            ],
+        },
         // No hold-out: like the dynamics desk, this one plots the recording raw. There is nothing
         // for the MPM to explain away when the subject is what the roll scan read.
     },
@@ -208,6 +308,20 @@ export const correspondingDesks: DeskEntry[] = [
         displayName: 'Temporal Spread',
         aspect: 'arpeggiation',
         group: 'timing',
+        help: {
+            summary:
+                "Each chord's measured onset spread as a block, over the local tempo " +
+                'variance, with the spreads already written in a strip below.',
+            actions: [
+                { gesture: 'Hover a chord', does: 'sound it, and read its frame in ms' },
+                { gesture: 'Click a chord', does: 'select it for Insert' },
+                {
+                    gesture: 'Hover a written spread',
+                    does: 'audition the roll as that ornament specifies it',
+                },
+                { gesture: 'Click a written spread', does: 'select the call that wrote it' },
+            ],
+        },
         // Both arpeggiation desks write the same `<ornamentMap>`, so either one of them having
         // filled a scope locks the other's picker the same way. That is the document's doing, not
         // a coupling between the desks: it is one map per scope either way.
@@ -223,6 +337,23 @@ export const correspondingDesks: DeskEntry[] = [
         displayName: 'Dynamics Gradient',
         aspect: 'arpeggiation',
         group: 'timing',
+        help: {
+            summary:
+                "The recorded velocities over time: a hull joining each chord's softest and " +
+                "loudest note to the next chord's, with the gradients already written over it.",
+            actions: [
+                {
+                    gesture: 'Hover a chord',
+                    does: 'sound it. A handle follows the pointer up and down',
+                },
+                { gesture: 'Click the handle', does: 'write a ramp with its zero at that height' },
+                {
+                    gesture: "Click the chord's line",
+                    does: 'write a ramp over the measured extremes',
+                },
+                { gesture: 'Click a written gradient', does: 'select the call that wrote it' },
+            ],
+        },
         writes: ['ornament'],
     },
     {
@@ -235,12 +366,55 @@ export const correspondingDesks: DeskEntry[] = [
         aspect: 'arpeggiation',
         displayName: 'Styles',
         group: 'timing',
+        help: {
+            summary:
+                'One point per fitted ornament, frame start against frame length, coloured by the ' +
+                'definition the clustering would put it in.',
+            actions: [
+                {
+                    gesture: 'Drag a tolerance',
+                    does: 're-cluster the preview. Nothing is written until Stylize Ornaments',
+                },
+            ],
+        },
     },
     {
         transformerName: 'InsertTempo',
         desk: lazy(() => import('./tempo/TempoDesk').then((m) => ({ default: m.TempoDesk }))),
         aspect: 'tempo',
         group: 'timing',
+        help: {
+            summary:
+                "The recording's tempo as a skyline of boxes against seconds, with the tempo " +
+                'curves already in the document drawn over it.',
+            actions: [
+                { gesture: 'Hover a box', does: 'sound the passage it covers' },
+                { gesture: 'Click a box', does: 'select it alone' },
+                { gesture: 'Shift-click a box', does: 'add it to the selection' },
+                { gesture: 'Shift+Alt-click a box', does: 'remove it' },
+                {
+                    gesture: 'Drag in Draw mode',
+                    does: 'draw a curve. The whole stroke is fitted, so its shape sets the bend',
+                },
+                {
+                    gesture: "Drag from a curve's end",
+                    does: "continue it at that curve's beat length",
+                },
+                {
+                    gesture: 'Click a box in Split mode',
+                    does: 'split it in the middle of its tick range',
+                },
+                {
+                    gesture: 'Hover a written curve',
+                    does: 'hear the passage re-timed by it, over a click',
+                },
+                { gesture: 'Click a written curve', does: 'select the call that wrote it' },
+                { gesture: 'Esc', does: 'deselect, and cancel the stroke in hand' },
+                { gesture: 'c', does: 'combine the selected boxes' },
+                { gesture: 's', does: 'toggle Split mode' },
+                { gesture: 'Backspace', does: 'delete the selected boxes' },
+            ],
+        },
         writes: ['tempo'],
     },
     {
@@ -248,6 +422,25 @@ export const correspondingDesks: DeskEntry[] = [
         desk: lazy(() => import('./rubato/RubatoDesk').then((m) => ({ default: m.RubatoDesk }))),
         aspect: 'rubato',
         group: 'timing',
+        help: {
+            summary:
+                'Every chord hooked from its score date to where the recording put it, with ' +
+                'rubato held out of the fit, so the displacement drawn is what a rubato would ' +
+                'have to account for.',
+            actions: [
+                { gesture: 'Hover the row', does: 'sound the nearest date, and read its tick' },
+                {
+                    gesture: 'Click twice',
+                    does: 'mark a frame between the two dates, either order',
+                },
+                { gesture: 'Click again', does: 'start a new frame, discarding the last' },
+                { gesture: 'Click the frame', does: 'audition the passage it covers' },
+                {
+                    gesture: 'Click a written rubato',
+                    does: 'hear its frame warped, and select the call that wrote it',
+                },
+            ],
+        },
         holdOut: ['rubato'],
         writes: ['rubato'],
     },
@@ -259,6 +452,26 @@ export const correspondingDesks: DeskEntry[] = [
             import('./dynamics/DynamicsDesk').then((m) => ({ default: m.DynamicsDesk })),
         ),
         group: 'dynamics',
+        help: {
+            summary:
+                'One dot per recorded velocity per chord, with the fitted dynamics curves over ' +
+                'them and a grey ghost where a velocity was corrected by hand.',
+            actions: [
+                { gesture: 'Hover a dot', does: 'sound the chord there' },
+                { gesture: 'Click a dot', does: 'play from that date to the end' },
+                {
+                    gesture: 'Drag across the plot',
+                    does: 'fit a curve between two chord onsets, in Insert mode',
+                },
+                {
+                    gesture: 'Click a dot in Phantom mode',
+                    does: 'pencil in a phantom velocity there',
+                },
+                { gesture: '↑ ↓', does: 'nudge the phantom last picked by one' },
+                { gesture: 'Shift+Alt-click a phantom', does: 'remove it' },
+                { gesture: 'Click a curve', does: 'select the call that wrote it' },
+            ],
+        },
         writes: ['dynamics'],
     },
     {
@@ -271,6 +484,19 @@ export const correspondingDesks: DeskEntry[] = [
         displayName: 'Metrical Accentuation',
         aspect: 'accentuation',
         group: 'dynamics',
+        help: {
+            summary:
+                'The velocity residual, recorded minus what the MPM already renders, one dot per ' +
+                'chord, with the accentuation patterns written over it.',
+            actions: [
+                { gesture: 'Hover a dot', does: 'sound the chord there' },
+                { gesture: 'Click a dot', does: 'start a candidate range at that date' },
+                { gesture: 'Shift-click a dot', does: "move the candidate's end to it" },
+                { gesture: 'Shift+Alt-click the candidate', does: 'clear it' },
+                { gesture: 'Click a pattern', does: 'select the call that wrote it' },
+                { gesture: 'Shift-click a pattern', does: 'add it to the merge selection' },
+            ],
+        },
         holdOut: ['accentuationPattern'],
         writes: ['accentuationPattern'],
     },
@@ -284,6 +510,20 @@ export const correspondingDesks: DeskEntry[] = [
         ),
         displayName: 'Articulation',
         group: 'dynamics',
+        help: {
+            summary:
+                'Recorded release against notated release, one bar per note: pitch on the ' +
+                'vertical, bar thickness by velocity residual, the notated release a dashed tick.',
+            actions: [
+                { gesture: 'Hover a note', does: 'sound it' },
+                { gesture: 'Click a note', does: 'start a unit with it' },
+                { gesture: 'Shift-click a note', does: 'add it to the unit, or drop it' },
+                {
+                    gesture: 'Click an articulated note',
+                    does: 'select the call that wrote it. Such a note joins no unit',
+                },
+            ],
+        },
         holdOut: ['articulation'],
         writes: ['articulation'],
     },
@@ -295,6 +535,18 @@ export const correspondingDesks: DeskEntry[] = [
             import('./styles/ArticulationStyles').then((m) => ({ default: m.ArticulationStyles })),
         ),
         group: 'dynamics',
+        help: {
+            summary:
+                'One point per articulation in scope, relative duration against relative volume, ' +
+                'coloured by cluster. Both axes are ratios against the notated value, so 1 is a ' +
+                'place on each.',
+            actions: [
+                {
+                    gesture: 'Drag a tolerance',
+                    does: 're-cluster the preview. Nothing is written until Stylize Articulations',
+                },
+            ],
+        },
     },
     // Pedalling
     {
@@ -302,6 +554,19 @@ export const correspondingDesks: DeskEntry[] = [
         aspect: 'pedalling',
         desk: lazy(() => import('./pedal/PedalDesk').then((m) => ({ default: m.PedalDesk }))),
         group: 'pedalling',
+        help: {
+            summary:
+                'The recorded pedal presses on the tick grid, sustain over soft, with the ' +
+                'movements already written below, one lane per controller.',
+            actions: [
+                {
+                    gesture: 'Click a pedal block',
+                    does: 'open its dialog to write a movement over it',
+                },
+                { gesture: 'Hover a chord line', does: 'sound the chord' },
+                { gesture: 'Click a movement', does: 'select the call that wrote it' },
+            ],
+        },
         // A recorded pedal has no symbolic date of its own; the residual is the only thing that
         // can put one on the tick grid at all.
         holdOut: ['movement'],
@@ -314,6 +579,27 @@ export const correspondingDesks: DeskEntry[] = [
             import('./narrative/NarrativeDesk').then((m) => ({ default: m.NarrativeDesk })),
         ),
         group: 'argument',
+        help: {
+            summary:
+                'The instructions grouped into claims, in score order, with those belonging to no ' +
+                'claim listed at the bottom. A working view, so it is a table.',
+            actions: [
+                {
+                    gesture: 'Click an instruction chip',
+                    does: 'select its call, and hear that one instruction over its reach',
+                },
+                {
+                    gesture: 'Hover a gesture',
+                    does: "quote the element's attributes below the row",
+                },
+                {
+                    gesture: 'Click assign',
+                    does: "move the selected instructions into that row's segment",
+                },
+                { gesture: 'Click dissolve', does: 'ungroup it. The instructions survive' },
+                { gesture: 'Type in Word', does: 'say what the claim says. It saves as you type' },
+            ],
+        },
     },
     // The artefact itself. Last, and a group of its own, because it is what every desk above it
     // has been writing rather than another aspect of the performance.
@@ -326,5 +612,16 @@ export const correspondingDesks: DeskEntry[] = [
         aspect: 'markup',
         desk: lazy(() => import('./markup/MarkupDesk').then((m) => ({ default: m.MarkupDesk }))),
         group: 'markup',
+        help: {
+            summary:
+                'The document as text: the MPM every other desk has been writing, and the MSM it ' +
+                'was fitted against. There is no find field; the browser already has one.',
+            actions: [
+                {
+                    gesture: 'Click a line in the MPM',
+                    does: 'open the desk that wrote that element, where a call claims it',
+                },
+            ],
+        },
     },
 ];

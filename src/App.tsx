@@ -722,6 +722,7 @@ export const App = () => {
                                     <EditorAppBar
                                         deskRowRef={setDeskRow}
                                         deskName={deskName}
+                                        help={deskEntry?.help}
                                         parts={parts}
                                         scope={scope}
                                         setScope={setScope}

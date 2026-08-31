@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { PlayArrow, Redo, Save, Stop, Undo, UploadFile, ZoomIn } from '@mui/icons-material';
 import type { Scope } from '../../fitting/instructions/index';
+import type { DeskHelp } from '../../desks/DeskSwitch';
 import type { PartOption, ScopeLock } from '../../desks/scopeLock';
 import { usePlayback } from '../../hooks/PlaybackProvider';
 import { useWorkDocument } from '../../hooks/WorkDocument';
@@ -19,6 +20,7 @@ import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, useZoom } from '../../hooks/ZoomProvider
 import { sampleLoadingHint, useSampleLoading } from '../../performance/piano';
 import { shortcut } from '../../utils/shortcut';
 import { SampleProgress } from '../SampleLoading';
+import { DeskHelpButton } from './DeskHelpButton';
 import { ToolbarButton } from './ToolbarButton';
 
 interface EditorAppBarProps {
@@ -29,6 +31,13 @@ interface EditorAppBarProps {
     deskRowRef: Ref<HTMLDivElement>;
     /** What the open desk calls itself, off the registry — `displayName ?? aspect`. */
     deskName: string;
+    /**
+     * What that desk is for and what can be done on it, off the registry too.
+     *
+     * Optional only because `deskName` falls back to a selection the registry does not hold, and
+     * there is nothing to describe about a desk that is not there.
+     */
+    help?: DeskHelp;
     /**
      * The parts of the score, ascending, for the scope picker — each with the name the voice
      * layout gives it, or `Part n` where nothing has named it.
@@ -121,6 +130,7 @@ const ScopeOption = ({ label, note }: { label: string; note?: string }) => (
 export const EditorAppBar = ({
     deskRowRef,
     deskName,
+    help,
     parts,
     scope,
     setScope,
@@ -385,6 +395,8 @@ export const EditorAppBar = ({
                 >
                     {deskName}
                 </Typography>
+
+                {help && <DeskHelpButton deskName={deskName} help={help} />}
 
                 {/*
                     The portal target, and it holds nothing that React owns.

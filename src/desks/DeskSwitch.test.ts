@@ -203,6 +203,44 @@ describe('the desk registry', () => {
         });
     });
 
+    describe('the help a desk offers', () => {
+        it('says what every desk shows', () => {
+            // `help` is required, so the compiler already refuses a desk without the field. What it
+            // cannot refuse is an empty string, which is the same desk saying nothing.
+            for (const entry of correspondingDesks)
+                expect(
+                    entry.help.summary.trim(),
+                    `the ${entry.aspect} desk has no help summary`,
+                ).toBeTruthy();
+        });
+
+        it('gives every row a gesture and an effect', () => {
+            // A row is two columns and both are filled, or it is a row that reads as a gesture
+            // doing nothing — worse than the gesture being absent from the list.
+            for (const entry of correspondingDesks)
+                for (const { gesture, does } of entry.help.actions ?? []) {
+                    expect(
+                        gesture.trim(),
+                        `a help row of the ${entry.aspect} desk names no gesture`,
+                    ).toBeTruthy();
+                    expect(
+                        does.trim(),
+                        `"${gesture}" on the ${entry.aspect} desk says nothing`,
+                    ).toBeTruthy();
+                }
+        });
+
+        it('names a gesture once per desk', () => {
+            // The popover keys its rows on the gesture, so a second row under the same gesture is
+            // a React duplicate-key warning and one of the two rows losing its identity.
+            for (const entry of correspondingDesks)
+                expect(
+                    duplicates((entry.help.actions ?? []).map(({ gesture }) => gesture)),
+                    `the ${entry.aspect} desk lists a gesture twice`,
+                ).toEqual([]);
+        });
+    });
+
     describe('a desk that says it has nothing to do', () => {
         it('takes Base Text away only while the document holds fewer than two readings', () => {
             // The rule the whole desk turns on: a choice needs something to choose between. Below
