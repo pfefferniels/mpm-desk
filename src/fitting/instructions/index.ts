@@ -12,6 +12,7 @@ export * from './scope';
 export * from './read';
 export * from './styles';
 export * from './ornamentDraft';
+export * from './silentOrnaments';
 export * from './fillInAt';
 
 /**

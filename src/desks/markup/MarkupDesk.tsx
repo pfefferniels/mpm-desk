@@ -21,6 +21,7 @@ import { getLaneColor } from '../../segment-stack/spanColors';
 import { renderPerformance } from '../../utils/espressivo';
 import { documentSlug, downloadAsFile } from '../../utils/utils';
 import { indexMarkup } from './markupIndex';
+import { SilentOrnaments } from '../SilentOrnaments';
 import type { ViewProps } from '../TransformerViewProps';
 
 /** Which of the two documents is on screen. */
@@ -152,7 +153,7 @@ Row.displayName = 'Row';
  * `ScrollSyncProvider`'s two domains are ticks and the recording's elapsed seconds. This desk's
  * axis is neither — it is a document — so it joins no domain and must not be given one.
  */
-export const MarkupDesk = ({ msm, performanceXml }: ViewProps) => {
+export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
     const { metadata } = useWorkDocument();
     const { activeElements, callForElement, focusCall } = useCallSelection();
 
@@ -284,6 +285,16 @@ export const MarkupDesk = ({ msm, performanceXml }: ViewProps) => {
                     <ToolStatus width={52} tone={exported === 'failed' ? 'warning' : 'default'}>
                         {exported}
                     </ToolStatus>
+                </ToolGroup>
+
+                {/*
+                    The whole document, not a scope: this is the desk the markup is read and
+                    exported from, and an ornament naming no definition is the one thing here that
+                    is well-formed on screen and absent from every render — the MIDI the button
+                    beside it writes included.
+                */}
+                <ToolGroup>
+                    <SilentOrnaments mpm={mpm} />
                 </ToolGroup>
             </DeskToolbar>
 

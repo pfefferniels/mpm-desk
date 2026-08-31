@@ -18,6 +18,7 @@ import { TempoVariance } from "./TempoVariance";
 import { TemporalSpreadInstruction } from "./TemporalSpreadInstruction";
 import { useTimeMapping } from "../../hooks/useTimeMapping";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { SilentOrnaments } from "../SilentOrnaments";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     /**
@@ -229,6 +230,14 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                         value={beatLengthText}
                         onChange={setBeatLengthText}
                     />
+                </ToolGroup>
+                {/*
+                    Last in the bar, because it is about the document rather than about anything
+                    this desk does — a spread inserted here is inaudible until the Styles desk has
+                    given it a definition, and this is where that is said.
+                */}
+                <ToolGroup>
+                    <SilentOrnaments mpm={mpm} scope={part} />
                 </ToolGroup>
             </DeskToolbar>
 

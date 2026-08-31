@@ -15,6 +15,7 @@ import { usePiano } from "../../performance/piano"
 import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
 import { useCallSelection } from "../../hooks/CallSelection"
+import { SilentOrnaments } from "../SilentOrnaments"
 
 const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
     return (
@@ -349,6 +350,11 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
                         label='Sort Velocities'
                         tooltip='Order the notes of each chord by velocity, so the ramp runs monotonically'
                     />
+                </ToolGroup>
+                {/* A ramp drawn here is inaudible until the Styles desk has made a definition of
+                    it; see `SilentOrnaments`. */}
+                <ToolGroup>
+                    <SilentOrnaments mpm={mpm} scope={part} />
                 </ToolGroup>
             </DeskToolbar>
 

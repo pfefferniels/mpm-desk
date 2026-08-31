@@ -8,6 +8,7 @@ import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
 import { DeleteOutline } from "@mui/icons-material";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { SilentOrnaments } from "../SilentOrnaments";
 
 export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const { calls, removeCall } = useCallSelection()
@@ -54,7 +55,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                         primary
                         label='Stylize Ornaments'
                         tooltip={existingTransformer
-                            ? 'The ornaments are already stylized'
+                            ? 'The chain already holds a Stylize Ornaments call'
                             : 'Cluster the fitted ornaments and define one style per cluster'}
                         disabled={existingTransformer !== undefined}
                         onClick={transformOrnaments}
@@ -72,6 +73,13 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                     >
                         Remove Style
                     </ToolbarButton>
+                    {/*
+                        Beside the buttons, because here it says what they did rather than what
+                        was forgotten: a run that leaves the count above zero has skipped those
+                        ornaments — an unusable frame is the way that happens — and the button is
+                        dead by then, so the state was otherwise unreadable.
+                    */}
+                    <SilentOrnaments mpm={mpm} scope={part} />
                 </ToolGroup>
             </DeskToolbar>
 
