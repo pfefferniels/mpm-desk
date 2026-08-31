@@ -12,6 +12,8 @@ import { ToolStatus } from "../../components/toolbar/ToolStatus"
 import { Clear } from "@mui/icons-material"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
+import { PedalLaneLabels, PedalLanes } from "./PedalLanes"
+import { PEDAL_AREA, PEDAL_GUTTER, PEDAL_LABEL_WIDTH, pedalLanes } from "./pedalGeometry"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
 // returns <path> attribute @d.
@@ -176,7 +178,10 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
 
     const stretchX = usePhysicalZoom()
     const [containerHeight, setContainerHeight] = useState(600)
-    const stretchY = containerHeight / 100
+    // The band comes out of the height before the keys are scaled, so the lanes sit under the
+    // roll instead of across its bottom octave, which is where a fixed y put them.
+    const rollHeight = Math.max(0, containerHeight - PEDAL_GUTTER - PEDAL_AREA)
+    const stretchY = rollHeight / 100
 
     // This desk's vertical scale is whatever height the container ends up with, so the node is
     // measured on the way past — the scroll registration is the one moment it is in hand.
@@ -186,7 +191,12 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
         return registerScroll(element)
     }, [registerScroll]);
 
-    const sourceIDs = Array.from(new Set(msm.allNotes.map(note => note.source || 'unknown')))
+    // Pedals count towards the colouring as well: a reading that only differs in its pedalling
+    // still has a line to draw, and it has to be the colour its notes carry elsewhere.
+    const sourceIDs = Array.from(new Set([
+        ...msm.allNotes.map(note => note.source || 'unknown'),
+        ...msm.pedals.map(pedal => pedal.source || 'unknown'),
+    ]))
     const colorFor = (source: string) => {
         const index = sourceIDs.indexOf(source)
         return colors[index % colors.length]
@@ -239,48 +249,21 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
         ))
     }
 
-    // display pedals
-    const groupedPedals = Object.groupBy(msm.pedals, pedal => pedal.type)
-    const yStart = 70 * stretchY
-    Object.entries(groupedPedals).forEach(([type, pedals], typeIndex) => {
-        const bySource = Object
-            .entries(Object.groupBy(pedals, pedal => pedal.source || 'unknown'))
-            .filter(([, pedals]) => pedals && pedals.length)
+    const lanes = pedalLanes(msm.pedals, rollHeight + PEDAL_GUTTER)
 
-        const typeHeight = 20
-        const sourceHeight = typeHeight / bySource.length
-        bySource.forEach(([source, pedals], sourceIndex) => {
-            if (!pedals || !pedals.length) return
+    // Far enough for the last thing that sounds, which is not always a note: a pedal held over the
+    // final chord ends after every release.
+    const lastRelease = msm.allNotes.reduce(
+        (acc, note) => Math.max(acc, onsetSeconds(note) + soundedSeconds(note)),
+        0,
+    )
+    const lastLift = msm.pedals.reduce(
+        (acc, pedal) => Math.max(acc, pedalOnsetSeconds(pedal) + pedalHeldSeconds(pedal)),
+        0,
+    )
+    const width = Math.max(lastRelease, lastLift) * stretchX
 
-            for (const pedal of pedals) {
-                const onset = pedalOnsetSeconds(pedal)
-                const duration = pedalHeldSeconds(pedal)
-                const xmlId = pedal['xml:id']
-                const color = colorFor(pedal.source || 'unknown')
-
-                groups.push((
-                    <rect
-                        key={`pedal_${xmlId}`}
-                        data-type={type}
-                        data-id={xmlId}
-                        data-onset={onset}
-                        data-duration={duration}
-                        data-soruce={source}
-                        x={onset * stretchX}
-                        y={yStart + typeIndex * typeHeight + sourceIndex * sourceHeight}
-                        width={duration * stretchX}
-                        height={sourceHeight}
-                        fill={color}
-                        fillOpacity={0.5}
-                        stroke='black'
-                        strokeWidth={0.8}
-                    />
-                ))
-            }
-        })
-    })
-
-    const sources = new Set(msm.allNotes.map(note => note.source || 'unknown'))
+    const sources = new Set(sourceIDs)
 
     // What the choice is about to cover, said beside the button rather than inside its label.
     //
@@ -339,10 +322,35 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                 </ToolGroup>
             </DeskToolbar>
 
-            <div ref={scrollContainerRef} style={{ width: '80vw', height: 'calc(100vh - 370px)', overflowX: 'scroll', overflowY: 'hidden', position: 'relative' }}>
-                <svg width={Math.max(...msm.allNotes.map(n => onsetSeconds(n) + soundedSeconds(n))) * stretchX} height={containerHeight}>
-                    {groups}
+            {/*
+                The lane names have a column of their own beside the scroller, so `sustain` still
+                says which rail it belongs to after the plot has been scrolled past the opening
+                bars. Both halves are `containerHeight` tall with the same viewBox extent, so one
+                pixel is one unit in both and a name meets its own line.
+            */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', width: '80vw', height: 'calc(100vh - 370px)' }}>
+                <svg
+                    style={{ flex: '0 0 auto' }}
+                    width={PEDAL_LABEL_WIDTH}
+                    height={containerHeight}
+                    viewBox={`${-PEDAL_LABEL_WIDTH} 0 ${PEDAL_LABEL_WIDTH} ${containerHeight}`}
+                >
+                    <PedalLaneLabels lanes={lanes} />
                 </svg>
+
+                <div ref={scrollContainerRef} style={{ flex: 1, minWidth: 0, height: '100%', overflowX: 'scroll', overflowY: 'hidden', position: 'relative' }}>
+                    <svg width={width} height={containerHeight}>
+                        {groups}
+                        <PedalLanes
+                            pedals={msm.pedals}
+                            lanes={lanes}
+                            sources={sourceIDs}
+                            stretchX={stretchX}
+                            width={width}
+                            colorFor={colorFor}
+                        />
+                    </svg>
+                </div>
             </div>
 
             <Dialog
