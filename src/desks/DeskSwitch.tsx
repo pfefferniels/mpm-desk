@@ -16,6 +16,23 @@ import type { InstructionType } from '../fitting/instructions/index';
  */
 type DeskComponent = ComponentType<ScopedTransformerViewProps<Transformer>>;
 
+/**
+ * What a desk is allowed to know about the document when it says whether it has work to do.
+ *
+ * Deliberately a handful of counts rather than the alignment itself. The aspect menu is on screen
+ * before any desk is open and this module is what it imports; handing it a fitted document would
+ * make every desk's availability a function of the whole chain's output, and put the temptation of
+ * reading one there.
+ */
+export interface DocumentFacts {
+    /**
+     * How many readings of the score are in hand — `<recording>` elements, before any choice.
+     *
+     * Counted off the alignment as loaded, for the reason `Alignment.sources` records.
+     */
+    readings: number;
+}
+
 interface DeskEntry {
     /**
      * The transformer whose calls this desk makes, **by name**.
@@ -75,6 +92,15 @@ interface DeskEntry {
      * that is a decision to take on its own.
      */
     writes?: readonly InstructionType[];
+
+    /**
+     * Why this desk has nothing to do for the document in hand, or undefined while it has.
+     *
+     * The reason is shown, not swallowed: the menu greys the entry and puts this in a tooltip, the
+     * way the toolbar does for a control the selection cannot reach. A desk that simply vanished
+     * from the list would leave the reader to guess what makes it come back.
+     */
+    unavailable?: (facts: DocumentFacts) => string | undefined;
 }
 
 /**
@@ -140,6 +166,17 @@ export const correspondingDesks: DeskEntry[] = [
         desk: lazy(() => import('./choice/ChoiceDesk').then((m) => ({ default: m.ChoiceDesk }))),
         transformerName: 'MakeChoice',
         group: 'general',
+        // A choice needs something to choose between. With one take the desk draws that take's
+        // notes under a curly brace that brackets nothing, and every preference the dialog offers
+        // names the same recording, so a `MakeChoice` here can only restate what the document
+        // already says — while still discarding a note wherever two parts sound the same pitch at
+        // the same moment, which is what its equivalence groups are keyed on.
+        unavailable: ({ readings }) =>
+            readings > 1
+                ? undefined
+                : readings === 1
+                  ? 'The score has one recording, so there is no other reading to prefer.'
+                  : 'No recording has been aligned into the score yet.',
     },
     // Beside Base Text, and not by accident: these two are the desks that edit the *recording*
     // rather than the performance, which is the one distinction the menu's groups can make that

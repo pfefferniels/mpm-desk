@@ -21,7 +21,7 @@ import { convertMeiToMsm } from 'espressivo';
 // only meant every reader of a finished reconstruction downloading the whole fitting chain.
 import './fitting/transformers/Order';
 
-import { correspondingDesks } from './desks/DeskSwitch';
+import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
 import type { SecondaryData } from './desks/TransformerViewProps';
 import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
@@ -165,6 +165,19 @@ export const App = () => {
                 (entry) => entry.displayName === selectedDesk || entry.aspect === selectedDesk,
             ),
         [selectedDesk],
+    );
+
+    /**
+     * What a desk answers `unavailable` against — see `DeskSwitch.tsx`.
+     *
+     * The readings are counted off the alignment as *loaded*, never off the fitted one:
+     * `MakeChoice` discards the variants it did not prefer, so the chain's own output reports a
+     * single reading the moment a choice has been made, and Base Text would take itself away as
+     * soon as it had been used.
+     */
+    const documentFacts = useMemo<DocumentFacts>(
+        () => ({ readings: pristine?.sources().size ?? 0 }),
+        [pristine],
     );
 
     const { result, mpm, alignment, residual, pending, problems, error } = useEditorFit({
@@ -652,6 +665,14 @@ export const App = () => {
         setScope('global');
     }
 
+    // A desk the menu greys out must not be the one on screen. Opening a score with a single
+    // recording while Base Text is open would otherwise leave it drawing a choice that cannot be
+    // made, and the row that would take the reader off it is disabled. The alignment desk is where
+    // the work starts, and it is available for every document.
+    if (deskEntry?.unavailable?.(documentFacts)) {
+        setSelectedDesk('alignment');
+    }
+
     const deskProps = {
         msm: alignment,
         mpm,
@@ -741,6 +762,7 @@ export const App = () => {
                                         <AspectSelect
                                             selectedDesk={selectedDesk}
                                             setSelectedDesk={setSelectedDesk}
+                                            documentFacts={documentFacts}
                                         />
                                     </Box>
 

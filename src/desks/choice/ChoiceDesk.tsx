@@ -194,13 +194,12 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
 
     // Pedals count towards the colouring as well: a reading that only differs in its pedalling
     // still has a line to draw, and it has to be the colour its notes carry elsewhere.
-    const sourceIDs = Array.from(new Set([
-        ...msm.allNotes.map(note => note.source || 'unknown'),
-        ...msm.pedals.map(pedal => pedal.source || 'unknown'),
-    ]))
+    const sourceIDs = Array.from(msm.sources())
     const colorFor = (source: string) => {
         const index = sourceIDs.indexOf(source)
-        return colors[index % colors.length]
+        // An event written outside any `<recording>` belongs to no reading, so it borrows no
+        // reading's colour.
+        return index < 0 ? '#9e9e9e' : colors[index % colors.length]
     }
 
     const groups = []

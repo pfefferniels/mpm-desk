@@ -68,7 +68,7 @@ export const pressesOf = (
 ): Press[] =>
     joinOverlapping(
         pedals
-            .filter(pedal => pedal.type === type && (pedal.source || 'unknown') === source)
+            .filter(pedal => pedal.type === type && pedal.source === source)
             .map(pedal => ({
                 from: pedalOnsetSeconds(pedal) * stretchX,
                 to: (pedalOnsetSeconds(pedal) + pedalHeldSeconds(pedal)) * stretchX,

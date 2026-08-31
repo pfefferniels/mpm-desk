@@ -203,6 +203,32 @@ describe('the desk registry', () => {
         });
     });
 
+    describe('a desk that says it has nothing to do', () => {
+        it('takes Base Text away only while the document holds fewer than two readings', () => {
+            // The rule the whole desk turns on: a choice needs something to choose between. Below
+            // two readings the desk is greyed out and `App` moves off it, so getting the boundary
+            // wrong either hides a desk that is needed or leaves one drawing a bracket around a
+            // single take.
+            const entry = correspondingDesks.find(
+                ({ transformerName }) => transformerName === 'MakeChoice',
+            );
+            expect(entry?.unavailable).toBeDefined();
+
+            expect(entry?.unavailable?.({ readings: 0 })).toBeTruthy();
+            expect(entry?.unavailable?.({ readings: 1 })).toBeTruthy();
+            expect(entry?.unavailable?.({ readings: 2 })).toBeUndefined();
+        });
+
+        it('leaves a desk the whole editor falls back to always available', () => {
+            // `App` sends the reader to the alignment desk when the open one becomes unavailable,
+            // adjusting `selectedDesk` during render. A fallback that could itself be unavailable
+            // would make that adjustment set the same state on every render.
+            const fallback = correspondingDesks.find(({ aspect }) => aspect === 'alignment');
+            expect(fallback).toBeDefined();
+            expect(fallback?.unavailable).toBeUndefined();
+        });
+    });
+
     describe('the retired names App.tsx redirects', () => {
         const aliases = readAliasTable();
 

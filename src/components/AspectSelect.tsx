@@ -1,16 +1,38 @@
-import React, { useState } from 'react';
-import { Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import React, { useState, type ReactElement } from 'react';
+import { Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
 import { ChevronRight, ExpandLess, ExpandMore } from '@mui/icons-material';
-import { correspondingDesks } from '../desks/DeskSwitch';
+import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
+
+/**
+ * A row, and the wrapper a tooltip on a disabled row needs.
+ *
+ * The `<div>` is unconditional for the reason `ToolbarButton`'s `Hinted` records: a disabled MUI
+ * button dispatches no pointer events, so a `Tooltip` around one never hears the hover, and
+ * wrapping only when disabled changes the element type at that position the moment the reason
+ * appears — React then unmounts the row and mounts a new one. An empty `title` renders no tooltip,
+ * which is what the available rows get.
+ *
+ * A row that carries a reason is also handed no `onClick`. `disabled` on a `ListItemButton` is a
+ * `<div role="button">` with `pointer-events: none` and its handler still attached, so the styling
+ * is the only thing standing between the row and a click.
+ */
+const Row = ({ reason, children }: { reason?: string; children: ReactElement }) => (
+    <Tooltip describeChild title={reason ?? ''} placement='left'>
+        <div>{children}</div>
+    </Tooltip>
+);
 
 interface AspectSelectProps {
     selectedDesk: string;
     setSelectedDesk: (desk: string) => void;
+    /** What the desks answer `unavailable` against — see `DeskSwitch.tsx`. */
+    documentFacts: DocumentFacts;
 }
 
 export const AspectSelect: React.FC<AspectSelectProps> = ({
     selectedDesk,
     setSelectedDesk,
+    documentFacts,
 }) => {
     const [toExpand, setToExpand] = useState<string>();
     const [collapsed, setCollapsed] = useState(false);
@@ -90,19 +112,28 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                             const showDivider = lastGroup !== undefined && currentGroup !== lastGroup;
                             lastGroup = currentGroup;
 
+                            const reason = info[0].unavailable?.(documentFacts);
+
                             return (
                                 <React.Fragment key={aspect}>
                                     {showDivider && <Divider sx={{ my: 1 }} />}
                                     {info.length === 1 ? (
-                                        <ListItemButton
-                                            selected={aspect === selectedDesk}
-                                            onClick={() => {
-                                                setSelectedDesk(aspect);
-                                                setToExpand(undefined);
-                                            }}
-                                        >
-                                            <ListItemText>{aspect}</ListItemText>
-                                        </ListItemButton>
+                                        <Row reason={reason}>
+                                            <ListItemButton
+                                                selected={aspect === selectedDesk}
+                                                disabled={reason !== undefined}
+                                                onClick={
+                                                    reason === undefined
+                                                        ? () => {
+                                                              setSelectedDesk(aspect);
+                                                              setToExpand(undefined);
+                                                          }
+                                                        : undefined
+                                                }
+                                            >
+                                                <ListItemText>{aspect}</ListItemText>
+                                            </ListItemButton>
+                                        </Row>
                                     ) : (
                                         <ListItemButton
                                             selected={aspect === toExpand}
@@ -118,17 +149,25 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                     {info.length > 1 && (
                                         <Collapse in={toExpand === aspect} timeout="auto" unmountOnExit>
                                             <List dense component='div' disablePadding sx={{ pl: 3 }}>
-                                                {info.map(({ displayName }) => {
+                                                {info.map(({ displayName, unavailable }) => {
                                                     if (!displayName) return null;
 
+                                                    const childReason = unavailable?.(documentFacts);
+
                                                     return (
-                                                        <ListItemButton
-                                                            key={displayName}
-                                                            selected={displayName === selectedDesk}
-                                                            onClick={() => setSelectedDesk(displayName)}
-                                                        >
-                                                            <ListItemText>{displayName}</ListItemText>
-                                                        </ListItemButton>
+                                                        <Row key={displayName} reason={childReason}>
+                                                            <ListItemButton
+                                                                selected={displayName === selectedDesk}
+                                                                disabled={childReason !== undefined}
+                                                                onClick={
+                                                                    childReason === undefined
+                                                                        ? () => setSelectedDesk(displayName)
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                <ListItemText>{displayName}</ListItemText>
+                                                            </ListItemButton>
+                                                        </Row>
                                                     );
                                                 })}
                                             </List>

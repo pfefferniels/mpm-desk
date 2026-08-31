@@ -406,6 +406,26 @@ export class Alignment {
   }
 
   /**
+   * The readings in hand, by the `@source` their notes and pedals were recorded under.
+   *
+   * Pedals count as well as notes: a take that differs from another only in its pedalling is
+   * still a take, and `MakeChoice` selects pedals on the same attribute.
+   *
+   * An event the MEI wrote outside any `<recording>` names no reading and is left out. `asMSM`
+   * reads the source off the `<recording>` a `<when>` sits in and every take the alignment desk
+   * writes has one, so that is a fallback rather than a case.
+   *
+   * Read this off the alignment as *loaded*, not off one a chain has run over: `MakeChoice`
+   * discards the variants it did not prefer, so a fitted alignment reports one reading as soon
+   * as a choice has been made.
+   */
+  public sources(): Set<string> {
+    return new Set(
+      [...this.allNotes, ...this.pedals].flatMap((event) => (event.source ? [event.source] : [])),
+    );
+  }
+
+  /**
    * The notes of one part, or of the whole score.
    *
    * Both branches answer with a fresh array. Handing back `this.allNotes` itself would let a
