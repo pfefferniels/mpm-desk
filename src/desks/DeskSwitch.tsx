@@ -194,22 +194,10 @@ export const correspondingDesks: DeskEntry[] = [
         // No hold-out: like the dynamics desk, this one plots the recording raw. There is nothing
         // for the MPM to explain away when the subject is what the roll scan read.
     },
-    // Timing
-    {
-        transformerName: 'InsertTempo',
-        desk: lazy(() => import('./tempo/TempoDesk').then((m) => ({ default: m.TempoDesk }))),
-        aspect: 'tempo',
-        group: 'timing',
-        writes: ['tempo'],
-    },
-    {
-        transformerName: 'InsertRubato',
-        desk: lazy(() => import('./rubato/RubatoDesk').then((m) => ({ default: m.RubatoDesk }))),
-        aspect: 'rubato',
-        group: 'timing',
-        holdOut: ['rubato'],
-        writes: ['rubato'],
-    },
+    // Timing, read top to bottom in the order the work is done. Arpeggiation before tempo, because
+    // that is where the chain puts it: `InsertDynamicsGradient` and `InsertTemporalSpread` both run
+    // before `InsertTempo` in `Order.ts`, and they read onsets in the recording's own domain, which
+    // a fitted tempo has already rewritten by the time the tempo desk is done.
     {
         transformerName: 'InsertTemporalSpread',
         desk: lazy(() =>
@@ -247,6 +235,21 @@ export const correspondingDesks: DeskEntry[] = [
         aspect: 'arpeggiation',
         displayName: 'Styles',
         group: 'timing',
+    },
+    {
+        transformerName: 'InsertTempo',
+        desk: lazy(() => import('./tempo/TempoDesk').then((m) => ({ default: m.TempoDesk }))),
+        aspect: 'tempo',
+        group: 'timing',
+        writes: ['tempo'],
+    },
+    {
+        transformerName: 'InsertRubato',
+        desk: lazy(() => import('./rubato/RubatoDesk').then((m) => ({ default: m.RubatoDesk }))),
+        aspect: 'rubato',
+        group: 'timing',
+        holdOut: ['rubato'],
+        writes: ['rubato'],
     },
     // Dynamics
     {
