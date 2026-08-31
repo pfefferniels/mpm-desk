@@ -24,8 +24,10 @@ import { elementAt, zipWith } from 'espressivo';
 
 export interface StylizeOrnamentationOptions extends TransformationOptions {
   /**
-   * given in ticks; used as epsilon for both frame.start and frameLength
-   * of the temporalSpread
+   * The epsilon for both `frame.start` and `frameLength` of the `<temporalSpread>`, in the
+   * frame's own unit. The name says ticks and a saved chain holds it under that name, but
+   * `InsertTemporalSpread` measures its frames off the recording, so for every frame this
+   * clusters the unit is milliseconds.
    */
   tickTolerance: number;
 
@@ -60,6 +62,31 @@ interface GradientValues {
   transitionTo: number;
 }
 
+/**
+ * One `<ornamentDef>` the tolerances call for, and the ornaments it would cover.
+ *
+ * A `name` of null is a group the clustering could not hold together — the noise of either
+ * level. Those ornaments get a definition each rather than one between them, and the name for
+ * each is the caller's to make.
+ */
+interface StyleGroup {
+  name: string | null;
+  members: FittedOrnament[];
+}
+
+/** What the Styles desk plots: a point per framed ornament, and the styles they make. */
+export interface OrnamentStyles {
+  /**
+   * One point per ornament, in the four dimensions the clustering measures, labelled by the
+   * definition it lands in. A label of -1 is an ornament that ends up with a definition to
+   * itself.
+   */
+  points: readonly IPoint[];
+
+  /** How many `<ornamentDef>`s these tolerances call for, the solitary ones included. */
+  definitions: number;
+}
+
 /** The five values a `<temporalSpread>` is built from, with every absence already resolved. */
 interface SpreadValues {
   frameStart: number;
@@ -81,6 +108,46 @@ const noteOffShiftCoordinate = (shift: NoteOffShift | undefined): number => {
   return shift === NoteOffShift.True ? 1 : 0;
 };
 
+/** The four dimensions {@link StylizeOrnamentation.generateClusters} measures an ornament in. */
+const coordinatesOf = ({ draft }: FittedOrnament): number[] => [
+  draft.frameStart as number,
+  draft.frameLength as number,
+  draft.intensity || 1,
+  noteOffShiftCoordinate(draft.noteOffShift),
+];
+
+/** Every `<ornament>` in a scope, paired with the def fields the fitters parked on its element. */
+const fittedOrnamentsOf = (mpm: Mpm, scope: Scope): FittedOrnament[] =>
+  getInstructions(mpm, 'ornament', scope).map((instruction) => ({
+    instruction,
+    draft: ornamentDraftOf(instruction.element),
+  }));
+
+/**
+ * Those of them the clustering can key on. An ornament with a velocity ramp and no roll is
+ * exactly what `InsertDynamicsGradient` fits, and it has no frame to be measured against.
+ */
+const framed = (ornaments: FittedOrnament[]): FittedOrnament[] =>
+  ornaments.filter(
+    ({ draft }) => draft.frameStart !== undefined && draft.frameLength !== undefined,
+  );
+
+/**
+ * The ornaments each cluster label covers, in the order `Object.entries` walks them: the
+ * numbered clusters ascending, then the noise. That is the order the definitions reach the
+ * document in.
+ */
+const byLabel = (
+  clusters: IPoint[],
+  ornaments: FittedOrnament[],
+): Record<string, FittedOrnament[]> =>
+  zipWith(clusters, ornaments, (cluster, ornament) => ({ cluster, ornament })).reduce<
+    Record<string, FittedOrnament[]>
+  >((acc, { cluster, ornament }) => {
+    (acc[cluster.label.toString()] ??= []).push(ornament);
+    return acc;
+  }, {});
+
 export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentationOptions> {
   name = 'StylizeOrnamentation';
   requires = [InsertDynamicsGradient, InsertTemporalSpread];
@@ -101,35 +168,62 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
   }
 
   /**
-   * The clusters this transformer would form over a document's ornaments.
+   * The styles this transformer's tolerances would make over a scope's ornaments.
    *
-   * For the Styles desk, which plots them so a tolerance can be chosen by eye. It pairs each
-   * instruction with the draft parked on its element and drops the ones carrying no frame, which
-   * is what {@link transform} does before clustering — an ornament with a velocity ramp and no
-   * roll is exactly what `InsertDynamicsGradient` fits, and it has no frame to cluster on.
-   * Leaving that filter to the caller is how a desk ends up plotting points the fit will not.
+   * For the Styles desk, which plots them so the tolerances can be chosen by eye. Every one of
+   * the three moves a point between definitions here, because this is the same two-level
+   * partition {@link transform} writes from — clustering alone would answer for two of them and
+   * leave the gradient tolerance changing nothing on screen.
    */
-  clustersOf(mpm: Mpm, scope: Scope): IPoint[] {
-    const ornaments: FittedOrnament[] = getInstructions(mpm, 'ornament', scope).map(
-      (instruction) => ({ instruction, draft: ornamentDraftOf(instruction.element) }),
+  stylesOf(mpm: Mpm, scope: Scope): OrnamentStyles {
+    const ornaments = framed(fittedOrnamentsOf(mpm, scope));
+
+    const definitions = this.styleGroups(ornaments, scope).flatMap(({ name, members }) =>
+      name === null ? members.map((member) => [member]) : [members],
     );
-    return this.generateClusters(
-      ornaments.filter(
-        ({ draft }) => draft.frameStart !== undefined && draft.frameLength !== undefined,
-      ),
+
+    // Only the shared definitions are numbered. An ornament standing alone is drawn as noise,
+    // which is what it is: it shares its style with nothing.
+    const labels = new Map<FittedOrnament, number>();
+    let shared = 0;
+    definitions.forEach((members) => {
+      const label = members.length > 1 ? shared++ : -1;
+      members.forEach((member) => labels.set(member, label));
+    });
+
+    return {
+      points: ornaments.map((ornament, index) => ({
+        index,
+        value: coordinatesOf(ornament),
+        label: labels.get(ornament) ?? -1,
+      })),
+      definitions: definitions.length,
+    };
+  }
+
+  /**
+   * The frame clusters, each sub-clustered by its gradient: one entry per definition the
+   * tolerances call for.
+   *
+   * The outer clustering's noise is not sub-clustered. Ornaments whose rolls have nothing in
+   * common are not to be merged on their ramps alone.
+   */
+  private styleGroups(ornaments: FittedOrnament[], scope: Scope): StyleGroup[] {
+    return Object.entries(byLabel(this.generateClusters(ornaments), ornaments)).flatMap<StyleGroup>(
+      ([label, group]) =>
+        label === '-1'
+          ? [{ name: null, members: group }]
+          : Object.entries(byLabel(this.generateSubClusters(group), group)).map(
+              ([subLabel, subgroup]) => ({
+                name: subLabel === '-1' ? null : `def_${scope}_${label}_${subLabel}`,
+                members: subgroup,
+              }),
+            ),
     );
   }
 
   generateClusters(ornaments: FittedOrnament[]): IPoint[] {
-    const points = ornaments.map(({ draft }) => {
-      return [
-        draft.frameStart as number,
-        draft.frameLength as number,
-        draft.intensity || 1,
-        noteOffShiftCoordinate(draft.noteOffShift),
-      ];
-    });
-    return dbscan(points, {
+    return dbscan(ornaments.map(coordinatesOf), {
       epsilons: [
         this.options.tickTolerance,
         this.options.tickTolerance,
@@ -150,13 +244,8 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
 
   protected transform(_msm: Alignment, mpm: Mpm): void {
     for (const scope of scopesOf(mpm)) {
-      const ornaments: FittedOrnament[] = getInstructions(mpm, 'ornament', scope).map(
-        (instruction) => ({ instruction, draft: ornamentDraftOf(instruction.element) }),
-      );
-
-      const filteredOrnaments = ornaments.filter(
-        ({ draft }) => draft.frameStart !== undefined && draft.frameLength !== undefined,
-      );
+      const ornaments = fittedOrnamentsOf(mpm, scope);
+      const filteredOrnaments = framed(ornaments);
 
       // An ornament can carry a velocity ramp and no roll — that is exactly what
       // `InsertDynamicsGradient` fits. Clustering keys on the frame, so those fall out here
@@ -179,47 +268,17 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
       // instruction is a snapshot and the element is what survives being rewritten.
       const defined = new Set<Element>();
 
-      const clusters = this.generateClusters(filteredOrnaments);
-
-      // Group points by label
-      const clustersByLabel = zipWith(clusters, filteredOrnaments, (cluster, ornament) => ({
-        cluster,
-        ornament,
-      })).reduce<Record<string, FittedOrnament[]>>((acc, { cluster, ornament }) => {
-        (acc[cluster.label.toString()] ??= []).push(ornament);
-        return acc;
-      }, {});
-
-      // Process each cluster. `Object.entries` and not `for…in` only to give the bucket a type;
-      // both walk integer-like keys ascending and the rest in insertion order, and that order
-      // is the order the definitions reach the document in.
-      for (const [label, group] of Object.entries(clustersByLabel)) {
-        if (label === '-1') {
-          group.forEach((ornament) => this.defineAndName(mpm, scope, ornament, defined));
+      for (const { name, members } of this.styleGroups(filteredOrnaments, scope)) {
+        if (name === null) {
+          members.forEach((ornament) => this.defineAndName(mpm, scope, ornament, defined));
           continue;
         }
 
-        // Process subgroups
-        const subClusters = this.generateSubClusters(group);
-        const subClustersByLabel = zipWith(subClusters, group, (cluster, ornament) => ({
-          cluster,
-          ornament,
-        })).reduce<Record<string, FittedOrnament[]>>((acc, { cluster, ornament }) => {
-          (acc[cluster.label.toString()] ??= []).push(ornament);
-          return acc;
-        }, {});
+        const def = this.mergedDef(members, name);
+        if (!def) continue;
 
-        for (const [subLabel, subgroup] of Object.entries(subClustersByLabel)) {
-          if (subLabel === '-1') {
-            subgroup.forEach((ornament) => this.defineAndName(mpm, scope, ornament, defined));
-          } else {
-            const def = this.mergedDef(subgroup, `def_${scope}_${label}_${subLabel}`);
-            if (!def) continue;
-
-            insertDefinition(mpm, 'ornamentDef', def, scope);
-            subgroup.forEach((ornament) => this.nameAfter(mpm, ornament, def, defined));
-          }
-        }
+        insertDefinition(mpm, 'ornamentDef', def, scope);
+        members.forEach((ornament) => this.nameAfter(mpm, ornament, def, defined));
       }
 
       this.defineGradientOnly(mpm, scope, gradientOnly, defined);
@@ -370,16 +429,9 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
   ) {
     if (ornaments.length === 0) return;
 
-    const clusters = this.generateSubClusters(ornaments);
-    const byLabel = zipWith(clusters, ornaments, (cluster, ornament) => ({
-      cluster,
-      ornament,
-    })).reduce<Record<string, FittedOrnament[]>>((acc, { cluster, ornament }) => {
-      (acc[cluster.label.toString()] ??= []).push(ornament);
-      return acc;
-    }, {});
+    const clusters = byLabel(this.generateSubClusters(ornaments), ornaments);
 
-    for (const [label, group] of Object.entries(byLabel)) {
+    for (const [label, group] of Object.entries(clusters)) {
       if (label === '-1') {
         group.forEach((ornament) => this.defineAndName(mpm, scope, ornament, defined));
         continue;

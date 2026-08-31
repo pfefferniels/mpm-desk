@@ -49,19 +49,14 @@ export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransfor
                 />
             </Stack>
 
+            {/* A fixed range, unlike the ornamentation plot's: both axes are ratios against the
+                notated value, so 1 is a fixed and meaningful place on each. */}
             <Plot
                 points={articulationPoints}
-                xLabel="Relative Duration"
-                yLabel="Relative Volume"
-                xMin={0}
-                xMax={2.5}
-                yMin={0.5}
-                yMax={1.5}
-                xStep={0.25}
-                yStep={0.25}
-                xStretch={600}
-                yStretch={600}
-                rStretch={10}
+                x={{ label: 'Relative Duration', min: 0, max: 2.5 }}
+                y={{ label: 'Relative Volume', min: 0.5, max: 1.5 }}
+                width={600}
+                height={400}
             />
 
             <br />
