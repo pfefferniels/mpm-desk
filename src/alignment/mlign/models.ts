@@ -36,13 +36,9 @@ export type RecordedModelId = MlignModelId | "v1" | "v2" | "v3";
 /**
  * The checkpoints, as shipped in `public/`. Fetched at run time, never imported.
  */
-export const MLIGN_MODELS: Record<
-    MlignModelId,
-    { file: string; label: string; note: string }
-> = {
+export const MLIGN_MODELS: Record<MlignModelId, { file: string; note: string }> = {
     v4: {
         file: "mlign-v4-fp16.onnx",
-        label: "v4",
         note:
             "Attribution conditioned on the match head, trained on trills that " +
             "move at the speed real ones do and that re-strike their principal " +

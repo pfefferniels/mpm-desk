@@ -3,7 +3,7 @@ import { Alert, Box, GlobalStyles, Slider, Stack, Typography } from '@mui/materi
 import { applyAlignment } from '../../alignment/applyAlignment';
 import { divergencesOf, type Divergence } from '../../alignment/divergences';
 import { MismatchedPairError, hasRepeatSigns, toMatches } from '../../alignment/mlign';
-import { DEFAULT_MODEL, MLIGN_MODELS, type MlignModelId } from '../../alignment/mlign/models';
+import { DEFAULT_MODEL } from '../../alignment/mlign/models';
 import { recordedAlignment, type RecordedAlignment } from '../../alignment/recorded';
 import { CERTAINTIES, changesNotation, type Attribution, type Resolution } from '../../alignment/readings';
 import { ornamentSignsOf } from '../../mei/ornamentSigns';
@@ -71,7 +71,6 @@ export const AlignmentDesk = () => {
 
     /** The take under review. The first there is, until somebody picks another. */
     const [picked, setPicked] = useState<string>();
-    const [model, setModel] = useState<MlignModelId>(DEFAULT_MODEL);
     const [minConfidence, setMinConfidence] = useState(0);
     const [sliderValue, setSliderValue] = useState(0);
     const [scale, setScale] = useState(DEFAULT_PERFORMANCE_SCALE);
@@ -309,7 +308,7 @@ export const AlignmentDesk = () => {
                 const fresh = await runAlignment({
                     mei,
                     midi: performance.midi,
-                    model,
+                    model: DEFAULT_MODEL,
                     allowMismatch,
                     onStatus: setStatus,
                 });
@@ -322,7 +321,7 @@ export const AlignmentDesk = () => {
                 setAlignment({
                     source,
                     midi: performance.name,
-                    model,
+                    model: DEFAULT_MODEL,
                     minConfidence,
                     resolutions,
                     resp: attribution.resp,
@@ -340,7 +339,7 @@ export const AlignmentDesk = () => {
                 setStatus(undefined);
             }
         },
-        [mei, performance, source, model, minConfidence, resolutions, attribution, setAlignment],
+        [mei, performance, source, minConfidence, resolutions, attribution, setAlignment],
     );
 
     /**
@@ -534,21 +533,6 @@ export const AlignmentDesk = () => {
                     >
                         Add…
                     </ToolbarButton>
-                    <Box
-                        component="select"
-                        aria-label="Model"
-                        value={model}
-                        onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                            setModel(event.target.value as MlignModelId);
-                        }}
-                        sx={{ height: 30, borderRadius: 1, border: '1px solid #e5e7eb' }}
-                    >
-                        {Object.entries(MLIGN_MODELS).map(([id, entry]) => (
-                            <option key={id} value={id}>
-                                {entry.label}
-                            </option>
-                        ))}
-                    </Box>
                     <Slider
                         aria-label="Least confidence"
                         sx={{ width: '5rem', mx: 1 }}
@@ -669,17 +653,9 @@ export const AlignmentDesk = () => {
 
                 {drawn?.failed && <Alert severity="error">{drawn.failed}</Alert>}
 
-                {/* Only where there is a recording to hear. A transport over nothing, with a
-                    sentence under it about notes lighting up, is an offer that cannot be taken. */}
-                {(alignment?.spans.length ?? 0) > 0 && (
-                    <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                        <PlaybackBar playback={playback} />
-                        <Typography variant="body2" color="text.secondary">
-                            Listen back, and the notes light up as they sound. Drag either end of
-                            the bar to hear one passage on its own.
-                        </Typography>
-                    </Stack>
-                )}
+                {/* Only where there is a recording to hear. A transport over nothing is an
+                    offer that cannot be taken. */}
+                {(alignment?.spans.length ?? 0) > 0 && <PlaybackBar playback={playback} />}
 
                 <Box
                     ref={setRoot}
