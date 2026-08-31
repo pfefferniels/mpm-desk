@@ -22,6 +22,42 @@ const Row = ({ reason, children }: { reason?: string; children: ReactElement }) 
     </Tooltip>
 );
 
+/**
+ * A row of the list, at the height a 14px label needs and no more.
+ *
+ * 32px is the floor rather than a snug fit: `dense` puts the label's own box at 28, which is under
+ * what is comfortable to aim at. `ListItemText` carries 4px of margin above and below that would
+ * otherwise push the row past the floor and undo it.
+ */
+const rowStyle = { minHeight: 32, '& .MuiListItemText-root': { my: 0 } };
+
+/** An aspect as the menu lists it: the desks that share it, and whether it opens a group. */
+interface AspectRow {
+    aspect: string;
+    desks: typeof correspondingDesks;
+    startsGroup: boolean;
+}
+
+/**
+ * The registry as the menu draws it — one row per aspect, in registry order.
+ *
+ * A group is a run of neighbouring entries sharing a `group`, so an entry written away from its
+ * group splits it in two on screen; `DeskSwitch.tsx` says as much where the list is written.
+ */
+const readAspectRows = (): AspectRow[] => {
+    const byAspect = [...Map.groupBy(correspondingDesks, (desk) => desk.aspect)];
+    const groupAt = (index: number) => byAspect[index][1][0].group;
+
+    return byAspect.map(([aspect, desks], index) => ({
+        aspect,
+        desks,
+        startsGroup: index > 0 && groupAt(index) !== groupAt(index - 1),
+    }));
+};
+
+/** Read once: `correspondingDesks` is a table, and nothing edits it. */
+const aspectRows = readAspectRows();
+
 interface AspectSelectProps {
     selectedDesk: string;
     setSelectedDesk: (desk: string) => void;
@@ -36,12 +72,6 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
 }) => {
     const [toExpand, setToExpand] = useState<string>();
     const [collapsed, setCollapsed] = useState(false);
-
-    const aspectGroups = Array.from(
-        Map.groupBy(correspondingDesks, desk => desk.aspect)
-    );
-
-    let lastGroup: string | undefined;
 
     return (
         <Card
@@ -72,7 +102,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                 border: 1,
                 borderColor: 'divider',
                 width: 'fit-content',
-                minWidth: collapsed ? undefined : '200px',
+                minWidth: collapsed ? undefined : '180px',
                 // `ListItemButton.Mui-selected` tints with `alpha(primary.main, …)` rather than
                 // `action.selected`, and against a near-black primary that tint is a hair off
                 // the hover fill. A rule down the left edge says "this one" at a glance, which
@@ -101,25 +131,22 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                         <ExpandMore fontSize="small" sx={{ transform: 'rotate(90deg)' }} />
                     </ListItemButton>
                     <Divider />
-                    <List>
+                    {/* `dense` reaches the rows and their text through `ListContext`, so it sets
+                        both the padding and the `body2` the labels are set in. */}
+                    <List dense disablePadding>
                         {/* Metadata is an entry in `correspondingDesks` like any other now, so
                             it is listed by the loop below rather than written in by hand. Its
-                            own group is what keeps the divider under it. */}
-                        {aspectGroups.map(([aspect, info]) => {
-                            if (info.length === 0) return null;
-
-                            const currentGroup = info[0].group;
-                            const showDivider = lastGroup !== undefined && currentGroup !== lastGroup;
-                            lastGroup = currentGroup;
-
-                            const reason = info[0].unavailable?.(documentFacts);
+                            own group is what keeps the rule under it. */}
+                        {aspectRows.map(({ aspect, desks, startsGroup }) => {
+                            const reason = desks[0].unavailable?.(documentFacts);
 
                             return (
                                 <React.Fragment key={aspect}>
-                                    {showDivider && <Divider sx={{ my: 1 }} />}
-                                    {info.length === 1 ? (
+                                    {startsGroup && <Divider sx={{ my: 0.5 }} />}
+                                    {desks.length === 1 ? (
                                         <Row reason={reason}>
                                             <ListItemButton
+                                                sx={rowStyle}
                                                 selected={aspect === selectedDesk}
                                                 disabled={reason !== undefined}
                                                 onClick={
@@ -136,20 +163,25 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                         </Row>
                                     ) : (
                                         <ListItemButton
+                                            sx={rowStyle}
                                             selected={aspect === toExpand}
                                             onClick={() => {
                                                 setToExpand(aspect === toExpand ? undefined : aspect);
                                             }}
                                         >
                                             <ListItemText>{aspect}</ListItemText>
-                                            {aspect === toExpand ? <ExpandLess /> : <ExpandMore />}
+                                            {aspect === toExpand ? (
+                                                <ExpandLess fontSize="small" />
+                                            ) : (
+                                                <ExpandMore fontSize="small" />
+                                            )}
                                         </ListItemButton>
                                     )}
 
-                                    {info.length > 1 && (
+                                    {desks.length > 1 && (
                                         <Collapse in={toExpand === aspect} timeout="auto" unmountOnExit>
-                                            <List dense component='div' disablePadding sx={{ pl: 3 }}>
-                                                {info.map(({ displayName, unavailable }) => {
+                                            <List dense component='div' disablePadding sx={{ pl: 2 }}>
+                                                {desks.map(({ displayName, unavailable }) => {
                                                     if (!displayName) return null;
 
                                                     const childReason = unavailable?.(documentFacts);
@@ -157,6 +189,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                                     return (
                                                         <Row key={displayName} reason={childReason}>
                                                             <ListItemButton
+                                                                sx={rowStyle}
                                                                 selected={displayName === selectedDesk}
                                                                 disabled={childReason !== undefined}
                                                                 onClick={

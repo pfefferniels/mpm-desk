@@ -8,10 +8,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AspectSelect } from './AspectSelect';
+import { correspondingDesks } from '../desks/DeskSwitch';
 
 const mount = (readings: number) => {
     const setSelectedDesk = vi.fn();
-    render(
+    const { container } = render(
         <AspectSelect
             selectedDesk='metadata'
             setSelectedDesk={setSelectedDesk}
@@ -21,6 +22,7 @@ const mount = (readings: number) => {
     const label = screen.getByText('source choice');
     return {
         setSelectedDesk,
+        container,
         row: label.closest('[role="button"]'),
         // `describeChild` puts the reason on the wrapper as a native `title` while the tooltip is
         // closed, and the wrapper is where it has to be: a disabled MUI button dispatches no
@@ -53,5 +55,15 @@ describe('the aspect menu', () => {
         const { setSelectedDesk } = mount(1);
         fireEvent.click(screen.getByText('tempo'));
         expect(setSelectedDesk).toHaveBeenCalledWith('tempo');
+    });
+
+    it('rules off each group once', () => {
+        // One rule under the heading, then one wherever `group` changes from a row to the next —
+        // so with every group written in one run, as `DeskSwitch.tsx` requires, the count is the
+        // number of groups. More rules than that is a group split across the list, which reads as
+        // two groups and is the one way this arrangement goes wrong silently.
+        const { container } = mount(1);
+        const groups = new Set(correspondingDesks.map(({ group }) => group));
+        expect(container.querySelectorAll('hr')).toHaveLength(groups.size);
     });
 });
