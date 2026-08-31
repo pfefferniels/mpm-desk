@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Button, Divider, Stack, Typography } from '@mui/material';
+import { Button, Divider, Stack } from '@mui/material';
 import { FolderOpen, NoteAdd } from '@mui/icons-material';
 
 interface StartScreenProps {
@@ -58,12 +58,6 @@ export const StartScreen: React.FC<StartScreenProps> = ({ onOpenZip, onOpenMei }
                     e.target.value = '';
                 }}
             />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2, maxWidth: '32rem', textAlign: 'center' }}>
-                A new project starts from a score. A score nobody has aligned opens on the
-                alignment desk, where you add the recordings it was played in and put the two note
-                against note.
-            </Typography>
-
             <input
                 ref={meiInputRef}
                 type="file"
