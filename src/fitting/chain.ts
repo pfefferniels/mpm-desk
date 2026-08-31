@@ -13,12 +13,13 @@
 import { compareTransformers, validate } from './transformers/Order';
 import { canonicalName, createTransformer } from './transformers/TransformerRegistry';
 import { InsertMetadata } from './transformers/metadata/InsertMetadata';
+import { RoundNumbers } from './transformers/rounding/RoundNumbers';
 import { TranslatePhysicalTimeToTicks } from './transformers/tempo/TranslatePhysicalTimeToTicks';
 import type { Transformer, TransformationOptions } from './transformers/Transformer';
 import type { Call } from '../model/Work';
 
 /**
- * The one call a run makes for itself rather than because a file asked for it.
+ * The calls a run makes for itself rather than because a file asked for them.
  *
  * `TranslatePhysicalTimeToTicks` was a button on the tempo desk, and it should never have been a
  * decision. Everything about it has exactly one answer:
@@ -43,8 +44,13 @@ import type { Call } from '../model/Work';
  * `<ornamentDef>`s by frame value and millisecond frames — all distinct — fragment the defs that
  * tick frames coalesce. Running it when there is nothing to translate costs one pass over the
  * ornaments, which the transformer takes care to make the whole cost.
+ *
+ * {@link RoundNumbers} is here on the same three counts. Where it goes is settled — it restates
+ * what the calls before it wrote, so it is last or it is wrong; it takes no options and no scope;
+ * and "whether" is a question about the document's own claim to precision rather than about this
+ * or that fit, so it is not one to answer per chain.
  */
-const INJECTED = 'TranslatePhysicalTimeToTicks';
+const INJECTED = new Set(['TranslatePhysicalTimeToTicks', 'RoundNumbers']);
 
 /**
  * Calls the chain does not run, because what they decided is already in the document it runs over.
@@ -65,10 +71,10 @@ const APPLIED_TO_THE_SCORE = new Set(['Align']);
 export const isDocumentCall = (name: string): boolean => APPLIED_TO_THE_SCORE.has(name);
 
 /**
- * Whether `name` names the call the run makes for itself — under either spelling, since the
- * shipped file carries the misspelled one.
+ * Whether `name` names a call the run makes for itself — under either spelling of
+ * `TranslatePhysicalTimeToTicks`, since the shipped file carries the misspelled one.
  */
-export const isInjectedCall = (name: string): boolean => canonicalName(name) === INJECTED;
+export const isInjectedCall = (name: string): boolean => INJECTED.has(canonicalName(name));
 
 interface BuiltChain {
     /** The chain as it will run: metadata substituted, in reduction order. */
@@ -93,14 +99,14 @@ interface BuiltChain {
  * author it carried. That way a document and a reconstruction state their metadata through one
  * code path, and the call belongs to no segment — it writes `<metadata>`, not an instruction.
  *
- * {@link INJECTED} is added on the same footing, and a saved one is dropped so that a file
- * written before this change does not run it twice. The second run would do no work — it skips
- * an ornament already in ticks — and would still be wrong: two calls in the chain, one of them
- * credited with everything and the other with nothing.
+ * The {@link INJECTED} calls are added on the same footing, and a saved one is dropped so that a
+ * file written before this change does not run it twice. The second run would do no work — it
+ * skips an ornament already in ticks, and rounding is idempotent — and would still be wrong: two
+ * calls in the chain, one of them credited with everything and the other with nothing.
  *
- * Neither injected call is in `provenance`, so neither reaches the narrative desk (which reads
- * the document) or a saved file (`provenanceOf` enriches only calls the document holds). They
- * exist for the length of a run.
+ * No injected call is in `provenance`, so none reaches the narrative desk (which reads the
+ * document) or a saved file (`provenanceOf` enriches only calls the document holds). They exist
+ * for the length of a run.
  *
  * The traffic runs the other way for {@link APPLIED_TO_THE_SCORE}: those calls are in the
  * document and not in the chain.
@@ -132,6 +138,7 @@ export function buildChain(provenance: readonly Call[]): BuiltChain {
             comments: title ? [{ text: title }] : [],
         }),
         new TranslatePhysicalTimeToTicks({ translatePhysicalModifiers: true }),
+        new RoundNumbers(),
         ...transformers.filter((t) => t.name !== 'InsertMetadata' && !isInjectedCall(t.name)),
     ].sort(compareTransformers);
 

@@ -4,7 +4,7 @@ import { convertMeiToMsm, performMsmToData } from 'espressivo';
 import type { PerformanceData, PerformedNote } from 'espressivo';
 import { Alignment } from '../../../src/fitting/alignment';
 import { createMpm, exportMPM } from '../../../src/fitting/instructions/index';
-import { buildChain, validateChain } from '../../../src/fitting/chain';
+import { buildChain, isDocumentCall, isInjectedCall, validateChain } from '../../../src/fitting/chain';
 import { parseWorkFile } from '../../../src/model/Work';
 import { at } from '../../support/at';
 import { deserializeAlignment, parseAlignmentFixture } from './alignmentFixture';
@@ -30,8 +30,9 @@ import { type AspectError, type Errors, EMPTY_MPM, statistics } from './harness'
  * assembled here to suit the measurement.
  *
  * It is also the one thing in this directory that says the drop of the six transformers did not
- * reach the reconstruction: `chain.json` is 84 calls over 14 transformers, and every one of them
- * is still registered. {@link runChain} throws if any is not.
+ * reach the reconstruction: `chain.json` is 84 calls over 14 transformers — 83 of them the run
+ * takes from the file, the odd one being the `TranslatePhyiscalTimeToTicks` it now injects — and
+ * every one of them is still registered. {@link runChain} throws if any is not.
  */
 
 const fixture = (name: string) =>
@@ -66,7 +67,14 @@ export interface AlignedRun {
   exercised: Errors;
   /** How much of the recording the chain's MPM actually accounts for, per aspect. */
   explained: { onset: number; duration: number; velocity: number };
-  /** How many transformer calls the chain file holds, and how many of them ran. */
+  /**
+   * How many of the chain file's own calls there are, and how many of them ran.
+   *
+   * Both counts leave out what the run does not take from the file: the calls `buildChain`
+   * injects, and the ones it drops because it injects them. Counting the chain whole made these
+   * two equal only while the run injected exactly as many calls as it dropped, so a third
+   * injected call broke an assertion about the *file* by adding something the file never said.
+   */
   calls: { declared: number; ran: number };
 }
 
@@ -122,7 +130,10 @@ export const runAligned = (): AlignedRun => {
       duration: explained(exercised.duration, errors.duration),
       velocity: explained(exercised.velocity, errors.velocity),
     },
-    calls: { declared: declaredCalls(info), ran: transformers.length },
+    calls: {
+      declared: declaredCalls(info),
+      ran: transformers.filter((t) => !isInjectedCall(t.name)).length,
+    },
   };
 };
 
@@ -153,9 +164,12 @@ const recording = (info: string): Alignment => {
   return observed;
 };
 
+/** The calls the file makes that the run takes from it — see {@link AlignedRun.calls}. */
 const declaredCalls = (info: string): number => {
-  const parsed = JSON.parse(info) as { provenance: unknown[] };
-  return parsed.provenance.length;
+  const parsed = JSON.parse(info) as { provenance: { name: string }[] };
+  return parsed.provenance.filter(
+    (call) => !isInjectedCall(call.name) && !isDocumentCall(call.name),
+  ).length;
 };
 
 /** The share of the recording's departure from the bare score that the MPM accounts for. */

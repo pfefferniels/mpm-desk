@@ -132,15 +132,17 @@ describe('the chain built from it', () => {
     const { transformers, unknown } = buildChain(read.provenance);
 
     expect(unknown).toEqual([]);
-    // Two of the three the file never asked for. `buildChain` always heads the chain with an
+    // Three of the five the file never asked for. `buildChain` always heads the chain with an
     // `InsertMetadata` of its own — an MPM needs a `<metadata>` whether or not the chain says so
-    // — and always adds a `TranslatePhysicalTimeToTicks`, which is not a decision any file gets
-    // to make. Then it sorts into reduction order, which is why they are not where they were put.
+    // — and always adds a `TranslatePhysicalTimeToTicks` and a `RoundNumbers`, neither of which
+    // is a decision any file gets to make. Then it sorts into reduction order, which is why they
+    // are not where they were put.
     expect(transformers.map((t) => t.name)).toEqual([
       'MakeChoice',
       'TranslatePhysicalTimeToTicks',
       'InsertRubato',
       'InsertMetadata',
+      'RoundNumbers',
     ]);
     expect(at(transformers, 2, 'transformer').id).toBe('call-InsertRubato');
     expect(at(transformers, 2, 'transformer').options).toEqual({
@@ -190,11 +192,12 @@ describe('the chain built from it', () => {
       'TranslatePhysicalTimeToTicks',
       'InsertRubato',
       'InsertMetadata',
+      'RoundNumbers',
     ]);
   });
 
   /**
-   * The one call a run makes for itself, and the reason a file may not make it twice.
+   * The calls a run makes for itself, and the reason a file may not make one of them twice.
    *
    * `TranslatePhysicalTimeToTicks` was a button on the tempo desk, and every file written while
    * it was one names it — the shipped reconstruction under the misspelling. Injecting it without
@@ -215,6 +218,7 @@ describe('the chain built from it', () => {
         'TranslatePhysicalTimeToTicks',
         'InsertRubato',
         'InsertMetadata',
+        'RoundNumbers',
       ]);
       // Rebuilt, not reused — the same thing the metadata call proves above, and the reason
       // neither injected call can carry a segment: it is not in the document at all.
@@ -264,6 +268,7 @@ describe('the chain built from it', () => {
       'TranslatePhysicalTimeToTicks',
       'InsertRubato',
       'InsertMetadata',
+      'RoundNumbers',
     ]);
   });
 });

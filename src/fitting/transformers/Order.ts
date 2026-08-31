@@ -11,6 +11,7 @@ import {
   StylizeOrnamentation,
 } from './ornamentation/index';
 import { InsertPedal } from './pedal/InsertPedalInstructions';
+import { RoundNumbers } from './rounding/RoundNumbers';
 import { InsertRubato } from './rubato/InsertRubato';
 import { CombineAdjacentRubatos } from './rubato/CombineAdjacentRubatos';
 import {
@@ -29,7 +30,7 @@ import {
 // Register the transformers, in reduction order — which is the order a chain runs in, whatever
 // order its calls were written.
 //
-// Eighteen of them. What is registered is decided by whether anything in the editor can reach it,
+// Nineteen of them. What is registered is decided by whether anything in the editor can reach it,
 // rather than by how often a transformer is used.
 //
 // Not registered: `InsertAsynchrony` and `CompressOrnamentation` appear nowhere in this
@@ -97,6 +98,10 @@ registerTransformer(StylizeArticulation);
 registerTransformer(MakeDefaultArticulation);
 registerTransformer(InsertPedal);
 registerTransformer(InsertMetadata);
+// Last, and it has to be: it restates what every call before it wrote, so anything registered
+// after it would be fitting against numbers that are about to be rewritten. Injected rather than
+// offered, like the hinge above — see the note on `INJECTED` in `chain.ts`.
+registerTransformer(RoundNumbers);
 
 // The class name was misspelled, and the misspelling reached saved work files.
 registerAlias('TranslatePhyiscalTimeToTicks', 'TranslatePhysicalTimeToTicks');

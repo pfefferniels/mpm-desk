@@ -8,6 +8,7 @@ export * from './rubato/CombineAdjacentRubatos';
 export type { TransformationOptions } from './Transformer';
 export * from './tempo/tempoCalculations';
 export * from './pedal/InsertPedalInstructions';
+export * from './rounding/RoundNumbers';
 export * from './Order';
 export * from './choice/MakeChoice';
 export * from './modification/Modify';

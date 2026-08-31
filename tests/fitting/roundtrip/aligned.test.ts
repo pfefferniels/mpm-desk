@@ -67,7 +67,8 @@ describe('an aligned recording, fitted and rendered back', () => {
   test('the chain runs in full', () => {
     // `buildChain` reports a call it cannot build rather than running it, and a dropped call
     // is a chain that quietly fits less than the fixture says it does. This is also the check
-    // that says the six retired transformers were not among the 84 this reconstruction uses.
+    // that says the six retired transformers were not among the 83 this reconstruction uses.
+    // Both counts are of the file's own calls; see `AlignedRun.calls`.
     expect(run.calls.ran, 'calls in chain.json that did not survive the import').toBe(
       run.calls.declared,
     );

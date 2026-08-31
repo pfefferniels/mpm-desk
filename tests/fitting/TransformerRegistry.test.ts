@@ -36,16 +36,18 @@ describe('TransformerRegistry', () => {
      * The registered set, pinned exactly.
      *
      * It used to be a floor (`>= 16`) over espressivo's twenty, and a floor would not notice one
-     * going by accident. Seventeen is the number, and changing it is a decision somebody has to
-     * come here and make — which is what this test is for, and it has already done its job once.
+     * going by accident. Changing the list is a decision somebody has to come here and make —
+     * which is what this test is for, and it has already done its job once.
      *
      * Three of espressivo's twenty are not part of this application: `InsertAsynchrony` and
      * `CompressOrnamentation` are named nowhere in it, and `ApproximateLogarithmicTempo` was
      * superseded by a tempo somebody draws. Three more were dropped and then put back —
      * `CombineAdjacentRubatos`, `StylizeArticulation` and `MakeDefaultArticulation` each have a
      * control in a desk, and retiring one means deleting that control. See `Order.ts`.
+     *
+     * `RoundNumbers` is this repo's own and last: it restates what everything before it wrote.
      */
-    test('the reduction order is exactly the seventeen fitters this build has', () => {
+    test('the reduction order is exactly the fitters this build has', () => {
       expect(getTransformerOrder()).toEqual([
         'ProcessVoices',
         'MakeChoice',
@@ -65,6 +67,7 @@ describe('TransformerRegistry', () => {
         'MakeDefaultArticulation',
         'InsertPedal',
         'InsertMetadata',
+        'RoundNumbers',
       ]);
     });
 
@@ -106,7 +109,7 @@ describe('TransformerRegistry', () => {
         (value): value is new () => Transformer =>
           typeof value === 'function' && value.prototype instanceof AbstractTransformer,
       );
-      expect(exported.length).toBe(17);
+      expect(exported.length).toBe(18);
       for (const constructor of exported) {
         const name = new constructor().name;
         expect(isRegistered(name), `${name} is exported but not registered`).toBe(true);
@@ -150,14 +153,16 @@ describe('TransformerRegistry', () => {
       const { transformers: chain, unknown } = buildChain(parseWorkFile(json).provenance);
 
       expect(unknown).toEqual([]);
-      // `buildChain` always adds two calls of its own — an `InsertMetadata`, because an MPM needs
-      // a `<metadata>` whether or not the chain says so, and a `TranslatePhysicalTimeToTicks`,
-      // because nothing downstream of the hinge may depend on somebody having asked for it. They
-      // sort to the two ends of what is left, being last and near-first in reduction order.
+      // `buildChain` always adds three calls of its own — an `InsertMetadata`, because an MPM
+      // needs a `<metadata>` whether or not the chain says so; a `TranslatePhysicalTimeToTicks`,
+      // because nothing downstream of the hinge may depend on somebody having asked for it; and
+      // a `RoundNumbers`, because how precisely the document states a number is not a per-fit
+      // decision. They sort around what is left rather than staying where they were put.
       expect(chain.map((t) => t.name)).toEqual([
         'TranslatePhysicalTimeToTicks',
         'InsertRubato',
         'InsertMetadata',
+        'RoundNumbers',
       ]);
       expect(at(chain, 1, 'transformer').id).toBe(transformer.id);
       expect(at(chain, 1, 'transformer').options).toEqual(transformer.options);
