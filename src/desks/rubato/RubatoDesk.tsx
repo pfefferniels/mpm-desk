@@ -159,9 +159,6 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
                 </ToolGroup>
             </DeskToolbar>
 
-            <h3 style={{ position: 'sticky', left: 0 }}>
-                Tick Dates
-            </h3>
             <svg
                 width={svgWidth + marginLeft}
                 height={svgHeight * 2}
