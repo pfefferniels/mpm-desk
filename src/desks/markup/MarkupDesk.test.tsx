@@ -141,17 +141,27 @@ describe('MarkupDesk', () => {
         expect(rows()[0].textContent).toContain('<mpm');
     });
 
-    it('names both documents, and says which is on screen', () => {
-        const { bar, getByText, rows } = mount();
+    it('names both documents, and switches between them', () => {
+        const { bar, rows } = mount();
 
         expect(bar.getByRole('button', { name: 'MPM' })).toBeInTheDocument();
         expect(bar.getByRole('button', { name: 'MSM' })).toBeInTheDocument();
-        expect(getByText(/performance markup this editor writes/)).toBeInTheDocument();
+        expect(rows()[0].textContent).toContain('<mpm');
+
+        fireEvent.click(bar.getByRole('button', { name: 'MSM' }));
+
+        expect(rows()[0].textContent).toContain('<msm');
+    });
+
+    /** The MPM is the desk's own document, so only the MSM says what it is. */
+    it('captions the MSM alone', () => {
+        const { bar, getByText, queryByText } = mount();
+
+        expect(queryByText(/velocities and millisecond onsets/)).toBeNull();
 
         fireEvent.click(bar.getByRole('button', { name: 'MSM' }));
 
         expect(getByText(/velocities and millisecond onsets as measured/)).toBeInTheDocument();
-        expect(rows()[0].textContent).toContain('<msm');
     });
 
     /**

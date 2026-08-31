@@ -27,8 +27,8 @@ import type { ViewProps } from '../TransformerViewProps';
 /** Which of the two documents is on screen. */
 type Pane = 'MPM' | 'MSM';
 
-const CAPTIONS: Record<Pane, string> = {
-    MPM: 'The performance markup this editor writes — the same document Save puts in the archive as performance.mpm. Click an instruction to open the desk that wrote it.',
+/** Only where the pane is not the document the desk is named for. */
+const CAPTIONS: Partial<Record<Pane, string>> = {
     MSM: 'The score with the recording laid on it: velocities and millisecond onsets as measured. Not the score-only document the MIDI render is given, which states no timing of its own.',
 };
 
@@ -170,6 +170,7 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
         [pane, performanceXml, msm],
     );
     const doc = useMemo(() => indexMarkup(source), [source]);
+    const caption = CAPTIONS[pane];
 
     const activeLines = useMemo(() => {
         const set = new Set<number>();
@@ -307,22 +308,24 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
                     height: `calc(100dvh - ${APP_BAR_HEIGHT}px)`,
                 }}
             >
-                <Typography
-                    variant='caption'
-                    color='text.secondary'
-                    sx={{
-                        flexShrink: 0,
-                        px: 2,
-                        py: 0.75,
-                        borderBottom: 1,
-                        borderColor: 'divider',
-                        // `AspectSelect` floats over this corner; the caption keeps clear of it,
-                        // as `MetadataDesk` does with the same gutter.
-                        pr: '15rem',
-                    }}
-                >
-                    {CAPTIONS[pane]}
-                </Typography>
+                {caption !== undefined && (
+                    <Typography
+                        variant='caption'
+                        color='text.secondary'
+                        sx={{
+                            flexShrink: 0,
+                            px: 2,
+                            py: 0.75,
+                            borderBottom: 1,
+                            borderColor: 'divider',
+                            // `AspectSelect` floats over this corner; the caption keeps clear of
+                            // it, as `MetadataDesk` does with the same gutter.
+                            pr: '15rem',
+                        }}
+                    >
+                        {caption}
+                    </Typography>
+                )}
 
                 <Box
                     ref={viewRef}
