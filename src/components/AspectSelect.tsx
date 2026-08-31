@@ -1,6 +1,6 @@
 import React, { useState, type ReactElement } from 'react';
 import { Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
-import { ChevronRight, ExpandLess, ExpandMore } from '@mui/icons-material';
+import { ChevronRight, ExpandLess, ExpandMore, InfoOutlined } from '@mui/icons-material';
 import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
 
 /**
@@ -21,6 +21,21 @@ const Row = ({ reason, children }: { reason?: string; children: ReactElement }) 
         <div>{children}</div>
     </Tooltip>
 );
+
+/**
+ * The mark at the end of a greyed row, saying the reason is there to be read.
+ *
+ * Grey alone says a row cannot be clicked, and nothing says why; a reader who does not know a
+ * tooltip is waiting has no reason to hover a row that looks inert.
+ *
+ * The tooltip stays the row's rather than the icon's own. `pointer-events` are off across a
+ * disabled `ListItemButton`, this icon included, so a hover over it lands on the wrapper `<div>`
+ * that `Row` puts there and opens that one — the icon is what says there is one to open.
+ *
+ * At 16px against the row's 14px label, and in the row's own colour, so the disabled opacity fades
+ * the two together.
+ */
+const Unmet = () => <InfoOutlined sx={{ fontSize: 16, flexShrink: 0 }} />;
 
 /**
  * A row of the list, at the height a 14px label needs and no more.
@@ -159,6 +174,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                                 }
                                             >
                                                 <ListItemText>{aspect}</ListItemText>
+                                                {reason !== undefined && <Unmet />}
                                             </ListItemButton>
                                         </Row>
                                     ) : (
@@ -199,6 +215,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                                                 }
                                                             >
                                                                 <ListItemText>{displayName}</ListItemText>
+                                                                {childReason !== undefined && <Unmet />}
                                                             </ListItemButton>
                                                         </Row>
                                                     );

@@ -1,6 +1,6 @@
 /**
  * The aspect menu, and the one thing it does beyond listing the registry: it greys out a desk that
- * has nothing to do for the document in hand, and says why.
+ * has nothing to do for the document in hand, marks it, and says why.
  *
  * Greyed rather than hidden, which is the rule `ToolbarButton` records for the toolbar — a control
  * that disappears leaves the reader to guess what makes it come back.
@@ -13,6 +13,20 @@ import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
 /** A document every desk has work to do for — see `DeskSwitch.test.ts`. */
 const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9 };
 
+/** One row as the reader meets it: the button, the reason behind it, and the mark that it is there. */
+const rowNamed = (aspect: string) => {
+    const label = screen.getByText(aspect);
+    const row = label.closest('[role="button"]');
+    return {
+        row,
+        // `describeChild` puts the reason on the wrapper as a native `title` while the tooltip is
+        // closed, and the wrapper is where it has to be: a disabled MUI button dispatches no
+        // pointer events, so a tooltip around the row itself would never hear a hover.
+        wrapper: label.closest('div[title]'),
+        icon: row?.querySelector('[data-testid="InfoOutlinedIcon"]') ?? null,
+    };
+};
+
 const mount = (facts: Partial<DocumentFacts>, aspect = 'source choice') => {
     const setSelectedDesk = vi.fn();
     const { container } = render(
@@ -22,33 +36,27 @@ const mount = (facts: Partial<DocumentFacts>, aspect = 'source choice') => {
             documentFacts={{ ...FITTED, ...facts }}
         />,
     );
-    const label = screen.getByText(aspect);
-    return {
-        setSelectedDesk,
-        container,
-        row: label.closest('[role="button"]'),
-        // `describeChild` puts the reason on the wrapper as a native `title` while the tooltip is
-        // closed, and the wrapper is where it has to be: a disabled MUI button dispatches no
-        // pointer events, so a tooltip around the row itself would never hear a hover.
-        wrapper: label.closest('div[title]'),
-    };
+    return { setSelectedDesk, container, ...rowNamed(aspect) };
 };
 
 describe('the aspect menu', () => {
     it('offers Base Text while the document holds two readings', () => {
-        const { setSelectedDesk, row, wrapper } = mount({ readings: 2 });
+        const { setSelectedDesk, row, wrapper, icon } = mount({ readings: 2 });
         expect(row).not.toHaveAttribute('aria-disabled', 'true');
-        // An empty title is no tooltip, which is what a row with nothing to explain wants.
+        // An empty title is no tooltip, which is what a row with nothing to explain wants, and
+        // nothing to explain is nothing to mark either.
         expect(wrapper?.getAttribute('title')).toBe('');
+        expect(icon).toBeNull();
 
         fireEvent.click(row!);
         expect(setSelectedDesk).toHaveBeenCalledWith('source choice');
     });
 
     it('greys out Base Text when there is only one recording, and says why', () => {
-        const { setSelectedDesk, row, wrapper } = mount({ readings: 1 });
+        const { setSelectedDesk, row, wrapper, icon } = mount({ readings: 1 });
         expect(row).toHaveAttribute('aria-disabled', 'true');
         expect(wrapper?.getAttribute('title')).toMatch(/one recording/i);
+        expect(icon).not.toBeNull();
 
         fireEvent.click(row!);
         expect(setSelectedDesk).not.toHaveBeenCalled();
@@ -81,6 +89,21 @@ describe('the aspect menu', () => {
 
         fireEvent.click(row!);
         expect(setSelectedDesk).not.toHaveBeenCalled();
+    });
+
+    it('marks a greyed desk inside an expanded aspect, and only that one', () => {
+        // An aspect several desks share draws its children from a second place in `AspectSelect`,
+        // so it is where the mark can go missing while every row above it carries one.
+        mount({ aligned: 0 }, 'arpeggiation');
+        fireEvent.click(rowNamed('arpeggiation').row!);
+
+        const spread = rowNamed('Temporal Spread');
+        expect(spread.row).toHaveAttribute('aria-disabled', 'true');
+        expect(spread.wrapper?.getAttribute('title')).toMatch(/aligned/i);
+        expect(spread.icon).not.toBeNull();
+
+        // Beside it in the same list: a desk that reads the MPM and needs no recording.
+        expect(rowNamed('Styles').icon).toBeNull();
     });
 
     it('keeps every other aspect reachable', () => {
