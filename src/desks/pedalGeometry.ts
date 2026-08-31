@@ -1,5 +1,5 @@
-import type { AlignedPedal } from '../../fitting/alignment'
-import { pedalHeldSeconds, pedalOnsetSeconds } from '../noteTiming'
+import type { AlignedPedal } from '../fitting/alignment'
+import { pedalHeldSeconds, pedalOnsetSeconds } from './noteTiming'
 
 /** How tall the whole pedal band is, however many lanes it turns out to hold. */
 export const PEDAL_AREA = 64
@@ -39,7 +39,7 @@ export const pedalLanes = (pedals: readonly AlignedPedal[], top: number): PedalL
 }
 
 /** A stretch of the plot over which one pedal was held down, in pixels. */
-interface Press {
+export interface Press {
     from: number
     to: number
 }
@@ -79,6 +79,21 @@ export const pressesOf = (
             .sort((a, b) => a.from - b.from),
     )
 
+const asPoints = (corners: readonly (readonly [number, number])[]): string =>
+    corners.map(([x, y]) => `${x},${y}`).join(' ')
+
+/** The four corners of one depression: down where the foot lands, up again where it lifts. */
+const stepOf = (
+    { from, to }: Press,
+    rest: number,
+    pressed: number,
+): (readonly [number, number])[] => [
+    [from, rest],
+    [from, pressed],
+    [to, pressed],
+    [to, rest],
+]
+
 /**
  * The pedal as one line: at rest until it is pressed, down for as long as it is held.
  *
@@ -92,15 +107,18 @@ export const pedalLine = (
     pressed: number,
     end: number,
 ): string =>
-    [
+    asPoints([
         [0, rest],
-        ...presses.flatMap(({ from, to }) => [
-            [from, rest],
-            [from, pressed],
-            [to, pressed],
-            [to, rest],
-        ]),
+        ...presses.flatMap(press => stepOf(press, rest, pressed)),
         [end, rest],
-    ]
-        .map(([x, y]) => `${x},${y}`)
-        .join(' ')
+    ])
+
+/**
+ * One depression on its own, drawn as the same step but not carried across the piece.
+ *
+ * For a desk that edits presses rather than compares readings: there each press is a thing to
+ * grab, so it has to be its own element, and a line running over the stretches between presses
+ * would make a lift indistinguishable from the neighbouring press it is joined to.
+ */
+export const pressLine = (press: Press, rest: number, pressed: number): string =>
+    asPoints(stepOf(press, rest, pressed))

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { AlignedPedal } from '../../fitting/alignment'
-import { PEDAL_AREA, pedalLanes, pedalLine, pressesOf } from './pedalGeometry'
+import type { AlignedPedal } from '../fitting/alignment'
+import { PEDAL_AREA, pedalLanes, pedalLine, pressLine, pressesOf } from './pedalGeometry'
 
 /** A recorded depression, stated the way MSM states one: milliseconds, and an absolute release. */
 const pedal = (
@@ -95,5 +95,11 @@ describe('pedalLine', () => {
     it('steps down at the press and back up at the lift', () => {
         expect(pedalLine([{ from: 100, to: 200 }], 10, 20, 400))
             .toBe('0,10 100,10 100,20 200,20 200,10 400,10')
+    })
+})
+
+describe('pressLine', () => {
+    it('is the step of one press, with nothing drawn on either side of it', () => {
+        expect(pressLine({ from: 100, to: 200 }, 10, 20)).toBe('100,10 100,20 200,20 200,10')
     })
 })

@@ -227,6 +227,24 @@ describe('the timing roll', () => {
         expect(screen.getByText('sustain')).toBeInTheDocument();
     });
 
+    /** The corners of the one pedal line, as numbers. */
+    const pedalCorners = () => {
+        const points = document.querySelector('polyline')?.getAttribute('points');
+        if (!points) throw new Error('no pedal line drawn');
+        return points.split(' ').map((corner) => corner.split(',').map(Number));
+    };
+
+    it('draws a pedal as a line that drops for as long as it is held', () => {
+        mount();
+        showRoll();
+
+        const [rest, down, held, lifted] = pedalCorners();
+        expect(down[1]).toBeGreaterThan(rest[1]);
+        expect(held[1]).toBe(down[1]);
+        expect(held[0]).toBeGreaterThan(down[0]);
+        expect(lifted[1]).toBe(rest[1]);
+    });
+
     it('selects a pedal as a list of pedals, never as a stretch of the score', () => {
         // A recorded pedal has no symbolic date, so `from`/`to` cannot name one.
         mount();
@@ -326,6 +344,29 @@ describe('what a gesture turns into', () => {
             noteIDs: ['b'],
             scope: 'global',
             aspect: 'onset',
+            change: 1000,
+        });
+    });
+
+    it('a drag on the lift edge of a pedal becomes a duration correction on that pedal', () => {
+        const { addTransformer } = mount();
+        act(() => {
+            screen.getByRole('button', { name: 'Timing' }).click();
+        });
+
+        // The line is drawn without pointer events, so the press is grabbed by the box behind it.
+        // 2 seconds at a zoom of 20 puts the lift at 40, which the grab has to be within six of.
+        const press = document.querySelector('rect[data-type="sustain"]');
+        if (!press) throw new Error('no pedal on the roll');
+        drag(press, { clientX: 38, clientY: 330 }, { clientX: 58, clientY: 330 });
+
+        expect(screen.getByText('+1000 ms')).toBeInTheDocument();
+        clickToolbarButton('Apply correction');
+
+        expect(sentOptions(addTransformer)).toEqual({
+            pedalIDs: ['p1'],
+            scope: 'global',
+            aspect: 'duration',
             change: 1000,
         });
     });

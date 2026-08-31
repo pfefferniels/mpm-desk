@@ -1,5 +1,6 @@
 import type { AlignedPedal } from '../../fitting/alignment'
-import { pedalLine, pressesOf, type PedalLane } from './pedalGeometry'
+import { PedalRails } from '../PedalBand'
+import { pedalLine, pressesOf, type PedalLane } from '../pedalGeometry'
 
 /** Two readings that pedal alike would draw one line over the other, so each gets its own track. */
 const SEPARATION = 2
@@ -38,18 +39,10 @@ export const PedalLanes = ({
     colorFor,
 }: PedalLanesProps) => (
     <g>
+        <PedalRails lanes={lanes} width={width} />
+
         {lanes.map(lane => (
             <g key={`lane_${lane.type}`} data-lane={lane.type}>
-                {/* The rail the lines rest on, so an untouched pedal still reads as a lane. */}
-                <line
-                    x1={0}
-                    y1={lane.rest}
-                    x2={width}
-                    y2={lane.rest}
-                    stroke='#e5e7eb'
-                    strokeWidth={1}
-                />
-
                 {sources.map((source, index) => {
                     const offset = (index - (sources.length - 1) / 2) * SEPARATION
 
@@ -75,29 +68,4 @@ export const PedalLanes = ({
             </g>
         ))}
     </g>
-)
-
-/**
- * Which lane is which, for the gutter beside the plot.
- *
- * Drawn to the left of x = 0 in the plot's own vertical coordinates, so the desk can put it beside
- * the scroller and a name still meets its own rail — and stays put when the plot is scrolled,
- * which a name drawn at the head of the music does not.
- */
-export const PedalLaneLabels = ({ lanes }: { lanes: readonly PedalLane[] }) => (
-    <>
-        {lanes.map(lane => (
-            <text
-                key={`label_${lane.type}`}
-                x={-6}
-                y={lane.rest}
-                dy='.32em'
-                textAnchor='end'
-                fontSize='9'
-                fill='#6b7280'
-            >
-                {lane.type}
-            </text>
-        ))}
-    </>
 )

@@ -12,8 +12,9 @@ import { ToolStatus } from "../../components/toolbar/ToolStatus"
 import { Clear } from "@mui/icons-material"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
-import { PedalLaneLabels, PedalLanes } from "./PedalLanes"
-import { PEDAL_AREA, PEDAL_GUTTER, PEDAL_LABEL_WIDTH, pedalLanes } from "./pedalGeometry"
+import { PedalLanes } from "./PedalLanes"
+import { PedalLaneLabels } from "../PedalBand"
+import { PEDAL_AREA, PEDAL_GUTTER, PEDAL_LABEL_WIDTH, pedalLanes } from "../pedalGeometry"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
 // returns <path> attribute @d.
