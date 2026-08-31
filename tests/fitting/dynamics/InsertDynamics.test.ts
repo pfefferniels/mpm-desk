@@ -148,6 +148,32 @@ test('a phantom velocity of 0 is used, not read as an absent one', () => {
 });
 
 /**
+ * A phantom is not tied to a chord. Over a rest or inside a held note there is no recorded
+ * velocity for it to stand in for, and it is a point of the fit all the same — one the curve can
+ * depart from, as here, or arrive at.
+ */
+test('a phantom at a date no chord sounds at is a point of its own', () => {
+  const msm = msmFixture();
+  const mpm = createMpm();
+
+  // 360 is halfway through the fixture's first quarter: no chord, and the note is still held.
+  callTransform(
+    new InsertDynamicsInstructions({
+      scope: 'global',
+      from: 360,
+      to: msm.lastDate(),
+      phantomVelocities: new Map([[360, 10]]),
+    }),
+    msm,
+    mpm,
+  );
+
+  const fitted = getInstructions(mpm, 'dynamics', 'global').filter((d) => d.date === 360);
+  expect(at(fitted, 0, 'the phantom-anchored curve').volume).toBe(10);
+  expect(at(fitted, 0, 'the phantom-anchored curve').transitionTo).toBe(100);
+});
+
+/**
  * `0 / 0` is not a velocity. A date with neither a phantom nor a note carrying a `velocity` has
  * nothing to contribute, and a point whose velocity is NaN is not a point.
  */

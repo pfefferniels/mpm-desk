@@ -21,8 +21,25 @@ import { Clear } from "@mui/icons-material";
 import { COMMITTED_GHOST, DeltaGhost } from "../corrections/DeltaGhost";
 import { useModifyDeltas } from "../corrections/useModifyDeltas";
 import { svgPoint, svgUnitsPerPixel } from "../../utils/svgPoint";
+import { clamp } from "../../fitting/utils";
+import { anchorsOf, nearestAnchor, type DynamicsAnchor } from "./anchors";
+import {
+    DEFAULT_PHANTOM_GRID,
+    PHANTOM_GRIDS,
+    gridDates,
+    gridLabel,
+    gridTicks,
+    snapPhantom,
+    type PhantomGrid,
+} from "./phantomGrid";
 
 export type { DynamicsSegment } from "./segments";
+
+/** How far from an anchor, in screen pixels, a press still catches it. */
+const SNAP_REACH = 20;
+
+/** Below this, in screen pixels, the grid reads as a grey wash; snapping goes on regardless. */
+const MIN_GRID_SPACING = 4;
 
 /**
  * Where dynamics curves are drawn over what the recording played.
@@ -36,6 +53,11 @@ export type { DynamicsSegment } from "./segments";
  * What stayed is the evidence rather than the editing: a velocity somebody corrected by hand is
  * still marked here, by a grey ghost at the value the roll scan read. Fitting a curve over a dot
  * means knowing whether the dot is what was recorded.
+ *
+ * A phantom velocity is a value the curve is to pass through at a date, whether or not the
+ * recording sounds a note there — over a rest, or inside a held note. It is editorial, so it is
+ * not free: it lands on a grid, quarter notes unless the toolbar says otherwise. A curve is fitted
+ * between two anchors, and a phantom is one.
  */
 export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<
     InsertDynamicsInstructions
@@ -44,11 +66,12 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     const [datePlayed, setDatePlayed] = useState<number>()
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
     const [mode, setMode] = useState<'insert' | 'phantom'>('insert')
+    const [grid, setGrid] = useState<PhantomGrid>(DEFAULT_PHANTOM_GRID)
 
     const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
-    const [dragFrom, setDragFrom] = useState<{ date: number, x: number, y: number }>()
+    const [dragFrom, setDragFrom] = useState<DynamicsAnchor>()
+    const [dragTo, setDragTo] = useState<DynamicsAnchor>()
     const [dragMouse, setDragMouse] = useState<{ x: number, y: number }>()
-    const [dragSnapDate, setDragSnapDate] = useState<number>()
     const [pendingInsert, setPendingInsert] = useState<{ from: number, to: number }>()
 
     const { play, stop } = usePiano()
@@ -60,16 +83,18 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+            // Before `preventDefault`, and `=== undefined` rather than falsy: the desk must not
+            // swallow an arrow it does not act on, and a phantom on the first grid line sits at
+            // date 0.
+            if (currentPhantomDate === undefined) return
 
             e.preventDefault()
-            if (!currentPhantomDate || !mode) return
-
             setPhantomVelocities(prev => {
                 const entry = prev.get(currentPhantomDate)
                 if (entry === undefined) return prev
 
                 const next = new Map(prev)
-                next.set(currentPhantomDate, entry + (e.key === 'ArrowUp' ? 1 : -1))
+                next.set(currentPhantomDate, clamp(entry + (e.key === 'ArrowUp' ? 1 : -1), 0, 127))
                 return next
             })
         }
@@ -79,7 +104,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [currentPhantomDate, mode]);
+    }, [currentPhantomDate]);
 
     const instructions = useMemo(() => {
         const dynamics = getInstructions(mpm, 'dynamics', part)
@@ -131,24 +156,43 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
      */
     const modifyDeltas = useModifyDeltas(msm, part, 'velocity')
 
-    const findNearestDate = (svgX: number, snapThreshold: number) => {
-        let bestDate: number | undefined
-        let bestDist = Infinity
-        for (const seg of segments) {
-            const edgeX = seg.date.start * stretchX
-            const dist = Math.abs(svgX - edgeX)
-            if (dist < bestDist) {
-                bestDist = dist
-                bestDate = seg.date.start
-            }
-        }
-        return bestDist <= snapThreshold ? bestDate : undefined
+    const screenY = (velocity: number) => (127 - velocity) * stretchY
+
+    const anchors = useMemo(
+        () => anchorsOf(segments, phantomVelocities),
+        [segments, phantomVelocities]
+    )
+
+    const gridLines = useMemo(() => {
+        if (gridTicks(grid) * stretchX < MIN_GRID_SPACING) return null
+        return (
+            <g stroke='#e5e7eb' strokeWidth={0.5} pointerEvents='none'>
+                {gridDates(grid, msm.end).map(date => (
+                    <line
+                        key={`grid_${date}`}
+                        x1={date * stretchX}
+                        x2={date * stretchX}
+                        y1={0}
+                        y2={chartHeight}
+                    />
+                ))}
+            </g>
+        )
+    }, [grid, stretchX, msm.end, chartHeight])
+
+    /** The anchor a press at `svgX` catches, in the SVG's own units. */
+    const anchorNear = (svg: SVGSVGElement, svgX: number) =>
+        nearestAnchor(anchors, svgX / stretchX, (SNAP_REACH * svgUnitsPerPixel(svg)) / stretchX)
+
+    const pencilIn = (phantom: DynamicsAnchor) => {
+        setPhantomVelocities(prev => new Map(prev).set(phantom.date, phantom.velocity))
+        setCurrentPhantomDate(phantom.date)
     }
 
     const cancelDrag = () => {
         setDragFrom(undefined)
         setDragMouse(undefined)
-        setDragSnapDate(undefined)
+        setDragTo(undefined)
     }
 
     const handlePlay = (from: number, to?: number) => {
@@ -182,18 +226,26 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
             <text
                 key={`phantom_velocity_${date}`}
                 x={date * stretchX}
-                y={(127 - velocity) * stretchY}
+                y={screenY(velocity)}
                 fill='darkred'
+                fontWeight={date === currentPhantomDate ? 'bold' : 'normal'}
                 textAnchor='middle'
                 dominantBaseline='middle'
+                style={{ cursor: 'pointer' }}
                 onClick={(e) => {
+                    // The plot beneath places a phantom wherever it is clicked, so a click meant
+                    // for one already there must not reach it.
+                    e.stopPropagation()
                     if (e.altKey && e.shiftKey) {
                         setPhantomVelocities(prev => {
                             const next = new Map(prev)
                             next.delete(date)
                             return next
                         })
+                        if (currentPhantomDate === date) setCurrentPhantomDate(undefined)
+                        return
                     }
+                    setCurrentPhantomDate(date)
                 }}
             >
                 x
@@ -209,9 +261,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                 <DeltaGhost
                     key={`ghost_${segment.date.start}_${i}`}
                     x1={x}
-                    y1={(127 - (segment.velocity - committedDelta)) * stretchY}
+                    y1={screenY(segment.velocity - committedDelta)}
                     x2={x}
-                    y2={(127 - segment.velocity) * stretchY}
+                    y2={screenY(segment.velocity)}
                     color={COMMITTED_GHOST}
                 />
             )
@@ -223,16 +275,12 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                 segment={segment}
                 datePlayed={datePlayed}
                 stretchX={stretchX}
-                screenY={(velocity: number) => (127 - velocity) * stretchY}
+                screenY={screenY}
                 handlePlay={handlePlay}
-                handleClick={() => {
+                handleClick={(e) => {
                     if (mode !== 'phantom') return
-                    setPhantomVelocities(prev => {
-                        const next = new Map(prev)
-                        next.set(segment.date.start, segment.velocity)
-                        return next
-                    })
-                    setCurrentPhantomDate(segment.date.start)
+                    e.stopPropagation()
+                    pencilIn({ date: segment.date.start, velocity: segment.velocity })
                 }}
                 cursor={mode === 'insert' ? 'crosshair' : undefined}
             />
@@ -280,6 +328,26 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                     </ToggleButtonGroup>
                 </ToolGroup>
 
+                <ToolGroup label='Grid'>
+                    <ToggleButtonGroup
+                        value={grid}
+                        exclusive
+                        disabled={mode !== 'phantom'}
+                        onChange={(_, newGrid: PhantomGrid | null) => {
+                            if (newGrid !== null) {
+                                setGrid(newGrid)
+                            }
+                        }}
+                        size='small'
+                    >
+                        {PHANTOM_GRIDS.map(candidate => (
+                            <ToggleButton key={candidate} value={candidate}>
+                                {gridLabel(candidate)}
+                            </ToggleButton>
+                        ))}
+                    </ToggleButtonGroup>
+                </ToolGroup>
+
                 {/*
                     Shown in both modes, disabled in the one it cannot act in.
 
@@ -303,7 +371,10 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             ? 'No phantom velocities to clear'
                             : `Discard the ${phantomVelocities.size} phantom ${phantomVelocities.size === 1 ? 'velocity' : 'velocities'}`}
                         disabled={phantomVelocities.size === 0}
-                        onClick={() => setPhantomVelocities(new Map())}
+                        onClick={() => {
+                            setPhantomVelocities(new Map())
+                            setCurrentPhantomDate(undefined)
+                        }}
                     >
                         Clear Phantoms
                     </ToolbarButton>
@@ -356,10 +427,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             const svg = e.currentTarget
                             const pt = svgPoint(svg, e.clientX, e.clientY)
                             if (!pt) return
-                            const snapDate = findNearestDate(pt.x, 20 * svgUnitsPerPixel(svg))
-                            if (snapDate !== undefined) {
-                                setDragFrom({ date: snapDate, x: snapDate * stretchX, y: pt.y })
-                            }
+                            setDragFrom(anchorNear(svg, pt.x))
                         } : undefined}
                         onMouseMove={mode === 'insert' ? (e) => {
                             if (!dragFrom) return
@@ -367,15 +435,15 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             const pt = svgPoint(svg, e.clientX, e.clientY)
                             if (!pt) return
                             setDragMouse(pt)
-                            const snap = findNearestDate(pt.x, 20 * svgUnitsPerPixel(svg))
-                            setDragSnapDate(snap !== undefined && snap > dragFrom.date ? snap : undefined)
+                            const to = anchorNear(svg, pt.x)
+                            setDragTo(to && to.date > dragFrom.date ? to : undefined)
                         } : undefined}
                         onMouseUp={mode === 'insert' ? () => {
-                            if (dragFrom && dragSnapDate) {
-                                setPendingInsert({ from: dragFrom.date, to: dragSnapDate })
+                            if (dragFrom && dragTo) {
+                                setPendingInsert({ from: dragFrom.date, to: dragTo.date })
                                 addTransformer(new InsertDynamicsInstructions({
                                     from: dragFrom.date,
-                                    to: dragSnapDate,
+                                    to: dragTo.date,
                                     phantomVelocities,
                                     scope: part
                                 }))
@@ -383,17 +451,35 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             cancelDrag()
                         } : undefined}
                         onMouseLeave={mode === 'insert' ? () => cancelDrag() : undefined}
+                        onClick={mode === 'phantom' ? (e) => {
+                            const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
+                            if (!pt) return
+                            const phantom = snapPhantom(
+                                { date: pt.x / stretchX, velocity: 127 - pt.y / stretchY },
+                                grid,
+                                msm.end
+                            )
+                            if (phantom) pencilIn(phantom)
+                        } : undefined}
                     >
-                        {curves}
+                        {mode === 'phantom' && gridLines}
+                        {/*
+                            A fitted curve is filled down to the baseline, so in Phantom mode it
+                            covers most of the surface a phantom would be placed on. Selecting one
+                            is an Insert-mode gesture.
+                        */}
+                        <g pointerEvents={mode === 'phantom' ? 'none' : undefined}>
+                            {curves}
+                        </g>
                         {circles}
 
-                        {/* Drag preview line */}
+                        {/* Drag preview line, between the two anchors the fit will run between */}
                         {dragFrom && dragMouse && (
                             <line
-                                x1={dragFrom.x}
-                                y1={dragFrom.y}
-                                x2={dragSnapDate !== undefined ? dragSnapDate * stretchX : dragMouse.x}
-                                y2={dragMouse.y}
+                                x1={dragFrom.date * stretchX}
+                                y1={screenY(dragFrom.velocity)}
+                                x2={dragTo ? dragTo.date * stretchX : dragMouse.x}
+                                y2={dragTo ? screenY(dragTo.velocity) : dragMouse.y}
                                 stroke="gold"
                                 strokeWidth={2}
                                 strokeDasharray="6 4"
@@ -404,14 +490,14 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         {/* Snap indicator circles */}
                         {dragFrom && (
                             <circle
-                                cx={dragFrom.x} cy={dragFrom.y} r={4}
+                                cx={dragFrom.date * stretchX} cy={screenY(dragFrom.velocity)} r={4}
                                 fill="gold" stroke="gold" strokeWidth={1}
                                 pointerEvents="none"
                             />
                         )}
-                        {dragFrom && dragSnapDate !== undefined && dragMouse && (
+                        {dragTo && (
                             <circle
-                                cx={dragSnapDate * stretchX} cy={dragMouse.y} r={4}
+                                cx={dragTo.date * stretchX} cy={screenY(dragTo.velocity)} r={4}
                                 fill="gold" stroke="gold" strokeWidth={1}
                                 pointerEvents="none"
                             />
@@ -419,16 +505,15 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
 
                         {/* Optimistic preview while transformer processes */}
                         {pendingInsert && (() => {
-                            const pts = segments
-                                .filter(s => s.date.start >= pendingInsert.from && s.date.start <= pendingInsert.to)
-                                .sort((a, b) => a.date.start - b.date.start)
+                            const pts = anchors
+                                .filter(a => a.date >= pendingInsert.from && a.date <= pendingInsert.to)
                             if (pts.length === 0) return null
-                            const baselineY = 127 * stretchY
-                            let path = `M ${pts[0].date.start * stretchX} ${baselineY} `
+                            const baselineY = screenY(0)
+                            let path = `M ${pts[0].date * stretchX} ${baselineY} `
                             for (const p of pts) {
-                                path += `L ${p.date.start * stretchX} ${(127 - p.velocity) * stretchY} `
+                                path += `L ${p.date * stretchX} ${screenY(p.velocity)} `
                             }
-                            path += `L ${pts[pts.length - 1].date.start * stretchX} ${baselineY} Z`
+                            path += `L ${pts[pts.length - 1].date * stretchX} ${baselineY} Z`
                             return (
                                 <path
                                     d={path}

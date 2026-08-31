@@ -109,29 +109,34 @@ export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynami
   }
 
   private asPoints(msm: Alignment, part: Scope): DynamicsPoints[] {
-    const points: DynamicsPoints[] = [];
     const chords = msm.asChords(part);
-    for (const [date, notes] of chords) {
+    const { phantomVelocities } = this.options;
+
+    // A phantom velocity is not tied to a chord. Pencilled in over a rest or inside a held note
+    // it is a date the recording has nothing to say about, and the curve is to pass through it
+    // all the same — so the two sets of dates are merged rather than the chords being walked.
+    const dates = [...new Set([...chords.keys(), ...phantomVelocities.keys()])].sort(
+      (a, b) => a - b,
+    );
+
+    return dates.flatMap((date) => {
       // Not dead, though the type says so: `AlignedNote.velocity` is declared `number` and
       // nothing in this package builds a note, so the declaration is the aligner's promise
       // rather than a fact. A note that arrives without one reaches the mean below as `NaN`.
-      const notesWithVolume = notes.filter((n) => n.velocity !== undefined);
+      const notesWithVolume = (chords.get(date) ?? []).filter((n) => n.velocity !== undefined);
 
-      // A phantom velocity is what the caller says the curve should pass through at this
-      // date, and it stands in for the chord's own mean whether or not it happens to be
-      // `0` — `||` read a phantom of 0 as no phantom at all (issue #46). Where there is
-      // neither, the mean is `0 / 0`: no chord to measure is not a velocity of NaN, and a
-      // point with no velocity is not a point.
-      const phantomVelocity = this.options.phantomVelocities.get(date);
-      if (phantomVelocity === undefined && notesWithVolume.length === 0) continue;
+      // Where a chord sounds too, the phantom stands in for its mean whether or not it happens
+      // to be `0` — `||` read a phantom of 0 as no phantom at all (issue #46). Where there is
+      // neither, the mean is `0 / 0`: no chord to measure is not a velocity of NaN, and a point
+      // with no velocity is not a point.
+      const phantomVelocity = phantomVelocities.get(date);
+      if (phantomVelocity === undefined && notesWithVolume.length === 0) return [];
 
       const velocity =
         phantomVelocity ??
         notesWithVolume.reduce((sum, curr) => sum + curr.velocity, 0) / notesWithVolume.length;
 
-      points.push({ date, velocity });
-    }
-
-    return points;
+      return [{ date, velocity }];
+    });
   }
 }

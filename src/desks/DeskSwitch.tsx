@@ -455,18 +455,25 @@ export const correspondingDesks: DeskEntry[] = [
         help: {
             summary:
                 'One dot per recorded velocity per chord, with the fitted dynamics curves over ' +
-                'them and a grey ghost where a velocity was corrected by hand.',
+                'them and a grey ghost where a velocity was corrected by hand. A curve is fitted ' +
+                'between two anchors: a chord onset, or a phantom velocity pencilled in on the ' +
+                'grid where the recording sounds nothing.',
             actions: [
                 { gesture: 'Hover a dot', does: 'sound the chord there' },
                 { gesture: 'Click a dot', does: 'play from that date to the end' },
                 {
                     gesture: 'Drag across the plot',
-                    does: 'fit a curve between two chord onsets, in Insert mode',
+                    does: 'fit a curve between two anchors, in Insert mode',
                 },
                 {
                     gesture: 'Click a dot in Phantom mode',
                     does: 'pencil in a phantom velocity there',
                 },
+                {
+                    gesture: 'Click the plot in Phantom mode',
+                    does: 'pencil one in on the grid, over a rest or inside a held note',
+                },
+                { gesture: 'Click a phantom', does: 'pick it for ↑ ↓' },
                 { gesture: '↑ ↓', does: 'nudge the phantom last picked by one' },
                 { gesture: 'Shift+Alt-click a phantom', does: 'remove it' },
                 { gesture: 'Click a curve', does: 'select the call that wrote it' },
