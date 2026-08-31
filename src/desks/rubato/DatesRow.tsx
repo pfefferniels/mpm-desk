@@ -2,12 +2,17 @@ import type { ChordMap } from "../../fitting/alignment"
 import type { InsertRubatoOptions } from "../../fitting/transformers/rubato/InsertRubato"
 import type { Residual } from "../../fitting/residual"
 import { asMIDI, PartialBy } from "../../utils/utils"
+import { svgPoint } from "../../utils/svgPoint"
+import { beatLengthInTicks } from "../../fitting/ppq"
 import { usePiano } from "../../performance/piano"
 import { useNotes } from "../../hooks/NotesProvider"
-import { type JSX, useState } from "react"
-import { FrameBox } from "./Frame"
+import { Fragment, type JSX, type MouseEvent, useState } from "react"
+import { FrameBox, PendingFrame } from "./Frame"
 
 export type Frame = PartialBy<Omit<InsertRubatoOptions, 'scope'>, 'length'>
+
+/** The grid the row is ruled in, and the dates a click can land on where no note does. */
+const GRID = beatLengthInTicks(1 / 8)
 
 interface DatesRowProps {
     stretchX: number
@@ -20,17 +25,50 @@ interface DatesRowProps {
      */
     residual: Residual
     frame?: Frame
-    onClickTick: (date: number) => void
+    onPickDate: (date: number) => void
     instructions: JSX.Element[]
 }
 
-export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onClickTick, instructions }: DatesRowProps) => {
+export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onPickDate, instructions }: DatesRowProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
-    const [hovered, setHovered] = useState<number>()
+    const [cursor, setCursor] = useState<number>()
 
-    const dates = []
+    const onsets = Array.from(chords, ([date, notes]) => {
+        // `undefined` where the MPM cannot place the note yet — no `<tempo>` covers it. The
+        // row draws the distance from the score date to the recorded one, and a note with no
+        // recorded position on the grid has no such distance, so it gets no line at all.
+        const firstNote = notes[0]
+        const tickDate = firstNote === undefined ? undefined : residual.of(firstNote)?.tickDate
+        return tickDate === undefined ? undefined : { date, tickDate }
+    }).filter(onset => onset !== undefined)
+
+    const gridDates = Array.from(
+        { length: Math.floor(width / (GRID * stretchX)) + 1 },
+        (_, i) => i * GRID
+    )
+
+    /**
+     * The date a gesture at `svgX` means: the nearest of everything the row draws.
+     *
+     * Both sets of marks are candidates, so a date with nothing sounding on it is as easy to
+     * hit as one with a note on it. Hitting a grid line by its own geometry meant landing on a
+     * mark one pixel wide and five tall.
+     */
+    const nearestDate = (svgX: number) => {
+        const target = svgX / stretchX
+        return [...onsets.map(onset => onset.date), ...gridDates].reduce(
+            (best, date) => Math.abs(date - target) < Math.abs(best - target) ? date : best
+        )
+    }
+
+    const dateUnder = (event: MouseEvent<SVGGElement>) => {
+        const svg = event.currentTarget.ownerSVGElement
+        if (!svg) return undefined
+        const point = svgPoint(svg, event.clientX, event.clientY)
+        return point === null ? undefined : nearestDate(point.x)
+    }
 
     const playFrame = (frame: Frame) => {
         if (!frame.length) return
@@ -42,76 +80,55 @@ export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onC
         play(midi)
     }
 
-    const handleMouseOver = (date: number) => {
-        setHovered(date)
-        const notes = slice(date, date + 1)
-        const midi = asMIDI(notes)
-        if (midi) {
-            stop()
-            play(midi)
-        }
+    const handleMouseMove = (event: MouseEvent<SVGGElement>) => {
+        const date = dateUnder(event)
+        if (date === undefined || date === cursor) return
+
+        setCursor(date)
+        stop()
+        const midi = asMIDI(slice(date, date + 1))
+        if (midi) play(midi)
     }
 
-    const handleMouseOut = () => {
-        setHovered(undefined)
+    const handleMouseLeave = () => {
+        setCursor(undefined)
         stop()
     }
 
-    for (const [date, notes] of chords) {
-        // `undefined` where the MPM cannot place the note yet — no `<tempo>` covers it. The
-        // row draws the distance from the score date to the recorded one, and a note with no
-        // recorded position on the grid has no such distance, so it gets no line at all.
-        const firstNote = notes[0]
-        const tickDate = firstNote === undefined ? undefined : residual.of(firstNote)?.tickDate
-        if (tickDate === undefined) continue
-
-
-        dates.push((
-            <>
-                {(hovered === date) && (
-                    <text
-                        key={`dateLabel_${date}`}
-                        x={date * stretchX}
-                        y={-5}
-                        fontSize={12}
-                        textAnchor="middle"
-                    >
-                        {date}
-                    </text>
-                )}
-                {(tickDate - date) !== 0 && (
-                    <text
-                        key={`diff_${date}`}
-                        x={((date + tickDate) / 2) * stretchX}
-                        y={height + 15}
-                        fontSize={12}
-                        textAnchor="middle"
-                        fill="black"
-                    >
-                        {tickDate - date > 0 && '+'}{(tickDate - date).toFixed(0)}
-                    </text>
-                )}
-
-                <path
-                    data-date={date}
-                    className="shouldTick"
-                    strokeWidth={hovered === date ? 3 : 2}
-                    stroke="gray"
-                    fill="none"
-                    d={`
-                        M ${date * stretchX},0
-                        L ${date * stretchX},${height * 0.7}
-                        L ${tickDate * stretchX},${height * 0.8}
-                        L ${tickDate * stretchX},${height}
-                    `}
-                    key={`shouldTick_${date}`}
-                    onMouseOver={() => handleMouseOver(date)}
-                    onMouseOut={handleMouseOut}
-                    onClick={() => onClickTick(date)}
-                />
-            </>
-        ))
+    const handleClick = (event: MouseEvent<SVGGElement>) => {
+        const date = dateUnder(event)
+        if (date !== undefined) onPickDate(date)
     }
+
+    const dates = onsets.map(({ date, tickDate }) => (
+        <Fragment key={`date_${date}`}>
+            {(tickDate - date) !== 0 && (
+                <text
+                    x={((date + tickDate) / 2) * stretchX}
+                    y={height + 15}
+                    fontSize={12}
+                    textAnchor="middle"
+                    fill="black"
+                >
+                    {tickDate - date > 0 && '+'}{(tickDate - date).toFixed(0)}
+                </text>
+            )}
+
+            <path
+                data-date={date}
+                className="shouldTick"
+                strokeWidth={cursor === date ? 3 : 2}
+                stroke="gray"
+                fill="none"
+                d={`
+                    M ${date * stretchX},0
+                    L ${date * stretchX},${height * 0.7}
+                    L ${tickDate * stretchX},${height * 0.8}
+                    L ${tickDate * stretchX},${height}
+                `}
+            />
+        </Fragment>
+    ))
 
     const boxes = frame && (
         <FrameBox
@@ -119,16 +136,38 @@ export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onC
             frame={frame}
             stretchX={stretchX}
             height={height}
-            onRemove={() => {}}
             onClick={() => {
                 if (frame.length) playFrame(frame)
             }}
         />
     )
 
+    // A frame with no length yet is one waiting for its second click, and that is the state the
+    // preview belongs to.
+    const anchor = frame && frame.length === undefined ? frame.date : undefined
+
     return (
         <>
-            <g>
+            <g
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                onClick={handleClick}
+            >
+                {/*
+                    The row's whole area is the target. Where the click lands is answered by
+                    `nearestDate` rather than by which mark happens to be under the pointer, so
+                    the marks themselves need no hit geometry — but a <g> has none of its own,
+                    and the space between them has to be hit for that to be true.
+                */}
+                <rect
+                    className="pickSurface"
+                    x={0}
+                    y={0}
+                    width={width}
+                    height={height}
+                    fill="transparent"
+                />
+
                 {/* top and bottom border lines */}
                 <line
                     stroke="black"
@@ -155,38 +194,62 @@ export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onC
                     y2={height}
                 />
 
-                {/* eighth‐note ticks every 360 ticks */}
-                {Array.from({
-                    length: Math.floor(width / (360 * stretchX)) + 1
-                }).map((_, i) => {
-                    const x = i * 360 * stretchX;
-                    return (
-                        <g
-                            key={`tick-${i}`}
-                            onClick={() => onClickTick(x / stretchX)}
-                        >
-                            <line
-                                x1={x}
-                                x2={x}
-                                y1={0}
-                                y2={5}
-                                stroke="black"
-                                strokeWidth={1}
-                            />
-                            <line
-                                x1={x}
-                                x2={x}
-                                y1={height}
-                                y2={height - 5}
-                                stroke="black"
-                                strokeWidth={1}
-                            />
-                        </g>
-                    )
-                })}
+                {gridDates.map(date => (
+                    <g key={`tick_${date}`}>
+                        <line
+                            x1={date * stretchX}
+                            x2={date * stretchX}
+                            y1={0}
+                            y2={5}
+                            stroke="black"
+                            strokeWidth={1}
+                        />
+                        <line
+                            x1={date * stretchX}
+                            x2={date * stretchX}
+                            y1={height}
+                            y2={height - 5}
+                            stroke="black"
+                            strokeWidth={1}
+                        />
+                    </g>
+                ))}
 
                 {boxes}
                 {dates}
+
+                {anchor !== undefined && (
+                    <PendingFrame
+                        date={anchor}
+                        cursor={cursor}
+                        stretchX={stretchX}
+                        height={height}
+                    />
+                )}
+
+                {cursor !== undefined && (
+                    <g className="cursorDate" pointerEvents="none">
+                        {anchor === undefined && (
+                            <line
+                                x1={cursor * stretchX}
+                                x2={cursor * stretchX}
+                                y1={0}
+                                y2={height}
+                                stroke="gray"
+                                strokeWidth={1}
+                                strokeDasharray="4 4"
+                            />
+                        )}
+                        <text
+                            x={cursor * stretchX}
+                            y={-5}
+                            fontSize={12}
+                            textAnchor="middle"
+                        >
+                            {cursor}
+                        </text>
+                    </g>
+                )}
             </g>
             <g transform={`translate(0, ${height + 30})`}>
                 {instructions}

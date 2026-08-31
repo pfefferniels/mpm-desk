@@ -53,8 +53,10 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
 
     const addMarker = (date: number) => {
         setFrame(prev => {
-            if (!prev || (prev.date && prev.length)) return { date }
-            return { ...prev, length: date - prev.date }
+            if (!prev || prev.length !== undefined) return { date }
+            // Either order of clicks marks the same stretch: the second one is an end, not a
+            // direction, and a negative `@frameLength` is not a frame.
+            return { date: Math.min(prev.date, date), length: Math.abs(date - prev.date) }
         })
     }
 
@@ -173,7 +175,7 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
                         width={svgWidth}
                         chords={chords}
                         residual={residual}
-                        onClickTick={addMarker}
+                        onPickDate={addMarker}
                         instructions={rubatoElements}
                     />
                 </g>
