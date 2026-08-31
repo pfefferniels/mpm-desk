@@ -11,16 +11,38 @@ import {
     Checkbox,
     FormGroup,
     FormControlLabel,
+    FormHelperText,
 } from "@mui/material"
+
+const properties: readonly ArticulationProperty[] = [
+    'relativeDuration',
+    'relativeVelocity',
+    'absoluteDuration',
+    'absoluteDurationChange',
+]
+
+/**
+ * The three aspects measured against the recorded duration on the tick grid, which only a
+ * `<tempo>` puts there. Ticked without one they carry no value, and `makeArticulationDef` writes
+ * only what it was given, so a unit of the three yields an `<articulationDef>` stating nothing at
+ * all (issue #39).
+ */
+const tickBorne: readonly ArticulationProperty[] = [
+    'relativeDuration',
+    'absoluteDuration',
+    'absoluteDurationChange',
+]
 
 interface UnitDialogProps {
     unit: UnitWithDef
+    /** Whether any note of the unit has a recorded duration on the tick grid. */
+    durationMeasured: boolean
     open: boolean
     onClose: () => void
     onDone: (unit: UnitWithDef) => void
 }
 
-export const UnitDialog = ({ unit, open, onClose, onDone }: UnitDialogProps) => {
+export const UnitDialog = ({ unit, durationMeasured, open, onClose, onDone }: UnitDialogProps) => {
     // Seeded from the unit once, at mount. The caller keys this dialog by the unit and only
     // renders it while it is open, so arriving at a different unit is a new mount with new
     // fields — no effect has to copy the props back over what the user has typed.
@@ -55,19 +77,26 @@ export const UnitDialog = ({ unit, open, onClose, onDone }: UnitDialogProps) => 
                     onChange={(e) => setName(e.target.value)}
                 />
                 <FormGroup>
-                    {["relativeDuration", "relativeVelocity", 'absoluteDuration', 'absoluteDurationChange'].map((property) => (
+                    {properties.map((property) => (
                         <FormControlLabel
                             key={property}
+                            disabled={!durationMeasured && tickBorne.includes(property)}
                             control={
                                 <Checkbox
-                                    checked={aspects.has(property as ArticulationProperty)}
-                                    onChange={handleCheckboxChange(property as ArticulationProperty)}
+                                    checked={aspects.has(property)}
+                                    onChange={handleCheckboxChange(property)}
                                 />
                             }
                             label={property}
                         />
                     ))}
                 </FormGroup>
+                {!durationMeasured && (
+                    <FormHelperText>
+                        No tempo places these notes on the tick grid, so only relativeVelocity can be
+                        measured. Draw one on the tempo desk first.
+                    </FormHelperText>
+                )}
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancel</Button>

@@ -310,6 +310,9 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
                     open={unitDialogOpen}
                     onClose={() => setUnitDialogOpen(false)}
                     unit={currentUnit}
+                    durationMeasured={currentUnit.notes.some(
+                        note => residual.of(note)?.tickDuration !== undefined
+                    )}
                     onDone={(unit) => {
                         insert(unit)
                         setUnitDialogOpen(false)

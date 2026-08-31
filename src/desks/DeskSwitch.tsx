@@ -195,7 +195,9 @@ const needsRecording: Prerequisite = ({ aligned }) =>
  *
  * The articulation desk reads the same domain and is deliberately not gated: three of its four
  * aspects go unmeasured without a tempo, but `relativeVelocity` is taken off the rendered velocity
- * and still measures, so the desk can write an articulation that means something.
+ * and still measures, so the desk can write an articulation that means something. Its unit dialog
+ * disables the other three while nothing places the notes on the tick grid, so the desk cannot
+ * write a definition that states nothing.
  */
 const needsTempo: Prerequisite = ({ tempos }) =>
     tempos > 0 ? undefined : 'No tempo yet. Draw one on the tempo desk first.';
