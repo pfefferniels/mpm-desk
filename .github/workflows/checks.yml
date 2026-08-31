@@ -1,24 +1,21 @@
-name: Deploy to GitHub Pages
+name: Checks
 
+# Everything but main. There the same checks run inside the deploy workflow, which has to gate the
+# deploy on them anyway, so a second run would only hold the deploy up.
 on:
   push:
+    branches-ignore: [main]
+  pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
+# A branch that is pushed again mid-run does not need the answer to the older push.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  checks:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -50,15 +47,3 @@ jobs:
             tests/alignment/__snapshots__/performance-rendered.png
             tests/alignment/__snapshots__/performance-overlay.png
           if-no-files-found: ignore
-
-      - name: Build
-        run: npm run build
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
