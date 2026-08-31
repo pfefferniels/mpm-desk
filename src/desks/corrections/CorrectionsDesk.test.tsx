@@ -190,9 +190,8 @@ describe('the velocity plot', () => {
 
         pressDot(0);
 
-        expect(screen.getByText('1 note')).toBeInTheDocument();
-        // Selected, but not moved — there is no correction to apply yet.
-        expect(screen.getByRole('button', { name: 'Apply correction' })).toBeDisabled();
+        // Selected, but not moved — the button names the notes and stays out of reach.
+        expect(screen.getByRole('button', { name: 'Apply to 1 note' })).toBeDisabled();
         expect(addTransformer).not.toHaveBeenCalled();
     });
 
@@ -255,22 +254,42 @@ describe('the timing roll', () => {
             lane?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 5, clientY: 5 }));
         });
 
-        expect(screen.getByText('1 pedal')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply to 1 pedal' })).toBeInTheDocument();
     });
 });
 
 describe('the toolbar', () => {
+    it('says nothing about a selection there is none of', () => {
+        // No readout standing at "—" and "nothing": with nothing selected the bar is two controls.
+        mount();
+
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled();
+    });
+
     it('says what the selection covers and offers to forget it', () => {
         mount();
 
-        expect(screen.getByText('nothing')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Clear selection' })).toBeDisabled();
-
         pressDot(720);
-        expect(screen.getByText('1 note')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply to 1 note' })).toBeInTheDocument();
 
         clickToolbarButton('Clear selection');
-        expect(screen.getByText('nothing')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeInTheDocument();
+    });
+
+    it('drops the selection and the correction drawn on it on Escape', () => {
+        mount();
+
+        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 70 });
+        expect(screen.getByRole('button', { name: 'Apply +10 to 1 note' })).toBeInTheDocument();
+
+        act(() => {
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }),
+            );
+        });
+
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
     });
 
     it('has exactly one filled button, which is Apply', () => {
@@ -279,7 +298,7 @@ describe('the toolbar', () => {
 
         const filled = document.querySelectorAll('.MuiButton-contained');
         expect(filled).toHaveLength(1);
-        expect(filled[0]).toHaveAccessibleName('Apply correction');
+        expect(filled[0]).toHaveAccessibleName('Apply');
     });
 });
 
@@ -315,8 +334,7 @@ describe('what a gesture turns into', () => {
         // Thirty user units up, at three units per velocity step.
         drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 70 });
 
-        expect(screen.getByText('+10')).toBeInTheDocument();
-        clickToolbarButton('Apply correction');
+        clickToolbarButton('Apply +10 to 1 note');
 
         expect(sentOptions(addTransformer)).toEqual({
             noteIDs: ['a'],
@@ -337,8 +355,7 @@ describe('what a gesture turns into', () => {
         if (!body) throw new Error('no note on the roll');
         drag(body, { clientX: 5, clientY: 5 }, { clientX: 25, clientY: 5 });
 
-        expect(screen.getByText('+1000 ms')).toBeInTheDocument();
-        clickToolbarButton('Apply correction');
+        clickToolbarButton('Apply +1000 ms to 1 note');
 
         expect(sentOptions(addTransformer)).toEqual({
             noteIDs: ['b'],
@@ -360,8 +377,7 @@ describe('what a gesture turns into', () => {
         if (!press) throw new Error('no pedal on the roll');
         drag(press, { clientX: 38, clientY: 330 }, { clientX: 58, clientY: 330 });
 
-        expect(screen.getByText('+1000 ms')).toBeInTheDocument();
-        clickToolbarButton('Apply correction');
+        clickToolbarButton('Apply +1000 ms to 1 pedal');
 
         expect(sentOptions(addTransformer)).toEqual({
             pedalIDs: ['p1'],
@@ -378,10 +394,10 @@ describe('what a gesture turns into', () => {
 
         pressDot(0);
         pressDot(720, { shiftKey: true });
-        expect(screen.getByText('ticks 0–720')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply to ticks 0–720' })).toBeInTheDocument();
 
         drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 109 });
-        clickToolbarButton('Apply correction');
+        clickToolbarButton('Apply -3 to ticks 0–720');
 
         expect(sentOptions(addTransformer)).toEqual({
             from: 0,
@@ -396,11 +412,10 @@ describe('what a gesture turns into', () => {
         const { addTransformer } = mount();
 
         drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 70 });
-        clickToolbarButton('Apply correction');
+        clickToolbarButton('Apply +10 to 1 note');
 
         expect(addTransformer).toHaveBeenCalledTimes(1);
-        expect(screen.getByText('nothing')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Apply correction' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
         // The sent correction is previewed once and only once: the blue ghost that says where the
         // dot came from, and no grey one beside it double-counting the call now in the chain.
         const ghosts = [...document.querySelectorAll('circle[fill="none"]')];

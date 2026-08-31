@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { Check, Clear } from '@mui/icons-material';
 import type { ScopedTransformerViewProps } from '../TransformerViewProps';
@@ -6,7 +7,6 @@ import { Modify, type ModifyOptions } from '../../fitting/transformers/modificat
 import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
-import { ToolStatus } from '../../components/toolbar/ToolStatus';
 import { coveredBy, useEventSelection } from './useEventSelection';
 import { useModifyDeltas } from './useModifyDeltas';
 import { VelocityPlot } from './VelocityPlot';
@@ -79,9 +79,9 @@ export const CorrectionsDesk = ({
     const preview = pending ?? draft;
     const previewIds = pending ? coveredBy(pending, msm, part) : selected;
 
-    /** What the selection covers, said beside the button rather than inside its label. */
+    /** What the selection covers, or nothing at all while there is no selection to describe. */
     const scopeLabel = !selection
-        ? 'nothing'
+        ? undefined
         : 'noteIDs' in selection
           ? count(selection.noteIDs.length, 'note')
           : 'pedalIDs' in selection
@@ -89,7 +89,29 @@ export const CorrectionsDesk = ({
             : `ticks ${String(selection.from)}–${String(selection.to)}`;
 
     const unit = draft?.aspect === 'velocity' ? '' : ' ms';
-    const readout = draft && draft.change !== 0 ? `${signed(draft.change)}${unit}` : '—';
+    const correction = draft && draft.change !== 0 ? `${signed(draft.change)}${unit}` : undefined;
+
+    /**
+     * The button says the whole sentence: what will be added, and to what.
+     *
+     * It grows and shrinks as the drag proceeds, which a bar of fixed-width readouts exists to
+     * avoid — but the cursor is on the plot for the whole of that drag, and by the time it comes
+     * looking for the button the wording has settled.
+     */
+    const applyLabel = !scopeLabel
+        ? 'Apply'
+        : correction
+          ? `Apply ${correction} to ${scopeLabel}`
+          : `Apply to ${scopeLabel}`;
+
+    const clearAll = useCallback(() => {
+        setDraft(undefined);
+        clear();
+    }, [clear]);
+
+    // The plots have no focusable element to hang this on, so it is bound on the document — as on
+    // the voices desk, where Escape likewise drops what is picked wherever the pointer is.
+    useHotkeys('escape', clearAll, [clearAll]);
 
     const commit = () => {
         if (!selection || !draft || draft.change === 0) return;
@@ -107,11 +129,11 @@ export const CorrectionsDesk = ({
         clear();
     };
 
-    const applyTooltip = !selection
+    const applyTooltip = !scopeLabel
         ? 'Click an event on the plot to say what the correction is about'
-        : !draft || draft.change === 0
+        : !draft || !correction
           ? 'Drag a selected event first — there is no correction to apply'
-          : `Add ${signed(draft.change)}${unit} to the ${draft.aspect} of ${scopeLabel}`;
+          : `Add ${correction} to the ${draft.aspect} of ${scopeLabel}`;
 
     return (
         <div>
@@ -142,31 +164,23 @@ export const CorrectionsDesk = ({
                     <ToolbarButton
                         primary
                         icon={<Check />}
-                        label="Apply correction"
+                        label={applyLabel}
                         tooltip={applyTooltip}
-                        disabled={!selection || !draft || draft.change === 0}
+                        disabled={!scopeLabel || !correction}
                         onClick={commit}
                     >
-                        Apply
+                        {applyLabel}
                     </ToolbarButton>
-                    {/* Sized for `+1200 ms`, and held at that width: the readout is beside the
-                        button the user is aiming for, and a value that grows a digit mid-drag
-                        would move the button out from under the cursor. */}
-                    <ToolStatus width={64}>{readout}</ToolStatus>
-                    <ToolStatus width={104}>{scopeLabel}</ToolStatus>
                     <ToolbarButton
                         icon={<Clear fontSize="small" />}
                         label="Clear selection"
                         tooltip={
                             selection
-                                ? 'Forget the selected events and the correction drawn on them'
+                                ? 'Forget the selected events and the correction drawn on them (Esc)'
                                 : 'Nothing selected to clear'
                         }
                         disabled={!selection}
-                        onClick={() => {
-                            setDraft(undefined);
-                            clear();
-                        }}
+                        onClick={clearAll}
                     >
                         Clear
                     </ToolbarButton>
