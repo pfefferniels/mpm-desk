@@ -43,13 +43,14 @@ export type ScoreOptions = VerovioOptions & PerformanceOptions;
 export const DEFAULT_PERFORMANCE_SCALE = 16;
 
 /**
- * How the voices desk renders a score.
+ * How a score is drawn unless a desk asks for something else: the notated layout, with nothing of
+ * the performance painted onto it.
  *
- * Two of these are the desk's central decision rather than a preference. `performanceVelocityOpacity`
- * writes `opacity` onto the note's own `<g>` and `performanceUnmatched: 'mark'` writes
- * `fill="darkred"` onto it — the very element the part hue goes on. Hue is this desk's one channel
- * and it does not share, so both are off and the desk draws an unmatched note in its own way. The
- * `data-perf-unaligned` attribute survives `'plain'`, so nothing is lost by turning the paint off.
+ * The fork's own defaults are the other way round, and two of them paint the note's own `<g>` —
+ * `performanceVelocityOpacity` writes `opacity` and `performanceUnmatched: 'mark'` writes
+ * `fill="darkred"`, which is the element a desk colouring by part writes on. They are off here and
+ * come back through {@link performedOptions}, so a desk that means the performed layout gets them
+ * and one that does not is left an unpainted engraving to draw on.
  */
 export const defaultOptions: ScoreOptions = {
     adjustPageHeight: true,
@@ -79,8 +80,6 @@ export const defaultOptions: ScoreOptions = {
     // about the whole application rather than about one desk: mpm-desk shows a score as it was
     // played wherever it shows one at all.
     appXPathQuery: ['./rdg[contains(@source, "performance")]'],
-    // The notated layout is the default: voices *are* a notational fact — layers are what stems
-    // and beams show — and the performed layout is the evidence view, one toggle away.
     performanceAlignment: false,
     performanceScale: DEFAULT_PERFORMANCE_SCALE,
     performanceSystemDuration: 10,

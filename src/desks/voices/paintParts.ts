@@ -48,11 +48,6 @@ export const partStyles = (haloWidth: number): string =>
                 `g.note[data-part="${String(index + 1)}"] { fill: ${colorForPart(index + 1)}; color: ${colorForPart(index + 1)}; }`,
         ),
         `g.note:not([data-part]) { fill: ${UNASSIGNED}; color: ${UNASSIGNED}; }`,
-        // A note the recording has no `<when>` for, drawn hollow in its own part's hue. The fork
-        // would paint it darkred under `performanceUnmatched: 'mark'`, which is the part colour
-        // overwritten by a different meaning; `'plain'` leaves the attribute and takes the paint
-        // away, which is the trade this desk wants.
-        `g.note[data-perf-unaligned] .notehead use { fill: none; stroke: currentColor; stroke-width: 14; }`,
         `g.note.voice-selected .notehead use { stroke: #111827; stroke-width: ${String(haloWidth)}; paint-order: stroke; }`,
         `g.note.voice-faded { opacity: .18; }`,
     ].join('\n');

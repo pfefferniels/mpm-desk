@@ -6,8 +6,6 @@ export interface LegendPart {
     name: string;
     /** The voices that live here — {@link Voice.part}, so a split voice shows where most of it is. */
     voices: Voice[];
-    /** Distinct notes in the part, which is not the sum of its voices once notes have been moved. */
-    notes: number;
 }
 
 /**
@@ -24,17 +22,10 @@ export const legendParts = (
     voices: readonly Voice[],
     names: ReadonlyMap<number, string>,
 ): LegendPart[] => {
-    const held = new Map<number, Set<string>>();
-    for (const note of msm.allNotes) {
-        const ids = held.get(note.part) ?? new Set<string>();
-        held.set(note.part, ids);
-        ids.add(note['xml:id']);
-    }
-
     const rows = new Map(
-        [...held].map(([number, ids]): [number, LegendPart] => [
+        [...new Set(msm.allNotes.map((note) => note.part))].map((number): [number, LegendPart] => [
             number,
-            { number, name: names.get(number) ?? '', voices: [], notes: ids.size },
+            { number, name: names.get(number) ?? '', voices: [] },
         ]),
     );
 

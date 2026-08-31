@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Box, InputBase, Typography } from '@mui/material';
 import { colorForPart } from './partColors';
 import type { LegendPart } from './legendParts';
+import { voiceLabel } from './voiceLabel';
 
 interface PartsLegendProps {
     parts: readonly LegendPart[];
@@ -155,7 +156,7 @@ const PartRow = ({
                         <Box
                             key={voice.key}
                             component="button"
-                            aria-label={`Voice ${voice.key}`}
+                            aria-label={`Voice ${voiceLabel(voice)}`}
                             aria-pressed={selectedVoice === voice.key}
                             onClick={(event: React.MouseEvent) => {
                                 event.stopPropagation();
@@ -174,12 +175,9 @@ const PartRow = ({
                                 color: selectedVoice === voice.key ? '#ffffff' : 'text.secondary',
                             }}
                         >
-                            {`S${voice.staff}/L${voice.layer}`}
+                            {voiceLabel(voice)}
                         </Box>
                     ))}
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {`${String(part.notes)} notes`}
-                    </Typography>
                 </Box>
             </Box>
         </Box>

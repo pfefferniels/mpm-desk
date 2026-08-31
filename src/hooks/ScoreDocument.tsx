@@ -30,9 +30,9 @@ interface ScoreDocumentValue {
      * The `@source` of the recording the chain prefers, or `''` for "whichever comes first".
      *
      * A `MakeChoice` names a `@source`, and the MEI's `<recording>` elements carry the same
-     * string, so verovio's `performanceRecording` takes it with no lookup in between. Held here
-     * rather than computed in the desk, so that "which reading is on screen" has one home the day
-     * a second desk asks.
+     * string, so verovio's `performanceRecording` takes it with no lookup in between. Read by no
+     * desk at the moment — the voices desk draws the notated layout only — and held here rather
+     * than in whichever desk next lays a score out along the performance.
      */
     recording: string;
 }

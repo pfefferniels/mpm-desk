@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Box, GlobalStyles, Menu, MenuItem, MenuList, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { Box, GlobalStyles, Menu, MenuItem, MenuList } from '@mui/material';
 import type { ViewProps } from '../TransformerViewProps';
 import { useScoreDocument } from '../../hooks/ScoreDocument';
 import { useWorkDocument } from '../../hooks/WorkDocument';
-import { voiceKey, voicesOf, type Voice } from '../../fitting/voices';
+import { voiceKey, voicesOf } from '../../fitting/voices';
 import { Score } from '../../verovio/Score';
 import { staffSpace } from '../../verovio/toolkit';
 import { APP_BAR_HEIGHT } from '../../components/toolbar/EditorAppBar';
@@ -11,12 +12,12 @@ import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
 import { ToolField } from '../../components/toolbar/ToolField';
-import { ToolStatus } from '../../components/toolbar/ToolStatus';
 import { paintParts, partStyles } from './paintParts';
 import { colorForPart } from './partColors';
 import { measureTicks, tickRange } from './measures';
 import { PartsLegend } from './PartsLegend';
 import { legendParts, type LegendPart } from './legendParts';
+import { voiceLabel } from './voiceLabel';
 import type { PartLayout, VoiceMove } from '../../fitting/transformers/voices/ProcessVoices';
 import type { WorkVoices } from '../../model/workReducer';
 
@@ -39,10 +40,9 @@ type Selection =
  * drift with the order somebody happened to press things in.
  */
 export const VoicesDesk = ({ msm }: ViewProps) => {
-    const { mei, recording } = useScoreDocument();
+    const { mei } = useScoreDocument();
     const { voices: layout, setVoices } = useWorkDocument();
 
-    const [performed, setPerformed] = useState(false);
     const [selection, setSelection] = useState<Selection | null>(null);
     const [selectedParts, setSelectedParts] = useState<ReadonlySet<number>>(new Set());
     const [isolated, setIsolated] = useState<number | undefined>(undefined);
@@ -99,15 +99,6 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
             paintParts(root, partOf, selectedIds, isolated);
         },
         [partOf, selectedIds, isolated],
-    );
-
-    const options = useMemo(
-        () => ({
-            performanceAlignment: performed,
-            performanceRecording: recording,
-            performanceRuler: performed,
-        }),
-        [performed, recording],
     );
 
     // ── the gestures ──────────────────────────────────────────────
@@ -260,17 +251,40 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
         });
     };
 
+    const clear = useCallback(() => {
+        setSelection(null);
+        setPickedVoice(undefined);
+        setSelectedParts(new Set());
+    }, []);
+
+    /**
+     * Escape drops whatever is picked, wherever the pointer happens to be — the score has no
+     * focusable element to hang a key handler on, so this is bound on the document.
+     *
+     * The library skips form tags by default, which is what leaves the legend's name field alone:
+     * Escape there reverts the draft rather than clearing the selection under it. A menu answers
+     * Escape first and stops the event, so closing the move menu does not also drop the selection
+     * it was opened for.
+     */
+    useHotkeys('escape', clear, [clear]);
+
     // ── what the toolbar says ─────────────────────────────────────
 
-    const status = pickedVoice
-        ? `voice ${pickedVoice}`
-        : selection
-        ? selection.kind === 'range'
-            ? `${labelOf(sourceVoice, voices)} · ${String(selection.noteIDs.length)} notes`
-            : `${String(selection.noteIDs.length)} notes`
-        : selectedParts.size > 0
-          ? `${String(selectedParts.size)} parts`
-          : '—';
+    /**
+     * How many notes the move would take, or `undefined` while there is nothing to move.
+     *
+     * A picked voice is counted rather than named: the button is the one place the size of the
+     * gesture is stated, and "a whole voice" says nothing about whether that is five notes or two
+     * hundred.
+     */
+    const movingNotes = pickedVoice
+        ? voices.find((voice) => voice.key === pickedVoice)?.notes
+        : selection?.noteIDs.length;
+
+    const moveLabel =
+        movingNotes === undefined
+            ? 'Move to…'
+            : `Move ${String(movingNotes)} note${movingNotes === 1 ? '' : 's'}`;
 
     if (!mei) return null;
 
@@ -279,20 +293,6 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
             <GlobalStyles styles={partStyles(staffSpace() * 0.15)} />
 
             <DeskToolbar>
-                <ToolGroup label="Layout">
-                    <ToggleButtonGroup
-                        exclusive
-                        size="small"
-                        value={performed ? 'performed' : 'notated'}
-                        onChange={(_, value: string | null) => {
-                            if (value) setPerformed(value === 'performed');
-                        }}
-                    >
-                        <ToggleButton value="notated">Notated</ToggleButton>
-                        <ToggleButton value="performed">Performed</ToggleButton>
-                    </ToggleButtonGroup>
-                </ToolGroup>
-
                 <ToolGroup label="Select">
                     <Box
                         component="select"
@@ -306,7 +306,7 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                         <option value="">Voice…</option>
                         {voices.map((voice) => (
                             <option key={voice.key} value={voice.key}>
-                                {`S${voice.staff}/L${voice.layer} · ${String(voice.notes)}`}
+                                {voiceLabel(voice)}
                             </option>
                         ))}
                     </Box>
@@ -326,11 +326,12 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                     </ToolbarButton>
                 </ToolGroup>
 
-                <ToolGroup label="Layout edits">
-                    <ToolStatus width={132}>{status}</ToolStatus>
+                <ToolGroup label="Edits">
                     {/* The menu hangs off this box rather than off the button: `ToolbarButton`
-                        wraps its control in a tooltip span and forwards no ref. */}
-                    <Box ref={setMoveButton} sx={{ display: 'inline-flex' }}>
+                        wraps its control in a tooltip span and forwards no ref. The width is held
+                        so that a label counting the selection does not push Combine and Clear
+                        sideways every time the selection changes. */}
+                    <Box ref={setMoveButton} sx={{ display: 'inline-flex', minWidth: 148 }}>
                     <ToolbarButton
                         primary
                         tooltip={
@@ -340,13 +341,13 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                                   ? 'Move the selected notes into another part'
                                   : 'Pick a voice in the list, or select notes in the score'
                         }
-                        label="Move to"
+                        label={moveLabel}
                         disabled={!selection && !pickedVoice}
                         onClick={() => {
                             setMoveOpen(true);
                         }}
                     >
-                        Move to…
+                        {moveLabel}
                     </ToolbarButton>
                     </Box>
                     <ToolbarButton
@@ -362,14 +363,10 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                         Combine
                     </ToolbarButton>
                     <ToolbarButton
-                        tooltip={selection ? 'Clear the selection' : 'Nothing is selected'}
+                        tooltip={selection ? 'Clear the selection (Esc)' : 'Nothing is selected'}
                         label="Clear"
                         disabled={!selection && !pickedVoice && selectedParts.size === 0}
-                        onClick={() => {
-                            setSelection(null);
-                            setPickedVoice(undefined);
-                            setSelectedParts(new Set());
-                        }}
+                        onClick={clear}
                     >
                         Clear
                     </ToolbarButton>
@@ -415,7 +412,7 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
 
             <Box sx={{ display: 'flex', height: `calc(100vh - ${String(APP_BAR_HEIGHT)}px - 1rem)` }}>
                 <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#ffffff' }}>
-                    <Score mei={mei} options={options} paint={paint} onNoteClick={onNoteClick} />
+                    <Score mei={mei} paint={paint} onNoteClick={onNoteClick} />
                 </Box>
                 <PartsLegend
                     parts={parts}
@@ -461,9 +458,4 @@ const tidy = (parts: readonly PartLayout[], moves: readonly VoiceMove[]): PartLa
     return parts
         .filter((part) => part.voices.length > 0 || filled.has(part.number))
         .sort((a, b) => a.number - b.number);
-};
-
-const labelOf = (key: string, voices: readonly Voice[]): string => {
-    const voice = voices.find((entry) => entry.key === key);
-    return voice ? `S${voice.staff}/L${voice.layer}` : key;
 };

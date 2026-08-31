@@ -8,9 +8,7 @@ const rendered = () => {
         <g data-class="staff" data-n="1" class="staff">
           <g data-class="layer" data-n="1" class="layer">
             <g data-id="a1" data-class="note" class="note"><g class="notehead"><use /></g></g>
-            <g data-id="a2" data-class="note" class="note" data-perf-unaligned="true">
-              <g class="notehead"><use /></g>
-            </g>
+            <g data-id="a2" data-class="note" class="note"><g class="notehead"><use /></g></g>
           </g>
         </g>
         <g data-class="staff" data-n="2" class="staff">
@@ -96,7 +94,7 @@ describe('partStyles', () => {
         // verovio's own sheet says `path, rect, polygon { stroke: currentColor }`: the notehead
         // takes `fill`, the stem and the beam take `color`.
         for (const rule of partStyles(20).split('\n')) {
-            if (!rule.includes('fill:') || rule.includes('fill: none')) continue;
+            if (!rule.includes('fill:')) continue;
             expect(rule, rule).toContain('color:');
         }
     });
