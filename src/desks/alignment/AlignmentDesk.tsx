@@ -74,7 +74,6 @@ export const AlignmentDesk = () => {
     const [minConfidence, setMinConfidence] = useState(0);
     const [sliderValue, setSliderValue] = useState(0);
     const [scale, setScale] = useState(DEFAULT_PERFORMANCE_SCALE);
-    const [performed, setPerformed] = useState(true);
 
     /** This session's run, until it is applied. Absent means: show what the document holds. */
     const [run, setRun] = useState<AlignmentRun>();
@@ -236,12 +235,10 @@ export const AlignmentDesk = () => {
     const options = useMemo(
         () => ({
             ...performedOptions,
-            performanceAlignment: performed,
-            performanceRuler: performed,
             performanceScale: scale,
             performanceRecording: drawn?.recording ?? '',
         }),
-        [performed, scale, drawn],
+        [scale, drawn],
     );
 
     // ── listening back ────────────────────────────────────────────
@@ -482,18 +479,6 @@ export const AlignmentDesk = () => {
 
             <DeskToolbar>
                 <ToolGroup label="View">
-                    <Box
-                        component="select"
-                        aria-label="Layout"
-                        value={performed ? 'performed' : 'notated'}
-                        onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                            setPerformed(event.target.value === 'performed');
-                        }}
-                        sx={{ height: 30, borderRadius: 1, border: '1px solid #e5e7eb' }}
-                    >
-                        <option value="performed">Performed</option>
-                        <option value="notated">Notated</option>
-                    </Box>
                     <Slider
                         aria-label="Zoom"
                         sx={{ width: '5rem', mx: 1 }}
@@ -504,7 +489,6 @@ export const AlignmentDesk = () => {
                         onChange={(_, value) => {
                             setScale(value as number);
                         }}
-                        disabled={!performed}
                     />
                 </ToolGroup>
 
