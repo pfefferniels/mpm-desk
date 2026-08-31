@@ -223,6 +223,8 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
             onMouseEnter={() => setHoveredKey(boxKey)}
             onMouseLeave={() => setHoveredKey(k => k === boxKey ? undefined : k)}
           >
+            {/* A derived box is the metre's own reading and is recomputed from the measured
+                ones, so it hovers and auditions but neither selects, splits nor deletes. */}
             <Box
               segment={tempo}
               tickToSeconds={tickToSeconds}
@@ -231,21 +233,22 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
               onPlay={onPlaySegment}
               onStop={onStopSegment}
               onSelect={() => {
-                if (isDrawMode) return
+                if (isDrawMode || tempo.derived) return
                 tempos.unselectAll()
                 tempo.selected = true
                 setTempos(new TempoCluster(tempos.segments))
               }}
               onToggleSelect={() => {
-                if (isDrawMode) return
+                if (isDrawMode || tempo.derived) return
                 tempo.selected = !tempo.selected
                 setTempos(new TempoCluster(tempos.segments))
               }}
               onRemove={() => {
+                if (tempo.derived) return
                 tempos.removeTempo(tempo)
                 setTempos(new TempoCluster(tempos.segments))
               }}
-              splitMode={mode === 'split'}
+              splitMode={mode === 'split' && !tempo.derived}
               onSplit={onSplit}
               drawMode={isDrawMode}
             />

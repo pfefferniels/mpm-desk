@@ -128,6 +128,7 @@ export const Box = (props: BoxProps) => {
         className='box'
         data-start={segment.date.start}
         data-length={segment.date.end - segment.date.start}
+        data-derived={segment.derived ? '' : undefined}
         points={[
           [start * stretchX, 0].join(','), // start point
           [start * stretchX, upperY].join(','), // move up
@@ -136,7 +137,9 @@ export const Box = (props: BoxProps) => {
         ].join(' ')}
         fill={hovered ? 'lightgray' : 'white'}
         fillOpacity={0.4}
-        stroke='black'
+        // The metre's boxes are drawn in grey, because they are the only ones that cannot be
+        // selected, split or deleted.
+        stroke={segment.derived ? '#9ca3af' : 'black'}
         strokeDasharray={segment.silent ? '1 1' : undefined}
         strokeWidth={selected ? 2 : 1}
         pointerEvents={drawMode ? 'none' : undefined}

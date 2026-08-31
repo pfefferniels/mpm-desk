@@ -8,7 +8,8 @@ import { useCallback, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
 import type { SkylineMode } from "./Skyline"
 import { TempoCluster, extractTempoSegments, extractOnsets, resolveOverlaps } from "./Tempo"
-import type { DrawnLine } from "./Tempo"
+import type { DrawnLine, TempoSegment } from "./Tempo"
+import { combineByMeter } from "./metricGrouping"
 import { scopeData, withScopeData } from "./secondary"
 import type { TempoScopeData } from "./secondary"
 import { VerticalScale } from "./VerticalScale"
@@ -16,6 +17,7 @@ import { ZoomControls } from "../../components/ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import type { Scope } from "../TransformerViewProps"
 import { Add, Merge } from "@mui/icons-material"
+import { ToolCheckbox } from "../../components/toolbar/ToolCheckbox"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
 import { DeskToolbar } from "../../components/DeskToolbar"
@@ -54,6 +56,32 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
         return new TempoCluster(extractTempoSegments(msm, part))
     }, [tempoData.tempoCluster, msm, part])
 
+    const [groupByMetre, setGroupByMetre] = useState(true)
+
+    /**
+     * The boxes the metre implies over the measured ones: the beat, the bar, and every level
+     * between that the boxes under it fill exactly.
+     *
+     * Derived, so they are handed to the skyline and kept out of {@link setTempoCluster}.
+     *
+     * `msm.timeSignature` is as much of the metre as the alignment has: `asMSM` keeps the *first*
+     * `<timeSignature>` of the score's map and drops the rest. Where a score opens with an
+     * anacrusis that first entry states the upbeat bar rather than the piece — 1/4 before the 4/4
+     * at the downbeat, in `latest/score.msm` — and the levels then stop at the beat. Thin, but
+     * sound: every box formed is still one the signature it was handed implies.
+     */
+    const metricSegments = useMemo<TempoSegment[]>(() => {
+        if (!groupByMetre) return []
+        return combineByMeter(tempoCluster.segments.map(s => s.date), msm.timeSignature)
+            .map(date => ({ date, selected: false, silent: false, derived: true }))
+    }, [groupByMetre, tempoCluster, msm.timeSignature])
+
+    /** What the skyline draws: what was measured, and what the metre makes of it. */
+    const shownCluster = useMemo(
+        () => new TempoCluster([...tempoCluster.segments, ...metricSegments]),
+        [tempoCluster, metricSegments]
+    )
+
     const silentOnsets = useMemo<Map<number, number>>(
         () => new Map((tempoData.silentOnsets ?? []).map(o => [o.date, o.onset])),
         [tempoData.silentOnsets]
@@ -80,7 +108,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
     }
 
     const setTempoCluster = (newCluster: TempoCluster) => {
-        updateScope({ tempoCluster: newCluster.segments })
+        updateScope({ tempoCluster: newCluster.segments.filter(s => !s.derived) })
     }
 
     const setSilentOnset = (date: number, onset: number) => {
@@ -148,7 +176,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
         }
         return base.sort((a, b) => a.date - b.date)
     }, [msm, part, silentOnsets])
-    const chartHeight = tempoCluster && tickToSeconds ? -stretchY * tempoCluster.highestBPM(tickToSeconds) : 0
+    const chartHeight = tickToSeconds ? -stretchY * shownCluster.highestBPM(tickToSeconds) : 0
 
     const { play, stop } = usePiano()
     const { slice } = useNotes()
@@ -373,6 +401,12 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                     >
                         Combine
                     </ToolbarButton>
+                    <ToolCheckbox
+                        checked={groupByMetre}
+                        onChange={setGroupByMetre}
+                        label='Metre'
+                        tooltip='Also draw the boxes the time signature implies: the beat, the bar, and the levels between'
+                    />
                 </ToolGroup>
             </DeskToolbar>
 
@@ -383,7 +417,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                     rangeY={[1, 2]}
                 />
 
-                {tempoCluster && tickToSeconds && (
+                {tickToSeconds && (
                     <svg style={{
                         position: 'absolute',
                         left: 0,
@@ -395,15 +429,15 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                     }}
                         viewBox={`-30 ${chartHeight - 50} 30 ${-chartHeight + 100}`}
                     >
-                        <VerticalScale stretchY={stretchY} maxTempo={tempoCluster.highestBPM(tickToSeconds)} />
+                        <VerticalScale stretchY={stretchY} maxTempo={shownCluster.highestBPM(tickToSeconds)} />
                     </svg>
                 )}
 
                 <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
-                    {tempoCluster && tickToSeconds && secondsToTick && (
+                    {tickToSeconds && secondsToTick && (
                         <Skyline
                             part={part}
-                            tempos={tempoCluster}
+                            tempos={shownCluster}
                             setTempos={setTempoCluster}
                             onsets={onsets}
                             tickToSeconds={tickToSeconds}

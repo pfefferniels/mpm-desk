@@ -98,6 +98,9 @@ const Desk = ({
                             <span data-testid="drawn">
                                 {scopeData(secondary.tempo, part).drawnLines?.length ?? 0}
                             </span>
+                            <span data-testid="stored">
+                                {scopeData(secondary.tempo, part).tempoCluster?.length ?? 0}
+                            </span>
                             <TempoDesk
                                 part={part}
                                 msm={msm}
@@ -132,6 +135,8 @@ const renderDesk = (part: Scope, secondary: SecondaryData = {}, mpm: Mpm = creat
         /** The curves the skyline is drawing, against the ones the work file still holds. */
         drawn: () => document.querySelectorAll('g.drawnLine'),
         drawnLines: () => Number(screen.getByTestId('drawn').textContent),
+        /** How many boxes the work file holds, against the ones the skyline is drawing. */
+        storedBoxes: () => Number(screen.getByTestId('stored').textContent),
         /** The next fit landing: the chain's answer is a new document every time. */
         fit: (next: Mpm) =>
             rerender(
@@ -150,14 +155,20 @@ const renderDesk = (part: Scope, secondary: SecondaryData = {}, mpm: Mpm = creat
     };
 };
 
+const extentsOf = (selector: string) =>
+    [...document.querySelectorAll(selector)]
+        .map((box) => ({
+            start: Number(box.getAttribute('data-start')),
+            length: Number(box.getAttribute('data-length')),
+        }))
+        .sort((a, b) => a.start - b.start || a.length - b.length);
+
+/** The measured boxes alone — the ones the metre adds have their own tests below. */
 const mount = (part: Scope, secondary: SecondaryData = {}) => {
     const { dispose } = renderDesk(part, secondary);
-    const boxes = [...document.querySelectorAll('polygon.box')].map((box) => ({
-        start: Number(box.getAttribute('data-start')),
-        length: Number(box.getAttribute('data-length')),
-    }));
+    const boxes = extentsOf('polygon.box:not([data-derived])');
     dispose();
-    return boxes.sort((a, b) => a.start - b.start);
+    return boxes;
 };
 
 describe('the skyline follows the scope', () => {
@@ -190,6 +201,33 @@ describe('the skyline follows the scope', () => {
             { start: 0, length: 1440 },
             { start: 1440, length: 720 },
         ]);
+    });
+});
+
+describe('the boxes the metre adds', () => {
+    it('draws the levels the signature implies over the measured boxes', () => {
+        // Four quarters and no time signature, so common time: two halves and the bar over them.
+        const { bar, dispose } = renderDesk(0);
+        expect(extentsOf('polygon.box[data-derived]')).toEqual([
+            { start: 0, length: 1440 },
+            { start: 0, length: 2880 },
+            { start: 1440, length: 1440 },
+        ]);
+
+        fireEvent.click(within(bar).getByRole('checkbox', { name: 'Metre' }));
+        expect(extentsOf('polygon.box[data-derived]')).toEqual([]);
+        dispose();
+    });
+
+    it('keeps them out of the work file', () => {
+        const { storedBoxes, dispose } = renderDesk(0);
+        expect(storedBoxes()).toBe(0);
+
+        // Selecting a box is the desk's smallest write of the cluster, and it must store the
+        // four boxes the recording gives rather than the seven the skyline shows.
+        fireEvent.click(document.querySelector('polygon.box:not([data-derived])')!);
+        expect(storedBoxes()).toBe(4);
+        dispose();
     });
 });
 

@@ -12,6 +12,13 @@ export type TempoSegment = {
     time?: Range
     selected: boolean
     silent: boolean
+    /**
+     * Formed by the metre rather than measured from the recording.
+     *
+     * Derived per render and stripped again on the way into the work file — a level of the metre
+     * is not a measurement, and a stored one would be read back as one.
+     */
+    derived?: boolean
 }
 
 export const asBPM = (dateRange: Range, tickToSeconds?: (tick: number) => number) => {
