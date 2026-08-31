@@ -22,6 +22,7 @@ import { convertMeiToMsm } from 'espressivo';
 import './fitting/transformers/Order';
 
 import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
+import { lockedScopes, NO_SCOPE_LOCK } from './desks/scopeLock';
 import type { SecondaryData } from './desks/TransformerViewProps';
 import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
@@ -606,20 +607,31 @@ export const App = () => {
     );
 
     /**
-     * Why the open desk may not leave Global, or null while it may.
+     * The parts the scope picker offers, ascending.
      *
-     * A part's map of a type shadows the global one of that type rather than adding to it — see
-     * `writes` in `DeskSwitch.tsx`. So once `<global>` holds instructions of what this desk
-     * writes, offering a part is offering to silently take that part out of the global reading.
+     * `parts()` is a `Set` built by mapping `allNotes`, which the alignment sorts by *date* — so
+     * its order is whichever part enters first, not part order. The scope picker is the one
+     * reader that never sorted it.
      */
-    const scopeLock = useMemo(() => {
-        if (!mpm) return null;
-        const written = (deskEntry?.writes ?? []).filter(
-            (type) => getInstructions(mpm, type, 'global').length > 0,
-        );
-        if (written.length === 0) return null;
-        return `The global ${written.join(' and ')} map already has instructions, and a part's own map replaces the global one rather than adding to it. Remove those calls to fit this aspect per part.`;
-    }, [mpm, deskEntry]);
+    const parts = useMemo(
+        () =>
+            Array.from(alignment?.parts() ?? [])
+                .sort((a, b) => a - b)
+                .map((part) => ({
+                    scope: part,
+                    label: partNames.get(part + 1) || `Part ${String(part + 1)}`,
+                })),
+        [alignment, partNames],
+    );
+
+    /**
+     * Which scopes the open desk may not write into, and why — see `scopeLock.ts` for the rule and
+     * `writes` in `DeskSwitch.tsx` for what each desk puts under it.
+     */
+    const scopeLock = useMemo(
+        () => (mpm ? lockedScopes(mpm, deskEntry?.writes ?? [], parts) : NO_SCOPE_LOCK),
+        [mpm, deskEntry, parts],
+    );
 
     /**
      * Note `xml:id` ⇒ symbolic date, off the score the performance is rendered against.
@@ -646,23 +658,22 @@ export const App = () => {
     const isNarrativeSelected = deskEntry?.aspect === 'narrative';
     const DeskComponent = deskEntry?.desk;
 
-    /** What the open desk calls itself, and what the parts of the score are called. */
+    /** What the open desk calls itself. */
     const deskName = deskEntry ? (deskEntry.displayName ?? deskEntry.aspect) : selectedDesk;
-    // `parts()` is a `Set` built by mapping `allNotes`, which the alignment sorts by *date* —
-    // so its order is whichever part enters first, not part order. The scope picker is the one
-    // reader that never sorted it.
-    const parts = Array.from(alignment.parts())
-        .sort((a, b) => a - b)
-        .map((scope) => ({
-            scope,
-            label: partNames.get(scope + 1) || `Part ${String(scope + 1)}`,
-        }));
 
     // A layout that empties a part leaves the picker holding a scope no note is in — the same
     // blank `Select` that opening a new score used to produce, now reachable without opening
     // anything. Adjusted during render rather than from an effect, as `fitMessage` above is.
     if (scope !== 'global' && !parts.some((part) => part.scope === scope)) {
         setScope('global');
+    }
+
+    // And a scope the picker greys out must not be the one the desk is writing into. Greying an
+    // option guards the move onto it and nothing else, so a lock that comes into force while the
+    // picker is already there — the desk changed, or a call just filled the other scope — would
+    // otherwise be a rule stated and not applied. `holding[0]` is where the map that locked it is.
+    if (scopeLock.locked.has(scope)) {
+        setScope(scopeLock.holding[0] ?? 'global');
     }
 
     // A desk the menu greys out must not be the one on screen. Opening a score with a single

@@ -16,6 +16,8 @@ import { PlaybackProvider } from '../../hooks/PlaybackProvider';
 import { WorkDocumentProvider } from '../../hooks/WorkDocument';
 import { initialHistory, workHistoryReducer } from '../../model/workReducer';
 import type { WorkHistory } from '../../model/workReducer';
+import type { Scope } from '../../fitting/instructions/index';
+import { NO_SCOPE_LOCK } from '../../desks/scopeLock';
 import { EditorAppBar } from './EditorAppBar';
 
 let rig = createFakePiano();
@@ -67,7 +69,7 @@ const mount = ({ history = initialHistory(), ...props }: Overrides = {}) =>
                 parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
                 scope='global'
                 setScope={() => {}}
-                scopeLock={null}
+                scopeLock={NO_SCOPE_LOCK}
                 pending={false}
                 dirty={false}
                 canPlay
@@ -126,23 +128,59 @@ describe('EditorAppBar', () => {
         expect(setScope).not.toHaveBeenCalledWith(null);
     });
 
-    it('locks the parts, and says why, where a part map would shadow the global one', () => {
+    it('locks the parts, and says what took them, where a part map would shadow the global one', () => {
         const setScope = vi.fn();
-        const reason = 'The global tempo map already has instructions';
-        mount({ setScope, scopeLock: reason });
+        const note = 'global is already set';
+        mount({
+            setScope,
+            scopeLock: {
+                locked: new Map<Scope, string>([
+                    [0, note],
+                    [1, note],
+                ]),
+                holding: ['global'],
+            },
+        });
 
         fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Scope' }));
         const listbox = within(screen.getByRole('listbox'));
 
         // Offered, not hidden: a picker that loses its options teaches nothing about why.
         expect(listbox.getByRole('option', { name: 'Global' })).toBeEnabled();
-        expect(listbox.getByRole('option', { name: 'Part 1' })).toHaveAttribute(
+        expect(listbox.getByRole('option', { name: /Part 1/ })).toHaveAttribute(
             'aria-disabled',
             'true',
         );
-        expect(listbox.getByText(reason)).toBeInTheDocument();
+        // The note stands on each option it explains, not once under the list.
+        expect(listbox.getAllByText(note)).toHaveLength(2);
 
-        fireEvent.click(screen.getByRole('option', { name: 'Part 2' }));
+        fireEvent.click(screen.getByRole('option', { name: /Part 2/ }));
+        expect(setScope).not.toHaveBeenCalled();
+    });
+
+    it('locks Global instead, where the parts are the ones already set', () => {
+        // The other direction of the same rule: a global map written beside a part's own is a
+        // write that part will not read. See `scopeLock.ts`.
+        const setScope = vi.fn();
+        const note = 'Part 1 is already set';
+        mount({
+            scope: 0,
+            setScope,
+            scopeLock: { locked: new Map<Scope, string>([['global', note]]), holding: [0] },
+        });
+
+        fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Scope' }));
+        const listbox = within(screen.getByRole('listbox'));
+
+        expect(listbox.getByRole('option', { name: /Global/ })).toHaveAttribute(
+            'aria-disabled',
+            'true',
+        );
+        expect(listbox.getByRole('option', { name: 'Part 1' })).toBeEnabled();
+        expect(listbox.getByRole('option', { name: 'Part 2' })).toBeEnabled();
+        expect(listbox.getByText(note)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('option', { name: /Global/ }));
         expect(setScope).not.toHaveBeenCalled();
     });
 
@@ -163,7 +201,7 @@ describe('EditorAppBar', () => {
                     parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
                     scope='global'
                     setScope={() => {}}
-                    scopeLock={null}
+                    scopeLock={NO_SCOPE_LOCK}
                     pending
                     dirty={false}
                     canPlay

@@ -76,20 +76,18 @@ interface DeskEntry {
     holdOut?: readonly InstructionType[];
 
     /**
-     * The instruction types this desk writes into whichever scope the picker is on, where a part
-     * may not hold its own map beside a global one.
+     * The instruction types this desk writes **into whichever scope the picker is on**, where a
+     * part may not hold its own map beside a global one.
      *
-     * MPM does not merge the two. espressivo resolves a part's maps as
-     * `dated.getMapOfKind(kind) ?? globalMaps[kind]` (`Performance.resolvePartMaps`), so a part's
-     * own map of a type **shadows** the global one of that type outright: one part-local `<tempo>`
-     * and that part stops following every global one. Declaring the type here locks the scope
-     * picker to Global for as long as `<global>` holds instructions of it, which is the point at
-     * which the choice stops being a view and starts being a document the renderer reads
-     * differently.
+     * MPM does not merge the two: a part's own map of a type shadows the global one of that type
+     * outright. Declaring the type here greys out whichever scope is not the one already set —
+     * `scopeLock.ts` has the rule and the reasoning.
      *
-     * Only the tempo desk declares it. The shadowing is per map kind and the hazard is the same
-     * for the others, but locking eleven pickers is a change to how the whole editor is used, and
-     * that is a decision to take on its own.
+     * The emphasis is the condition for declaring anything at all. Three desks that do write
+     * instructions are deliberately absent, because for them the picker decides nothing: the
+     * pedal desk's `InsertPedal` writes `requireMap(mpm, 'movement', 'global')` whatever the
+     * picker says, and both style transformers loop over `scopesOf(mpm)` and restyle every scope
+     * they find. A lock on those would describe a choice the reader does not have.
      */
     writes?: readonly InstructionType[];
 
@@ -210,6 +208,7 @@ export const correspondingDesks: DeskEntry[] = [
         aspect: 'rubato',
         group: 'timing',
         holdOut: ['rubato'],
+        writes: ['rubato'],
     },
     {
         transformerName: 'InsertTemporalSpread',
@@ -221,6 +220,10 @@ export const correspondingDesks: DeskEntry[] = [
         displayName: 'Temporal Spread',
         aspect: 'arpeggiation',
         group: 'timing',
+        // Both arpeggiation desks write the same `<ornamentMap>`, so either one of them having
+        // filled a scope locks the other's picker the same way. That is the document's doing, not
+        // a coupling between the desks: it is one map per scope either way.
+        writes: ['ornament'],
     },
     {
         transformerName: 'InsertDynamicsGradient',
@@ -232,6 +235,7 @@ export const correspondingDesks: DeskEntry[] = [
         displayName: 'Dynamics Gradient',
         aspect: 'arpeggiation',
         group: 'timing',
+        writes: ['ornament'],
     },
     {
         transformerName: 'StylizeOrnamentation',
@@ -252,6 +256,7 @@ export const correspondingDesks: DeskEntry[] = [
             import('./dynamics/DynamicsDesk').then((m) => ({ default: m.DynamicsDesk })),
         ),
         group: 'dynamics',
+        writes: ['dynamics'],
     },
     {
         transformerName: 'InsertMetricalAccentuation',
@@ -264,6 +269,7 @@ export const correspondingDesks: DeskEntry[] = [
         aspect: 'accentuation',
         group: 'dynamics',
         holdOut: ['accentuationPattern'],
+        writes: ['accentuationPattern'],
     },
     {
         transformerName: 'InsertArticulation',
@@ -276,6 +282,7 @@ export const correspondingDesks: DeskEntry[] = [
         displayName: 'Articulation',
         group: 'dynamics',
         holdOut: ['articulation'],
+        writes: ['articulation'],
     },
     {
         transformerName: 'StylizeArticulation',

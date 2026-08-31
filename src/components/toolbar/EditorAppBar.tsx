@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { PlayArrow, Redo, Save, Stop, Undo, UploadFile, ZoomIn } from '@mui/icons-material';
 import type { Scope } from '../../fitting/instructions/index';
+import type { PartOption, ScopeLock } from '../../desks/scopeLock';
 import { usePlayback } from '../../hooks/PlaybackProvider';
 import { useWorkDocument } from '../../hooks/WorkDocument';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, useZoom } from '../../hooks/ZoomProvider';
@@ -32,15 +33,15 @@ interface EditorAppBarProps {
      * The parts of the score, ascending, for the scope picker — each with the name the voice
      * layout gives it, or `Part n` where nothing has named it.
      */
-    parts: readonly { scope: number; label: string }[];
+    parts: readonly PartOption[];
     scope: Scope;
     setScope: (scope: Scope) => void;
     /**
-     * Why the open desk may not leave Global, or null while it may. The parts are offered but
-     * unselectable, and this says what would have to change first — see `writes` in
-     * `DeskSwitch.tsx`. Not hidden: a picker that loses its options teaches nothing.
+     * Which scopes the open desk may not write into — see `scopeLock.ts`. Those options are
+     * offered but unselectable, each with a note saying which scope was set in its place. Not
+     * hidden: a picker that loses its options teaches nothing.
      */
-    scopeLock: string | null;
+    scopeLock: ScopeLock;
     /** True while the chain is refitting. */
     pending: boolean;
     /** True when the document has changed since the last save. */
@@ -66,6 +67,28 @@ const ROW_HEIGHT = 44;
  * leaves a wide one part empty, which is what the markup desk did before it read this.
  */
 export const APP_BAR_HEIGHT = 2 * ROW_HEIGHT;
+
+/**
+ * One line of the scope picker: the scope's name, and — where it is locked — the scope that has
+ * been set in its place, in the free space at the right of the row.
+ *
+ * The note stands with the option it explains rather than under the list, and says only which
+ * scope took it: the reader picking a part for a tempo knows what a part map does to a global
+ * one, and a sentence that has to be read to the end explains nothing on the second visit.
+ *
+ * A fragment, not a component wrapping the `MenuItem`. MUI's `Select` reads its children's
+ * `value` and clones them to make the list, so the `MenuItem` has to stay the direct child.
+ */
+const ScopeOption = ({ label, note }: { label: string; note?: string }) => (
+    <>
+        {label}
+        {note !== undefined && (
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', pl: 2 }}>
+                {note}
+            </Typography>
+        )}
+    </>
+);
 
 /**
  * The editor's chrome, in two rows.
@@ -252,29 +275,20 @@ export const EditorAppBar = ({
                     // style and not a rule.
                     onChange={(event) => {
                         const next = event.target.value as Scope;
-                        if (scopeLock !== null && next !== 'global') return;
+                        if (scopeLock.locked.has(next)) return;
                         setScope(next);
                     }}
                     inputProps={{ 'aria-label': 'Scope' }}
                     sx={{ minWidth: 108, flexShrink: 0 }}
                 >
-                    <MenuItem value="global">Global</MenuItem>
+                    <MenuItem value="global" disabled={scopeLock.locked.has('global')}>
+                        <ScopeOption label="Global" note={scopeLock.locked.get('global')} />
+                    </MenuItem>
                     {parts.map(({ scope: part, label }) => (
-                        <MenuItem key={part} value={part} disabled={scopeLock !== null}>
-                            {label}
+                        <MenuItem key={part} value={part} disabled={scopeLock.locked.has(part)}>
+                            <ScopeOption label={label} note={scopeLock.locked.get(part)} />
                         </MenuItem>
                     ))}
-                    {/* The reason sits with the options it greys out. Not a tooltip on the
-                        control: the menu covers the control the moment it opens. */}
-                    {scopeLock !== null && (
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: 'block', maxWidth: 280, px: 2, py: 1 }}
-                        >
-                            {scopeLock}
-                        </Typography>
-                    )}
                 </Select>
 
                 <Divider orientation="vertical" flexItem sx={{ my: 1 }} />
