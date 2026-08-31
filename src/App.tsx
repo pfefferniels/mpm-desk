@@ -168,24 +168,33 @@ export const App = () => {
         [selectedDesk],
     );
 
-    /**
-     * What a desk answers `unavailable` against — see `DeskSwitch.tsx`.
-     *
-     * The readings are counted off the alignment as *loaded*, never off the fitted one:
-     * `MakeChoice` discards the variants it did not prefer, so the chain's own output reports a
-     * single reading the moment a choice has been made, and Base Text would take itself away as
-     * soon as it had been used.
-     */
-    const documentFacts = useMemo<DocumentFacts>(
-        () => ({ readings: pristine?.sources().size ?? 0 }),
-        [pristine],
-    );
-
     const { result, mpm, alignment, residual, pending, problems, error } = useEditorFit({
         work,
         pristine,
         holdOut: deskEntry?.holdOut,
     });
+
+    /**
+     * What a desk answers `unavailable` against — see `DeskSwitch.tsx`.
+     *
+     * The two recording counts are taken off the alignment as *loaded*, never off the fitted one:
+     * `MakeChoice` discards the variants it did not prefer, so the chain's own output reports a
+     * single reading the moment a choice has been made, and Base Text would take itself away as
+     * soon as it had been used.
+     *
+     * The tempo count is the other way round, and has to be: a `<tempo>` is something the chain
+     * writes, so the loaded alignment knows nothing about it. `mpm` is the last *finished* fit —
+     * `useEditorFit` leaves it standing while the next one runs — so a refit does not grey a desk
+     * out for three seconds on its way to the same answer.
+     */
+    const documentFacts = useMemo<DocumentFacts>(
+        () => ({
+            readings: pristine?.sources().size ?? 0,
+            aligned: pristine?.allNotes.length ?? 0,
+            tempos: mpm ? getInstructions(mpm, 'tempo').length : 0,
+        }),
+        [pristine, mpm],
+    );
 
     /**
      * What the last fit had to say, raised as a message.

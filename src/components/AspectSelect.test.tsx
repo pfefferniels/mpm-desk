@@ -8,18 +8,21 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AspectSelect } from './AspectSelect';
-import { correspondingDesks } from '../desks/DeskSwitch';
+import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
 
-const mount = (readings: number) => {
+/** A document every desk has work to do for — see `DeskSwitch.test.ts`. */
+const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9 };
+
+const mount = (facts: Partial<DocumentFacts>, aspect = 'source choice') => {
     const setSelectedDesk = vi.fn();
     const { container } = render(
         <AspectSelect
             selectedDesk='metadata'
             setSelectedDesk={setSelectedDesk}
-            documentFacts={{ readings }}
+            documentFacts={{ ...FITTED, ...facts }}
         />,
     );
-    const label = screen.getByText('source choice');
+    const label = screen.getByText(aspect);
     return {
         setSelectedDesk,
         container,
@@ -33,7 +36,7 @@ const mount = (readings: number) => {
 
 describe('the aspect menu', () => {
     it('offers Base Text while the document holds two readings', () => {
-        const { setSelectedDesk, row, wrapper } = mount(2);
+        const { setSelectedDesk, row, wrapper } = mount({ readings: 2 });
         expect(row).not.toHaveAttribute('aria-disabled', 'true');
         // An empty title is no tooltip, which is what a row with nothing to explain wants.
         expect(wrapper?.getAttribute('title')).toBe('');
@@ -43,7 +46,7 @@ describe('the aspect menu', () => {
     });
 
     it('greys out Base Text when there is only one recording, and says why', () => {
-        const { setSelectedDesk, row, wrapper } = mount(1);
+        const { setSelectedDesk, row, wrapper } = mount({ readings: 1 });
         expect(row).toHaveAttribute('aria-disabled', 'true');
         expect(wrapper?.getAttribute('title')).toMatch(/one recording/i);
 
@@ -51,8 +54,37 @@ describe('the aspect menu', () => {
         expect(setSelectedDesk).not.toHaveBeenCalled();
     });
 
+    it('offers rubato once a tempo is in the document', () => {
+        const { setSelectedDesk, row, wrapper } = mount({}, 'rubato');
+        expect(row).not.toHaveAttribute('aria-disabled', 'true');
+        expect(wrapper?.getAttribute('title')).toBe('');
+
+        fireEvent.click(row!);
+        expect(setSelectedDesk).toHaveBeenCalledWith('rubato');
+    });
+
+    it('greys out rubato before one is, and names the desk that writes it', () => {
+        // The case the whole gate is for: a rubato is a distortion of a tempo, so the desk cannot
+        // draw or write anything until there is one to be rubato against.
+        const { setSelectedDesk, row, wrapper } = mount({ tempos: 0 }, 'rubato');
+        expect(row).toHaveAttribute('aria-disabled', 'true');
+        expect(wrapper?.getAttribute('title')).toMatch(/tempo desk/i);
+
+        fireEvent.click(row!);
+        expect(setSelectedDesk).not.toHaveBeenCalled();
+    });
+
+    it('greys out the tempo desk itself while nothing is aligned', () => {
+        const { setSelectedDesk, row, wrapper } = mount({ aligned: 0 }, 'tempo');
+        expect(row).toHaveAttribute('aria-disabled', 'true');
+        expect(wrapper?.getAttribute('title')).toMatch(/aligned/i);
+
+        fireEvent.click(row!);
+        expect(setSelectedDesk).not.toHaveBeenCalled();
+    });
+
     it('keeps every other aspect reachable', () => {
-        const { setSelectedDesk } = mount(1);
+        const { setSelectedDesk } = mount({ readings: 1 });
         fireEvent.click(screen.getByText('tempo'));
         expect(setSelectedDesk).toHaveBeenCalledWith('tempo');
     });
@@ -62,7 +94,7 @@ describe('the aspect menu', () => {
         // so with every group written in one run, as `DeskSwitch.tsx` requires, the count is the
         // number of groups. More rules than that is a group split across the list, which reads as
         // two groups and is the one way this arrangement goes wrong silently.
-        const { container } = mount(1);
+        const { container } = mount({ readings: 1 });
         const groups = new Set(correspondingDesks.map(({ group }) => group));
         expect(container.querySelectorAll('hr')).toHaveLength(groups.size);
     });

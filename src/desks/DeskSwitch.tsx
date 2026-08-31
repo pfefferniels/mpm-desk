@@ -22,7 +22,8 @@ type DeskComponent = ComponentType<ScopedTransformerViewProps<Transformer>>;
  * Deliberately a handful of counts rather than the alignment itself. The aspect menu is on screen
  * before any desk is open and this module is what it imports; handing it a fitted document would
  * make every desk's availability a function of the whole chain's output, and put the temptation of
- * reading one there.
+ * reading one there. A count off that document is a different thing: it names one quantity, and
+ * {@link tempos} is one, so `App` reads it there and passes it here.
  */
 export interface DocumentFacts {
     /**
@@ -31,7 +32,35 @@ export interface DocumentFacts {
      * Counted off the alignment as loaded, for the reason `Alignment.sources` records.
      */
     readings: number;
+    /**
+     * How many notes the recording placed, likewise off the alignment as loaded.
+     *
+     * `asMSM` keeps a note only where the MEI's `<performance>` timed it, so zero is a score
+     * nothing has been played against yet. It is not {@link readings}, which counts the `@source`
+     * those notes name: a `<when>` written outside any `<recording>` names no reading while
+     * placing its note perfectly well, and a desk greyed out on that document would be greyed out
+     * over a recording that is there.
+     */
+    aligned: number;
+    /**
+     * How many `<tempo>` the performance carries, over every scope.
+     *
+     * The whole document rather than the scope the picker is on, because the menu is drawn before
+     * a desk is open and a row that came and went with the picker would be the wrong kind of
+     * answer. It under-gates by design: a tempo in one part opens the desk for every part.
+     */
+    tempos: number;
 }
+
+/**
+ * Why a desk has nothing to do for the document in hand, or undefined while it has.
+ *
+ * The reason is shown, not swallowed: the menu greys the entry and puts this in a tooltip, the way
+ * the toolbar does for a control the selection cannot reach. So it names the remedy as well as the
+ * lack — a desk that only said it was unavailable would leave the reader to guess what makes it
+ * come back.
+ */
+type Prerequisite = (facts: DocumentFacts) => string | undefined;
 
 /**
  * One thing the reader can do on a desk.
@@ -122,14 +151,54 @@ interface DeskEntry {
     writes?: readonly InstructionType[];
 
     /**
-     * Why this desk has nothing to do for the document in hand, or undefined while it has.
+     * What this desk needs before it can do anything, or nothing where it always can.
      *
-     * The reason is shown, not swallowed: the menu greys the entry and puts this in a tooltip, the
-     * way the toolbar does for a control the selection cannot reach. A desk that simply vanished
-     * from the list would leave the reader to guess what makes it come back.
+     * A desk that simply vanished from the list would leave the reader to guess what makes it come
+     * back, so an unmet prerequisite greys the entry and says why — see {@link Prerequisite}.
+     *
+     * Only for a desk whose *input* is missing, never for one that merely starts empty and fills
+     * as it is worked on. The tempo desk opens onto a blank skyline and that is where a tempo comes
+     * from; the rubato desk opens onto a blank row because there is no tempo to be rubato against,
+     * and nothing done on it can change that.
      */
-    unavailable?: (facts: DocumentFacts) => string | undefined;
+    unavailable?: Prerequisite;
 }
+
+/**
+ * The first prerequisite the document does not meet, in the order they are named.
+ *
+ * So a desk that wants a tempo names the recording first: with nothing aligned there is no tempo
+ * to draw either, and being sent to the tempo desk to fit one would be a second dead end.
+ */
+const allOf =
+    (...checks: readonly Prerequisite[]): Prerequisite =>
+    (facts) =>
+        checks.map((check) => check(facts)).find((reason) => reason !== undefined);
+
+/**
+ * Every desk that plots the recording wants one to plot.
+ *
+ * Zero aligned notes is a blank surface with no gesture on it that can write anything: the plots
+ * are `msm.end` wide, which is 0, and the chords they draw from are empty. The desks that read the
+ * MPM or the score instead are not gated — the narrative, markup, metadata and voices desks all
+ * have something to show and something to do before a note has been played.
+ */
+const needsRecording: Prerequisite = ({ aligned }) =>
+    aligned > 0 ? undefined : 'No recording is aligned yet. Align one first.';
+
+/**
+ * The two desks whose subject is where the recording falls on the *tick* grid.
+ *
+ * Only a `<tempo>` puts it there. Without one `residual.of(note)?.tickDate` is undefined for every
+ * note, so the rubato desk draws no hooks and `InsertRubato` returns having logged; the pedal desk
+ * draws no presses, and `InsertPedal` writes no `<movement>` at all.
+ *
+ * The articulation desk reads the same domain and is deliberately not gated: three of its four
+ * aspects go unmeasured without a tempo, but `relativeVelocity` is taken off the rendered velocity
+ * and still measures, so the desk can write an articulation that means something.
+ */
+const needsTempo: Prerequisite = ({ tempos }) =>
+    tempos > 0 ? undefined : 'No tempo yet. Draw one on the tempo desk first.';
 
 /**
  * Which desk edits which aspect of the performance.
@@ -293,6 +362,7 @@ export const correspondingDesks: DeskEntry[] = [
         },
         // No hold-out: like the dynamics desk, this one plots the recording raw. There is nothing
         // for the MPM to explain away when the subject is what the roll scan read.
+        unavailable: needsRecording,
     },
     // Timing, read top to bottom in the order the work is done. Arpeggiation before tempo, because
     // that is where the chain puts it: `InsertDynamicsGradient` and `InsertTemporalSpread` both run
@@ -326,6 +396,7 @@ export const correspondingDesks: DeskEntry[] = [
         // filled a scope locks the other's picker the same way. That is the document's doing, not
         // a coupling between the desks: it is one map per scope either way.
         writes: ['ornament'],
+        unavailable: needsRecording,
     },
     {
         transformerName: 'InsertDynamicsGradient',
@@ -355,6 +426,7 @@ export const correspondingDesks: DeskEntry[] = [
             ],
         },
         writes: ['ornament'],
+        unavailable: needsRecording,
     },
     {
         transformerName: 'StylizeOrnamentation',
@@ -416,6 +488,9 @@ export const correspondingDesks: DeskEntry[] = [
             ],
         },
         writes: ['tempo'],
+        // The recording, and only the recording: the skyline is the recording's own inter-onset
+        // intervals, so this desk is where a tempo comes from and cannot want one.
+        unavailable: needsRecording,
     },
     {
         transformerName: 'InsertRubato',
@@ -443,6 +518,7 @@ export const correspondingDesks: DeskEntry[] = [
         },
         holdOut: ['rubato'],
         writes: ['rubato'],
+        unavailable: allOf(needsRecording, needsTempo),
     },
     // Dynamics
     {
@@ -480,6 +556,7 @@ export const correspondingDesks: DeskEntry[] = [
             ],
         },
         writes: ['dynamics'],
+        unavailable: needsRecording,
     },
     {
         transformerName: 'InsertMetricalAccentuation',
@@ -506,6 +583,9 @@ export const correspondingDesks: DeskEntry[] = [
         },
         holdOut: ['accentuationPattern'],
         writes: ['accentuationPattern'],
+        // No tempo: the residual this plots is the velocity half, which espressivo renders
+        // whether or not anything has placed the notes on the tick grid.
+        unavailable: needsRecording,
     },
     {
         transformerName: 'InsertArticulation',
@@ -533,6 +613,8 @@ export const correspondingDesks: DeskEntry[] = [
         },
         holdOut: ['articulation'],
         writes: ['articulation'],
+        // Recording only — see the note on `needsTempo` for why this desk is left open without one.
+        unavailable: needsRecording,
     },
     {
         transformerName: 'StylizeArticulation',
@@ -577,6 +659,7 @@ export const correspondingDesks: DeskEntry[] = [
         // A recorded pedal has no symbolic date of its own; the residual is the only thing that
         // can put one on the tick grid at all.
         holdOut: ['movement'],
+        unavailable: allOf(needsRecording, needsTempo),
     },
     // The argument
     {

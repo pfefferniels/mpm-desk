@@ -24,7 +24,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { correspondingDesks } from './DeskSwitch';
+import { correspondingDesks, type DocumentFacts } from './DeskSwitch';
 import { getTransformerOrder, isRegistered } from '../fitting/transformers/TransformerRegistry';
 
 // The transformer registry is module-level state that `Order.ts` fills in as a side effect of
@@ -59,6 +59,35 @@ const byAspect = (): Map<string, typeof correspondingDesks> => {
     }
     return groups;
 };
+
+/** The desk `App` opens for a key the aspect menu emits, by the lookup `App` itself uses. */
+const deskNamed = (key: string) =>
+    correspondingDesks.find((entry) => entry.displayName === key || entry.aspect === key);
+
+/**
+ * A document every desk has work to do for: two takes, the shipped transcription's note count, and
+ * a tempo drawn over it. The figures are the shipped reconstruction's; only their being above zero
+ * is load-bearing.
+ */
+const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9 };
+
+/**
+ * The desks whose subject is what the recording did, by the key the menu emits for each.
+ *
+ * Written out rather than derived from `unavailable` being present, which would make the test say
+ * "the desks that are gated are gated". Adding a desk to this list is the assertion.
+ */
+const PLOTS_THE_RECORDING = [
+    'corrections',
+    'Temporal Spread',
+    'Dynamics Gradient',
+    'tempo',
+    'rubato',
+    'dynamics',
+    'Metrical Accentuation',
+    'Articulation',
+    'pedalling',
+];
 
 /**
  * The retired names `App.tsx` maps onto a current one before it goes looking for a desk.
@@ -252,9 +281,61 @@ describe('the desk registry', () => {
             );
             expect(entry?.unavailable).toBeDefined();
 
-            expect(entry?.unavailable?.({ readings: 0 })).toBeTruthy();
-            expect(entry?.unavailable?.({ readings: 1 })).toBeTruthy();
-            expect(entry?.unavailable?.({ readings: 2 })).toBeUndefined();
+            expect(entry?.unavailable?.({ ...FITTED, readings: 0 })).toBeTruthy();
+            expect(entry?.unavailable?.({ ...FITTED, readings: 1 })).toBeTruthy();
+            expect(entry?.unavailable?.({ ...FITTED, readings: 2 })).toBeUndefined();
+        });
+
+        it('takes the desks that plot the recording away until one is aligned', () => {
+            // Every one of these draws `msm.end` wide over `msm.asChords()`, and both are empty
+            // before a recording is in: a blank surface with no gesture on it that writes
+            // anything. The gate is `aligned` and not `readings`, because a `<when>` outside a
+            // `<recording>` places its note while naming no reading.
+            const nothingPlayed = { ...FITTED, readings: 0, aligned: 0 };
+
+            for (const aspect of PLOTS_THE_RECORDING) {
+                const entry = deskNamed(aspect);
+                expect(
+                    entry?.unavailable?.(nothingPlayed),
+                    `the ${aspect} desk stays open over a score with no recording`,
+                ).toBeTruthy();
+                expect(
+                    entry?.unavailable?.(FITTED),
+                    `the ${aspect} desk stays shut over a fitted document`,
+                ).toBeUndefined();
+            }
+        });
+
+        it('takes the two tick-domain desks away until a tempo is fitted', () => {
+            // `residual.of(note)?.tickDate` is undefined for every note while no `<tempo>` covers
+            // it, and these two have nothing else to draw or write from: the rubato desk shows no
+            // hooks and `InsertRubato` returns having logged, the pedal desk shows no presses and
+            // `InsertPedal` writes no `<movement>`.
+            for (const aspect of ['rubato', 'pedalling']) {
+                const entry = deskNamed(aspect);
+                expect(
+                    entry?.unavailable?.({ ...FITTED, tempos: 0 }),
+                    `the ${aspect} desk stays open over a document with no tempo`,
+                ).toBeTruthy();
+                expect(entry?.unavailable?.(FITTED)).toBeUndefined();
+
+                // The recording comes first: with nothing aligned there is no tempo to draw
+                // either, so pointing the reader at the tempo desk would be a second dead end.
+                expect(entry?.unavailable?.({ ...FITTED, aligned: 0, tempos: 0 })).toMatch(
+                    /recording/i,
+                );
+            }
+        });
+
+        it('leaves the desks that read the document alone', () => {
+            // The counter-examples, and the reason `unavailable` is not simply "is anything
+            // loaded": all four have something to show and something to do before a note has been
+            // played. Gating one would lock the reader out of the desk that starts the work.
+            for (const aspect of ['metadata', 'voices', 'alignment', 'narrative', 'markup'])
+                expect(
+                    deskNamed(aspect)?.unavailable?.({ readings: 0, aligned: 0, tempos: 0 }),
+                    `the ${aspect} desk is greyed out over a score with nothing in it`,
+                ).toBeUndefined();
         });
 
         it('leaves a desk the whole editor falls back to always available', () => {
