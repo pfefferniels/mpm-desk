@@ -149,6 +149,19 @@ describe('a shift click', () => {
 
         expect(result.current.selection).toEqual({ from: 0, to: 1440 });
     });
+
+    it('extends an open stretch backwards as readily', () => {
+        // Issue #26's shape, in the branch the earlier fix left alone: writing `to` onto the
+        // stretch inverted it as soon as the click landed before `from`.
+        const { result } = setup();
+
+        act(() => { result.current.select({ kind: 'note', id: 'b', date: 720 }, plain); });
+        act(() => { result.current.select({ kind: 'note', id: 'c', date: 1440 }, shift); });
+        act(() => { result.current.select({ kind: 'note', id: 'a', date: 0 }, shift); });
+
+        expect(result.current.selection).toEqual({ from: 0, to: 1440 });
+        expect(result.current.selected.size).toBe(3);
+    });
 });
 
 describe('pedals', () => {

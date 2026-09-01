@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { Alignment } from '../../fitting/alignment';
 import type { Scope } from '../../fitting/instructions/index';
 import type { ModifySelector } from '../../fitting/transformers/modification/Modify';
+import { rangeCovering, reachedTo } from '../dateRange';
 
 /** What was clicked. A pedal has no symbolic date, which is why only a note carries one. */
 export type Clicked = { kind: 'note'; id: string; date: number } | { kind: 'pedal'; id: string };
@@ -21,8 +22,10 @@ export interface SelectionModifiers {
  *
  * The three produce the three arms of {@link ModifySelector} directly, so what the user drew and
  * what the call says are the same thing rather than one being derived from the other. A shift
- * click over a list of notes converts it: the range runs from the earliest date already selected
- * to the one just clicked.
+ * click over a list of notes converts it into the stretch spanning that list and the click; over a
+ * stretch it moves whichever end is nearer, so the same gesture reaches out or pulls back in.
+ * Either way the ends come out in the grid's order — see `dateRange`, and issue #26 for what an
+ * inverted pair costs.
  *
  * **Pedals only ever form a list.** `from`/`to` is a stretch of the score, and a recorded pedal
  * has no place on the score — so shift over a pedal adds it to the list instead of reaching.
@@ -82,14 +85,12 @@ export const useEventSelection = (msm: Alignment, part: Scope) => {
                 }
 
                 if (modifiers.shiftKey) {
-                    if (!('noteIDs' in current)) return { ...current, to: clicked.date };
+                    if (!('noteIDs' in current)) return reachedTo(current, clicked.date);
                     const dates = current.noteIDs
                         .map((id) => msm.getByID(id)?.date)
                         .filter((date): date is number => date !== undefined);
                     if (!dates.length) return { noteIDs: [clicked.id] };
-                    const from = Math.min(...dates, clicked.date);
-                    const to = Math.max(...dates, clicked.date);
-                    return { from, to };
+                    return rangeCovering(clicked.date, ...dates);
                 }
 
                 return { noteIDs: [clicked.id] };

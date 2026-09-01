@@ -1,5 +1,6 @@
 import type { InsertMetricalAccentuationOptions } from "../../fitting/transformers/accentuation/InsertMetricalAccentuation"
 import type { PartialBy } from "../../utils/utils"
+import { rangeCovering, reachedTo, type DateRange } from "../dateRange"
 
 /** The stretch a pattern is fitted to, as `InsertMetricalAccentuation` wants it. */
 export type Cell = Omit<InsertMetricalAccentuationOptions, 'scope'>
@@ -32,10 +33,8 @@ export const fittable = (candidate: Candidate): candidate is Cell =>
     candidate.to !== undefined && candidate.to > candidate.from
 
 /** What the candidate covers right now, the cursor standing in for an end not yet clicked. */
-export const rangeOf = (candidate: Candidate, cursor?: number): { from: number, to: number } => {
-    const other = candidate.to ?? cursor ?? candidate.from
-    return { from: Math.min(candidate.from, other), to: Math.max(candidate.from, other) }
-}
+export const rangeOf = (candidate: Candidate, cursor?: number): DateRange =>
+    rangeCovering(candidate.from, candidate.to ?? cursor ?? candidate.from)
 
 /**
  * The candidate a click at `date` leaves behind.
@@ -60,8 +59,5 @@ export const afterClick = (
     if (candidate.to === undefined) return { ...candidate, ...rangeOf(candidate, date) }
     if (!shiftKey) return { from: date, name: mintName(), ...defaults }
 
-    const held = Math.abs(date - candidate.from) > Math.abs(date - candidate.to)
-        ? candidate.from
-        : candidate.to
-    return { ...candidate, from: Math.min(held, date), to: Math.max(held, date) }
+    return { ...candidate, ...reachedTo({ from: candidate.from, to: candidate.to }, date) }
 }

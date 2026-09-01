@@ -15,6 +15,7 @@ import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { PedalLanes } from "./PedalLanes"
 import { PedalLaneLabels } from "../PedalBand"
 import { PEDAL_AREA, PEDAL_GUTTER, PEDAL_LABEL_WIDTH, pedalLanes } from "../pedalGeometry"
+import { rangeCovering, reachedTo } from "../dateRange"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
 // returns <path> attribute @d.
@@ -231,17 +232,20 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                         setCurrentChoice({ ...currentChoice, noteIDs })
                     }
                     else if (currentChoice && e.shiftKey) {
+                        const date = notes[0].date
                         if ('noteIDs' in currentChoice) {
-                            const existingNotes = msm.allNotes.filter(note => currentChoice.noteIDs.includes(note['xml:id']))
-                            const from = Math.min(...existingNotes.map(note => note.date))
-                            const to = notes[0].date
-                            setCurrentChoice({
-                                from,
-                                to
-                            })
+                            const picked = msm.allNotes
+                                .filter(note => currentChoice.noteIDs.includes(note['xml:id']))
+                                .map(note => note.date)
+                            // A cmd-click can take the last id back out, leaving nothing to reach
+                            // from — and `Math.min` over no dates is `Infinity`. The click stands
+                            // on its own there.
+                            setCurrentChoice(picked.length
+                                ? rangeCovering(date, ...picked)
+                                : { noteIDs: [notes[0]['xml:id']] })
                         }
                         else {
-                            setCurrentChoice({ ...currentChoice, to: notes[0].date })
+                            setCurrentChoice(reachedTo(currentChoice, date))
                         }
                     }
                 }}
