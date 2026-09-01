@@ -279,6 +279,55 @@ describe('what the skyline draws in draw mode', () => {
     });
 });
 
+describe('the keys the skyline answers', () => {
+    const skyline = () => document.querySelector('svg.skyline')!;
+    const splitButton = (bar: HTMLElement) => within(bar).getByRole('button', { name: 'Split' });
+
+    /** Two boxes selected, which is what `c` needs to have anything to combine. */
+    const selectTwoBoxes = () => {
+        fireEvent.click(document.querySelectorAll('polygon.box:not([data-derived])')[0]);
+        fireEvent.click(document.querySelectorAll('polygon.box:not([data-derived])')[1], {
+            shiftKey: true,
+        });
+    };
+
+    it('combines on c and toggles Split on s', () => {
+        const { bar, storedBoxes, dispose } = renderDesk(0);
+        selectTwoBoxes();
+        expect(storedBoxes()).toBe(4);
+
+        fireEvent.keyDown(skyline(), { key: 'c' });
+        expect(storedBoxes()).toBe(5);
+
+        fireEvent.keyDown(skyline(), { key: 's' });
+        expect(splitButton(bar)).toHaveAttribute('aria-pressed', 'true');
+        dispose();
+    });
+
+    it('lets a modified key past', () => {
+        // ⌘S is the reflex that saves, and ⌘C copies; neither is the desk's to answer.
+        const { bar, storedBoxes, dispose } = renderDesk(0);
+        selectTwoBoxes();
+
+        fireEvent.keyDown(skyline(), { key: 'c', metaKey: true });
+        fireEvent.keyDown(skyline(), { key: 's', metaKey: true });
+        expect(storedBoxes()).toBe(4);
+        expect(splitButton(bar)).toHaveAttribute('aria-pressed', 'false');
+        dispose();
+    });
+
+    it('answers neither away from the skyline', () => {
+        const { bar, storedBoxes, dispose } = renderDesk(0);
+        selectTwoBoxes();
+
+        fireEvent.keyDown(document.body, { key: 'c' });
+        fireEvent.keyDown(document.body, { key: 's' });
+        expect(storedBoxes()).toBe(4);
+        expect(splitButton(bar)).toHaveAttribute('aria-pressed', 'false');
+        dispose();
+    });
+});
+
 describe('inserting the drawn curves', () => {
     /** The fit the click asks for: the drawn curve, as the chain writes it. */
     const withTheDrawnTempo = () => {

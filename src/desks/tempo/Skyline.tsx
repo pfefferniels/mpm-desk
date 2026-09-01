@@ -84,35 +84,41 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
     setConnectingFrom(undefined)
   }
 
-  const escFunction = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      tempos.unselectAll()
-      setTempos(new TempoCluster(tempos.segments))
-      cancelDraw()
+  const combineSelected = () => {
+    const selected = tempos.segments.filter(s => s.selected)
+    if (selected.length < 2) return
+    const combined: TempoSegment = {
+      date: {
+        start: Math.min(...selected.map(s => s.date.start)),
+        end: Math.max(...selected.map(s => s.date.end))
+      },
+      selected: false,
+      silent: false
     }
-    if (event.key === 'c') {
-      const selected = tempos.segments.filter(s => s.selected)
-      if (selected.length >= 2) {
-        const fromDate = Math.min(...selected.map(s => s.date.start))
-        const toDate = Math.max(...selected.map(s => s.date.end))
-        const combined: TempoSegment = {
-          date: { start: fromDate, end: toDate },
-          selected: false,
-          silent: false
-        }
-        tempos.unselectAll()
-        setTempos(new TempoCluster([...tempos.segments, combined]))
-      }
-    }
-    if (event.key === 's') {
-      onToggleSplitMode()
-    }
-  }, [tempos, setTempos, onToggleSplitMode])
+    tempos.unselectAll()
+    setTempos(new TempoCluster([...tempos.segments, combined]))
+  }
+
+  const removeSelected = () => {
+    const selected = tempos.segments.filter(s => s.selected)
+    if (selected.length === 0) return
+    for (const s of selected) tempos.removeTempo(s)
+    setTempos(new TempoCluster(tempos.segments))
+  }
+
+  // Escape alone reaches past the skyline. Deselecting and dropping the stroke in hand is what
+  // Escape means wherever it is pressed; the keys that edit are on the focused SVG below.
+  const unselectOnEscape = useCallback((event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return
+    tempos.unselectAll()
+    setTempos(new TempoCluster(tempos.segments))
+    cancelDraw()
+  }, [tempos, setTempos])
 
   useEffect(() => {
-    document.addEventListener('keydown', escFunction, false);
-    return () => document.removeEventListener('keydown', escFunction, false)
-  }, [tempos, escFunction])
+    document.addEventListener('keydown', unselectOnEscape)
+    return () => document.removeEventListener('keydown', unselectOnEscape)
+  }, [unselectOnEscape])
 
   const startX = stretchX * tempos.startOnset(tickToSeconds)
   const endX = stretchX * tempos.endOnset(tickToSeconds)
@@ -181,13 +187,12 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
       }}
       onMouseLeave={() => cancelDraw()}
       onKeyDown={(e) => {
-        if (e.key === 'Backspace') {
-          const selected = tempos.segments.filter(s => s.selected)
-          if (selected.length > 0) {
-            for (const s of selected) tempos.removeTempo(s)
-            setTempos(new TempoCluster(tempos.segments))
-          }
-        }
+        // A shortcut of the editor's passes through: ⌘S saves, and must not toggle Split on
+        // its way to the handler that does.
+        if (e.metaKey || e.ctrlKey || e.altKey) return
+        if (e.key === 'Backspace') removeSelected()
+        else if (e.key === 'c') combineSelected()
+        else if (e.key === 's') onToggleSplitMode()
       }}
       width={width + margin * 2}
       height={-height + margin * 2}
