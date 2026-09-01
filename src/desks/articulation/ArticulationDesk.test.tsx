@@ -20,17 +20,18 @@ vi.mock('react-pianosound', () => ({
 }));
 
 /**
- * The shipped transcription, on one reading: two staves, every note with its recorded onset.
- *
- * One reading because `asMSM` makes a note per `<when>`, so the file as loaded carries each note
- * twice — once per take. `MakeChoice` is what drops the takes that were not preferred, and a desk
- * only ever sees a score it has run over.
+ * The shipped transcription as loaded: two staves, every note with its recorded onset, and each
+ * score note here once per take. `asMSM` makes a note per `<when>`, so the file's two readings
+ * stand side by side until `MakeChoice` drops the one that was not preferred.
  */
+let takes: Alignment;
+
+/** The same file on one reading, which is what the desk sees once a base text has been chosen. */
 let msm: Alignment;
 
 beforeAll(() => {
     const mei = readFileSync('public/transcription.mei', 'utf-8');
-    const takes = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
+    takes = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
     const [preferred] = takes.sources();
     msm = new Alignment(
         takes.allNotes.filter((note) => note.source === preferred),
@@ -50,7 +51,7 @@ const articulate = (scope: Scope, note: { 'xml:id': string; date: number }): Mpm
     return mpm;
 };
 
-const renderDesk = (part: Scope, mpm: Mpm = createMpm()) => {
+const renderDesk = (part: Scope, mpm: Mpm = createMpm(), score: Alignment = msm) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
 
@@ -58,7 +59,7 @@ const renderDesk = (part: Scope, mpm: Mpm = createMpm()) => {
         <ZoomContext
             value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
         >
-            <NotesProvider notes={msm.allNotes}>
+            <NotesProvider notes={score.allNotes}>
                 <ScrollSyncProvider
                     symbolicZoom={0.1}
                     physicalZoom={20}
@@ -76,9 +77,9 @@ const renderDesk = (part: Scope, mpm: Mpm = createMpm()) => {
                         <DeskToolbarProvider target={bar}>
                             <ArticulationDesk
                                 part={part}
-                                msm={msm}
+                                msm={score}
                                 mpm={mpm}
-                                residual={deriveResidual(msm, mpm)}
+                                residual={deriveResidual(score, mpm)}
                                 projected={[]}
                                 performanceXml=""
                                 secondary={{}}
@@ -137,6 +138,27 @@ describe('what the articulation desk plots', () => {
         expect(inScope('global')).toEqual({ bars: notes.global, markers: notes.global * 2 });
         expect(inScope(0)).toEqual({ bars: notes.first, markers: notes.first * 2 });
         expect(inScope(1)).toEqual({ bars: notes.second, markers: notes.second * 2 });
+    });
+
+    /**
+     * The desk is reachable before a base text has been chosen — nothing in the registry declares
+     * it unavailable on an unchosen document — and then each score note is on the plot once per
+     * take, all of them carrying the one `xml:id`. Keyed by the id, that handed React 450
+     * duplicate keys on every render.
+     */
+    it('keys a note by its row rather than by its score id, on an unchosen document', () => {
+        const complaints: string[] = [];
+        const errors = vi
+            .spyOn(console, 'error')
+            .mockImplementation((...args: unknown[]) => complaints.push(String(args[0])));
+
+        const desk = renderDesk('global', createMpm(), takes);
+        const bars = desk.bars().length;
+        desk.dispose();
+        errors.mockRestore();
+
+        expect(bars).toBe(900);
+        expect(complaints.filter((message) => message.includes('same key'))).toEqual([]);
     });
 
     it('hulls an articulation only in the scope whose map holds it', () => {

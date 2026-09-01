@@ -74,6 +74,25 @@ export type AlignedNote = {
   } & TemporaryAttributes;
 
 /**
+ * What identifies one row of the alignment: the note or pedal, and the take it came from.
+ *
+ * An `xml:id` names an event in the *score*. The alignment holds one row per `<when>`, so a
+ * document with more than one reading carries every score event once per take, each row under the
+ * same id — 900 notes over 450 ids in the shipped transcription, and 107 pedals over 58. The id
+ * alone therefore identifies nothing until {@link MakeChoice} has collapsed the readings, and
+ * {@link Alignment.sources} is where the other half comes from.
+ *
+ * Spelled once because the alternative is each list in each desk remembering to concatenate the
+ * right two fields, and a miss is silent: React documents duplicate keys as unsupported rather
+ * than as first-one-wins, so what one looks like is a note lighting up under the pointer somewhere
+ * else. The argument `noteTiming.ts` makes for the millisecond fields, in the other direction.
+ *
+ * `xml:id` is an NCName and holds no `/`, so the first one separates the pair unambiguously.
+ */
+export const rowId = (event: Pick<AlignedNote, 'xml:id' | 'source'>): string =>
+  `${event['xml:id']}/${event.source ?? ''}`;
+
+/**
  * Used to represent a homophonized version of the score.
  */
 export type ChordMap = Map<number, AlignedNote[]>;

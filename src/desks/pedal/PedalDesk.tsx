@@ -1,5 +1,5 @@
 import { InsertPedal, type InsertPedalOptions } from "../../fitting/transformers/pedal/InsertPedalInstructions"
-import type { AlignedPedal } from "../../fitting/alignment"
+import { rowId, type AlignedPedal } from "../../fitting/alignment"
 import { getInstructions } from "../../fitting/instructions/index"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MovementSegment } from "./MovementSegment"
@@ -88,7 +88,7 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                     <svg width={width} height={plot.height}>
                         {presses.map(({ pedal, date, duration }) => (
                             <rect
-                                key={`pedal_${pedal["xml:id"]}`}
+                                key={`pedal_${rowId(pedal)}`}
                                 x={date * stretchX}
                                 y={rowY(pedal.type)}
                                 width={duration * stretchX}

@@ -3,7 +3,7 @@ import { usePiano } from "../../performance/piano";
 import { asMIDI } from "../../utils/utils";
 import { onsetSeconds } from "../noteTiming";
 import type { ArpeggioPlacement } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
-import type { AlignedNote } from "../../fitting/alignment";
+import { rowId, type AlignedNote } from "../../fitting/alignment";
 import { FrameDomain, type TemporalSpread } from "espressivo";
 
 interface ChordSpreadProps {
@@ -65,7 +65,7 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
             {notes.map(note => {
                 return (
                     <line
-                        key={`instantNote_${note['xml:id']}`}
+                        key={`instantNote_${rowId(note)}`}
                         x1={onsetSeconds(note) * stretch}
                         x2={onsetSeconds(note) * stretch}
                         y1={0}
@@ -76,7 +76,6 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
             })}
 
             <line
-                key={`currentPlacement_${notes[0].accidentals}`}
                 x1={placedLine * stretch}
                 x2={placedLine * stretch}
                 y1={0}

@@ -5,7 +5,7 @@ import { useNotes } from "../../hooks/NotesProvider"
 import { MouseEventHandler, SVGProps, useState } from "react"
 import { asMIDI } from "../../utils/utils"
 import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation } from "../../fitting/transformers/articulation/index"
-import type { AlignedNote } from "../../fitting/alignment"
+import { rowId, type AlignedNote } from "../../fitting/alignment"
 import { getInstructions, getDefinition } from "../../fitting/instructions/index"
 import type { Residual } from "../../fitting/residual"
 import type { ArticulationDef } from "espressivo"
@@ -82,7 +82,6 @@ const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected
                 ry={2}
                 onMouseOver={handleMouseOver}
                 onMouseOut={handleMouseOut}
-                key={`accentuation_${note.part}_${note["xml:id"]}`}
                 strokeWidth={selected ? 2 : 0}
                 stroke='black'
                 {...svgProps}
@@ -169,7 +168,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
 
             articulatedNotes.push((
                 <ArticulatedNote
-                    key={`articulatedNote_${note["xml:id"]}`}
+                    key={`articulatedNote_${rowId(note)}`}
                     note={note}
                     residual={residual}
                     stretchX={stretchX}
