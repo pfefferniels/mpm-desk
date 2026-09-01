@@ -171,6 +171,24 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
     return def;
   }
 
+  /**
+   * `@stickToMeasures="false"`, always, and it has to be said: MPM's default is `true`
+   * (`accentuationPattern.xml`, `<defaultVal>true</defaultVal>`), which re-aligns the pattern at
+   * every barline.
+   *
+   * A cell fitted here is not a bar. {@link extractVelocities} numbers the beats from the cell's
+   * own start and the loop above repeats the cell on its own length, so what this writes is a
+   * pattern cycling on `@length` — which is what `false` means, and what MPM's own remark
+   * reserves it for. Left to the default, a pattern of one beat was read against a bar of four
+   * and the beat the fitter measured was not the beat the renderer indexed.
+   *
+   * It is the phase, not the anchor: both branches of espressivo's
+   * `renderMetricalAccentuationToMap` count from the date of the time signature in force, never
+   * from the instruction. So this makes the two agree wherever a cell's offset from the signature
+   * is a whole number of pattern lengths — 43 of the 54 patterns in the shipped performance,
+   * against 19 under the default — and the rest are still read at a phase the desk did not fit.
+   * See issue #47.
+   */
   protected transform(msm: Alignment, mpm: Mpm): void {
     if (
       !getDefinitions(mpm, 'accentuationPatternDef', this.options.scope).find(
@@ -293,6 +311,7 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
       date: cell.start,
       scale,
       loop: loop || undefined,
+      stickToMeasures: false,
     });
 
     if (loop) {
@@ -302,6 +321,7 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
         id: generateId('accentuationPattern', acceptedThrough, mpm),
         scale: 0,
         loop: undefined,
+        stickToMeasures: false,
       });
     }
 

@@ -134,6 +134,24 @@ describe('the fixture drives the loop it claims to', () => {
   });
 });
 
+describe('the cell is the cycle, not the bar', () => {
+  /**
+   * MPM's default is `stickToMeasures="true"` (`accentuationPattern.xml`:
+   * `<defaultVal>true</defaultVal>`), which re-aligns the pattern at every barline. A cell
+   * fitted here is not a bar — `extractVelocities` numbers its beats from the cell's own start
+   * and the loop repeats it on its own length — so the pattern the fitter means is one that
+   * cycles on `@length`, and the attribute has to be written to say so.
+   */
+  test('every pattern written says it does not re-align at the barline', () => {
+    const { msm, mpm } = fixture([10, 20, 30]);
+    run(msm, mpm, 25);
+
+    const written = getInstructions(mpm, 'accentuationPattern', 'global');
+    expect(written.length).toBeGreaterThan(1);
+    expect(written.map((pattern) => pattern.stickToMeasures)).toEqual(written.map(() => false));
+  });
+});
+
 describe('@scale, the running mean over the cells the pattern covers', () => {
   // Issue #41. The accumulator counted the prototype as zero samples, so the first pass
   // replaced its scale instead of averaging it in and the reported figure was the mean of
