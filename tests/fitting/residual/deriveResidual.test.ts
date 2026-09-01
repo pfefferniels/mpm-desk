@@ -31,10 +31,9 @@ const note = (position: number, onset: number, velocity = 100, duration = 1000):
 
 /** Three quarter notes at 60bpm, the last one late and quiet. */
 const fixture = () =>
-  new Alignment([note(0, 0), note(0.25, 1000), note(0.5, 2100, 80)], {
-    numerator: 4,
-    denominator: 4,
-  });
+  new Alignment([note(0, 0), note(0.25, 1000), note(0.5, 2100, 80)], [
+    { date: 0, numerator: 4, denominator: 4 },
+  ]);
 
 const withTempo = () => {
   const mpm = createMpm();
@@ -148,7 +147,7 @@ describe('deriveResidual, ornamentation', () => {
   const arpeggio = () =>
     new Alignment(
       [rolled(0, 60, 1000, 40), rolled(0, 64, 1060, 50), rolled(0, 67, 1120, 60)],
-      { numerator: 4, denominator: 4 },
+      [{ date: 0, numerator: 4, denominator: 4 }],
     );
 
   /** The two transformers that between them write one `<ornament>` and its definition. */

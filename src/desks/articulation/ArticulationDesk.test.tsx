@@ -34,7 +34,7 @@ beforeAll(() => {
     const [preferred] = takes.sources();
     msm = new Alignment(
         takes.allNotes.filter((note) => note.source === preferred),
-        takes.timeSignature,
+        takes.timeSignatures,
     );
 });
 

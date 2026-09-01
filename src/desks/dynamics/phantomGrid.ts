@@ -5,10 +5,9 @@ import type { DynamicsAnchor } from './anchors';
 /**
  * The note values a phantom velocity may be pinned to, as fractions of a whole note.
  *
- * A note value the user picks, rather than one read off the score's metre. `Alignment.timeSignature`
- * is whichever `<timeSignature>` the document states first (issue #22), which in a score with an
- * anacrusis is the anacrusis bar — so a grid derived from it would be derived from one bar of the
- * piece, and would stay wrong for the rest of it.
+ * A note value the user picks, rather than one read off the score's metre: where a phantom belongs
+ * is a reading of the passage, and a curve is often drawn against a subdivision the signature does
+ * not name.
  */
 export const PHANTOM_GRIDS = [0.5, 0.25, 0.125, 0.0625] as const;
 

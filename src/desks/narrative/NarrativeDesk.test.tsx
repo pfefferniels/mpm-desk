@@ -151,7 +151,9 @@ const mount = async () => {
                                 <NarrativeDesk
                                     msm={
                                         {
-                                            timeSignature: { denominator: meter.denominator },
+                                            principalTimeSignature: {
+                                                denominator: meter.denominator,
+                                            },
                                         } as unknown as Alignment
                                     }
                                     mpm={mpm}

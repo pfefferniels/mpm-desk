@@ -792,7 +792,7 @@ export const App = () => {
                                     {!isNarrativeSelected && (
                                         <FollowPlayback
                                             mpm={mpm}
-                                            beatDenominator={alignment.timeSignature?.denominator ?? 4}
+                                            beatDenominator={alignment.principalTimeSignature?.denominator ?? 4}
                                         />
                                     )}
                                     <PinchZoomHandler />

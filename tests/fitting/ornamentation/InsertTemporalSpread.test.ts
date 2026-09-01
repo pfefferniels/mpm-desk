@@ -44,7 +44,7 @@ const msmFixture = () =>
         velocity: 50,
       },
     ],
-    { numerator: 1, denominator: 4 },
+    [{ date: 0, numerator: 1, denominator: 4 }],
   );
 
 /** Call the protected `transform` method for testing */

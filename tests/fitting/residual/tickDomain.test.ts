@@ -40,7 +40,7 @@ const fixture = (heldOverTheBoundary = false) =>
           velocity: 100,
         }) as AlignedNote,
     ),
-    { numerator: 4, denominator: 4 },
+    [{ date: 0, numerator: 4, denominator: 4 }],
   );
 
 const withTempo = () => {

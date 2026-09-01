@@ -14,7 +14,7 @@ import {
   Alignment,
   type AlignedNote,
   type AlignedPedal,
-  type TimeSignature,
+  type DatedTimeSignature,
 } from '../../../src/fitting/alignment';
 import { at } from '../../support/at';
 
@@ -65,7 +65,7 @@ export const deserializeAlignment = (fixture: AlignmentFixture): Alignment => {
     inScore.map(({ element, part }, index) =>
       readNote(element, part, at(fixture.sources, index, 'source')),
     ),
-    timeSignatureOf(root),
+    timeSignaturesOf(root),
   );
   alignment.pedals = fixture.pedals.map((pedal): AlignedPedal => ({
     'xml:id': pedal.id,
@@ -120,14 +120,12 @@ const required = <T>(value: T | undefined, what: string, id: string): T => {
   return value;
 };
 
-const timeSignatureOf = (root: Element): TimeSignature | undefined => {
-  const element = descendantElements(root, (e) => e.getLocalName() === 'timeSignature').at(0);
-  if (element === undefined) return undefined;
-  return {
+const timeSignaturesOf = (root: Element): DatedTimeSignature[] =>
+  descendantElements(root, (e) => e.getLocalName() === 'timeSignature').map((element) => ({
+    date: Number(requireAttributeValue('date', element)),
     numerator: Number(requireAttributeValue('numerator', element)),
     denominator: Number(requireAttributeValue('denominator', element)),
-  };
-};
+  }));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

@@ -8,7 +8,7 @@
  * this module makes reaches the work file, and a box of any kind reaches the MPM only as the
  * drawn curve somebody fits on top of it.
  */
-import type { TimeSignature } from "../../fitting/alignment"
+import type { DatedTimeSignature, TimeSignature } from "../../fitting/alignment"
 import { PULSES_PER_WHOLE } from "../../fitting/ppq"
 import type { Range } from "./Tempo"
 
@@ -84,18 +84,53 @@ const tiling = (from: number, to: number, byStart: ReadonlyMap<number, Range[]>)
 }
 
 /**
+ * A stretch of the piece one signature governs, from the date it takes effect until the date the
+ * next one displaces it.
+ *
+ * `until` is what bounds a cell rather than the score's end: a cell reaching over a change of
+ * metre belongs to neither signature. The last stretch has no successor and runs to `Infinity`,
+ * which costs nothing — no cell forms where no box tiles it, and the boxes end where the
+ * recording does.
+ */
+interface MetricStretch {
+    from: number
+    until: number
+    meter: TimeSignature
+}
+
+/**
+ * The signature map as the stretches it governs. An empty map is common time throughout, which is
+ * what {@link usable} already assumed of a missing one.
+ */
+const stretches = (signatures?: readonly DatedTimeSignature[]): MetricStretch[] => {
+    const ascending = [...(signatures ?? [])].sort((a, b) => a.date - b.date)
+    return ascending.length === 0
+        ? [{ from: 0, until: Infinity, meter: DEFAULT_METER }]
+        : ascending.map((signature, index) => ({
+            from: signature.date,
+            until: ascending[index + 1]?.date ?? Infinity,
+            meter: usable(signature),
+        }))
+}
+
+/**
  * The cells of one level that the boxes at hand tile exactly, and that are not boxes already.
  *
  * Two or more of them, filling the cell end to end and reaching past neither edge — so a stretch
  * the recording sounded only part of forms nothing, and neither does a cell some box already
  * spans on its own.
+ *
+ * Cells are counted from where the signature takes effect, not from tick 0. That is the bar line:
+ * a score whose 4/4 begins after a quarter of anacrusis has its downbeats on 720, 3600, 6480, and
+ * a grid counted from zero would name none of them.
  */
-const cellsAt = (level: number, boxes: readonly Range[]): Range[] => {
+const cellsAt = (level: number, boxes: readonly Range[], within: MetricStretch): Range[] => {
     const byStart = Map.groupBy(boxes, box => box.start)
     const known = new Set(boxes.map(rangeKey))
     return [...byStart.keys()]
-        .filter(start => start % level === 0)
+        .filter(start => start >= within.from && (start - within.from) % level === 0)
         .map(start => ({ start, end: start + level }))
+        .filter(cell => cell.end <= within.until)
         .filter(cell => !known.has(rangeKey(cell)))
         .filter(cell => (tiling(cell.start, cell.end, byStart) ?? 0) >= 2)
         .sort((a, b) => a.start - b.start)
@@ -105,11 +140,16 @@ const cellsAt = (level: number, boxes: readonly Range[]): Range[] => {
  * The boxes the metre makes out of the ones given, one level at a time.
  *
  * Each level sees what the levels under it formed, which is what turns two eighths into a quarter
- * and then those quarters into a half. Tick 0 is taken for a downbeat: the alignment carries no
- * bar lines, so a score beginning with an upbeat would have every cell out by its own length.
+ * and then those quarters into a half, and each stretch of the piece is grouped under the
+ * signature that governs it.
  */
-export const combineByMeter = (boxes: readonly Range[], meter?: TimeSignature): Range[] =>
-    metricLevels(meter).reduce<Range[]>(
-        (formed, level) => [...formed, ...cellsAt(level, [...boxes, ...formed])],
-        []
+export const combineByMeter = (
+    boxes: readonly Range[],
+    signatures?: readonly DatedTimeSignature[]
+): Range[] =>
+    stretches(signatures).flatMap(stretch =>
+        metricLevels(stretch.meter).reduce<Range[]>(
+            (formed, level) => [...formed, ...cellsAt(level, [...boxes, ...formed], stretch)],
+            []
+        )
     )

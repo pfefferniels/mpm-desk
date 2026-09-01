@@ -64,17 +64,16 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
      *
      * Derived, so they are handed to the skyline and kept out of {@link setTempoCluster}.
      *
-     * `msm.timeSignature` is as much of the metre as the alignment has: `asMSM` keeps the *first*
-     * `<timeSignature>` of the score's map and drops the rest. Where a score opens with an
-     * anacrusis that first entry states the upbeat bar rather than the piece — 1/4 before the 4/4
-     * at the downbeat, in `latest/score.msm` — and the levels then stop at the beat. Thin, but
-     * sound: every box formed is still one the signature it was handed implies.
+     * The whole signature map, so that each stretch of the piece is grouped under the signature
+     * governing it and the bar lines are counted from where that signature took effect. In
+     * `latest/score.msm` the map opens 1/4 for the anacrusis and turns to 4/4 on the downbeat at
+     * 720; grouped under the first entry alone, no level above the quarter would form at all.
      */
     const metricSegments = useMemo<TempoSegment[]>(() => {
         if (!groupByMetre) return []
-        return combineByMeter(tempoCluster.segments.map(s => s.date), msm.timeSignature)
+        return combineByMeter(tempoCluster.segments.map(s => s.date), msm.timeSignatures)
             .map(date => ({ date, selected: false, silent: false, derived: true }))
-    }, [groupByMetre, tempoCluster, msm.timeSignature])
+    }, [groupByMetre, tempoCluster, msm.timeSignatures])
 
     /** What the skyline draws: what was measured, and what the metre makes of it. */
     const shownCluster = useMemo(

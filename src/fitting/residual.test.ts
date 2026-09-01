@@ -36,7 +36,7 @@ const buildAlignment = () => {
         'milliseconds.date.end': i * 500 + 400,
         velocity: 50 + i,
     }));
-    return new Alignment(notes, { numerator: 4, denominator: 4 });
+    return new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
 };
 
 describe('deriveResidual caching', () => {

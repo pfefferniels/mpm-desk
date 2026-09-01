@@ -82,6 +82,11 @@ export interface TimeSignature {
   denominator: number;
 }
 
+/** One entry of a `<timeSignatureMap>`: a signature and the tick it takes effect at. */
+export interface DatedTimeSignature extends TimeSignature {
+  date: number;
+}
+
 /**
  * What to call each part, by the `@number` it carries — 1-based, i.e. {@link AlignedNote.part}.
  *
@@ -106,7 +111,15 @@ type PartNames = ReadonlyMap<number, string>;
 export class Alignment {
   allNotes: AlignedNote[];
   pedals: AlignedPedal[];
-  timeSignature?: TimeSignature;
+  /**
+   * The score's time signatures, ascending by date — the whole map, not its first entry.
+   *
+   * A score with an anacrusis states the upbeat bar first and the metre of the piece second, so
+   * one entry is one bar of it. What reads this wants either the signature governing a date
+   * ({@link timeSignatureAt}) or, where a reader takes a single metre for a whole document,
+   * {@link principalTimeSignature}.
+   */
+  timeSignatures: DatedTimeSignature[];
 
   /**
    * Builds an alignment from a finished score-to-performance alignment.
@@ -115,16 +128,46 @@ export class Alignment {
    * containing information about symbolic time and the
    * real (physical) time.
    */
-  constructor(notes?: AlignedNote[], timeSignature?: TimeSignature) {
+  constructor(notes?: AlignedNote[], timeSignatures?: readonly DatedTimeSignature[]) {
     this.pedals = [];
     // Sorted into a copy, not in place. `sort` mutates its receiver, so sorting the array
     // the caller passed would reorder *their* array as a side effect of construction — which
     // would have `clone()` reorder the very score it claims to be copying.
     this.allNotes = notes ? [...notes].sort((a, b) => a['date'] - b['date']) : [];
+    this.timeSignatures = timeSignatures
+      ? [...timeSignatures].sort((a, b) => a.date - b.date)
+      : [];
+  }
 
-    if (timeSignature) {
-      this.timeSignature = timeSignature;
-    }
+  /**
+   * The signature governing `date`, or `undefined` where the score states none by then.
+   *
+   * The last entry that has taken effect, which is how MSM's maps are read throughout: an entry
+   * governs from its own date until the next one displaces it.
+   */
+  public timeSignatureAt(date: number): DatedTimeSignature | undefined {
+    return this.timeSignatures.findLast((signature) => signature.date <= date);
+  }
+
+  /**
+   * The one signature to hand a reader that takes a single metre for a whole document: whichever
+   * governs the most ticks of it.
+   *
+   * A compromise, and it is only ever right about the metre a score keeps. It settles the
+   * anacrusis for the reason the anacrusis is a special case — an upbeat bar is short — and it
+   * says nothing useful about a score that changes metre halfway. A reader that can ask per date
+   * should ask {@link timeSignatureAt} instead.
+   */
+  public get principalTimeSignature(): DatedTimeSignature | undefined {
+    const end = this.end;
+    const governed = this.timeSignatures.map((signature, index) => ({
+      signature,
+      ticks: (this.timeSignatures[index + 1]?.date ?? end) - signature.date,
+    }));
+    return governed.reduce<(typeof governed)[number] | undefined>(
+      (longest, entry) => (longest === undefined || entry.ticks > longest.ticks ? entry : longest),
+      undefined,
+    )?.signature;
   }
 
   /**
@@ -144,10 +187,7 @@ export class Alignment {
     const clone = new Alignment();
     clone.allNotes = this.allNotes.map((note) => ({ ...note }));
     clone.pedals = this.pedals.map((pedal) => ({ ...pedal }));
-    // Spreading an absent time signature yields `{}`, which is not a TimeSignature but
-    // typechecked as one: the copy then reported `numerator` and `denominator` as undefined
-    // where the original had honestly reported having no time signature at all.
-    clone.timeSignature = this.timeSignature ? { ...this.timeSignature } : undefined;
+    clone.timeSignatures = this.timeSignatures.map((signature) => ({ ...signature }));
     return clone;
   }
 
@@ -250,11 +290,18 @@ export class Alignment {
     const global = msm.getGlobal();
     if (!global) return;
 
-    msm.addTimeSignature(global, {
-      date: 0,
-      numerator: this.timeSignature?.numerator ?? 4,
-      denominator: this.timeSignature?.denominator ?? 4,
-    });
+    // The whole map, so a rendering counts bars the way the score does. espressivo positions a
+    // note in an accentuation pattern by the bar length it derives from these entries, and a
+    // document stating only the first of them puts an anacrusis's metre over the whole piece.
+    // A score that states none is published in common time, which is the assumption every
+    // fitter here already counts beats under.
+    const signatures =
+      this.timeSignatures.length > 0
+        ? this.timeSignatures
+        : [{ date: 0, numerator: 4, denominator: 4 }];
+    for (const { date, numerator, denominator } of signatures) {
+      msm.addTimeSignature(global, { date, numerator, denominator });
+    }
     // TODO: derive from FormalAlterations
     msm.addSection({
       date: 0,

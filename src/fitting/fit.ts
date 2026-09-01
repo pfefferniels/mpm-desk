@@ -26,7 +26,7 @@ import { validate } from './transformers/Order';
 import { createMpm, exportMPM, getInstructions } from './instructions/index';
 import { getRange } from './transformers/Transformer';
 import { clearResidualCache, deriveResidual, residualStats } from './residual';
-import type { AlignedNote, AlignedPedal, Alignment, TimeSignature } from './alignment';
+import type { AlignedNote, AlignedPedal, Alignment, DatedTimeSignature } from './alignment';
 import type { Call, WorkFile } from '../model/Work';
 import { projectReconstruction, type CallOutcome, type ProjectionStats } from '../model/Reconstruction';
 import type { Reconstruction } from '../model/Reconstruction';
@@ -50,8 +50,8 @@ import type { Reconstruction } from '../model/Reconstruction';
 export interface Ground {
     notes: AlignedNote[];
     pedals: AlignedPedal[];
-    /** Needed to rebuild an `Alignment`; the accentuation desk reads the denominator. */
-    timeSignature: TimeSignature | undefined;
+    /** Needed to rebuild an `Alignment`; the accentuation and tempo desks read the metre off it. */
+    timeSignatures: DatedTimeSignature[];
 }
 
 export interface FitResult {
@@ -152,7 +152,7 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
         ground: {
             notes: alignment.allNotes,
             pedals: alignment.pedals,
-            timeSignature: alignment.timeSignature,
+            timeSignatures: alignment.timeSignatures,
         },
         reconstruction,
         outcomes,

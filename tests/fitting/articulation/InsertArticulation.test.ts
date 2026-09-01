@@ -64,7 +64,7 @@ const msmFixture = () =>
         velocity: 50,
       },
     ],
-    { numerator: 1, denominator: 4 },
+    [{ date: 0, numerator: 1, denominator: 4 }],
   );
 
 /** The tempo the recorded milliseconds above are read against. */

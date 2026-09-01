@@ -73,19 +73,31 @@ describe('an Alignment copy is independent of its original', () => {
 
   test('a score with no time signature copies to a score with no time signature', () => {
     const original = new Alignment([note('a', 0)]);
-    expect(original.timeSignature).toBeUndefined();
+    expect(original.timeSignatures).toEqual([]);
 
-    // Spreading an absent time signature used to give `{}` — typed as a TimeSignature, and
-    // read downstream as a numerator and denominator of undefined.
-    expect(original.deepClone().timeSignature).toBeUndefined();
+    expect(original.deepClone().timeSignatures).toEqual([]);
+    expect(original.deepClone().principalTimeSignature).toBeUndefined();
   });
 
-  test('a time signature that is present copies as a separate object', () => {
-    const original = new Alignment([note('a', 0)], { numerator: 3, denominator: 4 });
+  test('the signature map copies entry by entry, as separate objects', () => {
+    const original = new Alignment([note('a', 0)], [{ date: 0, numerator: 3, denominator: 4 }]);
     const copy = original.deepClone();
 
-    expect(copy.timeSignature).toEqual({ numerator: 3, denominator: 4 });
-    expect(copy.timeSignature).not.toBe(original.timeSignature);
+    expect(copy.timeSignatures).toEqual([{ date: 0, numerator: 3, denominator: 4 }]);
+    expect(at(copy.timeSignatures, 0, 'signature')).not.toBe(
+      at(original.timeSignatures, 0, 'signature'),
+    );
+  });
+
+  test('constructing an Alignment does not reorder the signatures it was handed', () => {
+    const signatures = [
+      { date: 720, numerator: 4, denominator: 4 },
+      { date: 0, numerator: 1, denominator: 4 },
+    ];
+    const alignment = new Alignment([note('a', 0)], signatures);
+
+    expect(alignment.timeSignatures.map((s) => s.date)).toEqual([0, 720]);
+    expect(signatures.map((s) => s.date)).toEqual([720, 0]);
   });
 });
 

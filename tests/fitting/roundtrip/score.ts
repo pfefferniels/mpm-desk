@@ -1,8 +1,10 @@
-import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
+import { Alignment, type AlignedNote, type TimeSignature } from '../../../src/fitting/alignment';
 
 export const PPQ = 720;
 /** One quarter note, the beat these scores are built on. */
 export const QUARTER = PPQ;
+/** What a spec that states no signature is counted in. */
+export const COMMON_TIME: TimeSignature = { numerator: 4, denominator: 4 };
 
 const PITCH_NAMES = ['c', 'c', 'd', 'd', 'e', 'f', 'f', 'g', 'g', 'a', 'a', 'b'];
 const ACCIDENTALS = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0];
@@ -12,7 +14,8 @@ export interface ScoreSpec {
   beats: number;
   /** Ticks per beat. Defaults to a quarter note. */
   beatTicks?: number;
-  timeSignature?: { numerator: number; denominator: number };
+  /** One signature for the whole score, from tick 0. */
+  timeSignature?: TimeSignature;
   /**
    * MIDI pitch of each simultaneous voice. Several pitches make every beat a chord, which is
    * what makes `asChords`, asynchrony and the shake layer do anything at all.
@@ -52,6 +55,6 @@ export const buildScore = (spec: ScoreSpec): Alignment => {
     });
   }
 
-  return new Alignment(notes, spec.timeSignature ?? { numerator: 4, denominator: 4 });
+  return new Alignment(notes, [{ date: 0, ...(spec.timeSignature ?? COMMON_TIME) }]);
 };
 

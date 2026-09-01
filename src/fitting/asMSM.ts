@@ -1,5 +1,27 @@
-import { Alignment, AlignedNote, AlignedPedal } from "./alignment"
+import { Alignment, AlignedNote, AlignedPedal, DatedTimeSignature } from "./alignment"
 import { v4 } from "uuid";
+
+/**
+ * The score's `<timeSignatureMap>`, entry by entry.
+ *
+ * The first map that states anything, which in an MSM converted from MEI is `<global>`'s where
+ * there is one and part 1's otherwise — espressivo's export copies the same map into every part.
+ * An `Alignment` carries one map for the whole score, so a document whose parts were metrically
+ * different would have nowhere to put the difference; no reader downstream asks per part.
+ */
+const readTimeSignatures = (msmDoc: Document): DatedTimeSignature[] => {
+    const map = Array
+        .from(msmDoc.querySelectorAll('timeSignatureMap'))
+        .find(candidate => candidate.querySelector('timeSignature'))
+
+    return Array
+        .from(map?.querySelectorAll('timeSignature') ?? [])
+        .map(element => ({
+            date: Number(element.getAttribute('date') || 0),
+            numerator: Number(element.getAttribute('numerator') || 4),
+            denominator: Number(element.getAttribute('denominator') || 4)
+        }))
+}
 
 /**
  * Enrich a converted MSM with the performance data encoded in the MEI.
@@ -166,11 +188,7 @@ export const asMSM = (mei: string, msmXml: string) => {
         })
         .filter((pedal) => pedal !== null) as AlignedPedal[]
 
-    const timeSignature = msmDoc.querySelector('timeSignature')
-    const newMSM = new Alignment(msmNotes, {
-        numerator: Number(timeSignature?.getAttribute('numerator') || 4),
-        denominator: Number(timeSignature?.getAttribute('denominator') || 4)
-    })
+    const newMSM = new Alignment(msmNotes, readTimeSignatures(msmDoc))
     newMSM.pedals = msmPedals
 
     return newMSM

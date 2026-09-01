@@ -25,7 +25,7 @@ import {
   MergeMetricalAccentuations,
 } from '../../../src/fitting/transformers/accentuation/index';
 import { at } from '../../support/at';
-import { buildScore, PPQ, type ScoreSpec } from './score';
+import { buildScore, COMMON_TIME, PPQ, type ScoreSpec } from './score';
 import { type Truth, truthMpm } from './truth';
 
 /**
@@ -363,7 +363,7 @@ const ornamentationCalls = (spec: Case): Transformer[] => {
  */
 const accentuationCalls = (spec: Case, end: number): Transformer[] => {
   const accentuation = spec.truth.accentuation!;
-  const signature = spec.score.timeSignature ?? { numerator: 4, denominator: 4 };
+  const signature = spec.score.timeSignature ?? COMMON_TIME;
   const beatTicks = (4 * PPQ) / signature.denominator;
   const measureTicks = signature.numerator * beatTicks;
 

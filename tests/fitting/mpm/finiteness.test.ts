@@ -58,7 +58,7 @@ class WritesTempo extends AbstractTransformer<TransformationOptions> {
 }
 
 const run = (transformer: AbstractTransformer<TransformationOptions>, mpm: Mpm) =>
-  transformer.run(new Alignment([], { numerator: 4, denominator: 4 }), mpm);
+  transformer.run(new Alignment([], [{ date: 0, numerator: 4, denominator: 4 }]), mpm);
 
 describe('a non-finite number never survives a transformer', () => {
   test('NaN is refused, and the message names the attribute', () => {

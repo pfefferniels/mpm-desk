@@ -89,7 +89,7 @@ describe('combineByMeter', () => {
     });
 
     it('groups eighths in threes under a compound signature', () => {
-        const formed = combineByMeter(run(0, EIGHTH, 6), { numerator: 6, denominator: 8 });
+        const formed = combineByMeter(run(0, EIGHTH, 6), [{ date: 0, numerator: 6, denominator: 8 }]);
 
         expect(formed).toEqual([
             { start: 0, end: DOTTED_QUARTER },
@@ -109,5 +109,46 @@ describe('combineByMeter', () => {
 
     it('forms nothing out of nothing', () => {
         expect(combineByMeter([])).toEqual([]);
+    });
+
+    it('counts the bars of a score with an anacrusis from its downbeat', () => {
+        // 1/4 of upbeat, then 4/4 — the map `latest/score.msm` states. The bars run 720..3600
+        // and 3600..6480, and nothing of the piece is grouped from tick 0.
+        const anacrusis = [
+            { date: 0, numerator: 1, denominator: 4 },
+            { date: QUARTER, numerator: 4, denominator: 4 },
+        ];
+        const formed = combineByMeter(run(0, QUARTER, 9), anacrusis);
+
+        expect(formed).toContainEqual({ start: QUARTER, end: QUARTER + BAR });
+        expect(formed).toContainEqual({ start: QUARTER + BAR, end: QUARTER + 2 * BAR });
+        expect(formed.filter(box => box.start === 0)).toEqual([]);
+    });
+
+    it('groups each stretch under the signature governing it', () => {
+        // 3/4 for two bars, then 2/4. Neither bar length is formed where the other governs.
+        const formed = combineByMeter(run(0, QUARTER, 8), [
+            { date: 0, numerator: 3, denominator: 4 },
+            { date: 6 * QUARTER, numerator: 2, denominator: 4 },
+        ]);
+
+        expect(formed).toEqual([
+            { start: 0, end: 3 * QUARTER },
+            { start: 3 * QUARTER, end: 6 * QUARTER },
+            { start: 6 * QUARTER, end: 8 * QUARTER },
+        ]);
+    });
+
+    it('forms no cell reaching over a change of signature', () => {
+        // The 3/4 bar would run 3600..5760, past the 2/4 that begins at 5040.
+        const formed = combineByMeter(run(0, QUARTER, 8), [
+            { date: 0, numerator: 3, denominator: 4 },
+            { date: 7 * QUARTER, numerator: 2, denominator: 4 },
+        ]);
+
+        expect(formed).toEqual([
+            { start: 0, end: 3 * QUARTER },
+            { start: 3 * QUARTER, end: 6 * QUARTER },
+        ]);
     });
 });

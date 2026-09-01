@@ -45,7 +45,7 @@ const buildMsm = () => {
       velocity: Math.round(50 + 45 * Math.sin(Math.PI * x)),
     };
   });
-  return new Alignment(notes, { numerator: 4, denominator: 4 });
+  return new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
 };
 
 /**

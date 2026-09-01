@@ -64,7 +64,7 @@ const msmFixture = new Alignment(
       velocity: 100,
     },
   ],
-  { numerator: 4, denominator: 4 },
+  [{ date: 0, numerator: 4, denominator: 4 }],
 );
 
 // The claim this file used to make here — that a 60bpm tempo puts these recorded onsets at
@@ -109,7 +109,7 @@ test('it translates existing physical modifiers into tick modifiers', () => {
         velocity: 100,
       },
     ],
-    { numerator: 4, denominator: 4 },
+    [{ date: 0, numerator: 4, denominator: 4 }],
   );
 
   const mpm = createMpm();

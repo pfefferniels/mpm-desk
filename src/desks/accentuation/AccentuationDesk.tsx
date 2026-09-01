@@ -317,7 +317,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                             stretchX={stretchX}
                             stretchY={stretchY}
                             getScreenY={getScreenY}
-                            denominator={msm.timeSignature?.denominator || 4}
+                            denominator={msm.timeSignatureAt(pattern.date)?.denominator || 4}
                             onClick={(e) => {
                                 if (e.shiftKey) {
                                     if (selectedPatterns.includes(pattern)) {

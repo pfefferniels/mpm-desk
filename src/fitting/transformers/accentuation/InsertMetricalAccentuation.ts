@@ -93,6 +93,12 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
     const velocities: Velocity[] = [];
     if (beatLength <= 0) return velocities;
 
+    // The signature governing the cell, which is the one the renderer will read this pattern
+    // back under. A score may state none, and `Alignment.build()` publishes 4/4 where it does;
+    // beat numbers have to be counted in the same bar the score will be published in, or the
+    // pattern would be indexed against a metre nobody sees.
+    const denominator = msm.timeSignatureAt(start)?.denominator || 4;
+
     for (let index = 0; ; index++) {
       const beat = index * beatLength;
       const date = start + Math.round(beat * PULSES_PER_WHOLE);
@@ -108,10 +114,7 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
         velocityChanges.reduce((acc, change) => acc + change, 0) / velocityChanges.length;
 
       velocities.push({
-        // A score may carry no time signature, and `Alignment.build()` writes out 4/4 when it
-        // does not. Beat numbers here have to be counted in the same bar the score will
-        // be published in, or the pattern would be indexed against a meter nobody sees.
-        beat: (msm.timeSignature?.denominator || 4) * beat + 1,
+        beat: denominator * beat + 1,
         avgVelocityChange,
       });
     }
@@ -275,7 +278,8 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
 
     const accentuationPatternDef = this.buildDef(
       this.options.name,
-      ((cell.end - cell.start) / PULSES_PER_WHOLE) * (msm.timeSignature?.denominator || 4),
+      ((cell.end - cell.start) / PULSES_PER_WHOLE) *
+        (msm.timeSignatureAt(cell.start)?.denominator || 4),
       accentuations,
     );
 

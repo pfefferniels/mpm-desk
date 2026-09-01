@@ -51,7 +51,8 @@ const note = (
     velocity,
   }) as AlignedNote;
 
-const chord = (notes: AlignedNote[]) => new Alignment(notes, { numerator: 4, denominator: 4 });
+const chord = (notes: AlignedNote[]) =>
+  new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
 
 interface Transformable {
   transform(msm: Alignment, mpm: Mpm): void;

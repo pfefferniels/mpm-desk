@@ -108,7 +108,7 @@ export const NarrativeDesk = ({ msm, mpm, projected, performanceXml }: ViewProps
         () =>
             readPerformance(performanceXml, {
                 ppq: PULSES_PER_QUARTER,
-                denominator: msm.timeSignature?.denominator ?? 4,
+                denominator: msm.principalTimeSignature?.denominator ?? 4,
             }),
         [performanceXml, msm],
     );

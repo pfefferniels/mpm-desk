@@ -42,7 +42,7 @@ const score = () => {
         'milliseconds.date.end': onset + 1000,
       } as AlignedNote;
     }),
-    { numerator: 4, denominator: 4 },
+    [{ date: 0, numerator: 4, denominator: 4 }],
   );
 
   msm.pedals = [

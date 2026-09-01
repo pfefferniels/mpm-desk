@@ -75,7 +75,7 @@ const fixture = (scales: number[], { closingDownbeat = true } = {}) => {
   }
   if (closingDownbeat) notes.push(note(scales.length * 4, VOLUME));
 
-  const msm = new Alignment(notes, { numerator: 4, denominator: 4 });
+  const msm = new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
 
   const mpm = createMpm();
   requireMap(mpm, 'tempo', 'global').addTempo({ id: 't1', date: 0, bpm: 120, beatLength: 0.25 });
@@ -289,7 +289,7 @@ describe('a beat grid that is not a power of two', () => {
         }) as AlignedNote,
     );
 
-    const msm = new Alignment(notes, { numerator: 4, denominator: 4 });
+    const msm = new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
     const mpm = createMpm();
     requireMap(mpm, 'tempo', 'global').addTempo({ id: 't1', date: 0, bpm: 120, beatLength: 0.25 });
     requireMap(mpm, 'dynamics', 'global').addDynamics({ id: 'd1', date: 0, volume: VOLUME });

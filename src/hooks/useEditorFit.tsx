@@ -106,7 +106,7 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
             alignment: {
                 allNotes: pristine.allNotes,
                 pedals: pristine.pedals,
-                timeSignature: pristine.timeSignature,
+                timeSignatures: pristine.timeSignatures,
             },
         } satisfies FitRequest);
 
@@ -161,7 +161,7 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
 
     const alignment = useMemo(() => {
         if (!result) return null;
-        const rebuilt = new Alignment(result.ground.notes, result.ground.timeSignature);
+        const rebuilt = new Alignment(result.ground.notes, result.ground.timeSignatures);
         rebuilt.pedals = result.ground.pedals;
         return rebuilt;
     }, [result]);

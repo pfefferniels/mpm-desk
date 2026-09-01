@@ -39,7 +39,7 @@ const stylize = (mpm: Mpm) =>
       gradientTolerance: 0.1,
       intensityTolerance: 0.3,
     }),
-    new Alignment([], { numerator: 4, denominator: 4 }),
+    new Alignment([], [{ date: 0, numerator: 4, denominator: 4 }]),
     mpm,
   );
 
