@@ -8,7 +8,7 @@ import { InsertMetricalAccentuation, InsertMetricalAccentuationOptions } from ".
 import { MergeMetricalAccentuations } from "../../fitting/transformers/accentuation/MergeMetricalAccentuations";
 import { getDefinition, getInstructions, Instruction } from "../../fitting/instructions/index";
 import { Alignment, AlignedNote } from "../../fitting/alignment";
-import { barLines } from "../../fitting/timeSignature";
+import { bars as barsOf } from "../../fitting/timeSignature";
 import { PULSES_PER_WHOLE } from "../../fitting/ppq";
 import { Residual } from "../../fitting/residual";
 import { Box } from "@mui/material";
@@ -117,7 +117,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
      * two dots that bound a cell had to be picked by eye.
      */
     const bars = useMemo(
-        () => barLines(msm.timeSignatures, msm.end, PULSES_PER_WHOLE),
+        () => barsOf(msm.timeSignatures, msm.end, PULSES_PER_WHOLE).map(bar => bar.date),
         [msm],
     )
 

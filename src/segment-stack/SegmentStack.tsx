@@ -490,6 +490,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                         number you cannot find is worse than one crossing a word. */}
                     <BarLines
                         maxDate={maxDate}
+                        meter={mpm.meter}
                         stretchX={packStretchX}
                         centreY={centreY}
                         anchorRef={anchorRef}

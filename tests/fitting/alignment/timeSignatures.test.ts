@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { convertMeiToMsm, performMsmToData } from 'espressivo';
 import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
 import { asMSM } from '../../../src/fitting/asMSM';
-import { barLines } from '../../../src/fitting/timeSignature';
+import { bars } from '../../../src/fitting/timeSignature';
 import {
   AccentuationPatternDef,
   createMpm,
@@ -84,16 +84,17 @@ describe('the signature governing a date', () => {
   });
 });
 
-describe('where the bar lines fall', () => {
+describe('the bars the metre lays out', () => {
   const PULSES_PER_WHOLE = 2880;
+  const dates = (laid: { date: number }[]) => laid.map((bar) => bar.date);
 
   test('counts them from the downbeat, leaving the anacrusis its own bar', () => {
-    expect(barLines(ANACRUSIS, 10 * 720, PULSES_PER_WHOLE)).toEqual([0, 720, 3600, 6480]);
+    expect(dates(bars(ANACRUSIS, 10 * 720, PULSES_PER_WHOLE))).toEqual([0, 720, 3600, 6480]);
   });
 
   test('starts no bar the piece has already ended on', () => {
     // Nine quarters: the upbeat and two whole bars, and 6480 is the end rather than a third bar.
-    expect(barLines(ANACRUSIS, 9 * 720, PULSES_PER_WHOLE)).toEqual([0, 720, 3600]);
+    expect(dates(bars(ANACRUSIS, 9 * 720, PULSES_PER_WHOLE))).toEqual([0, 720, 3600]);
   });
 
   test('rules each stretch off at its own bar length', () => {
@@ -102,11 +103,38 @@ describe('where the bar lines fall', () => {
       { date: 4320, numerator: 2, denominator: 4 },
     ];
 
-    expect(barLines(signatures, 7200, PULSES_PER_WHOLE)).toEqual([0, 2160, 4320, 5760]);
+    expect(bars(signatures, 7200, PULSES_PER_WHOLE)).toEqual([
+      { date: 0, ticks: 2160, number: 1 },
+      { date: 2160, ticks: 2160, number: 2 },
+      { date: 4320, ticks: 1440, number: 3 },
+      { date: 5760, ticks: 1440, number: 4 },
+    ]);
   });
 
-  test('draws none where the score states no signature', () => {
-    expect(barLines([], 92880, PULSES_PER_WHOLE)).toEqual([]);
+  test('numbers the first complete bar 1 and the upbeat before it 0', () => {
+    expect(bars(ANACRUSIS, 10 * 720, PULSES_PER_WHOLE).map((bar) => bar.number)).toEqual([
+      0, 1, 2, 3,
+    ]);
+  });
+
+  test('numbers from 1 where a piece opens on a whole bar', () => {
+    const common = [{ date: 0, numerator: 4, denominator: 4 }];
+
+    expect(bars(common, 8640, PULSES_PER_WHOLE).map((bar) => bar.number)).toEqual([1, 2, 3]);
+  });
+
+  // A shortening at a metre change is a shorter bar, not an upbeat: only the first can be one.
+  test('reads a bar that shortens mid-piece as a bar, not as an anacrusis', () => {
+    const signatures = [
+      { date: 0, numerator: 4, denominator: 4 },
+      { date: 2880, numerator: 2, denominator: 4 },
+    ];
+
+    expect(bars(signatures, 5760, PULSES_PER_WHOLE).map((bar) => bar.number)).toEqual([1, 2, 3]);
+  });
+
+  test('lays out none where the score states no signature', () => {
+    expect(bars([], 92880, PULSES_PER_WHOLE)).toEqual([]);
   });
 });
 

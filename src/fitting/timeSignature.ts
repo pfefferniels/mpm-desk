@@ -35,28 +35,49 @@ export const timeSignatureAt = (
 const barTicks = ({ numerator, denominator }: TimeSignature, pulsesPerWhole: number) =>
   (numerator * pulsesPerWhole) / denominator;
 
+/** One bar of the score: where it starts, how long it lasts, and what it is called. */
+export interface Bar {
+  date: number;
+  ticks: number;
+  /** What the score calls it: 1 for the first complete bar, 0 for an opening upbeat. */
+  number: number;
+}
+
 /**
- * Where the bar lines fall, ascending, from the first signature to `until`.
+ * The bars the metre lays out, ascending, from the first signature to `until`.
  *
- * Each signature starts a bar where it takes effect and rules them off at its own bar length
- * from there, so a 4/4 that begins after a quarter of anacrusis has its downbeats on 720, 3600,
- * 6480 — counting from tick 0 would name none of them.
+ * Each signature starts a bar where it takes effect and rules them off at its own bar length from
+ * there, so a 4/4 that begins after a quarter of anacrusis has its downbeats on 720, 3600, 6480 —
+ * counting from tick 0 would name none of them.
  *
- * A score that states no signature gets no bar lines. What is drawn is what the document says,
- * and common time assumed for it is an assumption to render under rather than one to draw.
+ * A score that states no signature gets no bars. What is drawn is what the document says, and
+ * common time assumed for it is an assumption to render under rather than one to draw.
+ *
+ * ## Numbering
+ *
+ * From 1 at the first complete bar, which is how a score is counted and cited. An opening bar
+ * shorter than the one that follows is an upbeat and takes 0: that is how MSM states an anacrusis,
+ * as a short signature of its own giving way on the downbeat. A score that writes its upbeat as a
+ * short measure *without* saying so in the map states nothing here to read it off, and its bars
+ * are counted from 1.
  *
  * @param until the end of the piece in ticks; the last signature rules bars up to it.
  * @param pulsesPerWhole ticks to the whole note, which the caller's document states.
  */
-export const barLines = (
+export const bars = (
   signatures: readonly DatedTimeSignature[],
   until: number,
   pulsesPerWhole: number,
-): number[] =>
-  signatures.flatMap((signature, index) => {
-    const bar = barTicks(signature, pulsesPerWhole);
-    if (!(bar > 0)) return [];
+): Bar[] => {
+  const placed = signatures.flatMap((signature, index) => {
+    const ticks = barTicks(signature, pulsesPerWhole);
+    if (!(ticks > 0)) return [];
     const governedUntil = Math.min(signatures[index + 1]?.date ?? until, until);
-    const bars = Math.max(0, Math.ceil((governedUntil - signature.date) / bar));
-    return Array.from({ length: bars }, (_, n) => signature.date + n * bar);
+    const count = Math.max(0, Math.ceil((governedUntil - signature.date) / ticks));
+    return Array.from({ length: count }, (_, n) => ({ date: signature.date + n * ticks, ticks }));
   });
+
+  const [first, second] = placed;
+  const upbeat = first !== undefined && second !== undefined && first.ticks < second.ticks;
+  return placed.map((bar, index) => ({ ...bar, number: upbeat ? index : index + 1 }));
+};
