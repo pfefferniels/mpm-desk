@@ -16,7 +16,7 @@ import { useLatest } from './useLatest';
  *
  * The fold runs in a worker — three seconds on the shipped reconstruction — and hands back plain
  * data: the MPM as XML, the alignment as flat records. The desks want neither. They want an
- * `Alignment` they can ask `asChords(part)` and an `Mpm` they can read instructions out of, so
+ * `Alignment` they can ask `in(part).chords()` and an `Mpm` they can read instructions out of, so
  * both are rebuilt here from what crossed. Parsing the MPM costs about ten milliseconds against
  * three seconds of fitting, which is not a boundary worth avoiding.
  *

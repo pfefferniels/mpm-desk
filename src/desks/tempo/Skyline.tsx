@@ -268,7 +268,7 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
         {committedTempos.map((t, i) => {
           // The skyline is in seconds throughout, and `silentOnsets` already is; the recording
           // states its onsets in milliseconds, so the conversion goes through `noteTiming`.
-          const recorded = msm.notesAtDate(t.date, part)[0]
+          const recorded = msm.in(part).notesAtDate(t.date)[0]
           let startTime: number | undefined = recorded === undefined ? undefined : onsetSeconds(recorded)
           if (startTime === undefined) {
             startTime = silentOnsets.get(t.date)

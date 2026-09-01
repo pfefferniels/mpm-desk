@@ -35,7 +35,7 @@ export class MakeDefaultArticulation extends AbstractTransformer<MakeDefaultArti
     // definition it writes is inserted per-scope; candidate notes taken from the whole score
     // would have a part-scoped call average the other parts' notes into this part's
     // `relativeDuration`, and then publish that as the part's default (issue #44).
-    const notes: AlignedNote[] = msm.notesInPart(this.options.scope);
+    const notes: AlignedNote[] = msm.in(this.options.scope).notes();
     for (const articulation of getInstructions(mpm, 'articulation', this.options.scope)) {
       if (articulation.noteid) {
         // One reference, the way the renderer reads it, and not a space-separated list —
@@ -50,7 +50,7 @@ export class MakeDefaultArticulation extends AbstractTransformer<MakeDefaultArti
         // takes from the outer `notes`: an inner array of the same name would shadow it,
         // so the splice would take from the list it had just built and leave the notes in
         // `notes`, where they would count towards the default.
-        for (const note of msm.notesAtDate(articulation.date, this.options.scope)) {
+        for (const note of msm.in(this.options.scope).notesAtDate(articulation.date)) {
           const toDelete = notes.indexOf(note);
           if (toDelete !== -1) {
             notes.splice(toDelete, 1);

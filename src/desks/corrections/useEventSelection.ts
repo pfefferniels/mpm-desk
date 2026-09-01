@@ -125,5 +125,5 @@ export const coveredBy = (
     if (!selector) return new Set();
     if ('noteIDs' in selector) return new Set(selector.noteIDs);
     if ('pedalIDs' in selector) return new Set(selector.pedalIDs);
-    return new Set(msm.notesInRange(selector.from, selector.to, part).map((n) => n['xml:id']));
+    return new Set(msm.in(part).notesInRange(selector.from, selector.to).map((n) => n['xml:id']));
 };

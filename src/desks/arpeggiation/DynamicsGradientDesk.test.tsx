@@ -100,10 +100,10 @@ describe('what the dynamics gradient desk plots', () => {
         };
 
         // The two parts together hold more chords than the score does, because 100 of the 215
-        // carry notes from both. Drawn unscoped, either part would draw all 215.
-        expect(msm.asChords()).toHaveProperty('size', 215);
-        expect(msm.asChords(0)).toHaveProperty('size', 183);
-        expect(msm.asChords(1)).toHaveProperty('size', 132);
+        // carry notes from both. Drawn globally, either part would draw all 215.
+        expect(msm.in('global').chords()).toHaveProperty('size', 215);
+        expect(msm.in(0).chords()).toHaveProperty('size', 183);
+        expect(msm.in(1).chords()).toHaveProperty('size', 132);
 
         // The hull joins consecutive chords, so it is one short of them wherever the two agree.
         // Where they did not, the ramps drawn were the extremes of chords the hull never covered.

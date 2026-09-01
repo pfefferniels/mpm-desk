@@ -31,7 +31,7 @@ export const asBPM = (dateRange: Range, tickToSeconds?: (tick: number) => number
 export type Onset = { date: number }
 
 export const extractOnsets = (msm: Alignment, part: Scope): Onset[] => {
-    const chords = msm.asChords(part)
+    const chords = msm.in(part).chords()
     const onsets: Onset[] = []
     for (const [date, notes] of chords) {
         // A chord the recording never sounded gets no onset tick: the alignment expresses
@@ -47,7 +47,7 @@ export const extractTempoSegments = (msm: Alignment, part: Scope) => {
     msm.shiftToFirstOnset()
 
     const segments: TempoSegment[] = []
-    const chords = msm.asChords(part)
+    const chords = msm.in(part).chords()
 
     const iterator = chords.entries()
     let current = iterator.next()

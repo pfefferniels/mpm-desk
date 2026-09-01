@@ -7,9 +7,9 @@ import { at } from '../../support/at';
  *
  * It did not. `clone()` passed `this.allNotes` to the constructor, which sorted it in place and
  * kept it, and then assigned `this.pedals` across — so the "copy" shared both arrays and every
- * note object with the original, and merely constructing it reordered the original. `asChords`
- * and `notesInPart` handed out the interior array as well, so a caller that sorted what a query
- * returned was editing the score.
+ * note object with the original, and merely constructing it reordered the original. The scoped
+ * queries handed out the interior array as well, so a caller that sorted what a query returned
+ * was editing the score.
  *
  * These pin the four places that aliased. They are cheap and they are the kind of thing that
  * quietly comes back, because every one of them reads correct.
@@ -101,32 +101,65 @@ describe('an Alignment copy is independent of its original', () => {
 });
 
 describe('an Alignment query does not edit the score', () => {
-  test('asChords leaves the score in the order it found it', () => {
+  test('chords() leaves the score in the order it found it', () => {
     const msm = new Alignment();
     msm.allNotes = [note('b', 720), note('a', 0)];
 
-    msm.asChords('global');
+    msm.in('global').chords();
 
     expect(msm.allNotes.map((n) => n['xml:id'])).toEqual(['b', 'a']);
   });
 
-  test('notesInPart hands back a fresh array for a part and for the whole score', () => {
+  test('notes() hands back a fresh array for a part and for the whole score', () => {
     const msm = new Alignment([note('a', 0), note('b', 720)]);
 
-    expect(msm.notesInPart('global')).not.toBe(msm.allNotes);
+    expect(msm.in('global').notes()).not.toBe(msm.allNotes);
 
     // Sorting what a query returned must not be able to reach the score.
-    msm.notesInPart('global').sort((x, y) => y.date - x.date);
+    msm.in('global').notes().sort((x, y) => y.date - x.date);
     expect(msm.allNotes.map((n) => n['xml:id'])).toEqual(['a', 'b']);
   });
 
-  test('asChords still groups by date and covers every note', () => {
+  test('chords() still groups by date and covers every note', () => {
     const msm = new Alignment([note('a', 0), note('b', 0), note('c', 720)]);
-    const chords = msm.asChords('global');
+    const chords = msm.in('global').chords();
 
     expect([...chords.keys()].sort((x, y) => x - y)).toEqual([0, 720]);
     expect(chords.get(0)?.map((n) => n['xml:id'])).toEqual(['a', 'b']);
     expect(chords.get(720)?.map((n) => n['xml:id'])).toEqual(['c']);
+  });
+});
+
+describe('a scoped view', () => {
+  test('is the same object each time it is asked for', () => {
+    const msm = new Alignment([note('a', 0)]);
+
+    // The desks memoise on what `in` hands back, and a fresh view per render would defeat them.
+    expect(msm.in(0)).toBe(msm.in(0));
+    expect(msm.in('global')).not.toBe(msm.in(0));
+  });
+
+  test('is a window on the score rather than a copy of it', () => {
+    const msm = new Alignment([note('a', 0)]);
+    const scoped = msm.in('global');
+
+    msm.allNotes = [...msm.allNotes, note('b', 720)];
+
+    expect(scoped.notes().map((n) => n['xml:id'])).toEqual(['a', 'b']);
+  });
+
+  test('belongs to the score it came from, so a clone hands out its own', () => {
+    const msm = new Alignment([note('a', 0)]);
+
+    expect(msm.deepClone().in('global')).not.toBe(msm.in('global'));
+  });
+
+  test('sees only its own part', () => {
+    const msm = new Alignment([note('a', 0), note('b', 0, 100, 2)]);
+
+    expect(msm.in(0).notes().map((n) => n['xml:id'])).toEqual(['a']);
+    expect(msm.in(1).notes().map((n) => n['xml:id'])).toEqual(['b']);
+    expect(msm.in('global').notes()).toHaveLength(2);
   });
 });
 

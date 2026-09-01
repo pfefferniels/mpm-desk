@@ -1,8 +1,8 @@
 import { InsertDynamicsGradient } from "../../fitting/transformers/ornamentation/InsertDynamicsGradient"
-import type { Alignment, AlignedNote } from "../../fitting/alignment"
+import type { AlignedNote, ScopedScore } from "../../fitting/alignment"
 import { getInstructions, ornamentDraftOf, type Instruction, type Mpm } from "../../fitting/instructions/index"
 import { onsetSeconds, releaseSeconds } from "../noteTiming"
-import type { Scope, ScopedTransformerViewProps } from "../TransformerViewProps"
+import type { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { useRef, useState } from "react"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
@@ -146,11 +146,11 @@ const getDynamicsExtremes = (notes: AlignedNote[]) => {
 };
 
 
-const Hull =({ msm, part, getY }: { msm: Alignment, part: Scope, getY: (velocity: number) => void }) => {
+const Hull =({ scoped, getY }: { scoped: ScopedScore, getY: (velocity: number) => void }) => {
     const stretchX = usePhysicalZoom()
 
     return Array
-        .from(msm.asChords(part))
+        .from(scoped.chords())
         .map(([, notes], index, arr) => {
             const next = arr[index + 1]
             if (!next) return null
@@ -235,8 +235,11 @@ const GradientInstruction = ({ notes, ornament, getY, active, onClick }: Gradien
 export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
     const [sortVelocities, setSortVelocities] = useState(true)
     const stretchX = usePhysicalZoom()
+    // The axis spans the whole recording, so the plot keeps its width across the picker.
     const physicalEnd = Math.max(...msm.allNotes.map(releaseSeconds))
     const { calls, activeElements, setActiveElement, removeCall } = useCallSelection()
+
+    const scoped = msm.in(part)
 
     // Scoped, and it has to be: `transformDefault` writes one default per part, so a lookup by
     // name alone reports part 1's default while part 2 is on screen — which left `Insert Default`
@@ -364,15 +367,15 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
                 </svg>
                 <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
                     <svg width={physicalEnd * stretchX} height={height}>
-                        <Hull msm={msm} part={part} getY={getY} />
+                        <Hull scoped={scoped} getY={getY} />
                         {/*
-                            Scoped, and it has to be: the ramp's two ends come off the chord drawn
-                            here, and `InsertDynamicsGradient` measures the same chord again as
-                            `asChords(scope)`. Drawn globally they would be the extremes of a chord
-                            the transformer never sees.
+                            The hull above and the ramps below read the same chords, which is what
+                            the shared `scoped` is for: `InsertDynamicsGradient` measures the chord
+                            again as `in(scope).chords()`, so the two ends the user drags out have
+                            to come off the chord that transformer will see.
                         */}
                         {Array
-                            .from(msm.asChords(part))
+                            .from(scoped.chords())
                             .map(([date, notes]) => {
                                 const mpmGradient = getMPMGradient(date);
                                 if (mpmGradient) {

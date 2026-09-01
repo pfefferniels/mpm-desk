@@ -19,7 +19,7 @@ export interface ScoreSpec {
   timeSignature?: TimeSignature;
   /**
    * MIDI pitch of each simultaneous voice. Several pitches make every beat a chord, which is
-   * what makes `asChords`, asynchrony and the shake layer do anything at all.
+   * what makes `chords()`, asynchrony and the shake layer do anything at all.
    */
   pitches?: number[];
   /** Put each voice in its own MSM part rather than stacking them in part 1. */

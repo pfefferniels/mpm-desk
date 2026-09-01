@@ -109,7 +109,7 @@ export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynami
   }
 
   private asPoints(msm: Alignment, part: Scope): DynamicsPoints[] {
-    const chords = msm.asChords(part);
+    const chords = msm.in(part).chords();
     const { phantomVelocities } = this.options;
 
     // A phantom velocity is not tied to a chord. Pencilled in over a rest or inside a held note

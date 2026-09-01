@@ -46,9 +46,9 @@ import {
 //
 // No registered transformer `requires` an unregistered one — checked, not assumed. A saved work
 // file naming one is reported as unknown rather than silently skipped; see `validate` below.
-// First, and it has to be. Everything after it that takes a scope answers through `notesInPart`,
-// `notesAtDate`, `notesInRange` or `asChords`, and all four filter on `note.part` — so a fitter
-// running before the layout was applied would fit the wrong notes and say nothing about it.
+// First, and it has to be. Everything after it that takes a scope answers through `msm.in(scope)`,
+// whose four queries all filter on `note.part` — so a fitter running before the layout was
+// applied would fit the wrong notes and say nothing about it.
 // `requires` cannot carry this: it asserts what came *earlier*, and nothing comes earlier.
 //
 // Registered by position rather than with `{ before: 'MakeChoice' }`, which would have to be

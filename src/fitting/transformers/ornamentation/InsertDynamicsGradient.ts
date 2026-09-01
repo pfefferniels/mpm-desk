@@ -78,7 +78,7 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
    * @note If `requested` is undefined, the gradient is estimated from the chord.
    *
    * @note The chord is passed in rather than looked up. Opening with
-   * `msm.asChords(scope).get(date)` would be a full walk-and-group of every note in the score,
+   * `msm.in(scope).chords().get(date)` would be a full walk-and-group of every note in the score,
    * while the only bulk caller is already iterating exactly that map — so the whole score would
    * be regrouped once per chord in it.
    */
@@ -167,7 +167,7 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
   };
 
   protected transform(msm: Alignment, mpm: Mpm): void {
-    const chords = msm.asChords(this.options.scope);
+    const chords = msm.in(this.options.scope).chords();
 
     if (isSingleGradient(this.options)) {
       const chord = chords.get(this.options.date);

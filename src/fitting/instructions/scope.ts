@@ -98,7 +98,7 @@ export const scopesOf = (mpm: Mpm): Scope[] => {
  * The `<global>` or `<part>` a scope names, created if `create` and it is not there yet.
  *
  * A part's `@number` is `scope + 1` and its `@midi.channel` is `scope`, which is the numbering
- * `Alignment.notesInPart` assumes.
+ * `ScopedScore` assumes.
  */
 const environmentOf = (mpm: Mpm, scope: Scope, create: boolean): Global | Part | null => {
   const performance = performanceOf(mpm);

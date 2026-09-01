@@ -130,8 +130,8 @@ describe('what the articulation desk plots', () => {
 
         const notes = { global: 450, first: 260, second: 190 };
         expect(msm.allNotes).toHaveLength(notes.global);
-        expect(msm.notesInPart(0)).toHaveLength(notes.first);
-        expect(msm.notesInPart(1)).toHaveLength(notes.second);
+        expect(msm.in(0).notes()).toHaveLength(notes.first);
+        expect(msm.in(1).notes()).toHaveLength(notes.second);
 
         // Two release ticks per note: the recorded one solid, the notated one dashed.
         expect(inScope('global')).toEqual({ bars: notes.global, markers: notes.global * 2 });
@@ -140,7 +140,7 @@ describe('what the articulation desk plots', () => {
     });
 
     it('hulls an articulation only in the scope whose map holds it', () => {
-        const mpm = articulate(0, msm.notesInPart(0)[0]);
+        const mpm = articulate(0, msm.in(0).notes()[0]);
 
         const owning = renderDesk(0, mpm);
         expect(owning.overlays()).toHaveLength(1);

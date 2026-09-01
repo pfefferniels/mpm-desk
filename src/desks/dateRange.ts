@@ -13,7 +13,7 @@ export interface DateRange {
  * The stretch covering the dates given, of which there is at least one.
  *
  * The ordering is the whole point. Downstream a range is read as `date >= from && date <= to` —
- * `MakeChoice`, `Modify` and `Alignment.notesInRange` all spell it that way — so a pair left in
+ * `MakeChoice`, `Modify` and `ScopedScore.notesInRange` all spell it that way — so a pair left in
  * the order it was clicked covers nothing at all once the second click landed before the first.
  * Reaching backwards is an ordinary gesture, and it means the stretch it reached over.
  */

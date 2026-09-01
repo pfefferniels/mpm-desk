@@ -88,7 +88,7 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
     // `StylizeOrnamentation` to collect.
     const ornaments: { options: AddOrnamentOptions; draft: OrnamentDraft }[] = [];
 
-    const chords = msm.asChords(this.options.scope);
+    const chords = msm.in(this.options.scope).chords();
     for (const [date, chordNotes] of chords) {
       if ('date' in this.options && date !== this.options.date) {
         // if a date is specified, only process that date

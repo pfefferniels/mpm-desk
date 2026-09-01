@@ -36,7 +36,7 @@ export const useTimeMapping = (
         if (!msm) return null;
 
         const pairs: [number, number][] = [];
-        for (const note of msm.notesInPart(scope)) {
+        for (const note of msm.in(scope).notes()) {
             if (!wasSounded(note)) continue;
             pairs.push([note.date, onsetSeconds(note)]);
         }

@@ -63,7 +63,7 @@ export class InsertRubato extends AbstractTransformer<InsertRubatoOptions> {
     const residual = deriveResidual(msm, mpm, { without: ['rubato'] });
 
     const frame = { date: this.options.date, length: this.options.length };
-    const chords = [...msm.asChords(this.options.scope).entries()].filter(
+    const chords = [...msm.in(this.options.scope).chords().entries()].filter(
       ([date]) => date >= frame.date && date < frame.date + frame.length,
     );
 

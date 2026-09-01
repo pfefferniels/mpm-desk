@@ -48,7 +48,7 @@ export const useModifyDeltas = (
             } else if ('pedalIDs' in options) {
                 for (const id of options.pedalIDs) add(id, change);
             } else {
-                for (const note of msm.notesInRange(options.from, options.to, part))
+                for (const note of msm.in(part).notesInRange(options.from, options.to))
                     add(note['xml:id'], change);
             }
         };

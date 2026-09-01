@@ -101,11 +101,11 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                         ))}
 
                         {/*
-                            Global on purpose, unlike the arpeggiation desks: a pedal is a property
-                            of the instrument, `InsertPedal` writes to `movement`/`global` whatever
-                            the picker says, and these lines are the texture under a press.
+                            `'global'` on purpose, unlike the arpeggiation desks: a pedal is a
+                            property of the instrument, `InsertPedal` writes to `movement`/`global`
+                            whatever the picker says, and these lines are the texture under a press.
                         */}
-                        {Array.from(msm.asChords().entries()).map(([date, chord]) => {
+                        {Array.from(msm.in('global').chords().entries()).map(([date, chord]) => {
                             return (
                                 <g key={`chord_${date}`}>
                                     <line

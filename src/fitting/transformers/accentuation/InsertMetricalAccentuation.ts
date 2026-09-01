@@ -121,7 +121,7 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
       if (date > end) break;
 
       const velocityChanges = filterMap(
-        msm.notesAtDate(date, this.options.scope),
+        msm.in(this.options.scope).notesAtDate(date),
         (note) => residual.of(note)?.velocity ?? null,
       );
       if (velocityChanges.length === 0) continue;

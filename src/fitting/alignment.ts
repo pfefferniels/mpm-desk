@@ -79,6 +79,71 @@ export type AlignedNote = {
 export type ChordMap = Map<number, AlignedNote[]>;
 
 /**
+ * The score as one scope sees it: every query that filters on {@link AlignedNote.part}, with the
+ * part named once instead of at each call.
+ *
+ * This is the only way to ask those four questions, and that is the point of it. A desk holds an
+ * {@link Alignment} and a {@link Scope} as two separate things, and the scope it *draws* has to
+ * be the scope it *writes*. Carried as an argument the two drift apart quietly — two desks plotted
+ * every chord in the score while writing to one part, and the call that did it looked like every
+ * other call. Bound once at the top of a desk, `msm.in(part)`, the wrong scope is no longer
+ * something you can fail to type, and a caller that means the whole score says `msm.in('global')`.
+ *
+ * A window and not a copy: each query reads `allNotes`, so a score mutated behind a view answers
+ * as it now is.
+ */
+export class ScopedScore {
+  constructor(
+    private readonly score: Alignment,
+    readonly scope: Scope,
+  ) {}
+
+  /** Whether this scope answers for a note. The one place a part number is compared. */
+  private covers(note: AlignedNote): boolean {
+    return this.scope === 'global' || note.part - 1 === this.scope;
+  }
+
+  /**
+   * The notes of this scope.
+   *
+   * A fresh array, as {@link Alignment.allNotes} is not: a caller that sorts or splices what it
+   * got back would otherwise edit the score through what reads as a query.
+   */
+  public notes(): AlignedNote[] {
+    return this.score.allNotes.filter((note) => this.covers(note));
+  }
+
+  /**
+   * A homophonized version of this scope, by date.
+   *
+   * The sort runs on the array `notes()` has already copied. Sorting `allNotes` itself would
+   * leave the score permanently sorted by date, as a side effect of a read-only-looking query.
+   */
+  public chords(): ChordMap {
+    return this.notes()
+      .sort((a, b) => a.date - b.date)
+      .reduce<ChordMap>((prev, curr) => {
+        const chord = prev.get(curr.date);
+        if (chord) chord.push(curr);
+        else prev.set(curr.date, [curr]);
+        return prev;
+      }, new Map());
+  }
+
+  /** The notes of this scope sounding at one score date. */
+  public notesAtDate(date: number): AlignedNote[] {
+    return this.score.allNotes.filter((note) => this.covers(note) && note.date === date);
+  }
+
+  /** The notes of this scope between two score dates, both ends included. */
+  public notesInRange(from: number, to: number): AlignedNote[] {
+    return this.score.allNotes.filter(
+      (note) => this.covers(note) && note.date >= from && note.date <= to,
+    );
+  }
+}
+
+/**
  * What to call each part, by the `@number` it carries — 1-based, i.e. {@link AlignedNote.part}.
  *
  * Passed in rather than held on the alignment, because a part's name is the *document's*: it is
@@ -110,6 +175,9 @@ export class Alignment {
    * date; there is no single signature to be had.
    */
   timeSignatures: DatedTimeSignature[];
+
+  /** The views {@link Alignment.in} has handed out, one per scope asked for. */
+  private readonly views = new Map<Scope, ScopedScore>();
 
   /**
    * Builds an alignment from a finished score-to-performance alignment.
@@ -330,18 +398,20 @@ export class Alignment {
   }
 
   /**
-   * Returns all notes present at a given score date in a given
-   * part.
-   * @param tstamp score date
-   * @param part if "global", all parts will be considered
-   * @returns array of aligned notes
+   * The score as one scope sees it; see {@link ScopedScore} for why every part-sensitive query
+   * lives there and none of them here.
+   *
+   * The view is cached per scope, so `msm.in(part)` is reference-stable for as long as the
+   * alignment is. The desks memoise on what this returns, and a fresh view per render would
+   * defeat every one of those.
    */
-  public notesAtDate(tstamp: number, part: Scope): AlignedNote[] {
-    return this.allNotes.filter((note) => {
-      return typeof part === 'number'
-        ? note.date === tstamp && note.part === part + 1 // a specific part
-        : note.date === tstamp; // consider all parts
-    });
+  public in(scope: Scope): ScopedScore {
+    const known = this.views.get(scope);
+    if (known) return known;
+
+    const view = new ScopedScore(this, scope);
+    this.views.set(scope, view);
+    return view;
   }
 
   /** The note with this `xml:id`, or `undefined`. */
@@ -349,26 +419,6 @@ export class Alignment {
     return this.allNotes.find((note) => {
       return note['xml:id'] === id;
     });
-  }
-
-  /**
-   * Generates a homophonized version of the score.
-   *
-   * The sort runs on a copy. Sorting `this.allNotes` itself — which is what the `'global'`
-   * branch would otherwise hold — would leave the score permanently sorted by date, as a side
-   * effect of a read-only-looking query.
-   */
-  public asChords(part: Scope = 'global'): ChordMap {
-    const notes = (
-      part === 'global' ? [...this.allNotes] : this.allNotes.filter((n) => n.part - 1 === part)
-    ).sort((a, b) => a.date - b.date);
-
-    return notes.reduce<ChordMap>((prev, curr) => {
-      const chord = prev.get(curr.date);
-      if (chord) chord.push(curr);
-      else prev.set(curr.date, [curr]);
-      return prev;
-    }, new Map());
   }
 
   /**
@@ -434,24 +484,5 @@ export class Alignment {
     return new Set(
       [...this.allNotes, ...this.pedals].flatMap((event) => (event.source ? [event.source] : [])),
     );
-  }
-
-  /**
-   * The notes of one part, or of the whole score.
-   *
-   * Both branches answer with a fresh array. Handing back `this.allNotes` itself would let a
-   * caller that sorts or splices what it got back edit the score through what reads as a
-   * query.
-   */
-  public notesInPart(part: Scope): AlignedNote[] {
-    return part === 'global'
-      ? [...this.allNotes]
-      : this.allNotes.filter((n) => n.part - 1 === part);
-  }
-
-  public notesInRange(from: number, to: number, scope: Scope): AlignedNote[] {
-    return this.notesInPart(scope).filter((note) => {
-      return note.date >= from && note.date <= to;
-    });
   }
 }

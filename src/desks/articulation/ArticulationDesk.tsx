@@ -159,7 +159,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
     const artics = getInstructions(mpm, 'articulation', part)
 
     const articulatedNotes = []
-    for (const [, notes] of msm.asChords(part)) {
+    for (const [, notes] of msm.in(part).chords()) {
         for (const note of notes) {
             const effectiveArtic = artics.find(a => {
                 return a.noteid?.split(' ').includes(`#${note["xml:id"]}`)
@@ -214,7 +214,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
         }
     }
 
-    const allNotes = msm.notesInPart(part)
+    const allNotes = msm.in(part).notes()
 
     const overlays = artics.map((artic, index) => {
         const def = getDefinition(mpm, 'articulationDef', artic.nameRef)

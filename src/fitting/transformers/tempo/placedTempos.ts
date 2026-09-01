@@ -14,7 +14,7 @@
  * It is what keeps one segment's error out of the next, and it is why the tick domain cannot be
  * recovered by inverting a rendered performance — a render has no recording to anchor to. A rule
  * that load-bearing should exist once: hand-copied, it diverges, and looking the anchor up in
- * `msm.allNotes` rather than `msm.notesInPart(scope)` anchors, in a piece with part-scoped tempo
+ * `msm.allNotes` rather than `msm.in(scope).notes()` anchors, in a piece with part-scoped tempo
  * maps, on notes from a different part than the one whose tempo is being walked.
  *
  * ## Modelled and measured
@@ -91,14 +91,14 @@ export interface PlacedTempo {
 export const placeTempos = (msm: Alignment, mpm: Mpm, scope: Scope): PlacedTempo[] => {
   const tempos = getInstructions(mpm, 'tempo', scope);
 
-  // The anchoring rule, in one place. `notesInPart(scope)` and not `allNotes`: the tempo being
+  // The anchoring rule, in one place. `msm.in(scope).notes()` and not `allNotes`: the tempo being
   // walked governs this scope, so the note that dates its boundary must be one it governs.
   //
   // Indexed by date once rather than scanned per segment, which would make placing a map
   // O(tempos x notes) — and every consumer of a tick position places the map first. The first
   // note on a date wins, which is the note a linear `find` answers with.
   const anchorByDate = new Map<number, AlignedNote>();
-  for (const note of msm.notesInPart(scope)) {
+  for (const note of msm.in(scope).notes()) {
     if (!anchorByDate.has(note.date)) anchorByDate.set(note.date, note);
   }
 

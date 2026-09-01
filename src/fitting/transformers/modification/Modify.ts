@@ -110,7 +110,7 @@ export class Modify extends AbstractTransformer<ModifyOptions> {
       const ids = new Set(options.noteIDs);
       notes = msm.allNotes.filter((note) => ids.has(note['xml:id']));
     } else {
-      notes = msm.notesInRange(options.from, options.to, options.scope);
+      notes = msm.in(options.scope).notesInRange(options.from, options.to);
     }
 
     for (const note of notes) {

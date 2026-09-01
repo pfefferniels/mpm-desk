@@ -61,10 +61,10 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
     }
 
     const allRubatos = getInstructions(mpm, 'rubato', part)
-    const chords = msm.asChords(part)
+    const chords = msm.in(part).chords()
 
     const rubatoElements = allRubatos.map(rubato => {
-        const notes = msm.notesInPart(part)
+        const notes = msm.in(part).notes()
         // `@frameLength` is optional on a `<rubato>`: an instruction that carries no frame
         // inherits one from the `rubatoDef` it names, and the fitting pipeline models no defs,
         // so nothing is warped under one. Reading absence as a zero-length frame is what that

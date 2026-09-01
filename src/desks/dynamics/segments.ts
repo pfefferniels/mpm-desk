@@ -27,7 +27,7 @@ export interface DynamicsSegment {
  */
 export const extractDynamicsSegments = (msm: Alignment, part: Scope): DynamicsSegment[] => {
     const segments: DynamicsSegment[] = [];
-    msm.asChords(part).forEach((notes, date) => {
+    msm.in(part).chords().forEach((notes, date) => {
         if (!notes.length) return;
 
         for (const note of notes) {

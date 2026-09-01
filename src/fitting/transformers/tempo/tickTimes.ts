@@ -95,7 +95,7 @@ const addTickOnsets = (msm: Alignment, mpm: Mpm, times: TickTimes) => {
     const segments = placeTempos(msm, mpm, scope);
     if (segments.length === 0) continue;
 
-    for (const note of msm.notesInPart(scope)) {
+    for (const note of msm.in(scope).notes()) {
       const segment = segments.find((s) => coversDate(s, note.date));
       if (!segment) continue;
       const tickDate = dateAtMilliseconds(
@@ -132,7 +132,7 @@ const addTickDurations = (msm: Alignment, mpm: Mpm, times: TickTimes) => {
     const segments = placeTempos(msm, mpm, scope);
     if (segments.length === 0) continue;
 
-    for (const note of msm.notesInPart(scope)) {
+    for (const note of msm.in(scope).notes()) {
       const time = times.notes.get(note['xml:id']);
       if (time?.tickDate === undefined) continue;
       const release = tickAtMs(segments, note['milliseconds.date.end']);

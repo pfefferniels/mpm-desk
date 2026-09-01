@@ -287,10 +287,10 @@ describe('the desk registry', () => {
         });
 
         it('takes the desks that plot the recording away until one is aligned', () => {
-            // Every one of these draws `msm.end` wide over `msm.asChords()`, and both are empty
-            // before a recording is in: a blank surface with no gesture on it that writes
-            // anything. The gate is `aligned` and not `readings`, because a `<when>` outside a
-            // `<recording>` places its note while naming no reading.
+            // Every one of these draws `msm.end` wide over `msm.in(part).chords()`, and both
+            // are empty before a recording is in: a blank surface with no gesture on it that
+            // writes anything. The gate is `aligned` and not `readings`, because a `<when>`
+            // outside a `<recording>` places its note while naming no reading.
             const nothingPlayed = { ...FITTED, readings: 0, aligned: 0 };
 
             for (const aspect of PLOTS_THE_RECORDING) {

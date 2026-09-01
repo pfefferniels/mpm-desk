@@ -19,8 +19,10 @@ export const TempoVariance = ({ msm, part, beatLength }: { msm: Alignment; part:
     let prevOnset: Range | undefined;
     let prevDate: number | undefined;
 
+    const scoped = msm.in(part);
+
     for (let date = 0; date < msm.lastDate(); date += beatLength) {
-        const currentNotes = msm.notesAtDate(date, part);
+        const currentNotes = scoped.notesAtDate(date);
         if (!currentNotes.length) continue;
 
         const minOnset = Math.min(...currentNotes.map(onsetSeconds));
