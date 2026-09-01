@@ -22,6 +22,7 @@ import {
   type Scope,
 } from './types';
 import { PULSES_PER_WHOLE } from '../ppq';
+import { timeSignatureAt, type DatedTimeSignature } from '../timeSignature';
 
 /** `NaN`, `Infinity` and `-Infinity` as an attribute would be spelled. See {@link auditInstructions}. */
 const NON_FINITE = /([\w.:]+)="(-?Infinity|NaN)"/g;
@@ -205,9 +206,10 @@ export const fingerprintInstructions = (mpm: Mpm): Map<string, string> =>
  * force at a date and being *at* it are the same thing, and the filter has already answered. That
  * is a statement about MPM, not an omission.
  *
- * @param beatDenominator the note value one beat of an `<accentuationPatternDef>` is worth, as a
- * time-signature denominator. An MPM document does not carry the metre — the score does — so a
- * caller that knows it has to say, and 4 is the assumption rather than the truth. Spelling the
+ * @param signatures the score's `<timeSignatureMap>`. An MPM document does not carry the metre —
+ * the score does — so a caller that knows it has to say, and common time is the assumption rather
+ * than the truth. The whole map because a pattern is counted in the beats in force where it
+ * begins, which in a score with an anacrusis is not the first entry (issue #22). Spelling the
  * conversion `* 720 * 4 / 4` instead hides the denominator's place in the arithmetic as a
  * cancelling `4 / 4` (issue #42).
  */
@@ -216,7 +218,7 @@ export const instructionsEffectiveAtDate = <K extends InstructionType>(
   date: number,
   type: K,
   scope?: Scope,
-  beatDenominator = 4,
+  signatures: readonly DatedTimeSignature[] = [],
 ): Instruction<K>[] => {
   const scopes: Scope[] = scope !== undefined ? [scope] : scopesOf(mpm);
 
@@ -254,9 +256,11 @@ export const instructionsEffectiveAtDate = <K extends InstructionType>(
       if (running.loop || date < running.date + (running.frameLength ?? 0)) take(ongoing);
     } else if (running.type === 'accentuationPattern') {
       const def = getDefinition(mpm, 'accentuationPatternDef', running.accentuationPatternDefName);
-      // `@length` is in beats, and a beat is `4 * ppq / denominator` ticks — the same
-      // conversion espressivo's `MetricalAccentuationMap` makes when it renders the pattern.
-      if (def && date < running.date + (def.getLength() * PULSES_PER_WHOLE) / beatDenominator) {
+      // `@length` is in beats, and a beat is `4 * ppq / denominator` ticks under the signature
+      // the pattern begins in — the same conversion espressivo's `MetricalAccentuationMap` makes
+      // when it renders the pattern.
+      const denominator = timeSignatureAt(signatures, running.date)?.denominator ?? 4;
+      if (def && date < running.date + (def.getLength() * PULSES_PER_WHOLE) / denominator) {
         take(ongoing);
       }
     }

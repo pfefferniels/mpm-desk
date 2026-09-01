@@ -10,12 +10,8 @@
 import { Msm } from 'espressivo';
 import { Builder, type Element } from 'espressivo';
 import { descendantElements, requireAttributeValue } from 'espressivo';
-import {
-  Alignment,
-  type AlignedNote,
-  type AlignedPedal,
-  type DatedTimeSignature,
-} from '../../../src/fitting/alignment';
+import { Alignment, type AlignedNote, type AlignedPedal } from '../../../src/fitting/alignment';
+import type { DatedTimeSignature } from '../../../src/fitting/timeSignature';
 import { at } from '../../support/at';
 
 /** A recorded pedal: onset and release in milliseconds, and no symbolic date. */

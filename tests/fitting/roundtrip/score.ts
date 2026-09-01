@@ -1,4 +1,5 @@
-import { Alignment, type AlignedNote, type TimeSignature } from '../../../src/fitting/alignment';
+import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
+import type { TimeSignature } from '../../../src/fitting/timeSignature';
 
 export const PPQ = 720;
 /** One quarter note, the beat these scores are built on. */

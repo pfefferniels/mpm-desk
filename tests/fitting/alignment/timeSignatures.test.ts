@@ -61,8 +61,8 @@ describe('reading the map off the score', () => {
     expect(alignment.timeSignatures).toEqual(ANACRUSIS);
   });
 
-  test('reads the piece as the 4/4 it is in, not as its upbeat bar', () => {
-    expect(alignment.principalTimeSignature).toEqual({ date: 720, numerator: 4, denominator: 4 });
+  test('reads the metre the anacrusis gives way to off the second entry', () => {
+    expect(alignment.timeSignatureAt(720)).toEqual({ date: 720, numerator: 4, denominator: 4 });
   });
 });
 
@@ -80,7 +80,6 @@ describe('the signature governing a date', () => {
     const stateless = new Alignment([note('a', 0)]);
 
     expect(stateless.timeSignatureAt(0)).toBeUndefined();
-    expect(stateless.principalTimeSignature).toBeUndefined();
   });
 });
 

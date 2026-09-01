@@ -42,7 +42,7 @@ import {
     type StyleKind,
     type Tempo,
 } from 'espressivo';
-import type { Meter } from './score';
+import { beatTicksAt, type Meter } from './score';
 
 /** One dated instruction of the performance, as the viewer refers to it. */
 export interface Instruction {
@@ -222,8 +222,8 @@ export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader
      * `reachOf` looks the next one up.
      *
      * The `<accentuationPattern>` rule is espressivo's (`MetricalAccentuationMap.ts:167`),
-     * both halves: `@length` is counted in beats relative to the time-signature denominator
-     * rather than in ticks, and the next pattern bounds the span regardless of length or loop
+     * both halves: `@length` is counted in the beats in force where the pattern begins rather
+     * than in ticks, and the next pattern bounds the span regardless of length or loop
      * — `endDate` is that pattern's date, so it is kept here rather than trusted to the
      * caller's lookup.
      */
@@ -247,7 +247,7 @@ export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader
             if (length === undefined || length === null) return date;
             return Math.min(
                 accentuation.endDate,
-                accentuation.startDate + (length * 4 * meter.ppq) / meter.denominator,
+                accentuation.startDate + length * beatTicksAt(meter, accentuation.startDate),
             );
         }
 

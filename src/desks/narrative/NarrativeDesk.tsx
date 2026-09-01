@@ -108,12 +108,10 @@ export const NarrativeDesk = ({ msm, mpm, projected, performanceXml }: ViewProps
         () =>
             readPerformance(performanceXml, {
                 ppq: PULSES_PER_QUARTER,
-                denominator: msm.principalTimeSignature?.denominator ?? 4,
+                signatures: msm.timeSignatures,
             }),
         [performanceXml, msm],
     );
-
-    const beatLength = (4 * performance.meter.ppq) / performance.meter.denominator;
 
     /** A claim acting on a single point still has to be drawn over something. */
     const minPointSpan = useMemo(() => pointSpanFallback([...projected]), [projected]);
@@ -389,7 +387,6 @@ export const NarrativeDesk = ({ msm, mpm, projected, performanceXml }: ViewProps
                                 overwritten={bySegment.get(segment.id)?.overwritten ?? 0}
                                 performance={performance}
                                 minPointSpan={minPointSpan}
-                                beatLength={beatLength}
                                 activeCallIds={activeCallIds}
                                 playing={
                                     playingSegmentIds.has(segment.id) ||

@@ -8,11 +8,12 @@ import { usePlayback, type PlaybackNoteEvent } from '../hooks/PlaybackProvider';
 import { useCallSelection } from '../hooks/CallSelection';
 import { useScrollSync } from '../hooks/ScrollSyncProvider';
 import { setsEqual } from '../utils/utils';
+import type { DatedTimeSignature } from '../fitting/timeSignature';
 
 interface FollowPlaybackProps {
     mpm: Mpm;
-    /** The time-signature denominator an `<accentuationPattern>`'s length is counted against. */
-    beatDenominator: number;
+    /** The score's metre, which is what an `<accentuationPattern>`'s length is counted in. */
+    signatures: readonly DatedTimeSignature[];
 }
 
 /**
@@ -33,7 +34,7 @@ interface FollowPlaybackProps {
  * A preview scoped to particular instructions — a narrative chip, a word in the viewer — is
  * left alone: the reader asked for those and is looking at them already.
  */
-export const FollowPlayback = ({ mpm, beatDenominator }: FollowPlaybackProps) => {
+export const FollowPlayback = ({ mpm, signatures }: FollowPlaybackProps) => {
     const { subscribeNoteEvents } = usePlayback();
     const { setActiveCallIds, callForElement } = useCallSelection();
     const { scrollToDate } = useScrollSync();
@@ -42,7 +43,7 @@ export const FollowPlayback = ({ mpm, beatDenominator }: FollowPlaybackProps) =>
         if (scoped) return;
         const sounding = new Set<string>();
         for (const type of instructionTypes) {
-            const effective = instructionsEffectiveAtDate(mpm, date, type, undefined, beatDenominator);
+            const effective = instructionsEffectiveAtDate(mpm, date, type, undefined, signatures);
             for (const instruction of effective) {
                 if (instruction.id === undefined) continue;
                 const owner = callForElement(instruction.id);

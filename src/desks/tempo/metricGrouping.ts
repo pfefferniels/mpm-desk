@@ -8,7 +8,7 @@
  * this module makes reaches the work file, and a box of any kind reaches the MPM only as the
  * drawn curve somebody fits on top of it.
  */
-import type { DatedTimeSignature, TimeSignature } from "../../fitting/alignment"
+import type { DatedTimeSignature, TimeSignature } from "../../fitting/timeSignature"
 import { PULSES_PER_WHOLE } from "../../fitting/ppq"
 import type { Range } from "./Tempo"
 

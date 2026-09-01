@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Divider, Paper, Popper, Stack, type PopperPlacementType } from "@mui/material";
 import type { Segment, Span } from "../model/Reconstruction";
 import { controllerOf, type PerformanceReader } from "../utils/mpm";
+import { beatTicksAt } from "../utils/score";
 import { beatGrid, tickRange, timelineRows } from "./StackModel";
 import { dynamicsCurve, pedalCurve, tempoCurve, type CurvePoint } from "./instructionCurves";
 import { getLaneColor } from "./spanColors";
@@ -183,8 +184,6 @@ interface SegmentTimelineProps {
     mpm: PerformanceReader;
     /** Gives a segment that acts on a single point a width to be drawn over. */
     minPointSpan: number;
-    /** One beat in ticks, for the grid behind the rows. */
-    beatLength: number;
     /** The gesture the pointer is on, and how to say so — null while the card is untouchable. */
     hovered: Span | null;
     onHover: ((span: Span | null) => void) | null;
@@ -226,7 +225,6 @@ export const SegmentTimeline = ({
     segment,
     mpm,
     minPointSpan,
-    beatLength,
     hovered,
     onHover,
     trackWidth = TRACK_WIDTH,
@@ -276,6 +274,9 @@ export const SegmentTimeline = ({
     }, [segment, from, to, mpm, trackWidth]);
 
     const height = rows.reduce((sum, row) => sum + row.height, 0);
+    // The beat in force where the axis begins. A card covers one segment, so this is the metre
+    // that segment is in rather than a reading of the whole score.
+    const beatLength = beatTicksAt(mpm.meter, from);
     const grid = useMemo(
         () => beatGrid(from, to, beatLength, trackWidth),
         [from, to, beatLength, trackWidth],
@@ -457,7 +458,6 @@ interface SegmentTimelinePopoverProps {
     /** Above a word that leans down, below one that leans up — never over it. */
     placement: PopperPlacementType;
     minPointSpan: number;
-    beatLength: number;
     /**
      * Whether the card can be touched.
      *
@@ -494,7 +494,6 @@ export const SegmentTimelinePopover = ({
     anchorEl,
     placement,
     minPointSpan,
-    beatLength,
     interactive,
 }: SegmentTimelinePopoverProps) => {
     const [hovered, setHovered] = useState<Span | null>(null);
@@ -547,7 +546,6 @@ export const SegmentTimelinePopover = ({
                                 segment={segment}
                                 mpm={mpm}
                                 minPointSpan={minPointSpan}
-                                beatLength={beatLength}
                                 hovered={hovered}
                                 onHover={interactive ? setHovered : null}
                             />

@@ -28,7 +28,6 @@ interface SegmentGesturesProps {
     gestures: Gestures | undefined;
     mpm: PerformanceReader;
     minPointSpan: number;
-    beatLength: number;
 }
 
 /**
@@ -50,12 +49,7 @@ interface SegmentGesturesProps {
  * - **The quotation hangs over the rows below**, out of the table's flow. Laid out inside the
  *   cell it would grow the row on hover, which moves the very lane the pointer is on.
  */
-export const SegmentGestures = ({
-    gestures,
-    mpm,
-    minPointSpan,
-    beatLength,
-}: SegmentGesturesProps) => {
+export const SegmentGestures = ({ gestures, mpm, minPointSpan }: SegmentGesturesProps) => {
     const [hovered, setHovered] = useState<Span | null>(null);
 
     if (!gestures) {
@@ -75,7 +69,6 @@ export const SegmentGestures = ({
                 segment={gestures}
                 mpm={mpm}
                 minPointSpan={minPointSpan}
-                beatLength={beatLength}
                 hovered={hovered}
                 onHover={setHovered}
                 trackWidth={TRACK}

@@ -16,8 +16,6 @@ interface SegmentRowProps {
     performance: PerformanceReader;
     /** Gives a segment that acts on a single point a width to be drawn over. */
     minPointSpan: number;
-    /** One beat in ticks, for the grid behind the drawn lanes. */
-    beatLength: number;
     activeCallIds: Set<string>;
     /** The playhead is inside this claim, or one of its instructions is being auditioned. */
     playing: boolean;
@@ -62,7 +60,6 @@ export const SegmentRow = memo(
         overwritten,
         performance,
         minPointSpan,
-        beatLength,
         activeCallIds,
         playing,
         playingInstructionId,
@@ -142,7 +139,6 @@ export const SegmentRow = memo(
                         gestures={gestures}
                         mpm={performance}
                         minPointSpan={minPointSpan}
-                        beatLength={beatLength}
                     />
                     {overwritten > 0 && (
                         <div

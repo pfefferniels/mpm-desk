@@ -42,7 +42,6 @@ const render = async (segment: Segment | undefined) => {
                 gestures={segment}
                 mpm={mpm}
                 minPointSpan={720}
-                beatLength={720}
             />,
         );
     });

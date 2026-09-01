@@ -3,6 +3,7 @@ import { Msm } from 'espressivo';
 import { isDefined } from './utils';
 import { PULSES_PER_QUARTER } from './ppq';
 import { elementAt } from 'espressivo';
+import { timeSignatureAt, type DatedTimeSignature } from './timeSignature';
 
 /**
  * When the recording sounds an event, in the two attributes MSM states a performance in:
@@ -77,16 +78,6 @@ export type AlignedNote = {
  */
 export type ChordMap = Map<number, AlignedNote[]>;
 
-export interface TimeSignature {
-  numerator: number;
-  denominator: number;
-}
-
-/** One entry of a `<timeSignatureMap>`: a signature and the tick it takes effect at. */
-export interface DatedTimeSignature extends TimeSignature {
-  date: number;
-}
-
 /**
  * What to call each part, by the `@number` it carries — 1-based, i.e. {@link AlignedNote.part}.
  *
@@ -115,9 +106,8 @@ export class Alignment {
    * The score's time signatures, ascending by date — the whole map, not its first entry.
    *
    * A score with an anacrusis states the upbeat bar first and the metre of the piece second, so
-   * one entry is one bar of it. What reads this wants either the signature governing a date
-   * ({@link timeSignatureAt}) or, where a reader takes a single metre for a whole document,
-   * {@link principalTimeSignature}.
+   * one entry is one bar of it. Ask {@link Alignment.timeSignatureAt} for the one governing a
+   * date; there is no single signature to be had.
    */
   timeSignatures: DatedTimeSignature[];
 
@@ -139,35 +129,9 @@ export class Alignment {
       : [];
   }
 
-  /**
-   * The signature governing `date`, or `undefined` where the score states none by then.
-   *
-   * The last entry that has taken effect, which is how MSM's maps are read throughout: an entry
-   * governs from its own date until the next one displaces it.
-   */
+  /** The signature governing `date`; see {@link timeSignatureAt}. */
   public timeSignatureAt(date: number): DatedTimeSignature | undefined {
-    return this.timeSignatures.findLast((signature) => signature.date <= date);
-  }
-
-  /**
-   * The one signature to hand a reader that takes a single metre for a whole document: whichever
-   * governs the most ticks of it.
-   *
-   * A compromise, and it is only ever right about the metre a score keeps. It settles the
-   * anacrusis for the reason the anacrusis is a special case — an upbeat bar is short — and it
-   * says nothing useful about a score that changes metre halfway. A reader that can ask per date
-   * should ask {@link timeSignatureAt} instead.
-   */
-  public get principalTimeSignature(): DatedTimeSignature | undefined {
-    const end = this.end;
-    const governed = this.timeSignatures.map((signature, index) => ({
-      signature,
-      ticks: (this.timeSignatures[index + 1]?.date ?? end) - signature.date,
-    }));
-    return governed.reduce<(typeof governed)[number] | undefined>(
-      (longest, entry) => (longest === undefined || entry.ticks > longest.ticks ? entry : longest),
-      undefined,
-    )?.signature;
+    return timeSignatureAt(this.timeSignatures, date);
   }
 
   /**

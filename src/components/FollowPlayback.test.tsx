@@ -120,7 +120,7 @@ const mount = async () => {
                 >
                     <Selection>
                         <ScrollSyncProvider symbolicZoom={20}>
-                            <FollowPlayback mpm={mpm} beatDenominator={4} />
+                            <FollowPlayback mpm={mpm} signatures={[{ date: 0, numerator: 4, denominator: 4 }]} />
                             <Capture />
                         </ScrollSyncProvider>
                     </Selection>

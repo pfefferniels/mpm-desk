@@ -76,7 +76,6 @@ describe('an Alignment copy is independent of its original', () => {
     expect(original.timeSignatures).toEqual([]);
 
     expect(original.deepClone().timeSignatures).toEqual([]);
-    expect(original.deepClone().principalTimeSignature).toBeUndefined();
   });
 
   test('the signature map copies entry by entry, as separate objects', () => {

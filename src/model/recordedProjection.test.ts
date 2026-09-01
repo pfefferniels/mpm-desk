@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { outcomesOf, projectReconstruction } from './Reconstruction';
 import { parseWorkFile } from './Work';
 import { readPerformance } from '../utils/mpm';
-import { readMeter } from '../utils/score';
+import { beatTicksAt, readMeter } from '../utils/score';
 
 /**
  * The viewer draws the tree from the work file and the MPM, with no chain.
@@ -103,8 +103,8 @@ describe('the projection the viewer derives', () => {
         const dateById = new Map(
             performance.instructions.map((instruction) => [instruction.id, instruction.date]),
         );
-        const beat = (4 * performance.meter.ppq) / performance.meter.denominator;
-        const slack = 2 * performance.meter.denominator * beat;
+        const beat = beatTicksAt(performance.meter, 0);
+        const slack = 8 * beat;
 
         for (const segment of reconstruction.segments)
             for (const span of segment.spans)

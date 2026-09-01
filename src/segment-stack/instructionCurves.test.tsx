@@ -191,7 +191,6 @@ describe('the shape of a row', () => {
                 anchorEl={anchorEl}
                 placement="top"
                 minPointSpan={minPointSpan}
-                beatLength={(4 * mpm.meter.ppq) / mpm.meter.denominator}
                 interactive
             />
         )

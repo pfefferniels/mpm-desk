@@ -120,12 +120,13 @@ describe("an accentuation pattern's span", () => {
   test('six eighth-note beats reach three quarters, not six', () => {
     const mpm = withPattern(6);
     const barIn68 = (PULSES_PER_WHOLE * 6) / 8;
+    const sixEight = [{ date: 0, numerator: 6, denominator: 8 }];
 
     expect(
-      instructionsEffectiveAtDate(mpm, barIn68 - 1, 'accentuationPattern', 'global', 8),
+      instructionsEffectiveAtDate(mpm, barIn68 - 1, 'accentuationPattern', 'global', sixEight),
     ).toHaveLength(1);
     expect(
-      instructionsEffectiveAtDate(mpm, barIn68, 'accentuationPattern', 'global', 8),
+      instructionsEffectiveAtDate(mpm, barIn68, 'accentuationPattern', 'global', sixEight),
     ).toHaveLength(0);
 
     // Read as quarters — the old, unconditional assumption — the same pattern claims twice

@@ -374,9 +374,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
      */
     const cardPlacement = cardSegments.some(s => labelById.get(s.id)?.side === -1) ? "bottom" : "top";
 
-    /** One beat in ticks, counted the way the score's own metre counts it. */
-    const beatLength = (4 * mpm.meter.ppq) / mpm.meter.denominator;
-
     /**
      * The tree, split into what is spotlit and what is stepping back.
      *
@@ -519,7 +516,6 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                     anchorEl={cardAnchorEl}
                     placement={cardPlacement}
                     minPointSpan={minPointSpan}
-                    beatLength={beatLength}
                     interactive={lockedSegments.length > 0}
                 />
             )}
