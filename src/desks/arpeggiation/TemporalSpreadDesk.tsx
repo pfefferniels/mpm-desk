@@ -18,6 +18,7 @@ import { TempoVariance } from "./TempoVariance";
 import { TemporalSpreadInstruction } from "./TemporalSpreadInstruction";
 import { useTimeMapping } from "../../hooks/useTimeMapping";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { useNumberField } from "../../hooks/useNumberField";
 import { SilentOrnaments } from "../SilentOrnaments";
 
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
@@ -30,25 +31,18 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     // these are being defined in the drawer
     const [currentDate, setCurrentDate] = useState<number>()
     const [placement, setPlacement] = useState<ArpeggioPlacement>('estimate');
-    const [durationThreshold, setDurationThreshold] = useState<number>()
 
-    // this is used for drawing the preview of a tempo curve
     /**
-     * The beat the tempo-curve preview is drawn against, as typed and as read.
+     * How long a chord's roll has to be, in ms, before the default insert writes a spread for it.
      *
-     * Two values rather than one, because a number field has a state no number represents: the
-     * empty box you are halfway through retyping. Holding only the number meant rejecting `''` on
-     * the way in, and a controlled input restores its DOM value from the state it was given — so
-     * backspacing through `720` stopped dead at `7` and the box could never be cleared.
-     *
-     * So the text is what the field holds and the number is derived from it, falling back to the
-     * last sensible beat while the box is empty or mid-edit. `averageBPM` divides by this, so a
-     * zero would take the whole preview to infinity.
+     * Zero is a real setting — spread every chord whose onsets are not exactly simultaneous — so
+     * the floor is inclusive, and only a box that is empty or holds nonsense falls back to 35.
      */
-    const [beatLengthText, setBeatLengthText] = useState('720');
-    const parsedBeatLength = Number(beatLengthText);
-    const beatLength =
-        Number.isFinite(parsedBeatLength) && parsedBeatLength > 0 ? parsedBeatLength : 720;
+    const durationThreshold = useNumberField(35, value => value >= 0);
+
+    // Only ever the tempo-curve preview under the chords: no transformer reads this.
+    // `averageBPM` divides by it, so a zero would take the whole preview to infinity.
+    const beatLength = useNumberField(720, value => value > 0);
 
     const stretchX = usePhysicalZoom()
     const { tickToSeconds } = useTimeMapping(msm)
@@ -70,8 +64,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
         const totalTicks = lastNote.date - firstNote.date
         const totalSeconds = onsetSeconds(lastNote) - onsetSeconds(firstNote)
         if (totalSeconds <= 0 || totalTicks <= 0) return 120
-        return (totalTicks / beatLength) / (totalSeconds / 60)
-    }, [msm, beatLength])
+        return (totalTicks / beatLength.value) / (totalSeconds / 60)
+    }, [msm, beatLength.value])
 
     const scrollContainerRef = useScrollRegistration('temporal-spread-desk', 'physical');
 
@@ -113,7 +107,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                 scope: part,
                 placement,
                 noteOffShiftTolerance: 2,
-                durationThreshold: 35
+                durationThreshold: durationThreshold.value
             }))
         }
     }
@@ -227,8 +221,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                         label='Beat Length'
                         type='number'
                         width={84}
-                        value={beatLengthText}
-                        onChange={setBeatLengthText}
+                        value={beatLength.text}
+                        onChange={beatLength.setText}
                     />
                 </ToolGroup>
                 {/*
@@ -255,7 +249,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                         <TempoVariance
                             msm={msm}
                             part={part}
-                            beatLength={beatLength}
+                            beatLength={beatLength.value}
                         />
                         {tickToSeconds && tickBasedSpreads.length > 0 && (
                             <g transform={`translate(0, ${height + 10})`}>
@@ -270,7 +264,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                                         height={instructionHeight}
                                         active={ornament.id !== undefined && activeElements.includes(ornament.id)}
                                         onClick={() => ornament.id && setActiveElement(ornament.id)}
-                                        beatLength={beatLength}
+                                        beatLength={beatLength.value}
                                         refBPM={averageBPM}
                                     />
                                 ))}
@@ -310,10 +304,11 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                         {insert === 'default' && (
                             <FormControl>
                                 <TextField
-                                    label="Duration Threshold"
+                                    label="Duration Threshold (ms)"
+                                    helperText="Chords rolled faster than this are left alone"
                                     type="number"
-                                    value={durationThreshold}
-                                    onChange={(e) => setDurationThreshold(Number(e.target.value))}
+                                    value={durationThreshold.text}
+                                    onChange={(e) => durationThreshold.setText(e.target.value)}
                                     InputLabelProps={{ shrink: true }}
                                     variant="outlined"
                                     fullWidth

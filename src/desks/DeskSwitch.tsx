@@ -388,6 +388,11 @@ export const correspondingDesks: DeskEntry[] = [
                 { gesture: 'Hover a chord', does: 'sound it, and read its frame in ms' },
                 { gesture: 'Click a chord', does: 'select it for Insert' },
                 {
+                    gesture: 'Insert Default',
+                    does: "spread every chord in the scope whose roll is longer than the dialog's "
+                        + 'Duration Threshold, in ms',
+                },
+                {
                     gesture: 'Hover a written spread',
                     does: 'audition the roll as that ornament specifies it',
                 },
