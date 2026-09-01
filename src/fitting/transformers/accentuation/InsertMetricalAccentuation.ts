@@ -72,18 +72,31 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
    * The residual velocity at each beat of one cell, numbered the way the renderer numbers
    * beats.
    *
-   * `denominator * beat + 1` is the same grid espressivo's `MetricalAccentuationMap` reads the
-   * pattern back on: it computes `1 + (date − tsDate) % measureTicks / ticksPerBeat` with
-   * `ticksPerBeat = 4 * ppq / denominator`, so one beat is one denominator-note in both
-   * directions. (Issue #42 reported the two halves disagreeing, one of them reading beats back
-   * in quarters. The residual is derived by rendering the document through espressivo, so the
-   * reader *is* the renderer and there is one grid to agree with.)
+   * The beat is espressivo's own expression, `1 + (date − tsDate) % patternTicks / ticksPerBeat`
+   * with `ticksPerBeat = 4 · ppq / denominator`, computed on the same tick — so the two agree
+   * bit for bit, which matters: `AccentuationPatternDef.getAccentuationAt` tests a beat position
+   * with `===` and interpolates where it misses. (Issue #42 reported the two halves disagreeing,
+   * one of them reading beats back in quarters. The residual is derived by rendering the document
+   * through espressivo, so the reader *is* the renderer and there is one grid to agree with.)
    *
    * The loop counts beats as integers and converts each to ticks once, rather than
    * accumulating `beat += beatLength`. A triplet basis is not representable in binary, so an
    * accumulated position drifts — and `notesAtDate` compares dates with `===`, so a drifted
    * date silently matches no note at all. Rounding to the tick is exact for every basis,
    * because score dates are integers in ticks.
+   *
+   * ## The phase is the time signature's, not the cell's
+   *
+   * The renderer counts from the date of the signature in force, in steps of the pattern's own
+   * length (`@stickToMeasures="false"`, which {@link transform} writes) — never from the
+   * instruction. So a cell whose start is a whole number of its own lengths from that date has
+   * its first sample on beat 1, and one that is not begins mid-cycle: a cell of a dotted quarter
+   * starting an eighth into the cycle opens on beat 1.5 and wraps round to beat 1 before it ends.
+   *
+   * Numbering the samples from the cell instead put the accentuations at beats the renderer
+   * indexes elsewhere, which is a pattern sounding rotated against the one that was fitted —
+   * 11 of the 50 cells in the shipped reconstruction, all of them the 1.5- and 2.5-beat readings
+   * a hemiola is made of (issue #47).
    */
   private extractVelocities(
     { from: start, to: end, beatLength }: InsertMetricalAccentuationOptions,
@@ -93,11 +106,15 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
     const velocities: Velocity[] = [];
     if (beatLength <= 0) return velocities;
 
-    // The signature governing the cell, which is the one the renderer will read this pattern
-    // back under. A score may state none, and `Alignment.build()` publishes 4/4 where it does;
-    // beat numbers have to be counted in the same bar the score will be published in, or the
-    // pattern would be indexed against a metre nobody sees.
-    const denominator = msm.timeSignatureAt(start)?.denominator || 4;
+    // A score may state no signature, and `Alignment.build()` publishes 4/4 where it does not;
+    // espressivo starts a render at 4/4 from tick 0 for the same reason. Beats have to be
+    // counted in the same metre the score will be published in, or the pattern would be indexed
+    // against one nobody sees.
+    const signature = msm.timeSignatureAt(start);
+    const beatTicks = PULSES_PER_WHOLE / (signature?.denominator || 4);
+    // The pattern's own length, which is the cell's: a cell of no length is no cycle to count in.
+    const patternTicks = end - start;
+    if (patternTicks <= 0) return velocities;
 
     for (let index = 0; ; index++) {
       const beat = index * beatLength;
@@ -114,7 +131,7 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
         velocityChanges.reduce((acc, change) => acc + change, 0) / velocityChanges.length;
 
       velocities.push({
-        beat: denominator * beat + 1,
+        beat: 1 + (((date - (signature?.date ?? 0)) % patternTicks) / beatTicks),
         avgVelocityChange,
       });
     }
@@ -125,6 +142,20 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
     return Math.max(...velocities.map((v) => Math.abs(v.avgVelocityChange)));
   }
 
+  /**
+   * The samples as one cycle of the pattern: an accentuation per beat, each ramping to the next.
+   *
+   * Ascending by beat, which is both the order `AccentuationPatternDef.getAccentuationAt` reads
+   * them in — it walks the list assuming it ascends — and the order the ramps run along. A cell
+   * that starts mid-cycle wraps, so beat order and the order the samples were taken in are not
+   * the same, and a cell that starts on the cycle is unaffected: there the two coincide.
+   *
+   * The closing sample, taken at the cell's end, measures the beat the cycle wraps to one cycle
+   * on. It is what the last accentuation ramps towards, which is what MPM does with it: the last
+   * segment runs to `length + 1.0`, the same position as beat 1 of the next cycle. Where the cell
+   * wraps, that closing sample measures some beat mid-pattern instead, and the wrap target is the
+   * first accentuation of the cycle.
+   */
   private calculateAccentuations(
     velocities: Velocity[],
     neutralEnd?: boolean,
@@ -132,24 +163,25 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
     const scale = this.calculateScale(velocities);
     if (scale === 0) return [];
 
-    return velocities
-      .map((v, i, arr) => {
-        const next = arr[i + 1];
-        if (next === undefined) return null;
+    const cycle = velocities.slice(0, -1).sort((a, b) => a.beat - b.beat);
+    const closing = velocities[velocities.length - 1];
+    const first = cycle[0];
+    if (first === undefined || closing === undefined) return [];
 
-        const transitionTo =
-          i === arr.length - 2 && neutralEnd ? 0 : next.avgVelocityChange / scale;
+    const wrap = closing.beat === first.beat ? closing : first;
 
-        const scaled = v.avgVelocityChange / scale;
-        return {
-          id: `accentuation_${v4()}`,
-          beat: v.beat,
-          value: scaled,
-          transitionFrom: scaled,
-          transitionTo,
-        };
-      })
-      .filter((a) => a !== null);
+    return cycle.map((sample, index) => {
+      const last = index === cycle.length - 1;
+      const next = cycle[index + 1] ?? wrap;
+      const scaled = sample.avgVelocityChange / scale;
+      return {
+        id: `accentuation_${v4()}`,
+        beat: sample.beat,
+        value: scaled,
+        transitionFrom: scaled,
+        transitionTo: last && neutralEnd ? 0 : next.avgVelocityChange / scale,
+      };
+    });
   }
 
   /** An `accentuationPatternDef` carrying these accentuations. */

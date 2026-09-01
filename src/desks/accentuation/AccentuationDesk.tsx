@@ -121,6 +121,15 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
         [msm],
     )
 
+    /**
+     * A cell is a stretch, and a pattern cycles on its length: one of no length is no pattern.
+     *
+     * Nothing else is asked of it. A cell that starts mid-cycle — a dotted quarter an eighth into
+     * the bar, the stuff hemiolas are made of — is fitted at the phase it will be read on, so
+     * where it begins is the reader's business and not the format's (issue #47).
+     */
+    const fittable = candidate !== undefined && candidate.to > candidate.from
+
     const patterns = useMemo(() => getInstructions(mpm, 'accentuationPattern', part)
         .map(i => {
             const def = getDefinition(mpm, 'accentuationPatternDef', i.accentuationPatternDefName)
@@ -266,10 +275,12 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                         primary
                         icon={<Add fontSize='small' />}
                         label='Insert'
-                        tooltip={candidate
-                            ? 'Fit a metrical accentuation pattern to the candidate range'
-                            : 'Click a dot on the plot to mark a candidate range first'}
-                        disabled={!candidate}
+                        tooltip={!candidate
+                            ? 'Click a dot on the plot to mark a candidate range first'
+                            : fittable
+                                ? 'Fit a metrical accentuation pattern to the candidate range'
+                                : 'Shift-click a second dot to give the candidate a length'}
+                        disabled={!candidate || !fittable}
                         onClick={() => setInsertDialogOpen(true)}
                     >
                         Insert
@@ -345,7 +356,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                             stretchX={stretchX}
                             stretchY={stretchY}
                             getScreenY={getScreenY}
-                            denominator={msm.timeSignatureAt(pattern.date)?.denominator || 4}
+                            signature={msm.timeSignatureAt(pattern.date)}
                             onClick={(e) => {
                                 if (e.shiftKey) {
                                     if (selectedPatterns.includes(pattern)) {

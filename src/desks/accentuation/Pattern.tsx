@@ -1,5 +1,7 @@
 import { MouseEventHandler, useState } from "react"
 import { Instruction } from "../../fitting/instructions/index"
+import { PULSES_PER_WHOLE } from "../../fitting/ppq"
+import type { DatedTimeSignature } from "../../fitting/timeSignature"
 import { Accentuation } from "./AccentuationDesk"
 
 interface PatternProps {
@@ -7,13 +9,18 @@ interface PatternProps {
     stretchX: number
     stretchY: number
     getScreenY: (velocity: number) => number
-    denominator: number
+    /** The signature governing the pattern — the beat it is counted in, and the phase it is read on. */
+    signature: DatedTimeSignature | undefined
     onClick?: MouseEventHandler
     selected: boolean
 }
 
-export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, onClick, selected }: PatternProps) => {
+export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, signature, onClick, selected }: PatternProps) => {
     const [hovered, setHovered] = useState(false)
+
+    const denominator = signature?.denominator ?? 4
+    const beatTicks = PULSES_PER_WHOLE / denominator
+    const patternTicks = pattern.length * beatTicks
 
     // No test for an absent number: all three are always numbers, because the def fills them in
     // while parsing. `NaN` does have to be filtered, though: espressivo parses the literal
@@ -27,8 +34,22 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
     const posMin = Math.min(...allPositions) * pattern.scale
     const posMax = Math.max(...allPositions) * pattern.scale
 
-    const beatToTick = (beat: number) => {
-        return ((beat - 1) * 4 * 720) / denominator
+    /**
+     * Where the renderer sounds a beat of this pattern.
+     *
+     * espressivo counts the pattern from the date of the time signature in force, in steps of the
+     * pattern's own length (`@stickToMeasures="false"`, which is what the desk writes) — never
+     * from the instruction's `@date`. So a beat sits on the grid `tsDate + k · patternTicks`, and
+     * this takes its first occurrence at or after the date the pattern starts applying.
+     *
+     * For a cell whose start is a whole number of pattern lengths from the signature — every one
+     * the desk lets you fit — that is `date + (beat − 1) · beatTicks`, which is where the beats
+     * were always drawn. A pattern fitted before the desk checked (issue #47) draws off its own
+     * box, which is exactly what it does when it sounds.
+     */
+    const tickOf = (beat: number) => {
+        const raw = (signature?.date ?? 0) + (beat - 1) * beatTicks
+        return raw + Math.ceil((pattern.date - raw) / patternTicks) * patternTicks
     }
 
     return (
@@ -47,7 +68,7 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
             <rect
                 x={pattern.date * stretchX}
                 y={getScreenY(posMax)}
-                width={((pattern.length * 4 * 720 / denominator) * stretchX)}
+                width={patternTicks * stretchX}
                 height={getScreenY(posMin) - getScreenY(posMax)}
                 fill='red'
                 fillOpacity={(hovered || selected) ? 0.6 : 0.2}
@@ -83,9 +104,9 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
                 return (
                     <line
                         key={`accentuation_${pattern.date}_${i}`}
-                        x1={(pattern.date + beatToTick(child.beat)) * stretchX}
+                        x1={tickOf(child.beat) * stretchX}
                         y1={getScreenY(from * pattern.scale)}
-                        x2={(pattern.date + beatToTick(nextBeat)) * stretchX}
+                        x2={(tickOf(child.beat) + (nextBeat - child.beat) * beatTicks) * stretchX}
                         y2={getScreenY(to * pattern.scale)}
                         fill='red'
                         fillOpacity={0.5}
@@ -98,7 +119,7 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
             {(hovered && pattern.loop) && (
                 <g>
                     <rect
-                        x={(pattern.date + (pattern.length * 4 * 720) / denominator) * stretchX - 2}
+                        x={(pattern.date + patternTicks) * stretchX - 2}
                         y={getScreenY(1)}
                         width={40}
                         height={1.5 * stretchY}
@@ -106,7 +127,7 @@ export const Pattern = ({ pattern, stretchX, stretchY, getScreenY, denominator, 
                         fillOpacity={0.7}
                     />
                     <text
-                        x={(pattern.date + (pattern.length * 4 * 720) / denominator) * stretchX}
+                        x={(pattern.date + patternTicks) * stretchX}
                         y={getScreenY(0)}
                         fontSize={10}
                         fill="black"

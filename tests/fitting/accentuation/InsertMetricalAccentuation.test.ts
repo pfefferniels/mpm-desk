@@ -8,7 +8,7 @@ import {
   requireMap,
 } from '../../../src/fitting/instructions/index';
 import { InsertMetricalAccentuation } from '../../../src/fitting/transformers/accentuation/index';
-import { PULSES_PER_QUARTER } from '../../../src/fitting/ppq';
+import { PULSES_PER_QUARTER, PULSES_PER_WHOLE } from '../../../src/fitting/ppq';
 import { at } from '../../support/at';
 
 /**
@@ -137,10 +137,10 @@ describe('the fixture drives the loop it claims to', () => {
 describe('the cell is the cycle, not the bar', () => {
   /**
    * MPM's default is `stickToMeasures="true"` (`accentuationPattern.xml`:
-   * `<defaultVal>true</defaultVal>`), which re-aligns the pattern at every barline. A cell
-   * fitted here is not a bar — `extractVelocities` numbers its beats from the cell's own start
-   * and the loop repeats it on its own length — so the pattern the fitter means is one that
-   * cycles on `@length`, and the attribute has to be written to say so.
+   * `<defaultVal>true</defaultVal>`), which re-aligns the pattern at every barline. A cell fitted
+   * here is not a bar — the loop repeats it on its own length, and `extractVelocities` numbers
+   * its beats on that cycle — so the pattern the fitter means is one that cycles on `@length`,
+   * and the attribute has to be written to say so.
    */
   test('every pattern written says it does not re-align at the barline', () => {
     const { msm, mpm } = fixture([10, 20, 30]);
@@ -149,6 +149,71 @@ describe('the cell is the cycle, not the bar', () => {
     const written = getInstructions(mpm, 'accentuationPattern', 'global');
     expect(written.length).toBeGreaterThan(1);
     expect(written.map((pattern) => pattern.stickToMeasures)).toEqual(written.map(() => false));
+  });
+});
+
+/**
+ * A cell need not start where its own cycle does.
+ *
+ * espressivo counts a pattern from the date of the time signature in force, in steps of the
+ * pattern's own length — so a dotted-quarter cell beginning an eighth into the bar opens on beat
+ * 1.5 and comes round to beat 1 before it ends. Numbered from the cell instead, the accentuations
+ * were written at beats the renderer indexes elsewhere and the pattern sounded rotated against
+ * the one that had been fitted (issue #47).
+ */
+describe('a cell that starts mid-cycle', () => {
+  const EIGHTH = PULSES_PER_QUARTER / 2;
+  /** The residual at 360, 720, 1080 and 1440 ticks. Distinct, so each beat names its own sample. */
+  const RESIDUALS = [3, 9, 6, 3];
+
+  const offsetFixture = () => {
+    const notes = RESIDUALS.map(
+      (residual, index) =>
+        ({
+          ...note(0, VOLUME + residual),
+          'xml:id': `o_${index}`,
+          date: (index + 1) * EIGHTH,
+          'milliseconds.date': (index + 1) * 250,
+          'milliseconds.date.end': (index + 1) * 250 + 250,
+        }) as AlignedNote,
+    );
+
+    const msm = new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
+    const mpm = createMpm();
+    requireMap(mpm, 'tempo', 'global').addTempo({ id: 't1', date: 0, bpm: 120, beatLength: 0.25 });
+    requireMap(mpm, 'dynamics', 'global').addDynamics({ id: 'd1', date: 0, volume: VOLUME });
+    return { msm, mpm };
+  };
+
+  test('numbers its beats on the cycle the renderer reads, and writes them ascending', () => {
+    const { msm, mpm } = offsetFixture();
+
+    const transformer = new InsertMetricalAccentuation({
+      scope: 'global',
+      name: 'hemiola',
+      // A dotted quarter, starting an eighth after the signature: 360 ⇒ beat 1.5 of the cycle.
+      from: EIGHTH,
+      to: EIGHTH + 3 * EIGHTH,
+      beatLength: 0.125,
+      scaleTolerance: 0,
+    });
+    interface Transformable {
+      transform(msm: Alignment, mpm: Mpm): void;
+    }
+    (transformer as unknown as Transformable).transform(msm, mpm);
+
+    const def = getDefinitions(mpm, 'accentuationPatternDef', 'global').find(
+      (d) => d.getName() === 'hemiola',
+    )!;
+    const accentuations = def.getAllAccentuations().map((a) => a.key);
+
+    // Ascending, which is the order `getAccentuationAt` walks — and not the order the samples
+    // were taken in: the cell opens on 1.5 and wraps to 1 at its last sample.
+    expect(accentuations.map(([beat]) => beat)).toEqual([1, 1.5, 2]);
+
+    // Each beat carries the residual measured at the tick the renderer will sound it at: beat 1
+    // is the sample at 1080, beat 1.5 the one at 360, beat 2 the one at 720, over a scale of 9.
+    expect(accentuations.map(([, value]) => value)).toEqual([6 / 9, 3 / 9, 1]);
   });
 });
 
@@ -337,8 +402,18 @@ describe('a beat grid that is not a power of two', () => {
     // Seven samples, and an accentuation for every one but the last — which only names where
     // the one before it transitions to. The accumulating loop lost the samples at 3 and 6
     // beats, which is where the drift first shows.
+    //
+    // The expectation is the tick each sample was taken at, divided by the beat, because that is
+    // the arithmetic the renderer does — and `getAccentuationAt` compares a beat position with
+    // `===`, so a def written from `4 · index · beatLength + 1` instead can miss its own
+    // accentuation by an ulp and interpolate where it should have hit.
+    const beatTicks = PULSES_PER_WHOLE / 4;
     const beats = def.getAllAccentuations().map(({ key: [beat] }) => beat);
     expect(beats).toHaveLength(6);
-    expect(beats).toEqual([0, 1, 2, 3, 4, 5].map((index) => 4 * index * TRIPLET + 1));
+    expect(beats).toEqual(
+      [0, 1, 2, 3, 4, 5].map(
+        (index) => 1 + Math.round(index * TRIPLET * PULSES_PER_WHOLE) / beatTicks,
+      ),
+    );
   });
 });
