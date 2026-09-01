@@ -117,17 +117,13 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
 
     const tickBasedSpreads = temporalSpreads.filter(s => s.def.frameDomain === FrameDomain.Ticks);
 
-    const chordsByDate = useMemo(() => {
-        const map = new Map<number, typeof msm.allNotes>();
-        for (const notes of msm.asChords().values()) {
-            if (!notes.length) continue;
-            map.set(notes[0].date, notes);
-        }
-        return map;
-    }, [msm]);
+    // Scoped, and it has to be: this is both what the plot draws and what a written spread is
+    // measured over below, and `InsertTemporalSpread` frames the chord as `asChords(scope)`. Left
+    // global, an instruction covering one hand would be drawn against the union of both.
+    const chordsByDate = useMemo(() => msm.asChords(part), [msm, part]);
 
     const chords = []
-    for (const notes of msm.asChords().values()) {
+    for (const notes of chordsByDate.values()) {
         const chordNotes = notes.slice().sort((a, b) => onsetSeconds(a) - onsetSeconds(b))
         if (!chordNotes.length) continue
 

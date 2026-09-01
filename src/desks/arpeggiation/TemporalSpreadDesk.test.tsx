@@ -5,7 +5,7 @@ import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { ZoomContext } from '../../hooks/ZoomProvider';
-import { createMpm } from '../../fitting/instructions/index';
+import { createMpm, type Scope } from '../../fitting/instructions/index';
 import { InsertTemporalSpread } from '../../fitting/transformers/ornamentation/InsertTemporalSpread';
 import type { Residual } from '../../fitting/residual';
 import { TemporalSpreadDesk } from './TemporalSpreadDesk';
@@ -32,9 +32,15 @@ vi.mock('tone', () => ({
     now: () => 0,
 }));
 
-const note = (id: string, date: number, milliseconds: number, pitch: number): AlignedNote => ({
+const note = (
+    id: string,
+    date: number,
+    milliseconds: number,
+    pitch: number,
+    part = 1,
+): AlignedNote => ({
     'xml:id': id,
-    part: 1,
+    part,
     staff: '1',
     layer: '1',
     date,
@@ -48,13 +54,21 @@ const note = (id: string, date: number, milliseconds: number, pitch: number): Al
     velocity: 64,
 });
 
-/** Two chords, each rolled: what a default insert is for. */
+/**
+ * Rolled chords over two parts: what a default insert is for.
+ *
+ * The chord at tick 0 spans both, which is the case the scope has to survive — in the shipped
+ * transcription 100 of the 215 chords are shared that way.
+ */
 const alignment = () =>
     new Alignment([
         note('a', 0, 0, 60),
         note('b', 0, 80, 64),
         note('c', 720, 1000, 62),
         note('d', 720, 1120, 65),
+        note('e', 0, 40, 48, 2),
+        note('f', 1440, 2000, 43, 2),
+        note('g', 1440, 2120, 47, 2),
     ]);
 
 const residual = (): Residual => ({
@@ -70,7 +84,7 @@ const residual = (): Residual => ({
     pedals: [],
 });
 
-const mount = () => {
+const mount = (part: Scope = 'global') => {
     const msm = alignment();
     const addTransformer = vi.fn();
 
@@ -79,7 +93,7 @@ const mount = () => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
 
-    render(
+    const { unmount } = render(
         <ZoomContext
             value={{
                 symbolic: { stretchX: 0.1 },
@@ -103,7 +117,7 @@ const mount = () => {
                 >
                     <DeskToolbarProvider target={bar}>
                         <TemporalSpreadDesk
-                            part='global'
+                            part={part}
                             msm={msm}
                             mpm={createMpm()}
                             residual={residual()}
@@ -119,7 +133,17 @@ const mount = () => {
         </ZoomContext>,
     );
 
-    return { addTransformer };
+    return {
+        addTransformer,
+        /** One group per chord plotted. */
+        chords: () => document.querySelectorAll('g.chord'),
+        /** One line per note of them, plus the placement line every chord carries. */
+        lines: () => document.querySelectorAll('g.chord line'),
+        dispose: () => {
+            unmount();
+            bar.remove();
+        },
+    };
 };
 
 /** The dialog's own Insert, which is not the bar's button of the same name. */
@@ -144,6 +168,24 @@ const sentOptions = (addTransformer: ReturnType<typeof vi.fn>) => {
     expect(sent).toBeInstanceOf(InsertTemporalSpread);
     return sent.options;
 };
+
+describe('what the desk plots', () => {
+    it('draws the chords of the scope on the picker, and no others', () => {
+        const inScope = (part: Scope) => {
+            const desk = mount(part);
+            const chords = desk.chords().length;
+            const counts = { chords, notes: desk.lines().length - chords };
+            desk.dispose();
+            return counts;
+        };
+
+        // The parts together draw one chord more than the whole score does, because the chord at
+        // tick 0 belongs to both. Drawn unscoped they would each draw all three.
+        expect(inScope('global')).toEqual({ chords: 3, notes: 7 });
+        expect(inScope(0)).toEqual({ chords: 2, notes: 4 });
+        expect(inScope(1)).toEqual({ chords: 2, notes: 3 });
+    });
+});
 
 describe('the default insert', () => {
     it('sends the threshold the dialog collected', () => {

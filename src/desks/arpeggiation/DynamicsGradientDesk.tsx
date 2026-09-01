@@ -365,8 +365,14 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
                 <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
                     <svg width={physicalEnd * stretchX} height={height}>
                         <Hull msm={msm} part={part} getY={getY} />
+                        {/*
+                            Scoped, and it has to be: the ramp's two ends come off the chord drawn
+                            here, and `InsertDynamicsGradient` measures the same chord again as
+                            `asChords(scope)`. Drawn globally they would be the extremes of a chord
+                            the transformer never sees.
+                        */}
                         {Array
-                            .from(msm.asChords())
+                            .from(msm.asChords(part))
                             .map(([date, notes]) => {
                                 const mpmGradient = getMPMGradient(date);
                                 if (mpmGradient) {
