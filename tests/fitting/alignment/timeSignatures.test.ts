@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { convertMeiToMsm, performMsmToData } from 'espressivo';
 import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
 import { asMSM } from '../../../src/fitting/asMSM';
+import { barLines } from '../../../src/fitting/timeSignature';
 import {
   AccentuationPatternDef,
   createMpm,
@@ -80,6 +81,32 @@ describe('the signature governing a date', () => {
     const stateless = new Alignment([note('a', 0)]);
 
     expect(stateless.timeSignatureAt(0)).toBeUndefined();
+  });
+});
+
+describe('where the bar lines fall', () => {
+  const PULSES_PER_WHOLE = 2880;
+
+  test('counts them from the downbeat, leaving the anacrusis its own bar', () => {
+    expect(barLines(ANACRUSIS, 10 * 720, PULSES_PER_WHOLE)).toEqual([0, 720, 3600, 6480]);
+  });
+
+  test('starts no bar the piece has already ended on', () => {
+    // Nine quarters: the upbeat and two whole bars, and 6480 is the end rather than a third bar.
+    expect(barLines(ANACRUSIS, 9 * 720, PULSES_PER_WHOLE)).toEqual([0, 720, 3600]);
+  });
+
+  test('rules each stretch off at its own bar length', () => {
+    const signatures = [
+      { date: 0, numerator: 3, denominator: 4 },
+      { date: 4320, numerator: 2, denominator: 4 },
+    ];
+
+    expect(barLines(signatures, 7200, PULSES_PER_WHOLE)).toEqual([0, 2160, 4320, 5760]);
+  });
+
+  test('draws none where the score states no signature', () => {
+    expect(barLines([], 92880, PULSES_PER_WHOLE)).toEqual([]);
   });
 });
 

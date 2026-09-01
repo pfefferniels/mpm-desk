@@ -30,3 +30,33 @@ export const timeSignatureAt = (
   signatures: readonly DatedTimeSignature[],
   date: number,
 ): DatedTimeSignature | undefined => signatures.findLast((signature) => signature.date <= date);
+
+/** One bar of `signature` in ticks. `numerator` denominator-notes, whatever the beat is. */
+const barTicks = ({ numerator, denominator }: TimeSignature, pulsesPerWhole: number) =>
+  (numerator * pulsesPerWhole) / denominator;
+
+/**
+ * Where the bar lines fall, ascending, from the first signature to `until`.
+ *
+ * Each signature starts a bar where it takes effect and rules them off at its own bar length
+ * from there, so a 4/4 that begins after a quarter of anacrusis has its downbeats on 720, 3600,
+ * 6480 — counting from tick 0 would name none of them.
+ *
+ * A score that states no signature gets no bar lines. What is drawn is what the document says,
+ * and common time assumed for it is an assumption to render under rather than one to draw.
+ *
+ * @param until the end of the piece in ticks; the last signature rules bars up to it.
+ * @param pulsesPerWhole ticks to the whole note, which the caller's document states.
+ */
+export const barLines = (
+  signatures: readonly DatedTimeSignature[],
+  until: number,
+  pulsesPerWhole: number,
+): number[] =>
+  signatures.flatMap((signature, index) => {
+    const bar = barTicks(signature, pulsesPerWhole);
+    if (!(bar > 0)) return [];
+    const governedUntil = Math.min(signatures[index + 1]?.date ?? until, until);
+    const bars = Math.max(0, Math.ceil((governedUntil - signature.date) / bar));
+    return Array.from({ length: bars }, (_, n) => signature.date + n * bar);
+  });

@@ -8,6 +8,8 @@ import { InsertMetricalAccentuation, InsertMetricalAccentuationOptions } from ".
 import { MergeMetricalAccentuations } from "../../fitting/transformers/accentuation/MergeMetricalAccentuations";
 import { getDefinition, getInstructions, Instruction } from "../../fitting/instructions/index";
 import { Alignment, AlignedNote } from "../../fitting/alignment";
+import { barLines } from "../../fitting/timeSignature";
+import { PULSES_PER_WHOLE } from "../../fitting/ppq";
 import { Residual } from "../../fitting/residual";
 import { Box } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
@@ -105,6 +107,18 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
     const segments = useMemo(
         () => extractDynamicsSegments(msm, part, residual),
         [msm, part, residual],
+    )
+
+    /**
+     * The bars the score is written in, as the metre states them.
+     *
+     * A cell fitted here is meant to be one bar — espressivo numbers a pattern's beats from the
+     * bar line it falls in, whatever the instruction's own date — and until these were drawn the
+     * two dots that bound a cell had to be picked by eye.
+     */
+    const bars = useMemo(
+        () => barLines(msm.timeSignatures, msm.end, PULSES_PER_WHOLE),
+        [msm],
     )
 
     const patterns = useMemo(() => getInstructions(mpm, 'accentuationPattern', part)
@@ -300,6 +314,20 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                     ].join(' ')
                 }
             >
+                <g className='barLines' pointerEvents='none'>
+                    {bars.map(tick => (
+                        <line
+                            key={`bar_${tick}`}
+                            x1={tick * stretchX}
+                            x2={tick * stretchX}
+                            y1={-margin}
+                            y2={height}
+                            stroke='#e5e7eb'
+                            strokeWidth={1}
+                        />
+                    ))}
+                </g>
+
                 <line
                     x1={0}
                     x2={width}
