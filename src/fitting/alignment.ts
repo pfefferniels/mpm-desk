@@ -504,4 +504,25 @@ export class Alignment {
       [...this.allNotes, ...this.pedals].flatMap((event) => (event.source ? [event.source] : [])),
     );
   }
+
+  /**
+   * How many score notes are here on more than one reading — see {@link rowId}.
+   *
+   * Read this off the alignment as a chain *left* it, the opposite way round from
+   * {@link Alignment.sources}: what it answers is whether the readings still stand side by side,
+   * and a `MakeChoice` is what settles that. Zero on a document that only ever held one take.
+   *
+   * What it is for: a desk that fits from the recording measures one row at a time, and while a
+   * note has two rows there are two recorded velocities and two onsets under the one id. The
+   * collapse that follows is silent — `deriveResidual` keys by `xml:id` and keeps the later row,
+   * `Alignment.build` keeps the earlier one — so the desk draws one take and reports the other's
+   * residual. `DeskSwitch` greys those desks out until this reaches zero.
+   */
+  public doubledNotes(): number {
+    const rows = new Map<string, number>();
+    for (const note of this.allNotes) {
+      rows.set(note['xml:id'], (rows.get(note['xml:id']) ?? 0) + 1);
+    }
+    return [...rows.values()].filter((count) => count > 1).length;
+  }
 }

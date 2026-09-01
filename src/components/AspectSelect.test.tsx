@@ -11,7 +11,7 @@ import { AspectSelect } from './AspectSelect';
 import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
 
 /** A document every desk has work to do for — see `DeskSwitch.test.ts`. */
-const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9 };
+const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9, doubled: 0 };
 
 /** One row as the reader meets it: the button, the reason behind it, and the mark that it is there. */
 const rowNamed = (aspect: string) => {

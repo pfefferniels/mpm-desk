@@ -1,12 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { convertMeiToMsm } from 'espressivo';
-import { rowId, type AlignedNote, type AlignedPedal } from '../../../src/fitting/alignment';
+import {
+  Alignment,
+  rowId,
+  type AlignedNote,
+  type AlignedPedal,
+} from '../../../src/fitting/alignment';
 import { asMSM } from '../../../src/fitting/asMSM';
 
 /**
- * What tells one row of the alignment from another, which is what every desk keys its lists by.
- * The id alone does not, for as long as the readings stand side by side.
+ * What tells one row of the alignment from another, which is what every desk keys its lists by,
+ * and how many notes still have more than one. The id alone tells them apart no better than the
+ * readings do, for as long as both stand.
  */
 
 const note = (id: string, source?: string): AlignedNote =>
@@ -63,6 +69,27 @@ describe('the identity of an aligned row', () => {
   });
 });
 
+describe('how many notes are still on more than one reading', () => {
+  test('none, where each note has one row', () => {
+    expect(new Alignment([note('a', 'welte'), note('b', 'welte')]).doubledNotes()).toBe(0);
+  });
+
+  test('one, where a note has a row per take', () => {
+    expect(new Alignment([note('a', 'welte'), note('a', 'hupfeld')]).doubledNotes()).toBe(1);
+  });
+
+  test('counts score notes rather than rows', () => {
+    // Three takes of one note is one note still to be chosen, not two and not three. The count
+    // goes into a sentence the reader is shown, and that sentence says notes.
+    const takes = new Alignment([note('a', 'welte'), note('a', 'hupfeld'), note('a', 'duo-art')]);
+    expect(takes.doubledNotes()).toBe(1);
+  });
+
+  test('an empty alignment has none', () => {
+    expect(new Alignment().doubledNotes()).toBe(0);
+  });
+});
+
 /**
  * The same question against the document the editor opens, where the duplication is not
  * hypothetical: this is the file whose desks warned on every render.
@@ -77,6 +104,8 @@ describe('the rows of the shipped transcription, before a base text is chosen', 
     expect(takes.allNotes).toHaveLength(900);
     expect(distinct(takes.allNotes.map((n) => n['xml:id']))).toBe(450);
     expect(distinct(takes.allNotes.map(rowId))).toBe(900);
+    // The figure the aspect menu shows while the desks that fit from the recording are greyed out.
+    expect(takes.doubledNotes()).toBe(450);
   });
 
   test('and every pedal likewise', () => {

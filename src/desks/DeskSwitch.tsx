@@ -50,6 +50,20 @@ export interface DocumentFacts {
      * answer. It under-gates by design: a tempo in one part opens the desk for every part.
      */
     tempos: number;
+    /**
+     * How many score notes the alignment still holds more than one row of.
+     *
+     * Off the alignment **as the chain left it**, unlike {@link readings}, and that is the whole
+     * of the difference between the two. `readings` counts what the document arrived with and
+     * never changes, so a desk gated on it would be greyed out for good; this clears exactly when
+     * a `MakeChoice` has collapsed the readings, and a ranged choice leaves it standing for the
+     * notes outside that range, which are still doubled.
+     *
+     * Notes only. A doubled pedal arrives with doubled notes, since `asMSM` reads both off the
+     * same `<recording>`, and counting rows of two kinds into one number would make the message
+     * it appears in unsayable.
+     */
+    doubled: number;
 }
 
 /**
@@ -201,6 +215,26 @@ const needsRecording: Prerequisite = ({ aligned }) =>
  */
 const needsTempo: Prerequisite = ({ tempos }) =>
     tempos > 0 ? undefined : 'No tempo yet. Draw one on the tempo desk first.';
+
+/**
+ * Every desk that fits *from* the recording wants to know which recording it is fitting.
+ *
+ * A desk measures one row of the alignment at a time, and while the readings stand side by side a
+ * score note has a row per take: two recorded velocities and two onsets under the one `xml:id`.
+ * Neither desk nor reader is told which of them is on screen. `deriveResidual` keys by id and
+ * keeps the later row while `Alignment.build` keeps the earlier one, so the plot is drawn from one
+ * take and its residual reported from the other, and the arpeggiation desks — which read each
+ * row's own onset — frame a chord from the earliest onset in either take to the latest, a spread
+ * no performance played.
+ *
+ * Three desks are deliberately not gated, because the takes are their subject rather than their
+ * input: the alignment desk is where a second recording comes from, Base Text is the remedy this
+ * points at, and the corrections desk edits the recording itself.
+ */
+const needsChoice: Prerequisite = ({ doubled }) =>
+    doubled === 0
+        ? undefined
+        : `${doubled} notes are still on two readings. Choose a base text first.`;
 
 /**
  * Which desk edits which aspect of the performance.
@@ -403,7 +437,7 @@ export const correspondingDesks: DeskEntry[] = [
         // filled a scope locks the other's picker the same way. That is the document's doing, not
         // a coupling between the desks: it is one map per scope either way.
         writes: ['ornament'],
-        unavailable: needsRecording,
+        unavailable: allOf(needsRecording, needsChoice),
     },
     {
         transformerName: 'InsertDynamicsGradient',
@@ -433,7 +467,7 @@ export const correspondingDesks: DeskEntry[] = [
             ],
         },
         writes: ['ornament'],
-        unavailable: needsRecording,
+        unavailable: allOf(needsRecording, needsChoice),
     },
     {
         transformerName: 'StylizeOrnamentation',
@@ -497,7 +531,7 @@ export const correspondingDesks: DeskEntry[] = [
         writes: ['tempo'],
         // The recording, and only the recording: the skyline is the recording's own inter-onset
         // intervals, so this desk is where a tempo comes from and cannot want one.
-        unavailable: needsRecording,
+        unavailable: allOf(needsRecording, needsChoice),
     },
     {
         transformerName: 'InsertRubato',
@@ -525,7 +559,7 @@ export const correspondingDesks: DeskEntry[] = [
         },
         holdOut: ['rubato'],
         writes: ['rubato'],
-        unavailable: allOf(needsRecording, needsTempo),
+        unavailable: allOf(needsRecording, needsChoice, needsTempo),
     },
     // Dynamics
     {
@@ -563,7 +597,7 @@ export const correspondingDesks: DeskEntry[] = [
             ],
         },
         writes: ['dynamics'],
-        unavailable: needsRecording,
+        unavailable: allOf(needsRecording, needsChoice),
     },
     {
         transformerName: 'InsertMetricalAccentuation',
@@ -594,7 +628,7 @@ export const correspondingDesks: DeskEntry[] = [
         writes: ['accentuationPattern'],
         // No tempo: the residual this plots is the velocity half, which espressivo renders
         // whether or not anything has placed the notes on the tick grid.
-        unavailable: needsRecording,
+        unavailable: allOf(needsRecording, needsChoice),
     },
     {
         transformerName: 'InsertArticulation',
@@ -623,7 +657,7 @@ export const correspondingDesks: DeskEntry[] = [
         holdOut: ['articulation'],
         writes: ['articulation'],
         // Recording only — see the note on `needsTempo` for why this desk is left open without one.
-        unavailable: needsRecording,
+        unavailable: allOf(needsRecording, needsChoice),
     },
     {
         transformerName: 'StylizeArticulation',
@@ -668,7 +702,7 @@ export const correspondingDesks: DeskEntry[] = [
         // A recorded pedal has no symbolic date of its own; the residual is the only thing that
         // can put one on the tick grid at all.
         holdOut: ['movement'],
-        unavailable: allOf(needsRecording, needsTempo),
+        unavailable: allOf(needsRecording, needsChoice, needsTempo),
     },
     // The argument
     {
