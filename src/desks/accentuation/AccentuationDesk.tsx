@@ -1,10 +1,10 @@
-import { type JSX, useMemo, useState } from "react";
+import { type JSX, type MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useScrollRegistration } from "../../hooks/useScrollRegistration";
 import { usePiano } from "../../performance/piano";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
-import { InsertMetricalAccentuation, InsertMetricalAccentuationOptions } from "../../fitting/transformers/accentuation/InsertMetricalAccentuation";
+import { InsertMetricalAccentuation } from "../../fitting/transformers/accentuation/InsertMetricalAccentuation";
 import { MergeMetricalAccentuations } from "../../fitting/transformers/accentuation/MergeMetricalAccentuations";
 import { getDefinition, getInstructions, Instruction } from "../../fitting/instructions/index";
 import { Alignment, AlignedNote } from "../../fitting/alignment";
@@ -21,6 +21,8 @@ import { NameDialog } from "./NameDialog";
 import { Preview } from "./Preview";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { svgPoint } from "../../utils/svgPoint";
+import { afterClick, fittable, isPending, type Candidate, type Cell } from "./candidate";
 import { DeskToolbar } from "../../components/DeskToolbar";
 import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
@@ -89,7 +91,9 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
     const [selectedPatterns, setSelectedPatterns] = useState<Pattern[]>([])
 
     // creating a new metrical accentuation
-    const [candidate, setCandidate] = useState<Omit<InsertMetricalAccentuationOptions, 'scope'>>()
+    const [candidate, setCandidate] = useState<Candidate>()
+    /** The date under the pointer, tracked only while a candidate is waiting for its second click. */
+    const [cursor, setCursor] = useState<number>()
 
     const [scaleTolerance, setScaleTolerance] = useState(0)
     const stretchX = useSymbolicZoom()
@@ -121,14 +125,26 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
         [msm],
     )
 
-    /**
-     * A cell is a stretch, and a pattern cycles on its length: one of no length is no pattern.
-     *
-     * Nothing else is asked of it. A cell that starts mid-cycle — a dotted quarter an eighth into
-     * the bar, the stuff hemiolas are made of — is fitted at the phase it will be read on, so
-     * where it begins is the reader's business and not the format's (issue #47).
-     */
-    const fittable = candidate !== undefined && candidate.to > candidate.from
+    const pending = isPending(candidate)
+    const cell = candidate !== undefined && fittable(candidate) ? candidate : undefined
+
+    const clearCandidate = useCallback(() => {
+        setCandidate(undefined)
+        setCursor(undefined)
+    }, [])
+
+    // Escape drops the candidate wherever the focus is, as it does on the desks that draw. Not
+    // while a dialog stands, where Escape is the dialog's own way out.
+    const dialogOpen = insertDialogOpen || nameDialogOpen
+    useEffect(() => {
+        if (!candidate || dialogOpen) return
+
+        const cancelOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') clearCandidate()
+        }
+        document.addEventListener('keydown', cancelOnEscape)
+        return () => document.removeEventListener('keydown', cancelOnEscape)
+    }, [candidate, dialogOpen, clearCandidate])
 
     const patterns = useMemo(() => getInstructions(mpm, 'accentuationPattern', part)
         .map(i => {
@@ -150,15 +166,14 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
         .filter((i): i is Pattern => i !== null),
         [mpm, part])
 
-    const handleInsert = (candidate: Omit<InsertMetricalAccentuationOptions, 'scope'>, newScaleTolerance: number) => {
-        if (!candidate) return
+    const handleInsert = (cell: Cell, newScaleTolerance: number) => {
         addTransformer(new InsertMetricalAccentuation({
-            ...candidate,
+            ...cell,
             scaleTolerance: newScaleTolerance,
             scope: part,
         }))
         setScaleTolerance(newScaleTolerance)
-        setCandidate(undefined)
+        clearCandidate()
         setInsertDialogOpen(false)
     }
 
@@ -204,21 +219,41 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
         }
     }
 
-    const handleClick = (e: MouseEvent, segment: DynamicsSegment) => {
-        if (!candidate) {
-            setCandidate({
-                from: segment.date.start,
-                to: segment.date.end,
-                beatLength: 0.125,
-                name: `pattern-${v4().slice(0, 8)}`,
-                scaleTolerance: 0,
-                neutralEnd: true
-            })
-        }
+    /**
+     * The date a gesture at `svgX` means: the nearest date the plot draws a dot on.
+     *
+     * A dot is three pixels wide and the plot is dense, so asking a click to hit one was the
+     * fiddly half of marking a range. Nearest-date means a click anywhere in a dot's column
+     * lands on it — and on the very date the pending preview has already snapped to.
+     */
+    const nearestDate = (svgX: number) => {
+        if (!segments.length) return undefined
+        const target = svgX / stretchX
+        return segments.reduce(
+            (best, s) => Math.abs(s.date.start - target) < Math.abs(best - target) ? s.date.start : best,
+            segments[0].date.start,
+        )
+    }
 
-        if (candidate && e.shiftKey) {
-            setCandidate({ ...candidate, to: segment.date.start })
-        }
+    const dateUnder = (event: MouseEvent<SVGSVGElement>) => {
+        const point = svgPoint(event.currentTarget, event.clientX, event.clientY)
+        return point === null ? undefined : nearestDate(point.x)
+    }
+
+    const handleMouseMove = (event: MouseEvent<SVGSVGElement>) => {
+        if (!pending) return
+        const date = dateUnder(event)
+        if (date === undefined || date === cursor) return
+        setCursor(date)
+    }
+
+    const handleClick = (event: MouseEvent<SVGSVGElement>) => {
+        const date = dateUnder(event)
+        if (date === undefined) return
+
+        const { shiftKey } = event
+        setCursor(date)
+        setCandidate(prev => afterClick(prev, date, shiftKey, () => `pattern-${v4().slice(0, 8)}`))
     }
 
     const circles: JSX.Element[] = segments.map((segment, i) => {
@@ -230,7 +265,6 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                 stretchX={stretchX}
                 screenY={getScreenY}
                 handlePlay={handlePlay}
-                handleClick={handleClick}
             />
         )
     })
@@ -276,11 +310,13 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                         icon={<Add fontSize='small' />}
                         label='Insert'
                         tooltip={!candidate
-                            ? 'Click a dot on the plot to mark a candidate range first'
-                            : fittable
-                                ? 'Fit a metrical accentuation pattern to the candidate range'
-                                : 'Shift-click a second dot to give the candidate a length'}
-                        disabled={!candidate || !fittable}
+                            ? 'Click the plot to start a candidate range'
+                            : pending
+                                ? 'Click again to close the range where the preview ends'
+                                : cell
+                                    ? 'Fit a metrical accentuation pattern to the candidate range'
+                                    : 'Shift-click elsewhere to give the candidate a length'}
+                        disabled={!cell}
                         onClick={() => setInsertDialogOpen(true)}
                     >
                         Insert
@@ -291,10 +327,10 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                         icon={<Delete fontSize='small' />}
                         label='Clear Candidate'
                         tooltip={candidate
-                            ? 'Drop the candidate range and start marking again'
+                            ? 'Drop the candidate range and start marking again (Esc)'
                             : 'No candidate to clear'}
                         disabled={!candidate}
-                        onClick={() => setCandidate(undefined)}
+                        onClick={clearCandidate}
                     >
                         Clear Candidate
                     </ToolbarButton>
@@ -313,7 +349,14 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                 </ToolGroup>
             </DeskToolbar>
 
+            {/*
+                The gesture lives on the surface rather than on the dots. A click is answered by
+                the nearest date, so it need not land on a dot at all, and the pointer keeps
+                reporting while it crosses one — which a preview that follows the cursor depends
+                on, since the dots are exactly what it is drawn between.
+            */}
             <svg
+                className='accentuationPlot'
                 width={width + margin}
                 height={height + margin}
                 viewBox={
@@ -324,7 +367,26 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                         height + margin
                     ].join(' ')
                 }
+                style={{ cursor: pending ? 'crosshair' : undefined }}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={() => setCursor(undefined)}
+                onClick={handleClick}
             >
+                {/*
+                    The surface a gesture in the gaps lands on. `nearestDate` answers where a
+                    click means, so the dots need no hit geometry of their own — but the space
+                    between them has to be hit for that to be true, and the root `<svg>`'s own
+                    background is not something to rely on for it.
+                */}
+                <rect
+                    className='pickSurface'
+                    x={-margin}
+                    y={-margin}
+                    width={width + margin}
+                    height={height + margin}
+                    fill='transparent'
+                />
+
                 <g className='barLines' pointerEvents='none'>
                     {bars.map(tick => (
                         <line
@@ -358,6 +420,9 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                             getScreenY={getScreenY}
                             signature={msm.timeSignatureAt(pattern.date)}
                             onClick={(e) => {
+                                // The plot underneath turns a click into a candidate. This one
+                                // is spoken for.
+                                e.stopPropagation()
                                 if (e.shiftKey) {
                                     if (selectedPatterns.includes(pattern)) {
                                         setSelectedPatterns(selectedPatterns.filter(p => p !== pattern))
@@ -382,24 +447,27 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
 
                 {candidate && (
                     <Preview
-                        cell={candidate}
+                        candidate={candidate}
+                        cursor={cursor}
+                        height={height}
                         segments={segments}
                         stretchX={stretchX}
                         getScreenY={getScreenY}
                         onClick={(e) => {
                             if (e.shiftKey && e.altKey) {
-                                setCandidate(undefined)
+                                e.stopPropagation()
+                                clearCandidate()
                             }
                         }}
                     />
                 )}
             </svg>
 
-            {candidate && (
+            {cell && (
                 <AccentuationDialog
                     open={insertDialogOpen}
                     onClose={() => setInsertDialogOpen(false)}
-                    cell={candidate}
+                    cell={cell}
                     scaleTolerance={scaleTolerance}
                     onDone={handleInsert}
                 />
