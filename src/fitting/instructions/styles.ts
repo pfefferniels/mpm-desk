@@ -21,7 +21,6 @@ import {
   type Style,
   styleKinds,
 } from './types';
-import { v4 } from 'uuid';
 
 /**
  * The `<styleDef>` definitions of `definitionType` are written into, created on demand.
@@ -106,7 +105,12 @@ export const ensureDefaultStyle = (
 
   const element =
     existing ??
-    requireElement(map, map.addStyleSwitch(0, DEFAULT_STYLE_NAME, v4()), 'style switch');
+    requireElement(
+      map,
+      // One switch per map, at date 0, so the map it is in names it (issue #48).
+      map.addStyleSwitch(0, DEFAULT_STYLE_NAME, `style_${instructionType}_${String(scope)}`),
+      'style switch',
+    );
 
   if (extras.defaultArticulation !== undefined) {
     const attribute = element.getAttribute('defaultArticulation');

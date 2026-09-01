@@ -16,7 +16,6 @@ import {
 } from '../../instructions/index';
 import { Alignment } from '../../alignment';
 import { AbstractTransformer, type TransformationOptions } from '../Transformer';
-import { v4 } from 'uuid';
 import { dbscan, type IPoint } from '../../dbscan';
 import { InsertDynamicsGradient } from './InsertDynamicsGradient';
 import { InsertTemporalSpread } from './InsertTemporalSpread';
@@ -467,7 +466,7 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
    * before the callers have decided whether to insert the definition at all, would leave every
    * skipped one naming a definition that was never written.
    */
-  private asDef({ draft }: FittedOrnament): OrnamentDef | null {
+  private asDef({ instruction, draft }: FittedOrnament): OrnamentDef | null {
     // `transitionTo` is compared against undefined rather than tested for truth. Zero is a
     // legal end for a ramp — and it is the end of `InsertDynamicsGradient`'s own default
     // crescendo, `{ from: -1, to: 0 }` — so a truthiness test would drop the gradient from
@@ -477,7 +476,14 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
         ? { transitionFrom: draft.transitionFrom, transitionTo: draft.transitionTo }
         : undefined;
 
-    return this.buildDef(`def_${v4()}`, gradient, this.temporalSpreadOf(draft));
+    // Named after the ornament it was made for, the way a clustered definition is named after
+    // its cluster. One ornament, one definition, and an instruction id is unique in the document
+    // — so this is unique too, and it makes the same document twice (issue #48).
+    return this.buildDef(
+      `def_${String(instruction.scope)}_${instruction.id ?? String(instruction.date)}`,
+      gradient,
+      this.temporalSpreadOf(draft),
+    );
   }
 
   /**

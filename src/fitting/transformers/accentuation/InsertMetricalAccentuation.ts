@@ -15,7 +15,6 @@ import {
   generateId,
   type ScopedTransformationOptions,
 } from '../Transformer';
-import { v4 } from 'uuid';
 import { InsertDynamicsInstructions } from '../dynamics/index';
 import { PULSES_PER_WHOLE } from '../../ppq';
 import { filterMap } from 'espressivo';
@@ -175,7 +174,10 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
       const next = cycle[index + 1] ?? wrap;
       const scaled = sample.avgVelocityChange / scale;
       return {
-        id: `accentuation_${v4()}`,
+        // The pattern this belongs to and the position in it, rather than a fresh uuid: a def
+        // holds one accentuation per beat and no two defs share a name, so this is unique, and
+        // it makes the same document twice (issue #48).
+        id: `accentuation_${this.options.name}_${String(index)}`,
         beat: sample.beat,
         value: scaled,
         transitionFrom: scaled,
