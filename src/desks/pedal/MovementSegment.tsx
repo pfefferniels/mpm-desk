@@ -62,8 +62,6 @@ export const MovementSegment = ({ instruction, stretchX, stretchY, ...rest }: Mo
         <g
             className='movementSegment'
             data-id={`movementSegment_${instruction.id}`}
-            data-startDate={instruction.date}
-            data-endDate={instruction.endDate}
         >
             <path
                 d={path}

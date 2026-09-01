@@ -56,8 +56,6 @@ export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick 
         <g
             className='curveSegment'
             data-id={`curve_${instruction.id}`}
-            data-startDate={instruction.date}
-            data-endDate={instruction.endDate}
             onClick={onClick}
         >
             <path
