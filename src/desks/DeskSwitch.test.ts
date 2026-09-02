@@ -69,11 +69,11 @@ const deskNamed = (key: string) =>
  * shipped transcription's note count, and a tempo drawn over it. The figures are the shipped
  * reconstruction's; only their being above zero is load-bearing.
  *
- * `doubled: 0` is what the chosen base text amounts to here — `readings` counts what the document
- * arrived with and stays at two for good, so it is the doubled count that says a choice has been
+ * `unchosen: 0` is what the chosen base text amounts to here — `readings` counts what the document
+ * arrived with and stays at two for good, so it is the unchosen count that says a choice has been
  * made. A fixture that left it standing would grey out eight of the desks below.
  */
-const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9, doubled: 0 };
+const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9, unchosen: 0 };
 
 /**
  * The desks whose subject is what the recording did, by the key the menu emits for each.
@@ -323,16 +323,16 @@ describe('the desk registry', () => {
 
         it('takes the desks that fit from the recording away until a base text is chosen', () => {
             // While the readings stand side by side a score note has a row per take, and a desk
-            // that measures one row at a time is handed two recorded velocities and two onsets
+            // that measures one row at a time is handed a recorded velocity and an onset per take
             // under the one id. What follows is silent rather than empty: `deriveResidual` keys by
-            // `xml:id` and keeps the later row while `Alignment.build` keeps the earlier one, so
-            // the plot is drawn from one take and its residual reported from the other.
-            const unchosen = { ...FITTED, doubled: 450 };
+            // `xml:id` and keeps the last row while `Alignment.build` keeps the first, so the plot
+            // is drawn from one take and its residual reported from another.
+            const noChoiceYet = { ...FITTED, unchosen: 450 };
 
             for (const aspect of FITS_THE_RECORDING) {
                 const entry = deskNamed(aspect);
                 expect(
-                    entry?.unavailable?.(unchosen),
+                    entry?.unavailable?.(noChoiceYet),
                     `the ${aspect} desk stays open while every note is on two readings`,
                 ).toBeTruthy();
                 expect(
@@ -347,8 +347,8 @@ describe('the desk registry', () => {
             // reason `needsTempo` comes last: with nothing aligned there is nothing to choose
             // between either, so naming the choice first would be a dead end.
             const entry = deskNamed('Articulation');
-            expect(entry?.unavailable?.({ ...FITTED, doubled: 450 })).toMatch(/base text/i);
-            expect(entry?.unavailable?.({ ...FITTED, aligned: 0, doubled: 450 })).toMatch(
+            expect(entry?.unavailable?.({ ...FITTED, unchosen: 450 })).toMatch(/base text/i);
+            expect(entry?.unavailable?.({ ...FITTED, aligned: 0, unchosen: 450 })).toMatch(
                 /recording/i,
             );
         });
@@ -360,7 +360,7 @@ describe('the desk registry', () => {
             // out the only desks that can clear the gate.
             for (const aspect of ['alignment', 'Base Text', 'corrections'])
                 expect(
-                    deskNamed(aspect)?.unavailable?.({ ...FITTED, doubled: 450 }),
+                    deskNamed(aspect)?.unavailable?.({ ...FITTED, unchosen: 450 }),
                     `the ${aspect} desk is greyed out over a document with a choice still to make`,
                 ).toBeUndefined();
         });
@@ -392,7 +392,7 @@ describe('the desk registry', () => {
             // played. Gating one would lock the reader out of the desk that starts the work.
             for (const aspect of ['metadata', 'voices', 'alignment', 'narrative', 'markup'])
                 expect(
-                    deskNamed(aspect)?.unavailable?.({ readings: 0, aligned: 0, tempos: 0, doubled: 0 }),
+                    deskNamed(aspect)?.unavailable?.({ readings: 0, aligned: 0, tempos: 0, unchosen: 0 }),
                     `the ${aspect} desk is greyed out over a score with nothing in it`,
                 ).toBeUndefined();
         });

@@ -187,7 +187,7 @@ export const App = () => {
      * `useEditorFit` leaves it standing while the next one runs — so a refit does not grey a desk
      * out for three seconds on its way to the same answer.
      *
-     * The doubled count is the other way round for the same reason, and off the alignment rather
+     * The unchosen count is the other way round for the same reason, and off the alignment rather
      * than the MPM: what it reports is whether `MakeChoice` has collapsed the readings, which the
      * loaded alignment cannot know. `alignment` is likewise the last finished fit.
      */
@@ -196,7 +196,7 @@ export const App = () => {
             readings: pristine?.sources().size ?? 0,
             aligned: pristine?.allNotes.length ?? 0,
             tempos: mpm ? getInstructions(mpm, 'tempo').length : 0,
-            doubled: alignment?.doubledNotes() ?? 0,
+            unchosen: alignment?.unchosenNotes() ?? 0,
         }),
         [pristine, mpm, alignment],
     );

@@ -57,13 +57,15 @@ export interface DocumentFacts {
      * of the difference between the two. `readings` counts what the document arrived with and
      * never changes, so a desk gated on it would be greyed out for good; this clears exactly when
      * a `MakeChoice` has collapsed the readings, and a ranged choice leaves it standing for the
-     * notes outside that range, which are still doubled.
+     * notes outside that range, whose reading is still to be chosen.
      *
-     * Notes only. A doubled pedal arrives with doubled notes, since `asMSM` reads both off the
-     * same `<recording>`, and counting rows of two kinds into one number would make the message
-     * it appears in unsayable.
+     * A count of notes, not of the rows they are spread over, so it says the same thing on a
+     * document with three takes as on one with two. Notes only, likewise: a pedal on several
+     * readings arrives with notes on several readings, since `asMSM` reads both off the same
+     * `<recording>`, and counting rows of two kinds into one number would make the message it
+     * appears in unsayable.
      */
-    doubled: number;
+    unchosen: number;
 }
 
 /**
@@ -220,21 +222,21 @@ const needsTempo: Prerequisite = ({ tempos }) =>
  * Every desk that fits *from* the recording wants to know which recording it is fitting.
  *
  * A desk measures one row of the alignment at a time, and while the readings stand side by side a
- * score note has a row per take: two recorded velocities and two onsets under the one `xml:id`.
+ * score note has a row per take: a recorded velocity and an onset each, under the one `xml:id`.
  * Neither desk nor reader is told which of them is on screen. `deriveResidual` keys by id and
- * keeps the later row while `Alignment.build` keeps the earlier one, so the plot is drawn from one
- * take and its residual reported from the other, and the arpeggiation desks — which read each
- * row's own onset — frame a chord from the earliest onset in either take to the latest, a spread
- * no performance played.
+ * keeps the last row while `Alignment.build` keeps the first, so the plot is drawn from one take
+ * and its residual reported from another, and the arpeggiation desks — which read each row's own
+ * onset — frame a chord from the earliest onset in any take to the latest, a spread no performance
+ * played.
  *
  * Three desks are deliberately not gated, because the takes are their subject rather than their
- * input: the alignment desk is where a second recording comes from, Base Text is the remedy this
+ * input: the alignment desk is where a further recording comes from, Base Text is the remedy this
  * points at, and the corrections desk edits the recording itself.
  */
-const needsChoice: Prerequisite = ({ doubled }) =>
-    doubled === 0
+const needsChoice: Prerequisite = ({ unchosen }) =>
+    unchosen === 0
         ? undefined
-        : `${doubled} notes are still on two readings. Choose a base text first.`;
+        : `${unchosen} notes are still on more than one reading. Choose a base text first.`;
 
 /**
  * Which desk edits which aspect of the performance.

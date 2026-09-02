@@ -508,17 +508,21 @@ export class Alignment {
   /**
    * How many score notes are here on more than one reading — see {@link rowId}.
    *
+   * Score notes rather than rows, and the difference shows on a document with three takes: a note
+   * with three rows is one note whose reading is still to be chosen, not two and not three. What
+   * the count goes into is a sentence naming the work left, so it counts the work.
+   *
    * Read this off the alignment as a chain *left* it, the opposite way round from
    * {@link Alignment.sources}: what it answers is whether the readings still stand side by side,
    * and a `MakeChoice` is what settles that. Zero on a document that only ever held one take.
    *
-   * What it is for: a desk that fits from the recording measures one row at a time, and while a
-   * note has two rows there are two recorded velocities and two onsets under the one id. The
-   * collapse that follows is silent — `deriveResidual` keys by `xml:id` and keeps the later row,
-   * `Alignment.build` keeps the earlier one — so the desk draws one take and reports the other's
-   * residual. `DeskSwitch` greys those desks out until this reaches zero.
+   * What it is for: a desk that fits from the recording measures one row at a time, and a note on
+   * several readings carries a recorded velocity and an onset per take under the one id. The
+   * collapse that follows is silent — `deriveResidual` keys by `xml:id` and keeps the last row,
+   * `Alignment.build` the first — so the desk draws one take and reports another's residual.
+   * `DeskSwitch` greys those desks out until this reaches zero.
    */
-  public doubledNotes(): number {
+  public unchosenNotes(): number {
     const rows = new Map<string, number>();
     for (const note of this.allNotes) {
       rows.set(note['xml:id'], (rows.get(note['xml:id']) ?? 0) + 1);
