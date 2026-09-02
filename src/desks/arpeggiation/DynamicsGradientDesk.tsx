@@ -1,9 +1,9 @@
-import { InsertDynamicsGradient } from "../../fitting/transformers/ornamentation/InsertDynamicsGradient"
+import { gradientThrough, InsertDynamicsGradient, rampVelocities } from "../../fitting/transformers/ornamentation/InsertDynamicsGradient"
 import type { AlignedNote, ScopedScore } from "../../fitting/alignment"
 import { getInstructions, ornamentDraftOf, type Instruction, type Mpm } from "../../fitting/instructions/index"
 import { onsetSeconds, releaseSeconds } from "../noteTiming"
 import type { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { useRef, useState } from "react"
+import { useRef, useState, type MouseEvent } from "react"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { DeskToolbar } from "../../components/DeskToolbar"
@@ -52,21 +52,38 @@ const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
 
 type RawGradientProps = {
     notes: AlignedNote[]
-    onClick: (gradient: { from: number; to: number }) => void
+    /** The velocity the user put the chord's standard at, off either handle. */
+    onChoose: (standard: number) => void
     getY: (velocity: number) => number
 }
 
-const RawGradient =({ notes, onClick, getY }: RawGradientProps) => {
+const RawGradient =({ notes, onChoose, getY }: RawGradientProps) => {
     const { play, stop } = usePiano();
     const { slice } = useNotes()
 
-    const [ratio, setRatio] = useState<number>()
+    const [hovered, setHovered] = useState<number>()
     const stretchX = usePhysicalZoom()
     const rectRef = useRef<SVGRectElement | null>(null)
 
     const { softest, loudest } = getDynamicsExtremes(notes);
 
     if (notes.length === 0) return null;
+
+    // The velocity under the pointer, read off the band the rect spans: the loudest note along
+    // its top edge, the softest along its bottom.
+    const velocityAt = (clientY: number): number | undefined => {
+        const rect = rectRef.current?.getBoundingClientRect()
+        if (!rect || rect.height === 0) return undefined
+        const ratio = 1 - (clientY - rect.top) / rect.height
+        return softest.vel + ratio * (loudest.vel - softest.vel)
+    }
+
+    // Both handles commit the same thing, the standard the pointer is on. What that means for
+    // the `<dynamicsGradient>` is the transformer's to say, see `gradientThrough`.
+    const choose = (e: MouseEvent) => {
+        const standard = velocityAt(e.clientY)
+        if (standard !== undefined) onChoose(standard)
+    }
 
     return (
         <g
@@ -81,17 +98,8 @@ const RawGradient =({ notes, onClick, getY }: RawGradientProps) => {
                     play(midi);
                 }
             }}
-            onMouseMove={(e) => {
-                if (rectRef.current) {
-                    const rect = rectRef.current.getBoundingClientRect()
-                    const localY = e.clientY - rect.top
-                    const ratio = 1 - localY / rect.height
-                    setRatio(ratio)
-                }
-            }}
-            onMouseLeave={() => {
-                setRatio(undefined)
-            }}
+            onMouseMove={(e) => setHovered(velocityAt(e.clientY))}
+            onMouseLeave={() => setHovered(undefined)}
         >
             <rect
                 ref={rectRef}
@@ -108,22 +116,15 @@ const RawGradient =({ notes, onClick, getY }: RawGradientProps) => {
                 y2={getY(loudest.vel)}
                 stroke="black"
                 strokeWidth={2}
-                onClick={() => onClick({ from: softest.onset, to: loudest.onset })}
+                onClick={choose}
             />
-            {ratio && (
+            {hovered !== undefined && (
                 <circle
                     cx={softest.onset * stretchX}
-                    cy={getY((loudest.vel - softest.vel) * ratio + softest.vel)}
+                    cy={getY(hovered)}
                     r={6}
                     fill='red'
-                    onClick={() => {
-                        const lower = -ratio
-                        const upper = 1 - ratio
-                        onClick({
-                            from: lower,
-                            to: upper
-                        })
-                    }}
+                    onClick={choose}
                 />
             )}
         </g>
@@ -195,7 +196,8 @@ const GradientInstruction = ({ notes, ornament, getY, active, onClick }: Gradien
     const draft = ornamentDraftOf(ornament.element)
     const from = draft.transitionFrom!
     const to = draft.transitionTo!
-    const scale = ornament.scale || 1
+    // Absent, `@scale` is 0.0 by the spec, and the ramp is as flat as the renderer plays it.
+    const scale = ornament.scale ?? 0
 
     // Post-transformation, all notes share the same "standard" velocity
     const standard = notes[0].velocity
@@ -261,7 +263,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
     const [pending, setPending] = useState<{ mpm: Mpm, dates: Set<number> }>({ mpm, dates: new Set() })
     const pendingDates = pending.mpm === mpm ? pending.dates : new Set<number>()
 
-    const transform = (date: number, gradient: { from: number, to: number }) => {
+    const transform = (date: number, chord: AlignedNote[], standard: number) => {
         setPending(prev => ({
             mpm,
             dates: prev.mpm === mpm ? new Set(prev.dates).add(date) : new Set([date])
@@ -269,7 +271,10 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
         addTransformer(new InsertDynamicsGradient({
             scope: part,
             date,
-            gradient,
+            // Where the chosen standard sits on the ramp the transformer will fit, from the
+            // first note struck to the last. That ramp runs the way the chord does, so on a
+            // chord rolled from loud to soft it is the plot's band upside down.
+            gradient: gradientThrough(standard, rampVelocities(chord, sortVelocities)),
             sortVelocities
         }))
     }
@@ -308,8 +313,8 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
                     place in the bar where that is right rather than an oversight. Every other desk
                     leads with an unlabelled group holding the action it exists to perform; this
                     desk's per-chord gradients are committed by dragging on the plot below —
-                    `transform(date, gradient)`, off `RawGradient`'s own handles — and never from
-                    the bar. So there is no unlabelled group to lead with, and the caption is what
+                    `transform(date, chord, standard)`, off `RawGradient`'s own handles — and
+                    never from the bar. So there is no unlabelled group to lead with, and the caption is what
                     says that the two buttons under it are about the *default* rather than about
                     the chord the user was just dragging.
 
@@ -411,9 +416,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
                                         <RawGradient
                                             key={`gradient_${date}`}
                                             notes={notes}
-                                            onClick={(gradient) => {
-                                                transform(date, gradient)
-                                            }}
+                                            onChoose={(standard) => transform(date, notes, standard)}
                                             getY={getY}
                                         />
                                     )
