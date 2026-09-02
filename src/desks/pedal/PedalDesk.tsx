@@ -7,16 +7,23 @@ import { useState } from "react"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
 import { PedalDialog } from "./PedalDialog"
+import { PressBox, type Direction } from "./PressBox"
 import { usePiano } from "../../performance/piano"
 import { asMIDI } from "../../utils/utils"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { filterMap } from "espressivo"
 import { PedalGutter, TickScale } from "./PedalAxes"
-import { GUTTER_WIDTH, LANE_HEIGHT, MOVEMENT_TOP, ROW_HEIGHT, pedalPlot, rowY } from "./layout"
+import { GUTTER_WIDTH, LANE_HEIGHT, MOVEMENT_TOP, pedalPlot, rowY } from "./layout"
+
+/** A press and the reading of it a click asked for. */
+interface Pick {
+    pedal: AlignedPedal
+    direction: Direction
+}
 
 export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
     const { activeElements, setActiveElement } = useCallSelection();
-    const [currentPedal, setCurrentPedal] = useState<AlignedPedal>()
+    const [picked, setPicked] = useState<Pick>()
 
     const stretchX = useSymbolicZoom()
     const { play, stop } = usePiano()
@@ -58,15 +65,15 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
 
     return (
         <div>
-            {currentPedal && (
+            {picked && (
                 <PedalDialog
-                    open={currentPedal !== undefined}
-                    pedal={currentPedal}
+                    pedal={picked.pedal}
+                    direction={picked.direction}
                     residual={residual}
-                    onClose={() => setCurrentPedal(undefined)}
+                    onClose={() => setPicked(undefined)}
                     onDone={(options) => {
                         transform(options)
-                        setCurrentPedal(undefined)
+                        setPicked(undefined)
                     }}
                 />
             )}
@@ -91,24 +98,15 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                     style={{ flex: 1, minWidth: 0, overflowX: 'scroll', overflowY: 'hidden' }}
                 >
                     <svg width={width} height={plot.height}>
-                        {presses.map(({ pedal, date, duration }) => (
-                            <rect
-                                key={`pedal_${rowId(pedal)}`}
-                                x={date * stretchX}
-                                y={rowY(pedal.type)}
-                                width={duration * stretchX}
-                                height={ROW_HEIGHT}
-                                fill='lightblue'
-                                onClick={() => {
-                                    setCurrentPedal(pedal)
-                                }}
-                            />
-                        ))}
-
                         {/*
                             `'global'` on purpose, unlike the arpeggiation desks: a pedal is a
                             property of the instrument, `InsertPedal` writes to `movement`/`global`
                             whatever the picker says, and these lines are the texture under a press.
+
+                            Under the presses, so that a press is one solid target with a single
+                            seam down it. Over them, a line crossing one is three pixels that
+                            sound a chord where a click is asking for a movement, and it cuts the
+                            box into pieces the two halves cannot be read off.
                         */}
                         {Array.from(msm.in('global').chords().entries()).map(([date, chord]) => {
                             return (
@@ -132,6 +130,19 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                                 </g>
                             )
                         })}
+
+                        {presses.map(({ pedal, date, duration }) => (
+                            <PressBox
+                                key={`pedal_${rowId(pedal)}`}
+                                pedal={pedal}
+                                date={date}
+                                duration={duration}
+                                y={rowY(pedal.type)}
+                                stretchX={stretchX}
+                                guideTo={plot.axisY}
+                                onPick={(pedal, direction) => setPicked({ pedal, direction })}
+                            />
+                        ))}
 
                         {plot.lanes.map(lane => {
                             const movements = [...(movementsByController[lane.controller] ?? [])]

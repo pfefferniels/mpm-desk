@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { Alignment, type AlignedNote, type AlignedPedal } from '../../fitting/alignment'
 import { createMpm, requireMap, type Mpm } from '../../fitting/instructions/index'
 import type { PedalResidual, Residual } from '../../fitting/residual'
@@ -121,31 +121,38 @@ const renderDesk = (pedals: readonly AlignedPedal[], mpm: Mpm, placed = pedals) 
             </ScrollSyncProvider>
         </ZoomContext>,
     )
-
-    return [...document.querySelectorAll('text')].map(text => text.textContent)
 }
+
+/** Everything the plot and its gutter have written, which is one name per row and lane. */
+const names = () => [...document.querySelectorAll('text')].map(text => text.textContent)
 
 describe('PedalDesk', () => {
     it('names the row of every press it draws', () => {
-        const names = renderDesk([pedal('sustain', 0), pedal('soft', 720)], createMpm())
+        renderDesk([pedal('sustain', 0), pedal('soft', 720)], createMpm())
 
-        expect(names).toContain('sustain')
-        expect(names).toContain('soft')
+        expect(names()).toContain('sustain')
+        expect(names()).toContain('soft')
     })
 
     it('names no row for a press the residual cannot place', () => {
-        const names = renderDesk([pedal('sustain', 0), pedal('soft', 720)], createMpm(), [
-            pedal('sustain', 0),
-        ])
+        renderDesk([pedal('sustain', 0), pedal('soft', 720)], createMpm(), [pedal('sustain', 0)])
 
-        expect(names).toContain('sustain')
-        expect(names).not.toContain('soft')
+        expect(names()).toContain('sustain')
+        expect(names()).not.toContain('soft')
     })
 
     it('names each controller the MPM has movements for', () => {
-        const names = renderDesk([], withMovements('sustain', 'soft'))
+        renderDesk([], withMovements('sustain', 'soft'))
 
-        expect(names).toEqual(expect.arrayContaining(['sustain', 'soft', 'ticks']))
+        expect(names()).toEqual(expect.arrayContaining(['sustain', 'soft', 'ticks']))
+    })
+
+    it('opens the dialog on the reading the half that was clicked stands for', () => {
+        renderDesk([pedal('sustain', 0)], createMpm())
+
+        fireEvent.click(document.querySelector('[data-direction="up"]')!)
+
+        expect(screen.getByRole('dialog')).toHaveTextContent('sustain up @720')
     })
 
     it('keeps the names out of the scroller, so they hold still', () => {

@@ -697,8 +697,12 @@ export const correspondingDesks: DeskEntry[] = [
                 'movements already written below, one lane per controller.',
             actions: [
                 {
-                    gesture: 'Click a pedal block',
-                    does: 'open its dialog to write a movement over it',
+                    gesture: 'Click a press on its left half',
+                    does: 'write the pedal going down, where the foot lands',
+                },
+                {
+                    gesture: 'Click a press on its right half',
+                    does: 'write it coming up, where the foot lifts',
                 },
                 { gesture: 'Hover a chord line', does: 'sound the chord' },
                 { gesture: 'Click a movement', does: 'select the call that wrote it' },
