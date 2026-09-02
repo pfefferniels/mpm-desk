@@ -761,8 +761,11 @@ export const App = () => {
                                         The menu is `position: absolute`, and until this box existed
                                         no ancestor of it established a containing block — so `top: 0`
                                         resolved against the page and the card painted on top of the
-                                        bar's right end. `MetadataDesk` has been carrying a 15rem
-                                        right gutter to stay out from under it. */}
+                                        bar's right end.
+
+                                        No desk reserves a gutter for it. The width belongs to the
+                                        desk, and the menu collapses to an icon when it is in the
+                                        way. */}
                                     <Box sx={{ position: 'relative' }}>
                                         <DeskToolbarProvider target={deskRow}>
                                             <NotesProvider notes={alignment.allNotes}>

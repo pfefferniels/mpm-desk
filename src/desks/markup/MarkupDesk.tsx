@@ -318,9 +318,6 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
                             py: 0.75,
                             borderBottom: 1,
                             borderColor: 'divider',
-                            // `AspectSelect` floats over this corner; the caption keeps clear of
-                            // it, as `MetadataDesk` does with the same gutter.
-                            pr: '15rem',
                         }}
                     >
                         {caption}

@@ -35,10 +35,6 @@ export const PartsLegend = ({
         sx={{
             width: 232,
             flexShrink: 0,
-            // The aspect menu is `position: absolute` over the desk at the right edge, so a panel
-            // that ended at the window would sit under it. `MetadataDesk` carries the same gutter
-            // and for the same reason.
-            mr: '15rem',
             borderLeft: '1px solid #e5e7eb',
             bgcolor: '#ffffff',
             overflowY: 'auto',
