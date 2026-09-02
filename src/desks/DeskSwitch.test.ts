@@ -386,11 +386,21 @@ describe('the desk registry', () => {
             }
         });
 
+        it('takes the voices desk away until a recording is aligned', () => {
+            // The one desk gated over a surface that is not blank. Verovio engraves the MEI
+            // whether or not a note has been played, while the parts the score is coloured by, the
+            // voices the picker offers and the bars `tickRange` takes a range from all come out of
+            // `msm` — so ungated it is a whole score that answers no click.
+            const entry = deskNamed('voices');
+            expect(entry?.unavailable?.({ ...FITTED, aligned: 0 })).toBeTruthy();
+            expect(entry?.unavailable?.(FITTED)).toBeUndefined();
+        });
+
         it('leaves the desks that read the document alone', () => {
             // The counter-examples, and the reason `unavailable` is not simply "is anything
             // loaded": all four have something to show and something to do before a note has been
             // played. Gating one would lock the reader out of the desk that starts the work.
-            for (const aspect of ['metadata', 'voices', 'alignment', 'narrative', 'markup'])
+            for (const aspect of ['metadata', 'alignment', 'narrative', 'markup'])
                 expect(
                     deskNamed(aspect)?.unavailable?.({ readings: 0, aligned: 0, tempos: 0, unchosen: 0 }),
                     `the ${aspect} desk is greyed out over a score with nothing in it`,

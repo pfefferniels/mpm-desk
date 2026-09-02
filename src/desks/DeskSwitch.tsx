@@ -192,12 +192,15 @@ const allOf =
         checks.map((check) => check(facts)).find((reason) => reason !== undefined);
 
 /**
- * Every desk that plots the recording wants one to plot.
+ * Every desk that draws or reads the recording wants one in hand.
  *
  * Zero aligned notes is a blank surface with no gesture on it that can write anything: the plots
  * are `msm.end` wide, which is 0, and the chords they draw from are empty. The desks that read the
- * MPM or the score instead are not gated — the narrative, markup, metadata and voices desks all
- * have something to show and something to do before a note has been played.
+ * MPM or the score instead are not gated — the narrative, markup and metadata desks all have
+ * something to show and something to do before a note has been played.
+ *
+ * The voices desk is the one gated over a surface that is not blank, and the reason it is gated
+ * all the same is on its entry below.
  */
 const needsRecording: Prerequisite = ({ aligned }) =>
     aligned > 0 ? undefined : 'No recording is aligned yet. Align one first.';
@@ -305,6 +308,14 @@ export const correspondingDesks: DeskEntry[] = [
         // one. It draws the score verovio engraves and colours it by the part the chain resolved,
         // and there is nothing for the MPM to explain away when the subject is which staff a note
         // is written on.
+        //
+        // Gated even though the engraving draws in full without a recording, which is the one
+        // place this list makes that call. Everything the reader can do here comes out of `msm`:
+        // the parts the score is coloured by, the voices the picker offers, and the bars
+        // `tickRange` takes a range from. Ungated it is a whole score that answers no click —
+        // reachable over any MEI whose `<performance>` times some notes but not all, since `App`
+        // sends the reader to the alignment desk only where the file holds no `<when>` at all.
+        unavailable: needsRecording,
     },
     // General — the three desks whose subject is the recording rather than the performance, in
     // the order they are used. This one is first because nothing else can say anything until it
