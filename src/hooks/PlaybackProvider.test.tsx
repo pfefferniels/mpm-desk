@@ -35,11 +35,14 @@ const dateByNoteId = readNoteDates(scoreMsm)
 
 let play: ReturnType<typeof usePlayback>['play'] | null = null
 let setExaggeration: ReturnType<typeof usePlayback>['setExaggeration'] | null = null
+/** What the transport button reads to decide between Play and Stop. */
+let isPlaying = false
 
 const Capture = () => {
     const playback = usePlayback()
     useEffect(() => { play = playback.play }, [playback.play])
     useEffect(() => { setExaggeration = playback.setExaggeration }, [playback.setExaggeration])
+    useEffect(() => { isPlaying = playback.isPlaying }, [playback.isPlaying])
     return null
 }
 
@@ -93,6 +96,33 @@ describe('PlaybackProvider', () => {
         expect(ids.every(id => scoreMsm.includes(`"${id}"`))).toBe(true)
 
         await unmount()
+    })
+
+    it('reports itself stopped once the piece has run out', async () => {
+        vi.useFakeTimers()
+        try {
+            const unmount = await mount()
+            act(() => { play!({ exaggerate: 1 }) })
+            expect(isPlaying).toBe(true)
+
+            const end = rig.usePiano().getSchedule()!.events.at(-1)!.abs / 1000
+            expect(end).toBeGreaterThan(100)
+
+            // Still going a second before the last event.
+            act(() => { rig.transport.advanceTo(end - 1) })
+            act(() => { vi.advanceTimersByTime((end - 1) * 1000) })
+            expect(isPlaying).toBe(true)
+
+            // And over once the final chord has had room to decay.
+            act(() => { rig.transport.advanceTo(end) })
+            act(() => { vi.advanceTimersByTime(2000) })
+            expect(isPlaying).toBe(false)
+            expect(rig.transport.state).toBe('stopped')
+
+            await unmount()
+        } finally {
+            vi.useRealTimers()
+        }
     })
 
     it('renders a spotlit segment, and renders it differently', async () => {

@@ -34,19 +34,27 @@ const BACKOFF_FACTOR = 3;
 const ANCHOR_LEAD_S = 0.02;
 
 /**
- * How long a preview is left running past the last note its range covers.
+ * How long playback is left running past the last note it covers.
  *
- * The range ends at the following note's onset, which is where the gesture's last note stops
- * being the one you are listening to — but it is still ringing, and stopping the transport damps
- * it. A little tail lets it decay instead of being cut off mid-sound.
+ * A preview's range ends at the following note's onset, which is where the gesture's last note
+ * stops being the one you are listening to — but it is still ringing, and stopping the transport
+ * damps it. A little tail lets it decay instead of being cut off mid-sound, and does the same for
+ * the piece's final chord.
  */
-const PREVIEW_TAIL_MS = 900;
+const TAIL_MS = 900;
 
 function computeSketchiness(stretchX: number): number {
     if (stretchX >= SKETCH_THRESHOLD) return 1.0;
     const t = (SKETCH_THRESHOLD - stretchX) / SKETCH_THRESHOLD;
     return 1 + (SKETCH_MAX - 1) * t * t;
 }
+
+/**
+ * When what is playing is over, in the rendering's own milliseconds: the end of the preview's
+ * range, or else the last event in the piece. `events` is sorted by `abs`.
+ */
+const endOfPlayback = (rendered: Rendered, heard: { toMs: number } | null): number | undefined =>
+    heard ? heard.toMs : rendered.events.at(-1)?.abs;
 
 interface PlayOptions {
     mpmIds?: string[];
@@ -117,7 +125,6 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
 
     // Throttle bookkeeping
     const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    /** Armed for a `range` preview only; the whole piece plays until something stops it. */
     const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastUpdateRef = useRef(0);
     const intervalRef = useRef(MIN_UPDATE_INTERVAL_MS);
@@ -187,24 +194,28 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
     }, [dateByNoteIdRef]);
 
     /**
-     * Stop a preview once its range has been heard.
+     * Stop once what is playing has been heard through.
+     *
+     * The transport runs on past the last event of its own accord, so this is the only thing that
+     * puts `isPlaying` back when nobody presses stop — otherwise the button sits on Stop over
+     * silence.
      *
      * Re-armed against every rendering that gets installed, never carried over: the exaggeration
-     * knob rescales time under a running preview, so how long is left is a property of the
-     * rendering that is playing rather than of the click that started it.
+     * knob rescales time under a running piece, so how long is left is a property of the rendering
+     * that is playing rather than of the click that started it.
      */
-    const armPreviewStop = useCallback((heard: { toMs: number } | null) => {
+    const armStop = useCallback((endMs: number | undefined) => {
         if (stopTimerRef.current) {
             clearTimeout(stopTimerRef.current);
             stopTimerRef.current = null;
         }
-        if (!heard) return;
+        if (endMs === undefined) return;
         const { offset } = pianoRef.current.getSchedule() ?? { offset: 0 };
-        const left = heard.toMs + offset * 1000 - pianoRef.current.getTransportSeconds() * 1000;
+        const left = endMs + offset * 1000 - pianoRef.current.getTransportSeconds() * 1000;
         stopTimerRef.current = setTimeout(() => {
             stopTimerRef.current = null;
             stop();
-        }, Math.max(0, left + PREVIEW_TAIL_MS));
+        }, Math.max(0, left + TAIL_MS));
     }, [pianoRef, stop]);
 
     /**
@@ -228,11 +239,11 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
             if (startMs !== undefined) pianoRef.current.jumpTo(startMs / 1000);
             setIsPlaying(true);
             isPlayingRef.current = true;
-            armPreviewStop(heard);
+            armStop(endOfPlayback(rendered, heard));
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [armPreviewStop, buildRequest, noteListener, pianoRef, previewRange]);
+    }, [armStop, buildRequest, noteListener, pianoRef, previewRange]);
 
     const play = useCallback((options?: PlayOptions) => {
         lastNoteIdRef.current = null;
@@ -276,8 +287,8 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
 
             const result = splice({ events: rendered.events, anchor, cb: noteListener });
             if (result.ok) {
-                // The seam rescales what is left, so a preview's remaining time is re-read here.
-                armPreviewStop(previewRange(options, rendered));
+                // The seam rescales what is left, so the remaining time is re-read here.
+                armStop(endOfPlayback(rendered, previewRange(options, rendered)));
                 intervalRef.current = Math.max(
                     MIN_UPDATE_INTERVAL_MS,
                     (performance.now() - startedAt) * BACKOFF_FACTOR,
@@ -292,7 +303,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         // No seamless path (hardware output, or samples still loading): restart and seek back in,
         // without a `stopAll()` on the way, which would damp everything sounding.
         startPlayback(options, rendered);
-    }, [armPreviewStop, buildRequest, noteListener, pianoRef, previewRange, startPlayback]);
+    }, [armStop, buildRequest, noteListener, pianoRef, previewRange, startPlayback]);
 
     const scheduleUpdate = useCallback(() => {
         if (!isPlayingRef.current) return;
