@@ -81,4 +81,26 @@ describe('CurveSegment', () => {
 
         expect(drawn.get(probe)).toBeCloseTo(soundedVolume(bent, 0.5, probe), 6)
     })
+
+    /** The desk samples per pixel rather than per tick; see issue #31. */
+    it('samples what the segment covers on screen, not what it covers in ticks', () => {
+        const long = { ...ramp, endDate: 46_000 }
+        const corners = (stretchX: number) => {
+            const { container } = render(
+                <svg>
+                    <CurveSegment
+                        instruction={long}
+                        stretchX={stretchX}
+                        stretchY={1}
+                        active={false}
+                        onClick={() => { }}
+                    />
+                </svg>
+            )
+            return [...(container.querySelector('path')?.getAttribute('d') ?? '').matchAll(/L /g)].length
+        }
+
+        expect(corners(0.3)).toBe(Math.ceil(46_000 * 0.3) + 2)
+        expect(corners(0.005)).toBe(Math.ceil(46_000 * 0.005) + 2)
+    })
 })
