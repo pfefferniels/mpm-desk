@@ -87,6 +87,7 @@ const withMovements = (...controllers: string[]): Mpm => {
 const renderDesk = (pedals: readonly AlignedPedal[], mpm: Mpm, placed = pedals) => {
     const msm = new Alignment([note('n1', 0), note('n2', 720)])
     msm.pedals = [...pedals]
+    const addTransformer = vi.fn()
 
     render(
         <ZoomContext
@@ -115,12 +116,14 @@ const renderDesk = (pedals: readonly AlignedPedal[], mpm: Mpm, placed = pedals) 
                         performanceXml=''
                         secondary={{}}
                         setSecondary={vi.fn()}
-                        addTransformer={vi.fn()}
+                        addTransformer={addTransformer}
                     />
                 </CallSelectionProvider>
             </ScrollSyncProvider>
         </ZoomContext>,
     )
+
+    return addTransformer
 }
 
 /** Everything the plot and its gutter have written, which is one name per row and lane. */
@@ -153,6 +156,21 @@ describe('PedalDesk', () => {
         fireEvent.click(document.querySelector('[data-direction="up"]')!)
 
         expect(screen.getByRole('dialog')).toHaveTextContent('sustain up @720')
+    })
+
+    // The dialog offers no direction of its own any more, so the half that was clicked is the
+    // only thing that can say which movement gets written.
+    it('writes the movement the half that was clicked stands for', () => {
+        const addTransformer = renderDesk([pedal('sustain', 0)], createMpm())
+
+        fireEvent.click(document.querySelector('[data-direction="up"]')!)
+        fireEvent.click(screen.getByRole('button', { name: 'Insert Pedal' }))
+
+        expect(addTransformer).toHaveBeenCalledOnce()
+        expect(addTransformer.mock.calls[0][0].options).toMatchObject({
+            pedal: 'sustain_0',
+            direction: 'up',
+        })
     })
 
     it('keeps the names out of the scroller, so they hold still', () => {
