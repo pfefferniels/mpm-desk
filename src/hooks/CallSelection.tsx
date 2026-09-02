@@ -27,6 +27,9 @@ import type { CallOutcome } from '../model/Reconstruction';
  * `CallOutcome.elements`, derived from the document before and after rather than declared. Lose
  * that and a desk can draw the performance but not say which decision produced any part of it.
  *
+ * Several calls can be answerable for one element, and the round trip needs exactly one:
+ * {@link ownersOf} says which.
+ *
  * The callbacks are stable across chain changes (`useLatest`), because everything a desk draws
  * sits under this and a fresh callback per render would re-render all of it.
  */
@@ -34,7 +37,7 @@ interface CallSelectionValue {
     /** The calls of the chain, in the order the file records them. */
     calls: readonly Call[];
     activeCallIds: Set<string>;
-    /** The `xml:id`s the selected calls wrote — what a desk highlights. */
+    /** The `xml:id`s that answer to the selected calls — what a desk highlights. */
     activeElements: string[];
     setActiveCallIds: (ids: SetStateAction<Set<string>>) => void;
     toggleActiveCall: (id: string) => void;
@@ -55,6 +58,41 @@ interface CallSelectionValue {
 }
 
 const CallSelectionContext = createContext<CallSelectionValue | null>(null);
+
+/**
+ * Which call each element answers to.
+ *
+ * The fit credits every call that wrote or changed an element, and in a chain of dynamics curves
+ * that is two calls at every joint: the first closes its curve with a `<dynamics>` at the date
+ * the second then fills its own curve into. Taking the first call credited lit both curves on a
+ * click on either, and left the second call unselectable from the plot.
+ *
+ * Three rules, each outranking the next, and the later call winning among equals since its run
+ * is the one the document shows:
+ *
+ * - A call that names a place outranks one that names none. The placeless calls are the passes —
+ *   a style over every ornament, a merge over every pattern — and a pass touches what a
+ *   per-chord call placed.
+ * - A call that *leads* with the element outranks one that merely lists it. A gesture begins
+ *   with the first element it reports, so the joint of a chain is the second curve's, and the
+ *   first curve's closer only until then.
+ * - Later wins. A curve redrawn over its own date reports the same id twice, and the earlier
+ *   report is stale.
+ *
+ * Each layer below overrides the one before it, which is what a `Map` does with a later entry
+ * for the same key.
+ */
+const ownersOf = (outcomes: readonly CallOutcome[]): ReadonlyMap<string, string> => {
+    const claims = (
+        by: readonly CallOutcome[],
+        pick: (elements: readonly string[]) => readonly string[],
+    ) => by.flatMap((outcome) => pick(outcome.elements).map((id) => [id, outcome.id] as const));
+    const placed = outcomes.filter((outcome) => outcome.range !== null);
+    const all = (elements: readonly string[]) => elements;
+    const lead = (elements: readonly string[]) => elements.slice(0, 1);
+
+    return new Map([...claims(outcomes, all), ...claims(placed, all), ...claims(placed, lead)]);
+};
 
 export const useCallSelection = (): CallSelectionValue => {
     const context = useContext(CallSelectionContext);
@@ -83,20 +121,16 @@ export const CallSelectionProvider = ({
     focusCall,
 }: CallSelectionProviderProps) => {
     const callsRef = useLatest(calls);
-    const outcomesRef = useLatest(outcomes);
     const activeRef = useLatest(activeCallIds);
     const removeRef = useLatest(onRemoveCalls);
 
-    const elementsByCall = useMemo(() => {
-        const map = new Map<string, readonly string[]>();
-        for (const outcome of outcomes) map.set(outcome.id, outcome.elements);
-        return map;
-    }, [outcomes]);
+    const owners = useMemo(() => ownersOf(outcomes), [outcomes]);
+    const ownersRef = useLatest(owners);
 
     const activeElements = useMemo(() => {
         if (activeCallIds.size === 0) return [];
-        return [...activeCallIds].flatMap((id) => [...(elementsByCall.get(id) ?? [])]);
-    }, [activeCallIds, elementsByCall]);
+        return [...owners].filter(([, owner]) => activeCallIds.has(owner)).map(([id]) => id);
+    }, [activeCallIds, owners]);
     const activeElementsRef = useLatest(activeElements);
 
     const toggleActiveCall = useCallback(
@@ -111,18 +145,15 @@ export const CallSelectionProvider = ({
 
     const setActiveElement = useCallback(
         (elementId: string) => {
-            const owner = outcomesRef.current.find((outcome) =>
-                outcome.elements.includes(elementId),
-            );
-            if (owner) setActiveCallIds(new Set([owner.id]));
+            const owner = ownersRef.current.get(elementId);
+            if (owner !== undefined) setActiveCallIds(new Set([owner]));
         },
-        [outcomesRef, setActiveCallIds],
+        [ownersRef, setActiveCallIds],
     );
 
     const callForElement = useCallback(
-        (elementId: string) =>
-            outcomesRef.current.find((outcome) => outcome.elements.includes(elementId))?.id,
-        [outcomesRef],
+        (elementId: string) => ownersRef.current.get(elementId),
+        [ownersRef],
     );
 
     const removeCall = useCallback(
