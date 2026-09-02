@@ -326,6 +326,26 @@ describe('the keys the skyline answers', () => {
         expect(splitButton(bar)).toHaveAttribute('aria-pressed', 'false');
         dispose();
     });
+
+    it('keeps a Backspace that deleted boxes from the editor, and passes an idle one on', () => {
+        // The editor listens on the document and removes the selected call on Backspace. A press
+        // that took boxes must not reach it, or one key would take a box and a call together.
+        const { storedBoxes, dispose } = renderDesk(0);
+        const reachedEditor = vi.fn();
+        document.addEventListener('keydown', reachedEditor);
+        selectTwoBoxes();
+
+        fireEvent.keyDown(skyline(), { key: 'Backspace' });
+        expect(storedBoxes()).toBe(2);
+        expect(reachedEditor).not.toHaveBeenCalled();
+
+        fireEvent.keyDown(skyline(), { key: 'Backspace' });
+        expect(storedBoxes()).toBe(2);
+        expect(reachedEditor).toHaveBeenCalledTimes(1);
+
+        document.removeEventListener('keydown', reachedEditor);
+        dispose();
+    });
 });
 
 describe('inserting the drawn curves', () => {

@@ -1,6 +1,7 @@
 import { useHotkeys } from 'react-hotkeys-hook';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useWorkDocument } from '../hooks/WorkDocument';
+import { useCallSelection } from '../hooks/CallSelection';
 
 interface EditorHotkeysProps {
     onSave: () => void;
@@ -10,14 +11,22 @@ interface EditorHotkeysProps {
 /**
  * The editor's keyboard, in one place.
  *
- * A component rather than a few `useHotkeys` calls in `App`, because two of the five need
- * `usePlayback` and `useWorkDocument` and `App` is what *renders* both providers — it cannot
- * read them. So this sits inside them, beside `PinchZoomHandler` and `FollowPlayback`, which
- * are render-null components for the same reason.
+ * A component rather than a few `useHotkeys` calls in `App`, because most of these need
+ * `usePlayback`, `useWorkDocument` or `useCallSelection`, and `App` is what *renders* those
+ * providers — it cannot read them. So this sits inside them, beside `PinchZoomHandler` and
+ * `FollowPlayback`, which are render-null components for the same reason.
  *
  * It is also worth having as one file for its own sake. Three of these lived in `AppMenu`,
- * where they existed only while a toolbar happened to be mounted, and the other two lived in
- * `App` — so nothing anywhere answered "what keys does the editor have".
+ * where they existed only while a toolbar happened to be mounted, and two lived in `App` — so
+ * nothing anywhere answered "what keys does the editor have".
+ *
+ * ## Backspace
+ *
+ * Removes the selected calls, on whichever desk selected them. The library leaves the key to a
+ * focused text field on its own, and the skyline, whose Backspace deletes selected boxes, stops
+ * the press once it has acted on one — so one key never takes a box and a call together. The
+ * default is cancelled only when there is something to remove; an idle Backspace stays the
+ * browser's.
  *
  * ## `mod+`, not `meta+`
  *
@@ -30,11 +39,22 @@ interface EditorHotkeysProps {
 export const EditorHotkeys = ({ onSave, onOpen }: EditorHotkeysProps) => {
     const { undo, redo } = useWorkDocument();
     const { isPlaying, play, stop } = usePlayback();
+    const { activeCallIds, removeActiveCalls } = useCallSelection();
 
     useHotkeys('mod+z', undo, { preventDefault: true }, [undo]);
     useHotkeys('mod+shift+z', redo, { preventDefault: true }, [redo]);
     useHotkeys('mod+s', onSave, { preventDefault: true }, [onSave]);
     useHotkeys('mod+o', onOpen, { preventDefault: true }, [onOpen]);
+
+    useHotkeys(
+        ['backspace', 'delete'],
+        (event) => {
+            if (activeCallIds.size === 0) return;
+            event.preventDefault();
+            removeActiveCalls();
+        },
+        [activeCallIds, removeActiveCalls],
+    );
 
     useHotkeys(
         'space',

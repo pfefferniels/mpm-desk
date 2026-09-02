@@ -9,12 +9,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { render, screen } from '@testing-library/react';
-import { act } from 'react';
+import { act, useState, type ReactNode } from 'react';
 import { createFakePiano } from '../test/fakePiano';
 import { readNoteDates } from '../utils/score';
 import { ZoomContext } from '../hooks/ZoomProvider';
 import { PlaybackProvider } from '../hooks/PlaybackProvider';
 import { WorkDocumentProvider } from '../hooks/WorkDocument';
+import { CallSelectionProvider } from '../hooks/CallSelection';
 import { initialHistory } from '../model/workReducer';
 import { EditorHotkeys } from './EditorHotkeys';
 
@@ -29,7 +30,42 @@ const scoreMsm = readFileSync('src/test/fixtures/score.msm', 'utf-8');
 const performanceMpm = readFileSync('src/test/fixtures/performance.mpm', 'utf-8');
 const dateByNoteId = readNoteDates(scoreMsm);
 
-const mount = (onSave = () => {}, onOpen = () => {}) =>
+/** The selection as the editor holds it: state, so removing the selected calls can clear it. */
+const Selection = ({
+    selected,
+    onRemoveCalls,
+    children,
+}: {
+    selected: Set<string>;
+    onRemoveCalls: (ids: readonly string[]) => void;
+    children: ReactNode;
+}) => {
+    const [activeCallIds, setActiveCallIds] = useState(selected);
+    return (
+        <CallSelectionProvider
+            calls={[]}
+            outcomes={[]}
+            activeCallIds={activeCallIds}
+            setActiveCallIds={setActiveCallIds}
+            onRemoveCalls={onRemoveCalls}
+            focusCall={() => {}}
+        >
+            {children}
+        </CallSelectionProvider>
+    );
+};
+
+const mount = ({
+    onSave = () => {},
+    onOpen = () => {},
+    selected = new Set<string>(),
+    onRemoveCalls = () => {},
+}: {
+    onSave?: () => void;
+    onOpen?: () => void;
+    selected?: Set<string>;
+    onRemoveCalls?: (ids: readonly string[]) => void;
+} = {}) =>
     render(
         <ZoomContext
             value={{
@@ -44,8 +80,10 @@ const mount = (onSave = () => {}, onOpen = () => {}) =>
                     performanceMpm={performanceMpm}
                     dateByNoteId={dateByNoteId}
                 >
-                    <EditorHotkeys onSave={onSave} onOpen={onOpen} />
-                    <button>Insert</button>
+                    <Selection selected={selected} onRemoveCalls={onRemoveCalls}>
+                        <EditorHotkeys onSave={onSave} onOpen={onOpen} />
+                        <button>Insert</button>
+                    </Selection>
                 </PlaybackProvider>
             </WorkDocumentProvider>
         </ZoomContext>,
@@ -107,12 +145,50 @@ describe('EditorHotkeys', () => {
 
     it('saves on the platform modifier, not on Command alone', () => {
         const onSave = vi.fn();
-        mount(onSave);
+        mount({ onSave });
 
         // jsdom is not a Mac, so `mod+s` resolves to Ctrl here — which is the point: the two
         // shortcuts this replaced were bound `meta+`, and did nothing off a Mac.
         press(document, { key: 's', code: 'KeyS', ctrlKey: true });
 
         expect(onSave).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('removing the selected calls', () => {
+    it.each(['Backspace', 'Delete'])('%s removes them, and is spent on it', (key) => {
+        const onRemoveCalls = vi.fn();
+        mount({ selected: new Set(['a', 'b']), onRemoveCalls });
+
+        const event = press(document, { key, code: key });
+
+        expect(onRemoveCalls).toHaveBeenCalledWith(['a', 'b']);
+        expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('leaves an idle Backspace to the browser', () => {
+        const onRemoveCalls = vi.fn();
+        mount({ onRemoveCalls });
+
+        const event = press(document, { key: 'Backspace', code: 'Backspace' });
+
+        expect(onRemoveCalls).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('leaves Backspace to a text field', () => {
+        // The narrative desk's Word field and the metadata desk's title take Backspace as text,
+        // with a call selected or not.
+        const onRemoveCalls = vi.fn();
+        mount({ selected: new Set(['a']), onRemoveCalls });
+        const field = document.createElement('input');
+        document.body.appendChild(field);
+        field.focus();
+
+        const event = press(field, { key: 'Backspace', code: 'Backspace' });
+
+        expect(onRemoveCalls).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+        field.remove();
     });
 });

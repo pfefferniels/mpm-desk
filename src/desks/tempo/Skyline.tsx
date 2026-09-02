@@ -99,11 +99,13 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
     setTempos(new TempoCluster([...tempos.segments, combined]))
   }
 
+  /** Drop the selected boxes. Says whether there were any, so the key that asked can stop there. */
   const removeSelected = () => {
     const selected = tempos.segments.filter(s => s.selected)
-    if (selected.length === 0) return
+    if (selected.length === 0) return false
     for (const s of selected) tempos.removeTempo(s)
     setTempos(new TempoCluster(tempos.segments))
+    return true
   }
 
   // Escape alone reaches past the skyline. Deselecting and dropping the stroke in hand is what
@@ -190,7 +192,11 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
         // A shortcut of the editor's passes through: ⌘S saves, and must not toggle Split on
         // its way to the handler that does.
         if (e.metaKey || e.ctrlKey || e.altKey) return
-        if (e.key === 'Backspace') removeSelected()
+        // Backspace is also the editor's key for removing the selected call. Boxes first, and
+        // a press that took some goes no further, so it does not take the call as well.
+        if (e.key === 'Backspace') {
+          if (removeSelected()) e.stopPropagation()
+        }
         else if (e.key === 'c') combineSelected()
         else if (e.key === 's') onToggleSplitMode()
       }}
