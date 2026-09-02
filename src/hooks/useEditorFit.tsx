@@ -186,6 +186,10 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
 
     const residual = useMemo(() => {
         if (!alignment || !mpm) return null;
+        // None to be had while the readings stand side by side — `deriveResidual` refuses to
+        // measure one take against another. Every desk that reads a residual is greyed out until
+        // a base text has been chosen, so nothing on screen is left without one.
+        if (alignment.unchosenNotes() > 0) return null;
         return deriveResidual(alignment, mpm, without ? { without } : {});
     }, [alignment, mpm, without]);
 

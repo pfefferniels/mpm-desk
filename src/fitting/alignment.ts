@@ -517,10 +517,11 @@ export class Alignment {
    * and a `MakeChoice` is what settles that. Zero on a document that only ever held one take.
    *
    * What it is for: a desk that fits from the recording measures one row at a time, and a note on
-   * several readings carries a recorded velocity and an onset per take under the one id. The
-   * collapse that follows is silent — `deriveResidual` keys by `xml:id` and keeps the last row,
-   * `Alignment.build` the first — so the desk draws one take and reports another's residual.
-   * `DeskSwitch` greys those desks out until this reaches zero.
+   * several readings carries a recorded velocity and an onset per take under the one id. Which row
+   * a reader is looking at is not said anywhere, and `Alignment.build` — the score a rendering is
+   * computed from — keeps the first of them. `deriveResidual` refuses such an alignment outright,
+   * so this is also what says whether there is a residual to be had at all; `DeskSwitch` greys out
+   * the desks that plot one until this reaches zero.
    */
   public unchosenNotes(): number {
     const rows = new Map<string, number>();

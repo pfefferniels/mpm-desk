@@ -4,7 +4,6 @@ import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { createMpm } from '../../fitting/instructions/index';
-import { deriveResidual } from '../../fitting/residual';
 import type { MakeChoice } from '../../fitting/transformers/choice/MakeChoice';
 import { ChoiceDesk } from './ChoiceDesk';
 
@@ -46,6 +45,13 @@ const alignment = () =>
         onsets.flatMap(([id, date]) => [note(id, date, 'rec1', 64), note(id, date, 'rec2', 80)]),
     );
 
+/**
+ * The desk under its own subject: an alignment whose readings still stand.
+ *
+ * `residual={null}` is what the editor hands it there, and the only thing it could hand: a residual
+ * over two readings would measure one take against another, so `deriveResidual` refuses one. This
+ * desk is where the choice that lifts that is made, and it reads the recorded values off the rows.
+ */
 const mount = () => {
     const msm = alignment();
     const addTransformer = vi.fn();
@@ -60,7 +66,7 @@ const mount = () => {
                     part="global"
                     msm={msm}
                     mpm={createMpm()}
-                    residual={deriveResidual(msm, createMpm())}
+                    residual={null}
                     projected={[]}
                     performanceXml=""
                     secondary={{}}

@@ -23,6 +23,11 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
 
     const scrollContainerRef = useScrollRegistration('pedal-desk', 'symbolic')
 
+    // `needsChoice` holds this desk shut until a base text has been chosen, and choosing one is
+    // what leaves a residual to place the pedals by: the type system catching up with that, not a
+    // case being handled. Below the hooks, so the desk keeps calling the same ones either way.
+    if (!residual) return null
+
     const transform = (options: InsertPedalOptions) => {
         if (!options) return
 

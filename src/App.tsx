@@ -665,7 +665,10 @@ export const App = () => {
     if (!mei) {
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
     }
-    if (!alignment || !mpm || !result || !residual) {
+    // No `residual` here. A document whose readings still stand side by side has none — and it is
+    // exactly the document the reader has to be able to open, because Base Text is where the
+    // choice that gives it one is made.
+    if (!alignment || !mpm || !result) {
         return <LoadingScreen message={pending ? 'Running the chain' : undefined} />;
     }
 

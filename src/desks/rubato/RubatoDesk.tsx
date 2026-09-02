@@ -98,6 +98,11 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
         )
     })
 
+    // `needsChoice` holds this desk shut until a base text has been chosen, and choosing one is
+    // what leaves a residual to plot: the type system catching up with that, not a case being
+    // handled. Below the hooks, so the desk keeps calling the same ones either way.
+    if (!residual) return null
+
     return (
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
             <DeskToolbar>

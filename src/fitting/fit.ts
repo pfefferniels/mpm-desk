@@ -110,7 +110,15 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
     // Read once, after the run. A `<pedal>` has no symbolic date of its own, so placing one is
     // derived from the finished document — which is why the ranges cannot be read as the chain
     // goes. `without: ['movement']` is the probe `InsertPedal` itself fits against.
-    const residual = deriveResidual(alignment, mpm, { without: ['movement'] });
+    //
+    // Not read at all where the readings still stand side by side: `deriveResidual` refuses one,
+    // and a document waiting for its base text has to keep folding, since choosing one is a call
+    // like any other. The only range that wants a residual is a pedal call's, and a chain holding
+    // one has already thrown from `InsertPedal`, which derives its own.
+    const residual =
+        alignment.unchosenNotes() === 0
+            ? deriveResidual(alignment, mpm, { without: ['movement'] })
+            : undefined;
 
     // Every instruction has an `xml:id` by now — `AbstractTransformer.run` refuses to let a call
     // finish having left one without, because an unnamed instruction cannot be attributed to the

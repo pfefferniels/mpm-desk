@@ -55,6 +55,10 @@ const renderDesk = (part: Scope, mpm: Mpm = createMpm(), score: Alignment = msm)
     const bar = document.createElement('div');
     document.body.appendChild(bar);
 
+    // No residual over readings that still stand: `deriveResidual` refuses one rather than
+    // measuring one take against another, and the editor hands the desk the same null.
+    const residual = score.unchosenNotes() === 0 ? deriveResidual(score, mpm) : null;
+
     const { unmount } = render(
         <ZoomContext
             value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
@@ -79,7 +83,7 @@ const renderDesk = (part: Scope, mpm: Mpm = createMpm(), score: Alignment = msm)
                                 part={part}
                                 msm={score}
                                 mpm={mpm}
-                                residual={deriveResidual(score, mpm)}
+                                residual={residual}
                                 projected={[]}
                                 performanceXml=""
                                 secondary={{}}
@@ -141,24 +145,19 @@ describe('what the articulation desk plots', () => {
     });
 
     /**
-     * The desk is reachable before a base text has been chosen — nothing in the registry declares
-     * it unavailable on an unchosen document — and then each score note is on the plot once per
-     * take, all of them carrying the one `xml:id`. Keyed by the id, that handed React 450
-     * duplicate keys on every render.
+     * On an unchosen document each score note would be on the plot once per take, all of them
+     * carrying the one `xml:id` — 900 bars over 450 ids, and no way to tell the reader which take
+     * a bar came from. There is nothing to plot them against either: `deriveResidual` refuses an
+     * alignment on more than one reading, so the desk is handed no residual and draws nothing.
+     * `needsChoice` is what keeps the reader from arriving here in the first place.
      */
-    it('keys a note by its row rather than by its score id, on an unchosen document', () => {
-        const complaints: string[] = [];
-        const errors = vi
-            .spyOn(console, 'error')
-            .mockImplementation((...args: unknown[]) => complaints.push(String(args[0])));
-
+    it('draws nothing while the readings still stand', () => {
         const desk = renderDesk('global', createMpm(), takes);
         const bars = desk.bars().length;
         desk.dispose();
-        errors.mockRestore();
 
-        expect(bars).toBe(900);
-        expect(complaints.filter((message) => message.includes('same key'))).toEqual([]);
+        expect(takes.unchosenNotes()).toBe(450);
+        expect(bars).toBe(0);
     });
 
     it('hulls an articulation only in the scope whose map holds it', () => {

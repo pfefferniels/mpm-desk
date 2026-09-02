@@ -109,7 +109,8 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
     }
 
     const segments = useMemo(
-        () => extractDynamicsSegments(msm, part, residual),
+        // Nothing to segment without a residual, and nothing drawn either — see the return below.
+        () => (residual ? extractDynamicsSegments(msm, part, residual) : []),
         [msm, part, residual],
     )
 
@@ -165,6 +166,11 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
         })
         .filter((i): i is Pattern => i !== null),
         [mpm, part])
+
+    // `needsChoice` holds this desk shut until a base text has been chosen, and choosing one is
+    // what leaves a residual to plot: the type system catching up with that, not a case being
+    // handled. Below the hooks, so the desk keeps calling the same ones either way.
+    if (!residual) return null
 
     const handleInsert = (cell: Cell, newScaleTolerance: number) => {
         addTransformer(new InsertMetricalAccentuation({

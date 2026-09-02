@@ -155,6 +155,11 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
     const stretchX = useSymbolicZoom()
     const stretchY = 8
 
+    // `needsChoice` holds this desk shut until a base text has been chosen, and choosing one is
+    // what leaves a residual to plot: the type system catching up with that, not a case being
+    // handled. Below the hooks, so the desk keeps calling the same ones either way.
+    if (!residual) return null
+
     const artics = getInstructions(mpm, 'articulation', part)
 
     const articulatedNotes = []

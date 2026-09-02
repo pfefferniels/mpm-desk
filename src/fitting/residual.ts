@@ -220,11 +220,39 @@ export const clearResidualCache = (): void => {
  */
 const ALWAYS_WITHOUT: readonly InstructionType[] = ['ornament'];
 
+/**
+ * Refuse a recording that is still several recordings.
+ *
+ * A residual is a quantity per score note — recorded minus rendered — and while the readings stand
+ * side by side the alignment holds a row per take under the one `xml:id`: 450 notes over 900 rows
+ * in the shipped transcription, of which 283 pairs differ in recorded velocity and 227 in recorded
+ * onset. There is no single recorded value to subtract from.
+ *
+ * What makes it a refusal rather than a partial answer is that the two collapses point opposite
+ * ways. The lookups below keep the *last* row of an id; `Alignment.build`, which is the score the
+ * render is computed from, keeps the *first*. So an answer here would measure one take's recording
+ * against another take's rendering and read like any other residual.
+ *
+ * `MakeChoice` is what lifts this and it is registered second in the chain, so every fitter that
+ * asks runs after it; the editor greys out the desks that fit from the recording until it has run.
+ */
+const requireOneReading = (msm: Alignment): void => {
+  const unchosen = msm.unchosenNotes();
+  if (unchosen === 0) return;
+  throw new Error(
+    `${String(unchosen)} notes are on more than one reading, so there is no residual to derive: ` +
+      "one take's recording would be measured against another take's rendering. Choose a base " +
+      'text first.',
+  );
+};
+
 export const deriveResidual = (
   msm: Alignment,
   mpm: Mpm,
   options: DeriveResidualOptions = {},
 ): Residual => {
+  requireOneReading(msm);
+
   const _t0 = Date.now();
   const probe = withoutMaps(mpm, [...ALWAYS_WITHOUT, ...(options.without ?? [])]);
   residualStats.withoutMs += Date.now() - _t0;

@@ -223,11 +223,14 @@ const needsTempo: Prerequisite = ({ tempos }) =>
  *
  * A desk measures one row of the alignment at a time, and while the readings stand side by side a
  * score note has a row per take: a recorded velocity and an onset each, under the one `xml:id`.
- * Neither desk nor reader is told which of them is on screen. `deriveResidual` keys by id and
- * keeps the last row while `Alignment.build` keeps the first, so the plot is drawn from one take
- * and its residual reported from another, and the arpeggiation desks — which read each row's own
- * onset — frame a chord from the earliest onset in any take to the latest, a spread no performance
- * played.
+ * Neither desk nor reader is told which of them is on screen. `Alignment.build` keeps the first
+ * row of an id, so the rendering a plot is read against is one take's while the plot itself may be
+ * another's, and the arpeggiation desks — which read each row's own onset — frame a chord from the
+ * earliest onset in any take to the latest, a spread no performance played.
+ *
+ * There is no residual to plot either: `deriveResidual` refuses an alignment on more than one
+ * reading rather than answering off whichever row it kept, so the four desks that read one are
+ * handed `null` until this gate lifts.
  *
  * Three desks are deliberately not gated, because the takes are their subject rather than their
  * input: the alignment desk is where a further recording comes from, Base Text is the remedy this

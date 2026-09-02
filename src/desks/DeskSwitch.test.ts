@@ -324,9 +324,9 @@ describe('the desk registry', () => {
         it('takes the desks that fit from the recording away until a base text is chosen', () => {
             // While the readings stand side by side a score note has a row per take, and a desk
             // that measures one row at a time is handed a recorded velocity and an onset per take
-            // under the one id. What follows is silent rather than empty: `deriveResidual` keys by
-            // `xml:id` and keeps the last row while `Alignment.build` keeps the first, so the plot
-            // is drawn from one take and its residual reported from another.
+            // under the one id. `Alignment.build` keeps the first row, so a plot read against a
+            // rendering compares one take with another, and there is no residual to plot at all:
+            // `deriveResidual` refuses an alignment on more than one reading.
             const noChoiceYet = { ...FITTED, unchosen: 450 };
 
             for (const aspect of FITS_THE_RECORDING) {

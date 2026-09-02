@@ -53,8 +53,14 @@ export interface ViewProps {
      *
      * Derived once per fit and shared, because deriving one renders the whole document: deriving
      * it per desk instead costs a refit eleven seconds.
+     *
+     * Null while the alignment's readings still stand side by side. A score note then has a row per
+     * take under the one id and there is nothing single to measure, so `deriveResidual` refuses the
+     * question rather than answering it off whichever row it kept. The desks that read a residual
+     * are the desks `needsChoice` holds shut until a base text has been chosen — see
+     * `DeskSwitch.tsx` — so each of them narrows this once and none of them ever draws without one.
      */
-    residual: Residual;
+    residual: Residual | null;
 
     /**
      * The claims as the last run projected them — one entry per claim that still has a gesture in
