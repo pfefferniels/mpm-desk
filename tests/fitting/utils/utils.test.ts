@@ -6,12 +6,10 @@ import { fix } from '../../../src/fitting/utils';
  *
  * It rounds through the decimal *spelling* of the number rather than by multiplying, because
  * multiplying reintroduces the binary error the rounding exists to remove. The spelling is also
- * where it used to break: JavaScript switches to exponential notation below 1e-7 and at or above
- * 1e21, and appending `'e2'` to `'1e-7'` produces text that is not a number, so the property came
- * back `NaN` (issue #36). It was `CompressOrnamentation` that called this on a temporal
- * spread's frame — legitimately tiny after a milliseconds-to-ticks conversion of a short
- * arpeggio — and wrote the result straight into the definition. That transformer is not part of
- * this application; the rounding it exposed is, and this is where it is held.
+ * where it breaks: JavaScript switches to exponential notation below 1e-7 and at or above 1e21,
+ * and appending `'e2'` to `'1e-7'` produces text that is not a number, so the property comes back
+ * `NaN` (issue #36). A temporal spread's frame reaches values that small after a
+ * milliseconds-to-ticks conversion of a short arpeggio.
  */
 describe('fix', () => {
   test('rounds an ordinary number to the requested precision', () => {

@@ -4,12 +4,11 @@ import { createPortal } from 'react-dom';
 /**
  * Where a desk's own controls go.
  *
- * The node itself, not a ref to it. Every desk used to portal into `appBarRef?.current ??
- * document.body`, which reads a ref during render: on the commit where the app bar and the desk
- * first render together the ref is still null, so the desk's controls mounted into the document
- * body and only moved to the bar on some later render. The bar's node arrives here through a
- * callback ref held in state instead, so by the time a desk reads it it is either the real bar or
- * honestly nothing.
+ * The node itself rather than a ref to it. Portalling into `appBarRef?.current ?? document.body`
+ * reads a ref during render: on the commit where the app bar and the desk first render together
+ * it is still null, so a desk's controls mount into the document body and move to the bar on some
+ * later render. The bar's node arrives here through a callback ref held in state, so by the time
+ * a desk reads it it is either the real bar or honestly nothing.
  */
 const DeskToolbarContext = createContext<HTMLElement | null>(null);
 

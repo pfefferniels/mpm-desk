@@ -123,9 +123,9 @@ describe('what the dynamics gradient desk plots', () => {
 
 /**
  * Both handles commit the velocity the pointer is on as the chord's standard, and what they hand
- * the transformer is a ramp in the units a `<dynamicsGradient>` takes. The line used to send the
- * two extremes' onsets, in seconds, as that ramp (issue #29), and the circle sent a pair read off
- * the band from soft to loud whichever way the chord actually rolled.
+ * the transformer is a ramp in the units a `<dynamicsGradient>` takes. Not the two extremes'
+ * onsets in seconds (issue #29), and not a pair read off the band from soft to loud whichever way
+ * the chord actually rolled.
  */
 describe('what a click on a chord commits', () => {
     /**

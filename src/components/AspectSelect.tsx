@@ -92,10 +92,10 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
         <Card
             elevation={0}
             sx={{
-                // Against the desk area, not the page. Nothing above this used to establish a
-                // containing block, so `top: 0` resolved against the initial one and the card
-                // painted over the app bar's right end; `App` wraps the desk in a positioned
-                // box now, and this is what that box is for.
+                // Against the desk area rather than the page: `App` wraps the desk in a
+                // positioned box, which is what this resolves against. Without one, `top: 0`
+                // resolves against the initial containing block and the card paints over the
+                // app bar's right end.
                 position: 'absolute',
                 top: 0,
                 right: 0,

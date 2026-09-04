@@ -2,17 +2,13 @@
  * What the MPM as it stands does not yet explain.
  *
  * The fit is a reduction: each transformer accounts for one slice of the deviation between the
- * score and the recording, and the next one works on what is left. This module computes that
- * remainder from the score, the recording and the MPM, on demand, rather than *carrying* it —
- * writing it back onto the aligned notes as `tickDate`, `tickDuration` and
- * `absoluteVelocityChange`, each step subtracting its own share for the next.
+ * score and the recording, and the next works on what is left. This module computes that
+ * remainder from the score, the recording and the MPM on demand, rather than carrying it on the
+ * aligned notes with each step subtracting its own share.
  *
- * The difference is not tidiness. An accumulated remainder cannot be undone (undoing step 4
- * leaves steps 5 to 8's subtractions behind) and cannot be refitted (revise the tempo and every
- * later fit was made against a remainder that no longer exists, silently). A computed one is
- * free of both.
- *
- * ## `without`
+ * An accumulated remainder cannot be undone (undoing step 4 leaves steps 5 to 8's subtractions
+ * behind) and cannot be refitted (revise the tempo and every later fit was made against a
+ * remainder that no longer exists, silently). A computed one is free of both.
  *
  * A transformer asks for the residual with its own dimension held out:
  *
@@ -20,22 +16,22 @@
  * const residual = deriveResidual(msm, mpm, { without: ['articulation'] })
  * ```
  *
- * — "what does everything *else* explain?" That is the same quantity the subtraction would
+ * which is "what does everything *else* explain?", the same quantity the subtraction would
  * produce, arrived at by construction rather than by bookkeeping.
  *
- * ## Two domains, two sources, deliberately
+ * ## Two domains, two sources
  *
- * The tick figures come from replaying the tempo walk in `tickTimes.ts`; the velocity comes from
- * rendering the MPM through espressivo. That split is not an accident of implementation:
+ * The tick figures come from replaying the tempo walk in `tickTimes.ts`, the velocity from
+ * rendering the MPM through espressivo. The split is deliberate:
  *
  * - **Ticks cannot come from a render.** The walk re-anchors on the recorded onset at every
  *   tempo boundary, so it is a function of the MPM *and* the recording. A rendered performance
- *   has no recording to anchor to, and inverting one gives a different table — the failure mode
- *   being that every rubato silently moves. See the note at the top of `tickTimes.ts`.
+ *   has nothing to anchor to, and inverting one gives a different table, the failure mode being
+ *   that every rubato silently moves. See the note at the top of `tickTimes.ts`.
  * - **Velocity should not come from anywhere else.** It is the dynamics curve times the
  *   accentuation pattern times articulation's `relativeVelocity`. espressivo composes all three
- *   and is held byte-equivalent to meico on it; reassembling that here would be new and
- *   unproven code that has to stay in step with a renderer it does not own.
+ *   and is held byte-equivalent to meico on it, so reassembling it here would be unproven code
+ *   that has to stay in step with a renderer it does not own.
  */
 import {
   exportMPM,
@@ -110,22 +106,22 @@ const RESIDUAL_SEED = 0x6d706d;
 /**
  * The last residual derived, and the probe it was derived from.
  *
- * A run of the real reconstruction asks for a residual **232 times** — once per `InsertRubato`,
- * `InsertArticulation`, `InsertMetricalAccentuation` and `InsertPedal` call — and each ask
- * renders the whole document. That is where eleven of the twelve seconds go.
+ * A run of the real reconstruction asks for a residual **232 times**, once per `InsertRubato`,
+ * `InsertArticulation`, `InsertMetricalAccentuation` and `InsertPedal` call, each ask rendering
+ * the whole document. That is where eleven of the twelve seconds go.
  *
  * Almost all of those asks are the same question. The chain runs in reduction order, so calls of
- * one kind run consecutively, and a call asks for the residual with *its own dimension held out*
- * — so a `<rubato>` written by the previous `InsertRubato` is removed again by `withoutMaps`
- * before the probe is built. Fifty-six consecutive rubato fits therefore see one document.
+ * one kind run consecutively, and each asks for the residual with *its own dimension held out*,
+ * so `withoutMaps` removes the `<rubato>` the previous `InsertRubato` wrote before the probe is
+ * built. Fifty-six consecutive rubato fits therefore see one document.
  *
- * The key is the probe's own serialization, which is not a heuristic: two probes that serialize
- * identically ARE the same document as far as everything downstream is concerned — the tempo
- * walk reads it, and the render is `performMsmToData` on exactly this text. It also costs
- * nothing extra, because `renderedVelocities` has to serialize the probe anyway.
+ * Keyed on the probe's own serialization, which is not a heuristic: two probes that serialize
+ * identically ARE the same document downstream, the tempo walk reading it and the render being
+ * `performMsmToData` on exactly this text. It costs nothing extra, since `renderedVelocities`
+ * has to serialize the probe anyway.
  *
- * One entry, not a table. The pattern being exploited is consecutiveness, so a second entry
- * would only hold a document the chain has already moved past.
+ * One entry rather than a table. The pattern being exploited is consecutiveness, so a second
+ * entry would only hold a document the chain has moved past.
  */
 /**
  * What the last run spent deriving residuals, and how much of it the caches saved.
@@ -150,15 +146,15 @@ export const residualStats = {
 /**
  * What the tick walk actually depends on: the tempo and rubato instructions, and nothing else.
  *
- * `computeTickTimes` reads `placeTempos` — the tempo map — and then takes the rubato distortion
- * back out. That is the whole of its input besides the alignment. So a second cache, keyed on
- * just those two maps, catches the case the probe-level one cannot: an `InsertMetricalAccentuation`
- * or `InsertArticulation` call writes a `<…Def>` into the *header*, which `withoutMaps` does not
- * remove, so the probe text differs on every call of those two kinds — 76 of the run's 78 misses —
- * while the tick domain has not moved at all.
+ * `computeTickTimes` reads the tempo map through `placeTempos`, then takes the rubato distortion
+ * back out. Besides the alignment that is the whole of its input, so a second cache keyed on
+ * those two maps catches what the probe-level one cannot: an `InsertMetricalAccentuation` or
+ * `InsertArticulation` call writes a `<…Def>` into the *header*, which `withoutMaps` leaves
+ * alone, so the probe text differs on every such call (76 of the run's 78 misses) while the tick
+ * domain has not moved.
  *
- * The element is dropped from each record because it is a live node; what is left is the numbers
- * the walk reads, which is exactly the right granularity for a key.
+ * The element is dropped from each record, being a live node. What is left is the numbers the
+ * walk reads, which is the right granularity for a key.
  */
 const tickKeyOf = (mpm: Mpm): string => {
   // The element is a live node and cannot be stringified; what is left is the numbers the walk
@@ -196,45 +192,44 @@ export const clearResidualCache = (): void => {
 /**
  * The ornamentation map is held out of **every** probe, on top of whatever the caller asks for.
  *
- * An arpeggio is the one dimension the chain still takes out of the recording rather than
- * leaving for the residual to find. `InsertDynamicsGradient` flattens the chord's recorded
- * velocities onto the ramp's base and writes the ramp into an `<ornament>`; `InsertTemporalSpread`
- * collapses the chord's recorded onsets onto one date and writes the spread into the same
- * element. What reaches `Ground` is a chord with no arpeggio left in it.
+ * An arpeggio is the one dimension the chain takes out of the recording rather than leaving for
+ * the residual to find. `InsertDynamicsGradient` flattens the chord's recorded velocities onto
+ * the ramp's base and writes the ramp into an `<ornament>`, and `InsertTemporalSpread` collapses
+ * its recorded onsets onto one date and writes the spread into the same element. What reaches
+ * `Ground` is a chord with no arpeggio left in it.
  *
  * So an `<ornament>` in the probe re-imposes what the recording no longer has, and the
- * subtraction below returns the ramp inverted: a chord flattened to 42 rendering at 42/37/32
+ * subtraction below returns the ramp inverted: a chord flattened to 42, rendering at 42/37/32,
  * reads as a residual of 0/5/10, which the accentuation desk draws as three notes at three
- * heights and `InsertMetricalAccentuation` fits a pattern to. Held out, the same chord reads
- * flat, which is what a chord whose arpeggio has already been accounted for is.
+ * heights and `InsertMetricalAccentuation` fits a pattern to. Held out, it reads flat.
  *
- * The tick domain has always worked this way without having to say so: `computeTickTimes` reads
- * the tempo and rubato maps and nothing else, so the temporal half of an ornament never entered
- * a residual. This is the velocity half of the same rule.
+ * The tick domain works this way already: `computeTickTimes` reads the tempo and rubato maps and
+ * nothing else, so the temporal half of an ornament never entered a residual. This is the
+ * velocity half of the same rule.
  *
- * It is not `expandOrnaments: false` in {@link renderedVelocities}, which looks like it should
- * cover this and does not: that flag only gates ornaments that pass espressivo's `isV3Ornament`
- * test — a note pool, a `@noteid`, `@repetitions`, or the v3 `@note.order` grammar — and the
- * `<ornament>` these two transformers write carries `@date`, `@name.ref` and `@scale` alone. It
- * renders down the v2 path, which the flag does not reach.
+ * Not `expandOrnaments: false` in {@link renderedVelocities}, which looks like it should cover
+ * this and does not: that flag gates only ornaments passing espressivo's `isV3Ornament` test (a
+ * note pool, a `@noteid`, `@repetitions`, or the v3 `@note.order` grammar), and the `<ornament>`
+ * these two transformers write carries `@date`, `@name.ref` and `@scale` alone. It renders down
+ * the v2 path, which the flag does not reach.
  */
 const ALWAYS_WITHOUT: readonly InstructionType[] = ['ornament'];
 
 /**
  * Refuse a recording that is still several recordings.
  *
- * A residual is a quantity per score note — recorded minus rendered — and while the readings stand
- * side by side the alignment holds a row per take under the one `xml:id`: 450 notes over 900 rows
- * in the shipped transcription, of which 283 pairs differ in recorded velocity and 227 in recorded
- * onset. There is no single recorded value to subtract from.
+ * A residual is recorded minus rendered per score note, and while the readings stand side by side
+ * the alignment holds a row per take under the one `xml:id`: 450 notes over 900 rows in the
+ * shipped transcription, 283 pairs differing in recorded velocity and 227 in recorded onset.
+ * There is no single recorded value to subtract from.
  *
- * What makes it a refusal rather than a partial answer is that the two collapses point opposite
- * ways. The lookups below keep the *last* row of an id; `Alignment.build`, which is the score the
- * render is computed from, keeps the *first*. So an answer here would measure one take's recording
- * against another take's rendering and read like any other residual.
+ * A refusal rather than a partial answer because the two collapses point opposite ways. The
+ * lookups below keep the *last* row of an id, while `Alignment.build`, the score the render is
+ * computed from, keeps the *first*. An answer here would measure one take's recording against
+ * another take's rendering and read like any other residual.
  *
- * `MakeChoice` is what lifts this and it is registered second in the chain, so every fitter that
- * asks runs after it; the editor greys out the desks that fit from the recording until it has run.
+ * `MakeChoice` lifts this and is registered second in the chain, so every fitter that asks runs
+ * after it. The editor greys out the desks that fit from the recording until it has run.
  */
 const requireOneReading = (msm: Alignment): void => {
   const unchosen = msm.unchosenNotes();

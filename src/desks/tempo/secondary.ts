@@ -2,10 +2,9 @@
  * What the tempo desk keeps in the work file, divided by scope.
  *
  * The boxes, the split onsets and the drawn curves are measurements of one part's playing, so
- * they belong to the scope they were measured in. They used to sit in one undivided bag, which
- * made the picker look broken: with anything stored, the desk drew the same skyline whichever
- * part was selected, because the stored boxes were preferred over the seed the scope would have
- * produced.
+ * they belong to the scope they were measured in. Undivided, they make the picker look broken:
+ * stored boxes are preferred over the seed a scope would produce, so the desk draws one skyline
+ * whichever part is selected.
  */
 import type { Scope } from '../../fitting/instructions/index';
 import type { DrawnLine, TempoSegment } from './Tempo';

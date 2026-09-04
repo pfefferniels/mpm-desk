@@ -1,23 +1,24 @@
 /**
  * Reading `performance.mpm` for display, over espressivo's object model.
  *
- * This replaces what `mpm-ts` did for the viewer: parse once, take an inventory of every
- * dated instruction, and answer "what is in effect at this tick?" while the playhead moves.
- * The instruction drawings get their numbers from here too, and — for the card that quotes
- * an instruction back — the element itself and the `<…Def>` it points at.
+ * Parse once, take an inventory of every dated instruction, and answer "what is in effect at
+ * this tick?" while the playhead moves. The instruction drawings get their numbers from here
+ * too, and the card that quotes an instruction back gets the element and the `<…Def>` it
+ * points at.
  *
  * **The numbers are the renderer's.** `getTempoDataOf` / `getDynamicsDataOf` and the
- * `tempoAt` / `dynamicsAt` evaluators are the same code paths `renderExpressiveMidi` runs,
- * so a chart drawn from them cannot disagree with what is heard. espressivo's
- * `docs/reading.md` is the guide; three of its cautions are load-bearing here:
+ * `tempoAt` / `dynamicsAt` evaluators are the code paths `renderExpressiveMidi` runs, so a chart
+ * drawn from them cannot disagree with what is heard. Three cautions from espressivo's
+ * `docs/reading.md` are load-bearing here:
  *
- *  - A trailing transition is inert — the last instruction of a map has an `endDate` of
- *    `Number.MAX_VALUE`, so it never leaves its start value however its `@transition.to`
- *    reads. The views ask `tempoAt`/`dynamicsAt` for both endpoint labels rather than
- *    printing `@transition.to`, which is what makes them tell the truth about it.
- *  - A skipped instruction resolves to null and is *not* an extension of the previous one.
- *    Here that means no chart, not a held value.
- *  - An unresolvable name is a number, not an absence: `Dynamics.volume` is always finite.
+ *  - A trailing transition is inert: the last instruction of a map has an `endDate` of
+ *    `Number.MAX_VALUE`, so it never leaves its start value however its `@transition.to` reads.
+ *    The views ask `tempoAt`/`dynamicsAt` for both endpoint labels rather than printing
+ *    `@transition.to`.
+ *  - A skipped instruction resolves to null and is *not* an extension of the previous one, so it
+ *    means no chart rather than a held value.
+ *  - An unresolvable name is a number rather than an absence: `Dynamics.volume` is always
+ *    finite.
  *
  * Two more from the same guide shape this file's boundaries: these objects hold live XML
  * nodes, so nothing here may cross a worker boundary (it doesn't — playback is synchronous

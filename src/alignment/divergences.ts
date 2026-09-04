@@ -2,27 +2,16 @@
  * What the score and the performance disagree about, grouped into things a
  * reader can act on.
  *
- * The aligner hands back three flat lists, and two of them - the score notes
- * nothing answered to, and the played notes that answered to nothing - are the
- * interesting ones. Presented flat they are unusable: a trill alone contributes a
- * dozen unmatched played notes, and a reader shown twelve rows of time and pitch
- * has no way to see that they are one event, let alone one the score already
- * writes as a sign.
+ * The aligner's flat lists are unusable as they stand: a trill alone contributes
+ * a dozen unmatched played notes, with nothing to show they are one event.
  *
- * The families below are the whole point of this module. "A note was added" and
- * "a note is missing" are each several different things, and what should be done
- * about one is nothing like what should be done about another. Naming the
- * families is what turns a list into a review.
+ * Substitutions are the aligner's blind spot. It labels every note matched or
+ * unmatched, so a written note played as a different note arrives as a missing
+ * note here and an added note there. They are paired back up before anything is
+ * read.
  *
- * The third family is the one the aligner cannot see at all. It labels every
- * note either matched or unmatched, so a written note played as a different note
- * comes back as two independent facts - a note missing here, a note added there -
- * when it is one: the performer played *this* instead of *that*. Pairing them
- * back up is done here, before anything is read, because a pair is a strictly
- * better account of both halves than either half has on its own.
- *
- * Nothing here is decided on the reader's behalf: every divergence carries a
- * proposed reading and the reason for it, and the reader confirms or overrules.
+ * Every divergence carries a proposed reading and its reason; the reader
+ * confirms or overrules.
  */
 
 import type { NoteSpan } from "../performance/midiSpans";
@@ -79,37 +68,22 @@ export interface AddedDivergence {
     /** The score note this event decorates or belongs to, where there is one */
     anchorId: string | null;
     /**
-     * Where the anchor came from.
-     *
-     * `model` means the attribution head named it - the one question the
-     * alignment itself cannot answer. `timing` means it was taken to be the last
-     * written note struck before the figure, which is a guess, and a poor one
-     * for anything that leans on the note it precedes.
+     * Where the anchor came from. `timing` is the fallback guess, the last
+     * written note struck before the figure, and a poor one for anything that
+     * leans on the note it precedes.
      */
     anchorFrom: "model" | "timing" | null;
     /**
-     * How sure the head was that this figure ornaments *that* written note,
-     * given that the alignment could not pair it with anything.
+     * P(this figure ornaments *that* written note | the alignment paired it with
+     * nothing): the head's gate times its ranking. The only form of the head's
+     * answer that moves with the anchor, and what goes into the MEI beside
+     * `ornamentAnchor`.
      *
-     * Both halves of the head's answer multiplied together, which is the one
-     * form of it that is about the anchor. The gate alone is one number for a
-     * whole figure and does not change when the anchor does; the ranking alone
-     * says nothing about whether there is an ornament to anchor. This is also
-     * what goes into the MEI, where it sits beside `ornamentAnchor` and has to
-     * mean what that pairing implies.
-     *
-     * It is what the note was accepted on, except where an engraved sign let a
-     * clear ranking in that this number alone would have turned away. There
-     * `anchorCorroborated` is set, and the two say different things on purpose:
-     * this stays low, because the head was unsure, and the sign is the reason
-     * the answer was taken anyway.
+     * Stays low where `anchorCorroborated` is set: there an engraved sign, not
+     * this number, is why the answer was taken.
      */
     anchorConfidence?: number;
-    /**
-     * Whether an ornament sign the score already writes is what let a ranking
-     * the head was not confident about stand. Worth keeping: it says the anchor
-     * rests on two things agreeing rather than on the model alone.
-     */
+    /** Whether an engraved ornament sign let a ranking the head doubted stand. */
     anchorCorroborated?: boolean;
     /** The sign already on the anchor, which is what `written-ornament` rests on */
     signs: OrnamentSign[];
@@ -136,10 +110,9 @@ export interface MissingDivergence {
 /**
  * One written note and the played note that stood in for it.
  *
- * It carries both halves, because both are true and the edition needs both: the
- * score says one note, the recording says another, at the moment the first was
- * due. Written into the MEI it becomes a single <when> carrying `@data` and
- * `@absolute` at once - the written note, sounding, at a pitch of its own.
+ * Both halves are kept, because the edition needs both. In the MEI it becomes a
+ * single `<when>` carrying `@data` and `@absolute` at once: the written note,
+ * sounding, at a pitch of its own.
  */
 export interface ReplacedDivergence {
     kind: "replaced";
@@ -177,53 +150,44 @@ export interface DivergenceOptions {
     hasRepeats?: boolean;
     /**
      * How long a silence ends a figure whose notes the model has all put on the
-     * same written note. Far wider than `gapMs`, because the model saying so is
-     * better evidence than the timing: a broad ornament on an early recording
-     * runs to half a second and more, and splitting it on a silence is exactly
-     * the mistake the attribution head exists to stop.
+     * same written note. Far wider than `gapMs`: the model saying so is better
+     * evidence than the timing, and a broad ornament on an early recording runs
+     * to half a second and more.
      */
     attributedGapMs?: number;
     /**
-     * How sure the head must be, on its own, before its answer is taken:
-     * P(this elaborates *that* written note), given that the decode has already
-     * ruled it an insertion. Both halves of the head's answer, multiplied.
+     * How sure the head must be before its answer is taken: gate times ranking,
+     * i.e. P(this elaborates *that* written note | the decode called it an
+     * insertion). Mirrors MLign's `ORNAMENT_MIN_PROB`; the two move together.
      *
-     * What it must not be is the whole row's mass, which carries P(insertion)
-     * and with it the match head's opinion. That opinion is not evidence here:
-     * every note this is asked about is one the decode tried to pair and could
-     * not. Letting it in silences 48.8% of ornament figures on real Batik, on
-     * which the head would have named the right written note for 85% of them.
+     * Deliberately not the whole row's mass, which carries P(insertion) and with
+     * it the match head's opinion. Every note asked about here is one the decode
+     * tried to pair and could not, so that opinion is not evidence. Letting it in
+     * silences 48.8% of ornament figures on real Batik, where the head would have
+     * named the right written note for 85% of them.
      *
-     * Both halves rather than the gate alone, and .2 rather than a half,
-     * because that is what measured best. Eight rules were swept on both real
-     * corpora; against the nearest rival, a gate thresholded at .5, this one
-     * wins on whole-figure accuracy and on false positives at the same time.
-     * On Batik, the clean corpus, .3730 -> .3757 whole-figure and, of
-     * everything called an ornament, the share that was really a matched note
-     * .0902 -> .0891. ASAP moves the same way on both. Nothing got worse
-     * anywhere, which is what settled it. The constant is MLign's
-     * `ORNAMENT_MIN_PROB` and the two have to move together.
+     * .2 measured best of eight rules swept on both real corpora. Against a gate
+     * thresholded at .5 it wins on whole-figure accuracy (.3730 → .3757 on Batik)
+     * and on false positives (.0902 → .0891) at once, with ASAP moving the same
+     * way and nothing worse anywhere.
      */
     attributionPosterior?: number;
     /**
-     * How sure it must be when the score corroborates it - when the written note
-     * it named is one the score already puts an ornament sign on. Lower, and
-     * legitimately so: this is no longer the head's word alone. It is the share
-     * of the head's ornament mass sitting on that one note, ignoring how much it
-     * put on the note being no ornament, because the engraved sign has already
-     * answered that question.
+     * The bar when the score corroborates the head, the anchor carrying an
+     * ornament sign already. Lower, and measured on the ranking alone: the sign
+     * has answered whether there is an ornament, so the gate is left out.
      */
     attributionShare?: number;
     /**
      * How far from where a written note was due a played note may fall and still
-     * be read as standing in for it. Wider than `simultaneousMs`, because the
-     * moment is not measured but interpolated from the notes around it, and
-     * narrow enough that it stays inside the beat at any reasonable tempo.
+     * read as standing in for it. Wider than `simultaneousMs` because the moment
+     * is interpolated from the notes around it rather than measured, and narrow
+     * enough to stay inside the beat at any reasonable tempo.
      */
     replacementMs?: number;
     /**
      * How far a substitute may lie from the note it replaced. An octave: beyond
-     * that the two are more readily two things that happened than one thing that
+     * that the two read as two things that happened rather than one thing that
      * went differently.
      */
     replacementSemitones?: number;
@@ -267,25 +231,19 @@ interface PlayedGroup {
 }
 
 /**
- * What a divergence is called: its kind, and the note it opens on.
+ * A played note's name in a divergence id: when it was struck, and at what pitch.
  *
- * **Named after its material, not its position.** These ids are what a reader's decisions are
- * filed under, and those outlive the run that produced them — they are saved in the work file and
- * read back against a fresh grouping. A counter (`added-0`, `added-1`, …) is stable only while
- * nothing before it changes, so one more insertion anywhere earlier silently re-points every
- * decision after it at the wrong disagreement, with nothing to show that it happened.
+ * Divergence ids are what a reader's decisions are filed under, and those are
+ * saved in the work file and read back against a fresh grouping. So they must
+ * name material rather than position: a counter would silently re-point every
+ * decision after an added insertion at the wrong disagreement. A group that
+ * gains or loses its first note gets a different id, leaving the decision
+ * unattached rather than misattached.
  *
- * A note belongs to exactly one group, so the note a group opens on names it uniquely. A group
- * that gains or loses its first note is a different disagreement, and gets a different name —
- * which is the answer that leaves the decision unattached rather than misattached.
- *
- * A *written* note is named by its `xml:id`, which is the document's own. A *played* one is named
- * by when it was struck and at what pitch, because its id is not one thing: `asSpans` mints one
- * from the MIDI while `parseRecordings` takes `@corresp`, which is the scanned symbol the note
- * came from wherever the file names one. So the two readers of one alignment disagree about what
- * to call the same note, and a decision made against a fresh run would not find it again in a
- * reopened project. The moment and the pitch they do agree about — to the millisecond, which is
- * the resolution `@absolute` is written at.
+ * A played note's own id is not one thing — `asSpans` mints one from the MIDI,
+ * `parseRecordings` takes `@corresp` — so the two readers of one alignment would
+ * disagree about it. Onset and pitch they agree about, to the millisecond
+ * `@absolute` is written at.
  */
 const playedId = (span: NoteSpan) => `${String(Math.round(span.onsetMs))}ms-${String(span.pitch)}`;
 
@@ -299,12 +257,9 @@ interface AcceptedAnchor {
     /** Of the mass on elaborating anything, the part on this one written note */
     share: number;
     /**
-     * The two together: P(it elaborates THAT written note | it is an insertion).
-     *
-     * Both the number decided on and the number written down, which is the point
-     * of it: it is the only one of the three that is about the anchor. A gate is
-     * one number for a whole figure and does not move when the anchor does, and
-     * a share says nothing about whether there is an ornament to anchor.
+     * `gate * share`: P(it elaborates THAT written note | it is an insertion).
+     * The only one of the three that moves with the anchor, so the one both
+     * decided on and written down.
      */
     posterior: number;
     /** Whether an ornament sign the score already writes is what let it in */
@@ -314,40 +269,24 @@ interface AcceptedAnchor {
 /**
  * Which of the head's answers to take, and on what evidence.
  *
- * Two ways in, because the head's two numbers can come apart. Under v2 they did
- * so badly, and by construction: its "not an ornament" column was self-taught,
- * and on real playing it would rank the right written note first, decisively,
- * and still put most of its mass on the note not being an ornament at all -
- * which is what it does on both of the trills Chopin's op. 9 no. 1 notates.
- * Insisting on the first number alone throws those away; ignoring it accepts
- * every played note as decoration of whatever it happens to lie nearest.
+ * Two routes, because the head's two numbers can come apart. The posterior is
+ * enough on its own; short of it, a clear ranking is enough when the score
+ * already writes an ornament sign on the note the head named, the sign having
+ * answered the question the head was unsure of. The route is chosen per note by
+ * what the numbers are, never by which checkpoint produced them.
  *
- * So: the head's own confidence is enough on its own. Short of that, a clear
- * ranking is enough when the note it named is one the score already writes an
- * ornament sign on - because then two things that knew nothing about each other
- * agree, and the sign has already answered the question the head was unsure of.
+ * The posterior is the head's own two factors, not the whole row's mass. Every
+ * note here is one the decode tried to pair and could not, so `P(insertion)` is
+ * settled and not evidence to weigh again. Carrying it lets the match head veto
+ * answers it was never asked for, silencing 48.8% of ornament figures on real
+ * Batik; taking it out is worth whole-figure accuracy .1919 → .3297 there, on
+ * the shipped checkpoint and with no new model.
  *
- * v3 answers that first question with the *match* head instead of guessing it
- * again, so its confidences are on a footing its predecessor's were not, and
- * the second route should fire far less often. Both stay: the route is chosen
- * per note by what the numbers are, never by which model produced them, so this
- * reads a v1, v2 or v3 answer without being told which it has.
+ * Batik is the only clean corpus to read this on: 209 of real ASAP's 225 rows
+ * are performances the match head trained on, leaving 36 clean figures.
  *
- * The first route asks the head's two own factors, not the whole row's mass.
- * Every note here is one the decode has already ruled an insertion, having tried
- * to pair it with a written note and failed, so `P(insertion)` is not evidence
- * to be weighed a second time - and the row's mass carries it, which is how the
- * match head came to veto answers it was never asked for. On real Batik that
- * veto silences 48.8% of ornament figures. Taking it out is worth, on the
- * checkpoint this app ships and with no new model, whole-figure accuracy
- * .1919 -> .3297 there. Batik is the corpus to read and the only clean one:
- * 209 of real ASAP's 225 rows are performances the match head trained on, so
- * its pooled figures overstate and its clean remainder is 36 figures.
- *
- * Both factors and not the gate alone, because a gate can be confident while the
- * ranking under it is flat, and taking the argmax of a flat ranking is how a
- * played note that ornaments nothing acquires an anchor. Multiplying the two is
- * what MLign's own decoder thresholds, at its `ORNAMENT_MIN_PROB`.
+ * Both factors rather than the gate alone, since a confident gate over a flat
+ * ranking is how a played note that ornaments nothing acquires an anchor.
  */
 function acceptAttribution(
     insertion: InsertedNote,
@@ -381,13 +320,11 @@ interface UnplayedGroup {
 /**
  * Group, pair, anchor and read every disagreement.
  *
- * The order is deliberate. The two sides are grouped into events first, because
- * only whole events can be compared. Then the events that are two halves of one
- * substitution are paired off and taken out of both lists - a pair explains both
- * halves, and leaving either behind would report the same moment twice, once as
- * a note nobody played and once as a note nobody wrote. Only what is left is
- * anchored and read: a group of three notes a semitone apart is a trill only once
- * you know which written note they surround.
+ * The order is load-bearing. Both sides are grouped into events first, because
+ * only whole events can be compared. Substitutions are then paired off and taken
+ * out of both lists, so the same moment is not reported twice. Only what is left
+ * is anchored and read: three notes a semitone apart are a trill only once you
+ * know which written note they surround.
  */
 export function divergencesOf(
     input: DivergenceInput,
@@ -414,15 +351,13 @@ export function divergencesOf(
     }
     anchors.sort((a, b) => a.onsetMs - b.onsetMs);
 
-    // Where the recording actually reaches. A score note before the first matched
-    // note or after the last was not left out by the performer - the recording
-    // simply does not cover it, and saying otherwise invents a musical fact.
+    // Where the recording reaches. A score note outside it was not left out by
+    // the performer, and reporting it as such invents a musical fact.
     const firstMs = anchors.length > 0 ? anchors[0].onsetMs : Infinity;
     const lastMs = anchors.length > 0 ? anchors[anchors.length - 1].onsetMs : -Infinity;
 
-    // What the attribution head said, filtered down to what is worth acting on,
-    // once - because the grouping, the pairing and the reading all need the same
-    // answer and must not be able to disagree about it.
+    // Once: the grouping, the pairing and the reading all need the same answer
+    // and must not be able to disagree about it.
     const accepted = new Map<string, AcceptedAnchor>();
     for (const insertion of input.insertions) {
         const answer = acceptAttribution(
@@ -473,9 +408,6 @@ export function divergencesOf(
     ];
 }
 
-/* -------------------------------------------------------------------------- */
-/* Grouping                                                                    */
-/* -------------------------------------------------------------------------- */
 
 /**
  * Played notes with no score note, gathered into events.
@@ -570,9 +502,6 @@ function groupUnplayed(
     return groups;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Pairing                                                                     */
-/* -------------------------------------------------------------------------- */
 
 /** Matched notes as (score time, performed time), for reading between them. */
 function timeMapOf(anchors: Anchor[]): { onset: number; ms: number }[] {
@@ -771,9 +700,6 @@ function intervalWords(semitones: number): string {
     return `${size} ${semitones > 0 ? "above" : "below"}`;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reading what is left                                                        */
-/* -------------------------------------------------------------------------- */
 
 interface AddedContext {
     anchors: Anchor[];
@@ -792,15 +718,12 @@ interface AddedContext {
 /**
  * The written note a figure belongs to, and where that answer came from.
  *
- * The model's answer wins wherever there is one. It is the only one of the two
- * that is an answer to the question actually asked - which written note does
- * this decorate - rather than to the question the timing can answer, which is
- * which written note was struck most recently.
+ * The model's answer wins wherever there is one: it answers which written note
+ * this decorates, where the timing can only answer which was struck last.
  *
- * A note the model attributes to a written note that itself went unplayed still
- * has an anchor; it simply has no performed moment, so `onsetMs` is NaN and
- * every comparison against it is false. Which is right: nothing can be said
- * about whether the two were struck together when one of them never was.
+ * An anchor that itself went unplayed has no performed moment, so `onsetMs` is
+ * NaN and every comparison against it is false. Which is right: nothing can be
+ * said about two notes being struck together when one never was.
  */
 function anchorOf(
     group: PlayedGroup,
@@ -883,10 +806,10 @@ function readPlayed(
 /**
  * The written note a played note leans on: the last one struck at or before it.
  *
- * A figure that leans on the *following* note - a turn played just before the
- * beat it decorates - is left anchored to the note before it. The reader can see
- * both in the score and move it; guessing between the two on timing alone is
- * less honest than showing where the sound actually sits.
+ * A figure that leans on the *following* note, a turn played just before the
+ * beat it decorates, is left anchored to the note before it. Guessing between
+ * the two on timing alone would be less honest than showing where the sound
+ * sits, and the reader can move it.
  */
 function anchorFor(onsetMs: number, anchors: Anchor[]): Anchor | undefined {
     let low = 0;

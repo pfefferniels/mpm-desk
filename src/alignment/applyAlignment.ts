@@ -26,12 +26,11 @@ export interface AlignmentExtras {
      * `MakeChoice` selects a reading by and the name verovio's `performanceRecording` lays out by,
      * so two takes that share it are one take and a take without it can be named by nobody.
      *
-     * It used to default to the source the MIDI gives itself — the second text meta event, which
-     * is a piano-roll scanner's convention — and an ordinary `.mid` carries none. With none,
-     * {@link insertRecording} took `<recording>` to mean *the first one*, so aligning a second
-     * performance against a score deleted the first. The caller knows the file it opened and what
-     * the document already holds, so the caller says; `parseMetadata` is still where the roll's
-     * own answer comes from.
+     * Not defaulted from the MIDI's own source, the second text meta event a piano-roll scanner
+     * writes, because an ordinary `.mid` carries none. With none, {@link insertRecording} takes
+     * `<recording>` to mean *the first one*, so aligning a second performance against a score
+     * deletes the first. The caller knows the file it opened and what the document already holds.
+     * `parseMetadata` is still where the roll's own answer comes from.
      */
     source: string;
     /** The disagreements, so that they survive the document rather than the page */

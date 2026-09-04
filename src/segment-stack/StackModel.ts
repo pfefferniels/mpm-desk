@@ -40,19 +40,19 @@ const PACK_RUNGS_PER_OCTAVE = 6;
 /**
  * The zoom the tree is packed at: the rung at or below the zoom it is drawn at.
  *
- * Where a branch sits is a question about what else is near it, so the packing
- * is the one part of the drawing that has to answer to zoom — and the only part
- * that costs real time. Holding it on a ladder means a zoom step usually just
- * slides the branches along their line, which the browser does at frame rate,
- * and the tree only re-forms once the crowding has actually changed.
+ * Where a branch sits is a question about what else is near it, so packing is
+ * the one part of the drawing that answers to zoom, and the only part that costs
+ * real time. On a ladder, a zoom step usually just slides the branches along
+ * their line at frame rate, and the tree re-forms only once the crowding has
+ * changed.
  *
  * Downwards, never to the nearest: a rung packs as though the view were further
- * out than it is, so between rungs the feet are further apart than the packer
- * allowed for rather than closer. Rounding the other way would let two words
- * that were only just clear of each other overprint.
+ * out, so between rungs the feet are further apart than the packer allowed for
+ * rather than closer. Rounding the other way would let two words that were only
+ * just clear of each other overprint.
  *
- * It also makes the layout a function of the rung alone, so zooming out and
- * back in returns the tree you left rather than a reshuffled one.
+ * It also makes the layout a function of the rung alone, so zooming out and back
+ * in returns the tree you left.
  */
 export function packZoom(stretchX: number): number {
     if (!(stretchX > 0)) return stretchX;
@@ -121,8 +121,6 @@ export function containmentDepths(segments: Segment[]): Map<string, number> {
     return map;
 }
 
-/* ── How big a word is written ── */
-
 const MIN_FONT = 8;
 const MAX_FONT = 19;
 /**
@@ -139,13 +137,13 @@ const MAX_BRANCH_LENGTH = 400;
  * is written.
  *
  * Duration is the impact measure, and this is the second thing it drives after
- * nearness to the line — so a long arch of a phrase reads as a heading and the
+ * nearness to the line, so a long arch of a phrase reads as a heading and the
  * small inflections inside it as fine print.
  *
- * Logarithmic, because the corpus is skewed and spans three orders of magnitude:
- * point-like gestures against phrases of 7000 ticks, with the median at 1440. A
- * linear map leaves almost everything at the bottom of the range, and the type
- * size then says nothing about the gestures that are actually being compared.
+ * Logarithmic, the corpus being skewed across three orders of magnitude:
+ * point-like gestures against phrases of 7000 ticks, median 1440. A linear map
+ * leaves almost everything at the bottom of the range, where the type size says
+ * nothing about the gestures actually being compared.
  */
 export function typeScale(params: {
     segments: Segment[];
@@ -176,24 +174,19 @@ export function typeScale(params: {
     return map;
 }
 
-/* ── The branch a word is written along ── */
-
-/* ── The shape of a branch ──
+/*
+ * The shape of a branch: it leaves the line at the same steep angle, bends over
+ * the first {@link BEND_LENGTH}, then runs on at whatever angle it has reached.
  *
- * Every branch leaves the line at the same steep angle, bends over the first
- * {@link BEND_LENGTH}, and then runs on at whatever angle it has reached.
+ * Letting the bend *finish*, rather than spreading it over the whole word, is
+ * what stops a long word costing tree height in proportion to how much it has to
+ * say. Past the knee a word rises by a small fraction of what it adds in length,
+ * so the tree's height is a question of how many gestures overlap rather than of
+ * who wrote the longest note.
  *
- * Letting the bend *finish* — rather than spreading it over the whole word, as
- * spreading it over the whole word — is what stops a long word costing tree height in
- * proportion to how much it has to say. Past the knee a word rises by a small
- * fraction of what it adds in length, so how tall the tree stands becomes a
- * question of how many gestures overlap rather than of who wrote the longest
- * note.
- *
- * Where it comes to rest is read off the length of what it says: a short
- * gesture stands up, a long phrase lies back. That is partly economy — length
- * only costs height where there is length to spend — and partly the sound of
- * the thing, an aside against an arch.
+ * Where it comes to rest is read off the length of what it says: a short gesture
+ * stands up, a long phrase lies back. Partly economy, length costing height only
+ * where there is length to spend, and partly the sound of the thing.
  */
 
 /** How steeply every branch leaves the line. */
@@ -353,20 +346,20 @@ function makeGrid() {
 /**
  * Lay every segment's word out as a branch curving off the centre line.
  *
- * Nothing is culled, so all 128 words have to find room. The tilt is what makes
- * that affordable: two words on the same lean are near-parallel, so they clear
- * each other on a roughly fixed spacing between their feet **whatever their
- * length** — length stops costing horizontal room and starts costing only reach.
+ * Nothing is culled, so all 128 words have to find room. The tilt makes that
+ * affordable: two words on the same lean are near-parallel, so they clear each
+ * other on a roughly fixed spacing between their feet **whatever their length**,
+ * and length costs reach rather than horizontal room.
  *
  * Where feet are too close to clear, the later word is pushed a tier further
- * out, which is why a crowded stretch of the piece grows outwards rather than
- * overprinting itself. Longest first, so the gestures that carry the piece take
- * the branches nearest the line; roots lean up, everything nested leans down,
- * and depth starts a word further out still.
+ * out, so a crowded stretch grows outwards rather than overprinting itself.
+ * Longest first, so the gestures that carry the piece take the branches nearest
+ * the line. Roots lean up, everything nested leans down, and depth starts a word
+ * further out still.
  *
  * Branches are curved, so the clean rotated-interval test no longer holds: each
- * one is sampled along its arc and checked against a grid of what is already
- * placed, which costs a few thousand point tests for the whole tree.
+ * is sampled along its arc and checked against a grid of what is already placed,
+ * a few thousand point tests for the whole tree.
  */
 export function packLabels(params: {
     segments: Segment[];
@@ -474,8 +467,6 @@ export function treeGeometry(params: {
     return { totalHeight: needed, centreY: above + VERTICAL_PAD };
 }
 
-/* ── The inside of one segment, on its own axis: see `SegmentTimeline` ── */
-
 /** Past this the grid stops reading as a grid, so the step doubles instead. */
 const MAX_GRID_LINES = 12;
 
@@ -490,17 +481,17 @@ interface TimelineRow {
  * A segment's gestures, one row per MPM element type, laid out over `width`.
  *
  * Types come in the order they first appear, so the same segment always reads in
- * the same sequence. Several gestures of one type share a row: they are one
- * voice arguing over the stretch, not several.
+ * the same sequence. Several gestures of one type share a row, being one voice
+ * arguing over the stretch.
  *
- * `laneOf` divides a type where one row would draw two things at once — the
+ * `laneOf` divides a type where one row would draw two things at once: the
  * `movementMap` interleaves the sustain pedal with the soft one, and a curve
- * through both is a curve through neither. It only ever splits a type, never
- * merges two, so the ordering rule above still holds.
+ * through both is a curve through neither. It only splits a type, never merges
+ * two, so the ordering rule above still holds.
  *
  * Nothing is widened here. A gesture on a single date comes out `minBar` wide,
- * which the drawing rounds into a dot — on this axis the whole width is one
- * segment, so a dot is legible as itself.
+ * which the drawing rounds into a dot, legible as itself on an axis whose whole
+ * width is one segment.
  */
 export function timelineRows(
     segment: Segment,

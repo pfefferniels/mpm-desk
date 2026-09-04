@@ -10,19 +10,17 @@
  * the key signature, which is ordinary and correct MEI, therefore sounds wrong: in
  * B flat minor every unmarked b, e, a, d and g comes back a semitone too high.
  *
- * It is worth being clear about what that does and does not break, because the
- * failure is silent. The engraving is right — the key signature is drawn and the
- * notes sit where they belong. Verovio's own comparisons are right too, because
- * they compare its pitch against its pitch. It only goes wrong where the pitch
- * meets a number from outside: a MIDI recording of the piece. Aligning
- * `scores/chopin-op9` against its recording matched 711 of 1728 notes before this,
- * and 1682 after it — the aligner was pairing the pitch classes the key signature
- * happens not to touch, and throwing the other 62% away as unplayed.
+ * The failure is silent, and narrow. The engraving is right, the key signature
+ * drawn and the notes where they belong, and verovio's own comparisons are right
+ * because they compare its pitch against its pitch. It goes wrong only where the
+ * pitch meets a number from outside, which is a MIDI recording. Aligning
+ * `scores/chopin-op9` against its recording matches 711 of 1728 notes without
+ * this and 1682 with it: the aligner pairs the pitch classes the key signature
+ * does not touch and throws the other 62% away as unplayed.
  *
- * So this module supplies the one thing verovio is missing, and nothing else. It
- * returns the alteration that is *implied* — never one the note states for itself,
- * because verovio has already applied that — so a document that spells every
- * alteration out gets an empty map back and behaves exactly as it did before.
+ * So this supplies the one thing verovio is missing and nothing else. It returns
+ * the alteration that is *implied*, never one the note states for itself, so a
+ * document that spells every alteration out gets an empty map back.
  */
 
 /**

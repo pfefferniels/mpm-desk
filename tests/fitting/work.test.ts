@@ -13,24 +13,19 @@ import { at } from '../support/at';
 /**
  * The work file, and the chain built from it.
  *
- * espressivo's `src/fitting/work.ts` was both at once: `exportWork` read a chain and wrote a
- * file, `importWork` read a file and gave back a chain. Here they are two modules —
- * `src/model/Work.ts` reads and writes the document and knows nothing of transformers,
- * `src/fitting/chain.ts` is the registry lookup that turns provenance into a chain — so this
- * file tests the pair, and says at each point which of the two owns the invariant.
+ * Two modules rather than one: `src/model/Work.ts` reads and writes the document and knows
+ * nothing of transformers, and `src/fitting/chain.ts` is the registry lookup that turns
+ * provenance into a chain. This file tests the pair and says at each point which owns the
+ * invariant.
  *
- * Two of the five things the espressivo version pinned did not survive the split, and both are
- * deliberate:
+ * Two things a combined `work.ts` would pin have no subject here, both deliberately:
  *
- * - **`exportWork` filled a segment's `elements` in from `transformer.created`.** Nothing here
- *   does that. `serializeWorkFile` writes the `WorkFile` it is handed and derives nothing; what
- *   a run produced is projected by `src/model/Reconstruction.ts` instead, from the outcomes the
- *   chain reports. There is no subject left for the assertion.
- * - **`importWork` threw, naming the part of the file it could not read.** `parseWorkFile`
- *   documents that it deliberately does not validate: a file naming a transformer this build
- *   does not have is a real case — it is what a reconstruction saved by a newer build, or by
- *   the build before six transformers were retired, looks like — and reporting it is
- *   `buildChain`'s job. The last test below is what replaced it.
+ * - **A segment's `elements` filled in from `transformer.created`.** `serializeWorkFile` writes
+ *   the `WorkFile` it is handed and derives nothing; what a run produced is projected by
+ *   `src/model/Reconstruction.ts` from the outcomes the chain reports.
+ * - **An import that throws, naming the part of the file it could not read.** `parseWorkFile`
+ *   deliberately does not validate: a file naming a transformer this build does not have is a
+ *   real case, and reporting it is `buildChain`'s job. The last test below is that check.
  */
 
 const work = { name: 'Träumerei', mei: 'roll.mei', mpm: 'performance.mpm' };
@@ -230,12 +225,9 @@ describe('the chain built from it', () => {
   );
 
   /**
-   * The `requires` that used to be a trap.
-   *
    * Four transformers name `TranslatePhysicalTimeToTicks` in `requires`, and a chain missing it
-   * did not fit worse — `runFit` threw and nothing rendered. Whether it was there depended on
-   * somebody having pressed a button on the tempo desk. Injection is what closes that, so the
-   * assertion is that a chain naming none of it validates clean.
+   * does not fit worse: `runFit` throws and nothing renders. Injection is what closes that, so
+   * the assertion is that a chain naming none of it validates clean.
    */
   test('a chain that never mentions it still satisfies what requires it', () => {
     const { transformers } = buildChain([

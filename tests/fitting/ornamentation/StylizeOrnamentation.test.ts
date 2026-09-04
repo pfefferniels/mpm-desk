@@ -79,17 +79,16 @@ const insertOrnament = (
 /**
  * Give an ornament already in the document a frame of literal `NaN`.
  *
- * No transformer can produce one: `auditInstructions` sweeps the attributes an instruction states and
- * `AbstractTransformer.run` fails the run on a non-finite one, so nothing an ornament *says*
- * survives as NaN. Its draft can — parking is plain attribute writing, onto attributes no options
- * type names, so the sweep never looks at them — which is the shape an ornament arrives in out
- * of a file some earlier version wrote. That is exactly where issue #28's corpus ornaments came
- * from, so parking `NaN` is the faithful fixture, not a workaround.
+ * No transformer can produce one: `auditInstructions` sweeps the attributes an instruction
+ * states and `AbstractTransformer.run` fails the run on a non-finite one, so nothing an ornament
+ * *says* survives as NaN. Its draft can, parking being plain attribute writing onto attributes no
+ * options type names, so the sweep never looks at them. That is where issue #28's corpus
+ * ornaments came from, which makes parking `NaN` the faithful fixture rather than a workaround.
  *
  * The branch under test is `StylizeOrnamentation`'s "frame present but not a number", which it
- * treats differently from "no frame at all" — so both figures have to be there and have to be
- * NaN. The check below is what stops a fixture that quietly stopped writing a frame from moving
- * these tests onto the ramp-only path instead.
+ * treats differently from "no frame at all", so both figures have to be there and have to be NaN.
+ * The check below stops a fixture that quietly stopped writing a frame from moving these tests
+ * onto the ramp-only path.
  */
 const spoilFrame = (mpm: Mpm, id: string) => {
   const instruction = findInstructionById(mpm, id);

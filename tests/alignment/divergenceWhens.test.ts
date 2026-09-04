@@ -148,10 +148,10 @@ describe('writing divergences into the recording', () => {
   })
 
   /**
-   * An edition outlives the code that wrote it, and this number has changed
-   * meaning once already: it used to carry the match head's P(insertion) too.
-   * Both readings are probabilities and the newer is always the larger, so
-   * without a token beside it a reader has nothing to tell them apart by.
+   * An edition outlives the code that wrote it, and two readings of this number
+   * are possible, one carrying the match head's P(insertion) and one not. Both
+   * are probabilities and one is always the larger, so without a token beside
+   * it a reader has nothing to tell them apart by.
    */
   it('names which quantity the anchor confidence is', () => {
     const result = applyAlignment(mei, midi, [], {

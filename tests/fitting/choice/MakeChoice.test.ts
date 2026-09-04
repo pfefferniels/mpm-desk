@@ -7,11 +7,11 @@ import { only } from '../../support/at';
 /**
  * `MakeChoice` collapses the several readings of a passage down to one.
  *
- * It used to do both halves of that by splicing out of the array it was walking. For the notes
- * that was only expensive — an `indexOf` scan and a tail shift per note, quadratic in the score.
- * For the pedals it was wrong: splicing out of the array a `for…of` is iterating skips the
- * element that slides into the freed slot, so two adjacent pedals from the rejected source left
- * the second one behind. See issue #49.
+ * Neither half may splice out of the array it is walking. For the notes that is merely
+ * expensive, an `indexOf` scan and a tail shift per note, quadratic in the score. For the pedals
+ * it is wrong: splicing out of an array a `for…of` is iterating skips the element that slides
+ * into the freed slot, so two adjacent pedals from the rejected source leave the second one
+ * behind. See issue #49.
  */
 
 const note = (id: string, source: string, velocity: number): AlignedNote => ({

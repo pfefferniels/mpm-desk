@@ -6,24 +6,19 @@ import type { InstructionType } from '../fitting/instructions/index';
 /**
  * What a desk is, as far as the registry is concerned.
  *
- * Every desk is handed the same bag, so the registry can hold them all at one type. It used to
- * be `React.FC<ScopedTransformerViewProps<any>>` behind an eslint-disable; it does not need to
- * be. A desk written against its own transformer — `ScopedTransformerViewProps<InsertTempo>` —
- * is assignable here because props are checked contravariantly: a desk whose `addTransformer`
- * accepts only an `InsertTempo` can be handed one that accepts any `Transformer`, which is what
- * the editor passes. A desk that takes plain `ViewProps` fits for the ordinary reason that it
- * asks for less than it is given.
+ * Every desk is handed the same bag, so the registry can hold them all at one type. A desk
+ * written against its own transformer (`ScopedTransformerViewProps<InsertTempo>`) is assignable
+ * because props are checked contravariantly: one whose `addTransformer` accepts only an
+ * `InsertTempo` can be handed the editor's, which accepts any `Transformer`. No `any` needed.
  */
 type DeskComponent = ComponentType<ScopedTransformerViewProps<Transformer>>;
 
 /**
  * What a desk is allowed to know about the document when it says whether it has work to do.
  *
- * Deliberately a handful of counts rather than the alignment itself. The aspect menu is on screen
- * before any desk is open and this module is what it imports; handing it a fitted document would
- * make every desk's availability a function of the whole chain's output, and put the temptation of
- * reading one there. A count off that document is a different thing: it names one quantity, and
- * {@link tempos} is one, so `App` reads it there and passes it here.
+ * Counts rather than the alignment itself. The aspect menu imports this module and is on screen
+ * before any desk is open, so handing it a fitted document would make every desk's availability a
+ * function of the whole chain's output. `App` reads each count and passes it here.
  */
 export interface DocumentFacts {
     /**
@@ -36,34 +31,30 @@ export interface DocumentFacts {
      * How many notes the recording placed, likewise off the alignment as loaded.
      *
      * `asMSM` keeps a note only where the MEI's `<performance>` timed it, so zero is a score
-     * nothing has been played against yet. It is not {@link readings}, which counts the `@source`
-     * those notes name: a `<when>` written outside any `<recording>` names no reading while
-     * placing its note perfectly well, and a desk greyed out on that document would be greyed out
-     * over a recording that is there.
+     * nothing has been played against yet. Distinct from {@link readings}, which counts the
+     * `@source` those notes name: a `<when>` outside any `<recording>` names no reading while
+     * placing its note perfectly well.
      */
     aligned: number;
     /**
      * How many `<tempo>` the performance carries, over every scope.
      *
-     * The whole document rather than the scope the picker is on, because the menu is drawn before
-     * a desk is open and a row that came and went with the picker would be the wrong kind of
-     * answer. It under-gates by design: a tempo in one part opens the desk for every part.
+     * The whole document rather than the scope the picker is on, since the menu is drawn before a
+     * desk is open. It under-gates by design: a tempo in one part opens the desk for every part.
      */
     tempos: number;
     /**
      * How many score notes the alignment still holds more than one row of.
      *
-     * Off the alignment **as the chain left it**, unlike {@link readings}, and that is the whole
-     * of the difference between the two. `readings` counts what the document arrived with and
-     * never changes, so a desk gated on it would be greyed out for good; this clears exactly when
-     * a `MakeChoice` has collapsed the readings, and a ranged choice leaves it standing for the
-     * notes outside that range, whose reading is still to be chosen.
+     * Off the alignment **as the chain left it**, unlike {@link readings}, which counts what the
+     * document arrived with and never changes. This clears exactly when a `MakeChoice` has
+     * collapsed the readings, and a ranged choice leaves it standing for the notes outside that
+     * range.
      *
-     * A count of notes, not of the rows they are spread over, so it says the same thing on a
-     * document with three takes as on one with two. Notes only, likewise: a pedal on several
-     * readings arrives with notes on several readings, since `asMSM` reads both off the same
-     * `<recording>`, and counting rows of two kinds into one number would make the message it
-     * appears in unsayable.
+     * A count of notes rather than of the rows they are spread over, so it says the same thing
+     * whether the document holds two takes or three. Notes only: a pedal on several readings
+     * arrives with notes on several readings, and mixing the two kinds into one number would make
+     * the message it appears in unsayable.
      */
     unchosen: number;
 }
@@ -71,10 +62,9 @@ export interface DocumentFacts {
 /**
  * Why a desk has nothing to do for the document in hand, or undefined while it has.
  *
- * The reason is shown, not swallowed: the menu greys the entry and puts this in a tooltip, the way
- * the toolbar does for a control the selection cannot reach. So it names the remedy as well as the
- * lack — a desk that only said it was unavailable would leave the reader to guess what makes it
- * come back.
+ * The menu greys the entry and puts this in a tooltip, as the toolbar does for a control the
+ * selection cannot reach. It names the remedy as well as the lack, so the reader is not left to
+ * guess what makes the desk come back.
  */
 type Prerequisite = (facts: DocumentFacts) => string | undefined;
 
@@ -96,8 +86,8 @@ export interface DeskAction {
  * What a desk is for, and what can be done on it.
  *
  * Here rather than in each desk, because the aspect menu and the app bar are what the reader asks
- * from, and neither of them has loaded the desk yet — see the note on `lazy` below. Required, so a
- * new desk cannot ship without it; `DeskSwitch.test.ts` checks the rows are filled in.
+ * from and neither has loaded the desk yet (see `lazy` below). Required, so a new desk cannot ship
+ * without it; `DeskSwitch.test.ts` checks the rows are filled in.
  */
 export interface DeskHelp {
     /** What the desk shows, in a line. */
@@ -110,16 +100,15 @@ interface DeskEntry {
     /**
      * The transformer whose calls this desk makes, **by name**.
      *
-     * A name rather than the class, because the only thing anything ever read off the class was
-     * `.name` — the editor uses it to find the desk that made a saved call. Importing fourteen
-     * transformer classes to read fourteen strings pulled the whole fitting chain into the
-     * registry's chunk, and the registry is imported by the aspect menu, which is on screen
-     * before any desk is open.
+     * A name rather than the class: the editor only ever reads `.name` off it, to find the desk
+     * that made a saved call, and importing fourteen classes for fourteen strings would pull the
+     * whole fitting chain into the registry's chunk. The aspect menu imports the registry and is
+     * on screen before any desk is open.
      *
-     * Nothing checks these against the transformers at compile time and a type could not do it
-     * honestly — the list would have to be hand-maintained beside this one and would drift the
-     * same way. `DeskSwitch.test.ts` resolves every name against the real transformer registry
-     * instead, which catches a typo, a rename and a removal alike.
+     * Nothing checks these at compile time, and a type could not do it honestly, since the list
+     * would be hand-maintained beside this one and drift the same way. `DeskSwitch.test.ts`
+     * resolves every name against the real transformer registry, catching a typo, a rename and a
+     * removal alike.
      */
     transformerName?: string;
     aspect: string;
@@ -131,22 +120,21 @@ interface DeskEntry {
     /**
      * The instruction types this desk's `residual` must be derived **without**.
      *
-     * The one piece of desk configuration that is a correctness requirement rather than a
-     * presentation choice, so it is declared here rather than left to each desk to remember.
+     * A correctness requirement rather than a presentation choice, which is why it is declared
+     * here rather than left to each desk to remember.
      *
-     * A desk that plots a residual is plotting *what its own dimension still has to account
-     * for*, which is only that quantity if its own dimension is held out of the probe. Get it
-     * wrong and the failure is quiet and self-concealing: the accentuation desk's dots collapse
-     * toward zero the moment a pattern is inserted, because it would be drawing what is left
-     * over **after** the very thing it is fitting — so the beat you drew a cell around is the
-     * one that disappears, and the desk looks like it is working.
+     * A desk plotting a residual plots *what its own dimension still has to account for*, which
+     * is only that quantity if its own dimension is held out of the probe. Get it wrong and the
+     * failure conceals itself: the accentuation desk's dots collapse toward zero the moment a
+     * pattern is inserted, so the beat you drew a cell around is the one that disappears and the
+     * desk looks like it is working.
      *
-     * The transformer's own `deriveResidual` call is the authority; these match it. `InsertRubato`
-     * holds out `rubato`, `InsertArticulation` `articulation`, `InsertPedal` `movement`,
-     * `InsertMetricalAccentuation` `accentuationPattern`.
+     * The transformer's own `deriveResidual` call is the authority and these match it.
+     * `InsertRubato` holds out `rubato`, `InsertArticulation` `articulation`, `InsertPedal`
+     * `movement`, `InsertMetricalAccentuation` `accentuationPattern`.
      *
-     * Empty where a desk plots the recording raw — the dynamics desk draws recorded velocity, the
-     * arpeggiation desks read recorded onsets, and none of them wants anything subtracted.
+     * Empty where a desk plots the recording raw: the dynamics desk draws recorded velocity, the
+     * arpeggiation desks read recorded onsets, and neither wants anything subtracted.
      */
     holdOut?: readonly InstructionType[];
 
@@ -154,28 +142,27 @@ interface DeskEntry {
      * The instruction types this desk writes **into whichever scope the picker is on**, where a
      * part may not hold its own map beside a global one.
      *
-     * MPM does not merge the two: a part's own map of a type shadows the global one of that type
-     * outright. Declaring the type here greys out whichever scope is not the one already set —
-     * `scopeLock.ts` has the rule and the reasoning.
+     * MPM does not merge the two: a part's own map of a type shadows the global one outright.
+     * Declaring the type here greys out whichever scope is not the one already set; `scopeLock.ts`
+     * has the rule and the reasoning.
      *
      * The emphasis is the condition for declaring anything at all. Three desks that do write
-     * instructions are deliberately absent, because for them the picker decides nothing: the
-     * pedal desk's `InsertPedal` writes `requireMap(mpm, 'movement', 'global')` whatever the
-     * picker says, and both style transformers loop over `scopesOf(mpm)` and restyle every scope
-     * they find. A lock on those would describe a choice the reader does not have.
+     * instructions are absent, because for them the picker decides nothing: `InsertPedal` writes
+     * `requireMap(mpm, 'movement', 'global')` whatever the picker says, and both style
+     * transformers loop over `scopesOf(mpm)`. A lock there would describe a choice the reader
+     * does not have.
      */
     writes?: readonly InstructionType[];
 
     /**
      * What this desk needs before it can do anything, or nothing where it always can.
      *
-     * A desk that simply vanished from the list would leave the reader to guess what makes it come
-     * back, so an unmet prerequisite greys the entry and says why — see {@link Prerequisite}.
+     * An unmet prerequisite greys the entry and says why; see {@link Prerequisite}.
      *
-     * Only for a desk whose *input* is missing, never for one that merely starts empty and fills
-     * as it is worked on. The tempo desk opens onto a blank skyline and that is where a tempo comes
-     * from; the rubato desk opens onto a blank row because there is no tempo to be rubato against,
-     * and nothing done on it can change that.
+     * Only for a desk whose *input* is missing, never for one that starts empty and fills as it is
+     * worked on. The tempo desk opens onto a blank skyline and that is where a tempo comes from.
+     * The rubato desk opens onto a blank row because there is no tempo to be rubato against, and
+     * nothing done on it can change that.
      */
     unavailable?: Prerequisite;
 }
@@ -195,12 +182,11 @@ const allOf =
  * Every desk that draws or reads the recording wants one in hand.
  *
  * Zero aligned notes is a blank surface with no gesture on it that can write anything: the plots
- * are `msm.end` wide, which is 0, and the chords they draw from are empty. The desks that read the
- * MPM or the score instead are not gated — the narrative, markup and metadata desks all have
- * something to show and something to do before a note has been played.
+ * are `msm.end` wide, which is 0, and the chords they draw from are empty. The desks that read
+ * the MPM or the score instead are not gated, since the narrative, markup and metadata desks all
+ * have something to do before a note has been played.
  *
- * The voices desk is the one gated over a surface that is not blank, and the reason it is gated
- * all the same is on its entry below.
+ * The voices desk is the one gated over a surface that is not blank; its entry says why.
  */
 const needsRecording: Prerequisite = ({ aligned }) =>
     aligned > 0 ? undefined : 'No recording is aligned yet. Align one first.';
@@ -209,14 +195,12 @@ const needsRecording: Prerequisite = ({ aligned }) =>
  * The two desks whose subject is where the recording falls on the *tick* grid.
  *
  * Only a `<tempo>` puts it there. Without one `residual.of(note)?.tickDate` is undefined for every
- * note, so the rubato desk draws no hooks and `InsertRubato` returns having logged; the pedal desk
- * draws no presses, and `InsertPedal` writes no `<movement>` at all.
+ * note, so the rubato desk draws no hooks and `InsertRubato` returns having logged, while the
+ * pedal desk draws no presses and `InsertPedal` writes no `<movement>`.
  *
- * The articulation desk reads the same domain and is deliberately not gated: three of its four
- * aspects go unmeasured without a tempo, but `relativeVelocity` is taken off the rendered velocity
- * and still measures, so the desk can write an articulation that means something. Its unit dialog
- * disables the other three while nothing places the notes on the tick grid, so the desk cannot
- * write a definition that states nothing.
+ * The articulation desk reads the same domain and is deliberately not gated. Three of its four
+ * aspects go unmeasured without a tempo, but `relativeVelocity` comes off the rendered velocity
+ * and still measures, and its unit dialog disables the other three meanwhile.
  */
 const needsTempo: Prerequisite = ({ tempos }) =>
     tempos > 0 ? undefined : 'No tempo yet. Draw one on the tempo desk first.';
@@ -225,19 +209,17 @@ const needsTempo: Prerequisite = ({ tempos }) =>
  * Every desk that fits *from* the recording wants to know which recording it is fitting.
  *
  * A desk measures one row of the alignment at a time, and while the readings stand side by side a
- * score note has a row per take: a recorded velocity and an onset each, under the one `xml:id`.
- * Neither desk nor reader is told which of them is on screen. `Alignment.build` keeps the first
- * row of an id, so the rendering a plot is read against is one take's while the plot itself may be
- * another's, and the arpeggiation desks — which read each row's own onset — frame a chord from the
+ * score note has a row per take, each with its own velocity and onset under the one `xml:id`.
+ * Nothing says which is on screen. `Alignment.build` keeps the first row of an id, so a plot may
+ * be read against another take's rendering, and the arpeggiation desks frame a chord from the
  * earliest onset in any take to the latest, a spread no performance played.
  *
  * There is no residual to plot either: `deriveResidual` refuses an alignment on more than one
- * reading rather than answering off whichever row it kept, so the four desks that read one are
- * handed `null` until this gate lifts.
+ * reading rather than answering off whichever row it kept.
  *
- * Three desks are deliberately not gated, because the takes are their subject rather than their
- * input: the alignment desk is where a further recording comes from, Base Text is the remedy this
- * points at, and the corrections desk edits the recording itself.
+ * Three desks are not gated, the takes being their subject rather than their input: the alignment
+ * desk is where a further recording comes from, Base Text is the remedy this points at, and the
+ * corrections desk edits the recording itself.
  */
 const needsChoice: Prerequisite = ({ unchosen }) =>
     unchosen === 0
@@ -254,17 +236,12 @@ const needsChoice: Prerequisite = ({ unchosen }) =>
  * these desks put controls on them: the rubato Combine button, the ornamentation Style desk, and
  * `MakeDefaultArticulation`. `Order.ts` records that reasoning.
  *
- * ## A desk arrives when it is opened
- *
- * Every desk was imported here, so opening the editor downloaded all thirteen of them and the
- * transformers behind them before drawing the first one. They are `lazy` now: this module holds
- * what the aspect menu needs to list a desk — its aspect, its group, the name it shows — and the
- * desk itself arrives when somebody asks for it. The menu is built from this list, so it must
- * stay readable without loading anything.
+ * Desks are `lazy`, so one arrives when it is opened. This module holds only what the aspect menu
+ * needs to list a desk: its aspect, its group, the name it shows. The menu is built from this
+ * list, so the list must stay readable without loading anything.
  */
 export const correspondingDesks: DeskEntry[] = [
-    // The document itself. A group of its own so the menu still sets it apart, which it used to
-    // do by being written into the menu by hand rather than being in this list at all.
+    // The document itself. A group of its own, so the menu sets it apart.
     {
         aspect: 'metadata',
         desk: lazy(() =>
@@ -304,28 +281,26 @@ export const correspondingDesks: DeskEntry[] = [
                 { gesture: 'Enter, Esc in a name field', does: 'commit, revert the rename' },
             ],
         },
-        // No hold-out: `holdOut` is for a desk that plots a residual, and this one never asks for
-        // one. It draws the score verovio engraves and colours it by the part the chain resolved,
-        // and there is nothing for the MPM to explain away when the subject is which staff a note
-        // is written on.
+        // No hold-out: this desk plots no residual. It draws the score verovio engraves, coloured
+        // by the part the chain resolved, and there is nothing for the MPM to explain away when
+        // the subject is which staff a note is written on.
         //
         // Gated even though the engraving draws in full without a recording, which is the one
         // place this list makes that call. Everything the reader can do here comes out of `msm`:
         // the parts the score is coloured by, the voices the picker offers, and the bars
-        // `tickRange` takes a range from. Ungated it is a whole score that answers no click —
-        // reachable over any MEI whose `<performance>` times some notes but not all, since `App`
-        // sends the reader to the alignment desk only where the file holds no `<when>` at all.
+        // `tickRange` takes a range from. Ungated it is a whole score that answers no click,
+        // reachable over any MEI whose `<performance>` times some notes but not all.
         unavailable: needsRecording,
     },
-    // General — the three desks whose subject is the recording rather than the performance, in
-    // the order they are used. This one is first because nothing else can say anything until it
-    // has: until the score and the recording have been put note against note there is no
-    // recording to fit to, and the takes it writes are what Base Text then chooses between.
+    // General: the three desks whose subject is the recording rather than the performance, in the
+    // order they are used. This one is first because nothing else can say anything until the
+    // score and the recording have been put note against note, and the takes it writes are what
+    // Base Text then chooses between.
     //
-    // No `transformerName`: the `Align` call it writes is one the chain does not run, so there is
-    // no transformer to name — see `chain.ts`. Nothing looks for a desk by that name either,
-    // because an `Align` writes no instruction and so reaches neither the narrative nor the
-    // markup desk, which is where `focusCall` is reached from.
+    // No `transformerName`: the `Align` call it writes is one the chain does not run (see
+    // `chain.ts`). Nothing looks for a desk by that name either, since an `Align` writes no
+    // instruction and so reaches neither the narrative nor the markup desk, which is where
+    // `focusCall` is reached from.
     {
         aspect: 'alignment',
         desk: lazy(() =>
@@ -365,11 +340,10 @@ export const correspondingDesks: DeskEntry[] = [
                 { gesture: 'Shift-click a later note', does: 'reach from the scope to it' },
             ],
         },
-        // A choice needs something to choose between. With one take the desk draws that take's
-        // notes under a curly brace that brackets nothing, and every preference the dialog offers
-        // names the same recording, so a `MakeChoice` here can only restate what the document
-        // already says — while still discarding a note wherever two parts sound the same pitch at
-        // the same moment, which is what its equivalence groups are keyed on.
+        // A choice needs something to choose between. With one take every preference the dialog
+        // offers names the same recording, so a `MakeChoice` can only restate the document while
+        // still discarding a note wherever two parts sound the same pitch at the same moment,
+        // which is what its equivalence groups are keyed on.
         unavailable: ({ readings }) =>
             readings > 1
                 ? undefined
@@ -377,14 +351,12 @@ export const correspondingDesks: DeskEntry[] = [
                   ? 'The score has one recording, so there is no other reading to prefer.'
                   : 'No recording has been aligned into the score yet.',
     },
-    // Beside Base Text, and not by accident: these two are the desks that edit the *recording*
-    // rather than the performance, which is the one distinction the menu's groups can make that
-    // the aspect names cannot.
+    // Beside Base Text: these two edit the *recording* rather than the performance, the one
+    // distinction the menu's groups can make that the aspect names cannot.
     //
-    // Its place in this list is load-bearing beyond the ordering the user sees. `AspectSelect`
-    // draws a divider wherever `group` changes from one entry to the next, walking the array —
-    // so an entry of an existing group written anywhere but beside its group splits that group in
-    // two on screen.
+    // Its place in the array is load-bearing. `AspectSelect` draws a divider wherever `group`
+    // changes from one entry to the next, so an entry written away from its group splits that
+    // group in two on screen.
     {
         transformerName: 'Modify',
         aspect: 'corrections',
@@ -416,10 +388,10 @@ export const correspondingDesks: DeskEntry[] = [
         // for the MPM to explain away when the subject is what the roll scan read.
         unavailable: needsRecording,
     },
-    // Timing, read top to bottom in the order the work is done. Arpeggiation before tempo, because
-    // that is where the chain puts it: `InsertDynamicsGradient` and `InsertTemporalSpread` both run
-    // before `InsertTempo` in `Order.ts`, and they read onsets in the recording's own domain, which
-    // a fitted tempo has already rewritten by the time the tempo desk is done.
+    // Timing, top to bottom in the order the work is done. Arpeggiation before tempo, because
+    // that is where the chain puts it: `InsertDynamicsGradient` and `InsertTemporalSpread` run
+    // before `InsertTempo` in `Order.ts`, reading onsets in the recording's own domain, which a
+    // fitted tempo has rewritten by the time the tempo desk is done.
     {
         transformerName: 'InsertTemporalSpread',
         desk: lazy(() =>
@@ -766,12 +738,8 @@ export const correspondingDesks: DeskEntry[] = [
         },
     },
     // The artefact itself. Last, and a group of its own, because it is what every desk above it
-    // has been writing rather than another aspect of the performance.
-    //
-    // It was `aspect: 'result'`, which named a stage of a pipeline run — the vocabulary the
-    // rewrite left behind — and was the only entry with neither a `displayName` nor a name worth
-    // showing, so the menu printed a bare `result` and the bar capitalised it into a claim the
-    // desk did not make. MPM is Music Performance Markup; the desk shows the markup.
+    // has been writing rather than another aspect of the performance. Named for what it shows:
+    // MPM is Music Performance Markup.
     {
         aspect: 'markup',
         desk: lazy(() => import('./markup/MarkupDesk').then((m) => ({ default: m.MarkupDesk }))),

@@ -54,11 +54,9 @@ const MIDI_CHANNELS = 16;
 /**
  * Which MEI voice goes into which MSM part, and what the parts are called.
  *
- * The fourth call that writes no instruction — `MakeChoice` picks between readings, `Modify`
- * corrects the one picked, `InsertMetadata` says who did the picking, and this says how the score
- * is laid out before any of them look at it. Its `created` is therefore empty, and honestly so: a
- * `<part>` holding no map contributes no instruction to `getInstructions`, so naming one is not
- * something to be answerable for.
+ * The fourth call that writes no instruction, saying how the score is laid out before the others
+ * look at it. Its `created` is empty, and honestly so: a `<part>` holding no map contributes no
+ * instruction to `getInstructions`, so naming one is nothing to be answerable for.
  *
  * **One call per document, edited in place.** The options are the whole layout rather than an
  * addition to it, the way `InsertMetadata`'s are the whole `<metadata>`. `set-voices` in

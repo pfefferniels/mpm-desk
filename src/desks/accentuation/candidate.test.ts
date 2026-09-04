@@ -55,8 +55,8 @@ describe('marking a candidate out', () => {
  */
 describe('shift-clicking', () => {
     it('is not a click behind on a fresh selection', () => {
-        // The shift used to be dropped here: the branch above had queued a candidate the branch
-        // below could not see yet, so the first click of a fresh selection marked nothing.
+        // The first click of a fresh selection must still mark: the branch above queues a
+        // candidate the branch below cannot see yet, so the shift is easily dropped here.
         const candidate = afterClick(undefined, 720, true, mintName);
 
         expect(candidate.from).toBe(720);

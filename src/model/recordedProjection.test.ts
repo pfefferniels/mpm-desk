@@ -92,11 +92,8 @@ describe('the projection the viewer derives', () => {
      * reads, so the word lights up across the whole performance during playback, and it is what
      * `InstructionAttributes` quotes when the lane is pointed at.
      *
-     * It happened: the sweep was claimed under its own „[Pauschale Werte, vorläufig]" until a
-     * consolidation pass dissolved that claim and left the call on „Beruhigen", a gesture at
-     * 84960. So the bound is deliberately loose — two bars, against a piece of thirty-odd —
-     * because what it has to catch is a claim reaching across the whole score, not a beat of
-     * overhang.
+     * The bound is deliberately loose, two bars against a piece of thirty-odd: what it has to
+     * catch is a claim reaching across the whole score rather than a beat of overhang.
      */
     it('keeps a claim at the spot it is drawn at', () => {
         const { reconstruction } = project();

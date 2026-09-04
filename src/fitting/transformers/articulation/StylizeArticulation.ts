@@ -214,7 +214,7 @@ export class StylizeArticulation extends AbstractTransformer<StylizeArticulation
   }
 
   /**
-   * Drop the definitions this scope's articulations used to point at and no longer do.
+   * Drop the definitions this scope's articulations no longer point at.
    *
    * Only those: a def that nothing referred to before is not this transformer's to remove, and
    * one that is still referred to — by a conflicting articulation that kept its own reference,

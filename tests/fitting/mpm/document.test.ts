@@ -56,9 +56,8 @@ describe('instructions', () => {
     const [first] = getInstructions(mpm, 'tempo', 'global');
     const [again] = getInstructions(mpm, 'tempo', 'global');
 
-    // The old layer proxied every property onto the element and cached one view per
-    // element, so this was `toBe`. Nothing relies on that any more, and a value that looks
-    // like data and silently is not was the reason to stop.
+    // Equal, not identical: a per-element cached view would look like data and silently not
+    // be, so nothing may rely on reference identity here.
     expect(again).not.toBe(first);
     expect(again).toEqual(first);
   });

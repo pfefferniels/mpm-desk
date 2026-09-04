@@ -35,23 +35,22 @@ import { useRecordingPlayback } from './useRecordingPlayback';
 /**
  * Which sounding event realises which written note.
  *
- * The desk that comes before every other one. Nothing else here can say anything until this has:
- * the chain fits a performance to a recording, and until the score and the recording have been put
- * note against note there is no recording to fit to — only an engraving and a MIDI file that
+ * The desk that comes before every other one. Until the score and the recording have been put
+ * note against note there is no recording to fit to, only an engraving and a MIDI file that
  * nothing relates.
  *
  * ## What it writes, and where
  *
- * The matching itself goes into the MEI, as the `<performance>` of the As Played By customization:
- * a `<recording>` per take, full of `<when>` elements saying which note sounded when, how loudly
- * and for how long. That is the interchange format, it is what verovio lays the performed score
- * out from, and it is what `asMSM` reads to build the alignment the chain folds over. So the desk
- * rewrites the MEI — the one desk that does, and `ScoreDocument` says why.
+ * The matching goes into the MEI, as the `<performance>` of the As Played By customization: a
+ * `<recording>` per take of `<when>` elements saying which note sounded when, how loudly and for
+ * how long. That is the interchange format, what verovio lays the performed score out from, and
+ * what `asMSM` reads to build the alignment the chain folds over. So this desk rewrites the MEI,
+ * the one desk that does, and `ScoreDocument` says why.
  *
  * What the *reader* decides goes into the work file, on an `Align` call per take. One thing about
  * a decision does not survive the MEI: an action. A `<when>` carries the reading, the
- * responsibility and the certainty, and nothing in it says whether the played notes were to be
- * written into the score or the unplayed ones marked as a simplification.
+ * responsibility and the certainty, and nothing says whether the played notes were to be written
+ * into the score or the unplayed ones marked as a simplification.
  *
  * ## Align, then Apply
  *
@@ -123,8 +122,6 @@ export const AlignmentDesk = () => {
         () => ({ resp: recorded?.resp ?? '', certainty: recorded?.certainty ?? 'medium' }),
         [recorded?.resp, recorded?.certainty],
     );
-
-    // ── what is on screen ─────────────────────────────────────────
 
     useEffect(() => {
         if (!mei) return;
@@ -241,8 +238,6 @@ export const AlignmentDesk = () => {
         [scale, drawn],
     );
 
-    // ── listening back ────────────────────────────────────────────
-
     const pedals = useMemo<PlayablePedal[]>(() => {
         if (!performance) return [];
         return asSpans(performance.midi, true).flatMap((span) =>
@@ -289,8 +284,6 @@ export const AlignmentDesk = () => {
         pedals,
         elementFor,
     });
-
-    // ── the two gestures ──────────────────────────────────────────
 
     const align = useCallback(
         async (allowMismatch = false) => {
@@ -388,8 +381,6 @@ export const AlignmentDesk = () => {
         [recorded, setAlignment],
     );
 
-    // ── moving through the review ─────────────────────────────────
-
     const undecided = useMemo(
         () => divergences.filter((divergence) => !resolutions.has(divergence.id)),
         [divergences, resolutions],
@@ -444,8 +435,6 @@ export const AlignmentDesk = () => {
         setSelected(id);
         setAnchor(element);
     }, []);
-
-    // ── what the toolbar says ─────────────────────────────────────
 
     const busy = status !== undefined;
     const pendingEdits = divergences.filter((divergence) =>

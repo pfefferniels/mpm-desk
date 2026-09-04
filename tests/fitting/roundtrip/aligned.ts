@@ -25,14 +25,12 @@ import { type AspectError, type Errors, EMPTY_MPM, statistics } from './harness'
  *     score MSM + MPM      --espressivo-------> a performance
  *                                               assert it is the recording again
  *
- * This is the check issue #51 asks for, and the chain is the real one — the calls a person
- * wrote for this passage, rebuilt by `buildChain` and run call by call. It is not a chain
- * assembled here to suit the measurement.
+ * The check issue #51 asks for, over the real chain: the calls a person wrote for this passage,
+ * rebuilt by `buildChain` and run call by call rather than assembled to suit the measurement.
  *
- * It is also the one thing in this directory that says the drop of the six transformers did not
- * reach the reconstruction: `chain.json` is 84 calls over 14 transformers — 83 of them the run
- * takes from the file, the odd one being the `TranslatePhyiscalTimeToTicks` it now injects — and
- * every one of them is still registered. {@link runChain} throws if any is not.
+ * It is also what says every transformer the reconstruction names is still registered.
+ * `chain.json` is 84 calls over 14 transformers, 83 taken from the file and one the injected
+ * `TranslatePhyiscalTimeToTicks`, and {@link runChain} throws if any is missing.
  */
 
 const fixture = (name: string) =>
@@ -81,11 +79,10 @@ export interface AlignedRun {
 /**
  * Build a saved chain and run it, the way the desk does.
  *
- * This is what espressivo's `runChain` used to be, minus the module: `src/fitting/chain.ts`
- * builds and orders the chain and `src/model/Work.ts` reads the file, and running it is three
- * lines the caller owns. The one thing kept from the old runner is that a chain naming a
- * transformer this build does not have is an error rather than a quiet shortfall — `buildChain`
- * reports those instead of throwing, which is right for the desk and wrong for a measurement.
+ * `src/fitting/chain.ts` builds and orders the chain, `src/model/Work.ts` reads the file, and
+ * running it is three lines the caller owns. A chain naming a transformer this build does not
+ * have is an error here rather than a quiet shortfall: `buildChain` reports those instead of
+ * throwing, which is right for the desk and wrong for a measurement.
  */
 const runChain = (alignment: Alignment, json: string) => {
   const { transformers, unknown } = buildChain(parseWorkFile(json).provenance);

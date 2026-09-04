@@ -136,8 +136,8 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
       onMouseDown={(e) => {
         e.currentTarget.focus()
         if (!isDrawMode || e.button !== 0) return
-        // No screen CTM means the skyline is not laid out, and the origin it used to fall back
-        // to would start a curve at 0 seconds / 0 bpm — a stroke the user never made.
+        // No screen CTM means the skyline is not laid out. Falling back to the origin would start
+        // a curve at 0 seconds / 0 bpm, a stroke the user never made.
         const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
         if (!pt) return
         const snapped = { x: snapX(pt.x), y: pt.y }

@@ -1,44 +1,37 @@
 /**
  * A structural digest of what the chain produces.
  *
- * Not an assertion — a recorder. `MIGRATION_DIGEST=1 npx vitest run tests/fitting/mpmDigest.test.ts`
- * writes one line per instruction element of every round-trip case to
- * `tests/fitting/fixtures/mpm-digest.txt`: case, scope, element name, and every attribute as
- * `name=value` sorted by name.
+ * A recorder rather than an assertion.
+ * `MIGRATION_DIGEST=1 npx vitest run tests/fitting/mpmDigest.test.ts` writes one line per
+ * instruction element of every round-trip case to `tests/fitting/fixtures/mpm-digest.txt`: case,
+ * scope, element name, and every attribute as `name=value` sorted by name. Sorted, because
+ * attribute order is the renderer's to choose, so sorting removes the one expected difference and
+ * leaves every other.
  *
- * Sorted, because attribute order is the renderer's to choose and the fitter's is not the
- * interesting difference. Sorting takes the one difference that is expected out of the comparison
- * and leaves every difference that is not.
- *
- * The chain is deterministic (`determinism.test.ts` folds it twice and compares), so a
- * digest taken before and after a change that is meant to preserve behaviour must match line for
- * line.
+ * The chain is deterministic (`determinism.test.ts`), so a digest taken before and after a change
+ * meant to preserve behaviour must match line for line.
  *
  * ## What legitimately moves it
  *
- * Two things, and neither is a difference in what renders:
- *
  * 1. **espressivo omits an attribute at its default and writes some unconditionally.**
  *    `<temporalSpread>` leaves out `noteoff.shift="false"` and `time.unit="ticks"`; `<ornament>`
- *    always carries `scale="0"`, the spec's own default. Same documents, different bytes.
- * 2. **Last-digit float noise.** The fitters are iterative, so a change of 1e-16 in an input
- *    reaches the output as ~1e-9 — which is what dropping the alignment's seconds/milliseconds
- *    round trip did to four of the cases. `ROUNDTRIP_REPORT=1` is the check that matters
- *    there: it reports to two decimals and must not move at all.
+ *    always carries `scale="0"`. Same documents, different bytes.
+ * 2. **Last-digit float noise.** The fitters are iterative, so 1e-16 in an input reaches the
+ *    output as ~1e-9. `ROUNDTRIP_REPORT=1` is the check that matters there: it reports to two
+ *    decimals and must not move at all.
  *
- * Anything else is a behaviour change, and the digest is how it gets noticed.
+ * Anything else is a behaviour change.
  *
- * ## What it is worth after the move
+ * ## The shipped digest is a record, not a baseline
  *
- * `fixtures/mpm-digest.txt` came across from espressivo and describes a chain that no longer
- * exists: nineteen cases, four of them pure tempo, fitted by `ApproximateLogarithmicTempo`.
- * Re-running this writes a different file top to bottom, and the diff would say nothing but
- * "the six transformers are gone", which is already known.
+ * `fixtures/mpm-digest.txt` came across from espressivo and describes a chain this build does not
+ * have: nineteen cases, four of them pure tempo, fitted by `ApproximateLogarithmicTempo`.
+ * Re-running writes a different file top to bottom, and the diff would say only that those
+ * transformers are gone.
  *
- * So the shipped digest is a **record of where this came from**, not a baseline. It becomes an
- * instrument again the moment it is re-recorded here — one `MIGRATION_DIGEST=1` run, committed
- * — after which it does for this repo what it did for espressivo: catch a change to the
- * surviving chain that was meant to preserve behaviour and did not.
+ * It becomes an instrument again once re-recorded here, one `MIGRATION_DIGEST=1` run committed,
+ * after which it catches a change to the surviving chain that was meant to preserve behaviour and
+ * did not.
  */
 import { describe, test } from 'vitest';
 import { writeFileSync } from 'fs';

@@ -17,14 +17,13 @@ interface RoundNumbersOptions extends TransformationOptions {}
  *          3              7.55 ms                                      1.05 ms
  *          4              0.44 ms                                      0.17 ms
  *
- * Two places is not a uniform loss. It is four significant figures on a `@bpm` of 59 and two on
- * a `@meanTempoAt` of 0.57 — and `@meanTempoAt` shapes the elapsed time of a whole tempo
- * segment, so its error is integrated along the piece rather than spent on one note.
- * `@meanTempoAt` alone accounts for 60.3 ms of the 62.9. `@lateStart` fares worse still: two
- * places turn 0.00129 into nothing at all.
+ * Two places is not a uniform loss: four significant figures on a `@bpm` of 59 and two on a
+ * `@meanTempoAt` of 0.57. `@meanTempoAt` shapes the elapsed time of a whole tempo segment, so its
+ * error integrates along the piece rather than being spent on one note, and it alone accounts for
+ * 60.3 ms of the 62.9. `@lateStart` fares worse: two places turn 0.00129 into nothing.
  *
- * At four places nothing audible survives — 0.44 ms against a JND of some tens of milliseconds
- * — and the document still reads in numbers a person can repeat.
+ * At four places nothing audible survives, 0.44 ms against a JND of some tens of milliseconds,
+ * and the document still reads in numbers a person can repeat.
  */
 const DECIMALS = 4;
 
@@ -101,29 +100,28 @@ const roundedValue = (value: string): string | null => {
 /**
  * Round every measured attribute in the document.
  *
- * A fitted MPM says `bpm="59.15049362182617"` where the recording it was fitted to knows the
- * onset of a note to a millisecond. The long tail is the solver talking to itself, and MPM's own
- * premise is that a performance is composed of simple statements — so the last thing a run does
- * is write the numbers as a reader could repeat them.
+ * A fitted MPM says `bpm="59.15049362182617"` where the recording knows a note's onset to a
+ * millisecond. The long tail is the solver talking to itself, and MPM's premise is that a
+ * performance is composed of simple statements, so the last thing a run does is write numbers a
+ * reader could repeat.
  *
- * What it costs, measured over the shipped reconstruction by rendering the document before and
- * after: the largest onset moves by 0.44 ms, the largest note end by 0.44 ms, the largest
- * velocity by 0.003 of a MIDI step, and nothing reorders. See {@link DECIMALS} for why the
- * figure is four and not the two a `@bpm` would read at.
+ * Measured over the shipped reconstruction by rendering before and after: the largest onset moves
+ * by 0.44 ms, the largest note end by 0.44 ms, the largest velocity by 0.003 of a MIDI step, and
+ * nothing reorders. {@link DECIMALS} says why four places and not two.
  *
  * Dates are rounded like everything else rather than snapped to whole ticks, which the same
  * measurement says would cost nothing (0.013 ms on top). An MPM date is real-valued by design:
  * 198 of this document's 200 `<movement>`s sit between ticks, because that is where the pedal
- * moved. Cutting digits is a statement about how precisely the document knows a number; moving
- * a pedal onto the grid is a statement about the performance, and a different one.
+ * moved. Cutting digits states how precisely the document knows a number; moving a pedal onto the
+ * grid states something about the performance.
  *
- * **Nobody calls this.** `buildChain` puts one at the end of every chain, on the same footing as
- * `TranslatePhysicalTimeToTicks` and for the same reason: where it goes is not the user's to
- * pick, it takes no options and no scope, and a document is not made worse by having run it.
+ * **No desk offers this.** `buildChain` puts one at the end of every chain, on the same footing
+ * as `TranslatePhysicalTimeToTicks`: where it goes is not the user's to pick, it takes no options
+ * and no scope, and a document is not made worse by having run it.
  *
  * It is answerable for nothing. Rounding changes the text of nearly every instruction, so the
- * diff in `AbstractTransformer.run` would credit this call with the whole document; what it
- * actually did is restate what other calls decided, which is what {@link disowned} is for.
+ * diff in `AbstractTransformer.run` would credit this call with the whole document, where what it
+ * did is restate what other calls decided. Hence {@link disowned}.
  */
 export class RoundNumbers extends AbstractTransformer<RoundNumbersOptions> {
   name = 'RoundNumbers';

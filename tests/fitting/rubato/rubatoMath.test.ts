@@ -55,12 +55,9 @@ test('an absent @intensity is the identity, not NaN', () => {
 
 test('an absent @frameLength leaves the date alone rather than answering NaN', () => {
   // `@frameLength` is the one rubato parameter with no default: espressivo's `resolveRubato`
-  // rejects the instruction outright. It used to divide by `undefined`.
-  //
-  // The fixture needs no cast any more. mpmify's own record declared `frameLength` as a
-  // required number while a parsed document handed back `undefined` for it, so stating this
-  // case at all meant lying to the compiler; espressivo types it optional, which is what a
-  // `<rubato>` that inherits its frame from a `rubatoDef` actually looks like.
+  // rejects the instruction rather than dividing by `undefined`. It is typed optional, which is
+  // what a `<rubato>` inheriting its frame from a `rubatoDef` looks like, so this case needs no
+  // cast.
   const noFrame: RubatoFrame = { date: 0 };
   expect(calculateRubatoOnDate(360, noFrame)).toBe(360);
 });

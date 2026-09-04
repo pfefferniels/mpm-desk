@@ -271,12 +271,10 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
 
     // What the choice is about to cover, said beside the button rather than inside its label.
     //
-    // This used to be spelled into the label itself — `Make Choice (12)`, `Make Choice
-    // (1200-4800)`, `Make Choice (Default)` — and it is the worst case of that mistake in the app,
-    // because the three states are not merely different widths but different *shapes*: a
-    // meta-click grows a note count by a digit, and a shift-click replaces the whole count with a
-    // pair of tick numbers. The button is the one the user is aiming for while clicking on the plot
-    // beside it, so it was reflowing under the cursor on its way over.
+    // In the label the three states are different *shapes*, not merely different widths: a
+    // meta-click grows a note count by a digit, a shift-click replaces the count with a pair of
+    // tick numbers. The user aims for this button while clicking the plot beside it, so a label
+    // that reflows moves it under the cursor on the way over.
     const choiceScope = currentChoice
         ? 'noteIDs' in currentChoice
             ? `${currentChoice.noteIDs.length} notes`

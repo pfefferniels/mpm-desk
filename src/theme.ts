@@ -3,14 +3,12 @@ import { createTheme } from '@mui/material/styles';
 /**
  * The chrome's palette, which the chrome already had.
  *
- * Nothing here is a new colour. Every value below is a literal that was already written out by
- * hand somewhere under `src/`: `#e5e7eb` on ten borders, `#111827` on nine bits of primary text,
- * `#6b7280` on eight bits of secondary. They were transcribed rather than shared, so the app had
- * two vocabularies for the same thing — `sx={{ color: 'text.secondary' }}` resolved against a
- * theme nobody had configured and landed on MUI's default `rgba(0,0,0,0.6)`, while the raw
- * `<button>`s and `<td>`s beside it said `style={{ color: '#6b7280' }}`. Collecting the ramp here
- * is what makes those two spellings finally mean the same colour, so this is a rename and not a
- * restyle: no drawing changes, and every hand-written literal that stays behind still matches.
+ * Nothing here is a new colour: every value is one already written by hand under `src/` —
+ * `#e5e7eb` on ten borders, `#111827` on nine bits of primary text, `#6b7280` on eight bits of
+ * secondary. Collected here so that `sx={{ color: 'text.secondary' }}` and a raw
+ * `style={{ color: '#6b7280' }}` beside it mean one colour, rather than the first resolving
+ * against an unconfigured theme to MUI's `rgba(0,0,0,0.6)`. Every hand-written literal that stays
+ * behind still matches.
  *
  * **`src/segment-stack/spanColors.ts` is deliberately not here.** That is a categorical data
  * palette — MPM element type to hue — and it belongs to the drawings, not to the chrome. Folding

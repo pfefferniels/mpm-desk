@@ -298,12 +298,11 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
    * One definition for a cluster of ornaments: each value the mean of the group's.
    *
    * Averaged from the drafts themselves rather than from the clustering's coordinate vectors.
-   * Reading those vectors by position — `point[3]` and `point[4]` for the two `transition.*` —
-   * reads the gradient one place short, because `generateClusters` builds a **four**-dimensional
-   * point ending in the note-off shift: `transitionFrom` comes back as the note-off shift and
-   * `transitionTo` as `transitionFrom`, which turns every clustered crescendo into its own
-   * mirror image — a truth of 39/51.5/64 refitting as 64/51.5/39. Read the draft by name and
-   * the two cannot come apart.
+   * `generateClusters` builds a **four**-dimensional point ending in the note-off shift, so
+   * reading the two `transition.*` by position takes the gradient one place short:
+   * `transitionFrom` comes back as the note-off shift and `transitionTo` as `transitionFrom`,
+   * mirroring every clustered crescendo (39/51.5/64 refitting as 64/51.5/39). Read by name, the
+   * two cannot come apart.
    */
   private mergedDef(ornaments: FittedOrnament[], name: string): OrnamentDef | null {
     const mean = (of: (draft: OrnamentDraft) => number | undefined) => {
@@ -341,23 +340,21 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
   }
 
   /**
-   * The `<temporalSpread>` a draft describes — as the five values espressivo builds one from —
-   * or nothing where it describes no roll.
+   * The `<temporalSpread>` a draft describes, as the five values espressivo builds one from, or
+   * nothing where it describes no roll.
    *
-   * Every field a spread needs is optional on the draft, so this is the one place that says
-   * what each absence means. The frame's two ends *are* the roll: an ornament with no frame is
-   * a velocity ramp and nothing else, and writing a `<temporalSpread>` for it would describe a
-   * roll that was never measured. A frame of `NaN` describes one just as little — that is the
-   * "unusable frame" `defineAndName` refuses to write a definition for, and it asks here rather
-   * than deciding again on its own.
+   * Every field a spread needs is optional on the draft, so this is the one place that says what
+   * each absence means. The frame's two ends *are* the roll: an ornament with no frame is a
+   * velocity ramp, and writing a `<temporalSpread>` for it would describe a roll nobody
+   * measured. A frame of `NaN` describes one just as little, which is the "unusable frame"
+   * `defineAndName` refuses to write a definition for; it asks here rather than deciding again.
    *
-   * The other three have a reading when absent, and writing that reading down says exactly what
-   * silence would have said: MPM reads a missing `@time.unit` as ticks, a missing
-   * `@noteoff.shift` as false and a missing `@intensity` as 1. `false` is also the reading
-   * `generateClusters` already gives the shift, coding absent and `false` onto the same
-   * coordinate — so within a cluster the two are indistinguishable by construction and the def
-   * has to pick the one dbscan saw. Naming all three costs the document nothing: espressivo
-   * omits each attribute again when it holds the default.
+   * The other three have a reading when absent, and stating it says what silence would have
+   * said: MPM reads a missing `@time.unit` as ticks, a missing `@noteoff.shift` as false and a
+   * missing `@intensity` as 1. `false` is also what `generateClusters` gives the shift, coding
+   * absent and `false` onto one coordinate, so within a cluster the two are indistinguishable
+   * and the def has to pick the one dbscan saw. Naming all three costs the document nothing,
+   * since espressivo omits each attribute again when it holds the default.
    */
   private temporalSpreadOf(
     draft: Pick<

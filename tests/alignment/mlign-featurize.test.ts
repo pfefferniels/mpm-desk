@@ -20,8 +20,8 @@ const LOCAL_GOLDEN = join(__dirname, 'golden')
  * The berceuse is 25 MB of fixtures — too large to commit. Point `MLIGN_GOLDEN` at the MLign
  * tree's `test/golden` to run against it; unset, those cases skip.
  *
- * It used to be a fixed `../../MLign/test/golden`, which said where somebody's checkouts happen
- * to sit rather than where the fixtures are, and resolved to nothing at all from a git worktree.
+ * An env var rather than a fixed relative path, which would say where somebody's checkouts
+ * happen to sit and resolve to nothing at all from a git worktree.
  */
 const MLIGN_GOLDEN = process.env.MLIGN_GOLDEN
 

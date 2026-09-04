@@ -132,15 +132,12 @@ describe('every recorded event gets a position', () => {
 /**
  * The walk starts from what the *document* says, and that does not say plainly what curve it
  * describes: `resolveTempo` decides that, and for two spellings the answer is not the one the
- * attributes read like. Both used to be inverted at `@bpm`, because the old test for whether an
- * instruction ramps was a truthiness check on its target and its shape — which calls
- * `@meanTempoAt="0"` false, `0` being falsy, and an absent `@meanTempoAt` false as well.
+ * attributes read like. A truthiness check on the target and the shape inverts both at `@bpm`,
+ * calling `@meanTempoAt="0"` false because `0` is falsy, and an absent `@meanTempoAt` false too.
  *
- * The defect itself cannot come back the way it went: `dateAtMilliseconds` takes a *resolved*
- * span now, so there is nothing unresolved left for it to misread. What these two guard is the
- * one step where the decision is still open — `resolveSpan`, where an `@meanTempoAt` of 0 handed
- * on as `meanTempoAt ? ... : null` becomes a linear ramp again, which is the same falsy-zero
- * mistake one level up.
+ * `dateAtMilliseconds` takes a *resolved* span, so it has nothing unresolved to misread. What
+ * these two guard is `resolveSpan`, the one step where the decision is still open, and where an
+ * `@meanTempoAt` of 0 handed on as `meanTempoAt ? ... : null` becomes a linear ramp again.
  */
 describe('the walk reads an instruction the way the renderer resolves it', () => {
   const under = (tempo: Partial<InstructionOptions<'tempo'>>) => {
@@ -166,9 +163,8 @@ describe('the walk reads an instruction the way the renderer resolves it', () =>
   });
 
   /**
-   * And a `@transition.to` with no `@meanTempoAt` is a *linear ramp*, not a constant at either
-   * end — so a note a second in lands strictly between the two constant readings. The old
-   * closed form put it exactly on the lower one.
+   * And a `@transition.to` with no `@meanTempoAt` is a *linear ramp* rather than a constant at
+   * either end, so a note a second in lands strictly between the two constant readings.
    */
   test('a @transition.to with no @meanTempoAt places notes on the ramp', () => {
     const onRamp = under({ transitionTo: 120 })!.notes.get('n1')!.tickDate!;

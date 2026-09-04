@@ -5,10 +5,10 @@ const MEI_NS = "http://www.music-encoding.org/ns/mei";
 /**
  * An empty `<recording>` for `source`, replacing the one the document already had under that name.
  *
- * Replacing rather than appending is what makes aligning the same take twice idempotent, and
- * naming which one to replace is what leaves the *other* takes alone. `source` is therefore
- * required: it used to be optional, and without it this took `<recording>` to mean the first one
- * in the document, so a second performance aligned against the same score deleted the first.
+ * Replacing rather than appending makes aligning the same take twice idempotent, and naming which
+ * one to replace leaves the *other* takes alone. `source` is therefore required: without it,
+ * `<recording>` can only mean the first one in the document, so a second performance aligned
+ * against the same score would delete the first.
  */
 export const insertRecording = (newMEI: Document, source: string) => {
     const recording = newMEI.createElementNS(MEI_NS, 'recording');
@@ -96,22 +96,20 @@ export interface WhenReading {
 /**
  * Which quantity `ornamentAnchorConfidence` holds, written beside it.
  *
- * An edition outlives the code that wrote it, and this number has already
- * changed meaning once. It used to be the attribution head's whole-row mass,
- * which also carried the match head's P(insertion); it is now the head's own two
- * factors, asked of a played note the alignment had already given up on pairing.
- * Both are probabilities in [0, 1] and the second is always the larger, so a
- * reader comparing two files has nothing to tell them apart by.
+ * An edition outlives the code that wrote it, and two candidate quantities live
+ * in [0, 1] with one always the larger: the attribution head's whole-row mass,
+ * which carries the match head's P(insertion), and the head's own two factors,
+ * asked of a played note the alignment had given up on pairing. A reader
+ * comparing two files has nothing else to tell them apart by.
  *
  * Hence a token naming the quantity rather than a version. A version number
- * needs a changelog to mean anything; this says what was measured, and stays
- * legible on its own.
+ * needs a changelog to mean anything; this says what was measured.
  *
- * **Absent means the older quantity.** A file written before this token existed
- * must keep parsing exactly as it did, and there is no way to add the token to
- * one retrospectively without knowing which code wrote it. So absence is not
- * "unknown", it is the reading, and nothing should ever write the old value's
- * name - it exists only as the default.
+ * **Absent means the whole-row quantity.** A file written before this token
+ * existed must keep parsing as it did, and the token cannot be added
+ * retrospectively without knowing which code wrote it. So absence is the
+ * reading rather than "unknown", and nothing should ever write that older
+ * name: it exists only as the default.
  */
 export const ORNAMENT_ANCHOR_CONFIDENCE_OF = "anchor-given-insertion";
 

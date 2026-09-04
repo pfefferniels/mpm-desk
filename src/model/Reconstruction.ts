@@ -125,20 +125,19 @@ export interface SegmentClaim {
 /**
  * Project a run of the chain onto the tree's segments and spans.
  *
- * Three things go in — what the work file claims, what each call did and which claim it did it
- * under, and the element types of the document it wrote — and what comes out is what the tree
- * draws. Nothing is read off the MPM beyond the types, because everything else has already been
- * reported.
+ * Three things go in: what the work file claims, what each call did and under which claim, and
+ * the element types of the document it wrote. Out comes what the tree draws. Nothing is read off
+ * the MPM beyond the types, everything else having been reported already.
  *
- * Two kinds of loss are expected here rather than exceptional, and both are counted rather than
+ * Two kinds of loss are expected rather than exceptional, and both are counted rather than
  * swallowed:
  *
  * - **A call's elements can outlive the instructions.** `created` is what a call was answerable
- *   for at the moment it ran; a later call in the chain may have merged or removed the very
- *   instruction it wrote. Such an id is no longer in the document and is dropped.
- * - **A group can end up with no span at all**, when every element every one of its calls wrote
- *   was removed again. It contributes nothing to draw and is left out — a segment with no
- *   gestures is not a claim about the performance, it is a claim that was overwritten.
+ *   for at the moment it ran, and a later call may have merged or removed the instruction it
+ *   wrote. Such an id is no longer in the document and is dropped.
+ * - **A group can end up with no span at all**, when every element all of its calls wrote was
+ *   removed again. It contributes nothing to draw and is left out: a segment with no gestures is
+ *   a claim that was overwritten rather than a claim about the performance.
  */
 export function projectReconstruction(params: {
     title: string;

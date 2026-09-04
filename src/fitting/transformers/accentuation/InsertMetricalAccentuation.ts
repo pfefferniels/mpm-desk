@@ -72,17 +72,15 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
    * beats.
    *
    * The beat is espressivo's own expression, `1 + (date − tsDate) % patternTicks / ticksPerBeat`
-   * with `ticksPerBeat = 4 · ppq / denominator`, computed on the same tick — so the two agree
-   * bit for bit, which matters: `AccentuationPatternDef.getAccentuationAt` tests a beat position
-   * with `===` and interpolates where it misses. (Issue #42 reported the two halves disagreeing,
-   * one of them reading beats back in quarters. The residual is derived by rendering the document
-   * through espressivo, so the reader *is* the renderer and there is one grid to agree with.)
+   * with `ticksPerBeat = 4 · ppq / denominator`, computed on the same tick, so the two agree bit
+   * for bit. That matters: `AccentuationPatternDef.getAccentuationAt` tests a beat position with
+   * `===` and interpolates where it misses (issue #42).
    *
-   * The loop counts beats as integers and converts each to ticks once, rather than
-   * accumulating `beat += beatLength`. A triplet basis is not representable in binary, so an
-   * accumulated position drifts — and `notesAtDate` compares dates with `===`, so a drifted
-   * date silently matches no note at all. Rounding to the tick is exact for every basis,
-   * because score dates are integers in ticks.
+   * The loop counts beats as integers and converts each to ticks once rather than accumulating
+   * `beat += beatLength`. A triplet basis is not representable in binary, so an accumulated
+   * position drifts, and `notesAtDate` compares dates with `===`, so a drifted date matches no
+   * note at all. Rounding to the tick is exact for every basis, score dates being integers in
+   * ticks.
    *
    * ## The phase is the time signature's, not the cell's
    *
@@ -92,10 +90,10 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
    * its first sample on beat 1, and one that is not begins mid-cycle: a cell of a dotted quarter
    * starting an eighth into the cycle opens on beat 1.5 and wraps round to beat 1 before it ends.
    *
-   * Numbering the samples from the cell instead put the accentuations at beats the renderer
-   * indexes elsewhere, which is a pattern sounding rotated against the one that was fitted —
-   * 11 of the 50 cells in the shipped reconstruction, all of them the 1.5- and 2.5-beat readings
-   * a hemiola is made of (issue #47).
+   * Numbering the samples from the cell instead puts the accentuations at beats the renderer
+   * indexes elsewhere, so the pattern sounds rotated against the one that was fitted: 11 of the
+   * 50 cells in the shipped reconstruction, all the 1.5- and 2.5-beat readings a hemiola is made
+   * of (issue #47).
    */
   private extractVelocities(
     { from: start, to: end, beatLength }: InsertMetricalAccentuationOptions,
@@ -212,16 +210,15 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
    *
    * A cell fitted here is not a bar. {@link extractVelocities} numbers the beats from the cell's
    * own start and the loop above repeats the cell on its own length, so what this writes is a
-   * pattern cycling on `@length` — which is what `false` means, and what MPM's own remark
-   * reserves it for. Left to the default, a pattern of one beat was read against a bar of four
-   * and the beat the fitter measured was not the beat the renderer indexed.
+   * pattern cycling on `@length`, which is what `false` means. Under the default a pattern of one
+   * beat is read against a bar of four, and the beat the fitter measured is not the beat the
+   * renderer indexes.
    *
-   * It is the phase, not the anchor: both branches of espressivo's
+   * It sets the phase rather than the anchor: both branches of espressivo's
    * `renderMetricalAccentuationToMap` count from the date of the time signature in force, never
-   * from the instruction. So this makes the two agree wherever a cell's offset from the signature
-   * is a whole number of pattern lengths — 43 of the 54 patterns in the shipped performance,
-   * against 19 under the default — and the rest are still read at a phase the desk did not fit.
-   * See issue #47.
+   * from the instruction. So the two agree wherever a cell's offset from the signature is a whole
+   * number of pattern lengths, 43 of the 54 patterns in the shipped performance against 19 under
+   * the default, and the rest are still read at a phase the desk did not fit. See issue #47.
    */
   protected transform(msm: Alignment, mpm: Mpm): void {
     if (

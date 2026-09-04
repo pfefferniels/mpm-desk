@@ -21,23 +21,20 @@ export interface SelectionModifiers {
  * - shift click — reach from what is selected to here, as a stretch of the tick grid
  *
  * The three produce the three arms of {@link ModifySelector} directly, so what the user drew and
- * what the call says are the same thing rather than one being derived from the other. A shift
- * click over a list of notes converts it into the stretch spanning that list and the click; over a
- * stretch it moves whichever end is nearer, so the same gesture reaches out or pulls back in.
- * Either way the ends come out in the grid's order — see `dateRange`, and issue #26 for what an
- * inverted pair costs.
+ * what the call says are one thing. A shift click over a list of notes converts it into the
+ * stretch spanning that list and the click; over a stretch it moves whichever end is nearer, so
+ * the same gesture reaches out or pulls back in. Either way the ends come out in the grid's
+ * order: see `dateRange`, and issue #26 for what an inverted pair costs.
  *
  * **Pedals only ever form a list.** `from`/`to` is a stretch of the score, and a recorded pedal
  * has no place on the score — so shift over a pedal adds it to the list instead of reaching.
  *
  * ## A plain press means one of two things
  *
- * Outside the selection it replaces it; **inside it, it changes nothing**, because that press is
- * also the start of a drag and a group has to be draggable by any of its members. The dynamics
- * desk had the second half of that rule and not the first: a plain click with a selection
- * standing fell through every branch and did nothing at all, so there was no way to start a new
- * selection short of committing or abandoning the old one. `ChoiceDesk` — the other desk that
- * edits the recording — has always replaced.
+ * Outside the selection it replaces it; **inside it, it changes nothing**, that press also being
+ * the start of a drag, and a group has to be draggable by any of its members. Both halves are
+ * needed: without the first, a plain click with a selection standing falls through every branch,
+ * leaving no way to start a new selection short of committing or abandoning the old one.
  */
 export const useEventSelection = (msm: Alignment, part: Scope) => {
     const [selection, setSelection] = useState<ModifySelector>();
@@ -76,9 +73,9 @@ export const useEventSelection = (msm: Alignment, part: Scope) => {
                     return current;
 
                 if (modifiers.metaKey && 'noteIDs' in current) {
-                    // A new array, because the spread is shallow: pushing into the old one would
-                    // carry the same array into the "new" selection, and a consumer comparing
-                    // references would see no change.
+                    // A new array, the spread being shallow: pushing into the existing one carries
+                    // the same reference into the "new" selection, and a consumer comparing
+                    // references sees no change.
                     return current.noteIDs.includes(clicked.id)
                         ? { noteIDs: current.noteIDs.filter((id) => id !== clicked.id) }
                         : { noteIDs: [...current.noteIDs, clicked.id] };

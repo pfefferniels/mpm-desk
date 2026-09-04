@@ -1,18 +1,16 @@
 /**
  * A performance, rendered as MIDI so that it can be heard.
  *
- * Everything the project holds about a performance is a list of notes with a
- * moment and a pitch, whether it came out of a MIDI file, out of the <when>
- * elements of a recording, or out of an alignment. This turns any such list into
- * something the piano can play, and puts the id of each note into the stream as
- * a text event so that whatever is on screen can light up as it sounds.
+ * A performance is a list of notes with a moment and a pitch, however it
+ * arrived. This turns any such list into something the piano can play, and puts
+ * each note's id into the stream as a text event so what is on screen can light
+ * up as it sounds.
  *
- * The range is what makes it useful for checking by ear. Listening for whether
- * one bar was aligned rightly should not mean sitting through the four minutes
- * before it, so a caller may ask for any stretch of the performance and get it
- * back rebased to zero. Notes struck inside the range keep their own release
- * even where that falls beyond it: cutting a note off at the boundary would be
- * an artefact of the listening, not something the performer did.
+ * The range is what makes it useful for checking by ear: a caller may ask for
+ * any stretch and get it back rebased to zero. Notes struck inside the range
+ * keep their own release even where it falls beyond, cutting one off at the
+ * boundary being an artefact of the listening rather than something the
+ * performer did.
  */
 
 import type { MidiFile, AnyEvent } from "midifile-ts";

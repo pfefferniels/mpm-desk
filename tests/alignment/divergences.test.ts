@@ -742,12 +742,12 @@ describe('how sure the attribution head has to be', () => {
    * What accepting more notes costs, pinned from both sides.
    *
    * An accepted anchor does not only name a written note, it widens the silence
-   * that still counts as one figure from `gapMs` to `attributedGapMs` - 250 ms
-   * to a second. So a note that newly becomes accepted can also merge two events
-   * that used to be reported separately, and that is the change a reader is most
-   * likely to notice. It is wanted: a broad ornament on an early recording runs
-   * well past 250 ms and splitting it there is the mistake the head exists to
-   * stop. Both halves are fixed here so that neither moves unremarked.
+   * that still counts as one figure from `gapMs` to `attributedGapMs`, 250 ms to
+   * a second. So accepting one more note can merge two events into one report,
+   * which is the change a reader is most likely to notice. It is wanted: a broad
+   * ornament on an early recording runs well past 250 ms, and splitting it there
+   * is the mistake the head exists to stop. Both halves are fixed here so that
+   * neither moves unremarked.
    */
   const twoExtras = (ornamentOf?: Record<string, Said>) =>
     build({
@@ -790,8 +790,8 @@ describe('how sure the attribution head has to be', () => {
 /**
  * The names a reader's decisions are filed under, which outlive the run that produced them: an
  * `Align` call in the work file holds a resolution per divergence id, and reads it back against a
- * grouping made fresh. They used to be counters, so one more disagreement anywhere earlier moved
- * every later name by one and quietly re-pointed the decisions filed under them.
+ * grouping made fresh. A counter would move every later name by one whenever a disagreement
+ * appeared earlier, quietly re-pointing the decisions filed under them.
  */
 describe('what a divergence is called', () => {
   const withExtras = (extras: NoteSpan[], deletions: string[] = []) =>
@@ -821,8 +821,8 @@ describe('what a divergence is called', () => {
     const before = withExtras([span('x9', 3000, 62)], ['n3'])
     const after = withExtras([span('x1', 500, 61), span('x9', 3000, 62)], ['n2', 'n3'])
 
-    // One more of each, and both of the new ones sort *before* the old ones — which is the case
-    // a counter gets wrong, since it hands the old disagreement the index the new one now has
+    // One more of each, both sorting *before* the existing ones, which is the case a counter
+    // gets wrong: it hands the existing disagreement the index the new one now has
     expect(addedOnes(after)).toHaveLength(2)
     expect(missingOnes(after)).toHaveLength(2)
 

@@ -96,19 +96,19 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     /**
      * Zoom, twice over: where the branches sit, and how they are stacked.
      *
-     * Sliding 128 words along the line is one transform each and the browser
-     * does that at frame rate, so position follows the slider exactly — which
-     * is what makes a drag feel attached to the hand. Stacking them is the
-     * expensive half, so it answers to a rung of {@link packZoom} instead, and
-     * at low priority: between rungs the tree keeps its shape and simply
-     * stretches, and React builds the next one without blocking the drag.
+     * Sliding 128 words along the line is one transform each, which the browser
+     * does at frame rate, so position follows the slider exactly and a drag
+     * feels attached to the hand. Stacking is the expensive half, so it answers
+     * to a rung of {@link packZoom} at low priority: between rungs the tree
+     * keeps its shape and stretches, and React builds the next one without
+     * blocking the drag.
      *
-     * The two never disagree, because a placement holds no zoom of its own —
-     * only a tick, a lean, and a distance from the line.
+     * The two never disagree, a placement holding no zoom of its own, only a
+     * tick, a lean and a distance from the line.
      *
-     * The rung is what is deferred, not the zoom: deferring the zoom itself
-     * would schedule a second pass over the tree on every step of a drag, to
-     * arrive at the same rung it already had.
+     * The rung is deferred rather than the zoom: deferring the zoom would
+     * schedule a second pass over the tree on every step of a drag, to arrive at
+     * the rung it already had.
      */
     const packStretchX = useDeferredValue(packZoom(stretchX));
     const maxX = maxDate * stretchX;

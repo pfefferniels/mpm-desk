@@ -33,26 +33,25 @@ const EMPTY: Markup = { lines: [], lineOf: new Map() };
  *
  * ## Why this has to indent
  *
- * espressivo's serializer is contractually not a pretty-printer — `xml/XomTypes.ts` lists the
- * bytes it is pinned to and says "non-empty ones emit their children back to back with no added
- * whitespace or indentation", because the integration suite compares its output against
- * Java-generated ground truth. The consequence is that a written MPM is *two lines*: the XML
- * declaration, and everything else. The reconstruction this app ships is 111,158 characters on
- * that second line. Shown in a `<pre>` that is one horizontal ribbon roughly fourteen hundred
- * screen-widths long, which is what this desk used to be.
+ * espressivo's serializer is contractually not a pretty-printer: `xml/XomTypes.ts` pins the bytes
+ * and says "non-empty ones emit their children back to back with no added whitespace or
+ * indentation", the integration suite comparing its output against Java-generated ground truth.
+ * So a written MPM is *two lines*, the XML declaration and everything else, and the shipped
+ * reconstruction puts 111,158 characters on the second. In a `<pre>` that is one horizontal
+ * ribbon some fourteen hundred screen-widths long.
  *
- * `prettyXml` is espressivo's own answer and exists for exactly this caller — its doc says
- * "purely textual and purely cosmetic" and "not used anywhere on the conversion path". Over the
- * shipped MPM it takes 0.6 ms and yields 1,135 lines, longest 202 characters, so there is nothing
- * here to virtualise and no dependency to add. Its two documented blind spots, CDATA and XML
- * comments, are not things MPM or MSM contain — `<comment>` in the metadata is an element.
+ * `prettyXml` is espressivo's own answer and exists for this caller: its doc says "purely textual
+ * and purely cosmetic" and "not used anywhere on the conversion path". Over the shipped MPM it
+ * takes 0.6 ms and yields 1,135 lines, longest 202 characters, so there is nothing to virtualise
+ * and no dependency to add. Its two documented blind spots, CDATA and XML comments, are not
+ * things MPM or MSM contain; `<comment>` in the metadata is an element.
  *
- * ## The index is one pass, and it is what makes the desk part of the editor
+ * ## The index is one pass, and what makes the desk part of the editor
  *
  * `CallSelection` speaks in `xml:id`s: `activeElements` is the ids the selected calls wrote, and
- * `setActiveElement` takes one back. Because the serializer puts an element and all its
- * attributes on one line, a line here maps one-to-one to an element, and `lineOf` is the whole of
- * the bridge. In the shipped MPM 684 of the 1,135 lines carry an id.
+ * `setActiveElement` takes one back. The serializer puts an element and all its attributes on one
+ * line, so a line maps one-to-one to an element and `lineOf` is the whole bridge. In the shipped
+ * MPM 684 of the 1,135 lines carry an id.
  *
  * A duplicate id keeps its first line rather than its last, so that the ordering the document
  * states is the ordering the desk scrolls in. The MPM should have none; this is about not

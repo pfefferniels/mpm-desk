@@ -6,20 +6,17 @@
  * recorded release into `tickDuration` — the only domain `<rubato>` and `<articulation>` can
  * speak.
  *
- * It lives here, apart from any one transformer, because two callers need it and neither
- * should import the other: `TranslatePhysicalTimeToTicks`, which writes the values
- * onto the score, and `deriveResidual`, which computes them on a scratch copy to answer what
- * the MPM as it stands leaves unexplained.
+ * Apart from any one transformer, because two callers need it and neither should import the
+ * other: `TranslatePhysicalTimeToTicks`, which writes the values onto the score, and
+ * `deriveResidual`, which computes them on a scratch copy.
  *
  * **The conversion is a function of the MPM *and* the recording, not of the MPM alone.** At every
  * tempo boundary the running millisecond cursor is re-anchored on the recorded onset of the note
- * that sits on it rather than on the tempo's own prediction. That keeps a segment's error from
- * accumulating into the next one — and it is why the tick domain cannot be recovered by inverting
- * a rendered performance, which has no recording to anchor to. Anyone tempted to replace this
- * with `performMsmToData` should read that sentence twice.
+ * sitting on it rather than on the tempo's own prediction. That keeps a segment's error out of
+ * the next, and it is why the tick domain cannot be recovered by inverting a rendered
+ * performance, which has no recording to anchor to. `performMsmToData` is not a substitute.
  *
- * The walk itself lives in `placedTempos.ts`, which states that rule once for the four callers
- * that need it.
+ * The walk itself is in `placedTempos.ts`, which states the rule once for its four callers.
  */
 import { getInstructions, Mpm, scopesOf } from '../../instructions/index';
 import { Alignment } from '../../alignment';

@@ -61,18 +61,16 @@ const pitchY = (pitch: number) =>
  * The recording as a roll: what sounded, when, and for how long.
  *
  * The plot `ChoiceDesk` draws, put to the other use the recording admits. There a rectangle is
- * evidence for choosing between two readings of a passage; here it is the thing being corrected —
- * grab its body to move the attack, grab its right edge to move the release.
+ * evidence for choosing between two readings; here it is the thing being corrected, its body
+ * moving the attack and its right edge the release.
  *
  * **Notes and pedals share the surface deliberately.** A pedal correction is almost always made
- * because of what it does to the notes under it, and the two are drawn in the same seconds, so
- * the lanes belong beneath the keys rather than on a desk of their own.
+ * because of what it does to the notes under it, and both are drawn in the same seconds.
  *
- * A pedal is drawn as the line `ChoiceDesk` draws — down while the foot is down — rather than as
- * a block. A block says only that the pedal was held somewhere across its width, so the two
- * things this desk corrects, the moment of the press and the moment of the lift, are its least
- * legible feature; on the line they are the two vertical edges, which is also where they are
- * grabbed.
+ * A pedal is drawn as `ChoiceDesk`'s line, down while the foot is down, rather than as a block. A
+ * block says only that the pedal was held somewhere across its width, so the press and the lift,
+ * which are the two things this desk corrects, are its least legible feature. On the line they
+ * are the two vertical edges, which is where they are grabbed.
  */
 export const TimingRoll = ({
     msm,

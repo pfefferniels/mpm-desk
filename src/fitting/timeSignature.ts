@@ -56,10 +56,10 @@ export interface Bar {
  * ## Numbering
  *
  * From 1 at the first complete bar, which is how a score is counted and cited. An opening bar
- * shorter than the one that follows is an upbeat and takes 0: that is how MSM states an anacrusis,
- * as a short signature of its own giving way on the downbeat. A score that writes its upbeat as a
- * short measure *without* saying so in the map states nothing here to read it off, and its bars
- * are counted from 1.
+ * shorter than the one that follows is an upbeat and takes 0, which is how MSM states an
+ * anacrusis: a short signature of its own giving way on the downbeat. A score that writes its
+ * upbeat as a short measure without saying so in the map has nothing here to read it off, and its
+ * bars are counted from 1.
  *
  * @param until the end of the piece in ticks; the last signature rules bars up to it.
  * @param pulsesPerWhole ticks to the whole note, which the caller's document states.

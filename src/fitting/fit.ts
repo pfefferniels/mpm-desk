@@ -1,25 +1,18 @@
 /**
  * The fold at the centre of the editor: a work file in, a performance and its provenance out.
  *
- * One function, called from two places that must not disagree — the worker the editor drives,
- * and `scripts/verifyChain.ts`, which checks the result against the shipped reconstruction. It is
- * deliberately free of React, of the DOM and of the worker protocol, so that the thing under test
- * is the thing that runs.
+ * One function, called from two places that must not disagree: the worker the editor drives, and
+ * `scripts/verifyChain.ts`, which checks the result against the shipped reconstruction. Free of
+ * React, of the DOM and of the worker protocol, so the thing under test is the thing that runs.
  *
- * ## What crosses, and why it is text
+ * {@link FitResult} is plain data. The MPM crosses as XML rather than as espressivo's `Mpm`,
+ * which is a live XML tree structured clone cannot carry, and the main thread parses it back into
+ * a `PerformanceReader`. The same boundary espressivo's own facade draws, costing about ten
+ * milliseconds on a document of this size against three seconds of fitting.
  *
- * {@link FitResult} is plain data: strings, numbers, arrays and plain objects, and nothing else.
- * The MPM crosses as XML rather than as espressivo's `Mpm`, because that object is a live XML
- * tree and structured clone cannot carry one — the main thread parses it back into a
- * `PerformanceReader` for drawing. That is the same boundary espressivo's own facade draws, for
- * the same reason, and it costs about ten milliseconds on a document of this size against three
- * seconds of fitting.
- *
- * ## What it does NOT do
- *
- * It does not decide anything. The chain is the reconstruction's, the segmentation is the
- * reconstruction's, and this runs what it is given in the one order the fitters compose in. A
- * call naming a transformer this build does not have is reported, never skipped silently.
+ * It decides nothing. The chain and the segmentation are the reconstruction's, and this runs what
+ * it is given in the one order the fitters compose in. A call naming a transformer this build
+ * does not have is reported, never skipped silently.
  */
 import { buildChain } from './chain';
 import { validate } from './transformers/Order';

@@ -38,13 +38,13 @@ const withRubato = (over: Partial<InstructionOptions<'rubato'>> = {}) => {
 };
 
 /**
- * "The instructions in force at a date" is a set, and the function now answers with one.
+ * "The instructions in force at a date" is a set, and the function has to answer with one.
  *
- * It used to answer with a list that could name the same instruction two or three times: one at
- * the requested date was pushed by the exact-date filter and again as the last one still
- * running, and a *looping* rubato covering the date matched two separate `if`s rather than one
- * condition. Every caller takes `[0]`, so nothing was broken — which is exactly why it is worth
- * pinning before someone reads the name and believes it (issue #47).
+ * A list can name the same instruction two or three times: one at the requested date is pushed
+ * by the exact-date filter and again as the last one still running, and a *looping* rubato
+ * covering the date matches two separate `if`s. Every caller takes `[0]`, so nothing breaks,
+ * which is exactly why it is worth pinning before someone reads the name and believes it
+ * (issue #47).
  */
 describe('instructionsEffectiveAtDate', () => {
   test('names an instruction at the requested date once, not twice', () => {
@@ -84,11 +84,10 @@ describe('instructionsEffectiveAtDate', () => {
 
 /**
  * How long an `<accentuationPattern>` covers depends on the metre, which an MPM document does
- * not carry — `@length` is in beats and a beat is `4 * ppq / denominator` ticks, the conversion
- * espressivo's `MetricalAccentuationMap` makes when it renders one. The span used to be spelled
- * `def.length * 720 * 4 / 4`, which is the 4/4 assumption with the denominator's place left in
- * the arithmetic as a cancelling `4 / 4` (issue #42). The caller says which metre it means now,
- * and 4 remains the default.
+ * not carry: `@length` is in beats and a beat is `4 * ppq / denominator` ticks, the conversion
+ * espressivo's `MetricalAccentuationMap` makes when it renders one. So the caller says which
+ * metre it means, with 4 the default. Spelling the span `def.length * 720 * 4 / 4` hides the
+ * 4/4 assumption in a cancelling `4 / 4` (issue #42).
  */
 describe("an accentuation pattern's span", () => {
   const withPattern = (length: number) => {

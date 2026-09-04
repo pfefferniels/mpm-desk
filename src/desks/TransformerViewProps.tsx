@@ -11,9 +11,8 @@ import type { TempoSecondaryData } from './tempo/secondary';
  *
  * That is the whole rule for what belongs here. The document a desk edits reaches it through
  * `useWorkDocument`, what is selected through `useCallSelection`, and where its controls go
- * through `DeskToolbar` — three contexts, so that a desk needing more than the common bag does
- * not widen the bag for the other twelve. Two of them used to, and the registry that was supposed
- * to dispatch every desk had to be bypassed for both.
+ * through `DeskToolbar`: three contexts, so a desk needing more than the common bag does not
+ * widen the bag for the other twelve.
  *
  * **The remainder is not carried on the notes; it is derived.** A desk asks for it with its own
  * dimension held out:
@@ -32,10 +31,9 @@ import type { TempoSecondaryData } from './tempo/secondary';
  * **Reading instructions is a function, not a method.** `getInstructions(mpm, 'tempo')` is typed
  * by the name, so a wrong record type stops compiling.
  *
- * **There is no `setMSM` or `setMPM`.** There were, and they were passed as functions that did
- * nothing, with a comment saying so: both documents are outputs of the fit and the next run
- * overwrites anything written to them. A no-op in the props is an invitation to call it, so the
- * invitation is withdrawn — a desk edits by adding a call, which is what `addTransformer` is.
+ * **There is no `setMSM` or `setMPM`.** Both documents are outputs of the fit, and the next run
+ * overwrites anything written to them, so such a setter could only be a no-op. A no-op in the
+ * props is an invitation to call it. A desk edits by adding a call, which is `addTransformer`.
  */
 export interface SecondaryData {
     tempo?: TempoSecondaryData;

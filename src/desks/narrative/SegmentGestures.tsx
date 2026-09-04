@@ -33,21 +33,19 @@ interface SegmentGesturesProps {
 /**
  * What a segment does, drawn — the viewer's card, in a table row.
  *
- * The same picture the tree shows on hover: one lane per kind of gesture, all on the
- * segment's own stretch, tempo and dynamics and the pedals drawn as the curves they are and
- * everything else as the moment it happens at. Sharing the component rather than drawing a
- * second version of it is the point — a segment that reads one way while it is being
- * assembled and another way once it is published is a desk lying to its editor.
+ * The same picture the tree shows on hover: one lane per kind of gesture on the segment's own
+ * stretch, tempo, dynamics and the pedals as curves and everything else as the moment it
+ * happens at. Shared rather than redrawn, because a segment that reads one way while being
+ * assembled and another once published is a desk lying to its editor.
  *
- * Two things differ, and both because a desk is not a card:
+ * Two things differ, both because a desk is not a card:
  *
  * - **Every lane takes the pointer**, tempo and dynamics included. In the viewer a drawn lane
- *   answers its own question, so pointing at it would offer a worse version of what is on the
- *   screen. Here the question behind the picture is often "what does the document actually
- *   say" — the `@bpm` a fit landed on, the `@curvature` a transformer chose — and that is what
- *   the quotation is for.
+ *   answers its own question, so pointing at it offers a worse version of what is on screen.
+ *   Here the question is often what the document actually says: the `@bpm` a fit landed on, the
+ *   `@curvature` a transformer chose.
  * - **The quotation hangs over the rows below**, out of the table's flow. Laid out inside the
- *   cell it would grow the row on hover, which moves the very lane the pointer is on.
+ *   cell it would grow the row on hover, moving the very lane the pointer is on.
  */
 export const SegmentGestures = ({ gestures, mpm, minPointSpan }: SegmentGesturesProps) => {
     const [hovered, setHovered] = useState<Span | null>(null);

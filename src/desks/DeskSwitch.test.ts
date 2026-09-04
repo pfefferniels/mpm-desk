@@ -4,23 +4,22 @@
  * `correspondingDesks` is a table of bare strings, and three separate lookups are built on those
  * strings without a single one of them being typed:
  *
- *  - `transformerName` is a name rather than the transformer class. It used to be the class, and
- *    only ever for its `.name` — importing fourteen classes to read fourteen strings pulled the
- *    whole fitting chain into the registry's chunk, and the registry is imported by the aspect
- *    menu, which is on screen before any desk is open. The string costs nothing to import and buys
- *    no compile-time check in return, so a typo, a rename or a retired transformer would show only
- *    as a desk that never opens for a saved call — no error, no warning, just a click that does
- *    nothing. Resolving every name against the real transformer registry is the check that was
- *    given up, put back as a test.
- *  - `App.tsx` finds the open desk by `displayName ?? aspect`, and the desk that made a saved call
- *    by `transformerName`. Both are `.find()`, which does not complain about a second match: it
- *    silently returns the first, and the later desk becomes unreachable.
- *  - `App.tsx` also redirects retired transformer names onto a current one before that second
- *    lookup, by name again — an alias that outlives the desk it points at fails the same quiet way.
+ *  - `transformerName` is a name rather than the transformer class, because importing fourteen
+ *    classes to read fourteen `.name`s would pull the whole fitting chain into the registry's
+ *    chunk, and the aspect menu imports the registry before any desk is open. The string costs
+ *    nothing to import and buys no compile-time check, so a typo, a rename or a retired
+ *    transformer would show only as a desk that never opens for a saved call: no error, no
+ *    warning, a click that does nothing. Resolving every name against the real transformer
+ *    registry is that check, put back as a test.
+ *  - `App.tsx` finds the open desk by `displayName ?? aspect`, and the desk that made a saved
+ *    call by `transformerName`. Both are `.find()`, which returns the first of two matches
+ *    silently and leaves the later desk unreachable.
+ *  - `App.tsx` also redirects retired transformer names onto a current one before that lookup, by
+ *    name again, so an alias outliving the desk it points at fails the same quiet way.
  *
- * What this file deliberately never does is touch `entry.desk`. Those are `lazy()` components:
- * rendering one, or merely awaiting its loader, would import every desk module and undo exactly
- * the code splitting the registry now exists to provide. That the field is there is the assertion.
+ * What this file must never touch is `entry.desk`. Those are `lazy()` components, so rendering
+ * one, or merely awaiting its loader, would import every desk module and undo the code splitting
+ * the registry exists to provide. That the field is there is the assertion.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

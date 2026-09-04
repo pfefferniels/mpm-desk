@@ -19,12 +19,12 @@ interface PedalLanesProps {
 /**
  * What each reading did with the pedals, under the roll.
  *
- * A line rather than the block this desk used to draw. The desk exists to hold two readings of a
- * passage against each other, and a block says only that a pedal was down *somewhere* in its
- * width: two blocks of nearly the same length, stacked in lanes of their own, hide the very
- * disagreement worth seeing. A line that drops when the foot goes down puts both readings on the
- * same two levels of one lane, so a press the other reading does not make is a step where the
- * other line stays flat, and a press held a beat longer is a step that lands further right.
+ * A line rather than a block. The desk holds two readings of a passage against each other, and a
+ * block says only that a pedal was down *somewhere* in its width, so two blocks of nearly the
+ * same length in lanes of their own hide the disagreement worth seeing. A line that drops when
+ * the foot goes down puts both readings on the same two levels of one lane: a press the other
+ * reading does not make is a step where the other line stays flat, and a press held a beat longer
+ * is a step that lands further right.
  *
  * The tracks are separated by a couple of pixels for the case that decides nothing: two readings
  * that pedal identically would otherwise draw one line over the other, and the one underneath

@@ -66,12 +66,11 @@ export function pickAnchor(
  * A gesture is named in ticks and heard in time, and exaggeration moves the second without
  * touching the first — so the range has to be read off each rendering rather than kept.
  *
- * Both ends reach outwards by one note, because a range is a claim about music rather than a
- * slice of it. The end is the *next* onset wherever there is one: a gesture's last note is only
- * over when the following one begins, and ending at its own onset would cut it off entirely.
- * And a range that falls between two onsets — five of this corpus's segments are 65 to 200 ticks
- * wide and land in a gap — starts at the note still sounding under it, which is the note the
- * gesture is about.
+ * Both ends reach outwards by one note, a range being a claim about music rather than a slice of
+ * it. The end is the *next* onset wherever there is one, a gesture's last note being over only
+ * when the following one begins. And a range falling between two onsets (five of this corpus's
+ * segments are 65 to 200 ticks wide and land in a gap) starts at the note still sounding under
+ * it.
  *
  * Returns `null` only for a range that ends before the first note, where there is nothing to
  * play; the caller's cue to fall back to the piece whole.

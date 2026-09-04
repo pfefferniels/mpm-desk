@@ -16,9 +16,8 @@ import { convertMeiToMsm } from 'espressivo';
 // state, and a chain reconstructed before it is populated silently loses every call it cannot
 // name. The fitting worker imports it on its own side for the same reason.
 //
-// It sat in `main.tsx` until the two routes were split apart. The viewer never rebuilds a chain
-// — nothing under `src/segment-stack/` touches the registry — so stating it at the shared entry
-// only meant every reader of a finished reconstruction downloading the whole fitting chain.
+// Not at the shared entry: the viewer never rebuilds a chain, so that would make every reader
+// of a finished reconstruction download the whole fitting chain.
 import './fitting/transformers/Order';
 
 import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
@@ -74,29 +73,12 @@ import { documentSlug, downloadAsFile } from './utils/utils';
  * transformer call. Below them sits the chain in `src/fitting/`, which runs in a worker over a
  * document that is a `WorkFile`: a flat list of calls and a flat list of segments.
  *
- * ## The document is a reducer, and every desk is a desk
+ * The document itself lives in `workReducer`, so the rules that hold the two arrays together are
+ * testable without React. Every desk reaches it through `useWorkDocument`, so the aspect registry
+ * has no exceptions rendered by name out of a branch here.
  *
- * Both of those used to be otherwise, and they were the same problem twice.
- *
- * The document was seven `setWork(current => …)` updaters here, with the rules that hold it
- * together — a claim nothing is made under is not a claim; grouping is one act and not two —
- * written in comments beside them rather than anywhere they could be checked. They are
- * `workReducer` now, tested without React, which is also what made undo cost twenty lines
- * instead of a rewrite. An editor that holds the only copy of the work should have had it long
- * ago.
- *
- * And the registry that says which desk edits which aspect was bypassed by two of its own
- * entries, because the narrative desk needed the document and the metadata desk needed neither
- * the fit nor a scope, so both were rendered by name out of a branch here. What they needed is
- * in a context now (`useWorkDocument`), so there is one dispatch and the registry means what it
- * says.
- *
- * ## A new call lands ungrouped
- *
- * Grouping is its own step, with its own desk, so a call arrives with no `segment` and the
- * narrative desk shows what it wrote in amber until somebody says what it is for. Folding a new
- * call into whichever claim happens to overlap its range would be convenient, and would write
- * claims nobody had made.
+ * A new call lands ungrouped: grouping is its own step, with its own desk, and the narrative desk
+ * shows what a call wrote in amber until somebody says what it is for.
  */
 
 /** Legacy transformer names that should still resolve to a desk when a saved call names one. */
@@ -127,29 +109,25 @@ export const App = () => {
     /**
      * The desk row's node, held in state rather than a ref.
      *
-     * A desk portals its own controls into it (`DeskToolbar`), and a ref cannot serve that: on
-     * the commit where the bar and the desk first render together the ref is still null, so
-     * every desk's toolbar mounted into `document.body` and moved to the bar on some later
-     * render. A callback ref into state re-renders when the node attaches, which is the whole
-     * difference.
+     * A desk portals its own controls into it (`DeskToolbar`). A ref cannot serve that: on the
+     * commit where the bar and the desk first render together it is still null, so every desk's
+     * toolbar would mount into `document.body` and move to the bar on a later render. A callback
+     * ref into state re-renders when the node attaches.
      *
-     * It is the app bar's *second* row, and specifically a box in it that holds nothing React
-     * owns. React inserts a child of its own by finding the next host sibling it tracks and
-     * calling `insertBefore`; among children that all arrived through portals there is none, so
-     * it appends instead. Anything rendered into the target would therefore land after every
-     * desk's controls — which is what the old `{pending && <span>refitting…</span>}` did in the
-     * one-row bar it shared with nine portals, and why that span always sat at the far right.
+     * The target must hold nothing React owns. React places a child by finding the next host
+     * sibling it tracks and calling `insertBefore`; among children that all arrived through
+     * portals there is none, so it appends instead, and anything rendered into the target would
+     * land after every desk's controls.
      */
     const [deskRow, setDeskRow] = useState<HTMLDivElement | null>(null);
 
     /**
      * The document as it was last written out, and the hidden input Open reaches through.
      *
-     * Dirtiness is `work !== savedWork`, by reference. That is sound because `workHistoryReducer`
-     * hands back the state it was given when an edit changed nothing, so a blur on an untouched
-     * field is not a change here either; because `load` stores the very object it dispatched; and
-     * because undo and redo step between the objects the history already holds, so saving,
-     * undoing and redoing back lands on the saved reference again and the dot goes out.
+     * Dirtiness is `work !== savedWork`, by reference. Sound because `workHistoryReducer` hands
+     * back the state it was given when an edit changed nothing, because `load` stores the very
+     * object it dispatched, and because undo and redo step between objects the history already
+     * holds, so saving, undoing and redoing back lands on the saved reference again.
      */
     const [savedWork, setSavedWork] = useState<WorkFile>(() => workHistory.present);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,19 +155,15 @@ export const App = () => {
     /**
      * What a desk answers `unavailable` against — see `DeskSwitch.tsx`.
      *
-     * The two recording counts are taken off the alignment as *loaded*, never off the fitted one:
-     * `MakeChoice` discards the variants it did not prefer, so the chain's own output reports a
-     * single reading the moment a choice has been made, and Base Text would take itself away as
-     * soon as it had been used.
+     * The two recording counts come off the alignment as *loaded*, never off the fitted one:
+     * `MakeChoice` discards the variants it did not prefer, so the chain's output reports a
+     * single reading once a choice has been made, and Base Text would take itself away as soon
+     * as it had been used.
      *
-     * The tempo count is the other way round, and has to be: a `<tempo>` is something the chain
-     * writes, so the loaded alignment knows nothing about it. `mpm` is the last *finished* fit —
-     * `useEditorFit` leaves it standing while the next one runs — so a refit does not grey a desk
-     * out for three seconds on its way to the same answer.
-     *
-     * The unchosen count is the other way round for the same reason, and off the alignment rather
-     * than the MPM: what it reports is whether `MakeChoice` has collapsed the readings, which the
-     * loaded alignment cannot know. `alignment` is likewise the last finished fit.
+     * The tempo and unchosen counts come off the last *finished* fit, which `useEditorFit` leaves
+     * standing while the next runs, so a refit does not grey a desk out on its way to the same
+     * answer. They have to: a `<tempo>` is something the chain writes, and whether `MakeChoice`
+     * has collapsed the readings is not something the loaded alignment can know.
      */
     const documentFacts = useMemo<DocumentFacts>(
         () => ({
@@ -204,10 +178,9 @@ export const App = () => {
     /**
      * What the last fit had to say, raised as a message.
      *
-     * Adjusted during render against the last one seen, rather than set from an effect. The
-     * message is not purely derived — a failed load writes one too, and dismissing clears it —
-     * so it stays state; what this does is notice that the fit is now saying something *else*.
-     * As an effect it cost a second render of the whole editor for every problem reported.
+     * Adjusted during render against the last one seen, rather than from an effect, which would
+     * cost a second render of the whole editor per problem reported. The message stays state
+     * because it is not purely derived: a failed load writes one too, and dismissing clears it.
      */
     const fitMessage = problems ? problems.join('\n') : (error ?? undefined);
     const [reportedFitMessage, setReportedFitMessage] = useState(fitMessage);
@@ -215,8 +188,6 @@ export const App = () => {
         setReportedFitMessage(fitMessage);
         if (fitMessage) setMessage(fitMessage);
     }
-
-    // ── loading ───────────────────────────────────────────────────
 
     /**
      * The MEI, and the alignment read out of it.
@@ -238,9 +209,8 @@ export const App = () => {
     const loadMei = useCallback(
         (content: string) => {
             readMei(content);
-            // A new score has new part indices, and the scope picker is a `Select`: left holding a
-            // part the score does not have, it renders blank and warns. The `ToggleButtonGroup` it
-            // replaced hid this by simply showing nothing selected.
+            // A new score has new part indices, and the scope picker is a `Select`: left holding
+            // a part the score does not have, it renders blank and warns.
             setScope('global');
             // And a new score is not the one the takes in hand were played from.
             setPerformances([]);
@@ -259,10 +229,7 @@ export const App = () => {
             setSavedWork(loaded);
 
             // A link into a call selects it, and this is the moment that can be decided: the
-            // document is in hand and the URL has not moved. It used to be an effect waiting for
-            // `provenance` to become non-empty, guarded by a ref so it fired once — which is an
-            // effect standing in for "when the file loads", when the file loading is an event
-            // right here.
+            // document is in hand and the URL has not moved.
             const hash = window.location.hash.slice(1);
             const match = hash
                 ? loaded.provenance.find((call) => call.id.startsWith(hash))
@@ -286,12 +253,12 @@ export const App = () => {
     /**
      * A performance, read and kept as it arrived.
      *
-     * The bytes as well as the parse: the parse is what the aligner works on, and the bytes are
-     * what the archive stores — `midifile-ts` reads a file and does not write one back.
+     * The bytes as well as the parse: the aligner works on the parse, the archive stores the
+     * bytes, and `midifile-ts` reads a file without writing one back.
      *
      * The `@source` is the file's stem unless the file names one itself, which a piano-roll scan
-     * does. Minted here rather than in the desk because it has to be unique against the takes
-     * already in hand, and this is what holds them.
+     * does. Minted here rather than in the desk because it must be unique against the takes
+     * already in hand, which is what this holds.
      */
     const readPerformance = useCallback(
         async (file: File): Promise<Performance | undefined> => {
@@ -372,29 +339,24 @@ export const App = () => {
                 void handleOpenMei(file);
             else if (file.name.endsWith('.mid') || file.name.endsWith('.midi'))
                 void handleOpenMidi(file);
-            // The old branch had no `else`, so an unrecognised suffix did nothing and said
-            // nothing — indistinguishable from a file that failed to parse.
+            // An unrecognised suffix must say so, or it is indistinguishable from a file that
+            // failed to parse.
             else setMessage(`Cannot open ${file.name} — expected a .zip, .mei, .xml or .mid.`);
         },
         [handleOpenZip, handleOpenMei, handleOpenMidi],
     );
 
-    /** Opens the picker below. It used to be `document.getElementById('fileInput')?.click()`
-        into an input that the toolbar rendered — a round trip through the DOM between two
-        components that could simply share a ref. */
+    /** Opens the picker below. */
     const openFilePicker = useCallback(() => fileInputRef.current?.click(), []);
-
-    // ── editing the document ──────────────────────────────────────
 
     /**
      * What a desk's gesture becomes.
      *
-     * A desk hands over a constructed `Transformer` and only its three data fields are kept —
-     * a call is a name, an id and its options. It lands in no segment: see the note at the top.
+     * A desk hands over a constructed `Transformer` and only its three data fields are kept: a
+     * call is a name, an id and its options. It lands in no segment, as the note at the top says.
      *
-     * Kept here rather than on `useWorkDocument` because it is two things at once: the document
-     * gains a call, and that call becomes the selection. The second half is `CallSelection`'s,
-     * and this is where the two meet.
+     * Here rather than on `useWorkDocument` because it is two things at once. The document gains
+     * a call, and that call becomes the selection, which is `CallSelection`'s half.
      */
     const addTransformer = useCallback((transformer: Transformer) => {
         const call = {
@@ -429,11 +391,10 @@ export const App = () => {
     /**
      * Per-desk working state, defaulted.
      *
-     * Memoised on `work.secondary` rather than left as a bare expression, because the `?? {}`
-     * built a fresh object on every render of the editor whenever a document had no secondary
-     * state yet — which is most of them. That object is in `deskProps`, so it reached all
-     * thirteen desks as a prop that never compared equal, and it is a dependency of the save
-     * below, which would then have been rebuilt every render too.
+     * Memoised rather than left as a bare expression: `?? {}` builds a fresh object on every
+     * render for a document with no secondary state, which is most of them. It sits in
+     * `deskProps`, so all thirteen desks would take a prop that never compares equal, and the
+     * save below depends on it.
      */
     const secondary = useMemo(() => (work.secondary ?? {}) as SecondaryData, [work.secondary]);
 
@@ -450,19 +411,17 @@ export const App = () => {
     const partNames = useMemo(() => partNamesOf(work), [work]);
 
     /**
-     * The score the performance is rendered against — the alignment's score half, not the raw
+     * The score the performance is rendered against: the alignment's score half, never the raw
      * conversion.
      *
-     * They used to be the same document, and stop being one the moment a layout can combine two
-     * voices into one part: the chain fits against the alignment and the MPM's parts are numbered
-     * from it, so a score numbered from the MEI's staves would send a part-local instruction to
-     * whichever part happened to carry that number, or to none. Taking the score from the thing
-     * that was fitted is the only arrangement in which the two cannot disagree.
+     * The two diverge as soon as a layout combines two voices into one part. The chain fits
+     * against the alignment and the MPM's parts are numbered from it, so a score numbered from
+     * the MEI's staves would send a part-local instruction to whichever part happened to carry
+     * that number, or to none.
      *
-     * It is also what makes a named part safe. espressivo derives a program change from a part's
-     * `@name` by *fuzzy* match unless that part carries a `<programChangeMap>` — "melody" renders
-     * as GM 53, Voice Oohs — and the raw conversion has no such map, while `Alignment.build`
-     * writes one for every part.
+     * It also makes a named part safe. espressivo derives a program change from a part's `@name`
+     * by *fuzzy* match unless the part carries a `<programChangeMap>` ("melody" renders as GM 53,
+     * Voice Oohs). The raw conversion has no such map; `Alignment.build` writes one per part.
      */
     const scoreMsm = useMemo(
         () => alignment?.serializeScore(partNames) ?? '',
@@ -481,11 +440,11 @@ export const App = () => {
     /**
      * Save, which is a download: the four-file archive the viewer reads.
      *
-     * Building it is `buildWorkArchive`, which is pure and tested; this is the half that cannot
-     * be — the download itself, and noticing that the document on disk is now this one.
+     * `buildWorkArchive` is the pure, tested half. This is the rest: the download itself, and
+     * noticing that the document on disk is now this one.
      *
-     * It lives here rather than in the toolbar because the shortcut calls it too, and that is
-     * registered in a different subtree. One owner, two callers.
+     * Here rather than in the toolbar because the shortcut calls it too, from a different
+     * subtree.
      */
     const handleSave = useCallback(async () => {
         if (!mei || !mpm || !alignment || !result) return;
@@ -522,8 +481,6 @@ export const App = () => {
     ]);
 
     const saveWork = useCallback(() => void handleSave(), [handleSave]);
-
-    // ── selection ↔ desk ↔ URL hash ───────────────────────────────
 
     const callsRef = useLatest(work.provenance);
 
@@ -580,12 +537,8 @@ export const App = () => {
     }, []);
 
     /**
-     * Warn on reload, but only when there is something to lose.
-     *
-     * This used to assign `window.onbeforeunload` once, unconditionally and without ever
-     * clearing it, under a comment saying nothing wrote the work file back — which stopped
-     * being true when Save shipped. So the browser asked every time, including immediately
-     * after saving, which is the fastest way to teach somebody to click through the dialog.
+     * Warn on reload, but only when there is something to lose. Asking unconditionally, straight
+     * after a save included, is the fastest way to teach somebody to click through the dialog.
      */
     useEffect(() => {
         if (!dirty) return;
@@ -601,8 +554,6 @@ export const App = () => {
             window.removeEventListener('beforeunload', warn);
         };
     }, [dirty]);
-
-    // ── rendering ─────────────────────────────────────────────────
 
     const zoomContextValue = useMemo(
         () => ({
@@ -650,12 +601,11 @@ export const App = () => {
     /**
      * Note `xml:id` ⇒ symbolic date, off the score the performance is rendered against.
      *
-     * What turns a sounding note back into a place on the timeline: every follow reads it, and
-     * a preview's tick range is placed in a rendering through it. Without it playback reports
+     * What turns a sounding note back into a place on the timeline: every follow reads it, and a
+     * preview's tick range is placed in a rendering through it. Without it playback reports
      * nothing and a ranged preview falls back to the piece whole.
      *
-     * Read off the notes rather than back out of the XML now that the two are the same document.
-     * It follows `MakeChoice` as a consequence: an id the chain discarded is no longer reported.
+     * Read off the notes, so it follows `MakeChoice`: an id the chain discarded is not reported.
      */
     const dateByNoteId = useMemo(
         () => new Map(alignment?.allNotes.map((note) => [note['xml:id'], note.date]) ?? []),
@@ -678,25 +628,24 @@ export const App = () => {
     /** What the open desk calls itself. */
     const deskName = deskEntry ? (deskEntry.displayName ?? deskEntry.aspect) : selectedDesk;
 
-    // A layout that empties a part leaves the picker holding a scope no note is in — the same
-    // blank `Select` that opening a new score used to produce, now reachable without opening
-    // anything. Adjusted during render rather than from an effect, as `fitMessage` above is.
+    // A layout that empties a part leaves the picker holding a scope no note is in, which the
+    // `Select` renders blank. Adjusted during render rather than from an effect, as `fitMessage`
+    // above is.
     if (scope !== 'global' && !parts.some((part) => part.scope === scope)) {
         setScope('global');
     }
 
     // And a scope the picker greys out must not be the one the desk is writing into. Greying an
-    // option guards the move onto it and nothing else, so a lock that comes into force while the
-    // picker is already there — the desk changed, or a call just filled the other scope — would
-    // otherwise be a rule stated and not applied. `holding[0]` is where the map that locked it is.
+    // option guards the move onto it and nothing else, so a lock coming into force while the
+    // picker is already there needs applying here. `holding[0]` is where the map that locked it
+    // is.
     if (scopeLock.locked.has(scope)) {
         setScope(scopeLock.holding[0] ?? 'global');
     }
 
-    // A desk the menu greys out must not be the one on screen. Opening a score with a single
-    // recording while Base Text is open would otherwise leave it drawing a choice that cannot be
-    // made, and the row that would take the reader off it is disabled. The alignment desk is where
-    // the work starts, and it is available for every document.
+    // A desk the menu greys out must not be the one on screen, or it draws a choice that cannot
+    // be made while the row that would take the reader off it is disabled. The alignment desk is
+    // where the work starts and is available for every document.
     if (deskEntry?.unavailable?.(documentFacts)) {
         setSelectedDesk('alignment');
     }
@@ -756,16 +705,11 @@ export const App = () => {
 
                                     <SampleLoadingNotice />
 
-                                    {/* The desk, and the aspect menu that floats over it.
-
-                                        The menu is `position: absolute`, and until this box existed
-                                        no ancestor of it established a containing block — so `top: 0`
-                                        resolved against the page and the card painted on top of the
-                                        bar's right end.
-
-                                        No desk reserves a gutter for it. The width belongs to the
-                                        desk, and the menu collapses to an icon when it is in the
-                                        way. */}
+                                    {/* The desk, and the aspect menu that floats over it. This box
+                                        is the menu's containing block: the menu is `position:
+                                        absolute`, so without one `top: 0` resolves against the
+                                        page. No desk reserves a gutter for it; the menu collapses
+                                        to an icon when it is in the way. */}
                                     <Box sx={{ position: 'relative' }}>
                                         <DeskToolbarProvider target={deskRow}>
                                             <NotesProvider notes={alignment.allNotes}>
@@ -815,8 +759,7 @@ export const App = () => {
                 </WorkDocumentProvider>
 
                 {/* Open reaches this through `fileInputRef`. It resets its own value on change,
-                    which the old one did not — so opening a file, editing, and opening the
-                    same file again fired no `change` event at all, silently. */}
+                    or opening the same file twice in a row fires no `change` event at all. */}
                 <input
                     ref={fileInputRef}
                     type="file"

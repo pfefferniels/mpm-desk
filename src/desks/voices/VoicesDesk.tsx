@@ -101,8 +101,6 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
         [partOf, selectedIds, isolated],
     );
 
-    // ── the gestures ──────────────────────────────────────────────
-
     const onNoteClick = useCallback(
         (id: string, event: React.MouseEvent) => {
             // A grace note or a tie continuation is in no part, so there is no MSM note to move.
@@ -267,8 +265,6 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
      * it was opened for.
      */
     useHotkeys('escape', clear, [clear]);
-
-    // ── what the toolbar says ─────────────────────────────────────
 
     /**
      * How many notes the move would take, or `undefined` while there is nothing to move.

@@ -7,10 +7,10 @@ const labels = (points: number[][], epsilons?: number[], minPoints = 2) =>
 /**
  * The neighbourhood is a per-axis box, and the radii have to cover every axis of the data.
  *
- * The default used to be `[1, 1]` whatever the data's dimensionality. `rangeQuery` reads
- * `epsilons[dimension]` for every dimension of the point, so a third one compared against
- * `undefined` — and `<= undefined` is `false`, silently, for every pair. Three identical points
- * came back as three separate pieces of noise, with no error and no warning (issue #37).
+ * A fixed `[1, 1]` default does not: `rangeQuery` reads `epsilons[dimension]` for every
+ * dimension of the point, so a third one compares against `undefined`, and `<= undefined` is
+ * `false` for every pair. Three identical points then come back as three separate pieces of
+ * noise, with no error and no warning (issue #37).
  */
 describe('dbscan default epsilons', () => {
   test('cover as many dimensions as the points have', () => {

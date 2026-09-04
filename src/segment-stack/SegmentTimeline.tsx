@@ -60,8 +60,6 @@ interface Row {
     height: number;
 }
 
-/* ── Reading a curve into a path ── */
-
 /**
  * The window a lane is drawn in, as the two values its row's edges stand for.
  *
@@ -203,23 +201,22 @@ interface SegmentTimelineProps {
 /**
  * A segment's gestures, each drawn as the thing it does.
  *
- * Every row shares one axis — the segment's own stretch, beat-gridded — so the picture is
- * read down a column as well as along a line: this is where the tempo gave way, and here is
- * what the pedal was doing while it did.
+ * Every row shares one axis, the segment's own stretch, beat-gridded, so the picture reads
+ * down a column as well as along a line: where the tempo gave way, and what the pedal was
+ * doing while it did.
  *
- * Three lanes are drawn as curves so far. `tempo` and `dynamics` are each scaled to their
- * own window, because what matters about a shaping gesture is its shape, not where it sits
- * on an absolute scale that a two-hundred-pixel card could not label anyway; the endpoint
- * numbers give back the absolute reading that costs. The pedal is neither scaled nor the
- * same way up — see {@link PEDAL_PLOT}.
+ * Three lanes are drawn as curves so far. `tempo` and `dynamics` are each scaled to their own
+ * window, since what matters about a shaping gesture is its shape rather than where it sits
+ * on an absolute scale a two-hundred-pixel card could not label; the endpoint numbers give
+ * the absolute reading back. The pedal is neither scaled nor the same way up; see
+ * {@link PEDAL_PLOT}.
  *
- * The curves are drawn across the whole card, not only across the stretch the segment
- * claims: an instruction is only legible against what it interrupts. What the segment claims
- * is tinted underneath.
+ * The curves are drawn across the whole card rather than only the stretch the segment claims,
+ * an instruction being legible only against what it interrupts. What the segment claims is
+ * tinted underneath.
  *
- * A lane with a drawing is finished here — it carries no pointer target, because the pane
- * under the card exists to stand in for a drawing that does not exist yet, not to gloss one
- * that does.
+ * A lane with a drawing carries no pointer target: the pane under the card stands in for a
+ * drawing that does not exist yet rather than glossing one that does.
  */
 export const SegmentTimeline = ({
     segment,
@@ -472,21 +469,19 @@ interface SegmentTimelinePopoverProps {
 /**
  * What a segment is made of.
  *
- * The word itself is already on the line, spotlit and grown, so saying it again
- * here would only be an echo. What the tree cannot show is the inside of a
- * segment: which gestures the claim rests on, and how they sit against each
- * other over the stretch it covers. That is this card — the lanes an opened
- * segment lays on the centre line, but drawn on the segment's own axis rather
- * than the piece's, so they stay legible at any zoom.
+ * The word is already on the line, spotlit and grown, so repeating it here would
+ * be an echo. What the tree cannot show is the inside of a segment: which
+ * gestures the claim rests on, and how they sit against each other over the
+ * stretch it covers. This card draws them on the segment's own axis rather than
+ * the piece's, so they stay legible at any zoom.
  *
- * The same card answers the pointer and holds still once a word is clicked:
- * what you were reading is what gets kept, rather than being swapped for a
- * different card at the moment you ask to keep it. Held still, it also answers
- * the pointer itself, and quotes back whatever gesture it is put on.
+ * The same card answers the pointer and holds still once a word is clicked, so
+ * what you were reading is what gets kept. Held still, it answers the pointer
+ * itself and quotes back whatever gesture it is put on.
  *
  * Several columns show when the playhead is inside more than one segment at
- * once — they argue one moment between them, and only then is the word worth
- * writing again, because it is what tells the columns apart.
+ * once. They argue one moment between them, and only then is the word worth
+ * writing again, being what tells the columns apart.
  */
 export const SegmentTimelinePopover = ({
     segments,

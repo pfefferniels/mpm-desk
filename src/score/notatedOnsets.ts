@@ -93,15 +93,15 @@ const TIMED = new Set(["note", "chord", "rest", "space", "mRest", "mSpace"]);
 /**
  * Everything that takes time under `layer`, in the order it is written.
  *
- * Walked rather than selected, because the order is the whole of the arithmetic above and a
- * selector list does not reliably give it. `querySelectorAll` is specified to answer in tree
- * order and a browser does — but jsdom's engine answers a *list* grouped by selector, so a layer
- * written `<space/><note/><note/><note/>` comes back as note, note, note, space and every note in
- * it lands half a beat early. Measured on `chopin-op38-mm18-22.mei`, where it moved eight notes
- * of the two layers that hold a `<space>`.
+ * Walked rather than selected, the order being the whole of the arithmetic above and a selector
+ * list not reliably giving it. `querySelectorAll` is specified to answer in tree order, and a
+ * browser does, but jsdom's engine answers a *list* grouped by selector, so a layer written
+ * `<space/><note/><note/><note/>` comes back as note, note, note, space and every note lands half
+ * a beat early. Measured on `chopin-op38-mm18-22.mei`, where it moved eight notes of the two
+ * layers that hold a `<space>`.
  *
- * The walk stops at a timed element, so a chord's own notes are not visited: that is what the
- * `closest("chord")` guard used to say at the call site, and it says it once here instead.
+ * The walk stops at a timed element, so a chord's own notes are not visited and no caller needs
+ * a `closest("chord")` guard.
  */
 function timedEvents(layer: Element): Element[] {
     const events: Element[] = [];

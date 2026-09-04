@@ -25,16 +25,11 @@ const count = (n: number, what: string) => `${String(n)} ${what}${n === 1 ? '' :
  * ## What this desk is not
  *
  * It writes no performance instruction. `Modify` is one of the three calls that edit the *ground*
- * a performance is fitted to rather than the performance itself — `MakeChoice` picks between the
- * readings of a passage, this corrects the reading that was picked, `InsertMetadata` says who did
- * the picking — and none of the three puts anything in the MPM. That is why they are grouped
- * together in the aspect menu, away from the twelve desks that write instructions, and why
- * nothing here appears in the narrative: a correction is not a claim about the performance, it is
- * a statement that the roll scan read something wrong.
- *
- * It lived inside the dynamics desk until now, as a third mode of it, which put a correction to
- * the recording behind the desk for fitting curves *over* the recording and left three of the
- * four things `Modify` can correct with nowhere to be made from at all.
+ * a performance is fitted to rather than the performance itself: `MakeChoice` picks between the
+ * readings of a passage, this corrects the reading that was picked, and `InsertMetadata` says who
+ * did the picking. None of the three puts anything in the MPM, which is why they are grouped
+ * together in the aspect menu and why nothing here appears in the narrative. A correction states
+ * that the roll scan read something wrong rather than claiming anything about the performance.
  *
  * ## The selector says what, the grab says which property
  *

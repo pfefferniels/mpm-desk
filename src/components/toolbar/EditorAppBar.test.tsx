@@ -1,9 +1,7 @@
 /**
- * The app bar, and the four things about it that were regressions.
- *
- * Each case here corresponds to something the old one-row bar got wrong: a transport that
- * disappeared instead of explaining itself, an undo stack with no UI at all, a scope picker that
- * could be set to `null`, and a busy indicator that only existed while it was busy.
+ * The app bar, and the four properties it is easy to lose: a transport that explains itself
+ * rather than disappearing, an undo stack with a UI, a scope picker that cannot be set to `null`,
+ * and a busy indicator that holds its place while idle.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -87,8 +85,8 @@ describe('EditorAppBar', () => {
     });
 
     it('disables the transport rather than hiding it', () => {
-        // The old bar wrapped Play in `getInstructions(mpm).length > 0 && …`, so with nothing to
-        // hear the control was simply absent and there was nowhere to read why.
+        // Play must be disabled rather than absent: with nothing to hear there would otherwise be
+        // nowhere to read why.
         mount({ canPlay: false });
 
         const play = screen.getByRole('button', { name: /play/i });

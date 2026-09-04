@@ -280,35 +280,27 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
 
     return (
         <div ref={scrollContainerRef} style={{ height: '400', overflow: 'scroll' }}>
-            {/*
-                The `Stack` that used to be here wrapped this `Box` and the `DeskToolbar`, and the
-                toolbar portals into the app bar — so the stack was laying out one child and a hole.
-                What it was really doing was holding the caption still while the plot scrolls
-                sideways under it, which is a property of the caption; the sticky positioning moves
-                onto the caption and the stack goes.
-            */}
+            {/* Sticky on the caption itself, which is what holds it still while the plot scrolls
+                sideways under it. A wrapper cannot: `DeskToolbar` portals into the app bar, so a
+                stack around the two would be laying out one child and a hole. */}
             <Box sx={{ m: 1, position: 'sticky', left: 0 }}>
                 {part !== 'global' && `Part ${part + 1}`}
             </Box>
             <DeskToolbar>
                 {/*
-                    Unlabelled, because a group caption is never the desk's own name and `Metrical
-                    Accentuation` was exactly that.
+                    Unlabelled: a group caption is never the desk's own name.
 
-                    Every control in this bar used to be conditional, which made this the desk that
-                    proved the rule: with no candidate and nothing selected the group collapsed to
-                    an empty labelled box and a dangling rule, and that was the state it sat in most
-                    of the time. All four are mounted now and say why they cannot be used.
+                    All four controls stay mounted and say why they cannot be used. Made
+                    conditional they would collapse to an empty labelled box and a dangling rule
+                    whenever there is no candidate and nothing selected, which is most of the time.
 
-                    Merge was `contained` and is not the primary. It tidies patterns the desk has
-                    already written; `Insert` is the one that writes one, so `Insert` is what this
-                    desk is for.
+                    `Insert` is the primary, being what writes a pattern; Merge only tidies
+                    patterns already written.
 
-                    The bug the `disabled` fixes: Merge was guarded by `{selectedPatterns && …}`
-                    over a `useState<Pattern[]>([])`, and an empty array is truthy — so `Merge (0)`
-                    rendered always, and clicking it opened the name dialog and committed a
-                    `MergeMetricalAccentuations` with `names: []`. A merge of one was reachable the
-                    same way. Two is the smallest number of patterns a merge means anything for.
+                    Merge is `disabled` rather than guarded on `selectedPatterns.length`: an empty
+                    array is truthy, so a `{selectedPatterns && …}` guard renders `Merge (0)`, and
+                    clicking it commits a `MergeMetricalAccentuations` with `names: []`. Two is the
+                    smallest number of patterns a merge means anything for.
                 */}
                 <ToolGroup>
                     <ToolbarButton

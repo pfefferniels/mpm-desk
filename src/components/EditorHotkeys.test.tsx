@@ -1,10 +1,10 @@
 /**
- * The editor's keyboard, and the one shortcut that used to fight the buttons.
+ * The editor's keyboard, and the one shortcut that can fight the buttons.
  *
  * `space` toggles playback, and `space` is also how a focused button is activated. The library's
- * skip-list covers form tags and widget roles but not `button`, so before the guard in
- * `EditorHotkeys` a click on Insert followed by a press of the space bar started playback — and
- * `preventDefault: true` swallowed the button's own activation on the way past.
+ * skip-list covers form tags and widget roles but not `button`, so without the guard in
+ * `EditorHotkeys` a click on Insert followed by the space bar starts playback, and
+ * `preventDefault: true` swallows the button's own activation on the way past.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';

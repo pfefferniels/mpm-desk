@@ -3,22 +3,18 @@ import type { AlignedNote, AlignedPedal } from '../fitting/alignment';
 /**
  * When the recording sounded a note, in **seconds** — the unit every desk draws in.
  *
- * ## Why this module exists
- *
  * MSM states a performance in milliseconds, so the alignment holds them: `milliseconds.date` and
- * `milliseconds.date.end` are **milliseconds**, and the second is an absolute **end**, not a
- * length. Desks read in seconds because that is what their axes are labelled in and what
- * `tickToSeconds`, `asBPM` and every drawn tempo already speak.
+ * `milliseconds.date.end` are **milliseconds**, and the second is an absolute **end** rather than
+ * a length. Desks read in seconds, which is what their axes are labelled in and what
+ * `tickToSeconds`, `asBPM` and every drawn tempo speak.
  *
- * Both mistakes that gap invites are silent. Take a millisecond value for seconds and the x-axis
- * is a thousand times too wide and the tempo a thousand times too low; take the absolute end for
- * a duration and a note near the close of the piece reads as lasting three minutes. Neither
- * raises a type error or crashes, because every value involved is a finite number.
+ * Both mistakes that gap invites are silent, every value involved being a finite number. Take
+ * milliseconds for seconds and the x-axis is a thousand times too wide and the tempo a thousand
+ * times too low; take the absolute end for a duration and a note near the close of the piece
+ * reads as lasting three minutes.
  *
- * **The conversion belongs here, once, named** — not spelled `/ 1000` at forty call sites where
- * one of them will eventually be missed.
- *
- * The rule for a desk: never touch `milliseconds.*` directly. Ask one of these.
+ * So the conversion lives here, once and named, rather than as `/ 1000` at forty call sites. The
+ * rule for a desk: never touch `milliseconds.*` directly.
  */
 
 /** Seconds from the start of the recording to this note's onset. */

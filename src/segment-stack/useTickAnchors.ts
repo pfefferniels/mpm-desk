@@ -9,16 +9,15 @@ function place(node: SVGGraphicsElement, tick: number, stretchX: number) {
 /**
  * Slides everything that is pinned to a tick as the zoom changes, without React.
  *
- * A zoom step moves all 128 branch feet and every bar number, which is one
- * transform each. The browser rewrites and re-lays-out that many curved words
- * inside a single frame — measured at a steady 60fps — but only just: setting
- * type along a curve is what fills the frame, and the few milliseconds React
- * spends reconciling the same 128 labels are enough to push the whole step past
- * the next refresh and halve the rate.
+ * A zoom step moves all 128 branch feet and every bar number, one transform
+ * each. The browser does that inside a frame at a steady 60fps, but only just:
+ * setting type along a curve fills the frame, and the few milliseconds React
+ * spends reconciling the same 128 labels push the step past the next refresh and
+ * halve the rate.
  *
- * So zoom is kept out of their props altogether and written straight to the DOM
- * here, the way scroll already is in `ScrollSyncProvider`. What is anchored then
- * re-renders only when something about *it* changes.
+ * So zoom stays out of their props and is written straight to the DOM here, as
+ * scroll is in `ScrollSyncProvider`. What is anchored then re-renders only when
+ * something about *it* changes.
  *
  * Returns a ref callback per tick, kept for the life of the component: handing a
  * fresh function to a memo'd child every render would defeat the point.

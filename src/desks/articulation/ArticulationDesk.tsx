@@ -241,16 +241,12 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll', position: 'relative' }}>
             <DeskToolbar>
                 {/*
-                    Unlabelled, because a group caption is never the desk's own name and
-                    `Articulation` was exactly that.
+                    Unlabelled: a group caption is never the desk's own name.
 
-                    The two unit controls used to sit behind `{currentUnit && …}`, in front of a
-                    permanent `Insert Default`. So the moment a note was clicked two buttons
-                    materialised and shoved `Insert Default` to the right — and dropping the unit
-                    shoved it back — which meant the one control that was always available was the
-                    one that never held still. They stay mounted and disabled now; the readout
-                    between them is what carries the signal their appearing and disappearing used
-                    to carry.
+                    The two unit controls stay mounted and disabled, with the readout between them
+                    carrying the signal. Behind a `{currentUnit && …}` guard they would materialise
+                    on the first click and shove the permanent `Insert Default` to the right,
+                    leaving the one always-available control the one that never holds still.
                 */}
                 <ToolGroup>
                     <ToolbarButton
@@ -308,8 +304,8 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
             {(unitDialogOpen && currentUnit) && (
                 <UnitDialog
                     // Keyed by the unit, so a dialog opened on a different unit is a fresh mount
-                    // with fresh fields. The dialog used to re-seed its own state from an effect,
-                    // which wrote over whatever had been typed in the meantime.
+                    // with fresh fields. Re-seeding from an effect instead would write over
+                    // whatever had been typed in the meantime.
                     key={currentUnit.name}
                     open={unitDialogOpen}
                     onClose={() => setUnitDialogOpen(false)}

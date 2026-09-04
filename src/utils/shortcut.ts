@@ -1,26 +1,20 @@
 /**
  * How a keyboard shortcut is spelled where a tooltip has to name one.
  *
- * A hint that disagrees with its binding is worse than no hint, and the app had exactly that
- * disagreement waiting to happen: `AppMenu` binds `meta+s` and `meta+o` — the Command key,
- * literally, so on Windows and Linux there is no Save shortcut at all — while undo and redo are
- * bound with `react-hotkeys-hook`'s `mod+`, which resolves to Command on a Mac and Control
- * everywhere else. Two spellings of the same intention, and nothing on screen said which key a
- * given desk actually wanted.
+ * A hint that disagrees with its binding is worse than no hint. Every binding uses
+ * `react-hotkeys-hook`'s `mod+`, which resolves to Command on a Mac and Control elsewhere, so the
+ * label has to resolve it the same way.
  *
- * So the platform test below is not a fresh guess at what a Mac is. It is character for character
- * the expression the library makes internally to resolve `mod`
- * (`react-hotkeys-hook/packages/react-hotkeys-hook/dist/index.js`), which is the only way a label
- * can be guaranteed to name the key that is really bound: a test of our own could differ from the
- * library's on some machine — an iPad reporting a desktop user agent is the obvious candidate,
- * which is why the library excludes the iOS families by name — and nothing here or in CI would
- * ever catch it. The library also guards `typeof navigator` for a server render; this is a Vite
- * SPA with no such entry point, so that guard would be ceremony.
+ * The platform test below is character for character the expression the library makes internally
+ * (`react-hotkeys-hook/packages/react-hotkeys-hook/dist/index.js`). A test of our own could
+ * differ from the library's on some machine, an iPad reporting a desktop user agent being the
+ * obvious candidate, which is why the library excludes the iOS families by name, and nothing here
+ * or in CI would catch it. The library also guards `typeof navigator` for a server render, which
+ * a Vite SPA has no entry point for.
  *
- * A user-agent test is a heuristic, not an authority. That is a limitation the app inherits from
- * `react-hotkeys-hook` rather than one it invents, and inheriting it is the point: wherever the
- * library is wrong about the platform, these labels are wrong in exactly the same way, and the
- * hint still describes the binding.
+ * A user-agent test is a heuristic rather than an authority, and inheriting that limitation is
+ * the point: wherever the library is wrong about the platform these labels are wrong the same
+ * way, and the hint still describes the binding.
  */
 const isApple =
     /mac/i.test(navigator.userAgent) && !/iphone|ipad|ipod/i.test(navigator.userAgent);

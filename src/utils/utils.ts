@@ -18,20 +18,18 @@ export const downloadAsFile = (
 /**
  * What to call a file, given that a title here is a sentence.
  *
- * The metadata desk holds the title in a growing `textarea` precisely because it is prose — the
- * chain carries it as a `<comment>` — so it arrives with spaces, punctuation and no length worth
- * trusting. Handing that straight to a download turns a slash into a path separator and a colon
- * into one on macOS, and the file lands somewhere nobody asked for or not at all.
+ * The chain carries the title as a `<comment>`, so it is prose: spaces, punctuation and no
+ * length worth trusting. Handed straight to a download, a slash becomes a path separator and a
+ * colon becomes one on macOS, and the file lands somewhere nobody asked for or not at all.
  *
- * So: the first few words, letters and digits only, hyphen-joined. `reconstruction` where that
- * leaves nothing — which is the case for a title of pure punctuation as well as for no title at
- * all, and is why the fallback is tested after the stripping rather than before it.
+ * So: the first few words, letters and digits only, hyphen-joined, and `reconstruction` where
+ * that leaves nothing. A title of pure punctuation leaves nothing too, which is why the fallback
+ * is tested after the stripping.
  *
- * The two lines that are not obvious. Decomposing to NFKD and then dropping the combining marks
- * is what turns `Überschrift` into `uberschrift`; without the second step the mark is simply not
- * a letter, and a German title comes out as `u-berschrift`. And the trim runs *after* the
- * truncation, because a cut at sixty characters usually lands mid-word and would otherwise leave
- * the hyphen it made dangling on the end of the name.
+ * Two lines are not obvious. Decomposing to NFKD *and* dropping the combining marks is what turns
+ * `Überschrift` into `uberschrift`; without the second step the mark is simply not a letter and
+ * the title comes out `u-berschrift`. And the trim runs *after* the truncation, since a cut at
+ * sixty characters usually lands mid-word and would leave its hyphen dangling.
  *
  * The extension is the caller's: the archive is `.zip`, the markup desk's render is `.mid`, and
  * they are the same document under two names.

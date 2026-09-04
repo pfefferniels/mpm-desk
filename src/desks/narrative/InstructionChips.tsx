@@ -39,18 +39,15 @@ interface InstructionChipsProps {
 /**
  * A claim's instructions, one chip each — the handle for moving them between claims.
  *
- * **Clicking one selects the call that wrote it**, and so its siblings. That is not a compromise
- * hidden behind the chip: a call is the unit that writes a gesture — `InsertPedal` writes a press
- * as `_start` plus `_moveDown`, `InsertDynamicsInstructions` writes the two ends of one ramp —
- * and splitting one across two claims would be a claim about half a gesture. The chip is the
- * instruction because the instruction is what a reader recognises; the selection is the call
- * because the call is what can honestly move.
+ * **Clicking one selects the call that wrote it**, and so its siblings. A call is the unit that
+ * writes a gesture (`InsertPedal` writes a press as `_start` plus `_moveDown`), so splitting one
+ * across two claims would be a claim about half a gesture. The chip is the instruction because
+ * that is what a reader recognises; the selection is the call because that is what can move.
  *
- * **The same click plays the instruction**, alone, over its own reach of the piece — the way a
- * click on a word in the viewer plays the word. Selecting is the call's business and hearing is
- * the instruction's, and one click does both because a reader deciding where an instruction
- * belongs wants to hear it at the moment of deciding, not after a second gesture. The ring
- * marks which one is sounding, since the selection colours the whole call.
+ * **The same click plays the instruction**, alone, over its own reach of the piece. Selecting is
+ * the call's business and hearing is the instruction's, and one click does both because a reader
+ * deciding where an instruction belongs wants to hear it while deciding. The ring marks which one
+ * is sounding, the selection colouring the whole call.
  */
 export const InstructionChips = memo(
     ({ instructions, activeCallIds, onToggleCall, onPlay, playingId = null }: InstructionChipsProps) => {

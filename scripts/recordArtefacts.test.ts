@@ -3,16 +3,13 @@
  *
  * `public/work.json`, `public/performance.mpm` and `public/score.msm` are a build output: the
  * viewer draws the tree from what they *record* rather than from a run, which is what lets it
- * carry no fitting code. So they go stale in silence — a fitter changes, nobody re-runs
- * `recordOutcomes.ts`, and what the viewer shows is a reconstruction the editor no longer
- * produces. Issue #37 caught that five days after it started.
+ * carry no fitting code. So they go stale in silence, a fitter changing and nobody re-running
+ * `recordOutcomes.ts` (issue #37 caught that five days after it started).
  *
- * ## Compared byte for byte
- *
- * The chain writes the same document twice, so it can be: every id it mints is derived from what
- * it names (issue #48). The one exception is espressivo's own — it mints `meico_<uuid>` for an
- * element the MEI does not name, one `<marker>` of the 542 ids in this score — and those are
- * dropped, since nothing references them and nothing here can make them stable.
+ * Compared byte for byte, which the chain permits by deriving every id it mints from what that id
+ * names (issue #48). The exception is espressivo's own `meico_<uuid>`, minted for an element the
+ * MEI does not name, one `<marker>` of the 542 ids in this score; those are dropped, nothing
+ * referencing them and nothing here being able to make them stable.
  */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';

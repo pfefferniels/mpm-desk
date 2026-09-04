@@ -18,19 +18,13 @@ import type { Call, Segment } from '../model/Work';
 /**
  * The document, and the ways it changes.
  *
- * ## Why this exists
+ * Two desks need more than `ViewProps`, which is what the *fit* produced. The narrative desk
+ * edits `segments`, its subject being the claims rather than a dimension of the sound, and the
+ * metadata desk edits the title and author and shows how much has been claimed so far.
  *
- * Two desks needed more than a desk is handed. The narrative desk edits `segments` — it is the
- * one desk whose subject is the claims rather than a dimension of the sound — and the metadata
- * desk edits the title and author and shows how much has been claimed so far. Neither fits
- * `ViewProps`, which is what the *fit* produced, so both were rendered by name out of a
- * three-way branch in `App`, each with its own extra props, and the registry that was supposed
- * to say which desk edits which aspect was bypassed by two of its own entries.
- *
- * Widening `ViewProps` with `segments`, `groupCalls`, `dissolveSegment` and the rest would have
- * pushed the narrative desk's business onto all thirteen. So the document goes in a context of
- * its own instead, beside the two that were already there, and every desk is handed the same bag
- * again.
+ * Widening `ViewProps` with `segments`, `groupCalls`, `dissolveSegment` and the rest would push
+ * the narrative desk's business onto all thirteen. So the document goes in a context of its own,
+ * beside the two already there, and every desk is handed the same bag.
  *
  * ## What is deliberately *not* here
  *
@@ -42,13 +36,10 @@ import type { Call, Segment } from '../model/Work';
  * - **Selection.** `CallSelection` selects calls and can remove them; this holds what there is
  *   to select. They stay apart for the reason recorded there.
  *
- * ## The value is memoised, and that is not decoration
- *
- * Everything a desk draws sits under this. An object literal rebuilt each render would re-render
- * all of it on every keystroke — the mistake `ScrollSyncProvider` documents avoiding, and the one
- * `usePiano`'s unstable refs once made through `PlaybackProvider`. The operations depend on
- * `dispatch` alone, which `useReducer` guarantees is stable, so the value changes only when the
- * document does.
+ * The value is memoised. Everything a desk draws sits under this, so an object literal rebuilt
+ * each render would re-render all of it on every keystroke. The operations depend on `dispatch`
+ * alone, which `useReducer` guarantees is stable, so the value changes only when the document
+ * does.
  */
 interface WorkDocumentValue {
     /** The calls of the chain, in the order the file records them. */

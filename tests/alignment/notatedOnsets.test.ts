@@ -100,10 +100,10 @@ describe('a score that says what it writes', () => {
 
   /**
    * The one thing above that is not a fact about music: a rest before a note has to be counted
-   * before it. The walk used to be `layer.querySelectorAll("note, chord, rest, space, …")`, which
-   * a browser answers in tree order and jsdom answers grouped by selector — so a layer written
-   * `<space/><note/><note/><note/>` came back note, note, note, space and the notes landed half a
-   * beat early. It moved eight notes of this fixture and nothing else noticed.
+   * before it. A `querySelectorAll("note, chord, rest, space, …")` walk cannot do it, a browser
+   * answering in tree order and jsdom grouped by selector, so a layer written
+   * `<space/><note/><note/><note/>` comes back note, note, note, space and the notes land half a
+   * beat early. It moves eight notes of this fixture and nothing else notices.
    *
    * Checked at the note rather than on the walk, because it is the onsets that have to be right.
    */

@@ -15,12 +15,11 @@ import { assertWellFormed } from './invariants';
  * Pedalling — and why this is not a round-trip case.
  *
  * Every case in `cases.ts` states a truth in MPM, renders it, and asks whether the chain can
- * recover it. That only means something where the chain *fits* something. `InsertPedal` does
- * not: its own doc comment calls it "a shortcut", and it takes the shape of the movement —
- * `start`, `duration`, `direction`, `depth` — as constructor options rather than reading it off
- * the recording. A round trip would therefore compare a truth this file wrote against a fit
- * whose shape this file also dictated, and measure nothing but the option-picking. That is
- * precisely the failure mode the harness is built to exclude, so it is excluded here too.
+ * recover it, which means something only where the chain *fits* something. `InsertPedal` does
+ * not: it takes the shape of the movement (`start`, `duration`, `direction`, `depth`) as
+ * constructor options rather than reading it off the recording. A round trip would compare a
+ * truth this file wrote against a fit whose shape this file dictated, measuring nothing but the
+ * option-picking.
  *
  * What is worth asserting is everything downstream of the shortcut: that the movements land
  * where the pedal is, that the document is structurally sound, and — the part no unit test can

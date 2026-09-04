@@ -199,10 +199,10 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
       nameRef: 'neutralArpeggio',
       scale,
       // The ramp above was measured from the first note struck to the last, so the element has
-      // to say which notes those were. Left off, espressivo does not abstain — it walks the
-      // chord by ascending pitch — and the ramp is rendered along a sequence nothing fitted it
-      // to. `InsertTemporalSpread` used to be the only writer of this, which held for as long
-      // as a spread was always asked for over the same chord and no longer than that: issue #20.
+      // to say which notes those were. Left off, espressivo does not abstain: it walks the chord
+      // by ascending pitch, rendering the ramp along a sequence nothing fitted it to. Written
+      // here as well as by `InsertTemporalSpread`, since a spread is not always asked for over
+      // the same chord. See issue #20.
       noteOrder: noteOrderOf(struck),
     };
     const element = fillInAt(map, options, {

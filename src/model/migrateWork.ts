@@ -3,10 +3,8 @@
  *
  * `public/info.json` was written as a CIDOC-CRM / CRMinf graph: a `Reconstruction` whose
  * `creation` held 137 `I1_Argumentation`s, each with a `calls` list and an `I2_Belief` under
- * `conclusion`. What is going in its place is {@link WorkFile} — a flat `provenance` of every
- * call, each naming the segment it is claimed under, and one prose `segment` per argumentation.
- *
- * Run it:
+ * `conclusion`. {@link WorkFile} replaces it with a flat `provenance` of every call, each naming
+ * the segment it is claimed under, and one prose `segment` per argumentation.
  *
  * ```sh
  * node scripts/migrateWork.ts public/info.json public/work.json
@@ -14,75 +12,56 @@
  * npx vite-node scripts/migrateWork.ts -- public/info.json public/work.json
  * ```
  *
- * **Idempotent.** Handed a file that is already a `WorkFile`, it hands it straight back. That is
- * not politeness — it is what lets the script be re-run against a directory without anyone
- * having to remember which files have been through it.
+ * **Idempotent**, so the script can be re-run against a directory without anyone tracking which
+ * files have been through it.
  *
- * ## What it carries that espressivo's `WorkFile` has no field for
+ * ## What becomes of the fields espressivo's `WorkFile` has no room for
  *
- * `certainty` is DROPPED outright, and `motivation` is **spent, then dropped**.
+ * `certainty` is dropped outright. `motivation` is **spent, then dropped**: where a group has no
+ * `note`, its motivation becomes the word the old placeholder table would have written and is
+ * stored AS the note. Without that, forty of the 137 segments would carry no word at all, and
+ * `words.ts` could not become a single field read.
  *
- * Both were already retired upstream: espressivo's `work.ts` dropped them because nothing read
- * them, and the viewer removed `certainty` from data and code in one commit. But `motivation` was
- * still doing one job at the moment of retirement — it was the fallback the tree wrote when a
- * segment had no prose of its own, through a placeholder table in `words.ts`. Deleting the field
- * and the table together would have left forty of the 137 segments with no word at all.
+ * A one-way door in the strong sense: „Intensivieren" written by this migration is afterwards
+ * indistinguishable from „Intensivieren" somebody typed. That is the intended outcome, the
+ * distinction having been between a placeholder and a word.
  *
- * So the migration cashes it in. Where a group has no `note`, its motivation is turned into the
- * word the table would have written and stored AS the note; then the field goes. After this runs,
- * every segment says something, no segment carries a motivation, and the tree needs no fallback —
- * which is what lets `words.ts` be a single field read rather than a vocabulary.
+ * `continue` becomes {@link Segment.continues}. All 13 resolve, two naming the same predecessor.
  *
- * It is a one-way door in the strong sense: the enum's information is not lost but it is no longer
- * separable, and „Intensivieren" written by this migration is indistinguishable afterwards from
- * „Intensivieren" somebody typed. That is the intended outcome — the distinction was between a
- * placeholder and a word, and placeholders are what this removes. The old text —
- * is, and how sure the reconstruction is of it. espressivo dropped both when it took the work
- * file, because a library that renders a document has no opinion about either. Losing them here
- * would lose the only part of the old ontology that anyone ever read.
- *
- * `continue` becomes {@link Segment.continues}, a link from one segment to the one it picks up
- * from. All 13 of them resolve; two name the same predecessor.
- *
- * `argumentation.note` — the second prose field — is **folded into the segment's note**, joined
- * with an em-dash. Three argumentations carry one, all three on a segment that already has a
- * word, and two of them read as that word's sentence continued. One narrative per segment is
- * what the tree draws and what the desk edits; two fields meant deciding per sentence which kind
- * of writing it was.
+ * `argumentation.note`, the second prose field, is **folded into the segment's note** after an
+ * em-dash. Three argumentations carry one, all on a segment that already has a word, and two
+ * read as that word's sentence continued. One narrative per segment is what the tree draws.
  *
  * ## What it drops, and why each is safe
  *
- * - **`@context`, `@type`, `argumentation.type`** — JSON-LD plumbing. `type` is
+ * - **`@context`, `@type`, `argumentation.type`**: JSON-LD plumbing. `type` is
  *   `"simpleArgumentation"` on 133 of 137 and absent on the rest, so it discriminates nothing.
- * - **`conclusion.id`** — the belief node's identity, 132 unique ids. Nothing in the document
- *   references one: the `continue` links all point at *argumentation* ids, never at a belief.
- *   It existed so the graph could be addressed as a graph, and there is no graph now.
- * - **`creation.incorporates`** — the recording the reconstruction was made from. It is exactly
- *   the `prefer` of the file's one `MakeChoice` call, which is how espressivo's `sourcesOf`
- *   already derives it. {@link checkIncorporatesIsDerivable} proves that for the file in hand
- *   and refuses the migration if it does not hold, so this is a measured claim rather than an
- *   assumption carried forward.
+ * - **`conclusion.id`**: the belief node's identity, 132 unique ids, referenced by nothing. The
+ *   `continue` links all point at *argumentation* ids. It existed so the graph could be
+ *   addressed as a graph, and there is no graph now.
+ * - **`creation.incorporates`**: the recording the reconstruction was made from, which is exactly
+ *   the `prefer` of the file's one `MakeChoice` call and how espressivo's `sourcesOf` derives it.
+ *   {@link checkIncorporatesIsDerivable} proves that for the file in hand and refuses the
+ *   migration otherwise, so it is measured rather than assumed.
  *
  * ## What it must not touch
  *
  * A call's `options` crosses verbatim. The file holds 87 `{ dataType: 'Set' | 'Map' }` envelopes,
- * and they are only plain JSON on the way through here — reading with a reviver and writing
- * without a matching replacer would turn each of them into `{}`, silently, in a file nobody
- * reads by eye. `secondary` crosses the same way, by reference.
+ * plain JSON only on the way through here: reading with a reviver and writing without a matching
+ * replacer turns each into `{}`, silently, in a file nobody reads by eye. `secondary` crosses the
+ * same way, by reference.
  */
 import type { Call, Segment, WorkFile } from './Work';
 
-/** Transformers this build no longer registers. None appears in the shipped file; one might. */
 /**
  * What each motivation was written as, when a segment had no words of its own.
  *
- * Lifted verbatim from the viewer's `words.ts`, which is where it lived and where it has now been
- * deleted. This is its last use: the migration spends the enum and the table goes with it.
+ * The viewer's placeholder table, and this is its last use: the migration spends the enum and the
+ * table goes with it.
  *
- * `unknown` is a real value in the old data — eight groups carry it, and all eight are among the
- * forty with no prose — so it needs a word like the rest. „Unbestimmt" is what the table said,
- * and it is honest: those eight say that nothing in particular was claimed, which is different
- * from a group that was never named at all.
+ * `unknown` is a real value in the old data, carried by eight groups all among the forty with no
+ * prose, so it needs a word like the rest. „Unbestimmt" is honest for them: they say nothing in
+ * particular was claimed, which differs from a group that was never named at all.
  */
 const MOTIVATION_WORDS: Record<string, string> = {
     intensify: 'Intensivieren',
@@ -92,6 +71,7 @@ const MOTIVATION_WORDS: Record<string, string> = {
     unknown: 'Unbestimmt',
 };
 
+/** Transformers this build no longer registers. None appears in the shipped file; one might. */
 const RETIRED_TRANSFORMERS = new Set([
     'InsertAsynchrony',
     'CompressOrnamentation',
@@ -100,8 +80,6 @@ const RETIRED_TRANSFORMERS = new Set([
     'MakeDefaultArticulation',
     'CombineAdjacentRubatos',
 ]);
-
-// ── the old shape ─────────────────────────────────────────────────
 
 interface OldCall {
     id: string;
@@ -134,8 +112,6 @@ interface OldWorkFile {
     secondary?: Record<string, unknown>;
 }
 
-// ── the report ────────────────────────────────────────────────────
-
 /**
  * What one migration actually did, in numbers.
  *
@@ -164,8 +140,6 @@ interface MigrationReport {
     /** Calls naming a transformer this build does not have. Carried, but named here. */
     retiredCalls: { id: string; name: string }[];
 }
-
-// ── narrowing ─────────────────────────────────────────────────────
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -263,8 +237,6 @@ export const isMigrated = (value: unknown): value is WorkFile => {
     return migrated;
 };
 
-// ── the checks ────────────────────────────────────────────────────
-
 /**
  * `creation.incorporates` names the recording the reconstruction was made from, and the chain's
  * `MakeChoice` call names the same thing in its options. Prove they agree before dropping one.
@@ -299,8 +271,6 @@ const checkIncorporatesIsDerivable = (old: OldWorkFile): string[] => {
         );
     return declared;
 };
-
-// ── the migration ─────────────────────────────────────────────────
 
 /**
  * The old file as a {@link WorkFile}, plus what the walk counted.
@@ -407,12 +377,12 @@ export const migrateWork = (input: unknown): { work: WorkFile; report: Migration
         segments.push({
             id: argumentation.id,
             // Two prose fields become one. The gesture word lives on the conclusion and the
-            // longer prose on the argumentation, which is the opposite of what the field names
-            // suggest — `conclusion.note` is 97 entries averaging 29 characters and carries
-            // every „schattieren", „Hineinfallen" and „Nachlauschen" in the file, and
-            // `argumentation.note` is 3. All three of those sit on a segment that also has a
-            // word, and two of them read as that word's sentence continued, so they are joined
-            // rather than filed apart: see `foldCommentary` in `loadWork.ts`.
+            // longer prose on the argumentation, the opposite of what the field names suggest:
+            // `conclusion.note` is 97 entries averaging 29 characters, carrying every
+            // „schattieren", „Hineinfallen" and „Nachlauschen" in the file, and
+            // `argumentation.note` is 3. All three sit on a segment that already has a word, two
+            // reading as that word's sentence continued, so they are joined rather than filed
+            // apart. See `foldCommentary` in `loadWork.ts`.
             ...(note !== undefined && { note }),
             ...(argumentation.continue !== undefined && { continues: argumentation.continue }),
         });
@@ -454,8 +424,6 @@ export const migrateWorkText = (json: string): { text: string; report: Migration
     const { work, report } = migrateWork(JSON.parse(json) as unknown);
     return { text: `${JSON.stringify(work, null, 2)}\n`, report };
 };
-
-// ── the command ───────────────────────────────────────────────────
 
 export const describe = (report: MigrationReport): string => {
     const lines = [

@@ -1,21 +1,19 @@
 /**
  * The piece cut into tempo segments, with the millisecond timeline anchored on the recording.
  *
- * ## Why this exists
- *
- * Four callers need the same walk over the tempo list — `addTickOnsets`, `addTickDurations`, and
- * the two directions of the millisecond ⇄ tick conversion: close the instruction against the next
- * one, convert the span to milliseconds, and advance a running cursor. That loop encodes the
- * single most consequential rule in the fit:
+ * Four callers need the same walk over the tempo list (`addTickOnsets`, `addTickDurations`, and
+ * the two directions of the millisecond ⇄ tick conversion): close the instruction against the
+ * next one, convert the span to milliseconds, advance a running cursor. That loop encodes the
+ * most consequential rule in the fit:
  *
  * > **At every tempo boundary the cursor is re-anchored on the recorded onset of the note sitting
  * > on it, not on the tempo's own prediction.**
  *
- * It is what keeps one segment's error out of the next, and it is why the tick domain cannot be
- * recovered by inverting a rendered performance — a render has no recording to anchor to. A rule
- * that load-bearing should exist once: hand-copied, it diverges, and looking the anchor up in
- * `msm.allNotes` rather than `msm.in(scope).notes()` anchors, in a piece with part-scoped tempo
- * maps, on notes from a different part than the one whose tempo is being walked.
+ * It keeps one segment's error out of the next, and it is why the tick domain cannot be recovered
+ * by inverting a rendered performance, which has no recording to anchor to. Stated once because a
+ * hand-copy diverges: looking the anchor up in `msm.allNotes` rather than `msm.in(scope).notes()`
+ * anchors, under part-scoped tempo maps, on notes from a different part than the one being
+ * walked.
  *
  * ## Modelled and measured
  *
@@ -30,10 +28,9 @@
  *
  * Which of the two bounds a segment *as a window* is not a free choice, and the callers have to
  * agree on it (issue #27): windows built from `modelledMs` while the cursor advances by
- * `measuredMs` are neither contiguous nor exhaustive, so a note or a pedal falling in a gap
- * between two of them is assigned no tick position at all, and one falling in an overlap can take
- * its onset from one segment and its duration from the next. The windows are a partition, and
- * {@link segmentAtMs} is where that is stated — see its note.
+ * `measuredMs` are neither contiguous nor exhaustive, so an event in a gap gets no tick position
+ * and one in an overlap takes its onset from one segment and its duration from the next. The
+ * windows are a partition; {@link segmentAtMs} states that.
  */
 import { getInstructions, Mpm, type Scope } from '../../instructions/index';
 import { Alignment, type AlignedNote } from '../../alignment';
@@ -131,16 +128,15 @@ export const placeTempos = (msm: Alignment, mpm: Mpm, scope: Scope): PlacedTempo
  * none means the tempo map does not reach back as far as the note's *score date* — a partial fit,
  * where the map starts later than the piece does.
  *
- * That is a different question from the one {@link segmentAtMs} folds into its first window, and
- * the two do not conflict. There, an event's recorded time falls before the first segment's
- * cursor, which starts at zero — so only a negative onset reaches it, and the instruction
- * governing that event is still the first one. Here the tempo map does not claim the note at all,
- * and what the right answer would be is genuinely unsettled: the renderer performs such a note at
- * MPM's default of 100 quarter-bpm (`TempoMap.renderTempoToMap`), while the ornament path
- * deliberately extrapolates at the first instruction's tempo instead rather than bake one
- * renderer's fallback into the document — see the note on the 'ornamentation: rolled chords'
- * round-trip case. Leaving the position unknown is what this has always done, and answering it
- * either way is a decision about partial fits, not about issue #27.
+ * A different question from the one {@link segmentAtMs} folds into its first window, and the two
+ * do not conflict. There an event's recorded time falls before the first segment's cursor, which
+ * starts at zero, so only a negative onset reaches it and the first instruction still governs.
+ * Here the tempo map does not claim the note at all, and the right answer is unsettled: the
+ * renderer performs such a note at MPM's default of 100 quarter-bpm
+ * (`TempoMap.renderTempoToMap`), while the ornament path extrapolates at the first instruction's
+ * tempo rather than bake one renderer's fallback into the document (see the 'ornamentation:
+ * rolled chords' round-trip case). Leaving the position unknown answers neither, which is a
+ * decision about partial fits rather than about issue #27.
  */
 export const coversDate = (segment: PlacedTempo, date: number): boolean =>
   date >= segment.tempo.date && (segment.nextDate === undefined || date < segment.nextDate);
@@ -154,12 +150,12 @@ export const coversDate = (segment: PlacedTempo, date: number): boolean =>
  * +∞, so **every** finite time has exactly one segment and no caller has to decide what to do
  * with one that has none.
  *
- * Both open ends earn their place. A recording is aligned to the score, not generated from it, so
- * an onset can land before the first modelled moment; and a note or pedal released after the last
- * one is ordinary rather than exceptional — the final `<tempo>` runs to the end of the *score*,
- * and a performer's hand comes off the key after that. Issue #27 is what closing them cost: the
- * last note of the run had no `tickDuration`, `InsertRubato` saw it and abandoned the whole
- * frame, and `InsertArticulation` did not see it and wrote `NaN` into the document.
+ * Both open ends earn their place. A recording is aligned to the score rather than generated
+ * from it, so an onset can land before the first modelled moment, and a note or pedal released
+ * after the last is ordinary: the final `<tempo>` runs to the end of the *score*, and a
+ * performer's hand comes off the key after that. Issue #27 is what closing them cost, the last
+ * note of the run having no `tickDuration`, which `InsertRubato` saw and abandoned the whole
+ * frame over while `InsertArticulation` did not see it and wrote `NaN`.
  *
  * Searching from the end rather than the start is what makes the fold-in work, and it also
  * decides the degenerate case: where a recording is so far out of order that the cursor goes

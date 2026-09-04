@@ -45,9 +45,8 @@ const ExpandableRow = ({ icon, tooltip, expanded, onExpandChange, onClick, child
             pr: 1.5,
             ...glassStyle,
             background: expanded ? 'rgba(255, 255, 255, 1)' : glassStyle.background,
-            // 184 and not 156, because `CssBaseline` now sets `box-sizing: border-box` app-wide:
-            // the 28px of `pl: 2, pr: 1.5` used to sit outside the stated width and now eats into
-            // it, which would leave the slider 28px narrower than it was drawn to be.
+            // 184 and not 156: `CssBaseline` sets `box-sizing: border-box` app-wide, so the 28px
+            // of `pl: 2, pr: 1.5` eats into the stated width rather than sitting outside it.
             width: expanded ? 184 : 0,
             opacity: expanded ? 1 : 0,
             overflow: expanded ? 'visible' : 'hidden',

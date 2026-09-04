@@ -6,10 +6,9 @@ import { useEventSelection } from './useEventSelection';
 /**
  * The three clicks, and the three selector shapes a `Modify` can be built from.
  *
- * This model used to live inside the dynamics desk, reachable only in a mode of it, and had no
- * test of its own — the two things it got wrong there were both invisible from the plot: a plain
- * click on an existing selection fell through and did nothing at all, and `isNoteAffected`
- * answered "is this note in the range?" by walking every note in the piece, once per drawn note.
+ * Two things this model can get wrong are invisible from the plot, so they are pinned here: a
+ * plain click on an existing selection falling through and doing nothing, and "is this note in
+ * the range?" being answered by walking every note in the piece, once per drawn note.
  */
 
 const note = (id: string, date: number): AlignedNote => ({

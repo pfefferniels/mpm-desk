@@ -183,8 +183,8 @@ describe('splicing one rendering into another, over the shipped performance', ()
             const heard = whole.slice(0, whole.indexOf(anchor.noteId))
             const coming = ids(plan.dispatch)
 
-            // No jump backwards: the continuation is an unbroken tail of the new rendering, picking
-            // up exactly where the old one left off — not a restart, not a skip.
+            // No jump backwards: the continuation is an unbroken tail of the new rendering,
+            // picking up where the old one left off.
             expect(coming).toEqual(continuation.slice(continuation.length - coming.length))
 
             // No omission: between them the two halves account for every note of the piece.

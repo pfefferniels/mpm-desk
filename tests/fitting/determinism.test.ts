@@ -7,17 +7,16 @@ import { at } from '../support/at';
 
 /**
  * The pipeline re-folds the *entire* chain over a fresh MPM on every edit, so the fold has to be
- * a function: the same chain over the same alignment must produce the same document. Fitting a
- * curve by simulated annealing used to draw from `Math.random` — touching any desk then re-fitted
+ * a function: the same chain over the same alignment must produce the same document. A curve
+ * fitted by simulated annealing off `Math.random` breaks that, so touching any desk re-fits
  * every curve in the piece to slightly different numbers.
  *
- * These tests fold twice and compare the serialized result, which is exactly what the worker
- * hands back to the UI.
+ * These tests fold twice and compare the serialized result, which is what the worker hands back
+ * to the UI.
  *
- * This used to guard two annealing fitters. `ApproximateLogarithmicTempo` was the other, and it
- * is not part of this application; `src/fitting/transformers/dynamics/Approximation.ts` is now
- * the only module in the tree that draws a random number at all, which is what makes this one
- * file still the whole guard against `Math.random` creeping back into a fit.
+ * `src/fitting/transformers/dynamics/Approximation.ts` is the only module in the tree that draws
+ * a random number, which is what makes this one file the whole guard against `Math.random`
+ * creeping back into a fit.
  */
 
 const BEAT = 720;

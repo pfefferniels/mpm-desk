@@ -7,20 +7,20 @@
  * a `<temporalSpread>`. MPM has no place for them on the instruction, which is why espressivo's
  * `AddOrnamentOptions` has no field for them and why they cannot travel as part of one.
  *
- * They are still parked *on the element*, as attributes, and that is deliberate rather than
- * lazy. `InsertDynamicsGradient` writes the gradient half and `InsertTemporalSpread` the spread
- * half, at the same date, and {@link fillInAt} makes the two a single `<ornament>` — the element
- * is the only thing the two transformers share. A side table keyed by element would work until
- * something serialized the document between them, and the parking has to survive whatever
- * `TranslatePhyiscalTimeToTicks` does in between, which is to rewrite two of these fields.
+ * They are parked *on the element*, as attributes, because the element is the only thing the two
+ * transformers share: `InsertDynamicsGradient` writes the gradient half and
+ * `InsertTemporalSpread` the spread half at the same date, and {@link fillInAt} makes the two one
+ * `<ornament>`. A side table keyed by element would not survive the document being serialized
+ * between them, nor whatever `TranslatePhyiscalTimeToTicks` does in between, which is to rewrite
+ * two of these fields.
  *
- * `StylizeOrnamentation` is the end of their life: it moves them into a real `<ornamentDef>` and
- * calls {@link clearOrnamentDraft}. A finished document carries none of them. If one
- * survives into a saved file, that is a bug in the chain and not a feature of the format.
+ * `StylizeOrnamentation` ends their life, moving them into a real `<ornamentDef>` and calling
+ * {@link clearOrnamentDraft}. A finished document carries none, so one surviving into a saved
+ * file is a bug in the chain.
  *
- * Field names are espressivo's, not the attributes' — these values are on their way into
+ * Field names are espressivo's rather than the attributes': these values are on their way into
  * `OrnamentDef.setTemporalSpreadValues` and `setDynamicsGradientValues`, and matching those
- * spellings is what keeps the hand-off from needing a translation step of its own.
+ * spellings saves the hand-off a translation step.
  */
 import { FrameDomain, NoteOffShift } from 'espressivo';
 import { Attribute, Element } from 'espressivo';

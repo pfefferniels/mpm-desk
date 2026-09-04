@@ -3,9 +3,8 @@ import { render } from '@testing-library/react'
 import { VerticalScale } from './VerticalScale'
 
 /**
- * The scale lives in a gutter beside the chart, not over it. That only holds if it draws nothing
- * to the right of its axis and nothing past the bottom of the plot it labels — which is what the
- * absolutely positioned overlay it replaced got wrong in both directions.
+ * The scale lives in a gutter beside the chart rather than over it, which holds only if it draws
+ * nothing to the right of its axis and nothing past the bottom of the plot it labels.
  */
 
 /** The desk's numbers: velocity 10..80 every 5, at stretch 3, against a 320px plot. */

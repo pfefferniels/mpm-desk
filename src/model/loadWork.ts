@@ -39,10 +39,9 @@ export function migrateIfNeeded(json: string): WorkFile {
 /**
  * Bring a flat work file up to the shape this build reads.
  *
- * Three changes have happened to that shape since it replaced the JSON-LD graph, and all three
- * are pure rewrites of what the file already says — no rule, no decision, nothing lost. Returns
- * `null` when none applies, so the caller can keep the original text and its option envelopes
- * rather than re-serializing a file that was already right.
+ * Three lifts, all pure rewrites of what the file already says: no rule, no decision, nothing
+ * lost. Returns `null` when none applies, so the caller can keep the original text and its option
+ * envelopes rather than re-serializing a file that was already right.
  */
 function lift(work: WorkFile): WorkFile | null {
     const linked = liftSegmentLinks(work);
@@ -54,22 +53,18 @@ function lift(work: WorkFile): WorkFile | null {
 /**
  * Drop the call the run now makes for itself.
  *
- * `TranslatePhysicalTimeToTicks` was a button on the tempo desk until it became a chain
- * invariant, and `buildChain` both injects it and filters a saved one out. So a file written
- * before that names a call that cannot run and cannot be edited: clicking it in the narrative
- * desk would route to a tempo desk with no control for it, and it would sit in the document
- * forever claiming instructions it no longer touches.
+ * `buildChain` injects `TranslatePhysicalTimeToTicks` and filters a saved one out, so a file
+ * naming one names a call that can neither run nor be edited: clicking it in the narrative desk
+ * routes to a tempo desk with no control for it, and it sits in the document claiming
+ * instructions it does not touch.
  *
- * A claim the call was the only thing made under goes with it. That is not this code deciding an
- * empty claim is worthless — an empty claim somebody else emptied is theirs to dissolve, and is
- * left alone. It is that a claim which only ever held plumbing was never a claim: the shipped
- * reconstruction's was noted „Unbestimmt", the word the JSON-LD migration writes for a group with
- * no motivation, and it existed because the call had to be filed somewhere.
+ * A claim the call was the only thing made under goes with it. Not because an empty claim is
+ * worthless (one somebody else emptied is theirs to dissolve, and is left alone) but because a
+ * claim that only ever held plumbing was never a claim.
  *
- * The instructions the call was answerable for are not orphaned: `Call.elements` credits
- * reshaping as readily as writing, and every ornament here was *written* by the
- * `InsertTemporalSpread` call that put it there, which still holds it. What goes is the
- * duplicate chip.
+ * The instructions are not orphaned: `Call.elements` credits reshaping as readily as writing,
+ * and every ornament here was *written* by the `InsertTemporalSpread` call that still holds it.
+ * What goes is the duplicate chip.
  */
 export function dropInjectedCalls(work: WorkFile): WorkFile | null {
     const injected = work.provenance.filter((call) => isInjectedCall(call.name));
@@ -110,14 +105,12 @@ interface OlderSegment {
  *
  * ## Why this direction, and not a list of element ids on the segment
  *
- * Both would work, and the list was tried first. This one wins because it is *lossless*: a call
- * is already the thing that wrote a gesture, so moving its id onto the call restates a fact the
- * file has rather than deriving a new one. A list of element ids would have had to decide the
- * 163 instructions that more than one call is answerable for — `Call.elements` is derived by
- * diffing the document before and after, so `StylizeOrnamentation`, which points all 100
- * ornaments at shared defs, claims all 100 — and any rule for splitting those bakes an answer
- * into the file. Here the same ambiguity stays in the view, where changing your mind costs
- * nothing.
+ * This one is *lossless*: a call already is the thing that wrote a gesture, so moving its id onto
+ * the call restates a fact the file has rather than deriving a new one. A list of element ids
+ * would have to decide the 163 instructions more than one call is answerable for, since
+ * `Call.elements` is a before-and-after diff and `StylizeOrnamentation` points all 100 ornaments
+ * at shared defs. Any rule for splitting those bakes an answer into the file, where here the
+ * ambiguity stays in the view.
  */
 export function liftSegmentLinks(work: WorkFile): WorkFile | null {
     const segments = work.segments as unknown as OlderSegment[];
@@ -149,15 +142,14 @@ export function liftSegmentLinks(work: WorkFile): WorkFile | null {
 /**
  * Fold a segment's second prose field into the one thing it says.
  *
- * The file used to carry `note` — the gesture word — and `commentary` — longer editorial prose —
- * side by side. Three of 137 segments ever carried both, and two of them read as one sentence
- * continued: „Großangelegtes Decrescendo" and "der dynamische Verlauf folgt dem Tonhöhenverlauf"
- * are not a label and an apparatus entry, they are a narrative and the rest of it. Keeping two
- * fields meant deciding per sentence which kind of writing it was, which is not a decision
- * anybody wants to make while annotating.
+ * An older shape carried `note`, the gesture word, beside `commentary`, longer editorial prose.
+ * Three of 137 segments carry both, and two read as one sentence continued: „Großangelegtes
+ * Decrescendo" and "der dynamische Verlauf folgt dem Tonhöhenverlauf" are a narrative and the
+ * rest of it rather than a label and an apparatus entry. Two fields mean deciding per sentence
+ * which kind of writing a note is.
  *
- * Joined with an em-dash, and only where both are present — a segment carrying commentary alone
- * keeps it as its whole note rather than losing it.
+ * Joined with an em-dash, and only where both are present: a segment carrying commentary alone
+ * keeps it as its whole note.
  */
 export function foldCommentary(work: WorkFile): WorkFile | null {
     const segments = work.segments as unknown as OlderSegment[];

@@ -1,23 +1,21 @@
 /**
  * Which checkpoints there are, and where they sit.
  *
- * Its own module, and importing nothing, on purpose: `index.ts` needs to name a
- * model without dragging `session.ts` — and with it the whole onnxruntime-web
- * bundle — into the route's first chunk. That is also why the *mode* a model
- * runs in is not recorded here. A file name is not evidence about weights: which
- * attribution head a checkpoint carries is read off the loaded graph's own
- * outputs, in `session.ts`.
+ * Its own module, importing nothing, so `index.ts` can name a model without
+ * dragging `session.ts` and the whole onnxruntime-web bundle into the route's
+ * first chunk. Which *mode* a model runs in is likewise not recorded here: a
+ * file name is not evidence about weights, so `session.ts` reads the attribution
+ * head off the loaded graph's own outputs.
  *
- * Only v4 is shipped. v1, v2 and v3 were offered until 2026-08-30 and are
- * dominated: on the 740 ornament figures of Batik-plays-Mozart that carry
- * ground truth, v4 attributes .4784 of them entirely correctly against v3's
- * .3297, paired over the same figures, while tying v3 and v2 on every alignment
- * measure (match, insertion and deletion F, p = .95, .95, .74 against v3).
- * There is no repertoire on which an older one is the better choice, and three
- * superseded checkpoints cost ~9.7 MB of download to offer a worse answer.
+ * Only v4 ships. v1 to v3 are dominated: on the 740 ornament figures of
+ * Batik-plays-Mozart carrying ground truth, v4 attributes .4784 entirely
+ * correctly against v3's .3297, paired over the same figures, while tying v3 and
+ * v2 on every alignment measure (match, insertion and deletion F, p = .95, .95,
+ * .74 against v3). Three superseded checkpoints would cost ~9.7 MB of download
+ * to offer a worse answer.
  *
  * Reading a document written by an older model needs no model at all. Only
- * re-aligning does, and re-aligning with v4 is the point.
+ * re-aligning does, and that is what v4 is for.
  */
 
 /** Which checkpoint to align with — the ones whose weights ship. */

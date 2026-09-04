@@ -30,27 +30,23 @@ interface RegistryEntry {
 }
 
 /**
- * ScrollSyncProvider synchronizes horizontal scroll position between registered elements.
- * Supports two scroll domains (symbolic/physical) with non-linear cross-domain conversion.
+ * Horizontal scroll position, synchronized across registered elements over two domains
+ * (symbolic and physical) with a non-linear conversion between them.
  *
- * Within one domain nothing has to be converted: scrollLeft is `tick * zoom`
- * everywhere symbolic and `seconds * zoom` everywhere physical, so syncing is a
- * copy and `scrollToDate` is a multiplication. The conversion only appears where
- * the two meet.
+ * Within one domain nothing is converted: `scrollLeft` is `tick * zoom` everywhere symbolic and
+ * `seconds * zoom` everywhere physical, so syncing is a copy and `scrollToDate` a
+ * multiplication. The conversion appears only where the two meet.
  *
- * **Why both domains.** The tree, and every desk that reads the score, live in
- * ticks. The tempo desk does not: its x-axis is the *recording's* elapsed
- * seconds, because the skyline it draws on is one box per inter-onset interval
- * (`60 / (secs(end) - secs(start))`), and that is a fact about the recording
- * rather than about the score. `utils/timeMapping.ts` holds the `[tick, seconds]`
- * table the two are reconciled through — the alignment's own, built from the
- * recorded onsets plus the hand-marked silent ones, and distinct from the
- * tempo-derived mapping espressivo could give us. Choice, temporal-spread and
+ * **Why both domains.** The tree and every desk that reads the score live in ticks. The tempo
+ * desk does not: its x-axis is the *recording's* elapsed seconds, the skyline being one box per
+ * inter-onset interval (`60 / (secs(end) - secs(start))`), which is a fact about the recording
+ * rather than the score. `utils/timeMapping.ts` holds the `[tick, seconds]` table they are
+ * reconciled through, built from the recorded onsets plus the hand-marked silent ones and
+ * distinct from the tempo-derived mapping espressivo could give. Choice, temporal-spread and
  * dynamics-gradient are physical for the same reason.
  *
- * PERFORMANCE: This provider uses NO React state for scroll position.
- * All synchronization happens via direct DOM manipulation to avoid re-renders
- * of heavy SVG components during scrolling.
+ * No React state holds scroll position: synchronization is direct DOM manipulation, so scrolling
+ * does not re-render the heavy SVG components.
  */
 export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
     children,

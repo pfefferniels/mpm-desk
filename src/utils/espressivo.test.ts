@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { EXAGGERATION_MAX, EXPRESSION_MAX, effectiveScalar } from './espressivo'
 
-// The slider used to be multiplied with the zoom-derived sketchiness and the product clamped, which
-// spent the slider's headroom on the zoom: at sketchiness 1.5 the product hit the ceiling at
-// exaggerate 1.27 and the top two thirds of the travel rendered identically. Zoom sets the floor
-// now, and the slider spends what is left.
+// Zoom sets the floor and the slider spends what is left. Multiplying the two and clamping the
+// product spends the slider's headroom on the zoom instead: at sketchiness 1.5 it hits the
+// ceiling at exaggerate 1.27, and the top two thirds of the travel render identically.
 describe('effectiveScalar', () => {
     it('is neutral at the bottom of the slider with no sketchiness', () => {
         expect(effectiveScalar(1, 1)).toBe(1)

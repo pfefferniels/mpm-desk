@@ -12,13 +12,12 @@ interface EditorHotkeysProps {
  * The editor's keyboard, in one place.
  *
  * A component rather than a few `useHotkeys` calls in `App`, because most of these need
- * `usePlayback`, `useWorkDocument` or `useCallSelection`, and `App` is what *renders* those
- * providers — it cannot read them. So this sits inside them, beside `PinchZoomHandler` and
- * `FollowPlayback`, which are render-null components for the same reason.
+ * `usePlayback`, `useWorkDocument` or `useCallSelection`, and `App` *renders* those providers so
+ * cannot read them. This sits inside them, beside `PinchZoomHandler` and `FollowPlayback`, which
+ * are render-null components for the same reason.
  *
- * It is also worth having as one file for its own sake. Three of these lived in `AppMenu`,
- * where they existed only while a toolbar happened to be mounted, and two lived in `App` — so
- * nothing anywhere answered "what keys does the editor have".
+ * One file so that something answers "what keys does the editor have", and so that no binding
+ * exists only while a toolbar happens to be mounted.
  *
  * ## Backspace
  *
@@ -30,11 +29,10 @@ interface EditorHotkeysProps {
  *
  * ## `mod+`, not `meta+`
  *
- * The two that came from `AppMenu` were bound to the Command key alone. On Windows and Linux
- * that meant Ctrl-S saved the browser's copy of the page and Ctrl-O opened a file into the
- * browser rather than into the editor, while undo and redo — bound `mod+` from the start —
- * worked everywhere. `mod+` is meta on a Mac and ctrl elsewhere, and `src/utils/shortcut.ts`
- * makes the same test the library makes, so a tooltip hint cannot drift from its binding.
+ * `mod+` is meta on a Mac and ctrl elsewhere. Bound to `meta+` alone, Ctrl-S on Windows and
+ * Linux saves the browser's copy of the page and Ctrl-O opens a file into the browser rather
+ * than into the editor. `src/utils/shortcut.ts` makes the same test the library makes, so a
+ * tooltip hint cannot drift from its binding.
  */
 export const EditorHotkeys = ({ onSave, onOpen }: EditorHotkeysProps) => {
     const { undo, redo } = useWorkDocument();

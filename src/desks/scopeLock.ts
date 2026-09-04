@@ -7,18 +7,16 @@
  * and that part stops following every global one. Offering both scopes once one of them is set is
  * therefore offering a write that something else already overrides.
  *
- * The rule is symmetric, and it is the picker's whole share of the exclusivity: **a scope is
- * locked while it holds nothing of what the desk writes and the other kind of scope does**. Global
- * goes out as soon as a part has its own map; a part goes out as soon as `<global>` has one. A
- * scope that already holds instructions is never locked — that is where the calls to remove are,
- * and a document written elsewhere can hold both at once.
+ * The rule is symmetric: **a scope is locked while it holds nothing of what the desk writes and
+ * the other kind of scope does**. Global goes out as soon as a part has its own map, a part as
+ * soon as `<global>` has one. A scope already holding instructions is never locked, that being
+ * where the calls to remove are, and a document written elsewhere can hold both at once.
  *
- * The note against a locked option names the scope that took it, and stops there. What
- * shadowing is, and that a map is per instruction type, is MPM: whoever is picking a part for a
- * tempo already knows it, and a paragraph in a menu is read once and never again.
+ * The note against a locked option names the scope that took it and stops there. What shadowing
+ * is, and that a map is per instruction type, is MPM.
  *
- * Greying the options only guards the move between them, which is why {@link ScopeLock.holding}
- * is here too: a picker left sitting on a locked scope is the same mistake being made, silently.
+ * Greying the options guards only the move between them, which is why {@link ScopeLock.holding}
+ * is here too: a picker left sitting on a locked scope makes the same mistake silently.
  *
  * Which types a desk writes is `writes` in `DeskSwitch.tsx`; a desk that declares none locks
  * nothing.

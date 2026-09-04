@@ -44,14 +44,11 @@ const MIN_GRID_SPACING = 4;
 /**
  * Where dynamics curves are drawn over what the recording played.
  *
- * The desk used to have a third mode, Modify, which dragged a recorded velocity to a new value.
- * That is a correction to the *recording*, made from the desk for writing instructions *about*
- * the recording — and it left the three other things `Modify` can correct with nowhere to be made
- * from at all, since none of them can be shown on a plot of velocity against date. They share a
- * desk of their own now, in `../corrections`.
+ * Corrections to the recording itself are `../corrections`, not here: three of the four things
+ * `Modify` can correct cannot be shown on a plot of velocity against date.
  *
- * What stayed is the evidence rather than the editing: a velocity somebody corrected by hand is
- * still marked here, by a grey ghost at the value the roll scan read. Fitting a curve over a dot
+ * What is here is the evidence rather than the editing. A velocity somebody corrected by hand is
+ * marked by a grey ghost at the value the roll scan read, because fitting a curve over a dot
  * means knowing whether the dot is what was recorded.
  *
  * A phantom velocity is a value the curve is to pass through at a date, whether or not the
@@ -127,11 +124,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
 
     const segments = useMemo(() => extractDynamicsSegments(msm, part), [msm, part])
 
-    // The optimistic preview is answered by the next fit: the drawn curve is in `mpm` by then.
-    // Clearing it is the one thing the effect that used to derive `instructions` did besides
-    // deriving, and it is not derived state, so it stays. It runs during render — React's way of
-    // adjusting state when a prop changes — and not in an effect, which would commit the stale
-    // preview over the new fit for one frame.
+    // The optimistic preview is answered by the next fit, the drawn curve being in `mpm` by
+    // then. Cleared during render, React's way of adjusting state when a prop changes, rather
+    // than from an effect, which would commit the stale preview over the new fit for one frame.
     const [lastFit, setLastFit] = useState({ mpm, part })
     if (lastFit.mpm !== mpm || lastFit.part !== part) {
         setPendingInsert(undefined)
@@ -382,15 +377,14 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
             </DeskToolbar>
 
             {/*
-                The scale used to float over the chart in an absolutely positioned overlay, so
-                the plot began underneath it: the axis landed 12px to the right of velocity at
-                date 0, the labels sat on top of the first notes, and every note scrolled *under*
-                the axis rather than past it.
+                The scale has a column of its own, laid out beside the scroller, so the chart
+                starts where the scale ends and nothing can be drawn behind it. As an absolutely
+                positioned overlay the plot would begin underneath it: the axis 12px to the right
+                of velocity at date 0, the labels on top of the first notes, and every note
+                scrolling *under* the axis rather than past it.
 
-                It has a column of its own now. The gutter is laid out beside the scroller, so
-                the chart simply starts where the scale ends and nothing can be drawn behind it.
                 Both are `chartHeight` tall with a viewBox of the same extent, so one pixel is one
-                unit in both and a tick still meets the velocity it names.
+                unit in both and a tick meets the velocity it names.
             */}
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                 <svg

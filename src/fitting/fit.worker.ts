@@ -1,27 +1,26 @@
 /**
  * The fit, off the main thread.
  *
- * A refit of the shipped reconstruction takes about three seconds — 494 calls over 900 aligned
- * notes — so it cannot run where the tree is drawn. What crosses is what {@link runFit} already
- * produces: plain data, with the MPM as XML, because espressivo's document is a live tree and
- * structured clone cannot carry one.
+ * A refit of the shipped reconstruction takes about three seconds, 494 calls over 900 aligned
+ * notes, so it cannot run where the tree is drawn. What crosses is what {@link runFit} produces:
+ * plain data, with the MPM as XML, espressivo's document being a live tree structured clone
+ * cannot carry.
  *
  * ## The alignment is built here, once
  *
- * The MEI and the score MSM cross as text on the first message and the alignment is built and
- * kept. It is expensive to build and it is not plain data, so shipping it per run would cost
- * more than the run. The chain writes *through* it — `MakeChoice` and `Modify` edit the
- * observations, `InsertTempo` shifts every onset to the first — so each run starts from a fresh
- * deep clone of the pristine one, and a run can never inherit the previous run's edits. That is
- * what makes the result a function of the chain alone.
+ * The MEI and the score MSM cross as text on the first message, and the alignment is built and
+ * kept: it is expensive to build and not plain data, so shipping it per run would cost more than
+ * the run. The chain writes *through* it (`MakeChoice` and `Modify` edit the observations,
+ * `InsertTempo` shifts every onset to the first), so each run starts from a fresh deep clone of
+ * the pristine one and can never inherit the previous run's edits. That is what makes the result
+ * a function of the chain alone.
  *
  * ## Staleness
  *
- * Every request carries an id and every reply echoes it. The editor drops a reply whose id is
- * not the one it is waiting for: a fit that takes three seconds will routinely be overtaken by
- * the next edit, and the older answer is not merely late, it is wrong. There is no cancellation —
- * the worker is single-threaded and a running fold cannot be interrupted — so the guard is on
- * the receiving side, which is the only place it can be.
+ * Every request carries an id and every reply echoes it. The editor drops a reply whose id is not
+ * the one it is waiting for: a three-second fit is routinely overtaken by the next edit, and the
+ * older answer is wrong rather than merely late. There is no cancellation, the worker being
+ * single-threaded and a running fold uninterruptible, so the guard is on the receiving side.
  */
 import type { WorkFile } from '../model/Work';
 import { runFit, ChainInvalidError, type FitResult } from './fit';

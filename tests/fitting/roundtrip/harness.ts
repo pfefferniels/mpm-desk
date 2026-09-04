@@ -98,8 +98,6 @@ export interface Case {
   note?: string;
 }
 
-// ── Running one case ──────────────────────────────────────────────
-
 /** An MPM that says nothing, for the baseline render below. */
 export const EMPTY_MPM =
   '<?xml version="1.0" encoding="UTF-8"?>' +
@@ -190,8 +188,6 @@ const withPerformance = (score: Alignment, performance: PerformanceData): Alignm
   return score;
 };
 
-// ── The chain, derived from the case ──────────────────────────────
-
 /**
  * The transformer chain a case runs, derived from its truth — never hand-picked.
  *
@@ -205,23 +201,19 @@ const chainFor = (spec: Case, msm: Alignment): Transformer[] => {
   const transformers: Transformer[] = [];
   const end = msm.lastDate();
 
-  // Tempo is stated, not fitted.
-  //
-  // `ApproximateLogarithmicTempo` — which read a tempo curve off the onsets and was the one
-  // fitter in the chain that could *discover* a tempo — is not part of this application. What
-  // is left is `InsertTempo`, whose own doc comment says it "writes down the one it is given".
+  // Tempo is stated, not fitted. No fitter here discovers one: `InsertTempo` "writes down the
+  // one it is given".
   //
   // So the truth's tempo map is handed to the chain rather than recovered from the recording,
-  // and tempo stops being an aspect under test: it is the substrate the other five are
-  // measured over. It cannot be dropped instead, because `TranslatePhysicalTimeToTicks` reads
-  // the fitted tempo map to convert performed milliseconds into ticks — with no tempo in the
-  // document every other fitter has nothing to convert against.
+  // and tempo is the substrate the other five aspects are measured over rather than an aspect
+  // under test. It cannot be dropped instead: `TranslatePhysicalTimeToTicks` reads the fitted
+  // tempo map to convert performed milliseconds into ticks, and with no tempo in the document
+  // every other fitter has nothing to convert against.
   //
   // Two consequences a reader has to know. The bounds in `cases.ts` were recorded against a
-  // chain that fitted its own tempo, so every one of them is now slack by however much that
-  // fit used to err — they are ceilings that still hold, not measurements of this chain. And
-  // the four `tempo:` cases are gone from `cases.ts`, because stating a truth and rendering it
-  // back measures the writer, not a fit.
+  // chain that fitted its own tempo, so each is slack by however much that fit erred: they are
+  // ceilings that hold rather than measurements of this chain. And `cases.ts` carries no
+  // `tempo:` case, because stating a truth and rendering it back measures the writer.
   const tempo = spec.truth.tempo;
   if (tempo?.length) {
     tempo.forEach((span, index) =>
@@ -404,9 +396,8 @@ const accentuationCalls = (spec: Case, end: number): Transformer[] => {
  * `<articulationDef>` and blanks the per-note attributes, so every note it covers ends up with
  * the mean. So the truth's grouping is handed in, and a truth with no pattern gets one call.
  *
- * There used to be a third path: withhold the grouping, fit one call over everything, and let
- * `StylizeArticulation` cluster the notes back apart. That transformer is not part of this
- * application, and with it went the `discoverBoundaries` mode and the one case that used it.
+ * There is no third path withholding the grouping and letting `StylizeArticulation` cluster the
+ * notes back apart: that transformer is not part of this application.
  */
 const articulationCalls = (spec: Case, msm: Alignment): Transformer[] => {
   const articulation = spec.truth.articulation!;
@@ -456,8 +447,6 @@ const fittingWindows = (dates: number[], end: number) => {
     .map((from, index) => ({ from, to: sorted[index + 1] ?? end }))
     .filter((window) => window.from < window.to);
 };
-
-// ── Comparison ────────────────────────────────────────────────────
 
 export const statistics = (values: number[]): AspectError => {
   if (values.length === 0) return { mean: 0, median: 0, max: 0 };

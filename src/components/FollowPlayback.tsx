@@ -20,12 +20,12 @@ interface FollowPlaybackProps {
  * The editor following the playhead: the calls whose instructions are sounding become the
  * selected ones, and the desk scrolls along.
  *
- * Renders nothing. It is a subscriber rather than an option on `play()` because who plays and
- * who follows are different questions: the play button sits in the app bar, and what following
- * means depends on which desk is open. A desk that plots one dimension wants the sounding calls
- * lit on its plot, which is what selecting them does. The narrative desk wants its rows lit and
- * its selection left alone — there the selection is the grouping in progress — so it follows
- * on its own and this is not mounted with it.
+ * Renders nothing. A subscriber rather than an option on `play()`, because who plays and who
+ * follows are different questions: the play button sits in the app bar, and what following means
+ * depends on which desk is open. A desk that plots one dimension wants the sounding calls lit on
+ * its plot, which is what selecting them does. The narrative desk wants its rows lit and its
+ * selection left alone, the selection there being the grouping in progress, so it follows on its
+ * own and this is not mounted with it.
  *
  * Which calls are sounding is what is in effect at the note's date, kind by kind — a `<tempo>`
  * until the next tempo, an ornament only on its own notes — mapped back through the fit's

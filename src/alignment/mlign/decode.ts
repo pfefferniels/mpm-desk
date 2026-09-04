@@ -13,29 +13,21 @@
  *      re-interpolates the map from round one's matches;
  *   5. a greedy same-pitch rescue for leftovers, then labelling.
  *
- * ## Why this file is written the way it is
+ * Bit-exact against NumPy, not merely the same algorithm: NumPy's defaults flip
+ * discrete outcomes (an argmax tie, a DTW backtrack step, a longest-chain pick),
+ * and one flipped decision inside a repeated-pitch run mis-aligns a passage
+ * silently. Hence `Math.fround` wherever NumPy stores or reduces in float32 and
+ * not where it has widened (the two mix within single expressions; see
+ * `clusterDtwMap`), NumPy's pairwise float32 reduction rather than a running
+ * total, and NumPy's own argmax, `np.unique`, `np.interp` and DTW tie order.
  *
- * The goal is bit-level agreement with NumPy, not merely "the same algorithm".
- * NumPy's defaults differ from JavaScript's in ways that change discrete
- * outcomes — an argmax tie, a DTW backtrack step, a longest-chain pick — and a
- * single flipped decision inside a repeated-pitch run silently mis-aligns a
- * passage. So the awkward-looking parts below are deliberate:
- *
- * - float32 is emulated with `Math.fround` wherever NumPy stores or reduces in
- *   float32, and left alone wherever NumPy has already widened to float64. The
- *   two are mixed within single expressions; see `clusterDtwMap`.
- * - float32 sums use NumPy's pairwise reduction, not a running total. This is
- *   not a refinement: verified against the fixtures, a naive float32 sum gets
- *   3 of 328 softmax row sums wrong and a float64 sum gets 6 wrong, while the
- *   pairwise order reproduces all 328 bit-for-bit.
- * - argmax, `np.unique`, `np.interp` and the DTW tie order are reimplemented to
- *   NumPy's semantics rather than the nearest JS idiom.
+ * Against the fixtures a naive float32 sum gets 3 of 328 softmax row sums wrong
+ * and a float64 sum 6, while pairwise reproduces all 328.
  *
  * One difference is not removable in pure JS: `np.exp` on a float32 array uses
- * NumPy's own single-precision kernel, and JS only offers a float64 `Math.exp`.
- * Rounding the float64 result disagrees with NumPy on ~0.3% of cells by one
- * ULP. That noise is far below every threshold and margin the decode tests, and
- * the golden fixtures confirm it changes no stage output; see the test file.
+ * NumPy's single-precision kernel and JS offers only a float64 `Math.exp`, so
+ * rounding disagrees on ~0.3% of cells by one ULP. Far below every threshold the
+ * decode tests, and the golden fixtures confirm it changes no stage output.
  */
 
 import { clusterStarts, clusterPitchSets, jaccardMatrix, dtwPath } from "./dtw";
@@ -138,10 +130,9 @@ export interface Confidence {
  * and each perf row over `[sim_j | null_p_j]`, then multiply the two directions.
  *
  * The per-note null shares the Python recomputes at labelling time are taken
- * from the same two softmaxes here. That is not a shortcut — a 1-D softmax over
- * `concatenate([sim[i], [null_s[i]]])` reduces over exactly the same contiguous
- * values in the same order as row `i` of the 2-D one, so the results are
- * bit-identical, and recomputing would only cost a second pass.
+ * from these same two softmaxes. Not a shortcut: a 1-D softmax over
+ * `concatenate([sim[i], [null_s[i]]])` reduces over the same contiguous values
+ * in the same order as row `i` of the 2-D one, so the results are bit-identical.
  *
  * Exported so the dual-softmax stage can be checked against `conf.f32.bin`
  * before the rest of the decode is trusted.
@@ -183,7 +174,7 @@ export function dualSoftmax(bundle: SimBundle): Confidence {
 
 /**
  * `np.interp` for one query point: piecewise linear over `(xp, fp)`, clamped to
- * the endpoint *values* — not extrapolated — outside the range.
+ * the endpoint *values* outside the range rather than extrapolated.
  *
  * Follows NumPy's `arr_interp`, including the single-point case (every query
  * returns `fp[0]`) and the exact-hit shortcut that returns `fp[j]` without
@@ -191,12 +182,12 @@ export function dualSoftmax(bundle: SimBundle): Confidence {
  *
  * The interior interpolation can land one ULP from NumPy's. On arm64 the C
  * compiler contracts `slope * (x - dx[j]) + dy[j]` into a fused multiply-add,
- * rounding once where this rounds twice, and JS has no FMA to match it with.
- * Emulating one would be the wrong target anyway: whether NumPy fuses at all
- * depends on the machine that built it, so matching this one would break
- * against fixtures generated on another. Everything the decode branches on —
- * the clamps, the exact-knot hits, the single-point case — is bit-exact, and a
- * ULP of a time in seconds is ~1e-15 s against a tolerance of 1 s.
+ * rounding once where this rounds twice, and JS has no FMA. Emulating one would
+ * be the wrong target: whether NumPy fuses depends on the machine that built it,
+ * so matching this one would break against fixtures generated on another.
+ * Everything the decode branches on (the clamps, the exact-knot hits, the
+ * single-point case) is bit-exact, and a ULP of a time in seconds is ~1e-15 s
+ * against a tolerance of 1 s.
  */
 export function interp(x: number, xp: Float64Array, fp: Float64Array): number {
     const len = xp.length;

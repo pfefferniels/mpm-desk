@@ -24,11 +24,11 @@ const withTempos = (...ids: string[]) => {
 };
 
 /**
- * An `xml:id` has to be free, and the suffix used to be the *count* of instructions at the date
- * rather than the first free index. Counting is only the same thing while nothing has ever been
- * removed — and removal is ordinary operation: `InsertTempo` clears every `<tempo>` inside the
- * range it owns before writing its own, and `InsertArticulation` and `StylizeOrnamentation`
- * merge instructions away into definitions (issue #30).
+ * An `xml:id` has to be free, so the suffix is the first free index rather than the *count* of
+ * instructions at the date. The two agree only while nothing has been removed, and removal is
+ * ordinary operation: `InsertTempo` clears every `<tempo>` inside the range it owns before
+ * writing its own, and `InsertArticulation` and `StylizeOrnamentation` merge instructions away
+ * into definitions (issue #30).
  *
  * A collision is not cosmetic: `AbstractTransformer.run` derives `created` by fingerprinting
  * instructions *by id*, so two elements sharing one id look like one element and only the

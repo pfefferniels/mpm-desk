@@ -32,25 +32,22 @@ interface SegmentRowProps {
 /**
  * One claim: what it says, and which of the performance it is a claim about.
  *
- * The narrative is editable in place — one field, because there is one thing a segment says, and
- * opening a dialog to change a word is the kind of friction that stops a reconstruction being
- * annotated at all. A `<textarea>` rather than an `<input>` because the field now carries the
- * longer prose too, and a sentence that scrolls sideways in a one-line box is a sentence nobody
- * re-reads.
+ * The narrative is editable in place, in one field because there is one thing a segment says:
+ * opening a dialog to change a word is the friction that stops a reconstruction being annotated
+ * at all. A `<textarea>` rather than an `<input>` because the field carries the longer prose too,
+ * and a sentence that scrolls sideways in a one-line box is one nobody re-reads.
  *
  * What the claim covers is drawn rather than tallied. "3 tempo, 1 rubato" says how many gestures
- * it holds and nothing about them; the same lanes the viewer draws say when each one falls, how
- * they lie against each other, and — for tempo, dynamics and the pedals — what shape they have.
- * Beside them the instructions themselves, as chips, because the drawing is the reading and the
- * chips are the handle: they are what moves between claims.
+ * it holds and nothing about them, where the viewer's own lanes say when each falls, how they lie
+ * against each other, and what shape they have. Beside them the instructions as chips, the
+ * drawing being the reading and the chips the handle that moves between claims.
  *
- * The one thing a drawing cannot show is what is no longer there, so the count of instructions a
- * later call overwrote is still written out beneath it.
+ * A drawing cannot show what is no longer there, so the count of instructions a later call
+ * overwrote is written out beneath it.
  *
- * **A row lights up while it sounds** — the viewer's spotlight, in a table. The playhead lights
- * every claim with an instruction in effect and scrolls the row into view, so the reading moves
- * with the playing; a clicked chip lights its own row for as long as its preview runs. One look
- * for both, as in the viewer: the table has only the one way of saying "this one".
+ * **A row lights up while it sounds**, the viewer's spotlight in a table. The playhead lights
+ * every claim with an instruction in effect and scrolls the row into view, and a clicked chip
+ * lights its own row for as long as its preview runs. One look for both.
  */
 export const SegmentRow = memo(
     ({
@@ -107,17 +104,15 @@ export const SegmentRow = memo(
                             onPatch(segment.id, { note: event.target.value || undefined });
                         }}
                         style={{
-                            // 272 and not 260, because `CssBaseline` now sets `box-sizing:
-                            // border-box` app-wide: the 5px of padding and 1px of border on each
-                            // side used to sit outside the stated width and now come out of it.
+                            // 272 and not 260: `CssBaseline` sets `box-sizing: border-box`
+                            // app-wide, so the 5px of padding and 1px of border on each side come
+                            // out of the stated width rather than sitting outside it.
                             width: 272,
-                            // An empty word is marked by a dashed outline rather than by a fill.
-                            // It was amber-50 — a cream, which the app does not use anywhere else
-                            // — and a filled cell reads as loudly as the genuine `#fcd34d`
-                            // warning in `UngroupedInstructions.tsx`, for something that is only
-                            // an invitation to type. Solid-transparent in the other state so the
-                            // box keeps its 1px on every side and the field does not jump width
-                            // the moment it is named.
+                            // An empty word is marked by a dashed outline rather than a fill: a
+                            // filled cell reads as loudly as the genuine `#fcd34d` warning in
+                            // `UngroupedInstructions.tsx`, for what is only an invitation to
+                            // type. Solid-transparent in the other state, so the box keeps its
+                            // 1px on every side and the field does not jump width when named.
                             border: segment.note ? '1px solid transparent' : '1px dashed #e5e7eb',
                             borderRadius: 4,
                             padding: '3px 5px',

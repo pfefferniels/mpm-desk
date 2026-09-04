@@ -26,63 +26,42 @@ import { UngroupedInstructions } from './UngroupedInstructions';
 /**
  * The narrative: grouping MPM instructions into claims, and saying what each claim says.
  *
- * A separate step, and a separate desk. The other desks answer "what did the performer do here";
- * this one answers "what am I claiming, and which of the performance is the claim about". Those
- * are different jobs, so they get different views.
+ * The other desks answer "what did the performer do here"; this one answers "what am I claiming,
+ * and which of the performance is the claim about".
  *
- * **This is a working view, not a reading one.** The tree of curved words is the viewer's, and it
- * is the right shape for reading a finished argument — one word per claim, laid over the piece.
- * It is the wrong shape for assigning: you cannot see which instructions a claim covers, which
- * belong to nothing, or what the document says at any of them. So this is a table. Rows are
- * claims, in score order; each row draws its gestures and lists the instructions they are made
- * of; ungrouped instructions sit in their own list at the bottom, impossible to miss.
+ * **A working view rather than a reading one.** The viewer's tree of curved words cannot show
+ * which instructions a claim covers, which belong to nothing, or what the document says at any
+ * of them. So this is a table: claims in score order, each drawing its gestures and listing the
+ * instructions they are made of, with ungrouped instructions in their own list at the bottom.
  *
- * ## What is grouped, and what is stored
+ * Instructions are grouped; `Call.segment` is stored. The calls name the claim rather than the
+ * other way round, so the link is written once and cannot go stale, and everything shown about a
+ * claim is read through it. So **a call's instructions move together**, which is what a call is:
+ * `InsertPedal` writes a press as `_start` plus `_moveDown`, and a claim about half a ramp is not
+ * a claim anybody makes. A call that writes no instruction appears nowhere, contributing nothing
+ * even if it carries a `segment`.
  *
- * What is grouped is instructions. What is stored is `Call.segment` — the calls name the claim,
- * not the other way round, so the link is written once and where it cannot go stale. Everything
- * this desk shows about a claim is read through that: claim → its calls → what they wrote.
- *
- * The consequence worth knowing is that **a call's instructions move together.** That is not a
- * limitation working around the storage; it is what a call is. `InsertPedal` writes a press as
- * `_start` plus `_moveDown` and `InsertDynamicsInstructions` writes the two ends of one ramp, and
- * a claim about half a ramp is not a claim anybody makes. Where a pedal genuinely divides, it is
- * already two calls.
- *
- * A call that writes no instruction — `Modify`, `MakeChoice`, `InsertMetadata` — appears nowhere
- * in this desk. It may carry a `segment` and it contributes nothing regardless, because what a
- * claim covers is built from instructions and it has none. That is the whole of "these are not
- * part of the narrative": they are left out by having nothing to show.
- *
- * ## Why the run is handed in twice over
- *
- * A row draws what its claim covers, and it draws it with the viewer's own component — so it
- * needs the run in the two shapes that component reads: {@link NarrativeDeskProps.projected},
- * which is the work file's claims projected onto the ticks their calls acted on, and a
- * `PerformanceReader` over the finished document, which is where a curve is sampled from and an
- * instruction quoted from. Both come out of the same fit as the `mpm` every desk gets; neither is
- * derivable from it alone, because a span's reach is reported by the call rather than written on
- * the instruction.
+ * The run is handed in twice because a row draws its claim with the viewer's own component:
+ * {@link NarrativeDeskProps.projected} is the claims on the ticks their calls acted on, and the
+ * `PerformanceReader` is where a curve is sampled and an instruction quoted. Neither is derivable
+ * from the `mpm` alone, a span's reach being reported by the call rather than written on the
+ * instruction.
  *
  * ## Hearing it
  *
- * The desk follows the playhead the way the viewer's tree does, and by the same rule: a row is
- * lit while any instruction its claim holds is in effect (`segmentsSoundingAt`), and scrolled
- * into view as it lights. It follows on its own rather than through `FollowPlayback`, because
- * that follow *selects* the sounding calls — and here the selection is the grouping in progress,
- * which a passing playhead must not touch.
+ * A row is lit while any instruction its claim holds is in effect (`segmentsSoundingAt`) and
+ * scrolled into view as it lights. It follows on its own rather than through `FollowPlayback`,
+ * which *selects* the sounding calls; here the selection is the grouping in progress and a
+ * passing playhead must not touch it.
  *
- * Clicking a chip plays that one instruction, spotlit: everything else damped, over the stretch
- * the instruction itself is in effect (`reachOf`) — a `<tempo>` until the next tempo, a ramp's
- * end until the other end, an ornament for the notes it sits on. Not the claim's whole stretch,
- * which is what a click on the word in the viewer plays: the question here is what *this one*
- * does, on its way into or out of a claim.
+ * Clicking a chip plays that one instruction spotlit over the stretch it is in effect
+ * (`reachOf`), rather than the claim's whole stretch, which is what clicking the word in the
+ * viewer plays.
  */
 export const NarrativeDesk = ({ msm, mpm, projected, performanceXml }: ViewProps) => {
-    // The document itself, rather than six more props. This desk edits the claims — it is the
-    // only one whose subject is the argument rather than a dimension of the sound — and used to
-    // say so by taking props no other desk took, which is what kept it out of the registry the
-    // registry was for.
+    // The document itself, rather than six more props. This desk is the only one whose subject
+    // is the argument rather than a dimension of the sound, and props no other desk takes would
+    // put it outside the registry.
     const { segments, setSegments, groupCalls, dissolveSegment, calls } = useWorkDocument();
     const { activeCallIds, setActiveCallIds, toggleActiveCall } = useCallSelection();
     const { play, exaggeration, isPlaying, subscribeNoteEvents } = usePlayback();
@@ -332,23 +311,19 @@ export const NarrativeDesk = ({ msm, mpm, projected, performanceXml }: ViewProps
                 </ToolGroup>
 
                 {/*
-                    What the document is, at a glance — and it never moves.
+                    What the document is, at a glance, and it never moves.
 
-                    Both readouts render whatever the counts are; only the *tone* of the second
-                    one switches. The amber said "there is unfinished work here" by being the
-                    only thing on the bar in `#b45309`, which is `warning.main` now — the same
-                    token the app bar's fit indicator and the row's overwritten count use, so
-                    the three finally mean one colour rather than three transcriptions of one.
-                    Mounting it only when `ungrouped.length > 0` would have been the smaller
-                    diff and the wrong one: the last instruction leaving the ungrouped list is
-                    the moment the whole row would jump.
+                    Both readouts render whatever the counts are and only the second one's tone
+                    switches, to `warning.main` — the token the app bar's fit indicator and the
+                    row's overwritten count also use, so the three mean one colour. Mounting it
+                    only when `ungrouped.length > 0` would make the whole row jump at the moment
+                    the last instruction leaves the ungrouped list.
 
-                    They stay in flow at the end of the bar rather than being pushed to its
-                    right edge. `ToolGroup` takes no `sx`, and `ml: 'auto'` would be inert here
-                    even if it did: the portal target in `EditorAppBar` is `flexShrink: 0` with
-                    no `flexGrow`, so it is exactly as wide as its content and there is no free
-                    space inside it for an auto margin to absorb. Pushing right is a decision
-                    for the bar, not for a desk reaching into it.
+                    They stay in flow at the end of the bar rather than pushed to its right edge.
+                    `ToolGroup` takes no `sx`, and `ml: 'auto'` would be inert anyway: the portal
+                    target in `EditorAppBar` is `flexShrink: 0` with no `flexGrow`, so it is
+                    exactly as wide as its content and has no free space for an auto margin.
+                    Pushing right is the bar's decision, not a desk's.
                 */}
                 <ToolGroup>
                     <ToolStatus width={200}>

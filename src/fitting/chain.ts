@@ -21,34 +21,31 @@ import type { Call } from '../model/Work';
 /**
  * The calls a run makes for itself rather than because a file asked for them.
  *
- * `TranslatePhysicalTimeToTicks` was a button on the tempo desk, and it should never have been a
- * decision. Everything about it has exactly one answer:
+ * `TranslatePhysicalTimeToTicks` is not a decision anyone should be asked to make. All three
+ * questions about it have one answer:
  *
- * - **Where** was never the user's to pick. {@link compareTransformers} sorts the whole chain by
- *   registry order, so adding it on any desk landed it at the hinge in `Order.ts` regardless.
- * - **With what** has one shape. Its only meaningful option is `translatePhysicalModifiers`, and
- *   the desk built it `true` every time; `translatePedalling` is unimplemented. It takes no
- *   scope — it walks `scopesOf` itself — so there is one per chain and never one per part.
+ * - **Where** is not the user's to pick. {@link compareTransformers} sorts the whole chain by
+ *   registry order, so it lands at the hinge in `Order.ts` however it was added.
+ * - **With what** has one shape. Its only meaningful option is `translatePhysicalModifiers`,
+ *   always `true`, and `translatePedalling` is unimplemented. It takes no scope, walking
+ *   `scopesOf` itself, so there is one per chain and never one per part.
  * - **Whether** cannot be answered "no" without breaking the document. Four transformers name it
- *   in `requires`, so a chain that forgot it does not fit worse, it does not fit at all:
- *   `validate` reports and `runFit` throws. It was a mandatory step, on a desk the user might
- *   not be on, that killed the whole reconstruction when missed.
+ *   in `requires`, so a chain that forgot it does not fit worse: `validate` reports and `runFit`
+ *   throws.
  *
- * So it is injected here, the way {@link InsertMetadata} is, and a file listing one is listing a
- * ghost — `src/model/loadWork.ts` drops it on open for that reason.
+ * So it is injected here, as {@link InsertMetadata} is, and a file listing one is listing a
+ * ghost, which `src/model/loadWork.ts` drops on open.
  *
- * Injected unconditionally rather than when something needs it. A condition would be a second
- * copy of a rule `Order.ts` already states and free to drift from it, and "only when a later
- * call requires it" is the wrong rule anyway: a chain holding nothing but `InsertTemporalSpread`
- * still wants ticks, because `StylizeOrnamentation` groups ornaments into shared
- * `<ornamentDef>`s by frame value and millisecond frames — all distinct — fragment the defs that
- * tick frames coalesce. Running it when there is nothing to translate costs one pass over the
- * ornaments, which the transformer takes care to make the whole cost.
+ * Unconditionally rather than when something needs it. A condition would be a second copy of a
+ * rule `Order.ts` already states, and "only when a later call requires it" is the wrong rule
+ * anyway: a chain holding nothing but `InsertTemporalSpread` still wants ticks, since
+ * `StylizeOrnamentation` groups ornaments into shared `<ornamentDef>`s by frame value, and
+ * millisecond frames are all distinct where tick frames coalesce. Running it with nothing to
+ * translate costs one pass over the ornaments.
  *
- * {@link RoundNumbers} is here on the same three counts. Where it goes is settled — it restates
- * what the calls before it wrote, so it is last or it is wrong; it takes no options and no scope;
- * and "whether" is a question about the document's own claim to precision rather than about this
- * or that fit, so it is not one to answer per chain.
+ * {@link RoundNumbers} is here on the same three counts: it restates what the calls before it
+ * wrote, so it is last or it is wrong; it takes no options and no scope; and its "whether" is a
+ * question about the document's claim to precision rather than about one fit.
  */
 const INJECTED = new Set(['TranslatePhysicalTimeToTicks', 'RoundNumbers']);
 
@@ -99,10 +96,10 @@ interface BuiltChain {
  * author it carried. That way a document and a reconstruction state their metadata through one
  * code path, and the call belongs to no segment — it writes `<metadata>`, not an instruction.
  *
- * The {@link INJECTED} calls are added on the same footing, and a saved one is dropped so that a
- * file written before this change does not run it twice. The second run would do no work — it
- * skips an ornament already in ticks, and rounding is idempotent — and would still be wrong: two
- * calls in the chain, one of them credited with everything and the other with nothing.
+ * The {@link INJECTED} calls are added on the same footing, and a saved one is dropped so a file
+ * naming one does not run it twice. The second run would do no work, skipping an ornament already
+ * in ticks and rounding being idempotent, and would still be wrong: two calls in the chain, one
+ * credited with everything and the other with nothing.
  *
  * No injected call is in `provenance`, so none reaches the narrative desk (which reads the
  * document) or a saved file (`provenanceOf` enriches only calls the document holds). They exist

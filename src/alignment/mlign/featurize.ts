@@ -12,10 +12,10 @@
  *     [MARKER] s_1 … s_n [MARKER] p_1 … p_m
  *
  * Everything is computed in float64 and rounded to float32 exactly once, by the
- * store into `cont` — which is what NumPy does too, since it builds the block in
- * float64 and calls `.astype(np.float32)` at the end. Rounding earlier (say, by
- * accumulating onsets in a Float32Array) would move values by more than the
- * 1e-6 the golden fixtures are checked against.
+ * store into `cont`, as NumPy does by building the block in float64 and calling
+ * `.astype(np.float32)` at the end. Rounding earlier, say by accumulating onsets
+ * in a Float32Array, moves values by more than the 1e-6 the golden fixtures are
+ * checked against.
  */
 
 import {
@@ -64,13 +64,12 @@ export interface Featurized {
  * The multiplication by 720 / 1000 here and the division by the same constants
  * in `featurizeWindow` do NOT cancel in general float64: for ~14% of random
  * doubles `(x * 720) / 720 !== x`, and for ~2% `(x * 1000) / 1000 !== x`. They
- * do cancel for every onset this code will ever see, because a value carrying at
- * most 24 mantissa bits (anything that came through a float32, which is where
- * MIDI onsets come from) needs at most 30 bits once multiplied by 720 = 45 · 2^4,
- * so both steps are exact. The round trip is kept rather than folded away
- * because it is the model's contract, not an accident: the windowing recovers
- * seconds from the row the same way, and dropping it here would silently
- * diverge from the Python for any input that did not come through a float32.
+ * do cancel for every onset this code will see, since a value carrying at most
+ * 24 mantissa bits (anything through a float32, which is where MIDI onsets come
+ * from) needs at most 30 once multiplied by 720 = 45 · 2^4, so both steps are
+ * exact. The round trip is the model's contract rather than an accident: the
+ * windowing recovers seconds from the row the same way, and dropping it here
+ * would diverge from the Python for any input not through a float32.
  */
 export function tablesToRow(score: readonly ScoreNote[], perf: readonly PerfNote[]): MlignRow {
     return {

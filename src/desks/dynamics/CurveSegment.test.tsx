@@ -10,9 +10,9 @@ import type { DynamicsWithEndDate } from '../../fitting/transformers/dynamics/In
 /**
  * The desk has to draw the curve the renderer sounds.
  *
- * It used to default an absent `@curvature` to 0.5 — espressivo fills 0.0 (`resolveDynamics`) and
- * the fitter scores against 0.0 (`computeError`), so 70 of the 128 `<dynamics>` in the shipped
- * performance were drawn as an S-curve and played as a straight ramp. `||` did the same to the
+ * An absent `@curvature` defaults to 0.0, as espressivo fills it (`resolveDynamics`) and the
+ * fitter scores it (`computeError`). At 0.5, 70 of the 128 `<dynamics>` in the shipped
+ * performance draw as an S-curve and play as a straight ramp, and a `||` does the same to the
  * three that state `curvature="0"` outright. See issue #15.
  */
 

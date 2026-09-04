@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { areaPath, sampleTransition } from './transitionSamples'
 
 /**
- * The desks used to walk a transition in steps of one tick, so a segment's cost was a property of
- * the score's grid rather than of how many pixels it covers. See issue #31.
+ * A transition must not be walked in steps of one tick, which makes a segment's cost a property
+ * of the score's grid rather than of how many pixels it covers. See issue #31.
  */
 
 const span = { date: 0, endDate: 46_000 }

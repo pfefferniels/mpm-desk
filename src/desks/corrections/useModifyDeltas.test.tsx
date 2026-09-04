@@ -9,11 +9,10 @@ import { useModifyDeltas } from './useModifyDeltas';
 /**
  * The ghosts: which events the chain has already corrected, and by how much.
  *
- * The arithmetic used to be a `useMemo` inside the dynamics desk, and two desks read it now — the
- * corrections desk while it has a call in flight, the dynamics desk with nothing in flight ever.
- * What it must not do is count a call twice: a correction that has been sent but not yet answered
- * by a fit is in the chain *and* drawn optimistically on the plot, so the ghost would be on the
- * wrong side of the dot until the fit came back.
+ * Two desks read it: the corrections desk while it has a call in flight, the dynamics desk with
+ * nothing in flight ever. What it must not do is count a call twice. A correction sent but not
+ * yet answered by a fit is in the chain *and* drawn optimistically on the plot, which would put
+ * the ghost on the wrong side of the dot until the fit came back.
  */
 
 const note = (id: string, date: number): AlignedNote => ({

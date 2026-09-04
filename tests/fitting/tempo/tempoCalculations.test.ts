@@ -23,11 +23,10 @@ const span = (over: Partial<TempoWithEndDate> = {}): TempoWithEndDate =>
 /**
  * The shapes a `<tempo>` can take, as the renderer resolves them — not as the options spell them.
  *
- * The last two are here because they used to be inverted against the wrong curve. `meanTempoAt`
- * of 0 resolves to a *constant at `@transition.to`*, and a `@transition.to` with no
- * `@meanTempoAt` resolves to a *linear ramp*; the old test for which arm to take was a
- * truthiness check on the two fields, which calls the first false (0 is falsy) and the second
- * false as well, and inverted both at `@bpm`.
+ * The last two are the ones a truthiness check gets backwards. `meanTempoAt` of 0 resolves to a
+ * *constant at `@transition.to`*, and a `@transition.to` with no `@meanTempoAt` to a *linear
+ * ramp*; testing the two fields for truthiness calls the first false (0 is falsy) and the second
+ * false as well, inverting both at `@bpm`.
  */
 const SHAPES: [string, TempoWithEndDate][] = [
   ['a constant tempo', span()],
@@ -64,10 +63,6 @@ const FRACTIONS = [-0.5, -0.1, -0.001, 0, 0.001, 0.05, 0.25, 0.5, 0.75, 0.999, 1
  * a microsecond of time or a millionth of a tick, whichever it reaches first. Both are stated in
  * `tempoCalculations.ts`; asserting against the looser of them rather than against a digit count
  * keeps this test measuring the routine's contract instead of its floating-point luck.
- *
- * The iteration this replaced stopped at **one millisecond**, so what is asserted here is five
- * orders of magnitude tighter than what used to be considered converged — and it converged on
- * the wrong number besides.
  */
 const TOLERANCE_MS = 1e-5;
 

@@ -29,9 +29,9 @@ export const TempoLine = ({ tempo, startTime, stretchX, stretchY, active, onClic
     const [flashKey, setFlashKey] = useState(0)
 
     // The flash is a remount: a new `key` on the rect restarts the CSS animation, and only the
-    // edge into active is worth restarting it for. The previous value is held in state and
-    // compared during render — the effect that used to do this fired a second render pass on
-    // every activation, and the comparison never needed the DOM.
+    // edge into active is worth restarting it for. Compared during render rather than from an
+    // effect, which would cost a second render pass per activation for a comparison that never
+    // needed the DOM.
     const [wasActive, setWasActive] = useState(false)
     if (wasActive !== !!active) {
         setWasActive(!!active)

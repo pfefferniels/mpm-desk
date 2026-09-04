@@ -20,7 +20,7 @@ import type { EncoderOutput, MlignSession } from "./session";
  * `sim`, `null_col` and `null_row` for a single window, read out of one forward
  * pass.
  *
- * Three things about this are easy to get wrong:
+ * Three things are easy to get wrong:
  *
  * The graph emits every token, markers included, so score note `i` lives at
  * token `1 + i` and performed note `j` at token `2 + n + j`.
@@ -29,12 +29,11 @@ import type { EncoderOutput, MlignSession } from "./session";
  * the encoder output *before* the `out_s` / `out_p` projections. They are not
  * recoverable from `s` and `p`, so they must be read out, never re-derived.
  *
- * `sim` is rounded to float32 because the reference's `sim` is a float32 torch
- * tensor and everything downstream — the doubling, the accumulation, the
- * division — happens at that width. The dot itself accumulates in float64,
- * which is if anything more accurate than the float32 matmul it mirrors: with
- * fp32 weights the whole pipeline lands 2.3e-4 from the Python reference on
- * `schubert-d783-15`, i.e. float32 accumulation-order noise and nothing else.
+ * `sim` is rounded to float32 because the reference's is a float32 torch tensor
+ * and everything downstream happens at that width. The dot accumulates in
+ * float64, which is if anything more accurate than the float32 matmul it
+ * mirrors: with fp32 weights the pipeline lands 2.3e-4 from the Python on
+ * `schubert-d783-15`, which is accumulation-order noise and nothing else.
  */
 function windowHead(out: EncoderOutput): {
     sim: Float32Array;
@@ -69,19 +68,17 @@ function windowHead(out: EncoderOutput): {
  * The attribution head for one window: which written note each played note
  * decorates, before any decision is made about it.
  *
- * The same shape of dot product as `windowHead`, and deliberately so — the head
- * is exported as vectors for exactly that reason — but it answers a different
- * question and is built the other way round, `(m, n)` rather than `(n, m)`,
- * because it is a distribution over *score* notes for each played note.
+ * The same shape of dot product as `windowHead`, which is why the head is
+ * exported as vectors, but built the other way round, `(m, n)` rather than
+ * `(n, m)`, being a distribution over *score* notes for each played note.
  *
- * Its scale is `attr_scale`, not `scale`: the head was given a temperature of
- * its own so that attribution gradients could never retune the match head's.
+ * Its scale is `attr_scale`, not `scale`: the head has a temperature of its own
+ * so that attribution gradients cannot retune the match head's.
  *
- * `gate` comes back only from a `"factored"` graph, and it is read here rather
- * than computed: it is a per-token output, not a dot product. Everything on this
- * side of the head stays *raw*. The factoring that turns these three into a
- * distribution is a nonlinear function of a whole accumulated row and belongs
- * after the averaging, in `attribution.ts`, not per window.
+ * `gate` comes back only from a `"factored"` graph and is read rather than
+ * computed, being a per-token output. Everything on this side stays *raw*: the
+ * factoring is nonlinear in a whole accumulated row and belongs after the
+ * averaging, in `attribution.ts`.
  */
 function windowAttribution(
     out: EncoderOutput
@@ -121,17 +118,16 @@ function windowAttribution(
  * Run every window through the model and accumulate the head into one
  * `(n, m)` similarity matrix plus the two null vectors.
  *
- * The one subtlety worth stating plainly, because a softmax is not
- * scale-invariant and getting it wrong silently changes every confidence
- * downstream: the reference adds `logits_s2p[:n, :m] + logits_p2s[:m, :n].T`
- * per window. Both of those are the *same* `sim` tensor — the model builds
- * `logits_p2s` from `sim.transpose(1, 2)` — so every covered cell ends up
- * holding exactly twice the raw similarity before the division by the window
- * count. That factor of two is part of the contract, not an artefact, so it is
- * reproduced here as an explicit double rather than folded away.
+ * The reference adds `logits_s2p[:n, :m] + logits_p2s[:m, :n].T` per window, and
+ * both are the *same* `sim` tensor, the model building `logits_p2s` from
+ * `sim.transpose(1, 2)`. So every covered cell holds exactly twice the raw
+ * similarity before the division by the window count. That factor of two is part
+ * of the contract, reproduced here as an explicit double rather than folded
+ * away: a softmax is not scale-invariant, so losing it would silently change
+ * every confidence downstream.
  *
- * Cells and notes that no window covered keep their sentinels, which is what
- * pushes those notes to a deletion or an insertion in the decode.
+ * Cells and notes no window covered keep their sentinels, which pushes those
+ * notes to a deletion or an insertion in the decode.
  *
  * `windows` normally comes from `planWindows(row)`, which already collapses a
  * short enough piece to a single whole-piece window.

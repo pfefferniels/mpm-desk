@@ -9,10 +9,9 @@ import { AbstractTransformer, type ScopedTransformationOptions } from '../Transf
  * its note on the missing `<pedalMap>`. So `from`/`to` cannot reach a pedal, and is not asked to
  * try.
  *
- * There used to be a fourth *aspect*, `'pedal'`, which is a category error: a pedal has an onset
- * and a held length and nothing else, which are two of the three aspects below. It had no arm in
- * `transform` and only ever reached the `console.error`, so nothing on disk depends on it — and a
- * saved call still naming it lands in the same `default` arm it always did.
+ * There is no `'pedal'` aspect, which would be a category error: a pedal has an onset and a held
+ * length and nothing else, which are two of the three aspects below. A saved call naming one
+ * lands in the `default` arm.
  */
 export type ModifySelector =
   | { noteIDs: string[] }

@@ -37,8 +37,6 @@ import type { Element } from 'espressivo';
  */
 export type Scope = number | 'global';
 
-// ── instructions ──────────────────────────────────────────────────
-
 /** The espressivo options record each instruction type is written from and read back into. */
 export interface OptionsOfType {
   tempo: AddTempoOptions;
@@ -107,8 +105,6 @@ export const mapNames = {
 
 /** The espressivo map class an instruction type is written through. */
 export type MapFor<K extends InstructionType> = MapOfKind[(typeof mapNames)[K]];
-
-// ── definitions ───────────────────────────────────────────────────
 
 /** The espressivo class each definition type is. */
 export interface DefOfType {

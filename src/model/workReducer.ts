@@ -1,34 +1,20 @@
 /**
- * Every edit a work file can undergo, as one pure function — and undo/redo over it.
+ * Every edit a work file can undergo, as one pure function, and undo/redo over it.
  *
- * These edits lived in `App.tsx`, one `setWork` updater each. They move here for two reasons,
- * and neither is tidiness:
+ * The rules hold *between* the two arrays: a call names the claim it is made under and a claim
+ * exists because calls are made under it, so removing a call can retire a segment, and creating
+ * a segment is meaningless until a call points at it. Keeping them here leaves nowhere else to
+ * write them. What stays in the component is what is not the document: the open desk, the lit
+ * calls, the zoom, the snackbar.
  *
- * - **The rules hold *between* the two arrays.** A call names the claim it is made under and a
- *   claim exists because calls are made under it, so removing a call can retire a segment and
- *   creating a segment is meaningless until a call points at it. A rule like that, written into
- *   a component, holds wherever somebody remembered to write it. Written here, it holds because
- *   there is nowhere else to write.
- * - **Undo needs an edit to be a value.** As long as an edit is a closure over `setWork`, the
- *   only record of what the document was is the document. As an action applied to a state, the
- *   before is still there when the after arrives, which is all {@link workHistoryReducer} needs.
+ * Pure throughout: no `crypto.randomUUID()`, no `Date.now()`, no mutation of the state or of
+ * anything reachable from it. A fresh id arrives in the action (see {@link WorkAction}
+ * `set-metadata`), because {@link workHistoryReducer} asks the same question twice and needs the
+ * same answer.
  *
- * What stays in the component is what is not the document: which desk is open, which calls are
- * lit, the zoom, the snackbar. Those are how somebody is looking at a reconstruction, not what
- * it says.
- *
- * ## Pure, and pure on purpose
- *
- * No `crypto.randomUUID()`, no `Date.now()`, no mutation of the state or of anything reachable
- * from it. Where an edit needs a fresh id it arrives in the action — see
- * {@link WorkAction} `set-metadata` — because a reducer that invents one produces a different
- * answer every time it is asked the same question, and the whole point of the history below is
- * that asking twice is a thing that happens.
- *
- * An edit that changes nothing returns the state it was given, **by reference**. That is not an
- * optimisation: it is how {@link workHistoryReducer} tells a real edit from a dead one without
- * comparing two work files, which it could not do honestly anyway — `options` holds `Map`s and
- * `Set`s (see {@link Call}) and no cheap deep-equal walks into those correctly.
+ * An edit that changes nothing returns the state it was given, **by reference**. That is how
+ * {@link workHistoryReducer} tells a real edit from a dead one: `options` holds `Map`s and `Set`s
+ * (see {@link Call}), so no cheap deep-equal compares two work files honestly.
  */
 
 import type { Call, Segment, WorkFile } from './Work';
@@ -46,10 +32,8 @@ export const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: []
 /**
  * The desk bag, as much of it as this file is allowed to know.
  *
- * `Record<string, unknown>` and it stays that way. The shape belongs to the desks — today the
- * tempo skyline's boxes, its hand-marked silent onsets, its drawn trails — and importing it
- * would point the document at the desks that edit it, which is backwards. The reducer carries
- * the bag; it never opens it.
+ * Stays `Record<string, unknown>`: the shape belongs to the desks, and importing it would point
+ * the document at the desks that edit it. The reducer carries the bag and never opens it.
  */
 export type Secondary = NonNullable<WorkFile['secondary']>;
 
@@ -81,38 +65,36 @@ export type WorkAction =
     /** The desk bag replaced, or updated from its previous value. */
     | { type: 'set-secondary'; update: SecondaryUpdate }
     /**
-     * Title and author. The write half of the pair under *title and author* below, which is
-     * where the reason they travel on the chain rather than beside it is written down.
+     * Title and author. The write half of the pair at {@link metadataOf}, which records why they
+     * travel on the chain rather than beside it.
      *
-     * `newCallId` is used only when the chain carries no such call yet. It arrives in the action
-     * rather than being generated here so that this stays a function of its arguments.
+     * `newCallId` is used only when the chain carries no such call yet, and arrives in the action
+     * so that this stays a function of its arguments.
      */
     | { type: 'set-metadata'; update: MetadataUpdate; newCallId: string }
     /**
      * The voice layout, edited in place on the one `ProcessVoices` call.
      *
-     * A layout is a *state*, not a sequence of gestures: a call per combine would make undo mean
-     * "take back one click" rather than "go back to the layout before", and would leave the part
-     * numbers every other call names as an emergent property of the whole sequence.
+     * A layout is a *state*. A call per combine would make undo mean "take back one click"
+     * rather than "go back to the layout before", and would leave the part numbers every other
+     * call names as an emergent property of the whole sequence.
      *
-     * `newCallId` arrives in the action for the reason `set-metadata`'s does — the reducer stays a
-     * function of its arguments.
+     * `newCallId` arrives in the action, as `set-metadata`'s does.
      */
     | { type: 'set-voices'; update: VoicesUpdate; newCallId: string }
     /**
      * What was decided about one take, on the one `Align` call that names its `@source`.
      *
      * A whole value rather than an updater: the desk holds the review it is conducting, so it
-     * always knows the alignment it means. `newCallId` arrives in the action for the reason the
-     * two above give — the reducer stays a function of its arguments.
+     * always knows the alignment it means. `newCallId` arrives in the action, as above.
      */
     | { type: 'set-alignment'; alignment: WorkAlignment; newCallId: string };
 
 /**
  * A call with its `segment` taken off.
  *
- * Deleted rather than set to `undefined`: `JSON.stringify` drops an undefined value, so the two
- * write the same file — but only one of them says so in the object anybody reads in a debugger.
+ * Deleted rather than set to `undefined`. Both write the same file, since `JSON.stringify` drops
+ * an undefined value, but only one of them says so in a debugger.
  */
 const ungrouped = (call: Call): Call => {
     const next = { ...call };
@@ -127,25 +109,18 @@ const NO_SECONDARY: Secondary = {};
 const sameEntries = <T>(next: readonly T[], previous: readonly T[]): boolean =>
     next.length === previous.length && next.every((entry, index) => entry === previous[index]);
 
-// ── title and author ──────────────────────────────────────────────
+// The title and author travel on the chain, as the options of the one `InsertMetadata` call:
+// the runner builds `<metadata>` out of whatever call it carries, so a copy held beside the
+// document would show in the app bar and be missing from the MPM.
 //
-// **Not editor state beside the document.** The runner builds `<metadata>` out of whatever
-// `InsertMetadata` call the chain carries, so a title held anywhere else would be a second copy
-// the next fit ignores: it would show in the app bar and be missing from the MPM.
-//
-// Which is why the read below and the `set-metadata` case above are one thing, and why they are
-// written next to each other. They have to agree about a shape neither of them owns — `options`
-// is `Record<string, unknown>`, and the file may hold anything — and a reader looking for the
-// title somewhere other than where the writer puts it loses the title on the round trip without
-// anything failing anywhere.
+// Reader and writer are written next to each other because they must agree about a shape
+// neither owns. `options` is `Record<string, unknown>`, so looking for the title anywhere but
+// where the writer puts it loses it on the round trip with nothing failing.
 
 /**
- * The first `text` in what should be a list of `{ text }` — `undefined`, a number, a file that
- * says something else entirely, all read as "nothing said".
+ * The first `text` in what should be a list of `{ text }`. Anything else reads as "nothing said".
  *
- * Reading rather than casting, because `options` is what a file happened to contain: it is typed
- * `Record<string, unknown>` for the honest reason, and a cast here would be this module claiming
- * to know a shape it has not checked.
+ * Read rather than cast: `options` is whatever a file happened to contain.
  */
 const firstText = (value: unknown): string => {
     if (!Array.isArray(value)) return '';
@@ -156,9 +131,6 @@ const firstText = (value: unknown): string => {
 
 /**
  * The title and author, read off the chain's `InsertMetadata` call.
- *
- * Exported because everything that shows them — the app bar, the metadata desk, the document
- * title — wants them without dispatching anything.
  *
  * The *first* such call wins, and a file holding two is left holding two: the chain would run
  * both, and quietly reading one here would hide that rather than fix it.
@@ -171,20 +143,13 @@ export const metadataOf = (work: WorkFile): WorkMetadata => {
     };
 };
 
-// ── the voice layout ──────────────────────────────────────────────
-//
-// The same arrangement as the title above, for the same reason: the layout travels on the chain,
-// as the options of the one `ProcessVoices` call, so a copy held anywhere else is one the next fit
-// ignores. Reader and writer are written next to each other because they have to agree about a
-// shape neither of them owns.
+// The layout travels on the one `ProcessVoices` call, on the same terms as the title above.
 
 /**
  * What the voices desk edits: the layout, as parts and the moves that override it.
  *
- * Typed in `ProcessVoices`'s own vocabulary rather than in a second shape of its own. The two
- * would otherwise describe the same fact twice and be free to drift, which is exactly what the
- * reader below and the transformer cannot afford — the transformer is the only thing that acts on
- * it. `exportWork` reaches for `MakeChoiceOptions` the same way and for the same reason.
+ * Typed in `ProcessVoices`'s own vocabulary rather than in a second shape free to drift from it.
+ * `exportWork` reaches for `MakeChoiceOptions` the same way.
  */
 export interface WorkVoices {
     parts: readonly PartLayout[];
@@ -215,10 +180,8 @@ const readParts = (value: unknown): WorkVoices['parts'] => {
 };
 
 /**
- * A move's selector, validated into one of the two forms the transformer acts on.
- *
- * Validated here rather than carried as an opaque bag, so that a selector the transformer could
- * not use is dropped at the boundary instead of silently matching nothing later.
+ * A move's selector, validated into one of the two forms the transformer acts on, so that one it
+ * could not use is dropped at the boundary instead of silently matching nothing later.
  */
 const readSelection = (value: unknown): VoiceSelection | null => {
     if (typeof value !== 'object' || value === null) return null;
@@ -252,9 +215,8 @@ const readMoves = (value: unknown): WorkVoices['moves'] => {
 /**
  * The layout, read off the chain's `ProcessVoices` call.
  *
- * Read structurally rather than cast, for the reason {@link firstText} gives: `options` is what a
- * file happened to contain. The *first* such call wins and a file holding two is left holding two,
- * as with metadata.
+ * Read structurally rather than cast, as {@link firstText} is. The *first* such call wins and a
+ * file holding two is left holding two, as with metadata.
  */
 export const voicesOf = (work: WorkFile): WorkVoices => {
     const options = work.provenance.find((entry) => entry.name === 'ProcessVoices')?.options;
@@ -266,8 +228,7 @@ export const voicesOf = (work: WorkFile): WorkVoices => {
  * Part `@number` ⇒ name, for the places a part's name is written out: the MSM `Alignment.build`
  * serializes, the archive's `score.msm`, and the rendered MIDI's track names.
  *
- * A part nobody named is left out, so it keeps the `part<index>` `Alignment.build` has always
- * written.
+ * A part nobody named is left out, so it keeps the `part<index>` `Alignment.build` writes.
  */
 export const partNamesOf = (work: WorkFile): Map<number, string> => {
     const names = new Map<number, string>();
@@ -277,25 +238,17 @@ export const partNamesOf = (work: WorkFile): Map<number, string> => {
     return names;
 };
 
-// ── the alignment ─────────────────────────────────────────────────
+// The alignment is the one of the three that is *not* a transformer call. `applyAlignment`
+// writes the reader's decisions into the MEI, and the chain runs over that MEI, so by the time
+// there is an `Alignment` to fit there is nothing left for a `transform` to do. `chain.ts` says
+// so in a list rather than in an empty transformer.
 //
-// The third of these, and the one that is *not* a transformer call.
-//
-// What a reader decides about the score and the recording disagreeing — that this run of played
-// notes is the trill the score already writes, that those written notes were passed over, who
-// decided and how sure they were — is written into the MEI by `applyAlignment`, and the MEI is
-// what the chain then runs over. So by the time there is an `Alignment` to fit, the decision has
-// already been applied and there is nothing left for a `transform` to do; `chain.ts` says so, and
-// says it in a list rather than in an empty transformer.
-//
-// One thing does not survive the MEI, and it is why this is recorded at all: an {@link Action}.
+// One thing does not survive the MEI, which is why this is recorded at all: an {@link Action}.
 // A `<when>` carries the reading, the responsibility and the certainty, and nothing there says
-// what was to be *done* about it — whether the played notes are to be written into the score,
-// whether the unplayed ones are a marked simplification. That is a decision, so the document
-// keeps it, and keeps it beside the settings the run was made with so the run can be made again.
+// what was to be *done* about it. That is kept here, beside the settings the run was made with,
+// so the run can be made again.
 //
-// One call per take, unlike the two above: a score may be aligned against several performances,
-// and each is its own decision about its own <recording>.
+// One call per take, unlike the two above: a score may be aligned against several performances.
 
 /** What the alignment desk records about one take. */
 export interface WorkAlignment {
@@ -310,9 +263,8 @@ export interface WorkAlignment {
     /**
      * What the reader decided about each divergence, by the id `divergencesOf` gives it.
      *
-     * A `Map`, which `Work.ts`'s replacer and reviver carry across the round trip. The ids are
-     * named after the notes they cover precisely so that they can be read back against a grouping
-     * made fresh — see `divergenceId`.
+     * A `Map`, which `Work.ts`'s replacer and reviver carry across the round trip. The ids name
+     * the notes they cover so they can be read back against a fresh grouping; see `divergenceId`.
      */
     resolutions: ReadonlyMap<string, Resolution>;
     /** Who decided, and how sure. Written into every `<when>` the decisions reach. */
@@ -374,25 +326,16 @@ export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
 /**
  * Does this call say anything about the performance?
  *
- * Two do not. `InsertMetadata` writes the document's `<metadata>` — who made this description, and
- * what they said about it — and no instruction, so counting it makes a reconstruction nobody has
- * started yet report a call it does not have. `ProcessVoices` says which MEI voice goes into which
- * MSM part, which is a statement about the *score's encoding*: a reconstruction that has done
- * nothing but sort its voices into parts has claimed nothing yet about how the piece was played.
+ * These three do not. `InsertMetadata` writes `<metadata>` and no instruction. `ProcessVoices`
+ * says which MEI voice goes into which MSM part, a statement about the score's encoding. `Align`
+ * says which sounding event realises which written note, which a reconstruction reads before it
+ * has claimed anything. `Modify` and `MakeChoice` are not exceptions: reshaping the performance
+ * is still a statement about it.
  *
- * `Align` is the third, and the plainest: it says which sounding event realises which written
- * note, which is what a reconstruction reads *before* it has claimed anything about how the piece
- * was played.
- *
- * `Modify` and `MakeChoice` are not exceptions: correcting the recording and picking between
- * readings are statements about the performance, made by reshaping rather than by adding.
- *
- * **By name, and only for counting.** The narrative excludes a call that wrote no instruction by
- * its having no elements to show rather than by a list of transformer names (see
- * {@link Call.segment}), which is the better rule — it is derived, so it stays right for
- * transformers this build has never heard of. It cannot be used here: `elements` is recorded by a
- * run, a call made a moment ago has none yet, and "how much has been claimed so far" has to
- * answer before the fit comes back.
+ * **By name, and only for counting.** The narrative uses the better rule, a call having no
+ * elements to show (see {@link Call.segment}), which stays right for transformers this build has
+ * never heard of. That rule cannot be used here: `elements` is recorded by a run, so a call made
+ * a moment ago has none, and this has to answer before the fit comes back.
  */
 const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices', 'Align']);
 
@@ -409,13 +352,11 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             return action.work;
 
         case 'add-call': {
-            // **A new call lands ungrouped.** Grouping is its own step, with its own desk, so a
-            // call arrives with no `segment` and the narrative desk shows what it wrote in amber
-            // until somebody says what it is for. Folding a new call into whichever claim happens
-            // to overlap its range would be convenient, and would write claims nobody had made.
-            //
-            // Stripped here rather than trusted from the caller: the rule is the document's, and
-            // a rule kept by whoever builds the action is a rule kept most of the time.
+            // **A new call lands ungrouped.** Grouping is its own step with its own desk, so the
+            // narrative desk shows what a new call wrote in amber until somebody says what it is
+            // for. Folding it into whichever claim overlaps its range would write claims nobody
+            // made. Stripped here rather than trusted from the caller: the rule is the
+            // document's.
             return { ...state, provenance: [...state.provenance, ungrouped(action.call)] };
         }
 
@@ -424,9 +365,9 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             const provenance = state.provenance.filter((call) => !dropping.has(call.id));
             if (provenance.length === state.provenance.length) return state;
 
-            // A claim nothing is made under any more is not a claim about the performance. The
-            // segments hold no lists to prune — the calls named them — so this is the only place
-            // the removal touches them at all.
+            // A claim nothing is made under any more is not a claim. The segments hold no lists
+            // to prune, since the calls named them, so this is the only place removal reaches
+            // them.
             const standing = new Set(provenance.map((call) => call.segment));
             return {
                 ...state,
@@ -436,9 +377,9 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
         }
 
         case 'group-calls': {
-            // **One update rather than two**, because creating a segment and putting the first
-            // calls under it is one act: done in two, the state in between holds a claim nothing
-            // is made under, which `remove-calls` would be within its rights to sweep away.
+            // **One update rather than two**: done in two, the state in between holds a claim
+            // nothing is made under, which `remove-calls` would be within its rights to sweep
+            // away.
             if (action.callIds.length === 0) return state;
             const moving = new Set(action.callIds);
             const { segment } = action;
@@ -494,21 +435,20 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             const after =
                 typeof action.update === 'function' ? action.update(before) : action.update;
             // The metadata desk syncs on blur, so tabbing out of an untouched field arrives here
-            // as an edit. Saying so — rather than writing an identical call — is what keeps the
-            // undo stack from filling with steps that undo nothing.
+            // as an edit. Returning by reference keeps the undo stack free of steps that undo
+            // nothing.
             if (after.author === before.author && after.title === before.title) return state;
 
-            // The existing options are spread first so that whatever has no UI survives being
-            // edited through one: `InsertMetadata` also takes `relatedResources`, and rebuilding
-            // its options from the two fields on screen is how a file quietly loses them.
+            // Spread first so that whatever has no UI survives being edited through one:
+            // `InsertMetadata` also takes `relatedResources`, and rebuilding its options from the
+            // two fields on screen would drop them.
             const options: Call['options'] = {
                 ...existing?.options,
                 authors: after.author ? [{ number: 0, text: after.author }] : [],
                 comments: after.title ? [{ text: after.title }] : [],
             };
             // Likewise the rest of the call: an `InsertMetadata` may carry a segment and, after a
-            // run, the elements it is answerable for. A metadata edit is not the moment to drop
-            // either.
+            // run, the elements it is answerable for.
             const call: Call = existing
                 ? { ...existing, options }
                 : { id: action.newCallId, name: 'InsertMetadata', options };
@@ -527,11 +467,10 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             const after =
                 typeof action.update === 'function' ? action.update(before) : action.update;
 
-            // Compared by serializing, which this file warns against in general and which is sound
-            // here in particular: a layout is numbers, names, voice keys and tick ranges — plain
-            // JSON with no `Map` or `Set` in it, so `JSON.stringify` is a total and faithful
-            // comparison. A no-op must return the state by reference, or every blur of an
-            // untouched part name pushes a step onto the undo stack that undoes nothing.
+            // Compared by serializing, which is sound here though not in general: a layout is
+            // numbers, names, voice keys and tick ranges, plain JSON with no `Map` or `Set` in
+            // it. A no-op must return the state by reference, or every blur of an untouched part
+            // name pushes a step onto the undo stack that undoes nothing.
             if (JSON.stringify(after) === JSON.stringify(before)) return state;
             // An empty layout says nothing, so there is nothing to write a call for.
             if (!existing && after.parts.length === 0 && after.moves.length === 0) return state;
@@ -565,9 +504,8 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
                 (entry) => entry.name === 'Align' && entry.options['source'] === alignment.source,
             );
 
-            // Compared by serializing, as `set-voices` is. Sound for the same reason and one
-            // more: `resolutions` is a `Map` of plain records, which `JSON.stringify` renders as
-            // `{}` — so it is unwrapped here rather than trusted to compare itself.
+            // Compared by serializing, as `set-voices` is. `resolutions` is a `Map` of plain
+            // records, which `JSON.stringify` renders as `{}`, so it is unwrapped first.
             const flattened = { ...alignment, resolutions: [...alignment.resolutions] };
             const before = existing ? readAlignment(existing.options) : null;
             if (
@@ -595,17 +533,12 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
     }
 };
 
-// ── undo and redo ─────────────────────────────────────────────────
-
 /**
  * How far back Ctrl-Z reaches.
  *
- * A snapshot is a whole `WorkFile`, but only in the way a directory listing is a whole disk: the
- * calls and segments an edit did not touch are the same objects in both, so an entry costs one
- * spine — a couple of hundred pointers for the shipped reconstruction — rather than a copy of
- * the document. A hundred of those is nothing to hold and further back than anyone remembers
- * having edited, which is the real bound: undo past what you can still picture is a worse tool
- * than a saved file.
+ * A snapshot is a whole `WorkFile`, but the calls and segments an edit did not touch are shared
+ * between entries, so one costs a spine of a couple of hundred pointers rather than a copy of
+ * the document. A hundred of those is further back than anyone remembers having edited.
  */
 export const MAX_HISTORY = 100;
 

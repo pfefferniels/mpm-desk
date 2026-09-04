@@ -73,13 +73,12 @@ export class MergeMetricalAccentuations extends AbstractTransformer<MergeMetrica
    * `into`. Beats the first pattern does not have are not introduced: the prototype decides
    * the beat structure, and the rest only move its values.
    *
-   * The mean is taken over plain records and the definition is built once, at the end, from
-   * the numbers that come out. espressivo's `AccentuationPatternDef` has no setter for one
-   * accentuation's value — the alternatives were to `removeAccentuation`/`addAccentuation`
-   * per pattern per beat, which rewrites the element n times to keep an intermediate nobody
-   * reads, or to write through the `<accentuation>` element's attributes, which edits the
-   * document behind the def's own tuple list and leaves the two disagreeing. Doing the
-   * arithmetic outside the document avoids both, and keeps it literally the expression it was.
+   * The mean is taken over plain records and the definition built once at the end.
+   * espressivo's `AccentuationPatternDef` has no setter for one accentuation's value, so the
+   * alternatives are `removeAccentuation`/`addAccentuation` per pattern per beat, rewriting the
+   * element n times to keep an intermediate nobody reads, or writing through the
+   * `<accentuation>` element's attributes, which edits the document behind the def's own tuple
+   * list. Doing the arithmetic outside the document avoids both.
    */
   private mergePatterns(patterns: AccentuationPatternDef[], into: string): AccentuationPatternDef {
     if (patterns.length <= 1) {

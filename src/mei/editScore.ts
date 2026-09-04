@@ -1,14 +1,13 @@
 /**
  * Writing a decision about a divergence back into the notation.
  *
- * Recording that a note was played is one thing, and ../alignment/applyAlignment
- * does it; saying that the score should have had it is another, and it is an
- * editorial act. So everything here keeps the original reading intact and adds
- * the performance's as an alternative, in the terms the project already uses:
- * an <app> holding the score's own <rdg source="original"> beside an
- * <rdg source="performance"> whose <supplied> carries who decided and how sure
- * they were. That is the same vocabulary ../ui/CreateReading offers by hand -
- * this only builds it from an alignment instead of from a text selection.
+ * Recording that a note was played is ../alignment/applyAlignment's job. Saying
+ * the score should have had it is an editorial act, so everything here keeps the
+ * original reading intact and adds the performance's as an alternative: an
+ * `<app>` holding the score's own `<rdg source="original">` beside an
+ * `<rdg source="performance">` whose `<supplied>` carries who decided and how
+ * sure they were. The same vocabulary ../ui/CreateReading offers by hand, built
+ * from an alignment rather than from a text selection.
  *
  * Two of the readings deliberately write nothing at all. A `written-ornament` is
  * the score being played as it stands, and an `outside` note is not about the

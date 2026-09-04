@@ -8,15 +8,14 @@
  *
  * A piece short enough to fit `MAX_SINGLE_TOKENS` goes to the model whole. A
  * longer one is walked in overlapping windows of `WIN_SCORE` score notes at a
- * stride of half that, and each window is paired with the stretch of the
- * performance it plausibly covers. Finding that stretch is what the baseline is
- * for: a cheap onset-cluster DTW with pitch-set Jaccard costs gives a scatter of
- * anchor pairs, and the perf range of a window is the span of the anchors falling
- * inside it, widened by `MARGIN_SEC` at each end.
+ * stride of half that, each paired with the stretch of the performance it
+ * plausibly covers. The baseline finds that stretch: a cheap onset-cluster DTW
+ * with pitch-set Jaccard costs gives a scatter of anchor pairs, and a window's
+ * perf range is the span of the anchors inside it, widened by `MARGIN_SEC`.
  *
- * The baseline is only a router here, so it need not be good — but it does need
- * to be *identical*, because a single anchor moved by one note can shift a window
- * boundary and change what the model ever gets to see.
+ * The baseline is only a router, so it need not be good. It does need to be
+ * *identical*: one anchor moved by a note can shift a window boundary and change
+ * what the model ever sees.
  */
 
 import { clusterPitchSets, clusterStarts, dtwPath, jaccardMatrix } from "./dtw";
@@ -36,16 +35,15 @@ import {
 /**
  * The constants the Python keeps as module-level globals.
  *
- * They are options rather than hardcoded because the fixtures override them:
+ * Options rather than hardcoded because the fixtures override them:
  * `schubert-d783-15-win128` is generated with `WIN_SCORE = 128` and
- * `MAX_SINGLE_TOKENS = 0`, so that a 646-token piece yields five real windows in
- * 1 MB of fixture instead of the Berceuse's 25 MB. Its manifest records that in
- * `meta.overrides`, and anything reproducing the fixture has to pass the same
- * values or it is comparing two different plans — which is exactly what a
- * hardcoded 384 did on the first run.
+ * `MAX_SINGLE_TOKENS = 0`, so a 646-token piece yields five real windows in 1 MB
+ * of fixture instead of the Berceuse's 25 MB. Its manifest records that under
+ * `meta.overrides`, and reproducing the fixture means passing the same values or
+ * comparing two different plans.
  *
- * There is deliberately no stride knob: the Python derives the stride inside
- * `coarse_windows` as `WIN_SCORE // 2`, so it is not independently settable.
+ * Deliberately no stride knob: the Python derives it inside `coarse_windows` as
+ * `WIN_SCORE // 2`, so it is not independently settable.
  */
 export interface WindowOptions {
     /** Score notes per window. Default `WIN_SCORE`. */
@@ -78,31 +76,25 @@ export function planWindows(row: MlignRow, options: WindowOptions = {}): Window[
  * of 500 notes gives `[0, 384)` and `[192, 500)` and nothing after.
  *
  * **Coverage is asymmetric, and downstream code should not assume otherwise.**
- * Every score note lands in at least one window — windows start at multiples of
- * the stride and span twice it, so consecutive windows always overlap and their
- * union is `[0, n)`. The *performance* has no such guarantee: a window's perf
- * range is the span of its anchors widened by `marginSec`, so performed notes
- * more than that margin before the first anchor or after the last are covered by
- * no window at all. Verified against the reference Python, not assumed: a
- * performance with 60 unmatched notes before the first match leaves all 60
- * uncovered, and 60 after the last leaves 34. Those notes reach the decode with
- * `UNCOVERED_SIM` / `UNCOVERED_NULL`, which is what those sentinels are for.
+ * Every score note lands in at least one window, since windows start at
+ * multiples of the stride and span twice it, so their union is `[0, n)`. The
+ * *performance* has no such guarantee: a window's perf range is the span of its
+ * anchors widened by `marginSec`, so performed notes further out than that
+ * margin are covered by no window. Verified against the reference Python: 60
+ * unmatched notes before the first match leaves all 60 uncovered, and 60 after
+ * the last leaves 34. Those reach the decode with `UNCOVERED_SIM` /
+ * `UNCOVERED_NULL`.
  */
 export function coarseWindows(row: MlignRow, options: WindowOptions = {}): Window[] {
     const n = row.score.length;
     const m = row.perf.length;
-    // Rejected rather than repaired, because both values the check rejects are
-    // ones the Python refuses too — `range(0, n, 192.0)` raises TypeError and
-    // `range(0, n, 0)` raises ValueError. Turning a module constant into a
-    // caller option is what made them reachable at all, so the option validates
-    // what the constant never had to.
-    //
-    // Neither degenerate value has a sensible repair. A fractional size puts
-    // fractional indices into the emitted tuples, which everything downstream
-    // then slices arrays with. A size below 2 gives stride 0 and a loop that
-    // never advances; flooring the stride to 1 instead would "work" but emit one
-    // window per note — 400 model forward passes for a 400-note score, a hang by
-    // another name. Failing at the call is the only honest option.
+    // Rejected rather than repaired, as the Python rejects both:
+    // `range(0, n, 192.0)` raises TypeError and `range(0, n, 0)` ValueError.
+    // Neither has a sensible repair. A fractional size puts fractional indices
+    // into the emitted tuples, which everything downstream slices arrays with. A
+    // size below 2 gives stride 0 and a loop that never advances; flooring the
+    // stride to 1 would emit one window per note, which is a hang by another
+    // name.
     const winScore = options.winScore ?? WIN_SCORE;
     if (!Number.isInteger(winScore) || winScore < 2) {
         throw new RangeError(
@@ -191,12 +183,11 @@ export function coarseWindows(row: MlignRow, options: WindowOptions = {}): Windo
  * notes within `PERF_CLUSTER_EPS` of the one before), a DTW over the cluster
  * sequences with Jaccard-distance costs, then equal pitches paired inside each
  * matched cluster pair. `MLign/src/mlign/baseline.py:align_baseline` also emits
- * the leftovers as insertions and deletions; the windowing only ever reads the
- * matches, so only those are built here.
+ * the leftovers as insertions and deletions, which the windowing never reads.
  *
- * The result comes out sorted by score index without sorting: the DTW path is
- * strictly increasing in both cluster indices, cluster index ranges are
- * contiguous and increasing, and each cluster is visited once.
+ * Sorted by score index without sorting: the DTW path is strictly increasing in
+ * both cluster indices, cluster index ranges are contiguous and increasing, and
+ * each cluster is visited once.
  */
 export function baselinePairs(
     sOnset: ArrayLike<number>,

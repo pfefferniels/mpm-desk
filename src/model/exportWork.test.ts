@@ -148,7 +148,7 @@ describe('injectChoices', () => {
         expect(correspondences(folded).n1).toBe('symbol_a1');
     });
 
-    // ── behaviour recorded rather than wanted ─────────────────────────
+    // Behaviour recorded rather than wanted.
 
     it('skips a split velocity/timing choice entirely', () => {
         // The two source ids are joined with a space and looked up as one — `"take-a take-b"`
@@ -276,7 +276,7 @@ describe('provenanceOf', () => {
         expect(folded.segment).toBe('s1');
     });
 
-    // ── behaviour recorded rather than wanted ─────────────────────────
+    // Behaviour recorded rather than wanted.
 
     it('keeps what the file recorded where this run reports nothing', () => {
         // The two fields are spread conditionally, so a call the chain could not run keeps the

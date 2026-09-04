@@ -37,12 +37,11 @@ export interface TranslatePhysicalTimeToTicksOptions extends TransformationOptio
  * score grid is derived on demand by `deriveResidual`, so populating it here would serve nobody
  * and would make every later fit depend on this having run.
  *
- * The name is wider than the work, and stays so: work files written before it stopped being a
- * call still name it, and `requires` relations across the chain point at it.
+ * The name is wider than the work and stays so: saved work files name it, and `requires`
+ * relations across the chain point at it.
  *
- * **Nobody calls this.** `buildChain` puts one in every chain and no desk offers it — see the
- * note on `INJECTED` there for why it was never a decision. Which is also why `transform` has to
- * be cheap on a document with no ornaments in it: it now runs on chains that have nothing for it.
+ * **No desk offers this.** `buildChain` puts one in every chain; see the note on `INJECTED`
+ * there. So `transform` has to be cheap on a document with no ornaments in it.
  */
 export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslatePhysicalTimeToTicksOptions> {
   name = 'TranslatePhysicalTimeToTicks';

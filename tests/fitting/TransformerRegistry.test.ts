@@ -35,15 +35,15 @@ describe('TransformerRegistry', () => {
     /**
      * The registered set, pinned exactly.
      *
-     * It used to be a floor (`>= 16`) over espressivo's twenty, and a floor would not notice one
-     * going by accident. Changing the list is a decision somebody has to come here and make —
-     * which is what this test is for, and it has already done its job once.
+     * Exactly, not a floor: a floor would not notice one going by accident. Changing the list
+     * is a decision somebody has to come here and make.
      *
      * Three of espressivo's twenty are not part of this application: `InsertAsynchrony` and
-     * `CompressOrnamentation` are named nowhere in it, and `ApproximateLogarithmicTempo` was
-     * superseded by a tempo somebody draws. Three more were dropped and then put back —
-     * `CombineAdjacentRubatos`, `StylizeArticulation` and `MakeDefaultArticulation` each have a
-     * control in a desk, and retiring one means deleting that control. See `Order.ts`.
+     * `CompressOrnamentation` are named nowhere in it, and `ApproximateLogarithmicTempo` is
+     * superseded by a tempo somebody draws. Three more are kept although the reconstruction
+     * calls none of them: `CombineAdjacentRubatos`, `StylizeArticulation` and
+     * `MakeDefaultArticulation` each have a control in a desk, so retiring one means deleting
+     * that control. See `Order.ts`.
      *
      * `RoundNumbers` is this repo's own and last: it restates what everything before it wrote.
      */

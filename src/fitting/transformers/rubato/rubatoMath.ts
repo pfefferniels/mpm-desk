@@ -61,19 +61,17 @@ const frameLengthOf = (rubato: RubatoFrame) => rubato.frameLength as number;
  * - leaving an inverted or empty window (`lateStart >= earlyEnd`) inverted, producing a
  *   *reversed* warp, where meico widens it to the whole frame and produces the identity.
  *
- * Measured on a 720-tick frame read at its midpoint, four of seven test windows disagreed, by up
+ * Measured on a 720-tick frame read at its midpoint, four of seven test windows disagreed by up
  * to 72 ticks. `resolveRubato` is the renderer's own resolution and settles all of it, in
  * RubatoMap.java's order, including the `@intensity` default of 1.0.
  *
- * `null` where there is no frame to warp — an absent `@frameLength`, which is the one parameter
- * with no default. Without the early return the span arithmetic divides by `undefined` and hands
- * back `NaN`; the return says so before the span is computed. `resolveRubato` would reject the
- * instruction on the same grounds a line later, so this is the type agreeing with the answer
- * rather than a new one.
+ * `null` where there is no frame to warp: an absent `@frameLength`, the one parameter with no
+ * default. Without the early return the span arithmetic divides by `undefined` and hands back
+ * `NaN`. `resolveRubato` rejects the instruction on the same grounds a line later, so this is the
+ * type agreeing with that answer rather than a second one.
  *
- * The `def` argument is `null` because no `<rubatoDef>` is modelled here: every parameter is
- * written onto the instruction. This is the seam where def inheritance would arrive, and passing
- * the argument explicitly is what keeps that a one-line change.
+ * The `def` argument is `null` because no `<rubatoDef>` is modelled here, every parameter being
+ * written onto the instruction. Passing it explicitly keeps def inheritance a one-line change.
  */
 const resolve = (rubato: RubatoFrame): ResolvedRubato | null => {
   if (rubato.frameLength === undefined) return null;
@@ -94,10 +92,8 @@ const resolve = (rubato: RubatoFrame): ResolvedRubato | null => {
 /**
  * Where a symbolic date lands once the rubato has warped its frame.
  *
- * espressivo's `rubatoAt`, which is what this used to be a hand-copy of. It was the one
- * `…At()` evaluator the package kept private, so the three lines of `RubatoMap`'s rendering
- * math lived here too; the comment that stood here predicted this delegation, and this is it.
- * Everything that decides *what numbers go into* it still comes from {@link resolve}.
+ * Delegates to espressivo's `rubatoAt`, so `RubatoMap`'s rendering math is stated once. What
+ * numbers go into it still comes from {@link resolve}.
  *
  * An unresolvable rubato leaves the date where it was, which is what an identity warp means.
  */
@@ -110,24 +106,21 @@ export const calculateRubatoOnDate = (date: number, rubato: RubatoFrame): number
 /**
  * The frame-local position that the rubato warped to `local`, taking the warp back off it.
  *
- * `dateBeforeRubato` is espressivo's closed-form inverse of {@link calculateRubatoOnDate}. It
- * replaces a bisection that carried a `TODO: find a numerical, non-iterative solution` and
- * stopped as soon as the *output* was within one tick while its bracket ran to 1e-6 in the
- * *input* — two domains in one tolerance. Measured over a 720-tick frame, that was out by up to
- * **11.25 ticks**; the closed form round-trips to 2e-12.
+ * `dateBeforeRubato` is espressivo's closed-form inverse of {@link calculateRubatoOnDate}, and
+ * round-trips to 2e-12. A bisection stopping when the *output* is within one tick while its
+ * bracket runs to 1e-6 in the *input* mixes two domains in one tolerance, and over a 720-tick
+ * frame is out by up to **11.25 ticks**.
  *
- * ## The clamp is ours, and that is the point
+ * ## The clamp is the client's, and that is the point
  *
- * The warped image of a frame is `[lateStart, earlyEnd)` of it, so a position outside that
- * window is one no date warps to, and espressivo answers `NaN` rather than inventing a tick.
- * That is the right answer for a library: it does not know what the caller would do with a
- * fabricated one. Here we *are* the caller, we have a duration to write, and refusing is not
- * available — so this clamps to the end the position fell past, which is where the bisection
- * converged anyway (it could only ever return a point in its own bracket). The library refuses
- * to guess; the client decides what to write. That is the whole division between the two.
+ * The warped image of a frame is `[lateStart, earlyEnd)`, so a position outside that window is
+ * one no date warps to, and espressivo answers `NaN` rather than inventing a tick. That is right
+ * for a library, which does not know what a caller would do with a fabricated one. Here there is
+ * a duration to write and refusing is not available, so this clamps to the end the position fell
+ * past. The library refuses to guess, the client decides what to write.
  *
- * A `NaN` position is not clamped. It travels, and `auditInstructions` is what stops it — the
- * bisection used to return 0 for one, which is a tick that looks like an answer.
+ * A `NaN` position is not clamped. It travels, and `auditInstructions` stops it. Answering 0
+ * would be a tick that looks like an answer.
  */
 const unwarpLocal = (rd: ResolvedRubato, local: number): number => {
   const unwarped = dateBeforeRubato(rd, rd.startDate + local);

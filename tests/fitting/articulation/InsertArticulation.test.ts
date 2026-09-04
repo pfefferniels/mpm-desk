@@ -34,13 +34,9 @@ const generateNote = (position: number, duration: number, id: string, part = 1) 
  * beat, 1000 ms is one quarter note is 720 ticks — so a note released 500 ms after it sounded is
  * the 360 ticks this used to assert directly, and one released after 2000 ms is the 1440.
  *
- * The rest note is there to make the piece long enough to contain them — or it was. The tick
- * walk used to measure a duration only where the note's end fell inside a tempo's span, and the
- * span reaches to `msm.end`, the last symbolic offset in the score; two chord notes alone put
- * that at 720 ticks, one second, so the note held for two ended past the end of the piece and was
- * measured as nothing at all. That is issue #27, and the last window runs open now, so the rest
- * no longer changes what these two notes measure. It stays because it also gives the piece a
- * second date, and the assertions below were recorded against a score that had one.
+ * The rest gives the piece a second date, which is what the assertions below were recorded
+ * against. It no longer affects what the two notes measure: the last tempo window runs open, so
+ * a note held past `msm.end` is still measured (issue #27).
  */
 const msmFixture = () =>
   new Alignment(

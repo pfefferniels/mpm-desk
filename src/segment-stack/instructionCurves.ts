@@ -1,19 +1,18 @@
 /**
  * What an instruction *does*, sampled over a stretch of the piece.
  *
- * A gesture drawn as a plain bar is true about when it happens and silent about what it is: a
- * `<dynamics>` that swells and one that fades come out identical. These samplers are the other
- * half — the shape itself, read at enough places across the card to draw.
+ * A gesture drawn as a plain bar says when it happens and nothing about what it is: a
+ * `<dynamics>` that swells and one that fades come out identical. These samplers read the shape
+ * itself, at enough places across the card to draw.
  *
  * **The numbers are the renderer's**, as in `utils/mpm.ts`: `tempoAt`, `dynamicsAt` and
- * `positionAt` are espressivo's own evaluators, so a curve here cannot disagree with what is
- * heard. Nothing is derived from `@transition.to`, `@curvature` or `@protraction` directly.
+ * `positionAt` are espressivo's own evaluators, so a curve cannot disagree with what is heard.
+ * Nothing is derived from `@transition.to`, `@curvature` or `@protraction` directly.
  *
- * One rule holds all three lanes together: **the value at a tick belongs to the last
- * instruction of that lane at or before it.** Past its own span an instruction's evaluator
- * answers with the value it left behind, which is exactly the controller value still
- * standing in the render — so a lane stays continuous across a gap without anything here
- * having to hold a value on its own.
+ * One rule holds all three lanes together: **the value at a tick belongs to the last instruction
+ * of that lane at or before it.** Past its own span an evaluator answers with the value it left
+ * behind, which is the controller value still standing in the render, so a lane stays continuous
+ * across a gap without anything here holding a value.
  */
 import {
     controllerOf,

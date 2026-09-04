@@ -13,19 +13,18 @@ import { AlignmentDesk } from './AlignmentDesk';
 /**
  * The desk, mounted over an alignment the document already holds.
  *
- * The model is never run: what is checked is the half that has to work without it — that a
- * `<recording>` already in the MEI comes back as something to review, that the score is drawn
- * along the time it was played in, and that the colours land on the right noteheads. That is
- * exactly the path a *reopened* project takes, and the one nothing else covers.
+ * The model is never run. What is checked is the half that works without it, which is the path a
+ * *reopened* project takes: a `<recording>` already in the MEI comes back as something to review,
+ * the score is drawn along the time it was played in, and the colours land on the right
+ * noteheads.
  *
- * `alignScoreToPerformance` is not stubbed and does not need to be. Nothing calls it here, and
- * `src/alignment/mlign` reaches the model runtime through a dynamic import — so importing the
- * module fetches no weights and no WebAssembly.
+ * `alignScoreToPerformance` needs no stub. Nothing calls it here, and `src/alignment/mlign`
+ * reaches the model runtime through a dynamic import, so importing the module fetches no weights
+ * and no WebAssembly.
  *
- * Mounted once, with `createRoot` rather than testing-library's `render`: engraving this score
- * takes the better part of half a minute under jsdom, and `render` is cleaned up after every test,
- * so a `beforeAll` that used it would leave every assertion after the first looking at a tree that
- * had been taken down.
+ * Mounted once with `createRoot` rather than testing-library's `render`: engraving this score
+ * takes the better part of half a minute under jsdom, and `render` is cleaned up after every
+ * test, so every assertion after the first would look at a tree that had been taken down.
  */
 
 vi.mock('react-pianosound', () => ({

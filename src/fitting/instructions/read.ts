@@ -192,19 +192,18 @@ export const fingerprintInstructions = (mpm: Mpm): Map<string, string> =>
  * The instructions in force at a date: those exactly at it, plus the last one before it where
  * that instruction is still running.
  *
- * A **set**, in the sense that no instruction is named twice. Without that, one can be named
- * three times: an instruction exactly at the date is pushed by the filter and again as
- * `ongoing`, and a looping rubato covering the date qualifies on more than one count. Every
- * caller takes `[0]`, so nothing goes visibly wrong — but "the instructions in force at a date"
- * is a set to anyone reading the name (issue #47).
+ * A **set**: no instruction is named twice. Otherwise one can be named three times, an
+ * instruction exactly at the date being pushed by the filter and again as `ongoing`, and a
+ * looping rubato covering the date qualifying on more than one count. Every caller takes `[0]`,
+ * so nothing goes visibly wrong, but the name promises a set (issue #47).
  *
- * Deduplicated by `element`, not by the snapshot: {@link getInstructions} builds a fresh object
- * per call, so two readings of one instruction are equal in every field and identical in none.
- * The element is what survives a snapshot, and it is the identity here.
+ * Deduplicated by `element` rather than by the snapshot: {@link getInstructions} builds a fresh
+ * object per call, so two readings of one instruction are equal in every field and identical in
+ * none. The element is what survives a snapshot.
  *
- * `articulation`, `ornament` and `asynchrony` have no branch: they are instantaneous, so being in
- * force at a date and being *at* it are the same thing, and the filter has already answered. That
- * is a statement about MPM, not an omission.
+ * `articulation`, `ornament` and `asynchrony` have no branch. They are instantaneous, so being in
+ * force at a date and being *at* it are the same thing and the filter has answered. A statement
+ * about MPM rather than an omission.
  *
  * @param signatures the score's `<timeSignatureMap>`. An MPM document does not carry the metre —
  * the score does — so a caller that knows it has to say, and common time is the assumption rather

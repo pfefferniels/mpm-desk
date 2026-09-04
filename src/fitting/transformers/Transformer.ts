@@ -117,14 +117,12 @@ export abstract class AbstractTransformer<
 /**
  * An `xml:id` for a new instruction of `type` at `date` that nothing in `mpm` already uses.
  *
- * The suffix is the first free index, not the count of instructions at the date. Counting is
- * only the same thing while nothing has ever been removed: once `tempo_0` is gone and
- * `tempo_0_1`, `tempo_0_2` remain, the count is 2 and `tempo_0_2` is taken (issue #30).
- * `ApproximateLogarithmicTempo` removes and re-inserts its instructions on every refit, so that
- * is ordinary operation rather than a corner case — and a duplicate id is not a cosmetic
- * problem: {@link AbstractTransformer.run} derives `created` by fingerprinting instructions *by
- * id*, so two elements sharing one id look like one element, and whichever of them was written
- * second is the only one anything can be answerable for.
+ * The suffix is the first free index rather than the count of instructions at the date. The two
+ * agree only while nothing has been removed: once `tempo_0` is gone and `tempo_0_1`, `tempo_0_2`
+ * remain, the count is 2 and `tempo_0_2` is taken (issue #30). Removal is ordinary operation, and
+ * a duplicate id is not cosmetic: {@link AbstractTransformer.run} derives `created` by
+ * fingerprinting instructions *by id*, so two elements sharing one look like one element and only
+ * the second can be attributed.
  *
  * The scan is over every instruction of the type rather than only those at the date, because an
  * id is only unique if it is unique in the document.

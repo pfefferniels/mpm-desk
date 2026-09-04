@@ -12,33 +12,29 @@ import { useLatest } from './useLatest';
 /**
  * Running the chain for the editor, and giving the desks what they draw against.
  *
- * ## Why the objects are rebuilt on this side
- *
- * The fold runs in a worker — three seconds on the shipped reconstruction — and hands back plain
- * data: the MPM as XML, the alignment as flat records. The desks want neither. They want an
- * `Alignment` they can ask `in(part).chords()` and an `Mpm` they can read instructions out of, so
- * both are rebuilt here from what crossed. Parsing the MPM costs about ten milliseconds against
- * three seconds of fitting, which is not a boundary worth avoiding.
+ * The fold runs in a worker, three seconds on the shipped reconstruction, and hands back plain
+ * data: the MPM as XML, the alignment as flat records. The desks want an `Alignment` they can ask
+ * `in(part).chords()` and an `Mpm` they can read instructions out of, so both are rebuilt here.
+ * Parsing the MPM costs about ten milliseconds against three seconds of fitting.
  *
  * ## The residual is per desk, and that is a correctness matter
  *
- * A desk plotting a residual is plotting *what its own dimension still has to account for*, which
- * is only that quantity if its own dimension is held out of the probe. `DeskSwitch.tsx` declares
- * the hold-out per desk and it arrives here as `holdOut`.
+ * A desk plotting a residual plots *what its own dimension still has to account for*, which is
+ * only that quantity if its own dimension is held out of the probe. `DeskSwitch.tsx` declares the
+ * hold-out per desk and it arrives here as `holdOut`.
  *
- * Deriving one renders the whole document, so it is memoised on the run and the hold-out — a desk
- * switch costs one render, and drawing does not cost any. Two desks with the same hold-out share
- * the work.
+ * Deriving one renders the whole document, so it is memoised on the run and the hold-out: a desk
+ * switch costs one render and drawing costs none, and two desks with the same hold-out share the
+ * work.
  *
  * ## Staleness
  *
  * Every request carries an id and every reply echoes it. A three-second fit is routinely
- * overtaken by the next gesture, and an overtaken reply is not late but wrong: it describes a
- * document that has already been edited past. A running fold cannot be interrupted, so the guard
- * is on this side, which is the only place it can be.
+ * overtaken by the next gesture, and an overtaken reply is wrong rather than late, describing a
+ * document already edited past. A running fold cannot be interrupted, so the guard is here.
  *
- * While a newer fit is running the last finished one stays on screen and `pending` says so.
- * Blanking every desk for three seconds after each gesture would make the editor unusable.
+ * While a newer fit runs the last finished one stays on screen and `pending` says so. Blanking
+ * every desk for three seconds after each gesture would make the editor unusable.
  */
 interface EditorFit {
     result: FitResult | null;
@@ -170,13 +166,12 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
      * The hold-out, as one value that only changes when the hold-out does.
      *
      * The registry hands over a fresh array literal on every render, so depending on the array
-     * would re-derive the residual — a whole render of the document — on every keystroke in a
-     * desk. Going through the joined key and back is what makes the identity follow the content.
+     * would re-derive the residual, a whole render of the document, on every keystroke in a desk.
+     * Going through the joined key and back makes the identity follow the content.
      *
-     * It used to depend on the key while reading the array, behind an `exhaustive-deps` disable.
-     * That was correct and cost more than it looked: the React Compiler refuses to optimize any
-     * component or hook in a file where a React lint rule is switched off, so one suppression
-     * here opted the editor's central hook out of compilation entirely.
+     * Rebuilt from the key rather than read through an `exhaustive-deps` disable: the React
+     * Compiler refuses to optimize any component or hook in a file where a React lint rule is
+     * switched off, so one suppression here would opt the editor's central hook out entirely.
      */
     const holdOutKey = holdOut?.join(',') ?? '';
     const without = useMemo(

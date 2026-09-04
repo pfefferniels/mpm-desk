@@ -4,13 +4,10 @@ import { StylizeOrnamentation } from '../../../src/fitting/transformers/ornament
 /**
  * A tolerance of `0` is a request, not a missing argument.
  *
- * `StylizeOrnamentation` folds its caller's options into defaults with `||`, so a legitimate `0`
- * fell back to the default — and `0` is meaningful here: it asks dbscan for exact matches only,
- * which is what the `noteoff.shift` dimension of `StylizeOrnamentation.generateClusters` already
- * does deliberately. It went further and never read two of its three options at all (issue #33).
- *
- * `StylizeArticulation` had the same bug and used to be tested beside it here; it is not part of
- * this application.
+ * Folding a caller's options into defaults with `||` sends a legitimate `0` back to the default,
+ * and `0` is meaningful here: it asks dbscan for exact matches only, which is what the
+ * `noteoff.shift` dimension of `StylizeOrnamentation.generateClusters` does deliberately. See
+ * issue #33.
  */
 describe('StylizeOrnamentation options', () => {
   test('defaults stand when nothing is passed', () => {

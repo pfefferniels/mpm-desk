@@ -2,15 +2,15 @@
  * Onset-cluster DTW primitives, shared by the decode and by the coarse
  * windowing that feeds the model.
  *
- * Both callers do the same thing — group each table into onset clusters, score
- * every pair of clusters, then walk a monotone path through that cost matrix —
- * and differ only in how a cell is scored and in the gap penalty. So the cost
- * matrix is built by the caller and the path is found here.
+ * Both callers group each table into onset clusters, score every pair, then walk
+ * a monotone path through that cost matrix, differing only in how a cell is
+ * scored and in the gap penalty. So the caller builds the cost matrix and the
+ * path is found here.
  *
- * Every routine below reproduces NumPy semantics rather than idiomatic JS
- * semantics. The accumulated DTW table is float32 in Python, and the backtrack
- * decides steps by exact float equality against it, so the arithmetic has to be
- * float32 in the same places or a tie breaks the other way and the path forks.
+ * Every routine below reproduces NumPy semantics rather than idiomatic JS. The
+ * accumulated DTW table is float32 in Python and the backtrack decides steps by
+ * exact float equality against it, so the arithmetic has to be float32 in the
+ * same places or a tie breaks the other way and the path forks.
  */
 
 /**
@@ -78,21 +78,21 @@ export function jaccardMatrix(sSets: Set<number>[], pSets: Set<number>[]): Float
  * A monotone path through `cost` (row-major `(ns, mp)`), with diagonal, vertical
  * and horizontal steps and a flat `gap` penalty for the two skips.
  *
- * Returns the diagonal steps only — the matched cluster pairs — flattened as
+ * Returns the diagonal steps only, the matched cluster pairs, flattened as
  * `[i0, j0, i1, j1, ...]` in increasing order.
  *
  * Two NumPy details are load-bearing:
  *
- * The accumulated table is float32 and the gap is added to it as a float32. But
- * the first row and column are seeded by `np.cumsum` over a *float64* array and
- * only rounded to float32 on assignment, so the seed uses the float64 gap while
- * every later step uses the float32 one. For gap 0.6 those are different
- * numbers and the difference survives into the accumulated sums.
+ * The accumulated table is float32 and the gap is added as a float32, but the
+ * first row and column are seeded by `np.cumsum` over a *float64* array and only
+ * rounded on assignment. So the seed uses the float64 gap while every later step
+ * uses the float32 one. At gap 0.6 those differ, and the difference survives
+ * into the accumulated sums.
  *
- * The backtrack compares by exact equality — `best == d`, then `best == v` —
- * so diagonal wins a tie over vertical, and vertical over horizontal. Ties do
- * arise: a gap step and a diagonal step through a zero-cost cell reach the same
- * sum, and which one is taken changes the anchor map.
+ * The backtrack compares by exact equality (`best == d`, then `best == v`), so
+ * diagonal wins a tie over vertical and vertical over horizontal. Ties do arise:
+ * a gap step and a diagonal step through a zero-cost cell reach the same sum,
+ * and which is taken changes the anchor map.
  */
 export function dtwPath(cost: Float32Array, ns: number, mp: number, gap: number): Int32Array {
     const w = mp + 1;

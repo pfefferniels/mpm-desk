@@ -5,9 +5,9 @@ import { createMpm, getInstructions, requireMap, type Instruction } from '../../
 import { MovementSegment } from './MovementSegment'
 
 /**
- * A segment used to hold one point per tick, so its cost was a property of the score's grid. The
- * soft lane of the shipped fixture spends 46,267 ticks at `position="0"` between one press and the
- * next, and that one flat segment came to a `d` of 1,450,337 characters. See issue #31.
+ * A segment must not hold one point per tick, which would make its cost a property of the
+ * score's grid. The soft lane of the shipped fixture spends 46,267 ticks at `position="0"`
+ * between one press and the next, which comes to a `d` of 1,450,337 characters. See issue #31.
  */
 
 const movement = (position: number, transitionTo?: number): Instruction<'movement'> => {

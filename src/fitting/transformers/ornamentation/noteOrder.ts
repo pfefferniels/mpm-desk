@@ -2,26 +2,22 @@
  * The order an arpeggio's notes were struck in, written the way `@note.order` states it.
  *
  * Both halves of an `<ornament>` are measured along the roll: `InsertTemporalSpread` fits the
- * stagger between consecutive onsets, and `InsertDynamicsGradient` reads its ramp off the
- * velocities of the first and last note struck. Neither measurement means anything until the
- * element also says which notes those are and in what order — and MPM has exactly one place to
- * say it, `@note.order`, which the two transformers share along with everything else on the
- * element.
+ * stagger between consecutive onsets, `InsertDynamicsGradient` reads its ramp off the velocities
+ * of the first and last note struck. Neither means anything until the element says which notes
+ * those are and in what order, and MPM has one place to say it, `@note.order`.
  *
- * So it is computed here, from the chord, rather than by whichever of them happens to write the
- * element first. `fillInAt` lets the earlier one win, and two transformers deriving the same
- * attribute from the same chord by two routes is a disagreement waiting to be introduced by an
- * edit to one of them.
+ * Computed here, from the chord, rather than by whichever transformer writes the element first.
+ * `fillInAt` lets the earlier one win, and two transformers deriving one attribute from one chord
+ * by two routes is a disagreement waiting for an edit to either.
  *
  * ## Why an absent attribute is not a neutral one
  *
  * espressivo renders an `<ornament>` with no `@note.order` by collecting every note at its date
- * and sorting them by **ascending pitch** (`OrnamentationMap.apply`, which leaves
- * `noteOrderAscending = 1` when the attribute is missing). That is a real sequence, not an
- * abstention, and it is the recording's own only for a chord rolled from the bottom up. Left off
- * a ramp fitted along onsets it silently lands the ramp on the wrong notes — see issue #20,
- * where three ornaments of the shipped reconstruction had no `@note.order` because no temporal
- * spread had been asked for over them, and one of the three rolled 48 55 67 60 64.
+ * and sorting by **ascending pitch** (`OrnamentationMap.apply` leaves `noteOrderAscending = 1`
+ * when the attribute is missing). That is a real sequence rather than an abstention, and it is
+ * the recording's own only for a chord rolled from the bottom up, so left off a ramp fitted along
+ * onsets it lands the ramp on the wrong notes. See issue #20, where three ornaments of the
+ * shipped reconstruction had none and one of them rolled 48 55 67 60 64.
  */
 import { head, isNonEmpty, pairwise } from 'espressivo';
 import type { AlignedNote } from '../../alignment';

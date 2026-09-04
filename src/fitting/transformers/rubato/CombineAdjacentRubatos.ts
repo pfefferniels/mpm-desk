@@ -14,17 +14,10 @@ import { InsertRubato } from './InsertRubato';
 import { Alignment } from '../../alignment';
 
 export interface CombineAdjacentRubatoOptions extends ScopedTransformationOptions {
-  // adjacentRubatos: Rubato[]
-  /**
-   * This parameter is used to determine if the @intensity attributes
-   * of two adjacent rubato instructions are mergeable.
-   */
+  /** How far two adjacent rubatos' `@intensity` may differ and still merge. */
   intensityTolerance: number;
 
-  /**
-   * This parameter is used to determine if the attributes @lateStart
-   * and @earlyEnd of two adjacent rubato instructions are mergeable.
-   */
+  /** How far their `@lateStart` and `@earlyEnd` may differ and still merge. */
   compressionTolerance: number;
 }
 

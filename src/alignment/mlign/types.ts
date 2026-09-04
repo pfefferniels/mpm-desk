@@ -55,12 +55,12 @@ export type Window = readonly [s0: number, s1: number, p0: number, p1: number];
  * `"none"` is the head as v1 and v2 export it: the row is `[attr | attr_none]`
  * raw, and reading it means softmaxing it.
  *
- * `"factored"` is v3. The row is rebuilt from three factors — is this played
- * note an insertion at all, does that insertion elaborate a written note, and
- * which one — and comes out *already normalized*, so it is exponentiated rather
- * than softmaxed. The first factor is the match head's, which is why the
- * conditioning needs the accumulated `sim` / `nullP` and cannot live in the
- * graph. See `attribution.ts`.
+ * `"factored"` is v3. The row is rebuilt from three factors (is this played note
+ * an insertion, does that insertion elaborate a written note, and which one) and
+ * comes out *already normalized*, so it is exponentiated rather than softmaxed.
+ * The first factor is the match head's, which is why the conditioning needs the
+ * accumulated `sim` / `nullP` and cannot live in the graph. See
+ * `attribution.ts`.
  *
  * Detected from the graph's own outputs (`attr_gate` present means factored),
  * never from the file name.
@@ -75,15 +75,15 @@ export type AttrConditioned = "none" | "factored";
  * drives those notes to a deletion / insertion in the decode.
  *
  * `attr` is the ornament-attribution head, present only when it was asked for.
- * It is row-major `(m, n)` — the other way round from `sim`, because it is a
- * distribution over written notes for each played one — and `attrNone` is its
- * "not an ornament" column, kept beside it rather than as an `n + 1`th entry so
- * that the matrix stays a plain transpose of the score/performance grid.
+ * Row-major `(m, n)`, the other way round from `sim`, being a distribution over
+ * written notes for each played one. `attrNone` is its "not an ornament" column,
+ * kept beside it rather than as an `n + 1`th entry so the matrix stays a plain
+ * transpose of the score/performance grid.
  *
  * `attrGate` is v3's third quantity, one logit per played note, and its presence
- * is what says the row must be built the `"factored"` way. It is the raw
- * accumulated gate: the conditioning is a nonlinear function of a whole row and
- * so is applied once, after the windows have been averaged, by `attribution.ts`.
+ * says the row must be built the `"factored"` way. It is the raw accumulated
+ * gate: the conditioning is nonlinear in a whole row, so `attribution.ts`
+ * applies it once, after the windows have been averaged.
  */
 export interface SimBundle {
     n: number;

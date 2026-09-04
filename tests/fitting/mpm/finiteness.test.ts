@@ -21,11 +21,11 @@ import {
  * document stays schema-valid while saying something no renderer can act on, and the fit that
  * produced it is several steps away by the time anyone notices.
  *
- * The guard is a **sweep**, not a check on the way in. It used to be the latter, which meant it
- * only saw values passed to one generic write method — so it also meant one had to exist. Now
- * `auditInstructions` walks the document and `AbstractTransformer.run` refuses afterwards, which
- * costs one pass per transformer and covers every path into the document, including a write
- * made straight through an espressivo map.
+ * The guard is a **sweep**, not a check on the way in. A check on the way in sees only values
+ * passed to one generic write method, and so requires one to exist. `auditInstructions` walks
+ * the document and `AbstractTransformer.run` refuses afterwards, which costs one pass per
+ * transformer and covers every path in, including a write made straight through an espressivo
+ * map.
  *
  * It is mpmify's and not espressivo's because espressivo's interior is frozen at
  * logs-and-returns by its own RULE E1: throwing there would be a divergence from the library it

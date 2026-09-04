@@ -437,19 +437,12 @@ export const tierThreeCases: Case[] = [
     name: 'all five aspects at once',
     score: { beats: 17 },
     truth: EVERYTHING,
-    // Re-recorded, and the only row where taking the tempo fitter out made a figure *worse*.
+    // The tightest statement in the suite of where the remaining work is.
     //
-    // Onset went from mean 415 / max 750 to exactly zero — every onset is now reproduced to
-    // the float — and velocity from 8 / 20 to 6.2 / 15.1. Duration went the other way: 405 /
-    // 980 to 477 / 790. That is worth reading twice. With the timing exact, nothing is left in
-    // the duration error that a tempo curve could have been blamed for: what is measured here
-    // is the articulation fit alone, over notes whose sounding lengths a rubato has stretched,
-    // and it is off by most of a note. The old number was smaller only because a wrong tempo
-    // happened to shorten what a wrong articulation had lengthened.
-    //
-    // This is the tightest statement in the suite of where the remaining work is, and it did
-    // not exist before the move: it took removing the fitter that dominated the residual to
-    // see what was underneath it.
+    // With a stated tempo, onset is exact and velocity 6.2 / 15.1, so nothing is left in the
+    // duration error that a tempo curve could be blamed for. What 477 / 790 measures is the
+    // articulation fit alone, over notes whose sounding lengths a rubato has stretched, and it
+    // is off by most of a note.
     note: 'articulation is fitted over durations the rubato has already stretched',
     bounds: {
       onset: { max: 0.5 },
@@ -457,12 +450,11 @@ export const tierThreeCases: Case[] = [
       velocity: { mean: 8, max: 20 },
     },
   },
-  // `all five aspects, boundaries withheld` used to sit here — the honest end-to-end number,
-  // with the segmentation held back so the chain had to find its own. It needed two things this
-  // application does not have: `ApproximateLogarithmicTempo` to fit one tempo window over the
-  // whole piece and place its own turning points, and `StylizeArticulation` to cluster a single
-  // averaged articulation call back apart. Neither has a successor here, so the mode went with
-  // the case rather than being faked with the answer handed in.
+  // There is no end-to-end case with the segmentation withheld. It would need two things this
+  // application does not have: `ApproximateLogarithmicTempo`, to fit one tempo window over the
+  // whole piece and place its own turning points, and `StylizeArticulation`, to cluster a single
+  // averaged articulation call back apart. Faking it with the answer handed in would measure
+  // nothing.
 ];
 
 export const allCases = [...tierTwoCases, ...tierThreeCases];

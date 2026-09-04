@@ -3,13 +3,12 @@ import { Alignment, type AlignedNote, type AlignedPedal } from '../../../src/fit
 import { at } from '../../support/at';
 
 /**
- * The three places an `Alignment` reports a bound — `lastDate`, `end` and the minimum
- * `shiftToFirstOnset` shifts by — used to be `Math.max`/`Math.min` over a spread.
+ * The three places an `Alignment` reports a bound: `lastDate`, `end` and the minimum
+ * `shiftToFirstOnset` shifts by. None may be a `Math.max`/`Math.min` over a spread.
  *
  * Spreading has two costs. Past roughly 100k arguments it is a `RangeError` rather than a
- * slowdown, which the 450-note corpus does not reach; and `Math.min()` of *nothing* is
- * `Infinity`, which `shiftToFirstOnset` did reach — the note shift was guarded against it, the
- * pedal shift above it was not. These pin the degenerate ends of all three.
+ * slowdown, which the 450-note corpus does not reach, and `Math.min()` of *nothing* is
+ * `Infinity`, which `shiftToFirstOnset` does reach. These pin the degenerate ends of all three.
  *
  * See issue #49.
  */

@@ -149,21 +149,18 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
         <div>
             <DeskToolbar>
                 {/*
-                    Two buttons where there was one, and the reason generalises to every desk that
-                    contributes to this bar.
+                    Two buttons rather than one that changes what it does, which is the rule for
+                    every desk contributing to this bar.
 
-                    What stood here was a single control that read `Insert`, `Insert Default` or
-                    `Remove Default` depending on whether a chord was selected and whether a
-                    default call already existed. Four things were wrong with that. The same pixel
-                    performed opposite actions, so a double-click inserted and then deleted. Both
-                    the label *and* the icon changed with the state, so the button changed width
-                    under a cursor on its way to it. Which state you were in could not be read off
-                    the bar at all — you had to work it out from the label and know the rule. And
-                    here the flip was not even insert/remove but *three* actions on one button,
-                    chosen by a selection the button never displayed.
+                    One control reading `Insert`, `Insert Default` or `Remove Default` by state
+                    would put opposite actions on the same pixel, so a double-click inserts and
+                    then deletes; would change label *and* icon with the state, so the button
+                    changes width under a cursor on its way to it; and would leave the state
+                    unreadable from the bar. Here it would be three actions on one button, chosen
+                    by a selection the button never displays.
 
-                    Split, always mounted, and disabled rather than hidden: which state you are in
-                    now shows in which button is live, and the readout beside them names the chord.
+                    Split, always mounted, disabled rather than hidden: the state shows in which
+                    button is live, and the readout beside them names the chord.
                 */}
                 <ToolGroup>
                     <ToolbarButton

@@ -1,18 +1,16 @@
 /**
  * MLign as the rest of the app sees it.
  *
- * The modules beside this one are a faithful port of the Python reference and
- * speak its vocabulary: note tables in PPQ ticks and milliseconds, windows,
- * logit bundles, triples over table indices. A caller in the UI has none of
- * that. It has the score notes verovio read out of an MEI (`ScoreNote`) and the
- * spans a MIDI file was parsed into (`NoteSpan`), and it wants pairs of ids.
- * This file is the only place where the two vocabularies meet, and it is the
- * only module of `src/mlign/` the UI ever imports.
+ * The modules beside this one port the Python reference and speak its
+ * vocabulary: note tables in PPQ ticks and milliseconds, windows, logit bundles,
+ * triples over table indices. The UI has `ScoreNote`s and `NoteSpan`s and wants
+ * pairs of ids. This is where the two vocabularies meet, and the only module of
+ * `src/mlign/` the UI imports.
  *
  * onnxruntime-web is reached through a dynamic `import()`, so neither the
- * runtime nor the 3.1 MB of weights is fetched until someone actually aligns
- * something. Keep it that way: a static import here would pull the whole
- * runtime into the route's first chunk.
+ * runtime nor the 3.1 MB of weights is fetched until someone aligns something.
+ * Keep it that way: a static import would pull the runtime into the route's
+ * first chunk.
  */
 
 import { accumulateLogits } from "./accumulate";
@@ -44,12 +42,11 @@ export const MAX_WINDOW_TOKENS = 12000;
  * The largest similarity matrix worth allocating, in cells.
  *
  * `sim` is one `Float32Array(n * m)` and the decode builds more of the same
- * shape. Do not read that as twelve bytes a cell: the peak at this guard was
- * *measured* at 284–636 MB depending on the shape of the input, the worst case
- * being a table all on one pitch (585 MB at 3464 x 3464). This is therefore the
- * most a desktop tab can be asked to survive, not a comfortable ceiling. It is
- * still far above anything ordinary — a movement against its recording is a
- * couple of million cells, and the app's own demo file is 0.22 M.
+ * shape, but do not read that as twelve bytes a cell: the peak at this guard was
+ * *measured* at 284–636 MB depending on the input, worst case a table all on one
+ * pitch (585 MB at 3464 x 3464). The most a desktop tab can be asked to survive,
+ * not a comfortable ceiling, and still far above a movement against its
+ * recording at a couple of million cells (the demo file is 0.22 M).
  */
 export const MAX_CELLS = 12_000_000;
 
@@ -110,21 +107,20 @@ export interface InsertedNote {
     /**
      * The written note the model says this one ornaments, when it says so.
      *
-     * A second, separate answer from the alignment, and the one no other aligner
-     * gives: the match head is trained to send an ornament note to the null
-     * column, so a note being an insertion and a note decorating a written note
-     * are compatible facts, not competing ones.
+     * A separate answer from the alignment: the match head is trained to send an
+     * ornament note to the null column, so a note being an insertion and a note
+     * decorating a written note are compatible facts.
      *
-     * Three numbers, and they mean different things. `confidence` is that this
-     * is an ornament and that it is that note's. `gate` is the first half of
-     * that with the match head taken back out, which is the half that still
-     * means something once the decode has called this note an insertion.
-     * `share` is the second half: if it ornaments anything then it is that note.
-     * They mean that under every checkpoint — what v3 changed is how they are
-     * arrived at, not what they say. Absent only when the model has no
-     * attribution head, or when no window covered this note — what counts as
-     * sure enough is `../divergences`'s judgement, not this module's, and this
-     * reports all three rather than choosing between them. See `./attribution`.
+     * Three numbers meaning different things. `confidence` is that this is an
+     * ornament and that it is that note's. `gate` is the first half with the
+     * match head taken back out, the half that still means something once the
+     * decode has called this note an insertion. `share` is the second half: if
+     * it ornaments anything then it is that note.
+     *
+     * Absent only when the model has no attribution head, or when no window
+     * covered this note. All three are reported rather than chosen between:
+     * what counts as sure enough is `../divergences`'s judgement. See
+     * `./attribution`.
      */
     ornamentOf?: { scoreId: string; confidence: number; share: number; gate: number };
 }
@@ -189,16 +185,16 @@ export interface AlignOptions {
 /**
  * Align a score against a performance.
  *
- * The two arguments are exactly what the app already has: `getNotesFromMEI`
- * output and the note spans of a parsed MIDI file. Spans that are not notes are
- * ignored, so the whole `asSpans` result can be passed straight in.
+ * The two arguments are what the app already has: `getNotesFromMEI` output and
+ * the note spans of a parsed MIDI file. Spans that are not notes are ignored, so
+ * the whole `asSpans` result can be passed straight in.
  *
- * Both tables are put in the model's order — by onset, then by pitch — and
- * anything unreadable is dropped, before either is handed on. See `orderScore`
- * and `orderPerformance` for why both of those matter.
+ * Both tables are put in the model's order, by onset then pitch, and anything
+ * unreadable is dropped. See `orderScore` and `orderPerformance` for why both
+ * matter.
  *
- * Throws — with a message meant to be shown to a person — when the input is
- * empty, too large for the runtime, or not the same music.
+ * Throws, with a message meant for a person, when the input is empty, too large
+ * for the runtime, or not the same music.
  */
 export async function alignScoreToPerformance(
     scoreNotes: readonly ScoreNote[],
@@ -260,12 +256,12 @@ export async function alignScoreToPerformance(
     }
 
     // A window the baseline found fewer than two anchors for is paired with the
-    // whole performance rather than a stretch of it (`coarse_windows`' `sel.sum()
-    // < 2` branch). One such window is ordinary; most of them means the baseline
-    // could not line the two files up anywhere, which is what a MIDI that is not
-    // a recording of this score looks like. Running on is not merely useless: it
-    // is the worst case there is, because the head's arithmetic is quadratic in
-    // the width of a window and every window would be as wide as it can get.
+    // whole performance (`coarse_windows`' `sel.sum() < 2` branch). One such
+    // window is ordinary; most of them means the baseline could not line the two
+    // files up anywhere, which is what a MIDI that is not a recording of this
+    // score looks like. Running on is the worst case there is: the head's
+    // arithmetic is quadratic in a window's width, and every window would then
+    // be as wide as it can get.
     const unanchored = windows.filter(([, , p0, p1]) => p0 === 0 && p1 === perf.length).length;
     const wasWindowed = 2 + score.length + perf.length > MAX_SINGLE_TOKENS;
     if (!options.allowMismatch && wasWindowed && unanchored * 2 > windows.length) {
@@ -369,23 +365,21 @@ export async function alignScoreToPerformance(
  *
  * Two separate jobs, both easy to get wrong:
  *
- * **The order is `(onset, pitch)`**, which is `np.lexsort((pitch, onset))` in
- * `tables.py::_sorted`. It is not cosmetic. The table order is the token order
- * into the encoder, so it fixes the position ids, the relative-position bias,
- * and which of two notes at one onset the per-pitch assignment considers first.
- * Sorting by onset alone leaves a chord in whatever order it arrived in — an
- * order the model never saw in training — and that cost one label out of 463 on
- * the app's own demo file, on a written unison whose two rows differ in nothing
- * but their id.
+ * **The order is `(onset, pitch)`**, `np.lexsort((pitch, onset))` in
+ * `tables.py::_sorted`. The table order is the token order into the encoder, so
+ * it fixes the position ids, the relative-position bias, and which of two notes
+ * at one onset the per-pitch assignment considers first. Sorting by onset alone
+ * leaves a chord in an order the model never saw in training, which cost one
+ * label out of 463 on the demo file, on a written unison whose two rows differ
+ * only in their id.
  *
  * **A note whose numbers are not finite is dropped rather than repaired.**
  * `getMIDIValuesForElement` returns nothing for a note verovio cannot sound, so
- * its pitch arrives as `NaN`; `featurize` would then throw out of
- * `BigInt(Math.trunc(NaN))`, and a single non-finite cell in `sim` takes the
- * whole decode somewhere the Python does not go — `Math.min(1, NaN)` is `NaN`
- * here and `1.0` there, so the DTW cost stays finite in Python and turns to NaN
- * here. The pitch range is the embedding's: it holds 129 rows, and a pitch
- * outside them is an out-of-range gather that ORT throws on.
+ * its pitch arrives as `NaN`, `featurize` throws out of
+ * `BigInt(Math.trunc(NaN))`, and one non-finite cell in `sim` takes the decode
+ * somewhere the Python does not go: `Math.min(1, NaN)` is `NaN` here and `1.0`
+ * there, so a DTW cost that stays finite in Python turns to NaN. The pitch range
+ * is the embedding's 129 rows, outside which ORT throws on the gather.
  */
 export function orderScore(scoreNotes: readonly ScoreNote[]): ModelNote[] {
     return scoreNotes
@@ -468,13 +462,12 @@ export function checkScore(mei: string): string | undefined {
  * Whether this score writes grace notes but records nothing about where they
  * fall in the notation.
  *
- * MEI converted from MusicXML carries `@dur.ppq` on every timed event — zero on
- * a grace — and that is what lets `notatedOnsets` put a grace back where it is
+ * MEI converted from MusicXML carries `@dur.ppq` on every timed event, zero on a
+ * grace, which is what lets `notatedOnsets` put a grace back where it is
  * written. MEI written as MEI usually carries none, and a grace then keeps the
  * place verovio would play it at, a little before the beat it leans on. That
- * changes which performed note it can be matched to, so it is worth saying on
- * the page rather than only in the console, which is where `notatedOnsets`
- * leaves it.
+ * changes which performed note it can be matched to, so it belongs on the page
+ * rather than only in the console where `notatedOnsets` leaves it.
  */
 export function hasUntimedGraceNotes(mei: string): boolean {
     const doc = new DOMParser().parseFromString(mei, "application/xml");
@@ -534,16 +527,15 @@ export function toMatches(
 /**
  * The score ids of matches the engraving cannot show.
  *
- * Verovio reads a repeat written with repeat signs as two passes through the
- * music and mints an id of its own for the second one — `n1-rend2` from `n1` —
- * which the source document does not hold. Those notes are worth aligning,
- * because the performer really played them, but a `<when>` may only point at an
- * element the document holds, and the repeated bars are engraved once anyway.
+ * Verovio reads a repeat written with repeat signs as two passes and mints an id
+ * of its own for the second (`n1-rend2` from `n1`), which the source document
+ * does not hold. The performer really played those notes, so they are worth
+ * aligning, but a `<when>` may only point at an element the document holds.
  *
- * This is the same test `applyAlignment` makes before it writes a `<when>`, run
- * ahead of it so the count can be shown rather than only logged. It asks the
- * document, never the shape of the id: a score whose repeat is written out
- * carries `-rend2` ids of its own, and every one of them resolves.
+ * The same test `applyAlignment` makes before writing a `<when>`, run ahead of
+ * it so the count can be shown rather than only logged. It asks the document,
+ * never the shape of the id: a score whose repeat is written out carries
+ * `-rend2` ids of its own, and every one resolves.
  */
 export function unshowableScoreIds(
     mei: string,

@@ -107,18 +107,15 @@ const ScopeOption = ({ label, note }: { label: string; note?: string }) => (
  * chain is still running. Row two is what is true of the **open desk**, and is where every desk
  * portals its own controls.
  *
- * Before this there was one row, and `AppMenu`'s File/Play/Scope sat in it as flat siblings of
- * whatever the open desk had contributed — so nothing on screen said where the app ended and
- * the desk began, and the document's own title, which was computed and passed in, was used only
- * to name the zip and never shown.
+ * The split is what says where the app ends and the desk begins.
  *
  * ## Nothing here changes shape
  *
  * Every slot in row one is fixed-width except the title, which truncates. The dirty dot fades
- * rather than mounting; the fit indicator holds its width whether or not it has anything to
- * say; Play is disabled rather than hidden when there is nothing to hear. The old bar moved
- * every control to the right of whatever had just appeared, and changed height with it, which
- * pushed the plot below up and down while you worked.
+ * rather than mounting, the fit indicator holds its width whether or not it has anything to say,
+ * and Play is disabled rather than hidden when there is nothing to hear. A control that mounts
+ * and unmounts moves every control to the right of it, and changes the bar's height, which
+ * pushes the plot below up and down while you work.
  *
  * ## Why row one places its own rules and row two does not
  *
@@ -379,8 +376,8 @@ export const EditorAppBar = ({
                     gap: 1,
                     borderTop: 1,
                     borderColor: 'divider',
-                    // The tempo desk alone contributes four groups on top of a desk name, and
-                    // a narrow window used to put the rightmost of them out of reach entirely.
+                    // The tempo desk alone contributes four groups on top of a desk name, which
+                    // a narrow window would otherwise put out of reach entirely.
                     overflowX: 'auto',
                     overflowY: 'hidden',
                     scrollbarWidth: 'thin',

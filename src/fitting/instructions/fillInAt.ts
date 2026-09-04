@@ -27,10 +27,9 @@ interface FillIn<O> {
  *   its window, and the next segment's fit lands on that same date. One element carries the
  *   closing volume and the next curve; two make the closer shadow the curve.
  *
- * A call at those two sites and nowhere else, deliberately. Merging on a matching date inside a
- * general insert would make a contract between two named transformers look like a property of
- * the format, and leave every other caller wondering whether its insert had silently landed
- * inside an existing element.
+ * Called at those two sites and nowhere else. Merging on a matching date inside a general insert
+ * would make a contract between two named transformers look like a property of the format, and
+ * leave every other caller wondering whether its insert had landed inside an existing element.
  *
  * A field the existing instruction already has a value for is left alone: the earlier
  * transformer's measurement wins.

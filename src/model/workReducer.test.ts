@@ -416,8 +416,6 @@ describe('the option envelopes', () => {
     });
 });
 
-// ── undo and redo ─────────────────────────────────────────────────
-
 const add = (id: string): WorkAction => ({
     type: 'add-call',
     call: { id, name: 'InsertPedal', options: {} },

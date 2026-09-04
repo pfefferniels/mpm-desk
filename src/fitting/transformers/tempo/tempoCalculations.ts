@@ -7,16 +7,15 @@
  * to {@link PULSES_PER_QUARTER} — 720 and only 720 is ever written, so every call site would
  * otherwise pass the same number — plus the two curve-fitting helpers the desks drive.
  *
- * The record of *why* the delegation exists is in the header of espressivo's `src/mpm/timing.ts`.
- * A local hand-copy of `resolveTempo`, `tempoAt` or `computeDiffTiming` — Simpson's rule included,
- * down to the sub-interval count — drifts from the renderer in four ways: `meanTempoAt` of exactly
- * 1 reading as ±Infinity, one above 1 overshooting both endpoints, a negative one giving `NaN`,
- * and a `|| 0.5` that turns an explicit `meanTempoAt="0"` into a linear ramp. Do not introduce one.
+ * espressivo's `src/mpm/timing.ts` header records why the delegation exists. A hand-copy of
+ * `resolveTempo`, `tempoAt` or `computeDiffTiming`, Simpson's rule included down to the
+ * sub-interval count, drifts from the renderer in four ways: `meanTempoAt` of exactly 1 reading
+ * as ±Infinity, one above 1 overshooting both endpoints, a negative one giving `NaN`, and a
+ * `|| 0.5` turning an explicit `meanTempoAt="0"` into a linear ramp. Do not introduce one.
  *
- * One consequence belongs here rather than there: a document with a malformed `@meanTempoAt`
- * measures as `NaN` throughout its span, which `auditInstructions` refuses to let a transformer
- * leave standing. That is the intended outcome — it is what the
- * renderer produces, and the renderer's answer is the one that decides whether a fit is right.
+ * One consequence belongs here: a document with a malformed `@meanTempoAt` measures as `NaN`
+ * throughout its span, which `auditInstructions` refuses to let a transformer leave standing.
+ * That is what the renderer produces, and the renderer's answer decides whether a fit is right.
  */
 import { tempoAt, type Tempo as ResolvedTempo } from 'espressivo';
 import {
@@ -58,8 +57,6 @@ export const ticksForConstantTempo = (
 /** The exact inverse of {@link millisecondsAt}, at 720 ppq. */
 export const dateAtMilliseconds = (targetMilliseconds: number, tempo: ResolvedTempo): number =>
   dateAtMillisecondsAtPpq(targetMilliseconds, tempo, PULSES_PER_QUARTER);
-
-// ── Curve shape fitting ───────────────────────────────────────────
 
 /**
  * Fits the `meanTempoAt` parameter (0–1) for a power-function tempo
@@ -119,8 +116,6 @@ export function fitMeanTempoAt(
   return bestIm;
 }
 
-// ── Elapsed-time calculation ──────────────────────────────────────
-
 /**
  * Computes elapsed milliseconds for a tempo segment of `segLengthBeats`
  * beats, transitioning from `startBpm` to `endBpm` with the given
@@ -143,8 +138,6 @@ export function computeElapsedMs(
 ): number {
   return computeElapsedMsAt(startBpm, endBpm, meanTempoAt, segLengthBeats, PULSES_PER_QUARTER);
 }
-
-// ── Elapsed-time optimiser ────────────────────────────────────────
 
 /**
  * Adjusts `startBpm`, `endBpm`, and `meanTempoAt` so the segment

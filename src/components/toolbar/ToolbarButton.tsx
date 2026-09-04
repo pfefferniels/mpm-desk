@@ -25,27 +25,22 @@ interface ToolControlProps {
 /**
  * The tooltip, and the wrapper the tooltip needs.
  *
- * The `<span>` is **unconditional**, and that is the whole reason this is a component rather than
- * two lines at each call site. A disabled MUI button dispatches no pointer events, so a `Tooltip`
- * around one never hears the hover and never opens; the documented fix is a wrapper element that
- * does. Wrapping *only when disabled* looks like the tighter version and is a bug: the element type
- * at that position in the tree changes the moment `disabled` flips, React unmounts the button and
- * mounts a new one, and the keyboard focus that was on it is gone. `AppMenu` wrapped two of its
- * three tooltipped controls by hand and not the third, which is the other failure mode — a rule
- * everybody has to remember is a rule that is followed most of the time.
+ * The `<span>` is **unconditional**, which is why this is a component rather than two lines at
+ * each call site. A disabled MUI button dispatches no pointer events, so a `Tooltip` around one
+ * never hears the hover; the documented fix is a wrapper that does. Wrapping *only when disabled*
+ * is a bug: the element type at that position changes the moment `disabled` flips, so React
+ * unmounts the button, mounts a new one, and the keyboard focus on it is gone.
  *
- * `describeChild` says the tooltip is a *description*, not a name, and it was verified against
- * `node_modules/@mui/material/Tooltip/Tooltip.js` rather than assumed. The cloned child's props are
- * assembled as `{...nameOrDescProps, ...other, ...children.props}` with `children.props` **last**,
- * so whatever the child already declares beats what the tooltip wants to add. Without
- * `describeChild` the tooltip's contribution is `aria-label: title`; with it, `aria-describedby`
- * while the tooltip is open and the native `title` attribute while it is closed.
+ * `describeChild` says the tooltip is a *description* rather than a name, verified against
+ * `node_modules/@mui/material/Tooltip/Tooltip.js`. The cloned child's props are assembled as
+ * `{...nameOrDescProps, ...other, ...children.props}` with `children.props` **last**, so what the
+ * child declares beats what the tooltip adds. Without `describeChild` the tooltip contributes
+ * `aria-label: title`; with it, `aria-describedby` while open and the native `title` while closed.
  *
- * Be clear about where that lands: the tooltip's child is this wrapper, not the button, so the
- * description is attached to the wrapper. It is the button that carries the name, stated outright
- * as `label ?? tooltip`. So in the ordinary case — no `label` — the tooltip's own words *are* the
- * button's accessible name and nothing depends on the description at all; a `label` is what trades
- * that guarantee for a better name, and should be given only when the tooltip is genuinely not one.
+ * The tooltip's child is this wrapper rather than the button, so the description lands on the
+ * wrapper. The button carries the name, stated as `label ?? tooltip`. With no `label` the
+ * tooltip's own words *are* the accessible name and nothing depends on the description; a `label`
+ * trades that guarantee for a better name, so give one only when the tooltip is not a name.
  */
 const Hinted = ({ tooltip, children }: { tooltip: string; children: ReactElement }) => (
     <Tooltip describeChild title={tooltip}>
@@ -64,19 +59,16 @@ interface ToolbarButtonProps extends ToolControlProps {
  *
  * ## There is deliberately no `variant` prop
  *
- * `contained` is reachable only through `primary`, and that is a design rule made checkable. The
- * bar wants exactly one filled button per desk — the thing the desk is for — and everything else
- * outlined. What it had instead: 44 `<Button>`s across the desks and the app's own chrome spelling
- * their emphasis three ways, ten `contained`, twenty `outlined` and fourteen with no `variant` at
- * all, which is MUI's `text`. Eight separate files reach for `contained`, and nothing anywhere said
- * which of those was its desk's one principal action rather than a button that happened to want
- * some weight. Routing emphasis through a named boolean turns "how many filled buttons does this
- * desk have?" into one grep and one test.
+ * `contained` is reachable only through `primary`, which makes a design rule checkable. The bar
+ * wants exactly one filled button per desk, the thing the desk is for, and everything else
+ * outlined. Spelled as a `variant` the emphasis of 44 buttons is scattered over three values in
+ * eight files, with nothing saying which `contained` is its desk's principal action rather than a
+ * button that wanted some weight. A named boolean turns "how many filled buttons does this desk
+ * have?" into one grep and one test.
  *
- * Checkable is not enforced, and the comment should not pretend otherwise. Nothing in this file can
- * count buttons across two `ToolGroup`s, let alone across a desk's toolbar and the app's own; a
- * desk that sets `primary` twice renders two filled buttons and no type error. What the prop buys
- * is that the question can be asked at all.
+ * Checkable, not enforced. Nothing here can count buttons across two `ToolGroup`s, let alone
+ * across a desk's toolbar and the app's own, so a desk that sets `primary` twice renders two
+ * filled buttons and no type error. The prop buys the question being askable.
  */
 export const ToolbarButton = ({
     children,

@@ -25,26 +25,23 @@ interface ToolFieldProps {
  * ## The height, which is the whole reason this exists
  *
  * MUI's small controls are not one height, and a bare `<TextField size='small'>` is the tallest
- * thing in the room. The arithmetic, read off the components' own style functions rather than
- * guessed at: a small `OutlinedInput` pads `8.5px` above and below an input whose height is
- * `1.4375em` of 16px type, so **40px**. A small outlined `Button` pads `3px` around 13px type at
- * `typography.button`'s line height of 1.75, plus a 1px border each side, so **30.75px**. In a 44px
- * bar the field alone sets the row's height, and every button beside it is left floating in the
- * middle of a space it did not ask for — which is exactly how the temporal-spread desk's Beat
- * Length field reads today, one group away from that desk's own 30.75px Insert button.
+ * thing in the room. Read off the components' own style functions: a small `OutlinedInput` pads
+ * `8.5px` above and below an input of `1.4375em` at 16px, so **40px**; a small outlined `Button`
+ * pads `3px` around 13px type at `typography.button`'s line height of 1.75 plus a 1px border
+ * each side, so **30.75px**. In a 44px bar the field alone sets the row's height and every button
+ * beside it floats in a space it did not ask for.
  *
- * So the input's height is forced to 30 and the row's height becomes a decision the bar makes
- * rather than one the tallest control makes for it.
+ * So the input's height is forced to 30, and the row's height is the bar's decision rather than
+ * the tallest control's.
  *
  * ## No floating label
  *
- * MUI's `InputLabel` starts inside the field and animates up to sit *in* the border, which is why
- * the outlined variant renders its border as a `<fieldset>` with a notch cut in the top. That notch
- * needs the field to be tall enough to have a top to cut into; at 30px the label overlaps the input
- * text on the way up and lands half outside the control. The name goes beside the field instead, in
- * the same treatment `ToolGroup` gives its caption, so a field and a group read as the same kind of
- * thing. `InputLabelProps` is therefore not configured, it is *absent* — there is no label element
- * at all, and the accessible name is stated on the input directly.
+ * MUI's `InputLabel` animates up to sit *in* the border, which is why the outlined variant draws
+ * its border as a `<fieldset>` with a notch in the top. That notch needs a field tall enough to
+ * have a top to cut into; at 30px the label overlaps the input text and lands half outside the
+ * control. The name goes beside the field, in `ToolGroup`'s treatment of its caption, so
+ * `InputLabelProps` is *absent* rather than configured: there is no label element, and the
+ * accessible name is stated on the input.
  *
  * `InputProps` and `inputProps` rather than `slotProps`: this is `@mui/material` 5.18, whose
  * `TextField` has no `slotProps` prop — it is not in the component's prop list — so the newer

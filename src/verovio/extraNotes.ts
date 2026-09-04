@@ -1,20 +1,18 @@
 /**
  * The played notes with no note in the score, drawn where they were played.
  *
- * Until now these could only be listed - a table of times and pitches, capped at
- * two hundred rows - because there is no note in the document for verovio to
- * draw. But the fork lays the score out along performed time, so an extra note
- * does have a place: the same axis every other note is on. Reading a trill as
- * "seven rows at 0:14.2" is guesswork; seeing seven crosses sitting on the note
- * they decorate is not.
+ * There is no note in the document for verovio to draw, so the alternative is a
+ * table of times and pitches. But the fork lays the score out along performed
+ * time, so an extra note has a place on the axis every other note is on: reading
+ * a trill as "seven rows at 0:14.2" is guesswork, seeing seven crosses on the
+ * note they decorate is not.
  *
  * The geometry follows ./extenders, which draws release lines the same way: take
- * a note verovio has already placed, and measure from it. Its notehead gives a
- * point whose performed time is known from `data-perf-onset`, so seconds convert
- * to horizontal units through `unitsPerSecond`; its `data-pname` and `data-oct`
- * give a diatonic step whose vertical position is known, so steps convert
- * through half a staff space. Nothing has to be assumed about where verovio put
- * its origin.
+ * a note verovio has placed and measure from it. Its notehead gives a point
+ * whose performed time is known from `data-perf-onset`, so seconds convert
+ * through `unitsPerSecond`, and its `data-pname` and `data-oct` give a diatonic
+ * step, so steps convert through half a staff space. Nothing has to be assumed
+ * about where verovio put its origin.
  */
 
 import { staffSpace, unitsPerSecond, type ScoreOptions } from "./toolkit";

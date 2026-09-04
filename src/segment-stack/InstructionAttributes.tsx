@@ -6,12 +6,11 @@
  * takes effect — is here as the document writes it, so a reader who distrusts the picture
  * can check it without leaving the card.
  *
- * **Condensed, not quoted.** A `<tempo>` in this corpus carries nine attributes and four of
- * them are bookkeeping: an `xml:id`, a `@date` the row already draws, an `@endDate` the row
- * already draws, and a `@corresp` pointing back at the segment you are looking at. Printing
- * them buries `@bpm` in a wall of hex. {@link CLERICAL} is what gets dropped, kept as a
- * denylist rather than a per-type allowlist so that an attribute this file has never met
- * shows up rather than silently going missing.
+ * **Condensed, not quoted.** A `<tempo>` here carries nine attributes, four of them
+ * bookkeeping: an `xml:id`, a `@date` and an `@endDate` the row already draws, and a
+ * `@corresp` pointing back at the segment you are looking at. Printing them buries `@bpm` in a
+ * wall of hex. {@link CLERICAL} is what gets dropped, a denylist rather than a per-type
+ * allowlist so that an unfamiliar attribute shows up rather than going missing.
  *
  * Long decimals are rounded for display — see {@link condense}.
  *

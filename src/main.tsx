@@ -30,16 +30,12 @@ import './index.css';
  * What they do share is underneath both: `src/fitting/` runs the chain, `src/model/` says what a
  * work file is, and `src/utils/espressivo.ts` renders. That is the part worth having in common.
  *
- * ## Two trees, and now two downloads
+ * ## Two trees, two downloads
  *
- * The split was real in the source and not in the build. Both were imported here unconditionally,
- * so one bundle held both and each route paid for the other: measured over a per-package split of
- * the old bundle, the viewer's tree was 545 KB and the desks with the chain behind them well over
- * that, and every reader of the finished reconstruction downloaded all of it to look at some
- * words on a line.
- *
- * `lazy` at the one place that already knew which tree it wanted costs a dynamic import and gets
- * the source's own boundary back in the output.
+ * `lazy` here, the one place that knows which tree it wants, is what keeps the source's boundary
+ * in the output. Imported unconditionally, one bundle holds both and each route pays for the
+ * other: the viewer's tree measures 545 KB and the desks with the chain behind them well over
+ * that, all of it downloaded to look at some words on a line.
  */
 const isEditor = window.location.pathname === '/editor';
 

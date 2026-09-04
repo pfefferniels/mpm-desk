@@ -22,22 +22,21 @@ interface Gathered {
 /**
  * Read the narrative off the work file: segment → its calls → what they wrote.
  *
- * The whole desk is a view of this. It runs the other way from how the file is written — the
- * calls name the segment, so gathering means one pass over the calls rather than a lookup per
- * segment — and it settles three things a row cannot settle for itself:
+ * The whole desk is a view of this. The calls name the segment, so gathering is one pass over
+ * the calls rather than a lookup per segment, and it settles three things a row cannot:
  *
  * - **What a segment holds at all.** A call that wrote no instruction contributes nothing, which
  *   is the whole of "`Modify`, `MakeChoice` and `TranslatePhyiscalTimeToTicks` are not part of
- *   the narrative": they are left out by having nothing to show, not by anyone keeping a list of
- *   which transformers count.
+ *   the narrative": they are left out by having nothing to show rather than by a list of which
+ *   transformers count.
  * - **Which instructions are gone.** `Call.elements` records what a call was answerable for when
- *   it ran; the document may since have merged or removed one. Anything `typeById` has no entry
- *   for is counted as overwritten instead.
- * - **Who wrote what.** `Call.elements` is derived by diffing the document before and after the
- *   call, so it credits reshaping as readily as writing — `StylizeOrnamentation` points all 100
- *   ornaments at shared `<ornamentDef>`s and is answerable for all 100. The call that put an
- *   instruction there first is the one that *wrote* it; every later claimant reshaped it. That
- *   needs the chain in order, so it is settled here rather than per row.
+ *   it ran, and the document may since have merged or removed one. Anything `typeById` has no
+ *   entry for counts as overwritten.
+ * - **Who wrote what.** `Call.elements` is a before-and-after diff, so it credits reshaping as
+ *   readily as writing: `StylizeOrnamentation` points all 100 ornaments at shared
+ *   `<ornamentDef>`s and is answerable for all 100. The call that put an instruction there first
+ *   *wrote* it and every later claimant reshaped it, which needs the chain in order and so is
+ *   settled here rather than per row.
  */
 export function gatherInstructions(
     segments: readonly Segment[],

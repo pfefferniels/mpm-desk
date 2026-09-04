@@ -13,11 +13,10 @@ import type { CallOutcome } from '../model/Reconstruction';
 /**
  * What the editor has selected: calls, and the MPM elements they wrote.
  *
- * The editor's selection, and deliberately not the viewer's. `SelectionProvider` selects *spans*
- * and only reads; this selects *calls* and can remove and replace them. They look similar and are
- * not the same thing — a span is a run of elements of one type as the tree draws it, a call is
- * something a person did. Folding them into one provider would mean a mode flag in the middle of
- * a hot path, which is what keeping the two trees apart avoids.
+ * The editor's selection, deliberately not the viewer's. `SelectionProvider` selects *spans* and
+ * only reads; this selects *calls* and can remove and replace them. A span is a run of elements of
+ * one type as the tree draws it, a call is something a person did. One provider for both would put
+ * a mode flag in the middle of a hot path.
  *
  * ## The one coupling between a desk and the rest of the editor
  *
@@ -62,10 +61,10 @@ const CallSelectionContext = createContext<CallSelectionValue | null>(null);
 /**
  * Which call each element answers to.
  *
- * The fit credits every call that wrote or changed an element, and in a chain of dynamics curves
- * that is two calls at every joint: the first closes its curve with a `<dynamics>` at the date
- * the second then fills its own curve into. Taking the first call credited lit both curves on a
- * click on either, and left the second call unselectable from the plot.
+ * The fit credits every call that wrote or changed an element, which in a chain of dynamics
+ * curves is two calls at every joint: the first closes its curve with a `<dynamics>` at the date
+ * the second fills its own curve into. Taking the first credited lights both curves on a click on
+ * either and leaves the second call unselectable from the plot.
  *
  * Three rules, each outranking the next, and the later call winning among equals since its run
  * is the one the document shows:

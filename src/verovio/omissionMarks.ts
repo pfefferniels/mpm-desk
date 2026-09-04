@@ -1,18 +1,15 @@
 /**
  * A passage the performer left out, marked rather than drawn.
  *
- * The score is laid out along the time it was performed in, so a note takes up
- * as much room as it took to play. A note that was never played took none: the
- * fork places it between the two matched notes on either side, and where the
- * performer skipped a whole phrase there is nothing between those two but the
- * moment they were played apart. Four bars then arrive in the width of one
- * notehead, on top of each other, unreadable - and unreadable in the way that
- * looks like a rendering fault rather than like the fact it is.
+ * The score is laid out along the time it was performed in, so a note takes as
+ * much room as it took to play and a note never played takes none. The fork
+ * places such a note between the two matched notes on either side, so a skipped
+ * phrase arrives in the width of one notehead, four bars on top of each other,
+ * unreadable in the way that looks like a rendering fault.
  *
- * So a crowded group is not drawn note by note. It is taken out and a bracket
- * put in its place, holding the number of notes that were passed over. The
- * bracket is the same size wherever it stands, which is the point: nothing about
- * how it looks pretends to say how much music is inside it, only the count does.
+ * So a crowded group is taken out and a bracket put in its place, holding the
+ * number of notes passed over. The bracket is the same size wherever it stands:
+ * only the count says how much music is inside it.
  *
  * A group whose notes do have room keeps them, with the bracket around them. The
  * measuring is done on what verovio actually drew, so this needs no opinion

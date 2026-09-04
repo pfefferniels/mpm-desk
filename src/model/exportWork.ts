@@ -23,25 +23,23 @@ import JSZip from 'jszip';
 /**
  * Fold every `MakeChoice` in the chain into the MEI, as `@corresp` on the notes it chose for.
  *
- * An aligned MEI states each reading of the piece as a `<recording>` full of `<when>` elements,
- * one per sounded note, each pointing back at the `<note>` it realises through `@data` and at the
- * symbol it was transcribed from through `@corresp`. Which reading a passage was taken from is
- * otherwise only in the chain: it is a `MakeChoice` option, and reading it back means running the
- * transformers again. Writing the chosen `@corresp` onto the `<note>` puts that answer in the
- * score itself, so a reader of the exported MEI alone can see which take each note came from.
+ * An aligned MEI states each reading as a `<recording>` of `<when>` elements, one per sounded
+ * note, pointing at the `<note>` it realises through `@data` and at the symbol it was transcribed
+ * from through `@corresp`. Which reading a passage was taken from is otherwise only in the chain,
+ * as a `MakeChoice` option, so reading it back means running the transformers again. Writing the
+ * chosen `@corresp` onto the `<note>` puts the answer in the score itself.
  *
  * **The first choice that covers a note decides it.** A note already carrying `@corresp` is left
- * alone, so a later call in the chain cannot overwrite an earlier one's answer — which is what
- * makes the whole-piece choice a fallback rather than a reset when a ranged one ran before it.
+ * alone, so a later call cannot overwrite an earlier one's answer, which makes a whole-piece
+ * choice a fallback rather than a reset when a ranged one ran before it.
  *
  * A choice naming a source no `<recording>` has is skipped rather than raised: the chain may name
- * a take that this MEI does not carry, and refusing to save is a worse answer to that than saving
- * a score that stays silent about which reading it holds.
+ * a take this MEI does not carry, and refusing to save is a worse answer than saving a score that
+ * stays silent about which reading it holds.
  *
- * `removeRecordings` strips the alternative readings out afterwards. Nothing calls it that way
- * today — the archive keeps every take, because dropping them makes the export unable to state
- * what the choice was between — but it is what an export meant for a reader rather than for
- * reopening would want.
+ * `removeRecordings` strips the alternative readings out afterwards. The archive keeps every
+ * take, dropping them leaving the export unable to state what the choice was between, but an
+ * export meant for a reader rather than for reopening would want it.
  */
 export const injectChoices = (
     mei: string,
@@ -100,18 +98,15 @@ export const injectChoices = (
 /**
  * The provenance as the file records it: each call, plus what the run made it answerable for.
  *
- * Two of a {@link Call}'s fields cannot be derived from its options and so have to be written down
- * by whoever ran the chain — the `elements` it wrote or reshaped, and the `range` of score it
- * acted on. Both are documented at length on `Call`; the short version is that a call's elements
- * are a before-and-after difference and a recorded pedal has no symbolic date, so only a run
- * knows. This is the moment the run's answer gets attached to the call that will be saved.
+ * Two of a {@link Call}'s fields cannot be derived from its options, so whoever ran the chain
+ * writes them down: the `elements` it wrote or reshaped, and the `range` of score it acted on.
+ * Only a run knows either, a call's elements being a before-and-after difference and a recorded
+ * pedal having no symbolic date. `Call` documents both at length.
  *
  * **Folded in only where the run has something to say.** An outcome with no elements and a null
- * range leaves the call exactly as the document held it, which also means a call that wrote
- * nothing this time keeps whatever a previous save recorded for it. That is deliberate in the one
- * direction it matters — a call the chain could not run is better left saying what it last did
- * than silently emptied — and it is why the two fields are spread conditionally rather than
- * assigned.
+ * range leaves the call as the document held it, so a call that wrote nothing this time keeps
+ * what a previous save recorded. A call the chain could not run is better left saying what it
+ * last did than silently emptied, which is why the two fields are spread conditionally.
  *
  * A call no outcome mentions is passed through by reference, untouched.
  */
@@ -177,11 +172,9 @@ export interface WorkArchiveInput {
  * every call records its own elements and range, so the projection is a few milliseconds of
  * arithmetic rather than a fourth file that can fall out of step with the first three.
  *
- * **It does not download.** Handing a blob to the user is a DOM act — an anchor, a click, an
- * object URL — and it is the one part of saving that cannot be run without a browser and has
- * nothing in it worth checking. Everything above it is the part that can silently write the wrong
- * file, so that part is a function that returns a value and the caller passes the value to
- * `downloadAsFile`.
+ * **It does not download.** Handing a blob to the user is a DOM act, the one part of saving that
+ * needs a browser and has nothing worth checking. Everything above it can silently write the
+ * wrong file, so it returns a value and the caller passes that to `downloadAsFile`.
  */
 export const buildWorkArchive = async (input: WorkArchiveInput): Promise<Blob> => {
     const newMEI = injectChoices(

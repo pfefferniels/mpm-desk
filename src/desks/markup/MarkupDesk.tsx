@@ -119,27 +119,19 @@ Row.displayName = 'Row';
 /**
  * The document, as text.
  *
- * ## What it is for
- *
  * Every other desk draws one dimension of the performance. This one draws the artefact all of
- * them are writing, so that what a gesture put in the file can be read back — and, since
- * `CallSelection` speaks in the same `xml:id`s the markup carries, so that reading it and acting
- * on it are the same place. Selecting a claim lands here on its elements; clicking an
- * instruction here opens the desk that wrote it.
+ * them are writing, so what a gesture put in the file can be read back. `CallSelection` speaks in
+ * the same `xml:id`s the markup carries, so reading it and acting on it are the same place:
+ * selecting a claim lands here on its elements, and clicking an instruction opens the desk that
+ * wrote it.
  *
- * It was called the result desk, which named a stage of a pipeline run rather than an aspect of
- * the work — the vocabulary the 2026-08-26 rewrite left behind — and showed both documents as
- * unlabelled `<pre>`s, the second in literal blue. See `markupIndex.ts` for why those were two
- * horizontal ribbons rather than anything readable.
+ * ## One export
  *
- * ## Only one export survives
- *
- * There were three: Download MPM, Download MIDI, Copy to Clipboard. `buildWorkArchive` already
- * writes `transcription.mei`, `work.json`, `performance.mpm` and `score.msm` into the archive
- * Save produces, and its `performance.mpm` is the same document this desk shows — so two of the
- * three handed the user a file they had just been given. The MIDI is the one that renders
- * something the archive does not contain, so it is the one that stays, and it is this desk's
- * single `primary`.
+ * `buildWorkArchive` already writes `transcription.mei`, `work.json`, `performance.mpm` and
+ * `score.msm` into the archive Save produces, and its `performance.mpm` is the document this desk
+ * shows, so a Download MPM or a Copy would hand the user a file they have just been given. The
+ * MIDI renders something the archive does not contain, so it stays, and it is this desk's single
+ * `primary`.
  *
  * ## No find field
  *
@@ -281,8 +273,8 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
                     >
                         Download MIDI
                     </ToolbarButton>
-                    {/* The clipboard and the MIDI both used to fail into a `catch` that said
-                        nothing, so a failed export looked exactly like a successful one. */}
+                    {/* A failed export has to say so, or it looks exactly like a successful
+                        one. */}
                     <ToolStatus width={52} tone={exported === 'failed' ? 'warning' : 'default'}>
                         {exported}
                     </ToolStatus>
@@ -341,21 +333,18 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
                         '& [data-id]:hover': { background: GRAY_100 },
                         '& [data-line]': { counterIncrement: 'markup-line' },
                         /*
-                            The line number, as generated content rather than as a `<span>`.
+                            The line number, as generated content rather than a `<span>`.
 
-                            Two reasons, and the first is the one that matters. Find-in-page does
-                            not match CSS generated content, so the numbers stay out of the way of
-                            the browser's own search — which is this desk's search. A gutter of
-                            real text would answer a hunt for `1440` with line 1440 as well as
-                            every `date="1440"`, and the numbers would win by being first.
+                            Find-in-page does not match CSS generated content, so the numbers stay
+                            out of the browser's own search, which is this desk's search. A gutter
+                            of real text would answer a hunt for `1440` with line 1440 as well as
+                            every `date="1440"`, and win by being first. It also takes a thousand
+                            elements out of the tree.
 
-                            The second is that it takes a thousand elements out of the tree.
-
-                            `position: sticky` works here because the row is a flex container, so
-                            its `::before` is a flex item with a box of its own. It needs the
-                            opaque background to be worth sticking: the longest line in the
-                            shipped MPM is 202 characters and wrapping is off by default, so
-                            without it the code would scroll under a transparent gutter.
+                            `position: sticky` works because the row is a flex container, so its
+                            `::before` is a flex item with a box of its own. The opaque background
+                            is what makes sticking worth anything: the longest line in the shipped
+                            MPM is 202 characters and wrapping is off by default.
                         */
                         '& [data-line]::before': {
                             content: 'counter(markup-line)',

@@ -6,17 +6,17 @@
  * `accumulate.ts`. This module is only responsible for getting the weights into
  * the browser and turning one window's feeds into those tensors.
  *
- * The ornament-attribution head is exported the same way and on the same terms —
- * `attr_s` / `attr_p` per token plus two constants, and the dot products left to
- * the host — but it is asked for rather than always returned: its two per-token
- * tensors are as large as `s` and `p` together.
+ * The ornament-attribution head is exported on the same terms (`attr_s` /
+ * `attr_p` per token plus two constants, dot products left to the host) but is
+ * asked for rather than always returned: its two per-token tensors are as large
+ * as `s` and `p` together.
  *
- * The contract is the `.onnx.json` sidecar beside each model file; the shapes
+ * The contract is the `.onnx.json` sidecar beside each model file. The shapes
  * below are `mlign-v3-fp16.onnx.json`'s `graph` block, which extends v2's by one
- * output rather than changing any of it.
+ * output.
  *
- * Nothing here touches the DOM, so the whole module can be moved behind a Web
- * Worker later without changing anything but the caller.
+ * Nothing here touches the DOM, so the module can move behind a Web Worker
+ * without changing anything but the caller.
  */
 
 import { defaultModelUrl } from "./models";
@@ -117,13 +117,11 @@ export interface MlignSession {
     /**
      * How this graph's attribution row has to be put together.
      *
-     * Read off the graph's own output names, because that is the only thing
-     * that is true of the weights themselves — a file can be renamed, copied or
-     * served from anywhere, and a host that decided this from the URL would
-     * quietly read a v3 row as a v2 one and get a number that means something
-     * else. `"none"` for a graph with no attribution head at all, which reads
-     * the same way as v2's for the code downstream: there is simply nothing to
-     * read.
+     * Read off the graph's own output names, the only thing true of the weights
+     * themselves. A file can be renamed, copied or served from anywhere, so a
+     * host deciding this from the URL would quietly read a v3 row as a v2 one
+     * and get a number meaning something else. `"none"` for a graph with no
+     * attribution head, which downstream reads as v2's: nothing to read.
      */
     readonly attrConditioned: AttrConditioned;
     /** Free the WASM-side session. */

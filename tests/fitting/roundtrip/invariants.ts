@@ -54,7 +54,7 @@ export const findViolations = (xml: string): Violation[] => {
   const all = parse(xml);
   const violations: Violation[] = [];
 
-  // ── ids are unique ────────────────────────────────────────────
+  // Ids are unique.
   const seen = new Set<string>();
   for (const element of all) {
     const id = element.getAttributeValue('xml:id');
@@ -65,7 +65,7 @@ export const findViolations = (xml: string): Violation[] => {
     seen.add(id);
   }
 
-  // ── every attribute value is a value ──────────────────────────
+  // Every attribute value is a value.
   for (const element of all) {
     for (const attribute of attributesOf(element)) {
       const value = attribute.value;
@@ -85,7 +85,7 @@ export const findViolations = (xml: string): Violation[] => {
     }
   }
 
-  // ── every @name.ref resolves ──────────────────────────────────
+  // Every @name.ref resolves.
   const elementsNamed = (elementName: string) =>
     all.filter((element) => element.getLocalName() === elementName);
 
@@ -146,7 +146,7 @@ export const findViolations = (xml: string): Violation[] => {
         }
       }
 
-      // ── one style switch per date ─────────────────────────
+      // One style switch per date.
       const dates = styles.map((style) => style.getAttributeValue('date') ?? '0');
       const duplicated = dates.filter((date, index) => dates.indexOf(date) !== index);
       if (duplicated.length > 0) {
@@ -158,7 +158,7 @@ export const findViolations = (xml: string): Violation[] => {
     }
   }
 
-  // ── no transition without a successor ─────────────────────────
+  // No transition without a successor.
   for (const map of all.filter((element) => element.getLocalName().endsWith('Map'))) {
     const instructions = allChildElements(map)
       .filter((child) => TRANSITIONING.has(child.getLocalName()))

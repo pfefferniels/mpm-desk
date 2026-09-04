@@ -1,18 +1,16 @@
 /**
  * The ornament signs a score already writes, keyed by the note each one decorates.
  *
- * This exists because of a fact about verovio that is easy to miss and changes
- * how the whole of an alignment should be read: `GenerateTimemapFunctor` adds one
- * timemap entry per notated note and never realises an ornament. The only
- * expansion in verovio's MIDI code is `m_expandedNotes`, and only `VisitBTrem`
- * ever fills it - a <trill>, <mordent> or <turn> contributes nothing.
+ * `GenerateTimemapFunctor` adds one timemap entry per notated note and never
+ * realises an ornament: the only expansion in verovio's MIDI code is
+ * `m_expandedNotes`, which only `VisitBTrem` fills, so a `<trill>`, `<mordent>`
+ * or `<turn>` contributes nothing.
  *
- * So a trill the score already notates reaches the aligner as a single score
- * note, while the recording holds the eight notes the performer actually played.
- * Seven of them come back as insertions. Without this module they would all be
- * reported as notes the performer added to the score, which in romantic piano
- * music is both the commonest such report and the wrongest: the score does write
- * them, once, as a sign.
+ * So a notated trill reaches the aligner as a single score note while the
+ * recording holds the eight the performer played, and seven come back as
+ * insertions. Without this they would all be reported as notes the performer
+ * added, which in romantic piano music is the commonest such report and the
+ * wrongest: the score does write them, once, as a sign.
  */
 
 const MEI_NS = "http://www.music-encoding.org/ns/mei";
