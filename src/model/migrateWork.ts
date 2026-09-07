@@ -1,15 +1,15 @@
 /**
  * The one-way door out of the JSON-LD work file.
  *
- * `public/info.json` was written as a CIDOC-CRM / CRMinf graph: a `Reconstruction` whose
- * `creation` held 137 `I1_Argumentation`s, each with a `calls` list and an `I2_Belief` under
- * `conclusion`. {@link WorkFile} replaces it with a flat `provenance` of every call, each naming
- * the segment it is claimed under, and one prose `segment` per argumentation.
+ * `info.json` (kept as `src/test/fixtures/info.json`) was written as a CIDOC-CRM / CRMinf graph: a
+ * `Reconstruction` whose `creation` held 137 `I1_Argumentation`s, each with a `calls` list and an
+ * `I2_Belief` under `conclusion`. {@link WorkFile} replaces it with a flat `provenance` of every
+ * call, each naming the segment it is claimed under, and one prose `segment` per argumentation.
  *
  * ```sh
- * node scripts/migrateWork.ts public/info.json public/work.json
+ * node scripts/migrateWork.ts src/test/fixtures/info.json ../welte225.org/mpm/work.json
  * # or, if this Node does not strip types:
- * npx vite-node scripts/migrateWork.ts -- public/info.json public/work.json
+ * npx vite-node scripts/migrateWork.ts -- src/test/fixtures/info.json ../welte225.org/mpm/work.json
  * ```
  *
  * **Idempotent**, so the script can be re-run against a directory without anyone tracking which

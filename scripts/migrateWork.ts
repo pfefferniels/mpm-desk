@@ -8,7 +8,7 @@
  * The logic must not live here: the app imports it, and a `node:fs` import in that path reaches
  * the browser bundle, where Vite externalises it and the page fails only at runtime.
  *
- *     npx vite-node scripts/migrateWork.ts public/info.json public/work.json
+ *     npx vite-node scripts/migrateWork.ts src/test/fixtures/info.json ../welte225.org/mpm/work.json
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

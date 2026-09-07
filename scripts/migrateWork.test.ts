@@ -4,12 +4,13 @@ import { isMigrated, migrateWork, migrateWorkText } from '../src/model/migrateWo
 import type { Segment } from '../src/model/Work.ts'
 
 /**
- * `public/info.json` is the reconstruction of Welte roll 225 — 494 calls across 137
- * argumentations, written in the JSON-LD shape this migration reads. It is the only input this
- * migration has ever had to handle, so the numbers below are measurements of it rather than
- * round figures: a change that moves one of them has changed the reconstruction, not the test.
+ * `src/test/fixtures/info.json` is the reconstruction of Welte roll 225 as it was before the
+ * migration — 494 calls across 137 argumentations, written in the JSON-LD shape this migration
+ * reads. It is the only input this migration has ever had to handle, so the numbers below are
+ * measurements of it rather than round figures: a change that moves one of them has changed the
+ * reconstruction, not the test.
  */
-const source = readFileSync('public/info.json', 'utf8')
+const source = readFileSync('src/test/fixtures/info.json', 'utf8')
 const old = JSON.parse(source) as {
     creation: {
         incorporates: string[]
