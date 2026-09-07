@@ -1,5 +1,5 @@
 import type { MidiFile } from "midifile-ts";
-import { asSpans } from "../performance/midiSpans";
+import { asSpans, type PedalSpan } from "../performance/midiSpans";
 import { insertMetadata, parseMetadata } from "../mei/insertMetadata";
 import { insertPedals } from "../mei/insertPedals";
 import {
@@ -153,7 +153,7 @@ export function applyAlignment(
     }
 
     insertPedals(
-        spans.filter((span) => span.type === "soft" || span.type === "sustain"),
+        spans.filter((span): span is PedalSpan => span.type !== "note"),
         [],
         meiDoc,
         source

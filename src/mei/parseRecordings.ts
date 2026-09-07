@@ -1,10 +1,13 @@
 import { NoteSpan } from "../performance/midiSpans";
+import { parseTravel, type Travel } from "../performance/pedalTravel";
 import { midiPitch } from "../performance/pitch";
 
 export interface PedalEvent {
     type: "sustain" | "soft";
     onsetMs: number;
     durationMs: number;
+    /** The line the pedal drew, where the record holds one; a switch held for `durationMs` otherwise. */
+    travel?: Travel;
 }
 
 /**
@@ -116,6 +119,7 @@ export function parseRecordings(mei: string): {
             let ornamentAnchorFrom: string | undefined;
             let ornamentAnchorConfidence: number | undefined;
             let ornamentAnchorConfidenceOf: string | undefined;
+            let travel: Travel | undefined;
 
             for (let i = 0; i < extDatas.length; i++) {
                 const ext = extDatas[i];
@@ -123,6 +127,7 @@ export function parseRecordings(mei: string): {
                 const text = ext.textContent || "";
                 if (etype === "velocity") velocity = parseInt(text, 10);
                 else if (etype === "duration") durationMs = parseInt(text, 10);
+                else if (etype === "travel") travel = parseTravel(text);
                 else if (etype === "onsetTicks") onsetTicks = parseInt(text, 10);
                 else if (etype === "durationTicks") durationTicks = parseInt(text, 10);
                 else if (etype === "pitch") pitch = parseInt(text, 10);
@@ -233,7 +238,7 @@ export function parseRecordings(mei: string): {
                     channel: 0,
                 });
             } else if (type === "sustain" || type === "soft") {
-                pedalEvents.push({ type, onsetMs, durationMs });
+                pedalEvents.push({ type, onsetMs, durationMs, ...(travel && { travel }) });
             }
         }
 

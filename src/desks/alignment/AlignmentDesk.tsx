@@ -248,6 +248,7 @@ export const AlignmentDesk = () => {
                           type: span.type,
                           onsetMs: span.onsetMs,
                           durationMs: span.offsetMs - span.onsetMs,
+                          travel: span.travel,
                       },
                   ],
         );

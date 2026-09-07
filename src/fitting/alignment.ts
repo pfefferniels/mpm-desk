@@ -4,6 +4,7 @@ import { isDefined } from './utils';
 import { PULSES_PER_QUARTER } from './ppq';
 import { elementAt } from 'espressivo';
 import { timeSignatureAt, type DatedTimeSignature } from './timeSignature';
+import type { Travel } from '../performance/pedalTravel';
 
 /**
  * When the recording sounds an event, in the two attributes MSM states a performance in:
@@ -32,6 +33,11 @@ type TemporaryAttributes = Partial<{
 export type AlignedPedal = {
   'xml:id': string;
   type: 'sustain' | 'soft';
+  /**
+   * The line the pedal drew over the press, in vertices since `milliseconds.date`, where the
+   * record holds one. Without it the press is a switch: down at the date, up again at the end.
+   */
+  travel?: Travel;
 } & PerformedAttributes &
   TemporaryAttributes;
 

@@ -1,4 +1,5 @@
 import { MidiFile, AnyEvent, MIDIControlEvents, NoteOnEvent, NoteOffEvent } from "midifile-ts";
+import type { Travel, TravelVertex } from "./pedalTravel";
 
 /** What MIDI means by a beat when a file never says otherwise: 120 bpm */
 const DEFAULT_TEMPO = 500000;
@@ -65,20 +66,65 @@ export interface NoteSpan extends Span<'note'> {
     channel: number;
 }
 
-export type SustainSpan = Span<'sustain'>
-export type SoftSpan = Span<'soft'>
+/**
+ * One press of a pedal: from the first controller value off rest to the value's return there,
+ * with every step between as the line the pedal drew.
+ *
+ * A switch, 0 and 127 and nothing between, reads as a two-vertex travel and the same bounds it
+ * always had. A continuous controller, such as the modelled bellows of a reproducing piano,
+ * reads as the whole traversal rather than its crossing of the middle.
+ */
+export interface PedalSpan extends Span<'sustain' | 'soft'> {
+    travel: Travel;
+}
 
-export type AnySpan = NoteSpan | SustainSpan | SoftSpan
+export type AnySpan = NoteSpan | PedalSpan
 
 const isNoteOn  = (e: AnyEvent): e is NoteOnEvent  => e.type === 'channel' && e.subtype === 'noteOn';
 const isNoteOff = (e: AnyEvent): e is NoteOffEvent => e.type === 'channel' && e.subtype === 'noteOff';
 
-const sustainIsOn = (value: number) => value >= 64; // clearer boundary
-const softIsOn    = (value: number) => value >= 64;
+const AT_REST = 0;
 
-type SustainOpen = Record<number, SustainSpan | undefined>; // by MIDI channel 0..15
-type SoftOpen    = Record<number, SoftSpan | undefined>;
-type NoteOpen    = Record<string, NoteSpan | undefined>;    // key = `${channel}:${pitch}`
+const pedalTypeOf = (controller: number): PedalSpan['type'] | undefined =>
+    controller === MIDIControlEvents.SUSTAIN ? 'sustain'
+        : controller === MIDIControlEvents.SOFT_PEDAL ? 'soft'
+            : undefined;
+
+/**
+ * Follows one pedal on one channel. A press begins at the first value off rest and ends when the
+ * value returns there; every step between is a vertex, and every label seen on the way, which
+ * is how a roll's "on" and "off" perforations both reach the press however many steps lie
+ * between them.
+ */
+class PressTracker {
+    private open?: { span: PedalSpan; travel: TravelVertex[]; labels: string[] };
+
+    constructor(
+        private readonly type: PedalSpan['type'],
+        private readonly idAt: (tick: number) => string,
+    ) {}
+
+    step(tick: number, ms: number, value: number, label?: string): PedalSpan | undefined {
+        if (!this.open) {
+            if (value === AT_REST) return undefined;
+            this.open = {
+                span: { type: this.type, id: this.idAt(tick), onset: tick, offset: 0, onsetMs: ms, offsetMs: 0, travel: [] },
+                travel: [],
+                labels: [],
+            };
+        }
+
+        const { span, travel, labels } = this.open;
+        travel.push({ ms: ms - span.onsetMs, position: value / 127 });
+        if (label) labels.push(label);
+        if (value !== AT_REST) return undefined;
+
+        this.open = undefined;
+        return { ...span, offset: tick, offsetMs: ms, travel, link: labels.join(' ') || undefined };
+    }
+}
+
+type NoteOpen = Record<string, NoteSpan | undefined>;    // key = `${channel}:${pitch}`
 
 export const asSpans = (file: MidiFile, readLinks = false) => {
   const resultingSpans: AnySpan[] = [];
@@ -94,8 +140,7 @@ export const asSpans = (file: MidiFile, readLinks = false) => {
     let currentTime = 0;
 
     // per-track open maps (you could hoist to overall file scope if preferred)
-    const sustainOpen: SustainOpen = {};
-    const softOpen: SoftOpen = {};
+    const presses = new Map<string, PressTracker>();
     const noteOpen: NoteOpen = {};
 
     for (const event of track) {
@@ -151,70 +196,22 @@ export const asSpans = (file: MidiFile, readLinks = false) => {
         continue;
       }
 
-      // ========= SUSTAIN (CC64) =========
-      if (event.subtype === 'controller' && event.controllerType === MIDIControlEvents.SUSTAIN) {
-        const on = sustainIsOn(event.value);
-        if (on) {
-          // only start if not already down on this channel
-          if (!sustainOpen[ch]) {
-            sustainOpen[ch] = {
-              type: 'sustain',
-              id: `${i}-${currentTime}-sustain-${ch}`,
-              onset: currentTime,
-              offset: 0,
-              onsetMs: onsetMs(currentTime),
-              offsetMs: 0,
-              link: bufferedMetaText
-            };
-          }
-        } else {
-          // only end if currently down
-          const span = sustainOpen[ch];
-          if (span) {
-            span.offset = currentTime;
-            span.offsetMs = offsetMs(currentTime);
-            if (bufferedMetaText && span.link) span.link += ` ${bufferedMetaText}`;
-            resultingSpans.push(span);
-            sustainOpen[ch] = undefined;
-          }
-        }
-        bufferedMetaText = undefined;
-        continue;
-      }
+      // ========= PEDALS (CC64, CC67) =========
+      if (event.subtype === 'controller') {
+        const type = pedalTypeOf(event.controllerType);
+        if (type) {
+          const key = `${type}:${ch}`;
+          const tracker = presses.get(key) ?? new PressTracker(type, (tick) => `${i}-${tick}-${type}-${ch}`);
+          presses.set(key, tracker);
 
-      // ========= SOFT PEDAL (CC67) =========
-      if (event.subtype === 'controller' && event.controllerType === MIDIControlEvents.SOFT_PEDAL) {
-        const on = softIsOn(event.value);
-        if (on) {
-          if (!softOpen[ch]) {
-            softOpen[ch] = {
-              type: 'soft',
-              id: `${i}-${currentTime}-soft-${ch}`,
-              onset: currentTime,
-              offset: 0,
-              onsetMs: onsetMs(currentTime),
-              offsetMs: 0,
-              link: bufferedMetaText
-            };
-          }
-        } else {
-          const span = softOpen[ch];
-          if (span) {
-            span.offset = currentTime;
-            span.offsetMs = offsetMs(currentTime);
-            if (bufferedMetaText && span.link) span.link += ` ${bufferedMetaText}`;
-            resultingSpans.push(span);
-            softOpen[ch] = undefined;
-          }
+          const press = tracker.step(currentTime, onsetMs(currentTime), event.value, bufferedMetaText);
+          if (press) resultingSpans.push(press);
+          bufferedMetaText = undefined;
+          continue;
         }
-        bufferedMetaText = undefined;
-        continue;
       }
     }
   }
 
   return resultingSpans.sort((a, b) => a.onset - b.onset);
 };
-
-
-

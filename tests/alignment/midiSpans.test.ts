@@ -8,8 +8,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { read, type MidiFile } from 'midifile-ts'
-import { asSpans, type NoteSpan } from '../../src/performance/midiSpans'
+import { read, type AnyEvent, type MidiFile } from 'midifile-ts'
+import { asSpans, type NoteSpan, type PedalSpan } from '../../src/performance/midiSpans'
 
 /** A Welte reproducing roll, which accelerates throughout: 29 tempo changes */
 const bytes = readFileSync(join(__dirname, 'welte-red_midi-exp_wv912mm2332_exp(1).mid'))
@@ -74,6 +74,108 @@ describe('timing a performance whose tempo moves', () => {
   it('gives every note a positive duration', () => {
     for (const note of notes) {
       expect(note.offsetMs).toBeGreaterThan(note.onsetMs)
+    }
+  })
+})
+
+/** A track of controller steps and labels at 480 ppq, 120 bpm: a tick is 1/0.96 ms. */
+const controllerTrack = (steps: readonly (readonly [deltaTime: number, value: number] | readonly [deltaTime: number, label: string])[]): MidiFile => ({
+  header: { formatType: 0, trackCount: 1, ticksPerBeat: 480 },
+  tracks: [
+    [
+      ...steps.map(([deltaTime, step]): AnyEvent =>
+        typeof step === 'string'
+          ? ({ deltaTime, type: 'meta', subtype: 'text', text: step } as AnyEvent)
+          : ({ deltaTime, type: 'channel', subtype: 'controller', channel: 0, controllerType: 64, value: step } as AnyEvent)),
+      { deltaTime: 0, type: 'meta', subtype: 'endOfTrack' } as AnyEvent,
+    ],
+  ],
+} as MidiFile)
+
+/** One step per unit level, the way linked-rolls writes a traversal: the label on the first step. */
+const traversal = (label: string, deltaTime: number, from: number, to: number): (readonly [number, number] | readonly [number, string])[] => {
+  const levels = Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => from + Math.sign(to - from) * i)
+  return levels.flatMap((value, i): (readonly [number, number] | readonly [number, string])[] =>
+    i === 0 ? [[deltaTime, label], [0, value]] : [[1, value]])
+}
+
+const pedalsOf = (file: MidiFile) =>
+  asSpans(file, true).filter((span): span is PedalSpan => span.type !== 'note')
+
+describe('reading a pedal off a controller stream', () => {
+  it('reads a switch as one press with a two-vertex travel', () => {
+    const [press] = pedalsOf(controllerTrack([[0, 0], [1000, 'on'], [0, 127], [960, 'off'], [0, 0]]))
+
+    expect(press.onset).toBe(1000)
+    expect(press.offset).toBe(1960)
+    expect(press.travel.map((vertex) => vertex.position)).toEqual([1, 0])
+    expect(press.travel[0].ms).toBe(0)
+    expect(press.travel[1].ms).toBeCloseTo(1000, 6)
+    expect(press.link).toBe('on off')
+  })
+
+  it('reads a continuous controller as one press from leaving rest to returning there', () => {
+    const [press] = pedalsOf(controllerTrack([
+      [0, 0],
+      ...traversal('on', 1000, 1, 127),
+      ...traversal('off', 800, 126, 0),
+    ]))
+
+    expect(press.onset).toBe(1000)
+    expect(press.offset).toBe(1000 + 126 + 800 + 126)
+    expect(press.travel).toHaveLength(127 + 127)
+    expect(press.travel[0]).toEqual({ ms: 0, position: 1 / 127 })
+    expect(press.travel.at(-1)?.position).toBe(0)
+    expect(press.travel.at(-1)?.ms).toBeCloseTo(press.offsetMs - press.onsetMs, 6)
+  })
+
+  // The label sits on the first step after the perforation, which is not where the line crosses
+  // the middle: a reader that only looked at the crossing would find no label there
+  it('gives the press the labels of both perforations, however many steps lie between', () => {
+    const [press] = pedalsOf(controllerTrack([
+      [0, 0],
+      ...traversal('on', 1000, 1, 127),
+      ...traversal('off', 800, 126, 0),
+    ]))
+
+    expect(press.link).toBe('on off')
+  })
+
+  it('keeps a lift that turns back before reaching rest inside the one press', () => {
+    const [press, ...rest] = pedalsOf(controllerTrack([
+      [0, 0],
+      ...traversal('on', 1000, 1, 127),
+      ...traversal('half', 500, 126, 40),
+      ...traversal('retake', 0, 41, 127),
+      ...traversal('off', 800, 126, 0),
+    ]))
+
+    expect(rest).toHaveLength(0)
+    const dips = press.travel.filter(
+      (vertex, i, all) =>
+        i > 0 && i < all.length - 1 && vertex.position < all[i - 1].position && vertex.position < all[i + 1].position,
+    )
+    expect(dips).toHaveLength(1)
+    expect(dips[0].position).toBe(40 / 127)
+  })
+
+  it('ignores a value at rest while no press is open', () => {
+    expect(pedalsOf(controllerTrack([[0, 0], [100, 0], [100, 0]]))).toHaveLength(0)
+  })
+
+  it('finds every press of the roll, which is a switch', () => {
+    const values = roll.tracks
+      .flat()
+      .filter((event) => event.type === 'channel' && event.subtype === 'controller' && event.controllerType === 64)
+      .map((event) => (event as AnyEvent & { value: number }).value)
+    const releases = values.filter((value, i) => i > 0 && value === 0 && values[i - 1] > 0).length
+
+    const sustain = asSpans(roll).filter((span): span is PedalSpan => span.type === 'sustain')
+    expect(sustain).toHaveLength(releases)
+    // Down at once and up at the end; the roll presses two of them twice, which adds a vertex
+    for (const span of sustain) {
+      expect(span.travel[0]).toEqual({ ms: 0, position: 1 })
+      expect(span.travel.at(-1)?.position).toBe(0)
     }
   })
 })

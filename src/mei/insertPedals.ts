@@ -1,9 +1,10 @@
 import { v4 } from "uuid";
-import { NoteSpan, SoftSpan, SustainSpan } from "../performance/midiSpans";
+import { NoteSpan, PedalSpan } from "../performance/midiSpans";
+import { formatTravel, sparseTravel } from "../performance/pedalTravel";
 import { ScoreEvent } from "./scoreEvents";
 
 export const insertPedals = (
-    pedals: (SustainSpan | SoftSpan)[],
+    pedals: PedalSpan[],
     pairs: [ScoreEvent, NoteSpan][],
     mei: Document,
     source: string
@@ -111,6 +112,10 @@ export const insertPedals = (
         durationMs.setAttribute('type', 'duration');
         durationMs.textContent = (pedal.offsetMs - pedal.onsetMs).toFixed(0) + 'ms';
 
+        const travel = mei.createElementNS('http://www.music-encoding.org/ns/mei', 'extData');
+        travel.setAttribute('type', 'travel');
+        travel.textContent = formatTravel(sparseTravel(pedal.travel));
+
         const onsetTicks = mei.createElementNS('http://www.music-encoding.org/ns/mei', 'extData');
         onsetTicks.setAttribute('type', 'onsetTicks');
         onsetTicks.textContent = pedal.onset.toString();
@@ -120,6 +125,7 @@ export const insertPedals = (
         durationTicks.textContent = (pedal.offset - pedal.onset).toString();
 
         when.appendChild(durationMs);
+        when.appendChild(travel);
         when.appendChild(onsetTicks);
         when.appendChild(durationTicks);
 

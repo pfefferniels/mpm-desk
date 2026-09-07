@@ -74,6 +74,55 @@ describe('a performance as MIDI', () => {
     expect(moves.map(({ at }) => at)).toEqual([0, 2200])
   })
 
+  it('plays the line a pedal drew, one controller value per vertex', () => {
+    const pedal: PlayablePedal = {
+      type: 'sustain',
+      onsetMs: 100,
+      durationMs: 1000,
+      travel: [
+        { ms: 0, position: 0.1 },
+        { ms: 50, position: 0.5 },
+        { ms: 100, position: 1 },
+        { ms: 900, position: 1 },
+        { ms: 1000, position: 0 },
+      ],
+    }
+    const moves = absolute(midiFileOf(notes, [pedal]))
+      .filter(({ event }) => event.type === 'channel' && event.subtype === 'controller')
+      .map(({ at, event }) => [at, (event as AnyEvent & { value: number }).value])
+
+    expect(moves).toEqual([
+      [100, 13],
+      [150, 64],
+      [200, 127],
+      [1000, 127],
+      [1100, 0],
+    ])
+  })
+
+  it('puts a pedal still moving when the stretch begins where it stood', () => {
+    const pedal: PlayablePedal = {
+      type: 'sustain',
+      onsetMs: 0,
+      durationMs: 1000,
+      travel: [
+        { ms: 0, position: 0.1 },
+        { ms: 50, position: 0.5 },
+        { ms: 100, position: 1 },
+        { ms: 1000, position: 0 },
+      ],
+    }
+    const moves = absolute(midiFileOf(notes, [pedal], { fromMs: 75, toMs: 2000 }))
+      .filter(({ event }) => event.type === 'channel' && event.subtype === 'controller')
+      .map(({ at, event }) => [at, (event as AnyEvent & { value: number }).value])
+
+    expect(moves).toEqual([
+      [0, 64],
+      [25, 127],
+      [925, 0],
+    ])
+  })
+
   it('leaves out a pedal that had been lifted before the stretch begins', () => {
     const pedal: PlayablePedal = { type: 'sustain', onsetMs: 0, durationMs: 100 }
     const file = midiFileOf(notes, [pedal], { fromMs: 1000, toMs: 2000 })

@@ -1,4 +1,5 @@
 import { Alignment, AlignedNote, AlignedPedal } from "./alignment"
+import { parseTravel } from "../performance/pedalTravel"
 import { readTimeSignatures } from "../utils/score"
 import { v4 } from "uuid";
 
@@ -149,6 +150,7 @@ export const asMSM = (mei: string, msmXml: string) => {
 
             const type = when.getAttribute('type') === 'sustain' ? 'sustain' : 'soft'
             const source = when.closest('recording')?.getAttribute('source') || undefined
+            const travel = when.querySelector('extData[type="travel"]')?.textContent
 
             // find the closest following MSM note by onset (>= pedalOnset)
             const pedalOnset = +absolute
@@ -161,7 +163,8 @@ export const asMSM = (mei: string, msmXml: string) => {
                 'milliseconds.date': pedalOnset,
                 'milliseconds.date.end': pedalOnset + (+duration),
                 'type': type,
-                source
+                source,
+                ...(travel && { travel: parseTravel(travel) })
             }
             return msmPedal
         })

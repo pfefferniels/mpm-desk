@@ -6,6 +6,7 @@ import { applyAlignment } from '../../src/alignment/applyAlignment'
 import { parseRecordings } from '../../src/mei/parseRecordings'
 import { buildMidiFile } from '../../src/performance/buildMidiFile'
 import { asSpans } from '../../src/performance/midiSpans'
+import { parseTravel } from '../../src/performance/pedalTravel'
 import { publishedPath } from '../../src/test/published'
 
 const mei = readFileSync(publishedPath('mei'), 'utf-8')
@@ -50,6 +51,27 @@ describe('writing an alignment into the MEI', () => {
     expect(result).not.toContain(`data="#${invented}"`)
     expect(warn).toHaveBeenCalledOnce()
     warn.mockRestore()
+  })
+
+  it('writes the line every pedal drew into its <when>', () => {
+    const result = applyAlignment(mei, midi, [{ score_id: scoreId, performance_id: performanceId }], {
+      source,
+    })
+    const presses = [
+      ...new DOMParser()
+        .parseFromString(result, 'application/xml')
+        .querySelectorAll(`recording[source="${source}"] when[type="sustain"]`),
+    ]
+
+    expect(presses.length).toBeGreaterThan(0)
+    for (const press of presses) {
+      const travel = parseTravel(press.querySelector('extData[type="travel"]')?.textContent ?? '')
+      const duration = press.querySelector('extData[type="duration"]')?.textContent
+
+      // The MIDI this was built from is a switch, so the line is down at once and up at the end
+      expect(travel[0]).toEqual({ ms: 0, position: 1 })
+      expect(travel.at(-1)).toEqual({ ms: parseInt(duration ?? '', 10), position: 0 })
+    }
   })
 
   it('keeps the good matches when one of them is unknown', () => {

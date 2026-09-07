@@ -15,6 +15,7 @@
 
 import type { MidiFile, AnyEvent } from "midifile-ts";
 import type { RecordingInfo } from "../mei/parseRecordings";
+import { positionAt, switchTravel, type Travel } from "./pedalTravel";
 
 /** A note to sound, and the id of whatever should light up while it sounds. */
 export interface PlayableNote {
@@ -29,6 +30,8 @@ export interface PlayablePedal {
     type: "sustain" | "soft";
     onsetMs: number;
     durationMs: number;
+    /** The line the pedal drew, where known; a switch held for `durationMs` otherwise. */
+    travel?: Travel;
 }
 
 /** The stretch of the performance to play, in milliseconds from its start. */
@@ -46,8 +49,8 @@ interface AbsoluteEvent {
  * The notes and pedal movements of a performance, as a MIDI file starting at
  * the beginning of the range asked for.
  *
- * A pedal already down when the range begins is pressed again at zero rather
- * than left out, or a passage played into the sustain would be heard dry.
+ * A pedal already moving when the range begins is put where it stood at zero
+ * rather than left out, or a passage played into the sustain would be heard dry.
  */
 export function midiFileOf(
     notes: Iterable<PlayableNote>,
@@ -115,30 +118,27 @@ export function midiFileOf(
         if (pedal.onsetMs > to || pedal.onsetMs + pedal.durationMs < from) continue;
 
         const cc = pedal.type === "sustain" ? 64 : 67;
-
-        events.push({
-            absTime: at(pedal.onsetMs),
+        const controller = (absTime: number, position: number): AbsoluteEvent => ({
+            absTime,
             event: {
                 deltaTime: 0,
                 type: "channel",
                 subtype: "controller",
                 channel: 0,
                 controllerType: cc,
-                value: 127,
+                value: Math.round(position * 127),
             } as AnyEvent,
         });
 
-        events.push({
-            absTime: at(pedal.onsetMs + pedal.durationMs),
-            event: {
-                deltaTime: 0,
-                type: "channel",
-                subtype: "controller",
-                channel: 0,
-                controllerType: cc,
-                value: 0,
-            } as AnyEvent,
-        });
+        const travel = pedal.travel ?? switchTravel(pedal.durationMs);
+        const standing = positionAt(travel, from - pedal.onsetMs);
+        if (standing > 0) events.push(controller(0, standing));
+
+        events.push(
+            ...travel
+                .filter((vertex) => pedal.onsetMs + vertex.ms > from)
+                .map((vertex) => controller(at(pedal.onsetMs + vertex.ms), vertex.position)),
+        );
     }
 
     // End of track
