@@ -75,7 +75,7 @@
       ]
     },
     {
-      "id": "argumentation-915c7d64",
+      "id": "4a301aa8-e25f-40e0-975b-1d925653d9b2",
       "motivation": "relax",
       "note": "Nachschlag schattieren",
       "from": 35280,
@@ -176,7 +176,7 @@
       ]
     },
     {
-      "id": "arg_4d03627d",
+      "id": "0ddac397-c9e9-404f-a7c6-0531e3ab57fb",
       "motivation": "relax",
       "note": "nachschlagende Akkordbrechung schattieren",
       "from": 42480,
@@ -241,7 +241,7 @@
       ]
     },
     {
-      "id": "argumentation-95b79d89",
+      "id": "3603c14a-8b03-4583-b77d-6a728834b342",
       "motivation": "intensify",
       "from": 3600,
       "to": 4320,
@@ -267,7 +267,7 @@
       ]
     },
     {
-      "id": "argumentation-14001e32",
+      "id": "a4ef5a2d-3e62-4a82-a7fe-37712d7de1ab",
       "motivation": "move",
       "note": "Intensivierung der Integalité",
       "from": 43807,
@@ -360,7 +360,7 @@
       ]
     },
     {
-      "id": "argumentation-3407ad9c",
+      "id": "9917074b-2f5d-43d1-8ce8-af260f860373",
       "motivation": "calm",
       "note": "Überleitung wird träger",
       "from": 45360,
@@ -425,7 +425,7 @@
       ]
     },
     {
-      "id": "argumentation-b284c0b1",
+      "id": "7473dcf7-6749-455f-a400-f8ffa313c3bb",
       "motivation": "intensify",
       "from": 69041,
       "to": 69840,
@@ -471,7 +471,7 @@
       ]
     },
     {
-      "id": "arg_5a60f53a",
+      "id": "4fe7a110-4d91-4326-a1e2-5b0f93df2f1b",
       "motivation": "relax",
       "note": "Nachschlag schattieren",
       "from": 69840,
@@ -518,7 +518,7 @@
       ]
     },
     {
-      "id": "arg_5e26e496",
+      "id": "8be75870-c4f6-413a-b544-e2e7435594aa",
       "motivation": "intensify",
       "note": "mit Inegalité vorwärts zum b",
       "from": 76320,
@@ -611,7 +611,7 @@
       ]
     },
     {
-      "id": "argumentation-b9cc9254",
+      "id": "bc04b5da-81b3-4607-9faa-23573fd67b2d",
       "motivation": "intensify",
       "note": "Hineinfallen",
       "from": 77760,
@@ -694,7 +694,7 @@
       ]
     },
     {
-      "id": "argumentation-4e456c1e",
+      "id": "68f3844c-d70a-41f5-985d-f779b91b9642",
       "motivation": "relax",
       "note": "Nachschlag schattieren",
       "from": 81360,
@@ -759,7 +759,7 @@
       ]
     },
     {
-      "id": "argumentation-6038a4d2",
+      "id": "e7dead82-8936-4849-bd72-61123b73b3d1",
       "motivation": "move",
       "note": "zum Quartsextakkord",
       "from": 86400,
@@ -824,7 +824,7 @@
       ]
     },
     {
-      "id": "argumentation-376f87be",
+      "id": "ab593be2-ae87-42a8-a4ac-12907e2904f9",
       "motivation": "relax",
       "from": 90000,
       "to": 91440,
@@ -850,7 +850,7 @@
       ]
     },
     {
-      "id": "argumentation-70968f49",
+      "id": "a3233bdf-d3d3-4da6-863d-86086b776335",
       "motivation": "unknown",
       "from": 91080,
       "to": 91080,
@@ -867,7 +867,7 @@
       ]
     },
     {
-      "id": "argumentation-cab11b85",
+      "id": "ae978e18-b878-4d59-bb09-536ca6ffb25e",
       "motivation": "intensify",
       "from": 20880,
       "to": 22341,
@@ -1298,7 +1298,7 @@
       ]
     },
     {
-      "id": "argumentation-a97a44c0",
+      "id": "f53ec81a-c3c1-42f0-9092-ed0fa2a231cd",
       "motivation": "move",
       "note": "Klang öffnen („gelüftete“ Artikulation + Pedal, Arpeggi)",
       "from": 8640,
@@ -1437,7 +1437,7 @@
       ]
     },
     {
-      "id": "argumentation-c118a7a5",
+      "id": "6598edf0-779e-41ce-b4a6-9aa69dd3b186",
       "motivation": "move",
       "note": "Verbinden zur nächsten Phrase: „nach vorne“, lombardische Achtel, legato",
       "from": 10080,
@@ -1531,7 +1531,7 @@
       ]
     },
     {
-      "id": "argumentation-0e9f088b",
+      "id": "b1300a25-c157-4941-8afe-3969e84f881d",
       "motivation": "calm",
       "note": "„Aufweichen“: Decrescendo und Arpeggio zum a'",
       "from": 15120,
@@ -1675,7 +1675,7 @@
       ]
     },
     {
-      "id": "arg_99622919-e538-4bc8-8ee0-3abb2e9d719a",
+      "id": "09b6094a-1db8-459b-9c33-427adcd1d8c4",
       "motivation": "intensify",
       "from": 20160,
       "to": 20880,
@@ -1727,7 +1727,7 @@
       ]
     },
     {
-      "id": "arg_d56ba6b5-284e-493d-a394-071dcb3df020",
+      "id": "74da407d-21dc-4292-8720-be3f520eec90",
       "motivation": "calm",
       "note": "Geste des Nachlauschens",
       "from": 23760,
@@ -1783,7 +1783,7 @@
       ]
     },
     {
-      "id": "argumentation-77980e25",
+      "id": "cf7d37a3-4ffd-4b49-9e5d-62b7c4b5134b",
       "motivation": "intensify",
       "note": "Überlegato",
       "from": 25560,
@@ -1969,7 +1969,7 @@
       ]
     },
     {
-      "id": "argumentation-a7986d89",
+      "id": "a665df3a-e6fc-4a14-92f2-664ac98b5ad4",
       "motivation": "intensify",
       "note": "„Hineinfallen“ und Verweilen",
       "from": 38520,
@@ -2034,7 +2034,7 @@
       ]
     },
     {
-      "id": "argumentation-3afe3771",
+      "id": "2a2de3ed-ab69-4b52-9ff5-b9c7843060dc",
       "motivation": "move",
       "note": "langsamer und deutlicher werden",
       "from": 34200,
@@ -2088,7 +2088,7 @@
       ]
     },
     {
-      "id": "arg_8c9fb33a-2056-4e0f-9188-1605e5675983",
+      "id": "7e3a3e05-becf-4477-afce-1c8a0ca57a3b",
       "motivation": "relax",
       "note": "Nachschlag etwas abschattieren",
       "from": 12240,
@@ -2216,7 +2216,7 @@
       ]
     },
     {
-      "id": "arg_a89283d0-6eb2-46ce-9b9a-1125b591c374",
+      "id": "7a978bbb-224d-46de-b467-42f45a180ba9",
       "motivation": "relax",
       "note": "schattierter Nachklang",
       "from": 46800,
@@ -2290,7 +2290,7 @@
       ]
     },
     {
-      "id": "argumentation-e4be49a2",
+      "id": "76900ab5-b659-49eb-b0c8-2c6ed1da292e",
       "motivation": "intensify",
       "note": "Verfrühung des Spannungsakkords (Mollsubdominante)",
       "from": 49680,
@@ -2326,7 +2326,7 @@
       ]
     },
     {
-      "id": "argumentation-0a38165f",
+      "id": "e236c037-e1f9-4fe2-af75-1762d3bd8ab4",
       "motivation": "intensify",
       "note": "Hinspielen zum Quartsextakkord",
       "from": 53280,
@@ -2371,7 +2371,7 @@
       ]
     },
     {
-      "id": "argumentation-52683313",
+      "id": "19411a04-17bf-41c7-b445-9921ddc29692",
       "motivation": "calm",
       "note": "Weiter zurück",
       "from": 51480,
@@ -2407,7 +2407,7 @@
       ]
     },
     {
-      "id": "argumentation-0e5c17ae",
+      "id": "8835f067-f57c-4bea-b61e-1eac5942a2a0",
       "motivation": "calm",
       "note": "Ausgedehntes g-Moll",
       "from": 52560,
@@ -2627,7 +2627,7 @@
       ]
     },
     {
-      "id": "arg_76caf28c-c77a-4d9f-8205-402ee443860e",
+      "id": "624f2bdf-2f1c-4ce9-9cc8-895be809cd72",
       "motivation": "relax",
       "note": "Abschattieren",
       "from": 58320,
@@ -2663,7 +2663,7 @@
       ]
     },
     {
-      "id": "argumentation-9a9870e0",
+      "id": "7900f7ff-a5f9-4a4b-b480-8e5244322d2e",
       "motivation": "intensify",
       "note": "fließend in Dominantseptnonakkord",
       "from": 61200,
@@ -2699,7 +2699,7 @@
       ]
     },
     {
-      "id": "argumentation-55f96f9b",
+      "id": "663f4859-f1d7-4634-8aaf-59eda8cb9a89",
       "motivation": "calm",
       "from": 63360,
       "to": 64440,
@@ -2743,7 +2743,7 @@
       ]
     },
     {
-      "id": "argumentation-46b51284",
+      "id": "c4541ed6-74f7-4b28-a80c-eb6f20861a52",
       "motivation": "intensify",
       "note": "Hineinfallen in Quartsextakkord",
       "from": 64800,
@@ -2779,7 +2779,7 @@
       ]
     },
     {
-      "id": "argumentation-d9fe4092",
+      "id": "fbe387f3-0e0d-41cc-9afa-0acef598d46f",
       "motivation": "calm",
       "note": "kleine Verzögerung",
       "from": 32760,
@@ -2806,7 +2806,7 @@
       ]
     },
     {
-      "id": "argumentation-28ed32b3",
+      "id": "ec57a047-fb4c-49e3-b289-f8d6a9fd7e6f",
       "motivation": "intensify",
       "note": "Zum Quartsextakkord",
       "from": 66600,
@@ -2842,7 +2842,7 @@
       ]
     },
     {
-      "id": "argumentation-2a02724b",
+      "id": "5e6e6105-b808-4ecf-a4a9-79bcdf63be4c",
       "motivation": "calm",
       "note": "Beruhigung vor Phrasenende",
       "from": 67320,
@@ -2887,7 +2887,7 @@
       ]
     },
     {
-      "id": "argumentation-f95d85b2",
+      "id": "5ca4980b-fbef-469c-9eac-9daccf02ab3f",
       "motivation": "intensify",
       "note": "zum B-Dur-Akkord",
       "from": 72000,
@@ -3006,7 +3006,7 @@
       ]
     },
     {
-      "id": "argumentation-c91bdddd",
+      "id": "65fb4f9a-9c1c-437b-b76f-5193f2748a2b",
       "motivation": "calm",
       "note": "Weich ins F-Dur",
       "from": 80280,
@@ -3042,7 +3042,7 @@
       ]
     },
     {
-      "id": "argumentation-d28eda4a",
+      "id": "0411e9c3-b0aa-4270-a395-2acd90dc8758",
       "motivation": "relax",
       "from": 87840,
       "to": 89280,
@@ -3106,7 +3106,7 @@
       ]
     },
     {
-      "id": "argumentation-3ef12ef9",
+      "id": "f9d73caf-538f-49a3-ab16-f59a59ee64e3",
       "motivation": "intensify",
       "from": 88920,
       "to": 90749,
@@ -3272,7 +3272,7 @@
       ]
     },
     {
-      "id": "decision-9bb1a3aa",
+      "id": "047fa902-3259-4497-a972-23e89ca1ea65",
       "motivation": "intensify",
       "note": "Hinspielen zur 1",
       "from": 2160,
@@ -3338,7 +3338,7 @@
       ]
     },
     {
-      "id": "argumentation-d6d50300",
+      "id": "d3889a97-57b7-4fd6-aaf5-926474bb7325",
       "motivation": "relax",
       "note": "„Nachlauschen“",
       "from": 4019,
@@ -3385,7 +3385,7 @@
       ]
     },
     {
-      "id": "argumentation-a2cf81d9",
+      "id": "24386f8c-4add-4da7-80fa-883902af44f5",
       "motivation": "calm",
       "note": "Stete Verlangsamung zum melodischen Höhepunkt (A-Dur)",
       "from": 13680,
@@ -3459,7 +3459,7 @@
       ]
     },
     {
-      "id": "decision-35c68177",
+      "id": "f4a992c8-3216-4627-9057-9bce57714988",
       "motivation": "relax",
       "note": "Bewegung zum d-Moll hin stark zurücknehmen",
       "from": 16560,
@@ -3495,7 +3495,7 @@
       ]
     },
     {
-      "id": "argumentation-232ca7b0",
+      "id": "6ed49811-53dc-4716-bf02-2b503488060b",
       "motivation": "relax",
       "note": "Arpeggio schattieren",
       "from": 19440,
@@ -3531,7 +3531,7 @@
       ]
     },
     {
-      "id": "argumentation-7b141ee5",
+      "id": "436cd72b-5ef4-46a7-8e99-d36e0a71f9c6",
       "motivation": "relax",
       "note": "Neue Phrase vorbereiten",
       "from": 22320,
@@ -3576,7 +3576,7 @@
       ]
     },
     {
-      "id": "argumentation-90aa6158",
+      "id": "e7667c94-7c6d-4691-a796-d79e84865442",
       "motivation": "move",
       "note": "in die nächste Phrase weiterführen: Kein ausgeprägtes Naschlauschen",
       "from": 23760,
@@ -3603,7 +3603,7 @@
       ]
     },
     {
-      "id": "argumentation-089b78cb",
+      "id": "4c3500c4-4468-4947-ba94-c8a930a454ef",
       "motivation": "calm",
       "note": "Zum B-Dur-Akkord hin entspannen",
       "from": 25920,
@@ -3658,7 +3658,7 @@
       ]
     },
     {
-      "id": "argumentation-be73bd91",
+      "id": "803284bf-4997-418e-8546-50b76a5c348d",
       "motivation": "move",
       "note": "etwas aktiver, nach vorne",
       "from": 30240,
@@ -3685,7 +3685,7 @@
       ]
     },
     {
-      "id": "argumentation-ac14a76f",
+      "id": "afc86cac-e631-494f-8b9e-a8a8d4bf6b3d",
       "motivation": "move",
       "note": "Spannung aufbauen",
       "from": 31680,
@@ -3712,7 +3712,7 @@
       ]
     },
     {
-      "id": "argumentation-8e3cbc2d",
+      "id": "6e60a45b-5bff-40fd-92ea-939e468d8f84",
       "motivation": "relax",
       "note": "Auftakt unter C-Dur schattieren: schneller und leiser werden",
       "from": 33120,
@@ -3748,7 +3748,7 @@
       ]
     },
     {
-      "id": "argumentation-2379b36a",
+      "id": "a15d8a21-0e3c-40f2-8225-02c9b8be9013",
       "motivation": "intensify",
       "note": "konstante, leichte Verlangsamung",
       "from": 36720,
@@ -3766,7 +3766,7 @@
       ]
     },
     {
-      "id": "argumentation-2f21a865",
+      "id": "00fae607-0737-4b14-a723-841dabca0f66",
       "motivation": "calm",
       "note": "Schneller und leiser",
       "from": 39600,
@@ -3849,7 +3849,7 @@
       ]
     },
     {
-      "id": "argumentation-0b732081",
+      "id": "565c9628-4d9f-4545-96d1-9f77e579bb41",
       "motivation": "intensify",
       "from": 48294.11764705881,
       "to": 49680,
@@ -3878,7 +3878,7 @@
       ]
     },
     {
-      "id": "argumentation-037c8a9a",
+      "id": "3c2c274b-a3a3-41ab-ac65-5ebb6962e82c",
       "motivation": "intensify",
       "note": "Anlauf",
       "from": 48960,
@@ -3914,7 +3914,7 @@
       ]
     },
     {
-      "id": "arg_311e8fd0-a9dc-4e8f-ab9a-cb21ceeb08c8",
+      "id": "c9720aed-c67b-4509-8930-e1bd674421d5",
       "motivation": "relax",
       "note": "Arpeggio schattieren unter Quartsextakkord ",
       "from": 53970,
@@ -3979,7 +3979,7 @@
       ]
     },
     {
-      "id": "argumentation-10407ff0",
+      "id": "11d46f48-200c-4ae3-aea4-0caafdda21ea",
       "motivation": "relax",
       "note": "Großangelegtes Decrescendo",
       "from": 54000,
@@ -4015,7 +4015,7 @@
       ]
     },
     {
-      "id": "argumentation-07539110",
+      "id": "878584e2-421b-472f-86d9-c8e0922c2258",
       "motivation": "move",
       "note": "Dranbleiben, auf melodischen Höhepunkt hin",
       "from": 58320,
@@ -4060,7 +4060,7 @@
       ]
     },
     {
-      "id": "argumentation-60fd733a",
+      "id": "de01b528-2586-4a9f-8fdc-32e2edda6369",
       "motivation": "calm",
       "note": "Etwas flüchtiger werden",
       "from": 61560,
@@ -4114,7 +4114,7 @@
       ]
     },
     {
-      "id": "argumentation-fdd319f0",
+      "id": "d9f14011-3e85-414e-96d8-c0aaab9a9d07",
       "motivation": "intensify",
       "note": "Hinspielen auf Quartsextakkord",
       "from": 64080,
@@ -4141,7 +4141,7 @@
       ]
     },
     {
-      "id": "arg_43ee7a5e",
+      "id": "2e2d8bb7-aa9c-42c0-8a9f-0b51753161d7",
       "motivation": "calm",
       "note": "Nachschlag schattieren",
       "from": 65520,
@@ -4187,7 +4187,7 @@
       ]
     },
     {
-      "id": "argumentation-35ba9e0f",
+      "id": "8ae251b2-3ca4-4f2e-ba2f-fbf4c97e655a",
       "motivation": "move",
       "note": "vorwärts ...",
       "from": 69840,
@@ -4205,7 +4205,7 @@
       ]
     },
     {
-      "id": "argumentation-94788e2f",
+      "id": "8230f96b-1e39-4515-b654-dce80e3dca4b",
       "motivation": "calm",
       "note": "Resonanz durch Pedal halten, aber etwas verkürzt",
       "from": 73224,
@@ -4243,7 +4243,7 @@
       ]
     },
     {
-      "id": "argumentation-09d4a249",
+      "id": "cd238c20-e1b3-4746-affc-c5e8c2c0ceba",
       "motivation": "intensify",
       "note": "gedehntes d",
       "from": 79200,
@@ -4279,7 +4279,7 @@
       ]
     },
     {
-      "id": "argumentation-bbb2c017",
+      "id": "36f41eff-e10e-4c60-86e8-cf2a9e32a222",
       "motivation": "move",
       "from": 83520,
       "to": 86400,
@@ -4314,7 +4314,7 @@
       ]
     },
     {
-      "id": "argumentation-3e9d851c",
+      "id": "ba9a8bcb-ba44-41ee-bdcd-36b51ff25ba4",
       "motivation": "relax",
       "from": 86400,
       "to": 91440,
@@ -4348,7 +4348,7 @@
       ]
     },
     {
-      "id": "argumentation-1a04ff8d",
+      "id": "070aa4ca-b2ee-4a3e-a0a8-ad5bbf0ff13c",
       "motivation": "intensify",
       "note": "Wichtige Harmonien etwas zu früh",
       "from": 53280,
@@ -4558,7 +4558,7 @@
       ]
     },
     {
-      "id": "argumentation-270564c1",
+      "id": "62c0a4a5-95fc-41be-b21b-efb33cc3b458",
       "motivation": "move",
       "note": "Verfrühtes a",
       "from": 64080,
@@ -4604,7 +4604,7 @@
       ]
     },
     {
-      "id": "argumentation-0369dca0",
+      "id": "c176332d-9fd7-4a36-8875-6a65769b96e2",
       "motivation": "move",
       "note": "Hinspielen auf b",
       "from": 59760,
@@ -4632,7 +4632,7 @@
       ]
     },
     {
-      "id": "decision-cfcd2188",
+      "id": "cf0555f0-d19c-46fb-a13e-840bc7c79075",
       "motivation": "move",
       "note": "Konstantes „Dranbleiben“ (dynamisch und agogisch)",
       "from": 7200,
@@ -4650,7 +4650,7 @@
       ]
     },
     {
-      "id": "argumentation-9a7040ec",
+      "id": "ee29477f-1b22-4ae8-8faf-1c0091772918",
       "motivation": "intensify",
       "note": "Hinspielen auf c",
       "from": 14040,
@@ -4668,7 +4668,7 @@
       ]
     },
     {
-      "id": "argumentation-7f4000be",
+      "id": "b712355a-1ce3-473c-b5bd-4f58b5703174",
       "motivation": "move",
       "note": "Hin zur Paenultima (Dominate + Sexte)",
       "from": 19440,
@@ -4712,7 +4712,7 @@
       ]
     },
     {
-      "id": "arg_a880b0d1-a3fd-4767-a8c1-562ce917f954",
+      "id": "98d54f68-c139-4bef-a6ad-28c88e3065b5",
       "motivation": "move",
       "note": "dynamisch Weiterführen",
       "from": 26640,
@@ -4730,7 +4730,7 @@
       ]
     },
     {
-      "id": "argumentation-ccb7b1d0",
+      "id": "f7685af4-6084-4d8b-841b-ba8517c97f5e",
       "motivation": "relax",
       "note": "als Dreiklang aufwärts entspannen",
       "from": 37440,
@@ -4768,7 +4768,7 @@
       ]
     },
     {
-      "id": "argumentation-d933faf7",
+      "id": "2cf2e441-b702-4c25-9a5d-e14c378d4ff2",
       "motivation": "move",
       "from": 42480,
       "to": 46800,
@@ -4785,7 +4785,7 @@
       ]
     },
     {
-      "id": "argumentation-3e056782",
+      "id": "887902a3-f80c-415c-a067-9a88ff31ae0f",
       "motivation": "relax",
       "note": "Dynamisch etwas zurück",
       "from": 50400,
@@ -4803,7 +4803,7 @@
       ]
     },
     {
-      "id": "argumentation-f073c65b",
+      "id": "279dd975-ddb8-42d9-90d4-1324200e976a",
       "motivation": "relax",
       "note": "großflächig dynamisch langsam zurückgehen",
       "from": 65520,
@@ -4874,7 +4874,7 @@
       ]
     },
     {
-      "id": "argumentation-e66db26d",
+      "id": "cb7a4d16-e43f-41c2-8b06-f18d6172ac37",
       "motivation": "relax",
       "from": 78480,
       "to": 81360,
@@ -4918,7 +4918,7 @@
       ]
     },
     {
-      "id": "arg_f042db2c",
+      "id": "f5ee836d-e79d-48be-b749-df0283eeb837",
       "motivation": "relax",
       "note": "Nachschlag schattieren",
       "from": 66960,
@@ -4956,7 +4956,7 @@
       ]
     },
     {
-      "id": "argumentation-36604f19",
+      "id": "669b43e1-e13c-4870-98be-8a782552554a",
       "motivation": "move",
       "note": "Gut-schlecht Akzente",
       "from": 79200,
@@ -4992,7 +4992,7 @@
       ]
     },
     {
-      "id": "argumentation-64b22ad0",
+      "id": "91601f33-6fa7-4aef-9786-57f9c42b51f7",
       "motivation": "intensify",
       "note": "Richtung zum „a“",
       "from": 83520,
@@ -5064,7 +5064,7 @@
       ]
     },
     {
-      "id": "argumentation-5bca80cd",
+      "id": "b6fdbb8c-bf4c-4868-9a1c-641053b7c880",
       "motivation": "move",
       "note": "Klang langsam öffnen",
       "from": 46367,
@@ -5083,7 +5083,7 @@
       ]
     },
     {
-      "id": "argumentation-b80e5b76",
+      "id": "fec1014a-9125-4ea6-b2b9-79a7a2dce859",
       "motivation": "intensify",
       "from": 58331,
       "to": 58531,
@@ -5101,7 +5101,7 @@
       ]
     },
     {
-      "id": "argumentation-003cb5fa",
+      "id": "cea2dae7-4b97-482e-a10c-6279d51f4074",
       "motivation": "intensify",
       "note": "Legato in der aufsteigenden Sexte c-a",
       "from": 84187,
@@ -5130,7 +5130,7 @@
       ]
     },
     {
-      "id": "argumentation-3fd3e6c8",
+      "id": "a8ba08e7-bced-46c3-a10a-88eca8c3bdc0",
       "motivation": "move",
       "from": 86631,
       "to": 86831,
@@ -5148,7 +5148,7 @@
       ]
     },
     {
-      "id": "argumentation-a7ece2a0",
+      "id": "31ead4dc-2b32-480d-a73a-e933994272dd",
       "motivation": "relax",
       "from": 86873,
       "to": 87073,
@@ -5166,7 +5166,7 @@
       ]
     },
     {
-      "id": "argumentation-4d0e2c4d",
+      "id": "1d66d419-868e-47e1-8a86-848b18fa1792",
       "motivation": "intensify",
       "note": "Verbindung der absteigenden Quinte a-d",
       "from": 41209,
@@ -5195,7 +5195,7 @@
       ]
     },
     {
-      "id": "argumentation-959bbd48",
+      "id": "42342851-85e9-4914-a953-e5a22cf7c755",
       "motivation": "calm",
       "from": 45078,
       "to": 45168,
@@ -5213,7 +5213,7 @@
       ]
     },
     {
-      "id": "argumentation-6ceeb676",
+      "id": "d6c9eda5-c1e0-4355-bbe3-e3c45674e429",
       "motivation": "calm",
       "from": 90752,
       "to": 90817,
@@ -5231,7 +5231,7 @@
       ]
     },
     {
-      "id": "argumentation-876c53ca",
+      "id": "6ce75790-2f4a-4ac3-81b0-54e3e661661f",
       "motivation": "calm",
       "from": 90927,
       "to": 91127,
@@ -5249,7 +5249,7 @@
       ]
     },
     {
-      "id": "argumentation-7d253482",
+      "id": "19f76f43-610e-43cc-945c-e7bea414cdf3",
       "motivation": "calm",
       "from": 91134,
       "to": 91234,
@@ -5267,7 +5267,7 @@
       ]
     },
     {
-      "id": "argumentation-fdfafaf4",
+      "id": "a05e0fda-7ae6-4262-b8a2-0a9367b6a283",
       "motivation": "calm",
       "from": 91404,
       "to": 91464,

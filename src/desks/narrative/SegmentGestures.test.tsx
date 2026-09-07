@@ -29,7 +29,7 @@ const mpm = readPerformance(
 );
 
 /** Six kinds of gesture in one segment: two pedals, a tempo, a dynamics, and two undrawn. */
-const rich = segments.find((segment) => segment.id === 'argumentation-915c7d64');
+const rich = segments.find((segment) => segment.id === '4a301aa8-e25f-40e0-975b-1d925653d9b2');
 if (!rich) throw new Error('the fixture no longer holds the segment these tests are about');
 
 const render = async (segment: Segment | undefined) => {
