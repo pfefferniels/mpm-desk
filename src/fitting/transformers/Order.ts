@@ -5,6 +5,7 @@ import { MakeChoice } from './choice/MakeChoice';
 import { InsertDynamicsInstructions } from './dynamics/index';
 import { InsertMetadata } from './metadata/index';
 import { Modify } from './modification/Modify';
+import { CorrectPedal } from './modification/CorrectPedal';
 import {
   InsertTemporalSpread,
   InsertDynamicsGradient,
@@ -30,7 +31,7 @@ import {
 // Register the transformers, in reduction order — which is the order a chain runs in, whatever
 // order its calls were written.
 //
-// Nineteen of them. What is registered is decided by whether anything in the editor can reach it,
+// Twenty of them. What is registered is decided by whether anything in the editor can reach it,
 // rather than by how often a transformer is used.
 //
 // Not registered: `InsertAsynchrony` and `CompressOrnamentation` appear nowhere in this
@@ -55,6 +56,9 @@ import {
 // written after the anchor it names and would read as though it ran there.
 registerTransformer(ProcessVoices);
 registerTransformer(MakeChoice);
+// After the choice, so a press it adds is not a reading for the choice to discard; before
+// `Modify`, so a displacement can reach a press it added and a release it redrew.
+registerTransformer(CorrectPedal);
 registerTransformer(Modify);
 // The gradient before the spread, because the spread destroys what the gradient reads.
 // `InsertDynamicsGradient` sorts a chord by `milliseconds.date` to find which way its ramp runs, and

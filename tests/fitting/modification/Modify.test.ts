@@ -199,4 +199,53 @@ describe('pedals, which have no place on the score to be selected by', () => {
 
         expect(msm.pedals[0]?.['milliseconds.date']).toBe(1100);
     });
+
+    test('a pedal correction reaches every reading under the id', () => {
+        const msm = new Alignment([note('a')]);
+        msm.pedals = [pedal('p1', { source: 'take1' }), pedal('p1', { source: 'take2' })];
+
+        run(new Modify({ scope: 'global', aspect: 'onset', change: -400, pedalIDs: ['p1'] }), msm);
+
+        expect(msm.pedals.map((p) => p['milliseconds.date'])).toEqual([600, 600]);
+    });
+});
+
+describe('a press that carries its line', () => {
+    const line = [
+        { ms: 0, position: 1 },
+        { ms: 1500, position: 1 },
+        { ms: 2000, position: 0 },
+    ];
+    const withLine = () => {
+        const msm = new Alignment([note('a')]);
+        msm.pedals = [pedal('p1', { travel: line })];
+        return msm;
+    };
+
+    test('a duration correction moves the release along the line, and the end with it', () => {
+        const msm = withLine();
+
+        run(new Modify({ scope: 'global', aspect: 'duration', change: 500, pedalIDs: ['p1'] }), msm);
+
+        expect(msm.pedals[0]?.travel?.map((v) => v.ms)).toEqual([0, 2000, 2500]);
+        expect(msm.pedals[0]?.['milliseconds.date.end']).toBe(3500);
+    });
+
+    test('the release cannot be dragged back past the last rise of the line', () => {
+        const msm = withLine();
+
+        run(new Modify({ scope: 'global', aspect: 'duration', change: -5000, pedalIDs: ['p1'] }), msm);
+
+        expect(msm.pedals[0]?.travel?.map((v) => v.ms)).toEqual([0, 1, 501]);
+        expect(msm.pedals[0]?.['milliseconds.date.end']).toBe(1501);
+    });
+
+    test('an onset correction leaves the line as it was', () => {
+        const msm = withLine();
+
+        run(new Modify({ scope: 'global', aspect: 'onset', change: 250, pedalIDs: ['p1'] }), msm);
+
+        expect(msm.pedals[0]?.travel).toBe(line);
+        expect(msm.pedals[0]?.['milliseconds.date']).toBe(1250);
+    });
 });

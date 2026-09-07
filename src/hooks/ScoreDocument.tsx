@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import type { Alignment } from '../fitting/alignment';
 
 /**
  * The score as it stands, and which reading of it the chain is looking at.
@@ -35,6 +36,12 @@ interface ScoreDocumentValue {
      * than in whichever desk next lays a score out along the performance.
      */
     recording: string;
+    /**
+     * The alignment as loaded, never run over: what a correction is measured against, since the
+     * fitted one shows the corrected value and has no memory of what it was. Null until an MEI
+     * is open.
+     */
+    pristine: Alignment | null;
 }
 
 const ScoreDocumentContext = createContext<ScoreDocumentValue | null>(null);
@@ -49,6 +56,7 @@ interface ScoreDocumentProviderProps {
     mei: string | undefined;
     setMei: (mei: string) => void;
     recording: string;
+    pristine: Alignment | null;
     children: ReactNode;
 }
 
@@ -56,8 +64,12 @@ export const ScoreDocumentProvider = ({
     mei,
     setMei,
     recording,
+    pristine,
     children,
 }: ScoreDocumentProviderProps) => {
-    const value = useMemo(() => ({ mei, setMei, recording }), [mei, setMei, recording]);
+    const value = useMemo(
+        () => ({ mei, setMei, recording, pristine }),
+        [mei, setMei, recording, pristine],
+    );
     return <ScoreDocumentContext value={value}>{children}</ScoreDocumentContext>;
 };

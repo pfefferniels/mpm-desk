@@ -151,7 +151,7 @@ const recording = (info: string): Alignment => {
   const scratch = createMpm();
 
   for (const transformer of transformers) {
-    if (transformer.name === 'MakeChoice' || transformer.name === 'Modify') {
+    if (['MakeChoice', 'CorrectPedal', 'Modify'].includes(transformer.name)) {
       transformer.run(observed, scratch);
     }
   }

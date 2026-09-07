@@ -329,8 +329,8 @@ export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
  * These three do not. `InsertMetadata` writes `<metadata>` and no instruction. `ProcessVoices`
  * says which MEI voice goes into which MSM part, a statement about the score's encoding. `Align`
  * says which sounding event realises which written note, which a reconstruction reads before it
- * has claimed anything. `Modify` and `MakeChoice` are not exceptions: reshaping the performance
- * is still a statement about it.
+ * has claimed anything. `Modify`, `CorrectPedal` and `MakeChoice` are not exceptions: reshaping
+ * the performance is still a statement about it.
  *
  * **By name, and only for counting.** The narrative uses the better rule, a call having no
  * elements to show (see {@link Call.segment}), which stays right for transformers this build has

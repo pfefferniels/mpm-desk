@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { AlignedPedal } from '../fitting/alignment'
-import { PEDAL_AREA, pedalLanes, pedalLine, pressLine, pressesOf } from './pedalGeometry'
+import { switchTravel } from '../performance/pedalTravel'
+import {
+    laneY,
+    PEDAL_AREA,
+    pedalLanes,
+    pedalLine,
+    placeTravel,
+    positionAtY,
+    pressesOf,
+    stepLine,
+    type PedalLane,
+} from './pedalGeometry'
 
 /** A recorded depression, stated the way MSM states one: milliseconds, and an absolute release. */
 const pedal = (
@@ -39,6 +50,35 @@ describe('pedalLanes', () => {
         const [lane] = pedalLanes([pedal('sustain', 'a', 0, 500)], 300)
 
         expect(lane.pressed).toBeGreaterThan(lane.rest)
+    })
+
+    it('fills the band a desk asks for', () => {
+        const [lane] = pedalLanes([pedal('sustain', 'a', 0, 500)], 312, 160)
+
+        expect(lane.rest).toBe(344)
+        expect(lane.pressed).toBe(432)
+    })
+})
+
+describe('a position in a lane', () => {
+    const lane: PedalLane = { type: 'sustain', rest: 10, pressed: 20 }
+
+    it('is drawn between the rail and the floor', () => {
+        expect(laneY(lane, 0)).toBe(10)
+        expect(laneY(lane, 0.5)).toBe(15)
+        expect(laneY(lane, 1)).toBe(20)
+    })
+
+    it('is read back off the plot, held inside the lane', () => {
+        expect(positionAtY(lane, laneY(lane, 0.3))).toBeCloseTo(0.3, 10)
+        expect(positionAtY(lane, 5)).toBe(0)
+        expect(positionAtY(lane, 30)).toBe(1)
+    })
+
+    it('places a travel by seconds on the axis and position in the lane', () => {
+        const placed = placeTravel([{ ms: 0, position: 0.5 }, { ms: 500, position: 1 }], 3000, lane, 20)
+
+        expect(placed).toEqual([{ x: 60, y: 15 }, { x: 70, y: 20 }])
     })
 })
 
@@ -98,8 +138,27 @@ describe('pedalLine', () => {
     })
 })
 
-describe('pressLine', () => {
-    it('is the step of one press, with nothing drawn on either side of it', () => {
-        expect(pressLine({ from: 100, to: 200 }, 10, 20)).toBe('100,10 100,20 200,20 200,10')
+describe('stepLine', () => {
+    const lane: PedalLane = { type: 'sustain', rest: 10, pressed: 20 }
+
+    it('draws a switch as the step of one press', () => {
+        expect(stepLine(placeTravel(switchTravel(1000), 5000, lane, 20), lane.rest))
+            .toBe('100,10 100,20 120,20 120,10')
+    })
+
+    it('holds each position until the next vertex, and repeats no corner of a plateau', () => {
+        const line = [
+            { ms: 0, position: 0.5 },
+            { ms: 500, position: 1 },
+            { ms: 1500, position: 1 },
+            { ms: 2000, position: 0 },
+        ]
+
+        expect(stepLine(placeTravel(line, 3000, lane, 20), lane.rest))
+            .toBe('60,10 60,15 70,15 70,20 90,20 100,20 100,10')
+    })
+
+    it('draws nothing for no vertices', () => {
+        expect(stepLine([], 10)).toBe('')
     })
 })

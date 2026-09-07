@@ -4,7 +4,7 @@ import { isDefined } from './utils';
 import { PULSES_PER_QUARTER } from './ppq';
 import { elementAt } from 'espressivo';
 import { timeSignatureAt, type DatedTimeSignature } from './timeSignature';
-import type { Travel } from '../performance/pedalTravel';
+import { returnToRest, switchTravel, type Travel } from '../performance/pedalTravel';
 
 /**
  * When the recording sounds an event, in the two attributes MSM states a performance in:
@@ -36,10 +36,22 @@ export type AlignedPedal = {
   /**
    * The line the pedal drew over the press, in vertices since `milliseconds.date`, where the
    * record holds one. Without it the press is a switch: down at the date, up again at the end.
+   *
+   * Replaced, never written into: `deepClone` shares the array with the copy the worker keeps.
    */
   travel?: Travel;
 } & PerformedAttributes &
   TemporaryAttributes;
+
+/** The line a press drew, or the switch its two times describe. */
+export const travelOf = (pedal: AlignedPedal): Travel =>
+  pedal.travel ?? switchTravel(pedal['milliseconds.date.end'] - pedal['milliseconds.date']);
+
+/** Give a press a new line. The release follows it, so the two cannot disagree. */
+export const redrawPress = (pedal: AlignedPedal, travel: Travel): void => {
+  pedal.travel = travel;
+  pedal['milliseconds.date.end'] = pedal['milliseconds.date'] + returnToRest(travel);
+};
 
 /**
  * One note of the score, together with what the recording did with it.

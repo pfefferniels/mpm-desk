@@ -1,4 +1,5 @@
-import { Alignment, type PerformedAttributes } from '../../alignment';
+import { Alignment, redrawPress, type AlignedPedal, type PerformedAttributes } from '../../alignment';
+import { releaseShifted } from '../../../performance/pedalTravel';
 import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
 
 /**
@@ -9,8 +10,8 @@ import { AbstractTransformer, type ScopedTransformationOptions } from '../Transf
  * its note on the missing `<pedalMap>`. So `from`/`to` cannot reach a pedal, and is not asked to
  * try.
  *
- * There is no `'pedal'` aspect, which would be a category error: a pedal has an onset and a held
- * length and nothing else, which are two of the three aspects below. A saved call naming one
+ * There is no `'pedal'` aspect: a press has an onset and a release, which are two of the three
+ * aspects below, and the line between them, which is `CorrectPedal`'s. A saved call naming one
  * lands in the `default` arm.
  */
 export type ModifySelector =
@@ -47,12 +48,18 @@ const restretch = (event: PerformedAttributes, change: number): void => {
   );
 };
 
+/** Move a press's release. Where the press carries its line, the release is where the line comes down. */
+const restretchPress = (pedal: AlignedPedal, change: number): void => {
+  if (pedal.travel) redrawPress(pedal, releaseShifted(pedal.travel, change));
+  else restretch(pedal, change);
+};
+
 /**
  * A correction to the recording.
  *
- * One of the three calls that write no instruction into the performance — `MakeChoice` picks
- * between readings, this corrects the reading that was picked, and `InsertMetadata` says who did
- * the picking. It runs second in the chain, before the `TranslatePhysicalTimeToTicks` hinge, so
+ * One of the four calls that write no instruction into the performance — `MakeChoice` picks
+ * between readings, this and `CorrectPedal` correct the reading that was picked, and
+ * `InsertMetadata` says who did the picking. It runs before the `TranslatePhysicalTimeToTicks` hinge, so
  * it works in the recording's own domain: milliseconds, which is what makes an onset or a
  * duration correction mean anything at all.
  *
@@ -91,11 +98,11 @@ export class Modify extends AbstractTransformer<ModifyOptions> {
         return;
       }
 
-      for (const id of options.pedalIDs) {
-        const pedal = msm.pedals.find((p) => p['xml:id'] === id);
-        if (!pedal) continue;
+      // Every press under the id, for the reason the note arm gives below.
+      const ids = new Set(options.pedalIDs);
+      for (const pedal of msm.pedals.filter((p) => ids.has(p['xml:id']))) {
         if (aspect === 'onset') displace(pedal, change);
-        else restretch(pedal, change);
+        else restretchPress(pedal, change);
       }
       return;
     }

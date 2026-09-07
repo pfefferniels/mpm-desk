@@ -4,32 +4,61 @@ import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { Check, Clear } from '@mui/icons-material';
 import type { ScopedTransformerViewProps } from '../TransformerViewProps';
 import { Modify, type ModifyOptions } from '../../fitting/transformers/modification/Modify';
+import { CorrectPedal } from '../../fitting/transformers/modification/CorrectPedal';
+import { sameTravel } from '../../performance/pedalTravel';
 import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
 import { coveredBy, useEventSelection } from './useEventSelection';
 import { useModifyDeltas } from './useModifyDeltas';
+import { useLineGhosts } from './useLineGhosts';
+import type { LineDraft } from './lineDraft';
 import { VelocityPlot } from './VelocityPlot';
-import { TimingRoll, type TimingAspect } from './TimingRoll';
+import { TimingRoll, type TimingAspect, type TimingPreview } from './TimingRoll';
 
 /** Which plot is in front, and so which of the recording's properties is being corrected. */
 type Plot = 'velocity' | 'timing';
 
+/** A shift of the selected events in one aspect, or one press's line as drafted. */
+type Draft = { aspect: ModifyOptions['aspect']; change: number } | LineDraft;
+
+/** The call sent and not yet answered by a fit. */
+type Pending = { call: 'Modify'; options: ModifyOptions } | { call: 'CorrectPedal'; draft: LineDraft };
+
 const signed = (change: number) => `${change > 0 ? '+' : ''}${String(change)}`;
 
 const count = (n: number, what: string) => `${String(n)} ${what}${n === 1 ? '' : 's'}`;
+
+/** Whether the drafted line says anything the recording does not. */
+const lineChanged = ({ change, before }: LineDraft): boolean =>
+    before === null || 'remove' in change || !sameTravel(before, change.travel);
+
+const lineLabel = ({ change, before }: LineDraft): string =>
+    'remove' in change
+        ? 'Remove 1 pedal'
+        : before === null && 'type' in change
+          ? `Add 1 ${change.type} pedal`
+          : 'Apply line to 1 pedal';
+
+const lineTooltip = ({ change, before }: LineDraft): string =>
+    'remove' in change
+        ? 'Drop the press from the recording'
+        : before === null && 'type' in change
+          ? `Add a ${change.type} press the roll lacks`
+          : 'Redraw the line of the press';
 
 /**
  * Corrections to the recording.
  *
  * ## What this desk is not
  *
- * It writes no performance instruction. `Modify` is one of the three calls that edit the *ground*
- * a performance is fitted to rather than the performance itself: `MakeChoice` picks between the
- * readings of a passage, this corrects the reading that was picked, and `InsertMetadata` says who
- * did the picking. None of the three puts anything in the MPM, which is why they are grouped
- * together in the aspect menu and why nothing here appears in the narrative. A correction states
- * that the roll scan read something wrong rather than claiming anything about the performance.
+ * It writes no performance instruction. `Modify` and `CorrectPedal` are among the calls that edit
+ * the *ground* a performance is fitted to rather than the performance itself: `MakeChoice` picks
+ * between the readings of a passage, these correct the reading that was picked, and
+ * `InsertMetadata` says who did the picking. None of them puts anything in the MPM, which is why
+ * they are grouped together in the aspect menu and why nothing here appears in the narrative. A
+ * correction states that the roll scan read something wrong rather than claiming anything about
+ * the performance.
  *
  * ## The selector says what, the grab says which property
  *
@@ -39,6 +68,9 @@ const count = (n: number, what: string) => `${String(n)} ${what}${n === 1 ? '' :
  * an event is its attack while its right edge is its release. So the two questions a `Modify`
  * asks are answered by two different parts of the same gesture, and neither needs a control.
  *
+ * A pedal's line is the third kind of grab: a handle on it, a flat run of it, or the lane it is
+ * missing from. Those make a `CorrectPedal`, which is about one press and states its whole line.
+ *
  * A drag is a *draft*: nothing is sent until Apply, and until then the displaced events and the
  * blue ghost behind them are the whole of the preview.
  */
@@ -46,10 +78,10 @@ export const CorrectionsDesk = ({
     part,
     msm,
     addTransformer,
-}: ScopedTransformerViewProps<Modify>) => {
+}: ScopedTransformerViewProps<Modify | CorrectPedal>) => {
     const [plot, setPlot] = useState<Plot>('velocity');
-    const [draft, setDraft] = useState<{ aspect: ModifyOptions['aspect']; change: number }>();
-    const [pending, setPending] = useState<ModifyOptions>();
+    const [draft, setDraft] = useState<Draft>();
+    const [pending, setPending] = useState<Pending>();
 
     const { selection, select, clear, selected } = useEventSelection(msm, part);
 
@@ -67,12 +99,24 @@ export const CorrectionsDesk = ({
         setLastFit({ msm, part });
     }
 
-    const velocityGhosts = useModifyDeltas(msm, part, 'velocity', pending);
-    const onsetGhosts = useModifyDeltas(msm, part, 'onset', pending);
-    const durationGhosts = useModifyDeltas(msm, part, 'duration', pending);
+    const pendingModify = pending?.call === 'Modify' ? pending.options : undefined;
+    const velocityGhosts = useModifyDeltas(msm, part, 'velocity', pendingModify);
+    const onsetGhosts = useModifyDeltas(msm, part, 'onset', pendingModify);
+    const durationGhosts = useModifyDeltas(msm, part, 'duration', pendingModify);
+    const lineGhosts = useLineGhosts(msm, onsetGhosts);
 
-    const preview = pending ?? draft;
-    const previewIds = pending ? coveredBy(pending, msm, part) : selected;
+    const preview: Draft | undefined = pending
+        ? pending.call === 'Modify'
+            ? pending.options
+            : pending.draft
+        : draft;
+    const previewIds = pendingModify ? coveredBy(pendingModify, msm, part) : selected;
+    const timingPreview: TimingPreview | undefined =
+        preview && preview.aspect !== 'velocity'
+            ? preview.aspect === 'line'
+                ? preview
+                : { aspect: preview.aspect, change: preview.change }
+            : undefined;
 
     /** What the selection covers, or nothing at all while there is no selection to describe. */
     const scopeLabel = !selection
@@ -83,8 +127,10 @@ export const CorrectionsDesk = ({
             ? count(selection.pedalIDs.length, 'pedal')
             : `ticks ${String(selection.from)}–${String(selection.to)}`;
 
-    const unit = draft?.aspect === 'velocity' ? '' : ' ms';
-    const correction = draft && draft.change !== 0 ? `${signed(draft.change)}${unit}` : undefined;
+    const shift = draft && draft.aspect !== 'line' ? draft : undefined;
+    const unit = shift?.aspect === 'velocity' ? '' : ' ms';
+    const correction = shift && shift.change !== 0 ? `${signed(shift.change)}${unit}` : undefined;
+    const line = draft?.aspect === 'line' && lineChanged(draft) ? draft : undefined;
 
     /**
      * The button says the whole sentence: what will be added, and to what.
@@ -93,11 +139,13 @@ export const CorrectionsDesk = ({
      * avoid — but the cursor is on the plot for the whole of that drag, and by the time it comes
      * looking for the button the wording has settled.
      */
-    const applyLabel = !scopeLabel
-        ? 'Apply'
-        : correction
-          ? `Apply ${correction} to ${scopeLabel}`
-          : `Apply to ${scopeLabel}`;
+    const applyLabel = line
+        ? lineLabel(line)
+        : !scopeLabel
+          ? 'Apply'
+          : correction
+            ? `Apply ${correction} to ${scopeLabel}`
+            : `Apply to ${scopeLabel}`;
 
     const clearAll = useCallback(() => {
         setDraft(undefined);
@@ -109,26 +157,35 @@ export const CorrectionsDesk = ({
     useHotkeys('escape', clearAll, [clearAll]);
 
     const commit = () => {
-        if (!selection || !draft || draft.change === 0) return;
+        if (line) {
+            addTransformer(new CorrectPedal(line.change));
+            setPending({ call: 'CorrectPedal', draft: line });
+            setDraft(undefined);
+            clear();
+            return;
+        }
+        if (!selection || !shift || shift.change === 0) return;
 
         const options: ModifyOptions = {
             ...selection,
             scope: part,
-            aspect: draft.aspect,
-            change: draft.change,
+            aspect: shift.aspect,
+            change: shift.change,
         };
 
         addTransformer(new Modify(options));
-        setPending(options);
+        setPending({ call: 'Modify', options });
         setDraft(undefined);
         clear();
     };
 
-    const applyTooltip = !scopeLabel
-        ? 'Click an event on the plot to say what the correction is about'
-        : !draft || !correction
-          ? 'Drag a selected event first — there is no correction to apply'
-          : `Add ${correction} to the ${draft.aspect} of ${scopeLabel}`;
+    const applyTooltip = line
+        ? lineTooltip(line)
+        : !scopeLabel
+          ? 'Click an event on the plot to say what the correction is about'
+          : !shift || !correction
+            ? 'Drag a selected event first — there is no correction to apply'
+            : `Add ${correction} to the ${shift.aspect} of ${scopeLabel}`;
 
     return (
         <div>
@@ -144,7 +201,7 @@ export const CorrectionsDesk = ({
                             if (next === null || next === plot) return;
                             // The selection carries over — the same events are on both plots —
                             // but a draft cannot: its `change` is velocity steps on one plot and
-                            // milliseconds on the other.
+                            // milliseconds or a line on the other.
                             setDraft(undefined);
                             setPlot(next);
                         }}
@@ -161,7 +218,7 @@ export const CorrectionsDesk = ({
                         icon={<Check />}
                         label={applyLabel}
                         tooltip={applyTooltip}
-                        disabled={!scopeLabel || !correction}
+                        disabled={!line && (!scopeLabel || !correction)}
                         onClick={commit}
                     >
                         {applyLabel}
@@ -205,14 +262,12 @@ export const CorrectionsDesk = ({
                     selected={selected}
                     onSelect={select}
                     onDrag={(aspect: TimingAspect, change) => setDraft({ aspect, change })}
-                    preview={
-                        preview && preview.aspect !== 'velocity'
-                            ? { aspect: preview.aspect, change: preview.change }
-                            : undefined
-                    }
+                    onDraw={setDraft}
+                    preview={timingPreview}
                     previewIds={previewIds}
                     onsetGhosts={onsetGhosts}
                     durationGhosts={durationGhosts}
+                    lineGhosts={lineGhosts}
                 />
             )}
         </div>

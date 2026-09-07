@@ -52,7 +52,7 @@ beforeAll(async () => {
     await act(async () => {
         createRoot(desk).render(
             <WorkDocumentProvider history={initialHistory()} dispatch={vi.fn()}>
-                <ScoreDocumentProvider mei={mei} setMei={vi.fn()} recording="">
+                <ScoreDocumentProvider mei={mei} setMei={vi.fn()} recording="" pristine={null}>
                     <PerformancesProvider value={{ performances: [], openPerformance: vi.fn() }}>
                         <DeskToolbarProvider target={bar}>
                             <AlignmentDesk />

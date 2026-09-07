@@ -6,19 +6,24 @@ import type { Call } from '../../model/Work';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
+import { ScoreDocumentProvider } from '../../hooks/ScoreDocument';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { createMpm } from '../../fitting/instructions/index';
 import { deriveResidual } from '../../fitting/residual';
 import { Modify } from '../../fitting/transformers/modification/Modify';
+import { CorrectPedal } from '../../fitting/transformers/modification/CorrectPedal';
+import type { Travel } from '../../performance/pedalTravel';
 import { CorrectionsDesk } from './CorrectionsDesk';
+import { defaultPress } from './lineDraft';
 
 /**
  * The desk, mounted.
  *
  * Not a screenshot in prose: what this checks is the one thing the hook tests below cannot, that
- * the two plots draw the recording and that a gesture on one of them turns into a `Modify` with
- * the right selector and the right aspect. The velocity plot auditions notes as the pointer
- * passes them, so the piano is stubbed — Tone in jsdom is a slow way to assert nothing.
+ * the two plots draw the recording and that a gesture on one of them turns into a `Modify` or a
+ * `CorrectPedal` with the right selector and the right aspect. The velocity plot auditions notes
+ * as the pointer passes them, so the piano is stubbed — Tone in jsdom is a slow way to assert
+ * nothing.
  */
 
 vi.mock('react-pianosound', () => ({
@@ -64,6 +69,7 @@ const note = (id: string, date: number, over: Partial<AlignedNote> = {}): Aligne
     ...over,
 });
 
+/** A switch, as a roll read by midi2exp records one. */
 const pedal = (id: string): AlignedPedal => ({
     'xml:id': id,
     type: 'sustain',
@@ -71,9 +77,26 @@ const pedal = (id: string): AlignedPedal => ({
     'milliseconds.date.end': 2000,
 });
 
+/** Half down at once, fully down after half a second, held, and up at two. */
+const line: Travel = [
+    { ms: 0, position: 0.5 },
+    { ms: 500, position: 1 },
+    { ms: 1500, position: 1 },
+    { ms: 2000, position: 0 },
+];
+
+/** A press that carries its line, three seconds in. */
+const pressWithLine = (id: string): AlignedPedal => ({
+    'xml:id': id,
+    type: 'sustain',
+    'milliseconds.date': 3000,
+    'milliseconds.date.end': 5000,
+    travel: line,
+});
+
 const alignment = () => {
     const msm = new Alignment([note('a', 0), note('b', 720, { velocity: 80 })]);
-    msm.pedals = [pedal('p1')];
+    msm.pedals = [pedal('p1'), pressWithLine('p2')];
     return msm;
 };
 
@@ -87,6 +110,7 @@ const alignment = () => {
  *
  * `msm` deliberately does not change. The alignment is an output of the fit, which does not run
  * here, so the desk stays in the state it is in between sending a correction and being answered.
+ * The pristine copy the line ghosts are read from is therefore the same recording.
  */
 const mount = (initialCalls: readonly Call[] = []) => {
     const msm = alignment();
@@ -103,45 +127,47 @@ const mount = (initialCalls: readonly Call[] = []) => {
 
         return (
             <NotesProvider notes={msm.allNotes}>
-                <ScrollSyncProvider
-                    symbolicZoom={20}
-                    physicalZoom={20}
-                    tickToSeconds={(tick) => tick / 720}
-                    secondsToTick={(seconds) => seconds * 720}
-                >
-                    <CallSelectionProvider
-                        calls={calls}
-                        outcomes={[]}
-                        activeCallIds={new Set()}
-                        setActiveCallIds={vi.fn()}
-                        onRemoveCalls={vi.fn()}
-                        focusCall={vi.fn()}
+                <ScoreDocumentProvider mei={undefined} setMei={vi.fn()} recording="" pristine={alignment()}>
+                    <ScrollSyncProvider
+                        symbolicZoom={20}
+                        physicalZoom={20}
+                        tickToSeconds={(tick) => tick / 720}
+                        secondsToTick={(seconds) => seconds * 720}
                     >
-                        <DeskToolbarProvider target={bar}>
-                            <CorrectionsDesk
-                                part="global"
-                                msm={msm}
-                                mpm={mpm}
-                                residual={deriveResidual(msm, mpm)}
-                                projected={[]}
-                                performanceXml=""
-                                secondary={{}}
-                                setSecondary={vi.fn()}
-                                addTransformer={(transformer) => {
-                                    addTransformer(transformer);
-                                    setCalls((current) => [
-                                        ...current,
-                                        {
-                                            id: transformer.id,
-                                            name: transformer.name,
-                                            options: transformer.options as unknown as Record<string, unknown>,
-                                        },
-                                    ]);
-                                }}
-                            />
-                        </DeskToolbarProvider>
-                    </CallSelectionProvider>
-                </ScrollSyncProvider>
+                        <CallSelectionProvider
+                            calls={calls}
+                            outcomes={[]}
+                            activeCallIds={new Set()}
+                            setActiveCallIds={vi.fn()}
+                            onRemoveCalls={vi.fn()}
+                            focusCall={vi.fn()}
+                        >
+                            <DeskToolbarProvider target={bar}>
+                                <CorrectionsDesk
+                                    part="global"
+                                    msm={msm}
+                                    mpm={mpm}
+                                    residual={deriveResidual(msm, mpm)}
+                                    projected={[]}
+                                    performanceXml=""
+                                    secondary={{}}
+                                    setSecondary={vi.fn()}
+                                    addTransformer={(transformer) => {
+                                        addTransformer(transformer);
+                                        setCalls((current) => [
+                                            ...current,
+                                            {
+                                                id: transformer.id,
+                                                name: transformer.name,
+                                                options: transformer.options as unknown as Record<string, unknown>,
+                                            },
+                                        ]);
+                                    }}
+                                />
+                            </DeskToolbarProvider>
+                        </CallSelectionProvider>
+                    </ScrollSyncProvider>
+                </ScoreDocumentProvider>
             </NotesProvider>
         );
     };
@@ -178,6 +204,50 @@ const clickToolbarButton = (name: string) => {
     return button;
 };
 
+const showRoll = () => {
+    act(() => {
+        screen.getByRole('button', { name: 'Timing' }).click();
+    });
+};
+
+const element = (selector: string) => {
+    const found = document.querySelector(selector);
+    if (!found) throw new Error(`nothing matches ${selector}`);
+    return found;
+};
+
+const press = (target: Element, init: MouseEventInit) => {
+    act(() => {
+        target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, ...init }));
+    });
+};
+
+/** Drag the element under the pointer from one client point to another, and let go. */
+const drag = (
+    from: Element,
+    start: { clientX: number; clientY: number },
+    end: { clientX: number; clientY: number },
+    init: MouseEventInit = {},
+) => {
+    act(() => {
+        from.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, ...init, ...start }));
+    });
+    act(() => {
+        from.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, ...end }));
+    });
+    act(() => {
+        from.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, ...end }));
+    });
+};
+
+/** The one call the desk sent, unwrapped. */
+const sentOptions = (addTransformer: ReturnType<typeof vi.fn>) => {
+    expect(addTransformer).toHaveBeenCalledTimes(1);
+    const sent: unknown = addTransformer.mock.calls[0]?.[0];
+    if (!(sent instanceof Modify) && !(sent instanceof CorrectPedal)) throw new Error('not a correction');
+    return sent.options;
+};
+
 describe('the velocity plot', () => {
     it('draws a dot per recorded velocity', () => {
         mount();
@@ -211,37 +281,41 @@ describe('the velocity plot', () => {
 });
 
 describe('the timing roll', () => {
-    const showRoll = () => {
-        act(() => {
-            screen.getByRole('button', { name: 'Timing' }).click();
-        });
-    };
-
     it('draws the notes and the pedal lanes', () => {
         mount();
         showRoll();
 
-        expect(document.querySelectorAll('rect[data-id]')).toHaveLength(3);
+        expect(document.querySelectorAll('rect[data-id]')).toHaveLength(4);
         expect(document.querySelector('rect[data-type="sustain"]')).toBeInTheDocument();
         expect(screen.getByText('sustain')).toBeInTheDocument();
     });
 
-    /** The corners of the one pedal line, as numbers. */
-    const pedalCorners = () => {
-        const points = document.querySelector('polyline')?.getAttribute('points');
+    /** The corners of one pedal line, as numbers. */
+    const pedalCorners = (id: string) => {
+        const points = document.querySelector(`polyline[data-line="${id}"]`)?.getAttribute('points');
         if (!points) throw new Error('no pedal line drawn');
         return points.split(' ').map((corner) => corner.split(',').map(Number));
     };
 
-    it('draws a pedal as a line that drops for as long as it is held', () => {
+    it('draws a switch as a line that drops for as long as it is held', () => {
         mount();
         showRoll();
 
-        const [rest, down, held, lifted] = pedalCorners();
+        const [rest, down, held, lifted] = pedalCorners('p1');
         expect(down[1]).toBeGreaterThan(rest[1]);
         expect(held[1]).toBe(down[1]);
         expect(held[0]).toBeGreaterThan(down[0]);
         expect(lifted[1]).toBe(rest[1]);
+    });
+
+    it('draws a press with a line holding each position until the next vertex', () => {
+        // Three seconds in at a zoom of 20 is 60 units; one lane 160 tall from 312 puts the rail
+        // at 344 and the floor at 432, so half down is 388.
+        mount();
+        showRoll();
+
+        expect(element('polyline[data-line="p2"]').getAttribute('points'))
+            .toBe('60,344 60,388 70,388 70,432 90,432 100,432 100,344');
     });
 
     it('selects a pedal as a list of pedals, never as a stretch of the score', () => {
@@ -249,12 +323,20 @@ describe('the timing roll', () => {
         mount();
         showRoll();
 
-        const lane = document.querySelector('rect[data-type="sustain"]');
-        act(() => {
-            lane?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 5, clientY: 5 }));
-        });
+        press(element('rect[data-type="sustain"]'), { clientX: 5, clientY: 5 });
 
         expect(screen.getByRole('button', { name: 'Apply to 1 pedal' })).toBeInTheDocument();
+    });
+
+    it('offers a handle on every vertex of a selected press, and none on one left alone', () => {
+        mount();
+        showRoll();
+
+        expect(document.querySelectorAll('circle[data-vertex]')).toHaveLength(0);
+        press(element('rect[data-id="p2"]'), { clientX: 80, clientY: 400 });
+
+        expect(document.querySelectorAll('circle[data-vertex]')).toHaveLength(4);
+        expect(document.querySelectorAll('line[data-plateau]')).toHaveLength(3);
     });
 });
 
@@ -302,31 +384,6 @@ describe('the toolbar', () => {
     });
 });
 
-/** Drag the element under the pointer from one client point to another, and let go. */
-const drag = (
-    from: Element,
-    start: { clientX: number; clientY: number },
-    end: { clientX: number; clientY: number },
-) => {
-    act(() => {
-        from.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, ...start }));
-    });
-    act(() => {
-        from.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, ...end }));
-    });
-    act(() => {
-        from.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, ...end }));
-    });
-};
-
-/** The one `Modify` the desk sent, unwrapped. */
-const sentOptions = (addTransformer: ReturnType<typeof vi.fn>) => {
-    expect(addTransformer).toHaveBeenCalledTimes(1);
-    const sent: unknown = addTransformer.mock.calls[0]?.[0];
-    expect(sent).toBeInstanceOf(Modify);
-    return (sent as Modify).options;
-};
-
 describe('what a gesture turns into', () => {
     it('a velocity drag becomes a Modify on the notes that were selected', () => {
         const { addTransformer } = mount();
@@ -346,14 +403,10 @@ describe('what a gesture turns into', () => {
 
     it('a drag on the body of a note on the roll becomes an onset correction', () => {
         const { addTransformer } = mount();
-        act(() => {
-            screen.getByRole('button', { name: 'Timing' }).click();
-        });
+        showRoll();
 
         // 20 user units at a physical zoom of 20 is one second of recording.
-        const body = document.querySelector('rect[data-id="b"]');
-        if (!body) throw new Error('no note on the roll');
-        drag(body, { clientX: 5, clientY: 5 }, { clientX: 25, clientY: 5 });
+        drag(element('rect[data-id="b"]'), { clientX: 5, clientY: 5 }, { clientX: 25, clientY: 5 });
 
         clickToolbarButton('Apply +1000 ms to 1 note');
 
@@ -367,15 +420,11 @@ describe('what a gesture turns into', () => {
 
     it('a drag on the lift edge of a pedal becomes a duration correction on that pedal', () => {
         const { addTransformer } = mount();
-        act(() => {
-            screen.getByRole('button', { name: 'Timing' }).click();
-        });
+        showRoll();
 
         // The line is drawn without pointer events, so the press is grabbed by the box behind it.
         // 2 seconds at a zoom of 20 puts the lift at 40, which the grab has to be within six of.
-        const press = document.querySelector('rect[data-type="sustain"]');
-        if (!press) throw new Error('no pedal on the roll');
-        drag(press, { clientX: 38, clientY: 330 }, { clientX: 58, clientY: 330 });
+        drag(element('rect[data-id="p1"]'), { clientX: 38, clientY: 400 }, { clientX: 58, clientY: 400 });
 
         clickToolbarButton('Apply +1000 ms to 1 pedal');
 
@@ -421,5 +470,154 @@ describe('what a gesture turns into', () => {
         const ghosts = [...document.querySelectorAll('circle[fill="none"]')];
         expect(ghosts).toHaveLength(1);
         expect(ghosts[0]?.getAttribute('stroke')).toBe('hsl(220, 60%, 50%)');
+    });
+});
+
+/**
+ * The line of a press, edited. `p2` sits three seconds in with its vertices at 60, 70, 90 and
+ * 100 on the axis; in its lane a position of 0.5 is drawn at 388, 0.75 at 410, 1 at 432.
+ */
+describe('what a gesture on the pedal line turns into', () => {
+    const selectPress = (id: string) => press(element(`rect[data-id="${id}"]`), { clientX: 80, clientY: 400 });
+
+    it('a dragged handle moves that vertex, in time and in position', () => {
+        const { addTransformer } = mount();
+        showRoll();
+        selectPress('p2');
+
+        drag(element('circle[data-vertex="1"]'), { clientX: 70, clientY: 432 }, { clientX: 75, clientY: 388 });
+
+        clickToolbarButton('Apply line to 1 pedal');
+        expect(sentOptions(addTransformer)).toEqual({
+            pedal: 'p2',
+            travel: [
+                { ms: 0, position: 0.5 },
+                { ms: 750, position: 0.5 },
+                { ms: 1500, position: 1 },
+                { ms: 2000, position: 0 },
+            ],
+        });
+    });
+
+    it('a dragged flat run raises or lowers the hold, both ends together', () => {
+        const { addTransformer } = mount();
+        showRoll();
+        selectPress('p2');
+
+        drag(element('line[data-plateau="1"]'), { clientX: 80, clientY: 432 }, { clientX: 80, clientY: 410 });
+
+        clickToolbarButton('Apply line to 1 pedal');
+        expect(sentOptions(addTransformer)).toEqual({
+            pedal: 'p2',
+            travel: [
+                { ms: 0, position: 0.5 },
+                { ms: 500, position: 0.75 },
+                { ms: 1500, position: 0.75 },
+                { ms: 2000, position: 0 },
+            ],
+        });
+    });
+
+    it('an alt-press on the line adds a vertex there, which the same gesture drags', () => {
+        const { addTransformer } = mount();
+        showRoll();
+
+        drag(
+            element('rect[data-id="p2"]'),
+            { clientX: 80, clientY: 432 },
+            { clientX: 80, clientY: 388 },
+            { altKey: true },
+        );
+
+        clickToolbarButton('Apply line to 1 pedal');
+        expect(sentOptions(addTransformer)).toEqual({
+            pedal: 'p2',
+            travel: [
+                { ms: 0, position: 0.5 },
+                { ms: 500, position: 1 },
+                { ms: 1000, position: 0.5 },
+                { ms: 1500, position: 1 },
+                { ms: 2000, position: 0 },
+            ],
+        });
+    });
+
+    it('a shift-alt-press on a handle drops that vertex, but never an end', () => {
+        const { addTransformer } = mount();
+        showRoll();
+        selectPress('p2');
+
+        press(element('circle[data-vertex="0"]'), { clientX: 60, clientY: 388, shiftKey: true, altKey: true });
+        expect(screen.getByRole('button', { name: 'Apply to 1 pedal' })).toBeDisabled();
+
+        press(element('circle[data-vertex="1"]'), { clientX: 70, clientY: 432, shiftKey: true, altKey: true });
+
+        clickToolbarButton('Apply line to 1 pedal');
+        expect(sentOptions(addTransformer)).toEqual({
+            pedal: 'p2',
+            travel: [
+                { ms: 0, position: 0.5 },
+                { ms: 1500, position: 1 },
+                { ms: 2000, position: 0 },
+            ],
+        });
+    });
+
+    it('an alt-press on an empty stretch of a lane adds a press there', () => {
+        const { addTransformer } = mount();
+        showRoll();
+
+        press(element('rect[data-lane="sustain"]'), { clientX: 200, clientY: 400, altKey: true });
+
+        expect(document.querySelector('g[data-press^="pedal-"]')).toBeInTheDocument();
+        clickToolbarButton('Add 1 sustain pedal');
+        expect(sentOptions(addTransformer)).toEqual({
+            pedal: expect.stringMatching(/^pedal-/) as string,
+            type: 'sustain',
+            onsetMs: 10000,
+            travel: defaultPress(),
+        });
+    });
+
+    it('a shift-alt-press on a press drops it, leaving its ghost', () => {
+        const { addTransformer } = mount();
+        showRoll();
+
+        press(element('rect[data-id="p1"]'), { clientX: 5, clientY: 400, shiftKey: true, altKey: true });
+
+        expect(document.querySelector('polyline[data-line="p1"]')).not.toBeInTheDocument();
+        expect(element('polyline[data-ghost="p1"]').getAttribute('stroke')).toBe('hsl(220, 60%, 50%)');
+        clickToolbarButton('Remove 1 pedal');
+        expect(sentOptions(addTransformer)).toEqual({ pedal: 'p1', remove: true });
+    });
+
+    it('keeps drawing the sent line, over a blue ghost of the old one, until the fit answers', () => {
+        mount();
+        showRoll();
+        selectPress('p2');
+        drag(element('circle[data-vertex="1"]'), { clientX: 70, clientY: 432 }, { clientX: 75, clientY: 388 });
+        clickToolbarButton('Apply line to 1 pedal');
+
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(element('polyline[data-line="p2"]').getAttribute('points'))
+            .toBe('60,344 60,388 75,388 90,388 90,432 100,432 100,344');
+        const ghost = element('polyline[data-ghost="p2"]');
+        expect(ghost.getAttribute('stroke')).toBe('hsl(220, 60%, 50%)');
+        expect(ghost.getAttribute('points')).toBe('60,344 60,388 70,388 70,432 90,432 100,432 100,344');
+    });
+
+    it('marks a line the chain already redrew with the line the recording had', () => {
+        mount([
+            {
+                id: 'c1',
+                name: 'CorrectPedal',
+                options: { pedal: 'p2', travel: [{ ms: 0, position: 1 }, { ms: 2000, position: 0 }] },
+            },
+        ]);
+        showRoll();
+
+        const ghost = element('polyline[data-ghost="p2"]');
+        expect(ghost.getAttribute('stroke')).toBe('#999');
+        expect(ghost.getAttribute('points')).toBe('60,344 60,388 70,388 70,432 90,432 100,432 100,344');
     });
 });

@@ -1,4 +1,5 @@
 import type { AlignedPedal } from '../fitting/alignment'
+import type { Travel } from '../performance/pedalTravel'
 import { pedalHeldSeconds, pedalOnsetSeconds } from './noteTiming'
 
 /** How tall the whole pedal band is, however many lanes it turns out to hold. */
@@ -26,10 +27,16 @@ export interface PedalLane {
  * pedal shows no soft lane.
  *
  * @param top where the band begins, below the roll
+ * @param area how tall the band is: a desk that drags positions asks for more than one that
+ *   compares readings
  */
-export const pedalLanes = (pedals: readonly AlignedPedal[], top: number): PedalLane[] => {
+export const pedalLanes = (
+    pedals: readonly AlignedPedal[],
+    top: number,
+    area = PEDAL_AREA,
+): PedalLane[] => {
     const types = LANE_ORDER.filter(type => pedals.some(pedal => pedal.type === type))
-    const height = PEDAL_AREA / (types.length || 1)
+    const height = area / (types.length || 1)
 
     return types.map((type, lane) => ({
         type,
@@ -37,6 +44,32 @@ export const pedalLanes = (pedals: readonly AlignedPedal[], top: number): PedalL
         pressed: top + lane * height + height * 0.75,
     }))
 }
+
+/** Where a position between up (0) and down (1) is drawn in a lane. */
+export const laneY = (lane: PedalLane, position: number): number =>
+    lane.rest + position * (lane.pressed - lane.rest)
+
+/** The inverse, held inside the lane: the position a plot y names. */
+export const positionAtY = (lane: PedalLane, y: number): number =>
+    Math.min(1, Math.max(0, (y - lane.rest) / (lane.pressed - lane.rest)))
+
+/** One vertex placed on the plot: seconds on the axis, position in the lane. */
+export interface PlacedVertex {
+    x: number
+    y: number
+}
+
+/** @param dateMs the press's `milliseconds.date` */
+export const placeTravel = (
+    travel: Travel,
+    dateMs: number,
+    lane: PedalLane,
+    stretchX: number,
+): PlacedVertex[] =>
+    travel.map(({ ms, position }) => ({
+        x: ((dateMs + ms) / 1000) * stretchX,
+        y: laneY(lane, position),
+    }))
 
 /** A stretch of the plot over which one pedal was held down, in pixels. */
 export interface Press {
@@ -79,20 +112,43 @@ export const pressesOf = (
             .sort((a, b) => a.from - b.from),
     )
 
-const asPoints = (corners: readonly (readonly [number, number])[]): string =>
+type Corner = readonly [number, number]
+
+const asPoints = (corners: readonly Corner[]): string =>
     corners.map(([x, y]) => `${x},${y}`).join(' ')
 
-/** The four corners of one depression: down where the foot lands, up again where it lifts. */
-const stepOf = (
-    { from, to }: Press,
-    rest: number,
-    pressed: number,
-): (readonly [number, number])[] => [
-    [from, rest],
-    [from, pressed],
-    [to, pressed],
-    [to, rest],
-]
+/** A corner that repeats the one before it, as a plateau's far end would, is no corner. */
+const withoutRepeats = (corners: readonly Corner[]): Corner[] =>
+    corners.filter(([x, y], i) => i === 0 || x !== corners[i - 1][0] || y !== corners[i - 1][1])
+
+/**
+ * The corners of a line that holds each position until the next vertex: the flat run at a
+ * vertex's height to the next vertex's time, then the vertical to the next height. It opens at
+ * rest, where the pedal stands before its first vertex.
+ */
+const stepCorners = (vertices: readonly PlacedVertex[], rest: number): Corner[] => {
+    const first = vertices[0]
+    if (!first) return []
+    return withoutRepeats([
+        [first.x, rest],
+        ...vertices.flatMap((vertex, i): Corner[] => {
+            const next = vertices[i + 1]
+            return next ? [[vertex.x, vertex.y], [next.x, vertex.y]] : [[vertex.x, vertex.y]]
+        }),
+    ])
+}
+
+/** The line a travel draws, as the points of a `<polyline>`. */
+export const stepLine = (vertices: readonly PlacedVertex[], rest: number): string =>
+    asPoints(stepCorners(vertices, rest))
+
+/** The line a press drew, or used to draw, from the record's own terms. */
+export const lineOf = (travel: Travel, dateMs: number, lane: PedalLane, stretchX: number): string =>
+    stepLine(placeTravel(travel, dateMs, lane, stretchX), lane.rest)
+
+/** The four corners of one depression: the switch it is, down where the foot lands and up where it lifts. */
+const pressCorners = (press: Press, rest: number, pressed: number): Corner[] =>
+    stepCorners([{ x: press.from, y: pressed }, { x: press.to, y: rest }], rest)
 
 /**
  * The pedal as one line: at rest until it is pressed, down for as long as it is held.
@@ -109,16 +165,6 @@ export const pedalLine = (
 ): string =>
     asPoints([
         [0, rest],
-        ...presses.flatMap(press => stepOf(press, rest, pressed)),
+        ...presses.flatMap(press => pressCorners(press, rest, pressed)),
         [end, rest],
     ])
-
-/**
- * One depression on its own, drawn as the same step but not carried across the piece.
- *
- * For a desk that edits presses rather than compares readings: there each press is a thing to
- * grab, so it has to be its own element, and a line running over the stretches between presses
- * would make a lift indistinguishable from the neighbouring press it is joined to.
- */
-export const pressLine = (press: Press, rest: number, pressed: number): string =>
-    asPoints(stepOf(press, rest, pressed))

@@ -106,8 +106,8 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
     //
     // Not read at all where the readings still stand side by side: `deriveResidual` refuses one,
     // and a document waiting for its base text has to keep folding, since choosing one is a call
-    // like any other. The only range that wants a residual is a pedal call's, and a chain holding
-    // one has already thrown from `InsertPedal`, which derives its own.
+    // like any other. The only range that wants a residual is a pedal call's, which then reports
+    // none; `CorrectPedal` is the one such call that runs before a base text is chosen.
     const residual =
         alignment.unchosenNotes() === 0
             ? deriveResidual(alignment, mpm, { without: ['movement'] })

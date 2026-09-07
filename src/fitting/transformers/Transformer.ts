@@ -164,9 +164,8 @@ interface Range {
  *
  * @param residual required only for a pedal-based transformer, whose span is measured in ticks
  * off the score grid and so has to be derived. Every other kind answers from its own options.
- * Omitting it where it is needed throws rather than returning `undefined`: the pedal branch used
- * to drop any pedal it could not place and then report no range at all, which reads exactly like
- * a chain that happens not to touch a pedal.
+ * Without one, while the readings still stand side by side, a pedal call reports no range, as a
+ * pedal no tempo covers does.
  */
 export const getRange = (
   transformer: TransformationOptions | Transformer[],
@@ -221,24 +220,20 @@ export const getRange = (
       'start' in transformer
         ? ((transformer as TransformationOptions & { start?: number }).start ?? 0)
         : 0;
+    // A call that states no duration spans the press it is about.
     const duration =
       'duration' in transformer
         ? ((transformer as TransformationOptions & { duration?: number }).duration ?? 0)
-        : 0;
+        : undefined;
 
-    if (!residual) {
-      throw new Error(
-        'getRange needs a residual to place a pedal: its position on the score grid is ' +
-          'derived from the MPM, not carried on the pedal. Pass deriveResidual(msm, mpm).',
-      );
-    }
+    if (!residual) return undefined;
 
     const ranges = pedals
       .map((p) => {
         const placed = residual.ofPedal(p);
         if (placed?.tickDate === undefined || placed.tickDuration === undefined) return undefined;
         const base = direction === 'up' ? placed.tickDate + placed.tickDuration : placed.tickDate;
-        return { from: base + start, to: base + start + duration };
+        return { from: base + start, to: base + start + (duration ?? placed.tickDuration) };
       })
       .filter((r): r is { from: number; to: number } => r !== undefined);
 

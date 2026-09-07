@@ -51,6 +51,7 @@ describe('TransformerRegistry', () => {
       expect(getTransformerOrder()).toEqual([
         'ProcessVoices',
         'MakeChoice',
+        'CorrectPedal',
         'Modify',
         'InsertDynamicsGradient',
         'InsertTemporalSpread',
@@ -109,7 +110,7 @@ describe('TransformerRegistry', () => {
         (value): value is new () => Transformer =>
           typeof value === 'function' && value.prototype instanceof AbstractTransformer,
       );
-      expect(exported.length).toBe(18);
+      expect(exported.length).toBe(19);
       for (const constructor of exported) {
         const name = new constructor().name;
         expect(isRegistered(name), `${name} is exported but not registered`).toBe(true);

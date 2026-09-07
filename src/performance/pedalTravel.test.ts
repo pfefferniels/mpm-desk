@@ -1,10 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import {
     formatTravel,
+    isPressTravel,
+    movedPlateau,
+    movedVertex,
     parseTravel,
+    plateauAround,
     positionAt,
+    releaseShifted,
+    returnToRest,
+    sameTravel,
     sparseTravel,
     switchTravel,
+    withVertex,
+    withoutVertex,
     type Travel,
 } from './pedalTravel'
 
@@ -82,5 +91,131 @@ describe('where the pedal stands', () => {
         expect(positionAt(held, 0)).toBe(1)
         expect(positionAt(held, 399)).toBe(1)
         expect(positionAt(held, 400)).toBe(0)
+    })
+})
+
+/** Up in three steps, held, down again in three: the shape a corrected press tends to have. */
+const press: Travel = [
+    { ms: 0, position: 0.3 },
+    { ms: 100, position: 0.7 },
+    { ms: 190, position: 1 },
+    { ms: 1800, position: 1 },
+    { ms: 1900, position: 0.5 },
+    { ms: 2000, position: 0 },
+]
+
+describe('what a press record is', () => {
+    it('leaves rest at 0 and returns there at the end', () => {
+        expect(isPressTravel(press)).toBe(true)
+        expect(isPressTravel(switchTravel(400))).toBe(true)
+        expect(returnToRest(press)).toBe(2000)
+    })
+
+    it.each([
+        ['is empty', []],
+        ['is one vertex', [{ ms: 0, position: 1 }]],
+        ['does not start at 0', [{ ms: 10, position: 1 }, { ms: 400, position: 0 }]],
+        ['never returns to rest', [{ ms: 0, position: 1 }, { ms: 400, position: 0.2 }]],
+        ['runs backwards', [{ ms: 0, position: 1 }, { ms: 400, position: 1 }, { ms: 300, position: 0 }]],
+    ])('refuses a line that %s', (_, travel) => {
+        expect(isPressTravel(travel)).toBe(false)
+    })
+
+    it('compares lines by their vertices', () => {
+        expect(sameTravel(press, press.map(vertex => ({ ...vertex })))).toBe(true)
+        expect(sameTravel(press, withoutVertex(press, 1))).toBe(false)
+    })
+})
+
+describe('moving a vertex', () => {
+    it('keeps it strictly between its neighbours, in whole milliseconds', () => {
+        expect(movedVertex(press, 1, { ms: 150.4, position: 0.7 })[1]).toEqual({ ms: 150, position: 0.7 })
+        expect(movedVertex(press, 1, { ms: -50, position: 0.7 })[1].ms).toBe(1)
+        expect(movedVertex(press, 1, { ms: 5000, position: 0.7 })[1].ms).toBe(189)
+    })
+
+    it('holds the position inside the unit range, to two decimals', () => {
+        expect(movedVertex(press, 1, { ms: 100, position: 1.4 })[1].position).toBe(1)
+        expect(movedVertex(press, 1, { ms: 100, position: -0.2 })[1].position).toBe(0)
+        expect(movedVertex(press, 1, { ms: 100, position: 0.123 })[1].position).toBe(0.12)
+    })
+
+    it('pins the first vertex at 0 and the last at rest', () => {
+        expect(movedVertex(press, 0, { ms: 40, position: 0.6 })[0]).toEqual({ ms: 0, position: 0.6 })
+        expect(movedVertex(press, 5, { ms: 2500, position: 0.9 })[5]).toEqual({ ms: 2500, position: 0 })
+    })
+
+    it('leaves the line alone for an index it does not have', () => {
+        expect(movedVertex(press, 9, { ms: 0, position: 0 })).toBe(press)
+    })
+})
+
+describe('adding and removing a vertex', () => {
+    it('places a new vertex by its time', () => {
+        expect(withVertex(press, { ms: 1000, position: 0.5 }).map(vertex => vertex.ms)).toEqual([
+            0, 100, 190, 1000, 1800, 1900, 2000,
+        ])
+    })
+
+    it('replaces the vertex already at that millisecond', () => {
+        const replaced = withVertex(press, { ms: 190, position: 0.9 })
+        expect(replaced).toHaveLength(press.length)
+        expect(replaced[2]).toEqual({ ms: 190, position: 0.9 })
+    })
+
+    it('refuses a vertex outside the ends', () => {
+        expect(withVertex(press, { ms: 0, position: 0.5 })).toBe(press)
+        expect(withVertex(press, { ms: 2000, position: 0.5 })).toBe(press)
+        expect(withVertex(press, { ms: 2500, position: 0.5 })).toBe(press)
+    })
+
+    it('removes a vertex but never an end', () => {
+        expect(withoutVertex(press, 1).map(vertex => vertex.ms)).toEqual([0, 190, 1800, 1900, 2000])
+        expect(withoutVertex(press, 0)).toBe(press)
+        expect(withoutVertex(press, 5)).toBe(press)
+    })
+})
+
+describe('the plateau', () => {
+    it('is the run of neighbours at one position', () => {
+        expect(plateauAround(press, 2)).toEqual({ from: 2, to: 3 })
+        expect(plateauAround(press, 3)).toEqual({ from: 2, to: 3 })
+        expect(plateauAround(press, 1)).toEqual({ from: 1, to: 1 })
+    })
+
+    it('moves whole', () => {
+        const lowered = movedPlateau(press, 3, 0.6)
+        expect(lowered.map(vertex => vertex.position)).toEqual([0.3, 0.7, 0.6, 0.6, 0.5, 0])
+    })
+
+    it('is not the final rest', () => {
+        expect(movedPlateau(press, 5, 0.6)).toBe(press)
+    })
+})
+
+describe('moving the release', () => {
+    it('shifts the end of the hold and the fall together', () => {
+        expect(releaseShifted(press, 500).map(vertex => vertex.ms)).toEqual([0, 100, 190, 2300, 2400, 2500])
+        expect(releaseShifted(press, -500).map(vertex => vertex.ms)).toEqual([0, 100, 190, 1300, 1400, 1500])
+    })
+
+    it('cannot cross the last rise', () => {
+        expect(releaseShifted(press, -5000).map(vertex => vertex.ms)).toEqual([0, 100, 190, 191, 291, 391])
+    })
+
+    it('moves the lift of a switch', () => {
+        expect(releaseShifted(switchTravel(400), 100)).toEqual([{ ms: 0, position: 1 }, { ms: 500, position: 0 }])
+        expect(releaseShifted(switchTravel(400), -1000)[1].ms).toBe(1)
+    })
+
+    it('leaves a retake before the release where it is', () => {
+        const retake: Travel = [
+            { ms: 0, position: 1 },
+            { ms: 500, position: 0.2 },
+            { ms: 600, position: 1 },
+            { ms: 1500, position: 1 },
+            { ms: 1700, position: 0 },
+        ]
+        expect(releaseShifted(retake, 300).map(vertex => vertex.ms)).toEqual([0, 500, 600, 1800, 2000])
     })
 })

@@ -366,7 +366,7 @@ export const correspondingDesks: DeskEntry[] = [
         group: 'general',
         help: {
             summary:
-                'What the roll scan read wrong. A Modify corrects the recording itself, so it ' +
+                'What the roll scan read wrong. A correction edits the recording itself, so it ' +
                 'writes no instruction; a drag is a draft until Apply.',
             actions: [
                 { gesture: 'Press a note or pedal', does: 'select it' },
@@ -380,6 +380,12 @@ export const correspondingDesks: DeskEntry[] = [
                     gesture: 'Drag sideways',
                     does: 'shift the onset, on the Timing plot. Near the right edge, the release',
                 },
+                { gesture: 'Drag a handle', does: 'move that vertex of the pedal line' },
+                { gesture: 'Drag a flat run', does: 'raise or lower the hold, both ends together' },
+                { gesture: '⌥-press the line', does: 'add a vertex there, and drag it' },
+                { gesture: '⇧⌥-press a handle', does: 'drop that vertex' },
+                { gesture: '⇧⌥-press a pedal', does: 'drop the press' },
+                { gesture: '⌥-press an empty lane', does: 'add a press there' },
                 { gesture: 'Hover a dot', does: 'sound the chord there, on the Velocity plot' },
                 { gesture: 'Esc', does: 'drop the selection and the drawn correction' },
             ],

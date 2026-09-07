@@ -81,11 +81,15 @@ import { documentSlug, downloadAsFile } from './utils/utils';
  * shows what a call wrote in amber until somebody says what it is for.
  */
 
-/** Legacy transformer names that should still resolve to a desk when a saved call names one. */
+/**
+ * Calls another transformer's desk serves: retired names, and `CorrectPedal`, which the
+ * corrections desk makes beside `Modify`.
+ */
 const TRANSFORMER_ALIASES: Record<string, string> = {
     ApproximateLogarithmicTempo: 'InsertTempo',
     TranslatePhysicalTimeToTicks: 'InsertTempo',
     TranslatePhyiscalTimeToTicks: 'InsertTempo',
+    CorrectPedal: 'Modify',
 };
 
 export const App = () => {
@@ -664,7 +668,12 @@ export const App = () => {
         <ZoomContext value={zoomContextValue}>
             <div style={{ maxWidth: '100vw' }}>
                 <WorkDocumentProvider history={workHistory} dispatch={dispatch}>
-                    <ScoreDocumentProvider mei={mei} setMei={readMei} recording={recording}>
+                    <ScoreDocumentProvider
+                        mei={mei}
+                        setMei={readMei}
+                        recording={recording}
+                        pristine={pristine}
+                    >
                         <PerformancesProvider value={performancesValue}>
                         <PlaybackProvider
                             scoreMsm={scoreMsm}
