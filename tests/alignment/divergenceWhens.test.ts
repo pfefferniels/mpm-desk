@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'fs'
-import { join } from 'path'
 import type { MidiFile } from 'midifile-ts'
 import { applyAlignment } from '../../src/alignment/applyAlignment'
 import { parseRecordings } from '../../src/mei/parseRecordings'
@@ -11,8 +10,9 @@ import { asSpans, type NoteSpan } from '../../src/performance/midiSpans'
 import { loadVerovio, renderPerformance } from '../../src/verovio/toolkit'
 import type { Divergence } from '../../src/alignment/divergences'
 import type { VerovioToolkit } from 'verovio/esm'
+import { publishedPath } from '../../src/test/published'
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 
 let midi: MidiFile
 let spans: NoteSpan[]

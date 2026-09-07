@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, beforeAll } from 'vitest'
 import { readFileSync } from 'fs'
-import { join } from 'path'
 import type { MidiFile } from 'midifile-ts'
 import { applyAlignment } from '../../src/alignment/applyAlignment'
 import { divergencesOf, type Divergence } from '../../src/alignment/divergences'
@@ -11,6 +10,7 @@ import { ornamentSignsOf } from '../../src/mei/ornamentSigns'
 import { buildMidiFile } from '../../src/performance/buildMidiFile'
 import { asSpans, type NoteSpan } from '../../src/performance/midiSpans'
 import { getNotesFromMEI, type ScoreNote } from '../../src/score/scoreNotes'
+import { publishedPath } from '../../src/test/published'
 
 /**
  * The round trip a reopened project rests on.
@@ -20,7 +20,7 @@ import { getNotesFromMEI, type ScoreNote } from '../../src/score/scoreNotes'
  * of the MEI alone — no model, no MIDI, no second run. This is the check that it does.
  */
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 
 let scoreNotes: ScoreNote[]
 let midi: MidiFile

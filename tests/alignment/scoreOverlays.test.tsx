@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'fs'
-import { join } from 'path'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { Score } from '../../src/verovio/Score'
 import { readPerformedNote } from '../../src/verovio/performedNote'
 import type { OmittedGroup } from '../../src/verovio/omissionMarks'
 import { performedOptions, unitsPerSecond } from '../../src/verovio/toolkit'
+import { publishedPath } from '../../src/test/published'
 
 /**
  * The three overlays, drawn through `<Score>`.
@@ -17,7 +17,7 @@ import { performedOptions, unitsPerSecond } from '../../src/verovio/toolkit'
  * overlays went onto it rather than beside it. What is checked is the same drawing.
  */
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 const options = { ...performedOptions, performanceRecording: '1' }
 
 let container: HTMLDivElement

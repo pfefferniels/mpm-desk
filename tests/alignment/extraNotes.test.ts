@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'fs'
-import { join } from 'path'
 import { loadVerovio, renderPerformance, unitsPerSecond } from '../../src/verovio/toolkit'
 import { clearExtraNotes, drawExtraNotes, type ExtraNote } from '../../src/verovio/extraNotes'
 import type { VerovioToolkit } from 'verovio/esm'
+import { publishedPath } from '../../src/test/published'
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 
 /** One rendered note to measure against: its time, its pitch, its notehead. */
 interface Drawn {

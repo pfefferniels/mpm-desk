@@ -6,6 +6,7 @@ import type { VerovioToolkit } from 'verovio/esm'
 import { loadVerovio, renderPerformance, defaultOptions } from '../../src/verovio/toolkit'
 import { readPerformedNote } from '../../src/verovio/performedNote'
 import { loadFixture, renderToPng, comparePng } from './setup'
+import { publishedPath } from '../../src/test/published'
 
 const SNAPSHOT_DIR = join(__dirname, '__snapshots__')
 /**
@@ -48,7 +49,7 @@ function notesOf(svg: string) {
 
 beforeAll(async () => {
   toolkit = await loadVerovio()
-  mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+  mei = readFileSync(publishedPath('mei'), 'utf-8')
   pages = renderPerformance(toolkit, mei, { performanceRecording: '1' })
 })
 

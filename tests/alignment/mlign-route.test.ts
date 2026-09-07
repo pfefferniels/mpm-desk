@@ -20,8 +20,9 @@ import type { ScoreNote } from '../../src/score/scoreNotes'
 import type { NoteSpan } from '../../src/performance/midiSpans'
 // Types only: importing the module itself would pull onnxruntime-web into the run
 import type { EncoderOutput, MlignSession, ModelFeeds } from '../../src/alignment/mlign/session'
+import { publishedPath } from '../../src/test/published'
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 
 /** A repeat written the way a score writes one, rather than written out */
 const withRepeatSigns = `<?xml version="1.0" encoding="UTF-8"?>

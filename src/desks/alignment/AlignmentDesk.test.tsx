@@ -2,12 +2,12 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { readFileSync } from 'fs';
-import { join } from 'path';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { PerformancesProvider } from '../../hooks/Performances';
 import { ScoreDocumentProvider } from '../../hooks/ScoreDocument';
 import { WorkDocumentProvider } from '../../hooks/WorkDocument';
 import { initialHistory } from '../../model/workReducer';
+import { publishedPath } from '../../test/published';
 import { AlignmentDesk } from './AlignmentDesk';
 
 /**
@@ -31,7 +31,7 @@ vi.mock('react-pianosound', () => ({
     usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
 }));
 
-const mei = readFileSync(join(__dirname, '..', '..', '..', 'public', 'transcription.mei'), 'utf-8');
+const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
 let desk: HTMLElement;
 let bar: HTMLElement;

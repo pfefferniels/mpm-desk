@@ -25,14 +25,15 @@ import { runFit } from '../src/fitting/fit';
 import { asMSM } from '../src/fitting/asMSM';
 import { parseWorkFile } from '../src/model/Work';
 import { getTransformerOrder } from '../src/fitting/transformers/TransformerRegistry';
+import { publishedPath } from '../src/test/published';
 
 const BAKED = 'src/test/fixtures/segments.json';
 
 const order = getTransformerOrder();
 console.log(`registered: ${String(order.length)} — ${order.join(', ')}`);
 
-const mei = readFileSync('public/transcription.mei', 'utf-8');
-const work = parseWorkFile(readFileSync('public/work.json', 'utf-8'));
+const mei = readFileSync(publishedPath('mei'), 'utf-8');
+const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
 const alignment = asMSM(mei, convertMeiToMsm(mei)[0].msm);
 console.log(
     `alignment notes: ${String(alignment.allNotes.length)} | pedals: ${String(alignment.pedals.length)}`,

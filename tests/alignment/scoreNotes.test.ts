@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'fs'
-import { join } from 'path'
 import { getNotesFromMEI, type ScoreNote } from '../../src/score/scoreNotes'
+import { publishedPath } from '../../src/test/published'
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 const moment = (note: ScoreNote) => `${note.onset}:${note.pitch}`
 
 let collapsed: ScoreNote[]

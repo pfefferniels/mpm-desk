@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { readFileSync } from 'fs'
-import { join } from 'path'
 import { loadVerovio, renderPerformance, staffSpace } from '../../src/verovio/toolkit'
 import {
   clearOmissionMarks,
@@ -9,8 +8,9 @@ import {
   type OmittedGroup,
 } from '../../src/verovio/omissionMarks'
 import type { VerovioToolkit } from 'verovio/esm'
+import { publishedPath } from '../../src/test/published'
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 
 /** A note verovio drew, and where it drew it. */
 interface Drawn {

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { readFileSync } from 'fs'
-import { join } from 'path'
 import type { MidiFile } from 'midifile-ts'
 import { applyAlignment } from '../../src/alignment/applyAlignment'
 import { parseRecordings } from '../../src/mei/parseRecordings'
 import { buildMidiFile } from '../../src/performance/buildMidiFile'
 import { asSpans } from '../../src/performance/midiSpans'
+import { publishedPath } from '../../src/test/published'
 
-const mei = readFileSync(join(__dirname, '..', '..', 'public', 'transcription.mei'), 'utf-8')
+const mei = readFileSync(publishedPath('mei'), 'utf-8')
 
 let midi: MidiFile
 /** A note the document really holds, and a performed note to align it to */
