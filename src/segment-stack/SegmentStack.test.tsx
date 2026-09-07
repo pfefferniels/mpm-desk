@@ -147,30 +147,52 @@ describe('SegmentStack over the shipped reconstruction', () => {
         expect(nearMean).toBeGreaterThan(farMean)
     })
 
+    /** Words whose text is theirs alone, so a word can be found by what it says. */
+    const unique = segments.filter(s => segments.filter(o => wordFor(o) === wordFor(s)).length === 1)
+
+    // A word moves between the dimmed and the spotlit group when it lights up, so it is looked
+    // up afresh each time rather than kept from the mount.
+    const wordOf = (svg: SVGSVGElement, s: Segment) =>
+        [...svg.querySelectorAll('text')].find(t => t.textContent === wordFor(s))!
+    const lit = (svg: SVGSVGElement) => [...svg.querySelectorAll('text[font-weight="600"]')]
+
+    /** As a fresh load with the address arrives: no `hashchange` fires. */
+    const arriveAt = (hash: string) => history.replaceState(null, '', '#' + hash)
+    const leave = () => history.replaceState(null, '', window.location.pathname)
+
     it('opens at the word a link names, and makes the word a click opens the address', async () => {
-        // Words whose text is theirs alone, so a word can be found by what it says.
-        const said = (s: Segment) => wordFor(s)
-        const unique = segments.filter(s => segments.filter(o => said(o) === said(s)).length === 1)
         const [linked, clicked] = unique
 
-        // As a fresh load with the address arrives: no `hashchange` fires.
-        history.replaceState(null, '', '#' + linked.id)
+        arriveAt(linked.id)
         const { svg, cleanup } = await mount(0.05)
-
-        // A word moves between the dimmed and the spotlit group when it lights up, so it is
-        // looked up afresh each time rather than kept from the mount.
-        const wordOf = (s: Segment) =>
-            [...svg.querySelectorAll('text')].find(t => t.textContent === said(s))!
-        expect(wordOf(linked).getAttribute('font-weight')).toBe('600')
+        expect(wordOf(svg, linked).getAttribute('font-weight')).toBe('600')
 
         await act(async () => {
-            wordOf(clicked).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+            wordOf(svg, clicked).dispatchEvent(new MouseEvent('click', { bubbles: true }))
         })
         expect(window.location.hash).toBe('#' + clicked.id)
-        expect(wordOf(clicked).getAttribute('font-weight')).toBe('600')
-        expect(wordOf(linked).getAttribute('font-weight')).toBe('400')
+        expect(wordOf(svg, clicked).getAttribute('font-weight')).toBe('600')
+        expect(wordOf(svg, linked).getAttribute('font-weight')).toBe('400')
 
-        history.replaceState(null, '', window.location.pathname)
+        leave()
         await cleanup()
+    })
+
+    it('takes eight characters of an id for the id and settles the address on it, seven for nothing', async () => {
+        const [linked] = unique
+
+        arriveAt(linked.id.slice(0, 8))
+        const byPrefix = await mount(0.05)
+        expect(wordOf(byPrefix.svg, linked).getAttribute('font-weight')).toBe('600')
+        expect(window.location.hash).toBe('#' + linked.id)
+        await byPrefix.cleanup()
+
+        arriveAt(linked.id.slice(0, 7))
+        const tooShort = await mount(0.05)
+        expect(lit(tooShort.svg)).toHaveLength(0)
+        expect(window.location.hash).toBe('#' + linked.id.slice(0, 7))
+
+        leave()
+        await tooShort.cleanup()
     })
 })

@@ -38,8 +38,9 @@ record of what it used.
 
 `/` is the viewer. It fetches the reconstruction of WM 225 from
 [welte225.org](https://welte225.org/), which holds the only copy, and draws it as a tree of claims
-along the timeline, with playback. `/#<segment id>` opens it at that segment, which is where a
-segment's identifier `https://welte225.org/mpm/<id>` sends a visitor.
+along the timeline, with playback. `/#<segment id>`, or an unambiguous prefix of at least eight
+characters, opens it at that segment; that is where a segment's identifier
+`https://welte225.org/mpm/<id>` sends a visitor.
 
 `/editor` is the editor. The alignment desk says which sounded event realises which written note;
 the others plot what the recording did in one dimension (tempo, rubato, dynamics, accentuation,

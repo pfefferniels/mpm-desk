@@ -35,9 +35,26 @@ const EXAG_TYPE_GROWTH = 0.7;
 /** How far the rest of the tree steps back while one word is spotlit. */
 const OTHERS_DIM = 0.35;
 
-/** The segment the address names, if any: `#<id>` is how a link into a word arrives. */
-const linkedSegment = (segments: Segment[]): Segment | undefined =>
-    segments.find(s => s.id === window.location.hash.slice(1));
+/** Fewer characters of an id than this name nothing: eight, as the editor's links into calls. */
+const MIN_ID_PREFIX = 8;
+
+/**
+ * The segment the address names, if exactly one does.
+ *
+ * `#<id>` is how a link into a word arrives. A prefix of the id names the same word as long as no
+ * second segment shares it, as an abbreviated hash names a commit; an ambiguous one names nothing.
+ */
+const linkedSegment = (segments: Segment[]): Segment | undefined => {
+    const prefix = window.location.hash.slice(1).toLowerCase();
+    if (prefix.length < MIN_ID_PREFIX) return undefined;
+    const named = segments.filter(s => s.id.startsWith(prefix));
+    return named.length === 1 ? named[0] : undefined;
+};
+
+/** The address settles on the identifier a prefix named. `replaceState` fires no `hashchange`. */
+const settleAddress = (segment: Segment) => {
+    if (window.location.hash.slice(1) !== segment.id) history.replaceState(null, '', '#' + segment.id);
+};
 
 interface SegmentStackProps {
     segments: Segment[];
@@ -271,10 +288,11 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
      * A link into a word opens it.
      *
      * `https://welte225.org/mpm/<id>` is a segment's identifier, and welte225.org sends it here
-     * as `#<id>`. The word is locked from the first render (see `lockedSegmentIds`), and the
-     * viewer opens at a zoom that fits the piece to the window, so nothing needs bringing into
-     * view on arrival. After that the address is followed, so the back button reopens the word
-     * it left. Nothing sounds on arrival, only on a click.
+     * as `#<id>`, a prefix of the id included (see {@link linkedSegment}). The word is locked
+     * from the first render (see `lockedSegmentIds`), and the viewer opens at a zoom that fits
+     * the piece to the window, so nothing needs bringing into view on arrival. After that the
+     * address is followed, so the back button reopens the word it left. Nothing sounds on
+     * arrival, only on a click.
      */
     const followHash = useEffectEvent(() => {
         const linked = linkedSegment(segments);
@@ -287,10 +305,17 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             return;
         }
         lockSegment(linked.id);
+        settleAddress(linked);
         scrollToDate(linked.from);
     });
 
+    const settleOnArrival = useEffectEvent(() => {
+        const linked = linkedSegment(segments);
+        if (linked) settleAddress(linked);
+    });
+
     useEffect(() => {
+        settleOnArrival();
         window.addEventListener('hashchange', followHash);
         return () => window.removeEventListener('hashchange', followHash);
     }, []);
