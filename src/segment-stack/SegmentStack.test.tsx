@@ -17,7 +17,7 @@ import { ScrollSyncProvider } from '../hooks/ScrollSyncProvider'
 import { PlaybackProvider } from '../hooks/PlaybackProvider'
 import { SegmentStack } from './SegmentStack'
 import { wordFor } from './words'
-import type { Reconstruction } from '../model/Reconstruction'
+import type { Reconstruction, Segment } from '../model/Reconstruction'
 
 // The piano builds a Web Audio graph the moment it is imported, and jsdom has none.
 // Nothing here is played, so the sound half is stood in for; the drawing half is real.
@@ -25,6 +25,10 @@ vi.mock('react-pianosound', () => ({
     PianoContextProvider: ({ children }: { children: ReactNode }) => children,
     usePiano: () => ({ play: () => { }, stop: () => { }, jumpTo: () => { } }),
 }))
+
+// The card anchors itself through the SVG's screen matrix, which jsdom has not got. With none, the
+// anchor is an empty rect at the origin, which is all a card needs to open here.
+Object.defineProperty(SVGSVGElement.prototype, 'getScreenCTM', { value: () => null, configurable: true })
 
 const { segments } = JSON.parse(readFileSync('src/test/fixtures/segments.json', 'utf-8')) as Reconstruction
 const mpm = readPerformance(
@@ -141,5 +145,32 @@ describe('SegmentStack over the shipped reconstruction', () => {
         await near.cleanup()
 
         expect(nearMean).toBeGreaterThan(farMean)
+    })
+
+    it('opens at the word a link names, and makes the word a click opens the address', async () => {
+        // Words whose text is theirs alone, so a word can be found by what it says.
+        const said = (s: Segment) => wordFor(s)
+        const unique = segments.filter(s => segments.filter(o => said(o) === said(s)).length === 1)
+        const [linked, clicked] = unique
+
+        // As a fresh load with the address arrives: no `hashchange` fires.
+        history.replaceState(null, '', '#' + linked.id)
+        const { svg, cleanup } = await mount(0.05)
+
+        // A word moves between the dimmed and the spotlit group when it lights up, so it is
+        // looked up afresh each time rather than kept from the mount.
+        const wordOf = (s: Segment) =>
+            [...svg.querySelectorAll('text')].find(t => t.textContent === said(s))!
+        expect(wordOf(linked).getAttribute('font-weight')).toBe('600')
+
+        await act(async () => {
+            wordOf(clicked).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        })
+        expect(window.location.hash).toBe('#' + clicked.id)
+        expect(wordOf(clicked).getAttribute('font-weight')).toBe('600')
+        expect(wordOf(linked).getAttribute('font-weight')).toBe('400')
+
+        history.replaceState(null, '', window.location.pathname)
+        await cleanup()
     })
 })

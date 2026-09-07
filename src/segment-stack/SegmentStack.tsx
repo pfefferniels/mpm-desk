@@ -35,6 +35,10 @@ const EXAG_TYPE_GROWTH = 0.7;
 /** How far the rest of the tree steps back while one word is spotlit. */
 const OTHERS_DIM = 0.35;
 
+/** The segment the address names, if any: `#<id>` is how a link into a word arrives. */
+const linkedSegment = (segments: Segment[]): Segment | undefined =>
+    segments.find(s => s.id === window.location.hash.slice(1));
+
 interface SegmentStackProps {
     segments: Segment[];
     mpm: PerformanceReader;
@@ -59,8 +63,16 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const [svg, setSvg] = useState<SVGSVGElement | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
     const [hoveredSegmentId, setHoveredSegmentId] = useState<string | null>(null);
-    /** The word a click has opened: spotlit, and with the card held on it. */
-    const [lockedSegmentIds, setLockedSegmentIds] = useState<Set<string>>(new Set());
+    /**
+     * The word a click has opened: spotlit, and with the card held on it.
+     *
+     * Open from the first render on the word a link names, so arriving by link is never a frame
+     * of the closed tree first.
+     */
+    const [lockedSegmentIds, setLockedSegmentIds] = useState<Set<string>>(() => {
+        const linked = linkedSegment(segments);
+        return new Set(linked ? [linked.id] : []);
+    });
     const lockedSegmentIdsRef = useLatest(lockedSegmentIds);
     /**
      * The words the playhead is inside.
@@ -225,14 +237,22 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
     const segmentsRef = useLatest(segments);
 
+    /** Hold a word open: spotlit, with the card on it. Nothing sounds, and the address stays. */
+    const lockSegment = useCallback((segmentId: string) => {
+        setLockedSegmentIds(new Set([segmentId]));
+        setActiveSpanIds(new Set());
+    }, [setActiveSpanIds]);
+
     const handleLock = useCallback((segmentId: string) => {
         if (lockedSegmentIdsRef.current.has(segmentId)) {
             // Already locked — clear span selection (back to the segment's own card)
             setActiveSpanIds(new Set());
             return;
         }
-        setLockedSegmentIds(new Set([segmentId]));
-        setActiveSpanIds(new Set());
+        lockSegment(segmentId);
+
+        // The word opened is the address, so what is on screen can be handed on as a link.
+        if (window.location.hash.slice(1) !== segmentId) history.pushState(null, '', '#' + segmentId);
 
         // Preview the locked segment: its own stretch of music, spotlit, and nothing else.
         const segment = segmentsRef.current.find(s => s.id === segmentId);
@@ -245,7 +265,35 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                 range: tickRange(segment, minPointSpanRef.current),
             });
         }
-    }, [lockedSegmentIdsRef, setActiveSpanIds, segmentsRef, playRef, exaggerationRef, minPointSpanRef]);
+    }, [lockedSegmentIdsRef, lockSegment, setActiveSpanIds, segmentsRef, playRef, exaggerationRef, minPointSpanRef]);
+
+    /**
+     * A link into a word opens it.
+     *
+     * `https://welte225.org/mpm/<id>` is a segment's identifier, and welte225.org sends it here
+     * as `#<id>`. The word is locked from the first render (see `lockedSegmentIds`), and the
+     * viewer opens at a zoom that fits the piece to the window, so nothing needs bringing into
+     * view on arrival. After that the address is followed, so the back button reopens the word
+     * it left. Nothing sounds on arrival, only on a click.
+     */
+    const followHash = useEffectEvent(() => {
+        const linked = linkedSegment(segments);
+        if (!linked) {
+            if (lockedSegmentIds.size > 0) {
+                setLockedSegmentIds(new Set());
+                setHoveredSegmentId(null);
+                stopRef.current();
+            }
+            return;
+        }
+        lockSegment(linked.id);
+        scrollToDate(linked.from);
+    });
+
+    useEffect(() => {
+        window.addEventListener('hashchange', followHash);
+        return () => window.removeEventListener('hashchange', followHash);
+    }, []);
 
     const handleClearSelection = useCallback(() => {
         setActiveSpanIds(new Set());
