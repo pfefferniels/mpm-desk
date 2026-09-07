@@ -19,7 +19,7 @@ import {
 import { indexNoteIds } from './anchor';
 
 export interface RenderRequest {
-    /** The score as MSM XML, i.e. `public/score.msm`. */
+    /** The score as MSM XML. */
     msm: string;
     /** The performance to render, as MPM XML. */
     mpm: string;

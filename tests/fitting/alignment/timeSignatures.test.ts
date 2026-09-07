@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { convertMeiToMsm, performMsmToData } from 'espressivo';
 import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
 import { asMSM } from '../../../src/fitting/asMSM';
+import { publishedPath } from '../../../src/test/published';
 import { bars } from '../../../src/fitting/timeSignature';
 import {
   AccentuationPatternDef,
@@ -54,7 +55,7 @@ describe('reading the map off the score', () => {
   let alignment: Alignment;
 
   beforeAll(() => {
-    const mei = readFileSync('public/transcription.mei', 'utf-8');
+    const mei = readFileSync(publishedPath('mei'), 'utf-8');
     alignment = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
   });
 

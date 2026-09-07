@@ -4,6 +4,7 @@ import { convertMeiToMsm } from 'espressivo';
 import { asMSM } from '../../../src/fitting/asMSM';
 import { voiceKey, voiceLabel, voicesOf } from '../../../src/fitting/voices';
 import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
+import { publishedPath } from '../../../src/test/published';
 
 /**
  * The voice reading, against the score it was designed from rather than a fixture.
@@ -12,7 +13,7 @@ import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
  * does — 62 chords, one tie crossing two layers, grace notes the conversion emits nothing for, and
  * two `<recording>`s so every note arrives twice.
  */
-const mei = readFileSync('public/transcription.mei', 'utf-8');
+const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
 describe('reading the voices off the MEI', () => {
   const msm = convertMeiToMsm(mei)[0]!.msm;

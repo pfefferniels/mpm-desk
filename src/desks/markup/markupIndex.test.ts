@@ -4,20 +4,21 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { publishedPath } from '../../test/published';
 import { indexMarkup } from './markupIndex';
 
 const performanceMpm = readFileSync('src/test/fixtures/performance.mpm', 'utf-8');
 const scoreMsm = readFileSync('src/test/fixtures/score.msm', 'utf-8');
 
 /**
- * A saved performance, read from `public/` rather than from `src/test/fixtures/` on purpose.
+ * A saved performance, the published one rather than `src/test/fixtures/` on purpose.
  *
  * The fixture beside it is indented, and espressivo's serializer re-emits the whitespace of the
  * document it parsed — so a round trip through the fixture would prove nothing about what the app
  * writes. This is one of `buildWorkArchive`'s four files as it actually landed on disk, and it is
  * the shape every save takes.
  */
-const savedMpm = readFileSync('public/performance.mpm', 'utf-8');
+const savedMpm = readFileSync(publishedPath('performance'), 'utf-8');
 
 describe('indexMarkup', () => {
     /**

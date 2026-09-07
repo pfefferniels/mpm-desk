@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, test } from 'vitest';
 import type { VerovioToolkit } from 'verovio/esm';
+import { publishedPath } from '../test/published';
 import { defaultOptions, loadVerovio, renderScore, supportsOption } from './toolkit';
 
 /**
@@ -12,9 +13,9 @@ import { defaultOptions, loadVerovio, renderScore, supportsOption } from './tool
  * loads a 7 MB module and renders the real transcription, so it is slow, and it is the only slow
  * test here.
  */
-const mei = readFileSync('public/transcription.mei', 'utf-8');
+const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
-/** The `@source` of the recording `public/work.json`'s `MakeChoice` prefers. */
+/** The `@source` of the recording the published `work.json`'s `MakeChoice` prefers. */
 const RECORDING = 'c9050e75-97a8-4862-9533-0f4b1439802b';
 
 let toolkit: VerovioToolkit;

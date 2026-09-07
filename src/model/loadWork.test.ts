@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { migrateIfNeeded, liftSegmentLinks, foldCommentary, dropInjectedCalls } from './loadWork';
 import { parseWorkFile, type WorkFile } from './Work';
+import { publishedPath } from '../test/published';
 
 /** A work file in the shape that listed calls on the segment. */
 const legacy = {
@@ -79,7 +80,7 @@ describe('turning the segment→call link round', () => {
 });
 
 describe('the shipped reconstruction', () => {
-    const work = parseWorkFile(readFileSync('public/work.json', 'utf-8'));
+    const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
 
     it('points from the call, with nothing left on the segment', () => {
         expect(work.provenance.filter((call) => call.segment === undefined)).toEqual([]);

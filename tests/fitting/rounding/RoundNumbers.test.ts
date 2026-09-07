@@ -8,11 +8,12 @@
  *
  * An *older* run, which is what makes it the better of the two documents in the tree for this:
  * it carries three attributes MPM does not name, and so shows what the transformer leaves alone
- * as well as what it rewrites. `public/performance.mpm`, the current chain's own export, is read
- * beside it for the other half — that the table has not fallen behind the fitters.
+ * as well as what it rewrites. The published `performance.mpm`, the current chain's own export, is
+ * read beside it for the other half — that the table has not fallen behind the fitters.
  */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { publishedPath } from '../../../src/test/published';
 import { Alignment } from '../../../src/fitting/alignment';
 import { exportMPM, getInstructions, parseMPM } from '../../../src/fitting/instructions/index';
 import { RoundNumbers } from '../../../src/fitting/transformers/rounding/RoundNumbers';
@@ -89,10 +90,11 @@ describe('RoundNumbers', () => {
    *
    * The fixture above cannot know about an attribute a fitter started writing after it was
    * recorded, and an attribute missing from the transformer's table is left long in silence.
-   * `public/performance.mpm` is a run of the chain as it stands, so it is where such a gap shows.
+   * The published `performance.mpm` is a run of the chain as it stands, so it is where such a gap
+   * shows.
    */
   test('rounds every number the chain writes today', () => {
-    const shipped = readFileSync('public/performance.mpm', 'utf-8');
+    const shipped = readFileSync(publishedPath('performance'), 'utf-8');
     expect(overPrecise(rounded(shipped))).toEqual([]);
   });
 

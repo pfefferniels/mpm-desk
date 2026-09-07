@@ -10,8 +10,8 @@ import { isInjectedCall } from '../fitting/chain';
  * The editor reads those by migrating on open rather than refusing them, so the conversion is
  * something that happens to a file you already have rather than a step you have to know about.
  *
- * The migration is `./migrateWork.ts`, the same code `scripts/migrateWork.ts` runs to produce
- * `public/work.json`, and it is deliberately not duplicated: it refuses rather than guesses on
+ * The migration is `./migrateWork.ts`, the same code `scripts/migrateWork.ts` ran to produce the
+ * published `work.json`, and it is deliberately not duplicated: it refuses rather than guesses on
  * anything it does not recognise — an unknown motivation, a dangling `continue`, an
  * `incorporates` that does not match the provenance — and those refusals belong in the app too.
  * A file that will not migrate cleanly is a file whose scholarship would be silently altered.

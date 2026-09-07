@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { convertMeiToMsm } from 'espressivo';
 import { Alignment, type AlignedNote, type AlignedPedal } from '../../../src/fitting/alignment';
 import { asMSM } from '../../../src/fitting/asMSM';
+import { publishedPath } from '../../../src/test/published';
 
 /**
  * Which readings an alignment holds, which is what decides whether there is a choice to make at
@@ -69,7 +70,7 @@ describe('the readings an alignment holds', () => {
  * place that reading is checked against a document somebody actually recorded.
  */
 describe('the readings of the shipped transcription', () => {
-  const mei = readFileSync('public/transcription.mei', 'utf-8');
+  const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
   const withoutSecondRecording = (): string => {
     const document = new DOMParser().parseFromString(mei, 'application/xml');

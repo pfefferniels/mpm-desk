@@ -4,6 +4,7 @@ import { outcomesOf, projectReconstruction } from './Reconstruction';
 import { parseWorkFile } from './Work';
 import { readPerformance } from '../utils/mpm';
 import { beatTicksAt, readMeter } from '../utils/score';
+import { publishedPath } from '../test/published';
 
 /**
  * The viewer draws the tree from the work file and the MPM, with no chain.
@@ -16,10 +17,10 @@ import { beatTicksAt, readMeter } from '../utils/score';
  * If it fails, the likely cause is a work file edited outside the editor without
  * `scripts/recordOutcomes.ts` being run over it.
  */
-const work = parseWorkFile(readFileSync('public/work.json', 'utf-8'));
+const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
 const performance = readPerformance(
-    readFileSync('public/performance.mpm', 'utf-8'),
-    readMeter(readFileSync('public/score.msm', 'utf-8')),
+    readFileSync(publishedPath('performance'), 'utf-8'),
+    readMeter(readFileSync(publishedPath('score'), 'utf-8')),
 );
 
 const project = () =>

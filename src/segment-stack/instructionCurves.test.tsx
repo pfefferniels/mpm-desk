@@ -28,7 +28,7 @@ const minPointSpan = pointSpanFallback(segments)
 const rangeOf = (segment: Segment) => tickRange(segment, minPointSpan)
 const byId = (id: string) => {
     const segment = segments.find(s => s.id === id)
-    if (!segment) throw new Error(`no segment ${id} in public/segments.json`)
+    if (!segment) throw new Error(`no segment ${id} in src/test/fixtures/segments.json`)
     return segment
 }
 

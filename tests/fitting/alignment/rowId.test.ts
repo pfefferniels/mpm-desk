@@ -8,6 +8,7 @@ import {
   type AlignedPedal,
 } from '../../../src/fitting/alignment';
 import { asMSM } from '../../../src/fitting/asMSM';
+import { publishedPath } from '../../../src/test/published';
 
 /**
  * What tells one row of the alignment from another, which is what every desk keys its lists by,
@@ -96,7 +97,7 @@ describe('how many notes are still on more than one reading', () => {
  * hypothetical: this is the file whose desks warned on every render.
  */
 describe('the rows of the shipped transcription, before a base text is chosen', () => {
-  const mei = readFileSync('public/transcription.mei', 'utf-8');
+  const mei = readFileSync(publishedPath('mei'), 'utf-8');
   const takes = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
 
   const distinct = (values: string[]) => new Set(values).size;

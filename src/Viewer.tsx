@@ -10,6 +10,7 @@ import { ViewerToolbar } from './components/ViewerToolbar';
 import { downloadAsFile } from './utils/utils';
 import { readMeter, readNoteDates } from './utils/score';
 import { readPerformance } from './utils/mpm';
+import { publishedUrl } from './model/published';
 import { useReconstruction } from './hooks/useReconstructionLoader';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -59,7 +60,7 @@ const ViewerInner = () => {
     const handleDownload = useCallback(async () => {
         if (!work) return;
 
-        const response = await fetch('/transcription.mei');
+        const response = await fetch(publishedUrl('mei'));
         const zip = new JSZip();
         if (response.ok) zip.file('transcription.mei', await response.text());
         zip.file('work.json', work.workJson);

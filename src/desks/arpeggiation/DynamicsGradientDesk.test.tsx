@@ -17,6 +17,7 @@ import { ZoomContext } from '../../hooks/ZoomProvider';
 import { createMpm } from '../../fitting/instructions/index';
 import type { Scope } from '../../fitting/instructions/index';
 import { deriveResidual } from '../../fitting/residual';
+import { publishedPath } from '../../test/published';
 import { DynamicsGradientDesk } from './DynamicsGradientDesk';
 
 /** Hovering a chord sounds it, and Tone in jsdom is a slow way to assert nothing. */
@@ -31,7 +32,7 @@ vi.mock('react-pianosound', () => ({
 let msm: Alignment;
 
 beforeAll(() => {
-    const mei = readFileSync('public/transcription.mei', 'utf-8');
+    const mei = readFileSync(publishedPath('mei'), 'utf-8');
     const takes = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
     const [preferred] = takes.sources();
     msm = new Alignment(

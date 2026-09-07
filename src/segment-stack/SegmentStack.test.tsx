@@ -1,7 +1,7 @@
 /**
  * Mounts the stack over the files the app actually ships.
  *
- * The point is the whole path from `public/segments.json` to SVG: parse the MPM,
+ * The point is the whole path from `src/test/fixtures/segments.json` to SVG: parse the MPM,
  * read the nesting, pack every word into the tree and draw it.
  * Anything that only holds for hand-written fixtures would not catch a bad bake.
  */

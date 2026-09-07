@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Reconstruction } from '../model/Reconstruction';
 import { outcomesOf, projectReconstruction } from '../model/Reconstruction';
 import { parseWorkFile } from '../model/Work';
+import { publishedUrl } from '../model/published';
 import { readPerformance } from '../utils/mpm';
 import { readMeter } from '../utils/score';
 
@@ -21,7 +22,7 @@ interface Work {
 }
 
 /**
- * Load the three files that make up the piece.
+ * Load the three files that make up the piece, from welte225.org.
  *
  * Three, not four: the projection the tree draws is derived here rather than shipped beside them.
  * `work.json` already carries the grouping — each call names the segment it was made under —
@@ -40,13 +41,17 @@ export const useReconstruction = (): { work: Work | null; error: Error | null } 
     useEffect(() => {
         let cancelled = false;
 
-        const text = async (path: string) => {
-            const response = await fetch(path);
-            if (!response.ok) throw new Error(`${path}: ${String(response.status)} ${response.statusText}`);
+        const text = async (url: string) => {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`${url}: ${String(response.status)} ${response.statusText}`);
             return response.text();
         };
 
-        Promise.all([text('/score.msm'), text('/performance.mpm'), text('/work.json')])
+        Promise.all([
+            text(publishedUrl('score')),
+            text(publishedUrl('performance')),
+            text(publishedUrl('work')),
+        ])
             .then(([scoreMsm, performanceMpm, workJson]) => {
                 if (cancelled) return;
 

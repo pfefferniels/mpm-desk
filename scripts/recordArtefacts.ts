@@ -1,5 +1,5 @@
 /**
- * The three files the viewer loads, produced from the MEI and the work file.
+ * The three files the viewer loads, produced from the MEI and the work file as published.
  *
  * `Call.elements` and `Call.range` cannot be worked out by a reader: `elements` is a diff over the
  * document before and after a call, and `range` needs the residual wherever a pedal is involved.
@@ -20,14 +20,7 @@ import { convertMeiToMsm } from 'espressivo';
 import { runFit } from '../src/fitting/fit';
 import { asMSM } from '../src/fitting/asMSM';
 import { parseWorkFile, serializeWorkFile } from '../src/model/Work';
-
-export const RECORDED = {
-    work: 'public/work.json',
-    performance: 'public/performance.mpm',
-    score: 'public/score.msm',
-} as const;
-
-const MEI = 'public/transcription.mei';
+import { publishedPath } from '../src/test/published';
 
 export interface Recorded {
     /** The work file with each call's outcome recorded on it. */
@@ -42,8 +35,8 @@ export interface Recorded {
 }
 
 export const recordArtefacts = (): Recorded => {
-    const mei = readFileSync(MEI, 'utf-8');
-    const work = parseWorkFile(readFileSync(RECORDED.work, 'utf-8'));
+    const mei = readFileSync(publishedPath('mei'), 'utf-8');
+    const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
     const score = convertMeiToMsm(mei)[0].msm;
 
     // The chain is noisy about MSM parts it cannot match; that is a property of the fixture.

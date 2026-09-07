@@ -36,8 +36,9 @@ record of what it used.
 
 ## Routes
 
-`/` is the viewer. It reads a finished reconstruction out of `public/` and draws it as a tree of
-claims along the timeline, with playback.
+`/` is the viewer. It fetches the reconstruction of WM 225 from
+[welte225.org](https://welte225.org/), which holds the only copy, and draws it as a tree of claims
+along the timeline, with playback.
 
 `/editor` is the editor. The alignment desk says which sounded event realises which written note;
 the others plot what the recording did in one dimension (tempo, rubato, dynamics, accentuation,
@@ -55,6 +56,17 @@ A project is a zip of
     performance.mpm      the MPM the chain wrote
     score.msm            the score that MPM is performed against
     recordings/*.mid     the takes
+
+## The published reconstruction
+
+The reconstruction of WM 225 is the first four of those files, unzipped into `mpm/` of the
+[welte225.org](https://github.com/pfefferniels/welte225.org) repository, and this repository keeps
+no copy. To publish a change made in the editor, replace the files there. After a change to the
+chain, `npx vite-node scripts/recordOutcomes.ts` rewrites `work.json`, `performance.mpm` and
+`score.msm` in place, and `scripts/recordArtefacts.test.ts` fails until that has been done.
+
+The tests read that checkout, expected beside this repository as `../welte225.org` or wherever
+`WELTE225` points. CI checks it out into the workspace.
 
 ## Source
 

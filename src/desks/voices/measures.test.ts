@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { convertMeiToMsm } from 'espressivo';
 import { asMSM } from '../../fitting/asMSM';
+import { publishedPath } from '../../test/published';
 import { measureTicks, tickRange } from './measures';
 
-const mei = readFileSync('public/transcription.mei', 'utf-8');
+const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
 describe('measureTicks, against the real transcription', () => {
     const alignment = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);

@@ -29,7 +29,7 @@ const render = async (node: React.ReactNode) => {
 
 const firstOfType = (type: string): Instruction => {
     const instruction = mpm.instructions.find(i => i.type === type)
-    if (!instruction) throw new Error(`no ${type} in public/performance.mpm`)
+    if (!instruction) throw new Error(`no ${type} in src/test/fixtures/performance.mpm`)
     return instruction
 }
 

@@ -23,6 +23,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # The tests measure the reconstruction as published, and this repository keeps no copy.
+      - name: Checkout welte225.org
+        uses: actions/checkout@v7
+        with:
+          repository: pfefferniels/welte225.org
+          path: welte225.org
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -40,6 +47,8 @@ jobs:
 
       - name: Test
         run: npm run test:run
+        env:
+          WELTE225: welte225.org
 
       - name: Keep what the visual regression saw
         if: failure()

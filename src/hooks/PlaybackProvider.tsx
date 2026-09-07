@@ -95,9 +95,9 @@ interface PlaybackContextValue {
 const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
 interface PlaybackProviderProps {
-    /** The score as MSM XML, i.e. `public/score.msm`. */
+    /** The score as MSM XML. */
     scoreMsm: string;
-    /** The performance as MPM XML, i.e. `public/performance.mpm`. */
+    /** The performance as MPM XML. */
     performanceMpm: string;
     /** Note `xml:id` ⇒ symbolic date, for reporting where the playhead is. */
     dateByNoteId: Map<string, number>;

@@ -12,6 +12,7 @@ import { ZoomContext } from '../../hooks/ZoomProvider';
 import { createMpm, requireMap } from '../../fitting/instructions/index';
 import type { Mpm, Scope } from '../../fitting/instructions/index';
 import { deriveResidual } from '../../fitting/residual';
+import { publishedPath } from '../../test/published';
 import { ArticulationDesk } from './ArticulationDesk';
 
 /** Hovering a note sounds it, and Tone in jsdom is a slow way to assert nothing. */
@@ -30,7 +31,7 @@ let takes: Alignment;
 let msm: Alignment;
 
 beforeAll(() => {
-    const mei = readFileSync('public/transcription.mei', 'utf-8');
+    const mei = readFileSync(publishedPath('mei'), 'utf-8');
     takes = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
     const [preferred] = takes.sources();
     msm = new Alignment(

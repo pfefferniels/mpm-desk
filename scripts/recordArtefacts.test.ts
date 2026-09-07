@@ -1,8 +1,8 @@
 /**
  * The shipped reconstruction against the chain that produces it.
  *
- * `public/work.json`, `public/performance.mpm` and `public/score.msm` are a build output: the
- * viewer draws the tree from what they *record* rather than from a run, which is what lets it
+ * `work.json`, `performance.mpm` and `score.msm`, as published on welte225.org, are a build
+ * output: the viewer draws the tree from what they *record* rather than from a run, which lets it
  * carry no fitting code. So they go stale in silence, a fitter changing and nobody re-running
  * `recordOutcomes.ts` (issue #37 caught that five days after it started).
  *
@@ -13,25 +13,27 @@
  */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { RECORDED, recordArtefacts } from './recordArtefacts';
+import type { Published } from '../src/model/published';
+import { publishedPath } from '../src/test/published';
+import { recordArtefacts } from './recordArtefacts';
 
 /** The ids espressivo mints for the elements a conversion invents. */
 const withoutMintedIds = (xml: string): string => xml.replace(/ xml:id="meico_[^"]*"/g, '');
 
-const shipped = (path: string) => readFileSync(path, 'utf-8');
+const shipped = (file: Published) => readFileSync(publishedPath(file), 'utf-8');
 
 describe('the files the viewer loads are what the chain produces', () => {
     const recorded = recordArtefacts();
 
     test('the work file records the outcomes this chain reports', () => {
-        expect(shipped(RECORDED.work)).toBe(recorded.work);
+        expect(shipped('work')).toBe(recorded.work);
     });
 
     test('the performance is the one this chain writes, id for id', () => {
-        expect(shipped(RECORDED.performance)).toBe(recorded.performance);
+        expect(shipped('performance')).toBe(recorded.performance);
     });
 
     test('the score is the one this conversion makes of the MEI', () => {
-        expect(withoutMintedIds(shipped(RECORDED.score))).toBe(withoutMintedIds(recorded.score));
+        expect(withoutMintedIds(shipped('score'))).toBe(withoutMintedIds(recorded.score));
     });
 });
