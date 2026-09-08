@@ -19,15 +19,24 @@
  * The walk itself is in `placedTempos.ts`, which states the rule once for its four callers.
  */
 import { getInstructions, Mpm, scopesOf } from '../../instructions/index';
-import { Alignment } from '../../alignment';
+import { Alignment, travelOf, type AlignedPedal } from '../../alignment';
 import { dateAtMilliseconds } from './tempoCalculations';
 import { coversDate, placeTempos, type PlacedTempo, segmentAtMs } from './placedTempos';
 import { removeRubatoDistortion } from '../rubato/rubatoMath';
+
+/** One vertex of a press's line on the score grid, keeping the recording's own time beside it. */
+export interface TickVertex {
+  readonly date: number;
+  readonly ms: number;
+  readonly position: number;
+}
 
 /** Where one note or pedal fell on the score grid. Absent fields mean "no tempo covered it". */
 export interface TickTime {
   tickDate?: number;
   tickDuration?: number;
+  /** A press's line, vertex by vertex, where every vertex fell under a tempo. */
+  tickTravel?: readonly TickVertex[];
 }
 
 /**
@@ -71,6 +80,15 @@ const tickAtMs = (segments: PlacedTempo[], ms: number): number | undefined => {
   if (!segment) return undefined;
   const ticks = dateAtMilliseconds(ms - segment.startMs, segment.resolved);
   return Number.isFinite(ticks) ? ticks : undefined;
+};
+
+/** A press's line on the tick grid, or nothing where any of its vertices falls under no tempo. */
+const tickTravelOf = (segments: PlacedTempo[], pedal: AlignedPedal): TickVertex[] | undefined => {
+  const placed = travelOf(pedal).map(({ ms, position }) => {
+    const date = tickAtMs(segments, pedal['milliseconds.date'] + ms);
+    return date === undefined ? undefined : { date, ms, position };
+  });
+  return placed.every((vertex): vertex is TickVertex => vertex !== undefined) ? placed : undefined;
 };
 
 /**
@@ -137,13 +155,15 @@ const addTickDurations = (msm: Alignment, mpm: Mpm, times: TickTimes) => {
       time.tickDuration = release - time.tickDate;
     }
 
-    // Same first-wins rule as the onsets, and for the same reason.
+    // Same first-wins rule as the onsets, and for the same reason. The line goes with the
+    // release: its last vertex is the release, measured the same way.
     for (const pedal of msm.pedals) {
       const time = times.pedals.get(pedal['xml:id']);
       if (time?.tickDate === undefined || time.tickDuration !== undefined) continue;
       const release = tickAtMs(segments, pedal['milliseconds.date.end']);
       if (release === undefined) continue;
       time.tickDuration = release - time.tickDate;
+      time.tickTravel = tickTravelOf(segments, pedal);
     }
   }
 };

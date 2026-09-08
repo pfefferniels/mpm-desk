@@ -691,16 +691,12 @@ export const correspondingDesks: DeskEntry[] = [
         group: 'pedalling',
         help: {
             summary:
-                'The recorded pedal presses on the tick grid, sustain over soft, with the ' +
-                'movements already written below, one lane per controller.',
+                'The line each recorded press drew, on the tick grid, sustain over soft, with ' +
+                'the movements already written below, one lane per controller.',
             actions: [
                 {
-                    gesture: 'Click a press on its left half',
-                    does: 'write the pedal going down, where the foot lands',
-                },
-                {
-                    gesture: 'Click a press on its right half',
-                    does: 'write it coming up, where the foot lifts',
+                    gesture: 'Click a press',
+                    does: 'write its line as movements, each traversal fitted as one',
                 },
                 { gesture: 'Hover a chord line', does: 'sound the chord' },
                 { gesture: 'Click a movement', does: 'select the call that wrote it' },

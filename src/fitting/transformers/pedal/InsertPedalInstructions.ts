@@ -1,116 +1,160 @@
-import type { Normalized } from 'espressivo';
+import type { MovementMap, Normalized } from 'espressivo';
 import { Mpm, requireMap } from '../../instructions/index';
-import { Alignment } from '../../alignment';
+import { Alignment, type AlignedPedal } from '../../alignment';
 import { AbstractTransformer, type TransformationOptions } from '../Transformer';
 import { TranslatePhysicalTimeToTicks } from '../tempo/index';
-import { deriveResidual } from '../../residual';
+import { deriveResidual, type Residual } from '../../residual';
 import { filterMap } from 'espressivo';
+import type { TickVertex } from '../tempo/tickTimes';
+import { approximateMovements, movementIds, type FittedMovement } from './approximateMovement';
 
 /**
  * A pedal depth as `@position` and `@transition.to` are typed: espressivo's `Normalized`.
  *
  * The brand is compile-time only — `units.ts` is required to emit no JavaScript, so there is no
  * `asNormalized(n)` to call and a plain number reaches the option through an assertion. This is
- * the one place it is made, so that the two values below carry the brand and the four
- * instructions are written without a cast in sight. Nothing is checked here that was not already
- * the caller's to promise: `@depth` is documented `[0..1]` on the options.
+ * the one place it is made. Nothing is checked here that was not already the caller's to promise:
+ * a position is documented `[0..1]` on the record and on the options.
  */
 const normalized = (value: number) => value as Normalized;
 
-export type InsertPedalOptions = TransformationOptions & {
-  pedal?: string; // identify a pedal by its xml:id. If not given, all pedals are considered
-  start: number; // relative to the original time, in ticks
-  duration: number; // in ticks
+/** The press whose line is written; every press the residual can place, when absent. */
+export interface FitPedalOptions extends TransformationOptions {
+  pedal?: string;
+}
+
+/**
+ * The shortcut, kept for calls already written: a ramp of stated length hung on one end of the
+ * press, at a depth typed rather than read off the record.
+ */
+export interface PedalRampOptions extends FitPedalOptions {
+  /** Relative to the end the ramp hangs off, in ticks. */
+  start: number;
+  /** In ticks. */
+  duration: number;
   direction: 'up' | 'down';
-  depth?: number; // [0..1], default 1
+  /** [0..1], default 1 */
+  depth?: number;
+}
+
+export type InsertPedalOptions = FitPedalOptions | PedalRampOptions;
+
+/** A press the residual could place on the score grid, line and all. */
+interface PlacedPress {
+  pedal: AlignedPedal;
+  tickDate: number;
+  tickDuration: number;
+  tickTravel: readonly TickVertex[] | undefined;
+}
+
+const placedPresses = (
+  msm: Alignment,
+  residual: Residual,
+  only: string | undefined,
+): readonly PlacedPress[] =>
+  filterMap(msm.pedals, (pedal) => {
+    if (only && pedal['xml:id'] !== only) return null;
+    const placed = residual.ofPedal(pedal);
+    if (placed?.tickDate === undefined || placed.tickDuration === undefined) return null;
+    return { pedal, tickDate: placed.tickDate, tickDuration: placed.tickDuration, tickTravel: placed.tickTravel };
+  });
+
+/**
+ * Write a press's line as the movements the fit makes of it.
+ *
+ * A movement's `xml:id` names what it does to the pedal, so the narrative's chips read
+ * `_down`, `_held`, `_up`, `_rest` rather than a count.
+ */
+const writeLine = (map: MovementMap, press: PlacedPress, line: readonly TickVertex[]) => {
+  const fitted = approximateMovements(line);
+  const ids = movementIds(press.pedal['xml:id'], fitted);
+  fitted.forEach((movement: FittedMovement, i) => {
+    map.addMovement({
+      id: ids[i],
+      date: movement.date,
+      position: normalized(movement.position),
+      ...(movement.transitionTo !== undefined && { transitionTo: normalized(movement.transitionTo) }),
+      ...(movement.curvature !== undefined && { curvature: movement.curvature }),
+      ...(movement.protraction !== undefined && { protraction: movement.protraction }),
+      controller: press.pedal.type,
+    });
+  });
+};
+
+/** The shortcut's two movements: the ramp and the position it arrives at. */
+const writeRamp = (map: MovementMap, press: PlacedPress, options: PedalRampOptions) => {
+  // `??`, so a caller asking for a depth of `0` gets one. `||` reads it as "not given" and
+  // substitutes a fully depressed pedal — the opposite of what was asked for (issue #46).
+  const depth = normalized(options.depth ?? 1);
+  const released = normalized(0);
+  const id = press.pedal['xml:id'];
+  const controller = press.pedal.type;
+
+  if (options.direction === 'down') {
+    map.addMovement({
+      id: `${id}_start`,
+      date: press.tickDate + options.start,
+      position: released,
+      transitionTo: depth,
+      controller,
+    });
+    map.addMovement({
+      id: `${id}_moveDown`,
+      date: press.tickDate + options.start + options.duration,
+      position: depth,
+      controller,
+    });
+  } else {
+    const endDate = press.tickDate + press.tickDuration;
+    map.addMovement({
+      id: `${id}_moveUp`,
+      date: endDate + options.start,
+      position: depth,
+      transitionTo: released,
+      controller,
+    });
+    map.addMovement({
+      id: `${id}_end`,
+      date: endDate + options.start + options.duration,
+      position: released,
+      controller,
+    });
+  }
 };
 
 /**
- * This transformer is a shortcut. The developed "path" for encoding pedal changes
- * would be to first insert accurate movements into the alignment (if necessary), and then
- * to approximate the shape using a transformer similiar to `InsertDynamics`. However,
- * this shortcut is useful for all cases in which the original source material
- * cannot represent accurate pedal movements (such as reproducing piano rolls)
- * and where these abrupt pedal changes are to be interpreted.
+ * The pedalling, as `<movement>` elements fitted to the line each press recorded.
+ *
+ * The line is the record (`AlignedPedal.travel`, since `1dec582`), corrected where the roll got
+ * it wrong on the corrections desk, and placed on the score grid by the residual. What is fitted
+ * is only the bend of each traversal: where a press starts, how deep it goes, where it holds and
+ * where it lifts are all read off the line. A press without a line is a switch, and is written
+ * as the two constants a switch is.
+ *
+ * A call stating `direction` is one written before the line existed, and keeps the ramp it asked
+ * for.
  */
 export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
   name = 'InsertPedal';
   requires = [TranslatePhysicalTimeToTicks];
 
   constructor(options?: InsertPedalOptions) {
-    super(
-      options || {
-        // A pedal mark carries no shape of its own, so the defaults are the reading this
-        // shortcut exists for: the pedal goes down where the mark is, over a ramp short
-        // enough to read as the abrupt change a piano roll records — a 32nd at 720 ppq,
-        // some 60 ms at 120 bpm. A zero-length one would put both movements on
-        // the same date, which describes no ramp at all.
-        start: 0,
-        duration: 90,
-        direction: 'down',
-      },
-    );
+    super(options ?? {});
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {
-    // Where each pedal fell on the score grid, under the MPM as it stands. `movement` is
-    // held out for the same reason every other fitter holds its own dimension out, though
-    // it changes nothing here: a movementMap moves controllers, not the pedal marks this
-    // reads. Note the tick figures for pedals carry no rubato compensation — the warp is
-    // taken off notes only, which `removeRubatoDistortion` records as a standing @todo.
+    // Where each pedal fell on the score grid, under the MPM as it stands. `movement` is held
+    // out for the same reason every other fitter holds its own dimension out, though it changes
+    // nothing here: a movementMap moves controllers, not the pedal marks this reads. The tick
+    // figures for pedals carry no rubato compensation — the warp is taken off notes only, which
+    // `removeRubatoDistortion` records as a standing @todo.
     const residual = deriveResidual(msm, mpm, { without: ['movement'] });
-
-    const validPedals = filterMap(msm.pedals, (pedal) => {
-      const placed = residual.ofPedal(pedal);
-      const tickDate = placed?.tickDate;
-      const tickDuration = placed?.tickDuration;
-
-      if (tickDate === undefined || tickDuration === undefined) return null;
-      if (this.options.pedal && pedal['xml:id'] !== this.options.pedal) return null;
-
-      return { pedal, tickDate, tickDuration };
-    });
-    // `??`, so a caller asking for a depth of `0` gets one. `||` reads it as "not given" and
-    // substitutes a fully depressed pedal — the opposite of what was asked for (issue #46).
-    const depth = normalized(this.options.depth ?? 1);
-    const released = normalized(0);
-
     const map = requireMap(mpm, 'movement', 'global');
+    const options = this.options;
 
-    for (const { pedal, tickDate, tickDuration } of validPedals) {
-      if (this.options.direction === 'down') {
-        map.addMovement({
-          id: `${pedal['xml:id']}_start`,
-          date: tickDate + this.options.start,
-          position: released,
-          transitionTo: depth,
-          controller: pedal.type,
-        });
-
-        map.addMovement({
-          id: `${pedal['xml:id']}_moveDown`,
-          date: tickDate + this.options.start + this.options.duration,
-          position: depth,
-          controller: pedal.type,
-        });
-      } else {
-        const endDate = tickDate + tickDuration;
-
-        map.addMovement({
-          id: `${pedal['xml:id']}_moveUp`,
-          date: endDate + this.options.start,
-          position: depth,
-          transitionTo: released,
-          controller: pedal.type,
-        });
-
-        map.addMovement({
-          id: `${pedal['xml:id']}_end`,
-          date: endDate + this.options.start + this.options.duration,
-          position: released,
-          controller: pedal.type,
-        });
-      }
+    for (const press of placedPresses(msm, residual, options.pedal)) {
+      if ('direction' in options) writeRamp(map, press, options);
+      else if (press.tickTravel) writeLine(map, press, press.tickTravel);
     }
   }
 }

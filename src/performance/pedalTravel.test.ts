@@ -73,6 +73,22 @@ describe('thinning the line', () => {
     it('leaves a switch as it is', () => {
         expect(sparseTravel(switchTravel(400))).toEqual(switchTravel(400))
     })
+
+    it('keeps both ends of a hold, however small their steps', () => {
+        // A run-length stream holds a plateau as one sample, reached by a step of one level and
+        // left by another, both of which position alone would thin away.
+        const reachesPlateau = { ms: 190, position: 1 }
+        const leavesPlateau = { ms: 2846, position: 126 / 127 }
+        const press: Travel = [
+            ...everyStep(190, 0, 127),
+            leavesPlateau,
+            ...everyStep(190, 125, 0).map(v => ({ ...v, ms: v.ms + 2849 })),
+        ]
+
+        const kept = sparseTravel(press, 0.05)
+        expect(kept).toContainEqual(reachesPlateau)
+        expect(kept).toContainEqual(leavesPlateau)
+    })
 })
 
 describe('where the pedal stands', () => {

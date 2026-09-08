@@ -43,7 +43,7 @@ import {
   withoutMaps,
 } from './instructions/index';
 import { Alignment, type AlignedNote, type AlignedPedal } from './alignment';
-import { computeTickTimes } from './transformers/tempo/tickTimes';
+import { computeTickTimes, type TickVertex } from './transformers/tempo/tickTimes';
 import { performMsmToData } from 'espressivo';
 
 export interface NoteResidual {
@@ -77,6 +77,8 @@ export interface PedalResidual {
   readonly pedal: AlignedPedal;
   readonly tickDate: number | undefined;
   readonly tickDuration: number | undefined;
+  /** The line the press drew, on the score grid, where every vertex of it could be placed. */
+  readonly tickTravel: readonly TickVertex[] | undefined;
 }
 
 export interface Residual {
@@ -289,7 +291,12 @@ export const deriveResidual = (
 
   const pedals: PedalResidual[] = msm.pedals.map((pedal) => {
     const placed = ticks.pedals.get(pedal['xml:id']);
-    return { pedal, tickDate: placed?.tickDate, tickDuration: placed?.tickDuration };
+    return {
+      pedal,
+      tickDate: placed?.tickDate,
+      tickDuration: placed?.tickDuration,
+      tickTravel: placed?.tickTravel,
+    };
   });
 
   const byNote = new Map(notes.map((entry) => [entry.note['xml:id'], entry]));

@@ -3,8 +3,8 @@ import type { AlignedPedal } from '../../fitting/alignment'
 /** Sustain over soft, as on the other desks that draw the two pedals. */
 const ROW_ORDER: readonly AlignedPedal['type'][] = ['sustain', 'soft']
 
-/** How tall one row of recorded presses is. */
-export const ROW_HEIGHT = 20
+/** How tall one row of recorded presses is: a full stroke of the line, as tall as a lane's. */
+export const ROW_HEIGHT = 30
 
 /** What a `@position` of 1 comes to, in pixels below a lane's rail. */
 export const LANE_HEIGHT = 30

@@ -53,8 +53,8 @@ export const laneY = (lane: PedalLane, position: number): number =>
 export const positionAtY = (lane: PedalLane, y: number): number =>
     Math.min(1, Math.max(0, (y - lane.rest) / (lane.pressed - lane.rest)))
 
-/** One vertex placed on the plot: seconds on the axis, position in the lane. */
-export interface PlacedVertex {
+/** One vertex placed on the plot: the axis's own unit across, position in the lane. */
+interface PlacedVertex {
     x: number
     y: number
 }

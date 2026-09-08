@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { Alignment, type AlignedNote, type AlignedPedal } from '../../fitting/alignment'
 import { createMpm, requireMap, type Mpm } from '../../fitting/instructions/index'
 import type { PedalResidual, Residual } from '../../fitting/residual'
@@ -30,6 +30,7 @@ const note = (id: string, date: number): AlignedNote => ({
     velocity: 64,
 })
 
+/** A switch, a second long. */
 const pedal = (type: AlignedPedal['type'], onsetMs: number): AlignedPedal => ({
     'xml:id': `${type}_${onsetMs}`,
     type,
@@ -40,16 +41,28 @@ const pedal = (type: AlignedPedal['type'], onsetMs: number): AlignedPedal => ({
 /**
  * A residual that places every pedal it is given and no other.
  *
- * The desk asks it one thing — where a recorded press falls on the tick grid — so a stub answering
- * that one question is the whole of what a test needs, and deriving a real one would take a
- * `<tempo>` written for the purpose.
+ * The desk asks it one thing — where a recorded press's line falls on the tick grid — so a stub
+ * answering that one question is the whole of what a test needs, and deriving a real one would
+ * take a `<tempo>` written for the purpose. A tick to the millisecond, so a switch a second long
+ * is 720 ticks of it.
  */
 const placing = (placed: readonly AlignedPedal[]): Residual => {
     const byPedal = new Map<string, PedalResidual>(
-        placed.map(pedal => [
-            pedal['xml:id'],
-            { pedal, tickDate: pedal['milliseconds.date'], tickDuration: 720 },
-        ]),
+        placed.map(pedal => {
+            const tickDate = pedal['milliseconds.date']
+            return [
+                pedal['xml:id'],
+                {
+                    pedal,
+                    tickDate,
+                    tickDuration: 720,
+                    tickTravel: [
+                        { date: tickDate, ms: 0, position: 1 },
+                        { date: tickDate + 720, ms: 1000, position: 0 },
+                    ],
+                },
+            ]
+        }),
     )
 
     return {
@@ -150,27 +163,28 @@ describe('PedalDesk', () => {
         expect(names()).toEqual(expect.arrayContaining(['sustain', 'soft', 'ticks']))
     })
 
-    it('opens the dialog on the reading the half that was clicked stands for', () => {
+    it('draws each press as the line it recorded, at rest along the top of its row', () => {
+        // 720 ticks at a tenth of a pixel each; a row thirty tall, with the stroke reaching its floor.
         renderDesk([pedal('sustain', 0)], createMpm())
 
-        fireEvent.click(document.querySelector('[data-direction="up"]')!)
-
-        expect(screen.getByRole('dialog')).toHaveTextContent('sustain up @720')
+        expect(document.querySelector('polyline[data-line="sustain_0"]')?.getAttribute('points'))
+            .toBe('0,0 0,30 72,30 72,0')
     })
 
-    // The dialog offers no direction of its own any more, so the half that was clicked is the
-    // only thing that can say which movement gets written.
-    it('writes the movement the half that was clicked stands for', () => {
-        const addTransformer = renderDesk([pedal('sustain', 0)], createMpm())
+    it('writes the line of the press that was clicked, and nothing else', () => {
+        const addTransformer = renderDesk([pedal('sustain', 0), pedal('soft', 720)], createMpm())
 
-        fireEvent.click(document.querySelector('[data-direction="up"]')!)
-        fireEvent.click(screen.getByRole('button', { name: 'Insert Pedal' }))
+        fireEvent.click(document.querySelector('[data-press="sustain_0"]')!)
 
         expect(addTransformer).toHaveBeenCalledOnce()
-        expect(addTransformer.mock.calls[0][0].options).toMatchObject({
-            pedal: 'sustain_0',
-            direction: 'up',
-        })
+        expect(addTransformer.mock.calls[0][0].options).toEqual({ pedal: 'sustain_0' })
+    })
+
+    // A movement lasts until the next one; the last of a lane used to be dropped (issue #33).
+    it('holds the last movement of a lane to the end of the piece', () => {
+        renderDesk([], withMovements('sustain'))
+
+        expect(document.querySelectorAll('g.movementSegment')).toHaveLength(2)
     })
 
     it('keeps the names out of the scroller, so they hold still', () => {

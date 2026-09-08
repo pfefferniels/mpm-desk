@@ -40,7 +40,7 @@ interface InstructionChipsProps {
  * A claim's instructions, one chip each — the handle for moving them between claims.
  *
  * **Clicking one selects the call that wrote it**, and so its siblings. A call is the unit that
- * writes a gesture (`InsertPedal` writes a press as `_start` plus `_moveDown`), so splitting one
+ * writes a gesture (`InsertPedal` writes a press as `_down`, `_held`, `_up` and `_rest`), so splitting one
  * across two claims would be a claim about half a gesture. The chip is the instruction because
  * that is what a reader recognises; the selection is the call because that is what can move.
  *

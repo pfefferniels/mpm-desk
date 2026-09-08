@@ -127,6 +127,33 @@ describe('every recorded event gets a position', () => {
       6,
     );
   });
+
+  /** The line goes with the press: its first vertex is the onset and its last the release. */
+  test('a press takes its line onto the grid, vertex by vertex', () => {
+    const msm = score();
+    msm.pedals = [
+      {
+        'xml:id': 'ped_line',
+        type: 'sustain',
+        'milliseconds.date': 1800,
+        'milliseconds.date.end': 2300,
+        travel: [
+          { ms: 0, position: 0.5 },
+          { ms: 100, position: 1 },
+          { ms: 500, position: 0 },
+        ],
+      },
+      ...msm.pedals,
+    ];
+    const times = computeTickTimes(msm, twoTempi());
+
+    const time = times.pedals.get('ped_line')!;
+    expect(time.tickTravel).toHaveLength(3);
+    expect(time.tickTravel![0]).toEqual({ date: time.tickDate!, ms: 0, position: 0.5 });
+    expect(time.tickTravel![2].date).toBeCloseTo(time.tickDate! + time.tickDuration!, 6);
+    // A switch has a line too, of the two vertices a switch is.
+    expect(times.pedals.get('ped_boundary')!.tickTravel).toHaveLength(2);
+  });
 });
 
 /**

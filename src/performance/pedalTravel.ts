@@ -21,6 +21,15 @@ export type Travel = readonly TravelVertex[]
  */
 const TOLERANCE = 0.05
 
+/**
+ * A gap longer than this between two vertices is a hold, whatever the change across it: a red
+ * Welte's whole traversal takes some 190 ms. The vertices on either side of such a gap are where
+ * the line reaches its plateau and where it leaves it, and both are kept however small their
+ * steps: a run-length stream holds a plateau as one sample, which no rule about position would
+ * keep.
+ */
+const HOLD_MS = 200
+
 /** The travel of a switch: down at once, and up again when it was released. */
 export const switchTravel = (durationMs: number): Travel => [
     { ms: 0, position: 1 },
@@ -28,8 +37,8 @@ export const switchTravel = (durationMs: number): Travel => [
 ]
 
 /**
- * The vertices worth keeping: both ends of every stretch the pedal spends at one position, and
- * along a traversal one vertex per `tolerance` of position.
+ * The vertices worth keeping: both ends of every stretch the pedal spends at one position, both
+ * ends of every hold, and along a traversal one vertex per `tolerance` of position.
  */
 export const sparseTravel = (travel: Travel, tolerance = TOLERANCE): Travel => {
     const last = travel.length - 1
@@ -38,10 +47,14 @@ export const sparseTravel = (travel: Travel, tolerance = TOLERANCE): Travel => {
         i === last ||
         (travel[i].position === travel[i - 1].position) !==
             (travel[i].position === travel[i + 1].position)
+    const boundsAHold = (i: number) =>
+        (i > 0 && travel[i].ms - travel[i - 1].ms >= HOLD_MS) ||
+        (i < last && travel[i + 1].ms - travel[i].ms >= HOLD_MS)
 
     let anchor = Number.NaN
     return travel.filter((vertex, i) => {
-        if (!endsAStretch(i) && Math.abs(vertex.position - anchor) < tolerance) return false
+        if (!endsAStretch(i) && !boundsAHold(i) && Math.abs(vertex.position - anchor) < tolerance)
+            return false
         anchor = vertex.position
         return true
     })

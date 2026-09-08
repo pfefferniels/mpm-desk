@@ -94,7 +94,7 @@ ROUNDTRIP_REPORT=1 npx vitest run tests/fitting/roundtrip/report.test.ts
 | `invariants.ts`   | The structural checks                                                                    |
 | `expectations.ts` | What every render-tier case asserts                                                      |
 | `cases.ts`        | The coverage matrix and its recorded bounds                                              |
-| `pedal.test.ts`   | Pedalling, which is deliberately not a round trip — see the file                         |
+| `pedal.test.ts`   | Pedalling: the line a press recorded, fitted as movements and rendered back              |
 | `aligned.ts`      | The same round trip on `tests/fitting/fixtures/roundtrip` — an aligned MEI, no truth MPM |
 | `report.test.ts`  | Opt-in: print what every case currently measures                                         |
 
@@ -128,10 +128,12 @@ is visible one transformer at a time.
 
 ## What is not covered yet
 
-- **Pedalling is covered, but not as a round trip.** `InsertPedal` takes the movement's shape
-  from constructor options rather than fitting it, so a round trip would only measure the option
-  values this suite itself chose. `pedal.test.ts` asserts what is left: the movements land on the
-  pedal, the document is sound, and the renderer produces an actual sustain stream from it.
+- **Pedalling is covered against the record, not against a truth MPM.** `InsertPedal` fits the
+  bend of each traversal of a press's line and reads everything else off the record, so
+  `pedal.test.ts` asserts against the line: the movements land where the line has them, the
+  document is sound, and the renderer produces a sustain stream that reaches full depth and comes
+  back. A round trip through `cases.ts` would need a movement written as truth and rendered into
+  a line first.
 - **Tempo.** There is no tempo case any more, and there cannot be one. `ApproximateLogarithmicTempo`
   — the one fitter that read a tempo curve off the onsets — is not part of this application, and
   `InsertTempo` writes down the tempo it is given. `chainFor` therefore hands the truth's own

@@ -1,13 +1,11 @@
-import { InsertPedal, type InsertPedalOptions } from "../../fitting/transformers/pedal/InsertPedalInstructions"
-import { rowId, type AlignedPedal } from "../../fitting/alignment"
+import { InsertPedal } from "../../fitting/transformers/pedal/InsertPedalInstructions"
+import { rowId } from "../../fitting/alignment"
 import { getInstructions } from "../../fitting/instructions/index"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MovementSegment } from "./MovementSegment"
-import { useState } from "react"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
-import { PedalDialog } from "./PedalDialog"
-import { PressBox, type Direction } from "./PressBox"
+import { PressBox } from "./PressBox"
 import { usePiano } from "../../performance/piano"
 import { asMIDI } from "../../utils/utils"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
@@ -15,15 +13,8 @@ import { filterMap } from "espressivo"
 import { PedalGutter, TickScale } from "./PedalAxes"
 import { GUTTER_WIDTH, LANE_HEIGHT, MOVEMENT_TOP, pedalPlot, rowY } from "./layout"
 
-/** A press and the reading of it a click asked for. */
-interface Pick {
-    pedal: AlignedPedal
-    direction: Direction
-}
-
 export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
     const { activeElements, setActiveElement } = useCallSelection();
-    const [picked, setPicked] = useState<Pick>()
 
     const stretchX = useSymbolicZoom()
     const { play, stop } = usePiano()
@@ -35,12 +26,6 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
     // case being handled. Below the hooks, so the desk keeps calling the same ones either way.
     if (!residual) return null
 
-    const transform = (options: InsertPedalOptions) => {
-        if (!options) return
-
-        addTransformer(new InsertPedal(options))
-    }
-
     // `@controller` is optional on a `<movement>`. Every one this desk draws was written by
     // `InsertPedal`, which always states it, so the fallback lane exists only so that a
     // movement from somewhere else is still drawn rather than dropped.
@@ -48,13 +33,14 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
         .groupBy(getInstructions(mpm, 'movement'), m => m.controller ?? 'unknown')
 
     // A recorded pedal carries no symbolic date of its own, so where it falls on the tick grid
-    // is the residual's answer and nothing else's. An undefined `tickDate` means the MPM cannot
-    // place it yet — no `<tempo>` covers it — and an unplaceable pedal is neither drawn nor named.
+    // is the residual's answer and nothing else's. A press with no line placed means the MPM
+    // cannot place it yet — no `<tempo>` covers it — and an unplaceable pedal is neither drawn
+    // nor named.
     const presses = filterMap(msm.pedals, pedal => {
-        const placed = residual.ofPedal(pedal)
-        if (placed?.tickDate === undefined || !placed.tickDuration) return null
+        const line = residual.ofPedal(pedal)?.tickTravel
+        if (!line || line.length < 2) return null
 
-        return { pedal, date: placed.tickDate, duration: placed.tickDuration }
+        return { pedal, line }
     })
 
     const plot = pedalPlot(
@@ -65,18 +51,6 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
 
     return (
         <div>
-            {picked && (
-                <PedalDialog
-                    pedal={picked.pedal}
-                    direction={picked.direction}
-                    residual={residual}
-                    onClose={() => setPicked(undefined)}
-                    onDone={(options) => {
-                        transform(options)
-                        setPicked(undefined)
-                    }}
-                />
-            )}
             {/*
                 The names have a column of their own beside the scroller, as on the choice and
                 corrections desks, so `sustain` still says which row it belongs to once the plot
@@ -103,10 +77,9 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                             property of the instrument, `InsertPedal` writes to `movement`/`global`
                             whatever the picker says, and these lines are the texture under a press.
 
-                            Under the presses, so that a press is one solid target with a single
-                            seam down it. Over them, a line crossing one is three pixels that
-                            sound a chord where a click is asking for a movement, and it cuts the
-                            box into pieces the two halves cannot be read off.
+                            Under the presses, so that a press is one solid target. Over them, a
+                            line crossing one is three pixels that sound a chord where a click is
+                            asking for the pedal.
                         */}
                         {Array.from(msm.in('global').chords().entries()).map(([date, chord]) => {
                             return (
@@ -131,16 +104,14 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                             )
                         })}
 
-                        {presses.map(({ pedal, date, duration }) => (
+                        {presses.map(({ pedal, line }) => (
                             <PressBox
                                 key={`pedal_${rowId(pedal)}`}
                                 pedal={pedal}
-                                date={date}
-                                duration={duration}
+                                line={line}
                                 y={rowY(pedal.type)}
                                 stretchX={stretchX}
-                                guideTo={plot.axisY}
-                                onPick={(pedal, direction) => setPicked({ pedal, direction })}
+                                onPick={picked => addTransformer(new InsertPedal({ pedal: picked['xml:id'] }))}
                             />
                         ))}
 
@@ -158,23 +129,18 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                                         something to be read against where none is written. */}
                                     <line x1={0} y1={0} x2={width} y2={0} stroke='#e5e7eb' />
 
-                                    {movements.map((movement, i) => {
-                                        if (i === movements.length - 1)
-                                            return null
-
-                                        const endDate = movements[i + 1].date
-
-                                        return (
-                                            <MovementSegment
-                                                instruction={{ ...movement, endDate }}
-                                                key={`movement_${movement.id}`}
-                                                stretchX={stretchX}
-                                                stretchY={LANE_HEIGHT}
-                                                onClick={() => movement.id && setActiveElement(movement.id)}
-                                                fill={movement.id && activeElements.includes(movement.id) ? 'orange' : 'lightblue'}
-                                            />
-                                        )
-                                    })}
+                                    {/* A movement lasts until the next; the last one holds to the
+                                        end of the piece (issue #33). */}
+                                    {movements.map((movement, i) => (
+                                        <MovementSegment
+                                            instruction={{ ...movement, endDate: movements[i + 1]?.date ?? msm.end }}
+                                            key={`movement_${movement.id}`}
+                                            stretchX={stretchX}
+                                            stretchY={LANE_HEIGHT}
+                                            onClick={() => movement.id && setActiveElement(movement.id)}
+                                            fill={movement.id && activeElements.includes(movement.id) ? 'orange' : 'lightblue'}
+                                        />
+                                    ))}
                                 </g>
                             )
                         })}
