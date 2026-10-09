@@ -34,7 +34,7 @@ export type RecordedModelId = MlignModelId | "v1" | "v2" | "v3";
 /**
  * The checkpoints, as shipped in `public/`. Fetched at run time, never imported.
  */
-export const MLIGN_MODELS: Record<MlignModelId, { file: string; note: string }> = {
+const MLIGN_MODELS: Record<MlignModelId, { file: string; note: string }> = {
     v4: {
         file: "mlign-v4-fp16.onnx",
         note:
@@ -52,19 +52,6 @@ const RECORDED: readonly string[] = ["v1", "v2", "v3", "v4"];
 /** Whether a stored value names a model this build knows of, shipped or not. */
 export function isRecordedModelId(value: unknown): value is RecordedModelId {
     return typeof value === "string" && RECORDED.includes(value);
-}
-
-/**
- * The model to actually run for a recorded one.
- *
- * Documents written before 2026-08-30 name v1, v2 or v3, whose weights no longer
- * ship. Such a document re-aligns with v4, which is a better answer than the one
- * it recorded and the only one available. What it recorded is untouched.
- */
-export function runnableModel(recorded: RecordedModelId | undefined): MlignModelId {
-    return recorded !== undefined && recorded in MLIGN_MODELS
-        ? (recorded as MlignModelId)
-        : DEFAULT_MODEL;
 }
 
 /** Where a given checkpoint sits, as a URL the browser can fetch. */

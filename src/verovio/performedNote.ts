@@ -1,7 +1,7 @@
 import { midiPitch } from "../performance/pitch";
 
 /** What the rendered SVG says about one note of the performance */
-export interface PerformedNote {
+interface PerformedNote {
     /** The xml:id of the note in the MEI */
     id: string;
     /** Onset in milliseconds from the start of the recording */

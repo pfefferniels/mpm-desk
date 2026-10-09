@@ -152,7 +152,7 @@ function configureOrt(): void {
     ort.env.wasm.numThreads = 1;
 }
 
-export interface CreateSessionOptions {
+interface CreateSessionOptions {
     /** Overrides `defaultModelUrl()`. Ignored when `modelBytes` is given. */
     modelUrl?: string;
     /** Pre-fetched weights, e.g. when the caller wants its own progress bar. */

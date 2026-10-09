@@ -301,7 +301,7 @@ const readAlignment = (options: Call['options']): WorkAlignment | null => {
         source,
         midi: typeof options['midi'] === 'string' ? options['midi'] : '',
         // Kept as recorded, including v1-v3, whose weights no longer ship —
-        // `runnableModel` decides what a RE-run uses, and only at that moment.
+        // a re-run always aligns with `DEFAULT_MODEL`.
         model: isRecordedModelId(options['model']) ? options['model'] : 'v4',
         minConfidence:
             typeof options['minConfidence'] === 'number' ? options['minConfidence'] : 0,

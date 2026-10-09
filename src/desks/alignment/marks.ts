@@ -12,7 +12,7 @@ import type { OmittedGroup } from '../../verovio/omissionMarks';
  * whole of the review's chrome. A resolved one is drawn differently rather than taken away: a
  * decision is not a reason to stop showing what it was about.
  */
-export interface Marks {
+interface Marks {
     extraNotes: ExtraNote[];
     omissions: OmittedGroup[];
 }

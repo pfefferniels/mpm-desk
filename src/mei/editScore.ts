@@ -20,7 +20,7 @@ import { spellMidi } from "../performance/spellPitch";
 
 const MEI_NS = "http://www.music-encoding.org/ns/mei";
 
-export interface Attribution {
+interface Attribution {
     /** Who made the decision, for @resp */
     resp?: string;
     /** How sure they are: high, medium, low, unknown */
@@ -30,7 +30,7 @@ export interface Attribution {
 }
 
 /** The reasons an <rdg source="performance"> may give, as CreateReading names them. */
-export type ReadingReason =
+type ReadingReason =
     | "added-octave"
     | "fuller-chord"
     | "ornamentation"

@@ -186,15 +186,6 @@ export function unitsPerSecond(options?: Partial<ScoreOptions>): number {
     return performanceScale * unit * 10;
 }
 
-/**
- * The same axis in pixels, once the page has been scaled down for the SVG. Anything drawn
- * *beside* the score rather than into it — a piano roll of the recording — has to follow it too.
- */
-export function pixelsPerSecond(options?: Partial<ScoreOptions>): number {
-    const { scale = 100 } = { ...defaultOptions, ...options };
-    return (unitsPerSecond(options) * scale) / 1000;
-}
-
 /** The distance between two staff lines, in the units the SVG is drawn in. */
 export function staffSpace(options?: Partial<ScoreOptions>): number {
     const { unit = 9 } = { ...defaultOptions, ...options };

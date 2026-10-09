@@ -32,7 +32,7 @@ const PLAYING_CLASS = "note-playing";
 /** Silence allowed after the last note before the transport is called finished */
 const TAIL_MS = 400;
 
-export interface PlaybackOptions {
+interface PlaybackOptions {
     notes: readonly PlayableNote[];
     pedals?: readonly PlayablePedal[];
     /**

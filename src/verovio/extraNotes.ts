@@ -39,7 +39,7 @@ export interface ExtraNote {
     resolved: boolean;
 }
 
-export interface ExtraNoteOptions {
+interface ExtraNoteOptions {
     /** The key the extra notes are spelled in, so an F sharp is not drawn as a G flat */
     tonic?: string;
     colour?: string;

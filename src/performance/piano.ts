@@ -81,7 +81,7 @@ const subscribe = (listener: () => void) => {
     }
 }
 
-export interface SampleLoading {
+interface SampleLoading {
     /** Still fetching, so nothing will sound yet */
     loading: boolean
     /** The samples could not be fetched at all */
