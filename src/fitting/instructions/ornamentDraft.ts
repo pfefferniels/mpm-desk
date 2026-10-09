@@ -11,7 +11,7 @@
  * transformers share: `InsertDynamicsGradient` writes the gradient half and
  * `InsertTemporalSpread` the spread half at the same date, and {@link fillInAt} makes the two one
  * `<ornament>`. A side table keyed by element would not survive the document being serialized
- * between them, nor whatever `TranslatePhyiscalTimeToTicks` does in between, which is to rewrite
+ * between them, nor whatever `TranslatePhysicalTimeToTicks` does in between, which is to rewrite
  * two of these fields.
  *
  * `StylizeOrnamentation` ends their life, moving them into a real `<ornamentDef>` and calling

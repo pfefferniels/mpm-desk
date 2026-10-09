@@ -11,7 +11,7 @@
  * also run, and the schema would have to import the registry to state its own types.
  */
 import { compareTransformers, validate } from './transformers/Order';
-import { canonicalName, createTransformer } from './transformers/TransformerRegistry';
+import { createTransformer } from './transformers/TransformerRegistry';
 import { InsertMetadata } from './transformers/metadata/InsertMetadata';
 import { RoundNumbers } from './transformers/rounding/RoundNumbers';
 import { TranslatePhysicalTimeToTicks } from './transformers/tempo/TranslatePhysicalTimeToTicks';
@@ -66,11 +66,8 @@ const APPLIED_TO_THE_SCORE = new Set(['Align']);
 /** Whether the chain leaves this call to the document rather than running it. */
 export const isDocumentCall = (name: string): boolean => APPLIED_TO_THE_SCORE.has(name);
 
-/**
- * Whether `name` names a call the run makes for itself — under either spelling of
- * `TranslatePhysicalTimeToTicks`, since the shipped file carries the misspelled one.
- */
-export const isInjectedCall = (name: string): boolean => INJECTED.has(canonicalName(name));
+/** Whether `name` names a call the run makes for itself. */
+export const isInjectedCall = (name: string): boolean => INJECTED.has(name);
 
 interface BuiltChain {
     /** The chain as it will run: metadata substituted, in reduction order. */

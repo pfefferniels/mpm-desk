@@ -26,7 +26,7 @@ interface Gathered {
  * the calls rather than a lookup per segment, and it settles three things a row cannot:
  *
  * - **What a segment holds at all.** A call that wrote no instruction contributes nothing, which
- *   is the whole of "`Modify`, `MakeChoice` and `TranslatePhyiscalTimeToTicks` are not part of
+ *   is the whole of "`Modify`, `MakeChoice` and `TranslatePhysicalTimeToTicks` are not part of
  *   the narrative": they are left out by having nothing to show rather than by a list of which
  *   transformers count.
  * - **Which instructions are gone.** `Call.elements` records what a call was answerable for when
