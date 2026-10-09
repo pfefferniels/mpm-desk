@@ -33,8 +33,7 @@ import type { Call } from '../model/Work';
  *   in `requires`, so a chain that forgot it does not fit worse: `validate` reports and `runFit`
  *   throws.
  *
- * So it is injected here, as {@link InsertMetadata} is, and a file listing one is listing a
- * ghost, which `src/model/loadWork.ts` drops on open.
+ * So it is injected here, as {@link InsertMetadata} is, and a saved one is filtered out.
  *
  * Unconditionally rather than when something needs it. A condition would be a second copy of a
  * rule `Order.ts` already states, and "only when a later call requires it" is the wrong rule
