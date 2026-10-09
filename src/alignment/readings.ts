@@ -49,7 +49,7 @@ export interface Attribution {
 export const CERTAINTIES = ["high", "medium", "low", "unknown"];
 
 /** The name each family goes by, in the score and in the popover. */
-export const ADDED_LABELS: Record<AddedReading, string> = {
+const ADDED_LABELS: Record<AddedReading, string> = {
     "written-ornament": "An ornament the score already writes",
     ornamentation: "Ornamentation the score does not write",
     "added-octave": "An octave doubled",
@@ -59,14 +59,14 @@ export const ADDED_LABELS: Record<AddedReading, string> = {
     outside: "Outside the music",
 };
 
-export const MISSING_LABELS: Record<MissingReading, string> = {
+const MISSING_LABELS: Record<MissingReading, string> = {
     "thinned-chord": "The chord thinned",
     "omitted-passage": "A passage passed over",
     "omitted-note": "A note not played",
     outside: "Beyond where the recording reaches",
 };
 
-export const REPLACED_LABELS: Record<ReplacedReading, string> = {
+const REPLACED_LABELS: Record<ReplacedReading, string> = {
     "unmatched-pair": "Played as written, and matched to nothing",
     "neighbour-slip": "A neighbouring note played instead",
     "octave-displaced": "Played in another octave",
@@ -150,7 +150,7 @@ const NOTATION_ACTIONS = new Set<Action>([
 export const changesNotation = (action: Action): boolean => NOTATION_ACTIONS.has(action);
 
 /** How many notes in a row the recording must pass over before it is a passage. */
-export const PASSAGE_NOTES = 3;
+const PASSAGE_NOTES = 3;
 
 /**
  * Whether a divergence is a stretch of music the performer went past, rather

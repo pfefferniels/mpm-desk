@@ -6,7 +6,7 @@ import { lineOf, placeTravel, stepLine, type PedalLane } from '../pedalGeometry'
 export type Grab = { at: 'body' } | { at: 'vertex'; index: number } | { at: 'plateau'; index: number };
 
 /** A line the press used to draw, and the colour that says whether the chain has run it. */
-export interface GhostLine {
+interface GhostLine {
     dateMs: number;
     travel: Travel;
     color: string;

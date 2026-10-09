@@ -102,12 +102,6 @@ export type IndexTriple =
     | { label: "deletion"; scoreIdx: number; confidence: number }
     | { label: "insertion"; perfIdx: number; confidence: number };
 
-/** An alignment triple over note ids, as the caller wants them. */
-export type AlignmentTriple =
-    | { label: "match"; scoreId: string; perfId: string; confidence: number }
-    | { label: "deletion"; scoreId: string; confidence: number }
-    | { label: "insertion"; perfId: string; confidence: number };
-
 /**
  * Constants shared with the Python. Names match `meta.constants` in the golden
  * manifests, which is the contract these are checked against.

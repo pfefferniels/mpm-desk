@@ -113,7 +113,7 @@ export interface AlignmentRun {
     notices: string[];
 }
 
-export interface RunOptions {
+interface RunOptions {
     mei: string;
     midi: MidiFile;
     model: MlignModelId;

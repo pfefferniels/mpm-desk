@@ -72,7 +72,7 @@ export const placeTravel = (
     }))
 
 /** A stretch of the plot over which one pedal was held down, in pixels. */
-export interface Press {
+interface Press {
     from: number
     to: number
 }

@@ -13,12 +13,12 @@ import type { Match } from "./types";
 import type { Divergence } from "./divergences";
 
 /** What the reader decided about each divergence, keyed by its id. */
-export type Resolutions = ReadonlyMap<
+type Resolutions = ReadonlyMap<
     string,
     { reading: string; action?: string; resp?: string; certainty?: string }
 >;
 
-export interface AlignmentExtras {
+interface AlignmentExtras {
     /**
      * What this take is called: the `@source` of the `<recording>` written here.
      *

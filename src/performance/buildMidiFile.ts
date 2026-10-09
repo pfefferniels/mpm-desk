@@ -35,7 +35,7 @@ export interface PlayablePedal {
 }
 
 /** The stretch of the performance to play, in milliseconds from its start. */
-export interface PlayRange {
+interface PlayRange {
     fromMs: number;
     toMs: number;
 }
