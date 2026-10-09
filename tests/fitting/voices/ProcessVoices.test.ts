@@ -2,7 +2,6 @@ import { describe, expect, test, vi } from 'vitest';
 import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
 import { ProcessVoices } from '../../../src/fitting/transformers/voices/index';
 import { createMpm, getInstructions } from '../../../src/fitting/instructions/index';
-import { getRange } from '../../../src/fitting/transformers/Transformer';
 
 const note = (
   id: string,
@@ -173,15 +172,14 @@ describe('ProcessVoices', () => {
   });
 
   test('has no range — a layout is not a place in the score', () => {
-    // The guard on the nested selector. `getRange` duck-types `{from,to}`, `{date}` and
-    // `{noteIDs}` at the *top level* of the options, so hoisting a move's selector out of
-    // `select` would give this call a span in the narrative for instructions it never wrote.
+    // Even with a move selecting notes: a call that writes no instruction has no span in the
+    // narrative.
     const call = new ProcessVoices({
       parts: [{ number: 1, name: '', voices: ['1/1'] }],
       moves: [{ part: 1, select: { noteIDs: ['a1'] } }],
     });
 
-    expect(getRange(call.options, score())).toBeUndefined();
+    expect(call.range()).toBeUndefined();
   });
 
   describe('reports a layout it will not repair', () => {

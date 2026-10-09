@@ -133,6 +133,10 @@ export class RoundNumbers extends AbstractTransformer<RoundNumbersOptions> {
     super({});
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(_msm: Alignment, mpm: Mpm): void {
     this.restated = [];
     const root = mpm.getRootElement();

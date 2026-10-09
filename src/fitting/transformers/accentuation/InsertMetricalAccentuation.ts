@@ -18,6 +18,7 @@ import {
 import { InsertDynamicsInstructions } from '../dynamics/index';
 import { PULSES_PER_WHOLE } from '../../ppq';
 import { filterMap } from 'espressivo';
+import { type Range } from '../range';
 
 export interface InsertMetricalAccentuationOptions extends ScopedTransformationOptions {
   name: string;
@@ -220,6 +221,10 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
    * number of pattern lengths, 43 of the 54 patterns in the shipped performance against 19 under
    * the default, and the rest are still read at a phase the desk did not fit. See issue #47.
    */
+  range(): Range {
+    return { from: this.options.from, to: this.options.to };
+  }
+
   protected transform(msm: Alignment, mpm: Mpm): void {
     if (
       !getDefinitions(mpm, 'accentuationPatternDef', this.options.scope).find(

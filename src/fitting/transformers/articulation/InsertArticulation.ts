@@ -15,6 +15,7 @@ import {
 import { v4 } from 'uuid';
 import { TranslatePhysicalTimeToTicks } from '../tempo/index';
 import { deriveResidual, type NoteResidual } from '../../residual';
+import { type Range, rangeOfNotes } from '../range';
 
 export type ArticulationProperty =
   'relativeDuration' | 'relativeVelocity' | 'absoluteDuration' | 'absoluteDurationChange';
@@ -151,6 +152,10 @@ export class InsertArticulation extends AbstractTransformer<InsertArticulationOp
         ? absoluteDurationChange
         : undefined,
     };
+  }
+
+  range(msm: Alignment): Range | undefined {
+    return rangeOfNotes(this.options.noteIDs, msm);
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {

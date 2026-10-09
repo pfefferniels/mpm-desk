@@ -85,7 +85,7 @@ describe('Alignment.serialize performance data', () => {
 describe('Alignment.serialize pedals', () => {
   /**
    * It does not, and cannot: MSM's `<pedal>` is `date`/`state`/`date.end` in ticks, and an
-   * aligned pedal has no symbolic date — that is why `getRange` derives one from the residual.
+   * aligned pedal has no symbolic date — that is why a pedal call's range is derived from the residual.
    * What mpmify used to emit had no `@date`, so espressivo's `GenericMap.indexElements` skipped
    * every one of them, and a `<pedal>` reaches no renderer in any case; pedalling sounds
    * through MPM's `<movement>` instructions. The pedals live on the alignment instead.

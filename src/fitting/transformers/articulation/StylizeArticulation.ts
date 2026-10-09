@@ -240,6 +240,10 @@ export class StylizeArticulation extends AbstractTransformer<StylizeArticulation
       .forEach((def) => removeDefinition(mpm, 'articulationDef', def));
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(msm: Alignment, mpm: Mpm): void {
     // Where each note actually fell, under everything the MPM explains apart from
     // articulation — which is what this step is deciding. Derived once: it does not vary by

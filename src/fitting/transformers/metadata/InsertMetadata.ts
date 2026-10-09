@@ -40,6 +40,10 @@ export class InsertMetadata extends AbstractTransformer<InsertMetadataOptions> {
     super(options || {});
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(_msm: Alignment, mpm: Mpm): void {
     const authors = (this.options.authors ?? []).map((author) =>
       unwrap(Author.fromName(author.text, author.number, null), 'author'),

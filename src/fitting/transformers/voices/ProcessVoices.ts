@@ -10,10 +10,8 @@ import { AbstractTransformer, type TransformationOptions } from '../Transformer'
  * produces; a voice over a tick range is what "the middle voice belongs to the left hand from bar
  * 9" produces, and it keeps meaning that after the notes under it have been re-selected.
  *
- * Modelled on `ModifySelector`, and nested inside a move rather than spread across the options for
- * a reason that is not tidiness: `getRange` duck-types a transformer's options at the *top level*
- * — `{from,to}`, then `{date}`, then `{noteIDs}`. Either name up there would give this call a range
- * it does not have, and put a span in the narrative for a call that writes no instruction.
+ * Modelled on `ModifySelector`, and nested inside a move: a call holds any number of moves, each
+ * selecting its own notes.
  */
 export type VoiceSelection =
   | { noteIDs: string[] }
@@ -72,6 +70,10 @@ export class ProcessVoices extends AbstractTransformer<ProcessVoicesOptions> {
 
   constructor(options?: ProcessVoicesOptions) {
     super(options ?? { parts: [] });
+  }
+
+  range(): undefined {
+    return undefined;
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {

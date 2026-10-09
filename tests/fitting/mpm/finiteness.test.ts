@@ -47,6 +47,9 @@ class WritesTempo extends AbstractTransformer<TransformationOptions> {
   ) {
     super({});
   }
+  range() {
+    return undefined;
+  }
   protected transform(_msm: Alignment, mpm: Mpm) {
     requireMap(mpm, 'tempo', 'global').addTempo({
       id: this.elementId,

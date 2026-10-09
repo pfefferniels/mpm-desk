@@ -41,6 +41,10 @@ export class CombineAdjacentRubatos extends AbstractTransformer<CombineAdjacentR
     );
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(msm: Alignment, mpm: Mpm): void {
     const rubatos = getInstructions(mpm, 'rubato', this.options.scope);
     if (rubatos.length <= 1) return;

@@ -241,6 +241,10 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
     });
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(_msm: Alignment, mpm: Mpm): void {
     for (const scope of scopesOf(mpm)) {
       const ornaments = fittedOrnamentsOf(mpm, scope);

@@ -7,6 +7,7 @@ import { deriveResidual, type Residual } from '../../residual';
 import { filterMap } from 'espressivo';
 import type { TickVertex } from '../tempo/tickTimes';
 import { approximateMovements, movementIds, type FittedMovement } from './approximateMovement';
+import { type Range, rangeOfPress } from '../range';
 
 /**
  * A pedal depth as `@position` and `@transition.to` are typed: espressivo's `Normalized`.
@@ -38,6 +39,8 @@ export interface PedalRampOptions extends FitPedalOptions {
 }
 
 export type InsertPedalOptions = FitPedalOptions | PedalRampOptions;
+
+const isRamp = (options: InsertPedalOptions): options is PedalRampOptions => 'direction' in options;
 
 /** A press the residual could place on the score grid, line and all. */
 interface PlacedPress {
@@ -142,6 +145,13 @@ export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
     super(options ?? {});
   }
 
+  /** A call about every press the residual can place names no press to measure, and reports no range. */
+  range(msm: Alignment, residual?: Residual): Range | undefined {
+    const options = this.options;
+    if (options.pedal === undefined) return undefined;
+    return rangeOfPress(options.pedal, msm, residual, isRamp(options) ? options : undefined);
+  }
+
   protected transform(msm: Alignment, mpm: Mpm): void {
     // Where each pedal fell on the score grid, under the MPM as it stands. `movement` is held
     // out for the same reason every other fitter holds its own dimension out, though it changes
@@ -153,7 +163,7 @@ export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
     const options = this.options;
 
     for (const press of placedPresses(msm, residual, options.pedal)) {
-      if ('direction' in options) writeRamp(map, press, options);
+      if (isRamp(options)) writeRamp(map, press, options);
       else if (press.tickTravel) writeLine(map, press, press.tickTravel);
     }
   }

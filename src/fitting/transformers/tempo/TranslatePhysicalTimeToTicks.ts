@@ -55,6 +55,10 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
     );
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(msm: Alignment, mpm: Mpm): void {
     if (this.options.translatePhysicalModifiers) this.translatePhysicalMPMModifiers(mpm, msm);
   }

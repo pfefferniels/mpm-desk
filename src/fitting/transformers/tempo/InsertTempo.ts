@@ -13,6 +13,7 @@ import {
   type ScopedTransformationOptions,
 } from '../Transformer';
 import { elementAt } from 'espressivo';
+import { type Range } from '../range';
 
 export interface InsertTempoOptions extends ScopedTransformationOptions {
   /** Where the tempo is stated, in ticks. */
@@ -51,6 +52,10 @@ export class InsertTempo extends AbstractTransformer<InsertTempoOptions> {
 
   protected override disowned(): readonly string[] {
     return this._boundaryId ? [this._boundaryId] : [];
+  }
+
+  range(): Range {
+    return { from: this.options.from, to: this.options.to };
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {

@@ -12,6 +12,7 @@ import { TranslatePhysicalTimeToTicks } from '../tempo/index';
 import { determineIntensity } from '../ornamentation/index';
 import { deriveResidual, type Residual } from '../../residual';
 import { head, isNonEmpty, numberAt } from 'espressivo';
+import { type Range, rangeAt } from '../range';
 
 // Re-exported: `calculateRubatoOnDate` is part of this module's public surface, and the rubato
 // desk imports it from here.
@@ -54,6 +55,10 @@ export class InsertRubato extends AbstractTransformer<InsertRubatoOptions> {
         length: PULSES_PER_QUARTER,
       },
     );
+  }
+
+  range(): Range {
+    return rangeAt(this.options.date, this.options.length);
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {
