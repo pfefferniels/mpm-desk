@@ -1,4 +1,4 @@
-import { parseWorkFile, type WorkFile } from './Work';
+import { parseWorkFile, type Segment, type WorkFile } from './Work';
 import { migrateWork, isMigrated } from './migrateWork';
 import { isInjectedCall } from '../fitting/chain';
 
@@ -23,7 +23,7 @@ export function migrateIfNeeded(json: string): WorkFile {
     const parsed: unknown = JSON.parse(json);
 
     if (isMigrated(parsed)) {
-        const lifted = lift(parsed as WorkFile);
+        const lifted = lift(parsed);
         // Round-tripped through the reader either way, so that every path arrives by the same
         // one — the `Map` and `Set` option envelopes are revived in exactly one place.
         return lifted ? parseWorkFile(JSON.stringify(lifted)) : parseWorkFile(json);
@@ -86,12 +86,10 @@ export function dropInjectedCalls(work: WorkFile): WorkFile | null {
 }
 
 /** A segment as an earlier flat shape wrote it: the calls it held, and its second prose field. */
-interface OlderSegment {
-    id: string;
-    note?: unknown;
-    commentary?: unknown;
-    calls?: unknown;
-}
+type OlderSegment = Segment & { commentary?: unknown; calls?: unknown };
+
+/** A work file whose segments may still be in an earlier flat shape. Every `WorkFile` is one. */
+type OlderWorkFile = Omit<WorkFile, 'segments'> & { segments: readonly OlderSegment[] };
 
 /**
  * Turn the segment→call link round, for a file written while it still pointed that way.
@@ -112,8 +110,8 @@ interface OlderSegment {
  * at shared defs. Any rule for splitting those bakes an answer into the file, where here the
  * ambiguity stays in the view.
  */
-export function liftSegmentLinks(work: WorkFile): WorkFile | null {
-    const segments = work.segments as unknown as OlderSegment[];
+export function liftSegmentLinks(work: OlderWorkFile): WorkFile | null {
+    const { segments } = work;
     if (!segments.some((segment) => Array.isArray(segment.calls))) return null;
 
     const segmentOf = new Map<string, string>();
@@ -134,7 +132,7 @@ export function liftSegmentLinks(work: WorkFile): WorkFile | null {
         segments: segments.map((segment) => {
             const next = { ...segment };
             delete next.calls;
-            return next as WorkFile['segments'][number];
+            return next;
         }),
     };
 }
@@ -151,8 +149,8 @@ export function liftSegmentLinks(work: WorkFile): WorkFile | null {
  * Joined with an em-dash, and only where both are present: a segment carrying commentary alone
  * keeps it as its whole note.
  */
-export function foldCommentary(work: WorkFile): WorkFile | null {
-    const segments = work.segments as unknown as OlderSegment[];
+export function foldCommentary(work: OlderWorkFile): WorkFile | null {
+    const { segments } = work;
     if (!segments.some((segment) => typeof segment.commentary === 'string')) return null;
 
     return {
@@ -161,11 +159,11 @@ export function foldCommentary(work: WorkFile): WorkFile | null {
             const next = { ...segment };
             const commentary = typeof next.commentary === 'string' ? next.commentary.trim() : '';
             delete next.commentary;
-            if (!commentary) return next as WorkFile['segments'][number];
+            if (!commentary) return next;
 
             const note = typeof next.note === 'string' ? next.note.trim() : '';
             next.note = note ? `${note} — ${commentary}` : commentary;
-            return next as WorkFile['segments'][number];
+            return next;
         }),
     };
 }

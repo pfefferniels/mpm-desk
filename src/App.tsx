@@ -49,8 +49,8 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { useEditorFit } from './hooks/useEditorFit';
 import { asMSM } from './fitting/asMSM';
 import type { Alignment } from './fitting/alignment';
-import { getInstructions } from './fitting/instructions/index';
-import type { ScopedTransformationOptions, Transformer } from './fitting/transformers/Transformer';
+import { getInstructions, isScope } from './fitting/instructions/index';
+import type { Transformer } from './fitting/transformers/Transformer';
 import {
     initialHistory,
     metadataOf,
@@ -500,8 +500,8 @@ export const App = () => {
             );
             if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
 
-            const options = call.options as Partial<ScopedTransformationOptions>;
-            if (options.scope !== undefined) setScope(options.scope);
+            const { scope } = call.options;
+            if (isScope(scope)) setScope(scope);
 
             const prefix = call.id.slice(0, 8);
             if (window.location.hash.slice(1) !== prefix)

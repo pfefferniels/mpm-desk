@@ -13,7 +13,7 @@ interface DynamicsCircleProps {
      * Optional, because a plot that acts on the press has nothing left for the click to do — see
      * `onDragStart`.
      */
-    handleClick?: (e: MouseEvent, segment: DynamicsSegment) => void;
+    handleClick?: (e: React.MouseEvent<SVGCircleElement>, segment: DynamicsSegment) => void;
     cursor?: string;
     /**
      * The press, with the event rather than just its `clientY`.
@@ -91,7 +91,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                 onMouseOut={() => setHovered(false)}
                 onClick={(e) => {
                     handlePlay(segment.date.start);
-                    handleClick?.(e as unknown as MouseEvent, segment);
+                    handleClick?.(e, segment);
                 }} />
         </>
     );
