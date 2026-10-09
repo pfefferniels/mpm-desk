@@ -92,7 +92,7 @@ type MeasuredArticulation = ArticulationModifiers & {
  * @note This transformation can only be applied after both dynamics and tempo transformation.
  */
 export class InsertArticulation extends AbstractTransformer<InsertArticulationOptions> {
-  name = 'InsertArticulation';
+  readonly name = 'InsertArticulation';
   requires = [TranslatePhysicalTimeToTicks];
 
   constructor(options?: InsertArticulationOptions) {

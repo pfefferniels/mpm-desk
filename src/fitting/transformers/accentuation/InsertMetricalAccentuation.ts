@@ -50,7 +50,7 @@ interface FittedAccentuation {
 }
 
 export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetricalAccentuationOptions> {
-  name = 'InsertMetricalAccentuation';
+  readonly name = 'InsertMetricalAccentuation';
   requires = [InsertDynamicsInstructions];
 
   constructor(options?: InsertMetricalAccentuationOptions) {

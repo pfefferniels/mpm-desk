@@ -27,7 +27,7 @@ interface MergedAccentuation {
 }
 
 export class MergeMetricalAccentuations extends AbstractTransformer<MergeMetricalAccentuationsOptions> {
-  name = 'MergeMetricalAccentuations';
+  readonly name = 'MergeMetricalAccentuations';
   requires = [InsertMetricalAccentuation];
 
   constructor(options?: MergeMetricalAccentuationsOptions) {

@@ -9,6 +9,7 @@ import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
 import { DeleteOutline } from "@mui/icons-material";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { isCallOf } from "../../fitting/calls";
 import { SilentOrnaments } from "../SilentOrnaments";
 
 interface ToleranceProps {
@@ -52,7 +53,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
     // to find. `part` narrows what the plot below shows, not what the call covers; adding
     // `t.options.scope === part` would compare against an attribute that is never written and
     // leave `Stylize Ornaments` live forever.
-    const existingTransformer = calls.find(t => t.name === 'StylizeOrnamentation')
+    const existingTransformer = calls.find(isCallOf('StylizeOrnamentation'))
     const [tickTolerance, setTickTolerance] = useState(10)
     const [intensityTolerance, setIntensityTolerance] = useState(0.2)
     const [gradientTolerance, setGradientTolerance] = useState(0.2)

@@ -137,7 +137,7 @@ const requireWithinSpec = ({ from, to }: GradientRange): void => {
  * order of the recorded onsets.
  */
 export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGradientOptions> {
-  name = 'InsertDynamicsGradient';
+  readonly name = 'InsertDynamicsGradient';
   requires = [];
 
   constructor(options?: InsertDynamicsGradientOptions) {

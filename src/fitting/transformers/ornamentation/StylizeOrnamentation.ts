@@ -148,7 +148,7 @@ const byLabel = (
   }, {});
 
 export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentationOptions> {
-  name = 'StylizeOrnamentation';
+  readonly name = 'StylizeOrnamentation';
   requires = [InsertDynamicsGradient, InsertTemporalSpread];
 
   /**

@@ -27,7 +27,7 @@ export type MakeChoiceOptions =
   | Preference; // default choice
 
 export class MakeChoice extends AbstractTransformer<MakeChoiceOptions> {
-  name = 'MakeChoice';
+  readonly name = 'MakeChoice';
   requires = [];
 
   constructor(options?: MakeChoiceOptions) {

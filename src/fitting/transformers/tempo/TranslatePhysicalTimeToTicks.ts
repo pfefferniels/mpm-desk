@@ -44,7 +44,7 @@ export interface TranslatePhysicalTimeToTicksOptions extends TransformationOptio
  * there. So `transform` has to be cheap on a document with no ornaments in it.
  */
 export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslatePhysicalTimeToTicksOptions> {
-  name = 'TranslatePhysicalTimeToTicks';
+  readonly name = 'TranslatePhysicalTimeToTicks';
   requires = [];
 
   constructor(options?: TranslatePhysicalTimeToTicksOptions) {

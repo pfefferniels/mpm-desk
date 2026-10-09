@@ -14,6 +14,7 @@
 
 import type { AlignedNote, Alignment } from '../fitting/alignment';
 import { exportMPM, type Mpm } from '../fitting/instructions/index';
+import { isCallOf } from '../fitting/calls';
 import type { MakeChoiceOptions } from '../fitting/transformers/choice/MakeChoice';
 import { serializeWorkFile, type Call, type Segment, type WorkFile } from './Work';
 import type { CallOutcome } from './Reconstruction';
@@ -181,8 +182,8 @@ export const buildWorkArchive = async (input: WorkArchiveInput): Promise<Blob> =
         input.mei,
         input.msm,
         input.calls
-            .filter((call) => call.name === 'MakeChoice')
-            .map((call) => call.options as unknown as MakeChoiceOptions),
+            .filter(isCallOf('MakeChoice'))
+            .map((call) => call.options),
     );
 
     const work: WorkFile = {

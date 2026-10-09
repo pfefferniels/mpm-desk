@@ -124,7 +124,7 @@ const roundedValue = (value: string): string | null => {
  * did is restate what other calls decided. Hence {@link disowned}.
  */
 export class RoundNumbers extends AbstractTransformer<RoundNumbersOptions> {
-  name = 'RoundNumbers';
+  readonly name = 'RoundNumbers';
   requires = [];
 
   private restated: string[] = [];

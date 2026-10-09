@@ -68,7 +68,7 @@ export type InsertTemporalSpreadOptions = ScopedTransformationOptions & {
  * onset.
  */
 export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpreadOptions> {
-  name = 'InsertTemporalSpread';
+  readonly name = 'InsertTemporalSpread';
   requires = [];
 
   constructor(options?: InsertTemporalSpreadOptions) {

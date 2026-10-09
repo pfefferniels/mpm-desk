@@ -43,7 +43,7 @@ export interface InsertRubatoOptions extends ScopedTransformationOptions {
  * Interpolates <rubato> elements.
  */
 export class InsertRubato extends AbstractTransformer<InsertRubatoOptions> {
-  name = 'InsertRubato';
+  readonly name = 'InsertRubato';
   requires = [TranslatePhysicalTimeToTicks];
 
   constructor(options?: InsertRubatoOptions) {
