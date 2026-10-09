@@ -26,8 +26,6 @@ export type {
     AddedDivergence,
     AddedReading,
     Divergence,
-    DivergenceInput,
-    DivergenceOptions,
     MissingDivergence,
     MissingReading,
     ReplacedDivergence,

@@ -2,7 +2,7 @@ import type { ScoreNote } from "../../score/scoreNotes";
 import type { UnplayedGroup } from "./grouping";
 import type { DivergenceInput, MissingDivergence, MissingReading } from "./types";
 
-export interface MissingContext {
+interface MissingContext {
     /** Score moments the recording answered to at all */
     matchedOnsets: Set<number>;
     /** Whether the recording covers a moment, judged from the notes around it */
