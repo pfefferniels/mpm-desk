@@ -9,15 +9,15 @@ import type { MatchedNote, DeletedNote } from '../../alignment/mlign';
  * disagreements: red where the score has a note the recording never reached, green where the
  * recording has a note the score never wrote, violet where one was played as another.
  */
-export const MATCHED_COLOUR = '#6b7280';
+const MATCHED_COLOUR = '#6b7280';
 /** A note verovio could place nowhere: nothing is known about it, rather than something. */
-export const UNALIGNED_COLOUR = '#c9ced6';
+const UNALIGNED_COLOUR = '#c9ced6';
 /** A written note the recording played as something else: sounded, but not as written. */
-export const REPLACED_COLOUR = '#7c3aed';
+const REPLACED_COLOUR = '#7c3aed';
 /** Whichever disagreement the reader currently has open. */
-export const SELECTED_COLOUR = '#1d4ed8';
+const SELECTED_COLOUR = '#1d4ed8';
 /** A note sounding, while the performance is being listened to. */
-export const PLAYING_COLOUR = '#f97316';
+const PLAYING_COLOUR = '#f97316';
 
 const CLASSES = [
     'alignment-matched',
@@ -35,7 +35,7 @@ const CLASSES = [
  * on which of them turned out to be one note played as another, and each of those is a decision
  * that can be got wrong quietly.
  */
-export interface Painting {
+interface Painting {
     matched: ReadonlySet<string>;
     /** Written, and nothing in the recording answers to it. */
     unplayed: ReadonlySet<string>;
@@ -47,7 +47,7 @@ export interface Painting {
     divergenceOf: ReadonlyMap<string, string>;
 }
 
-export interface PaintingInput {
+interface PaintingInput {
     matches: readonly MatchedNote[];
     deletions: readonly DeletedNote[];
     divergences: readonly Divergence[];

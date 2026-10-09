@@ -136,7 +136,7 @@ export interface ReplacedDivergence {
 
 export type Divergence = AddedDivergence | MissingDivergence | ReplacedDivergence;
 
-export interface DivergenceOptions {
+interface DivergenceOptions {
     /**
      * How long a silence ends a figure, in milliseconds. Notes of one ornament
      * follow each other far faster than this; separate events do not.
@@ -205,7 +205,7 @@ const DEFAULTS = {
     replacementSemitones: 12,
 };
 
-export interface DivergenceInput {
+interface DivergenceInput {
     matches: readonly MatchedNote[];
     deletions: readonly DeletedNote[];
     insertions: readonly InsertedNote[];

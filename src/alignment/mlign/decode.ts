@@ -116,7 +116,7 @@ function softmaxRow(buf: Float32Array, off: number, len: number): void {
 }
 
 /** Dual-softmax confidence plus the null shares the labelling step needs. */
-export interface Confidence {
+interface Confidence {
     /** `sm_s * sm_p.T`, row-major `(n, m)`. */
     conf: Float32Array;
     /** Null share of each score note's softmax mass — a deletion's confidence. */
@@ -435,7 +435,7 @@ function assignMonotone(
 }
 
 /** Per-stage intermediates, for checking the decode against golden fixtures. */
-export interface DecodeTrace {
+interface DecodeTrace {
     conf: Float32Array;
     anchorsRaw: [number, number][];
     anchors: [number, number][];
@@ -451,7 +451,7 @@ export interface DecodeTrace {
     rescued: [number, number][];
 }
 
-export interface DecodeOptions {
+interface DecodeOptions {
     anchorConf?: number;
     tolSec?: number;
 }

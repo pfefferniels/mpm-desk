@@ -87,7 +87,7 @@ const extData = (doc: Document, when: Element, type: string, value: string) => {
  * who made it and how sure they were, in the same terms the rest of the project
  * uses for editorial decisions (see ../ui/CreateReading).
  */
-export interface WhenReading {
+interface WhenReading {
     reading: string;
     resp?: string;
     certainty?: string;

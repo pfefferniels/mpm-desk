@@ -59,7 +59,7 @@ import { LOG_FLOOR, UNCOVERED_SIM } from "./types";
  * All three mean the same under every checkpoint. What differs by checkpoint is
  * how the first is arrived at.
  */
-export interface Attributed {
+interface Attributed {
     /** Index into the score table of the note it most likely ornaments. */
     scoreIdx: number;
     /** The row's mass on that note, "not an ornament" included in the total. */
