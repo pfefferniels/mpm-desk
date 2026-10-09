@@ -6,7 +6,9 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 export default tseslint.config(
   // `vendor` is the verovio toolkit: 7 MB of emscripten output, which is not ours to lint and
   // which overflows the stack of at least `no-nonoctal-decimal-escape` if offered to it.
-  { ignores: ['dist', '.claude', 'vendor'] },
+  // `welte225.org` is where CI checks out the published reconstruction the tests read. Its own
+  // scripts are not this repository's to lint.
+  { ignores: ['dist', '.claude', 'vendor', 'welte225.org'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
