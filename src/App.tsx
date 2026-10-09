@@ -58,9 +58,8 @@ import {
     workHistoryReducer,
     type Secondary,
 } from './model/workReducer';
-import { migrateIfNeeded } from './model/loadWork';
 import { buildWorkArchive } from './model/exportWork';
-import { sourcesOf, type WorkFile } from './model/Work';
+import { parseWorkFile, sourcesOf, type WorkFile } from './model/Work';
 import { documentSlug, downloadAsFile } from './utils/utils';
 
 /**
@@ -228,7 +227,7 @@ export const App = () => {
 
     const loadWorkFromJson = useCallback((content: string) => {
         try {
-            const loaded = migrateIfNeeded(content);
+            const loaded = parseWorkFile(content);
             dispatch({ type: 'load', work: loaded });
             setSavedWork(loaded);
 
@@ -312,9 +311,7 @@ export const App = () => {
         async (file: File) => {
             const zip = await JSZip.loadAsync(file);
             const meiFile = zip.file('transcription.mei');
-            // `work.json` is the current name; older archives carry `info.json`, and those are
-            // worth being able to open.
-            const jsonFile = zip.file('work.json') ?? zip.file('info.json');
+            const jsonFile = zip.file('work.json');
             // Read before the MEI is: `loadMei` empties the takes, because opening a score is
             // opening a different piece, and an archive's takes are that score's own.
             const midiFiles = zip.file(/^recordings\//);
