@@ -169,13 +169,10 @@ describe('dropping the call the run makes for itself', () => {
             segments: [{ id: 's1', note: 'Hinspielen auf 1' }, { id: 's2', note: 'Unbestimmt' }],
         } as unknown as WorkFile);
 
-    it.each(['TranslatePhysicalTimeToTicks', 'TranslatePhyiscalTimeToTicks'])(
-        'takes the call out, under either spelling (%s)',
-        (name) => {
-            const dropped = dropInjectedCalls(withTranslate(name));
-            expect(dropped!.provenance.map((call) => call.id)).toEqual(['a']);
-        },
-    );
+    it('takes the call out', () => {
+        const dropped = dropInjectedCalls(withTranslate('TranslatePhysicalTimeToTicks'));
+        expect(dropped!.provenance.map((call) => call.id)).toEqual(['a']);
+    });
 
     it('takes the claim the call was the only thing under with it', () => {
         // A claim that only ever held plumbing was never a claim. „Unbestimmt" is the word the
@@ -220,7 +217,7 @@ describe('dropping the call the run makes for itself', () => {
                 ...legacy,
                 provenance: [
                     { id: 'a', name: 'InsertTempo', options: {} },
-                    { id: 't', name: 'TranslatePhyiscalTimeToTicks', options: {} },
+                    { id: 't', name: 'TranslatePhysicalTimeToTicks', options: {} },
                 ],
                 segments: [{ id: 's1', note: 'Hinspielen auf 1', calls: ['a', 't'] }],
             }),

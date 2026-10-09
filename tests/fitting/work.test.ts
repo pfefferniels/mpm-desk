@@ -195,34 +195,28 @@ describe('the chain built from it', () => {
    * The calls a run makes for itself, and the reason a file may not make one of them twice.
    *
    * `TranslatePhysicalTimeToTicks` was a button on the tempo desk, and every file written while
-   * it was one names it — the shipped reconstruction under the misspelling. Injecting it without
-   * filtering those out would put two in the chain: harmless to the document, since the second
-   * finds every ornament already in ticks, and still wrong, because one call would be credited
-   * with all of them and the other with none.
-   *
-   * Both spellings, because the alias is what decides which name the file is allowed to use and
-   * the filter has to ask the same question `createTransformer` does.
+   * it was one names it. Injecting it without filtering those out would put two in the chain:
+   * harmless to the document, since the second finds every ornament already in ticks, and still
+   * wrong, because one call would be credited with all of them and the other with none.
    */
-  test.each(['TranslatePhysicalTimeToTicks', 'TranslatePhyiscalTimeToTicks'])(
-    'substitutes rather than repeats the injected call, spelled %s',
-    (name) => {
-      const { transformers, unknown } = buildChain([call(name, {}), rubato()]);
+  test('substitutes rather than repeats the injected call', () => {
+    const name = 'TranslatePhysicalTimeToTicks';
+    const { transformers, unknown } = buildChain([call(name, {}), rubato()]);
 
-      expect(unknown).toEqual([]);
-      expect(transformers.map((t) => t.name)).toEqual([
-        'TranslatePhysicalTimeToTicks',
-        'InsertRubato',
-        'InsertMetadata',
-        'RoundNumbers',
-      ]);
-      // Rebuilt, not reused — the same thing the metadata call proves above, and the reason
-      // neither injected call can carry a segment: it is not in the document at all.
-      expect(at(transformers, 0, 'transformer').id).not.toBe(`call-${name}`);
-      expect(at(transformers, 0, 'transformer').options).toEqual({
-        translatePhysicalModifiers: true,
-      });
-    },
-  );
+    expect(unknown).toEqual([]);
+    expect(transformers.map((t) => t.name)).toEqual([
+      'TranslatePhysicalTimeToTicks',
+      'InsertRubato',
+      'InsertMetadata',
+      'RoundNumbers',
+    ]);
+    // Rebuilt, not reused — the same thing the metadata call proves above, and the reason
+    // neither injected call can carry a segment: it is not in the document at all.
+    expect(at(transformers, 0, 'transformer').id).not.toBe(`call-${name}`);
+    expect(at(transformers, 0, 'transformer').options).toEqual({
+      translatePhysicalModifiers: true,
+    });
+  });
 
   /**
    * Four transformers name `TranslatePhysicalTimeToTicks` in `requires`, and a chain missing it

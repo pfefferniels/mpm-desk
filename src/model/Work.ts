@@ -38,10 +38,7 @@ interface Work {
  */
 export interface Call {
     id: string;
-    /**
-     * The transformer's name as it was written, not as it is spelled now. The registry keeps
-     * aliases, which is why `TranslatePhyiscalTimeToTicks` still loads.
-     */
+    /** The name of the transformer that made the call, as the registry knows it. */
     name: string;
     options: Record<string, unknown>;
 

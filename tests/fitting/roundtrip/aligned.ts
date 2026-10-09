@@ -30,7 +30,7 @@ import { type AspectError, type Errors, EMPTY_MPM, statistics } from './harness'
  *
  * It is also what says every transformer the reconstruction names is still registered.
  * `chain.json` is 84 calls over 14 transformers, 83 taken from the file and one the injected
- * `TranslatePhyiscalTimeToTicks`, and {@link runChain} throws if any is missing.
+ * `TranslatePhysicalTimeToTicks`, and {@link runChain} throws if any is missing.
  */
 
 const fixture = (name: string) =>

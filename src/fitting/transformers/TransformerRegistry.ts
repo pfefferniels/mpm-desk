@@ -2,8 +2,6 @@ import type { Transformer, TransformerConstructor } from './Transformer';
 
 const registry = new Map<string, TransformerConstructor>();
 const order: string[] = [];
-/** Retired names, mapped to the name that replaced them. */
-const aliases = new Map<string, string>();
 
 export interface RegisterOptions {
   after?: string;
@@ -49,34 +47,11 @@ export function registerTransformer(
 }
 
 /**
- * Record that `formerName` used to mean `currentName`.
- *
- * A transformer's name is what gets written into a saved work file, so renaming the class would
- * otherwise orphan every file that already names it. The alias is read-only history: the
- * reconstructed instance carries the *current* name, so nothing downstream has to know.
- */
-export function registerAlias(formerName: string, currentName: string): void {
-  aliases.set(formerName, currentName);
-}
-
-/**
- * The name a transformer is registered under, following a rename if `name` is a retired one.
- *
- * For asking about a name without building the transformer behind it — which is what a caller
- * comparing a saved call's name against a known one has to do, because the file may spell it
- * either way. An unregistered name is answered with itself: the registry has nothing better to
- * say about it, and a caller that gets its own name back can tell that nothing was resolved.
- */
-export function canonicalName(name: string): string {
-  return aliases.get(name) ?? name;
-}
-
-/**
- * Create a transformer instance by name, following a rename if the name is a retired one.
+ * Create a transformer instance by name.
  * Returns `null` if not registered.
  */
 export function createTransformer(name: string): Transformer | null {
-  const Constructor = registry.get(name) ?? registry.get(aliases.get(name) ?? '');
+  const Constructor = registry.get(name);
   if (!Constructor) {
     return null;
   }
@@ -91,7 +66,7 @@ export function getTransformerOrder(): readonly string[] {
 }
 
 /**
- * Check if a transformer name is registered under its current name.
+ * Check if a transformer name is registered.
  */
 export function isRegistered(name: string): boolean {
   return registry.has(name);
@@ -103,5 +78,4 @@ export function isRegistered(name: string): boolean {
 export function clearRegistry(): void {
   registry.clear();
   order.length = 0;
-  aliases.clear();
 }

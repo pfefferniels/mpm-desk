@@ -24,7 +24,6 @@ import type { Transformer } from './Transformer';
 import {
   getTransformerOrder,
   isRegistered,
-  registerAlias,
   registerTransformer,
 } from './TransformerRegistry';
 
@@ -34,10 +33,10 @@ import {
 // Twenty of them. What is registered is decided by whether anything in the editor can reach it,
 // rather than by how often a transformer is used.
 //
-// Not registered: `InsertAsynchrony` and `CompressOrnamentation` appear nowhere in this
-// codebase at all, and `ApproximateLogarithmicTempo` is unreachable — the app aliases it to
-// `InsertTempo`'s desk, because a tempo somebody draws replaces a tempo the fitter solved for.
-// None of the three has a control anywhere in the editor.
+// Not registered: `InsertAsynchrony`, `CompressOrnamentation` and `ApproximateLogarithmicTempo`
+// appear nowhere in this codebase at all. The last is replaced by `InsertTempo`, because a tempo
+// somebody draws replaces a tempo the fitter solved for. None of the three has a control anywhere
+// in the editor.
 //
 // Kept, despite appearing in no call of the 494 that make up the reconstruction:
 // `CombineAdjacentRubatos` (the rubato desk's Combine button), `StylizeArticulation` (the
@@ -116,9 +115,6 @@ for (const transformer of REGISTERED) registerTransformer(transformer);
 
 /** A transformer this build can rebuild from a saved call. */
 export type RegisteredTransformer = InstanceType<(typeof REGISTERED)[number]>;
-
-// The class name was misspelled, and the misspelling reached saved work files.
-registerAlias('TranslatePhyiscalTimeToTicks', 'TranslatePhysicalTimeToTicks');
 
 /**
  * This function is meant to be passed to Array.sort()

@@ -931,7 +931,7 @@
     },
     {
       "id": "501e1f92-a117-42a2-a1fa-0a8cd3fc74cf",
-      "name": "TranslatePhyiscalTimeToTicks",
+      "name": "TranslatePhysicalTimeToTicks",
       "options": {
         "translatePhysicalModifiers": true
       }
