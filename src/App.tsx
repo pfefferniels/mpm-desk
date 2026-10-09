@@ -1,16 +1,5 @@
-import React, {
-    Suspense,
-    useCallback,
-    useEffect,
-    useEffectEvent,
-    useMemo,
-    useReducer,
-    useRef,
-    useState,
-} from 'react';
-import JSZip from 'jszip';
-import { Alert, Box, Snackbar } from '@mui/material';
-import { convertMeiToMsm } from 'espressivo';
+import React, { Suspense, useCallback, useMemo, useReducer, useRef, useState } from 'react';
+import { Box } from '@mui/material';
 // Populates the transformer registry for this thread. Stated at the editor's own root rather
 // than left to whichever module happens to be imported first: the registry is module-level
 // state, and a chain reconstructed before it is populated silently loses every call it cannot
@@ -22,22 +11,20 @@ import './fitting/transformers/Order';
 
 import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
 import { lockedScopes, NO_SCOPE_LOCK } from './desks/scopeLock';
-import { TRANSFORMER_ALIASES } from './desks/transformerAliases';
 import type { SecondaryData } from './desks/TransformerViewProps';
-import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
-import { PerformancesProvider, type Performance } from './hooks/Performances';
-import { parseMetadata } from './mei/insertMetadata';
-import { checkPerformance } from './alignment/mlign';
+import { PerformancesProvider } from './hooks/Performances';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { CallSelectionProvider } from './hooks/CallSelection';
 import { WorkDocumentProvider } from './hooks/WorkDocument';
 import { ScoreDocumentProvider } from './hooks/ScoreDocument';
-import { useLatest } from './hooks/useLatest';
 import { ScrollSyncProvider } from './hooks/ScrollSyncProvider';
 import { useTimeMapping } from './hooks/useTimeMapping';
 import { PlaybackProvider } from './hooks/PlaybackProvider';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
+import { useCallFocus } from './hooks/useCallFocus';
+import { useEditorFiles } from './hooks/useEditorFiles';
+import { useSaveWork, useUnsavedChanges } from './hooks/useSaveWork';
 import { DeskToolbarProvider } from './components/DeskToolbar';
 import { DeskErrorBoundary } from './components/DeskErrorBoundary';
 import { EditorHotkeys } from './components/EditorHotkeys';
@@ -47,10 +34,10 @@ import { FollowPlayback } from './components/FollowPlayback';
 import { AspectSelect } from './components/AspectSelect';
 import { StartScreen } from './components/StartScreen';
 import { LoadingScreen } from './components/LoadingScreen';
+import { MessageSnackbar } from './components/MessageSnackbar';
+import { FilePickerInput } from './components/FilePickerInput';
 import { useEditorFit } from './hooks/useEditorFit';
-import { asMSM } from './fitting/asMSM';
-import type { Alignment } from './fitting/alignment';
-import { getInstructions, isScope } from './fitting/instructions/index';
+import { getInstructions } from './fitting/instructions/index';
 import type { Transformer } from './fitting/transformers/Transformer';
 import {
     initialHistory,
@@ -59,9 +46,7 @@ import {
     workHistoryReducer,
     type Secondary,
 } from './model/workReducer';
-import { buildWorkArchive } from './model/exportWork';
-import { parseWorkFile, sourcesOf, type WorkFile } from './model/Work';
-import { documentSlug, downloadAsFile } from './utils/utils';
+import { sourcesOf, type WorkFile } from './model/Work';
 
 /**
  * The editor.
@@ -80,22 +65,19 @@ import { documentSlug, downloadAsFile } from './utils/utils';
  * A new call lands ungrouped: grouping is its own step, with its own desk, and the narrative desk
  * shows what a call wrote in amber until somebody says what it is for.
  */
+
 export const App = () => {
-    // Named `workHistory`, not `history`: the global of that name is what `pushState` below is
-    // reached through, and shadowing it here made an undo stack look like a browser one.
+    // Named `workHistory`, not `history`: the global of that name is what `useCallFocus` reaches
+    // `pushState` through, and shadowing it here made an undo stack look like a browser one.
     const [workHistory, dispatch] = useReducer(workHistoryReducer, undefined, () =>
         initialHistory(),
     );
     const work = workHistory.present;
 
-    const [pristine, setPristine] = useState<Alignment | null>(null);
-    const [mei, setMEI] = useState<string>();
-    const [performances, setPerformances] = useState<readonly Performance[]>([]);
     const [message, setMessage] = useState<string>();
 
     const [selectedDesk, setSelectedDesk] = useState<string>('metadata');
     const [scope, setScope] = useState<'global' | number>('global');
-    const [activeCallIds, setActiveCallIds] = useState<Set<string>>(new Set());
     const [stretchX, setStretchX] = useState<number>(20);
 
     /**
@@ -113,16 +95,40 @@ export const App = () => {
      */
     const [deskRow, setDeskRow] = useState<HTMLDivElement | null>(null);
 
-    /**
-     * The document as it was last written out, and the hidden input Open reaches through.
-     *
-     * Dirtiness is `work !== savedWork`, by reference. Sound because `workHistoryReducer` hands
-     * back the state it was given when an edit changed nothing, because `load` stores the very
-     * object it dispatched, and because undo and redo step between objects the history already
-     * holds, so saving, undoing and redoing back lands on the saved reference again.
-     */
-    const [savedWork, setSavedWork] = useState<WorkFile>(() => workHistory.present);
+    /** The hidden input Open reaches through. */
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const { activeCallIds, setActiveCallIds, focusCall, selectCallInHash } = useCallFocus({
+        calls: work.provenance,
+        selectDesk: setSelectedDesk,
+        setScope,
+    });
+
+    const { dirty, markSaved } = useUnsavedChanges(work);
+
+    const onLoadWork = useCallback(
+        (loaded: WorkFile) => {
+            dispatch({ type: 'load', work: loaded });
+            markSaved(loaded);
+            // A link into a call selects it, and this is the moment that can be decided: the
+            // document is in hand and the URL has not moved.
+            selectCallInHash(loaded.provenance);
+        },
+        [markSaved, selectCallInHash],
+    );
+
+    const onNewScore = useCallback((aligned: boolean) => {
+        // A new score has new part indices, and the scope picker is a `Select`: left holding a
+        // part the score does not have, it renders blank and warns.
+        setScope('global');
+        // A score with no recording aligned into it has nothing for any other desk to draw: every
+        // one of them plots what the performance did, and there is no performance yet. So it opens
+        // where the work actually starts.
+        if (!aligned) setSelectedDesk('alignment');
+    }, []);
+
+    const { mei, pristine, performances, readMei, openFile, openMei, openMidi, openZip } =
+        useEditorFiles({ report: setMessage, onLoadWork, onNewScore });
 
     /**
      * The desk currently open, and the hold-out its residual must be derived with.
@@ -181,161 +187,6 @@ export const App = () => {
         if (fitMessage) setMessage(fitMessage);
     }
 
-    /**
-     * The MEI, and the alignment read out of it.
-     *
-     * Called on open and again whenever the alignment desk commits — which is why it takes the
-     * content rather than reading state, and why nothing here resets the scope: a rewritten
-     * `<performance>` is the same score.
-     */
-    const readMei = useCallback((content: string) => {
-        setMEI(content);
-        const converted = convertMeiToMsm(content)[0]?.msm;
-        if (!converted) {
-            setMessage('The MEI holds no convertible movement.');
-            return;
-        }
-        setPristine(asMSM(content, converted));
-    }, []);
-
-    const loadMei = useCallback(
-        (content: string) => {
-            readMei(content);
-            // A new score has new part indices, and the scope picker is a `Select`: left holding
-            // a part the score does not have, it renders blank and warns.
-            setScope('global');
-            // And a new score is not the one the takes in hand were played from.
-            setPerformances([]);
-            // A score with no recording aligned into it has nothing for any other desk to draw:
-            // every one of them plots what the performance did, and there is no performance yet.
-            // So it opens where the work actually starts.
-            if (!content.includes('<when')) setSelectedDesk('alignment');
-        },
-        [readMei],
-    );
-
-    const loadWorkFromJson = useCallback((content: string) => {
-        try {
-            const loaded = parseWorkFile(content);
-            dispatch({ type: 'load', work: loaded });
-            setSavedWork(loaded);
-
-            // A link into a call selects it, and this is the moment that can be decided: the
-            // document is in hand and the URL has not moved.
-            const hash = window.location.hash.slice(1);
-            const match = hash
-                ? loaded.provenance.find((call) => call.id.startsWith(hash))
-                : undefined;
-            if (match) setActiveCallIds(new Set([match.id]));
-
-            setMessage(undefined);
-        } catch (reason) {
-            setMessage(reason instanceof Error ? reason.message : String(reason));
-        }
-    }, []);
-
-    const handleOpenMei = useCallback(
-        async (file: File) => {
-            loadMei(await file.text());
-            document.title = `${file.name} - MPM Desk`;
-        },
-        [loadMei],
-    );
-
-    /**
-     * A performance, read and kept as it arrived.
-     *
-     * The bytes as well as the parse: the aligner works on the parse, the archive stores the
-     * bytes, and `midifile-ts` reads a file without writing one back.
-     *
-     * The `@source` is the file's stem unless the file names one itself, which a piano-roll scan
-     * does. Minted here rather than in the desk because it must be unique against the takes
-     * already in hand, which is what this holds.
-     */
-    const readPerformance = useCallback(
-        async (file: File): Promise<Performance | undefined> => {
-            const buffer = await file.arrayBuffer();
-            const problem = checkPerformance(buffer);
-            if (problem) {
-                setMessage(problem);
-                return undefined;
-            }
-
-            let midi: MidiFile;
-            try {
-                midi = read(buffer);
-            } catch {
-                setMessage(`${file.name} could not be read as MIDI.`);
-                return undefined;
-            }
-
-            const stem = file.name.replace(/\.[^.]+$/, '');
-            return { source: parseMetadata(midi).source ?? stem, name: file.name, midi, bytes: new Uint8Array(buffer) };
-        },
-        [],
-    );
-
-    const addPerformance = useCallback((performance: Performance) => {
-        setPerformances((current) => {
-            // By file name, because that is what the archive stores it under: a second take of
-            // the same name would replace the first in the zip and leave its `Align` call naming
-            // a file that holds somebody else's playing.
-            if (current.some((held) => held.name === performance.name)) {
-                setMessage(`${performance.name} is already open.`);
-                return current;
-            }
-            return [...current, performance];
-        });
-    }, []);
-
-    const handleOpenMidi = useCallback(
-        async (file: File) => {
-            const performance = await readPerformance(file);
-            if (performance) addPerformance(performance);
-        },
-        [readPerformance, addPerformance],
-    );
-
-    const handleOpenZip = useCallback(
-        async (file: File) => {
-            const zip = await JSZip.loadAsync(file);
-            const meiFile = zip.file('transcription.mei');
-            const jsonFile = zip.file('work.json');
-            // Read before the MEI is: `loadMei` empties the takes, because opening a score is
-            // opening a different piece, and an archive's takes are that score's own.
-            const midiFiles = zip.file(/^recordings\//);
-
-            if (meiFile) {
-                loadMei(await meiFile.async('string'));
-                document.title = `${file.name} - MPM Desk`;
-            }
-            if (jsonFile) loadWorkFromJson(await jsonFile.async('string'));
-
-            for (const entry of midiFiles) {
-                const bytes = await entry.async('uint8array');
-                const name = entry.name.replace(/^recordings\//, '');
-                const midi = read(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
-                const stem = name.replace(/\.[^.]+$/, '');
-                addPerformance({ source: parseMetadata(midi).source ?? stem, name, midi, bytes });
-            }
-        },
-        [loadMei, loadWorkFromJson, addPerformance],
-    );
-
-    const handleOpenFile = useCallback(
-        (file: File) => {
-            if (file.name.endsWith('.zip')) void handleOpenZip(file);
-            else if (file.name.endsWith('.mei') || file.name.endsWith('.xml'))
-                void handleOpenMei(file);
-            else if (file.name.endsWith('.mid') || file.name.endsWith('.midi'))
-                void handleOpenMidi(file);
-            // An unrecognised suffix must say so, or it is indistinguishable from a file that
-            // failed to parse.
-            else setMessage(`Cannot open ${file.name} — expected a .zip, .mei, .xml or .mid.`);
-        },
-        [handleOpenZip, handleOpenMei, handleOpenMidi],
-    );
-
     /** Opens the picker below. */
     const openFilePicker = useCallback(() => fileInputRef.current?.click(), []);
 
@@ -356,7 +207,7 @@ export const App = () => {
         };
         dispatch({ type: 'add-call', call });
         setActiveCallIds(new Set([call.id]));
-    }, []);
+    }, [setActiveCallIds]);
 
     const removeCalls = useCallback((ids: readonly string[]) => {
         dispatch({ type: 'remove-calls', ids });
@@ -418,132 +269,18 @@ export const App = () => {
         [alignment, partNames],
     );
 
-    const dirty = work !== savedWork;
-
-    /**
-     * What to call the archive. The slug itself is `documentSlug`, shared with the markup desk's
-     * MIDI render — the two files are the same document under two extensions, and the reasoning
-     * about a title that is prose belongs in one place.
-     */
-    const archiveName = useMemo(() => `${documentSlug(metadata.title)}.zip`, [metadata.title]);
-
-    /**
-     * Save, which is a download: the four-file archive the viewer reads.
-     *
-     * `buildWorkArchive` is the pure, tested half. This is the rest: the download itself, and
-     * noticing that the document on disk is now this one.
-     *
-     * Here rather than in the toolbar because the shortcut calls it too, from a different
-     * subtree.
-     */
-    const handleSave = useCallback(async () => {
-        if (!mei || !mpm || !alignment || !result) return;
-
-        const archive = await buildWorkArchive({
-            mei,
-            msm: alignment,
-            mpm,
-            scoreMsm,
-            calls: work.provenance,
-            segments: work.segments,
-            outcomes: result.outcomes,
-            metadata,
-            // The same boundary `setSecondary` crosses in the other direction, and the only
-            // other place it is crossed: the bag is typed per desk here and opaque to the
-            // document, because nothing outside a desk may depend on its shape.
-            secondary: secondary as WorkFile['secondary'],
-            recordings: performances.map(({ name, bytes }) => ({ name, bytes })),
-        });
-
-        downloadAsFile(archive, archiveName, 'application/zip');
-        setSavedWork(work);
-    }, [
+    const saveWork = useSaveWork({
+        work,
         mei,
         mpm,
         alignment,
         result,
         scoreMsm,
-        work,
         metadata,
         secondary,
-        archiveName,
         performances,
-    ]);
-
-    const saveWork = useCallback(() => void handleSave(), [handleSave]);
-
-    const callsRef = useLatest(work.provenance);
-
-    /** Switch to the desk that made a call, put the scope on it, and name it in the hash. */
-    const focusCall = useCallback(
-        (id: string) => {
-            const call = callsRef.current.find((entry) => entry.id === id);
-            if (!call) return;
-
-            const name = TRANSFORMER_ALIASES.get(call.name) ?? call.name;
-            const entry = correspondingDesks.find(
-                ({ transformerName }) => transformerName === name,
-            );
-            if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
-
-            const { scope } = call.options;
-            if (isScope(scope)) setScope(scope);
-
-            const prefix = call.id.slice(0, 8);
-            if (window.location.hash.slice(1) !== prefix)
-                window.history.pushState(null, '', '#' + prefix);
-
-            setActiveCallIds(new Set([id]));
-        },
-        [callsRef],
-    );
-
-    const onHashChange = useEffectEvent(() => {
-        const hash = window.location.hash.slice(1);
-        if (!hash) {
-            if (activeCallIds.size > 0) {
-                setActiveCallIds(new Set());
-                window.history.replaceState(
-                    null,
-                    '',
-                    window.location.pathname + window.location.search,
-                );
-            }
-            return;
-        }
-        if (activeCallIds.size === 1) {
-            const [only] = activeCallIds;
-            if (only.startsWith(hash)) return;
-        }
-        const match = work.provenance.find((call) => call.id.startsWith(hash));
-        if (match) setActiveCallIds(new Set([match.id]));
+        onSaved: markSaved,
     });
-
-    useEffect(() => {
-        window.addEventListener('hashchange', onHashChange);
-        return () => {
-            window.removeEventListener('hashchange', onHashChange);
-        };
-    }, []);
-
-    /**
-     * Warn on reload, but only when there is something to lose. Asking unconditionally, straight
-     * after a save included, is the fastest way to teach somebody to click through the dialog.
-     */
-    useEffect(() => {
-        if (!dirty) return;
-
-        const warn = (event: BeforeUnloadEvent) => {
-            event.preventDefault();
-            // Safari still wants the legacy assignment.
-            event.returnValue = '';
-        };
-
-        window.addEventListener('beforeunload', warn);
-        return () => {
-            window.removeEventListener('beforeunload', warn);
-        };
-    }, [dirty]);
 
     const zoomContextValue = useMemo(
         () => ({
@@ -557,8 +294,8 @@ export const App = () => {
     const { tickToSeconds, secondsToTick } = useTimeMapping(alignment);
 
     const performancesValue = useMemo(
-        () => ({ performances, openPerformance: (file: File) => void handleOpenMidi(file) }),
-        [performances, handleOpenMidi],
+        () => ({ performances, openPerformance: (file: File) => void openMidi(file) }),
+        [performances, openMidi],
     );
 
     /**
@@ -603,7 +340,7 @@ export const App = () => {
     );
 
     if (!mei) {
-        return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
+        return <StartScreen onOpenZip={openZip} onOpenMei={openMei} />;
     }
     // No `residual` here. A document whose readings still stand side by side has none — and it is
     // exactly the document the reader has to be able to open, because Base Text is where the
@@ -753,38 +490,15 @@ export const App = () => {
                     </ScoreDocumentProvider>
                 </WorkDocumentProvider>
 
-                {/* Open reaches this through `fileInputRef`. It resets its own value on change,
-                    or opening the same file twice in a row fires no `change` event at all. */}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/xml,.mei,.zip,.mid,.midi"
-                    style={{ display: 'none' }}
-                    onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) handleOpenFile(file);
-                        event.target.value = '';
-                    }}
-                />
 
-                <Snackbar
-                    open={message !== undefined}
-                    autoHideDuration={4000}
+                <FilePickerInput ref={fileInputRef} onFile={openFile} />
+
+                <MessageSnackbar
+                    message={message}
                     onClose={() => {
                         setMessage(undefined);
                     }}
-                >
-                    <Alert
-                        onClose={() => {
-                            setMessage(undefined);
-                        }}
-                        severity="error"
-                        variant="filled"
-                        sx={{ width: '40%' }}
-                    >
-                        {message}
-                    </Alert>
-                </Snackbar>
+                />
             </div>
         </ZoomContext>
     );

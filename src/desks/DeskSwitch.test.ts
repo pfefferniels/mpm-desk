@@ -11,10 +11,10 @@
  *    transformer would show only as a desk that never opens for a saved call: no error, no
  *    warning, a click that does nothing. Resolving every name against the real transformer
  *    registry is that check, put back as a test.
- *  - `App.tsx` finds the open desk by `displayName ?? aspect`, and the desk that made a saved
- *    call by `transformerName`. Both are `.find()`, which returns the first of two matches
+ *  - `App.tsx` finds the open desk by `displayName ?? aspect`, and `useCallFocus` the desk that
+ *    made a saved call by `transformerName`. Both are `.find()`, which returns the first of two matches
  *    silently and leaves the later desk unreachable.
- *  - `App.tsx` also redirects some transformer names onto another desk's before that lookup,
+ *  - `useCallFocus` also redirects some transformer names onto another desk's before that lookup,
  *    through `TRANSFORMER_ALIASES` and by name again, so an alias outliving the desk it points at
  *    fails the same quiet way.
  *
@@ -385,7 +385,7 @@ describe('the desk registry', () => {
         });
     });
 
-    describe('the names App.tsx redirects', () => {
+    describe('the names useCallFocus redirects', () => {
         const aliases = TRANSFORMER_ALIASES;
 
         it('are a table with entries', () => {
@@ -407,7 +407,7 @@ describe('the desk registry', () => {
         });
 
         it('are not names a desk still claims', () => {
-            // App maps the name *before* it looks for a desk, so an aliased name that some desk
+            // useCallFocus maps the name *before* it looks for a desk, so an aliased name that some desk
             // had taken up would be redirected away from its own desk every time — the one
             // failure here that would survive a green run of every other test in this file.
             const claimed = correspondingDesks.flatMap((entry) =>

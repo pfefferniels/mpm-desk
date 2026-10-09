@@ -8,7 +8,7 @@
  * And so does the work file. An {@link Action} is the one part of a reader's decision the MEI
  * cannot hold — `applyAlignment` writes the reading, the responsibility and the certainty into the
  * `<when>`, and nothing there says what was to be *done* — so the work file records it, and this
- * is the vocabulary it records it in. That is why this sits beside `divergences.ts` rather than
+ * is the vocabulary it records it in. That is why this sits beside `divergences/` rather than
  * beside the desk: `src/model` reads it, and the document may not depend on a desk.
  */
 
