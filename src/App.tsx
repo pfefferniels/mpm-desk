@@ -22,6 +22,7 @@ import './fitting/transformers/Order';
 
 import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
 import { lockedScopes, NO_SCOPE_LOCK } from './desks/scopeLock';
+import { TRANSFORMER_ALIASES } from './desks/transformerAliases';
 import type { SecondaryData } from './desks/TransformerViewProps';
 import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
@@ -80,18 +81,6 @@ import { documentSlug, downloadAsFile } from './utils/utils';
  * A new call lands ungrouped: grouping is its own step, with its own desk, and the narrative desk
  * shows what a call wrote in amber until somebody says what it is for.
  */
-
-/**
- * Calls another transformer's desk serves: retired names, and `CorrectPedal`, which the
- * corrections desk makes beside `Modify`.
- */
-const TRANSFORMER_ALIASES: Record<string, string> = {
-    ApproximateLogarithmicTempo: 'InsertTempo',
-    TranslatePhysicalTimeToTicks: 'InsertTempo',
-    TranslatePhyiscalTimeToTicks: 'InsertTempo',
-    CorrectPedal: 'Modify',
-};
-
 export const App = () => {
     // Named `workHistory`, not `history`: the global of that name is what `pushState` below is
     // reached through, and shadowing it here made an undo stack look like a browser one.
@@ -494,7 +483,7 @@ export const App = () => {
             const call = callsRef.current.find((entry) => entry.id === id);
             if (!call) return;
 
-            const name = TRANSFORMER_ALIASES[call.name] ?? call.name;
+            const name = TRANSFORMER_ALIASES.get(call.name) ?? call.name;
             const entry = correspondingDesks.find(
                 ({ transformerName }) => transformerName === name,
             );

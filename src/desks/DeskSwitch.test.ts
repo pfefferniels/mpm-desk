@@ -14,16 +14,17 @@
  *  - `App.tsx` finds the open desk by `displayName ?? aspect`, and the desk that made a saved
  *    call by `transformerName`. Both are `.find()`, which returns the first of two matches
  *    silently and leaves the later desk unreachable.
- *  - `App.tsx` also redirects retired transformer names onto a current one before that lookup, by
- *    name again, so an alias outliving the desk it points at fails the same quiet way.
+ *  - `App.tsx` also redirects retired transformer names onto a current one before that lookup,
+ *    through `TRANSFORMER_ALIASES` and by name again, so an alias outliving the desk it points at
+ *    fails the same quiet way.
  *
  * What this file must never touch is `entry.desk`. Those are `lazy()` components, so rendering
  * one, or merely awaiting its loader, would import every desk module and undo the code splitting
  * the registry exists to provide. That the field is there is the assertion.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { correspondingDesks, type DocumentFacts } from './DeskSwitch';
+import { TRANSFORMER_ALIASES } from './transformerAliases';
 import { getTransformerOrder, isRegistered } from '../fitting/transformers/TransformerRegistry';
 
 // The transformer registry is module-level state that `Order.ts` fills in as a side effect of
@@ -102,38 +103,6 @@ const PLOTS_THE_RECORDING = [
  * still to make is the document those three are for.
  */
 const FITS_THE_RECORDING = PLOTS_THE_RECORDING.filter((aspect) => aspect !== 'corrections');
-
-/**
- * The retired names `App.tsx` maps onto a current one before it goes looking for a desk.
- *
- * Read out of `App.tsx` rather than copied into this file. `TRANSFORMER_ALIASES` is private to one
- * callback there, and widening a module's surface so a test can see in is the wrong trade; copying
- * the three strings down here would be worse still — a second, unchecked copy of precisely the
- * kind of string this whole file exists to check, stale the first time somebody adds a fourth.
- *
- * The transformer registry's own alias support cannot stand in for this table. `registerAlias`
- * records *renames*, so that an old work file still builds the right transformer; its one entry
- * maps the misspelled `TranslatePhyiscalTimeToTicks` onto `TranslatePhysicalTimeToTicks`, which
- * has no desk at all. App's table answers a different question — which desk a retired name should
- * open — and sends all three of its keys to `InsertTempo`.
- */
-const readAliasTable = (): Map<string, string> => {
-    const source = readFileSync('src/App.tsx', 'utf-8');
-    const body = /const TRANSFORMER_ALIASES[^=]*=\s*\{(?<body>[^}]*)\}/.exec(source)?.groups?.body;
-    if (body === undefined)
-        throw new Error(
-            'No TRANSFORMER_ALIASES object literal in src/App.tsx. If the table moved or changed ' +
-                'shape, point this reader at wherever it lives now — what matters is that the ' +
-                'aliases are read from the one place they are written, not copied into the test.',
-        );
-
-    const table = new Map<string, string>();
-    for (const match of body.matchAll(/(?<former>\w+)\s*:\s*'(?<current>[^']*)'/g)) {
-        const { former, current } = match.groups ?? {};
-        if (former !== undefined && current !== undefined) table.set(former, current);
-    }
-    return table;
-};
 
 describe('the desk registry', () => {
     it('holds desks at all', () => {
@@ -417,11 +386,10 @@ describe('the desk registry', () => {
     });
 
     describe('the retired names App.tsx redirects', () => {
-        const aliases = readAliasTable();
+        const aliases = TRANSFORMER_ALIASES;
 
-        it('are read from App.tsx, not assumed', () => {
-            // The parse is the weak link — if it silently matched nothing, the two tests below
-            // would quantify over an empty table and pass having checked no alias at all.
+        it('are a table with entries', () => {
+            // An empty table would let the two tests below pass having checked no alias at all.
             expect(aliases.size).toBeGreaterThan(0);
         });
 
