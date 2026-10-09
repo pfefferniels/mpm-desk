@@ -37,6 +37,10 @@ import type { Element } from 'espressivo';
  */
 export type Scope = number | 'global';
 
+/** Whether a value read from a file, where nothing is typed, is a {@link Scope}. */
+export const isScope = (value: unknown): value is Scope =>
+  value === 'global' || typeof value === 'number';
+
 /** The espressivo options record each instruction type is written from and read back into. */
 export interface OptionsOfType {
   tempo: AddTempoOptions;

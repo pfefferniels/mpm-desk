@@ -195,7 +195,7 @@ export function serializeWorkFile(work: WorkFile): string {
 export const sourcesOf = (provenance: readonly Call[]): string[] => {
     const options = provenance
         .filter((call) => call.name === 'MakeChoice')
-        .map((call) => call.options as Record<string, unknown>);
+        .map((call) => call.options);
     const ids = options.flatMap((o) =>
         typeof o['prefer'] === 'string'
             ? [o['prefer']]

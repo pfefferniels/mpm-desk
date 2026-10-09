@@ -129,10 +129,8 @@ export async function loadVerovio(): Promise<VerovioToolkit> {
  * for an option the build does not have would silently do nothing, so it asks first.
  */
 export function supportsOption(toolkit: VerovioToolkit, name: string): boolean {
-    const available = toolkit.getAvailableOptions() as unknown as {
-        groups?: Record<string, { options?: Record<string, unknown> }>;
-    };
-    return Object.values(available.groups ?? {}).some((group) => name in (group.options ?? {}));
+    const { groups } = toolkit.getAvailableOptions();
+    return Object.values(groups).some((group) => name in group.options);
 }
 
 /**

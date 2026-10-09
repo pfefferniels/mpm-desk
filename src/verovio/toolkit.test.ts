@@ -26,11 +26,7 @@ beforeAll(async () => {
 
 describe('the vendored toolkit', () => {
     test('is the fork, which knows the performance options', () => {
-        const groups = (
-            toolkit.getAvailableOptions() as unknown as {
-                groups: Record<string, { options: Record<string, unknown> }>;
-            }
-        ).groups;
+        const { groups } = toolkit.getAvailableOptions();
 
         expect(groups['8-performance'], 'no performance group — is vendor/verovio the fork?')
             .toBeDefined();
