@@ -135,7 +135,7 @@ const writeRamp = (map: MovementMap, press: PlacedPress, options: PedalRampOptio
  * for.
  */
 export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
-  name = 'InsertPedal';
+  readonly name = 'InsertPedal';
   requires = [TranslatePhysicalTimeToTicks];
 
   constructor(options?: InsertPedalOptions) {

@@ -69,7 +69,7 @@ const restretchPress = (pedal: AlignedPedal, change: number): void => {
  * rather than that one note.
  */
 export class Modify extends AbstractTransformer<ModifyOptions> {
-  name = 'Modify';
+  readonly name = 'Modify';
   requires = [];
 
   constructor(options?: ModifyOptions) {

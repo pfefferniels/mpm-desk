@@ -59,7 +59,7 @@ export const pressOf = (added: AddedPress): AlignedPedal => ({
  * the copy the worker keeps between fits.
  */
 export class CorrectPedal extends AbstractTransformer<CorrectPedalOptions> {
-  name = 'CorrectPedal';
+  readonly name = 'CorrectPedal';
   requires = [];
 
   constructor(options?: CorrectPedalOptions) {

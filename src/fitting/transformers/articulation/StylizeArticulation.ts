@@ -66,7 +66,7 @@ interface EffectiveArticulation {
  * `defaultArticulation` so its instructions can go away entirely.
  */
 export class StylizeArticulation extends AbstractTransformer<StylizeArticulationOptions> {
-  name = 'StylizeArticulation';
+  readonly name = 'StylizeArticulation';
   requires = [InsertArticulation];
 
   /**

@@ -28,7 +28,7 @@ export interface CombineAdjacentRubatoOptions extends ScopedTransformationOption
  * of the series.
  */
 export class CombineAdjacentRubatos extends AbstractTransformer<CombineAdjacentRubatoOptions> {
-  name = 'CombineAdjacentRubatos';
+  readonly name = 'CombineAdjacentRubatos';
   requires = [InsertRubato];
 
   constructor(options?: CombineAdjacentRubatoOptions) {

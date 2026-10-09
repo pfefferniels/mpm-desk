@@ -33,7 +33,7 @@ export interface InsertMetadataOptions extends TransformationOptions {
  * it can stand anywhere in a chain.
  */
 export class InsertMetadata extends AbstractTransformer<InsertMetadataOptions> {
-  name = 'InsertMetadata';
+  readonly name = 'InsertMetadata';
   requires = [];
 
   constructor(options?: InsertMetadataOptions) {

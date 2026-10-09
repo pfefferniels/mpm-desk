@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { filterMap } from 'espressivo';
 import { rowId, travelOf, type AlignedPedal, type Alignment } from '../../fitting/alignment';
-import type { CorrectPedalOptions } from '../../fitting/transformers/modification/CorrectPedal';
+import { isCallOf } from '../../fitting/calls';
 import type { Travel } from '../../performance/pedalTravel';
 import { useCallSelection } from '../../hooks/CallSelection';
 import { useScoreDocument } from '../../hooks/ScoreDocument';
@@ -54,8 +54,8 @@ export const useLineGhosts = (
         const shift = chainShiftMs(pristine, msm, onsetGhosts);
         const corrected = new Set(
             calls
-                .filter((call) => call.name === 'CorrectPedal')
-                .map((call) => (call.options as unknown as CorrectPedalOptions).pedal),
+                .filter(isCallOf('CorrectPedal'))
+                .map((call) => call.options.pedal),
         );
         const rowOf = (id: string): AlignedPedal | undefined => {
             const rows = pristine.pedals.filter((pedal) => pedal['xml:id'] === id);

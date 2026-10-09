@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { Alignment } from '../../fitting/alignment';
+import { isCallOf } from '../../fitting/calls';
 import type { Scope } from '../../fitting/instructions/index';
 import type { ModifyOptions } from '../../fitting/transformers/modification/Modify';
 import { useCallSelection } from '../../hooks/CallSelection';
@@ -53,10 +54,7 @@ export const useModifyDeltas = (
             }
         };
 
-        for (const call of calls) {
-            if (call.name !== 'Modify') continue;
-            apply(call.options as unknown as ModifyOptions, 1);
-        }
+        for (const call of calls.filter(isCallOf('Modify'))) apply(call.options, 1);
 
         if (pending) apply(pending, -1);
 

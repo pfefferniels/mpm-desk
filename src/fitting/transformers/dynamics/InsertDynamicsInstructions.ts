@@ -32,7 +32,7 @@ export interface InsertDynamicsInstructionsOptions extends ScopedTransformationO
 }
 
 export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynamicsInstructionsOptions> {
-  name = 'InsertDynamicsInstructions';
+  readonly name = 'InsertDynamicsInstructions';
   requires = [];
 
   constructor(options?: InsertDynamicsInstructionsOptions) {

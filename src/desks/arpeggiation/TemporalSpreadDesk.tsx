@@ -18,6 +18,7 @@ import { TempoVariance } from "./TempoVariance";
 import { TemporalSpreadInstruction } from "./TemporalSpreadInstruction";
 import { useTimeMapping } from "../../hooks/useTimeMapping";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { isCallOf } from "../../fitting/calls";;
 import { useNumberField } from "../../hooks/useNumberField";
 import { SilentOrnaments } from "../SilentOrnaments";
 
@@ -52,9 +53,9 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     // by name alone reports part 1's default while part 2 is on screen. Under the old flip button
     // that showed up as "Remove Default" offered in a part that has none; under the split it would
     // be a permanently dead `Insert Default` in every part but the one holding the call.
-    const defaultCall = calls.find(
-        t => t.name === 'InsertTemporalSpread' && t.options.scope === part && !('date' in t.options)
-    )
+    const defaultCall = calls
+        .filter(isCallOf('InsertTemporalSpread'))
+        .find(t => t.options.scope === part && !('date' in t.options))
 
     const averageBPM = useMemo(() => {
         const notes = msm.allNotes

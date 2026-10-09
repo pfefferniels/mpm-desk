@@ -24,8 +24,7 @@ export interface ScopedTransformationOptions extends TransformationOptions {
  * The Transformer interface declares a method for building the chain of transformations.
  * It also declares a method for executing a transformation.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TransformerConstructor = new (...args: any[]) => Transformer;
+export type TransformerConstructor = new (...args: never[]) => Transformer;
 
 export interface Transformer {
   id: string;

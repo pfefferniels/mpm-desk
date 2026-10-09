@@ -17,7 +17,7 @@ interface MakeDefaultArticulationOptions extends ScopedTransformationOptions {}
  * This transformer sets the default articulation for all notes.
  */
 export class MakeDefaultArticulation extends AbstractTransformer<MakeDefaultArticulationOptions> {
-  name = 'MakeDefaultArticulation';
+  readonly name = 'MakeDefaultArticulation';
   requires = [TranslatePhysicalTimeToTicks];
 
   constructor(options?: MakeDefaultArticulationOptions) {

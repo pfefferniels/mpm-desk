@@ -15,6 +15,7 @@ import { usePiano } from "../../performance/piano"
 import { useNotes } from "../../hooks/NotesProvider"
 import { asMIDI } from "../../utils/utils"
 import { useCallSelection } from "../../hooks/CallSelection"
+import { isCallOf } from "../../fitting/calls"
 import { SilentOrnaments } from "../SilentOrnaments"
 
 const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
@@ -246,9 +247,9 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
     // Scoped, and it has to be: `transformDefault` writes one default per part, so a lookup by
     // name alone reports part 1's default while part 2 is on screen — which left `Insert Default`
     // permanently dead in every part but the one that happened to hold the call.
-    const defaultCall = calls.find(
-        t => t.name === 'InsertDynamicsGradient' && t.options.scope === part && !('date' in t.options)
-    )
+    const defaultCall = calls
+        .filter(isCallOf('InsertDynamicsGradient'))
+        .find(t => t.options.scope === part && !('date' in t.options))
 
     const scrollContainerRef = useScrollRegistration('dynamics-gradient-desk', 'physical');
 

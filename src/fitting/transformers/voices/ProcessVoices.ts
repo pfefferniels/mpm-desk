@@ -67,7 +67,7 @@ const MIDI_CHANNELS = 16;
  * this existed fits as it did.
  */
 export class ProcessVoices extends AbstractTransformer<ProcessVoicesOptions> {
-  name = 'ProcessVoices';
+  readonly name = 'ProcessVoices';
   requires = [];
 
   constructor(options?: ProcessVoicesOptions) {
