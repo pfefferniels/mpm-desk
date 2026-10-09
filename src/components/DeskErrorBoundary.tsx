@@ -15,7 +15,7 @@ interface State {
  * Keeps a throwing desk from taking the editor with it.
  *
  * The editor holds the only copy of the work: nothing writes `work.json` back on its own, and
- * `App` sets `onbeforeunload` because of it. Before this, one bad `find(...)` in a desk — and the
+ * `useUnsavedChanges` sets `onbeforeunload` because of it. Before this, one bad `find(...)` in a desk — and the
  * desks are full of them, since a note the recording does not have is a normal state of an
  * unfinished fit — unmounted the whole tree and the session's work went with it.
  *

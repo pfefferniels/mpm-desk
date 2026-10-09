@@ -25,7 +25,7 @@ export interface Performance {
      * The file's own name, which is what the archive stores it under and what an `Align` records.
      *
      * Two files of the same name are therefore one file to the archive. The picker refuses the
-     * second rather than overwriting the first — see `App`.
+     * second rather than overwriting the first — see `useEditorFiles`.
      */
     name: string;
     midi: MidiFile;
@@ -38,7 +38,7 @@ interface PerformancesValue {
     /**
      * Read one more off disk and take it on, reporting whatever is wrong with it.
      *
-     * The reading is `App`'s rather than the desk's because minting a `@source` needs to know
+     * The reading is `useEditorFiles`'s rather than the desk's because minting a `@source` needs to know
      * every take already in hand, and this is what holds them.
      */
     openPerformance: (file: File) => void;
