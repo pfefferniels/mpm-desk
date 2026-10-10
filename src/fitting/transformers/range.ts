@@ -28,14 +28,15 @@ interface PressRamp {
 }
 
 /**
- * The span of a recorded press, or of a ramp hung on it.
+ * The span of a recorded press, or of a ramp hung on it. Without a `pedal`, the span of every
+ * press the residual can place.
  *
  * A press is measured in ticks off the score grid, so it has no place until the residual gives it
  * one. Without a residual, while the readings still stand side by side, a press has no range, as
  * a press no tempo covers does.
  */
 export const rangeOfPress = (
-  pedal: string,
+  pedal: string | undefined,
   msm: Alignment,
   residual: Residual | undefined,
   ramp?: PressRamp,
@@ -43,7 +44,7 @@ export const rangeOfPress = (
   if (!residual) return undefined;
 
   const ranges = msm.pedals
-    .filter((p) => p['xml:id'] === pedal)
+    .filter((p) => pedal === undefined || p['xml:id'] === pedal)
     .map((p) => {
       const placed = residual.ofPedal(p);
       if (placed?.tickDate === undefined || placed.tickDuration === undefined) return undefined;

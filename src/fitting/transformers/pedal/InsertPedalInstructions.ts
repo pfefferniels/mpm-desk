@@ -145,10 +145,9 @@ export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
     super(options ?? {});
   }
 
-  /** A call about every press the residual can place names no press to measure, and reports no range. */
+  /** The press it writes, or every press the residual can place when it names none. */
   range(msm: Alignment, residual?: Residual): Range | undefined {
     const options = this.options;
-    if (options.pedal === undefined) return undefined;
     return rangeOfPress(options.pedal, msm, residual, isRamp(options) ? options : undefined);
   }
 
