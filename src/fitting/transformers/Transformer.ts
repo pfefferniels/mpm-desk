@@ -7,6 +7,7 @@ import {
 } from '../instructions/index';
 import { Alignment } from '../alignment';
 import type { Residual } from '../residual';
+import type { Range } from './range';
 import { Mpm } from 'espressivo';
 import { v4 } from 'uuid';
 
@@ -38,6 +39,14 @@ export interface Transformer {
    */
   created: string[];
   run(msm: Alignment, mpm: Mpm): void;
+  /**
+   * The span of score this call acts on, or `undefined` for one that is about no place in it.
+   *
+   * @param residual where the recording falls on the score grid. Only a call about a recorded
+   * press needs it, since a press has no symbolic date of its own; every other call answers
+   * from its own options.
+   */
+  range(msm: Alignment, residual?: Residual): Range | undefined;
   readonly requires: TransformerConstructor[];
 }
 
@@ -110,6 +119,12 @@ export abstract class AbstractTransformer<
     return [];
   }
 
+  /**
+   * Stated by every transformer, as `requires` is: a call about no place in the score says so
+   * rather than being taken for one.
+   */
+  abstract range(msm: Alignment, residual?: Residual): Range | undefined;
+
   protected abstract transform(msm: Alignment, mpm: Mpm): void;
 }
 
@@ -133,117 +148,4 @@ export const generateId = (type: InstructionType, date: number, mpm: Mpm): strin
     candidate = `${type}_${date}_${n}`;
   }
   return candidate;
-};
-
-const isRangeBased = (
-  transformer: TransformationOptions,
-): transformer is TransformationOptions & { from: number; to: number } => {
-  return 'from' in transformer && 'to' in transformer;
-};
-
-const isDateBased = (
-  transformer: TransformationOptions,
-): transformer is TransformationOptions & { date: number } => {
-  return 'date' in transformer;
-};
-
-const isNoteBased = (
-  transformer: TransformationOptions,
-): transformer is TransformationOptions & { noteIDs: string[] } => {
-  return 'noteIDs' in transformer;
-};
-
-interface Range {
-  from: number;
-  to?: number;
-}
-
-/**
- * The span of score a transformer acts on.
- *
- * @param residual required only for a pedal-based transformer, whose span is measured in ticks
- * off the score grid and so has to be derived. Every other kind answers from its own options.
- * Without one, while the readings still stand side by side, a pedal call reports no range, as a
- * pedal no tempo covers does.
- */
-export const getRange = (
-  transformer: TransformationOptions | Transformer[],
-  msm: Alignment,
-  residual?: Residual,
-): Range | undefined => {
-  if (Array.isArray(transformer)) {
-    const ranges = transformer
-      .map((t) => {
-        return getRange(t.options, msm, residual);
-      })
-      .filter((d) => !!d);
-
-    if (ranges.length === 0) {
-      return undefined;
-    }
-
-    const from = Math.min(...ranges.map(({ from }) => from));
-    const to = Math.max(...ranges.map(({ from, to }) => Math.max(from, to ?? from)));
-    if (to <= from) return { from };
-    return { from, to };
-  }
-
-  if (isRangeBased(transformer)) {
-    return { from: transformer.from, to: transformer.to };
-  }
-  if (isDateBased(transformer)) {
-    if ('length' in transformer && typeof transformer.length === 'number') {
-      return { from: transformer.date, to: transformer.date + transformer.length };
-    }
-    return { from: transformer.date };
-  }
-  if (isNoteBased(transformer)) {
-    const noteids = transformer.noteIDs;
-    const dates = noteids
-      .map((id) => msm.getByID(id)?.date)
-      .filter((d): d is number => d !== undefined);
-    if (dates.length === 0) {
-      return undefined;
-    }
-    return { from: Math.min(...dates), to: Math.max(...dates) };
-  }
-  if ('pedal' in transformer) {
-    const pedalId = (transformer as TransformationOptions & { pedal?: string }).pedal;
-    const pedals = pedalId ? msm.pedals.filter((p) => p['xml:id'] === pedalId) : msm.pedals;
-
-    const direction =
-      'direction' in transformer
-        ? (transformer as TransformationOptions & { direction?: string }).direction
-        : undefined;
-    const start =
-      'start' in transformer
-        ? ((transformer as TransformationOptions & { start?: number }).start ?? 0)
-        : 0;
-    // A call that states no duration spans the press it is about.
-    const duration =
-      'duration' in transformer
-        ? ((transformer as TransformationOptions & { duration?: number }).duration ?? 0)
-        : undefined;
-
-    if (!residual) return undefined;
-
-    const ranges = pedals
-      .map((p) => {
-        const placed = residual.ofPedal(p);
-        if (placed?.tickDate === undefined || placed.tickDuration === undefined) return undefined;
-        const base = direction === 'up' ? placed.tickDate + placed.tickDuration : placed.tickDate;
-        return { from: base + start, to: base + start + (duration ?? placed.tickDuration) };
-      })
-      .filter((r): r is { from: number; to: number } => r !== undefined);
-
-    if (ranges.length === 0) {
-      return undefined;
-    }
-    return {
-      from: Math.min(...ranges.map((r) => r.from)),
-      to: Math.max(...ranges.map((r) => r.to)),
-    };
-  }
-
-  return undefined;
 };

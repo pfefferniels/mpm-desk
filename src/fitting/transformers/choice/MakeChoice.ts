@@ -1,5 +1,6 @@
 import { Alignment, type AlignedNote } from '../../alignment';
 import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
+import { type Range, rangeOfNotes } from '../range';
 
 export interface RangeChoice {
   from: number;
@@ -37,6 +38,14 @@ export class MakeChoice extends AbstractTransformer<MakeChoiceOptions> {
         scope: 'global',
       },
     );
+  }
+
+  /** The default choice, made for the whole piece, is about no one place in it. */
+  range(msm: Alignment): Range | undefined {
+    const options = this.options;
+    if ('from' in options) return { from: options.from, to: options.to };
+    if ('noteIDs' in options) return rangeOfNotes(options.noteIDs, msm);
+    return undefined;
   }
 
   protected transform(msm: Alignment): void {

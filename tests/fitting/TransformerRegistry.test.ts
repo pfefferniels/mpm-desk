@@ -180,6 +180,9 @@ describe('TransformerRegistry', () => {
         constructor() {
           super({});
         }
+        range() {
+          return undefined;
+        }
         protected transform() {
           /* no-op */
         }
@@ -190,6 +193,9 @@ describe('TransformerRegistry', () => {
         constructor() {
           super({});
         }
+        range() {
+          return undefined;
+        }
         protected transform() {
           /* no-op */
         }
@@ -199,6 +205,9 @@ describe('TransformerRegistry', () => {
         requires = [];
         constructor() {
           super({});
+        }
+        range() {
+          return undefined;
         }
         protected transform() {
           /* no-op */
@@ -222,6 +231,9 @@ describe('TransformerRegistry', () => {
         constructor() {
           super({});
         }
+        range() {
+          return undefined;
+        }
         protected transform() {
           /* no-op */
         }
@@ -232,6 +244,9 @@ describe('TransformerRegistry', () => {
         constructor() {
           super({});
         }
+        range() {
+          return undefined;
+        }
         protected transform() {
           /* no-op */
         }
@@ -241,6 +256,9 @@ describe('TransformerRegistry', () => {
         requires = [];
         constructor() {
           super({});
+        }
+        range() {
+          return undefined;
         }
         protected transform() {
           /* no-op */
@@ -264,6 +282,9 @@ describe('TransformerRegistry', () => {
         constructor() {
           super({});
         }
+        range() {
+          return undefined;
+        }
         protected transform() {
           /* no-op */
         }
@@ -283,6 +304,9 @@ describe('TransformerRegistry', () => {
         requires = [];
         constructor() {
           super({});
+        }
+        range() {
+          return undefined;
         }
         protected transform() {
           /* no-op */
@@ -304,6 +328,9 @@ describe('TransformerRegistry', () => {
       constructor() {
         super({});
       }
+      range() {
+        return undefined;
+      }
       protected transform() {
         /* no-op */
       }
@@ -313,6 +340,9 @@ describe('TransformerRegistry', () => {
       requires = [Alpha];
       constructor() {
         super({});
+      }
+      range() {
+        return undefined;
       }
       protected transform() {
         /* no-op */
@@ -328,6 +358,9 @@ describe('TransformerRegistry', () => {
         requires = [];
         constructor() {
           super({});
+        }
+        range() {
+          return undefined;
         }
         protected transform() {
           /* no-op */

@@ -1,6 +1,7 @@
 import { Alignment, redrawPress, type AlignedPedal, type PerformedAttributes } from '../../alignment';
 import { releaseShifted } from '../../../performance/pedalTravel';
 import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
+import { type Range, rangeOfNotes } from '../range';
 
 /**
  * What a correction is about — **the selector, not the aspect**.
@@ -82,6 +83,14 @@ export class Modify extends AbstractTransformer<ModifyOptions> {
         to: 0,
       },
     );
+  }
+
+  /** A press has no symbolic date, so a correction made by `pedalIDs` is about no place in the score. */
+  range(msm: Alignment): Range | undefined {
+    const options = this.options;
+    if ('from' in options) return { from: options.from, to: options.to };
+    if ('noteIDs' in options) return rangeOfNotes(options.noteIDs, msm);
+    return undefined;
   }
 
   protected transform(msm: Alignment): void {

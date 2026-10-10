@@ -28,6 +28,10 @@ export class MakeDefaultArticulation extends AbstractTransformer<MakeDefaultArti
     );
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(msm: Alignment, mpm: Mpm): void {
     // collect notes that have no articulation
     //

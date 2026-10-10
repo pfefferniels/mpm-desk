@@ -283,7 +283,7 @@ export class Alignment {
    * attributes MSM keeps a performance in.
    *
    * No `<pedalMap>`. MSM's `<pedal>` is `date`/`state`/`date.end` in ticks and a recorded pedal
-   * has no symbolic date, which is why `getRange` derives one from the residual. So there is
+   * has no symbolic date, which is why a pedal call's range is derived from the residual. So there is
    * nothing valid to write, and a written one would be read by nobody: `GenericMap.indexElements`
    * skips a map child with no `@date`, and even an indexed `<pedal>` reaches no renderer, since
    * pedalling sounds through MPM's `<movement>` instructions. The pedals live on the class, where

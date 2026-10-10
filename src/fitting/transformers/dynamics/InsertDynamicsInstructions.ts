@@ -15,6 +15,7 @@ import {
 } from '../Transformer';
 import { approximateDynamics, type DynamicsPoints } from './Approximation';
 import type { WithEndDate } from '../tempo/tempoCalculations';
+import { type Range } from '../range';
 
 /**
  * A fitted `<dynamics>` plus the window it was fitted over.
@@ -44,6 +45,10 @@ export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynami
         phantomVelocities: new Map(),
       },
     );
+  }
+
+  range(): Range {
+    return { from: this.options.from, to: this.options.to };
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {

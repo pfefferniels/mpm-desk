@@ -7,7 +7,6 @@ import {
     type CorrectPedalOptions,
 } from '../../../src/fitting/transformers/modification/CorrectPedal';
 import { Modify } from '../../../src/fitting/transformers/modification/Modify';
-import { getRange } from '../../../src/fitting/transformers/Transformer';
 import { InsertTempo, TranslatePhysicalTimeToTicks } from '../../../src/fitting/transformers/tempo/index';
 import { compareTransformers } from '../../../src/fitting/transformers/index';
 import { buildChain } from '../../../src/fitting/chain';
@@ -264,7 +263,7 @@ describe('where a correction is placed', () => {
     test('a redraw spans the press it is about', () => {
         const { score, residual } = placedScore();
 
-        expect(getRange(new CorrectPedal({ pedal: 'ped0', travel: redrawn }).options, score, residual))
+        expect(new CorrectPedal({ pedal: 'ped0', travel: redrawn }).range(score, residual))
             .toEqual({ from: 0, to: 2 * QUARTER });
     });
 
@@ -274,12 +273,12 @@ describe('where a correction is placed', () => {
         const removal = new CorrectPedal({ pedal: 'ped0', remove: true });
         run(removal, score);
 
-        expect(getRange(removal.options, score, residual)).toBeUndefined();
+        expect(removal.range(score, residual)).toBeUndefined();
     });
 
     test('there is no place before a base text is chosen, and no error either', () => {
         const { score } = placedScore();
 
-        expect(getRange(new CorrectPedal({ pedal: 'ped0', travel: redrawn }).options, score)).toBeUndefined();
+        expect(new CorrectPedal({ pedal: 'ped0', travel: redrawn }).range(score)).toBeUndefined();
     });
 });

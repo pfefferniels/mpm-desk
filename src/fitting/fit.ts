@@ -17,7 +17,6 @@
 import { buildChain } from './chain';
 import { validate } from './transformers/Order';
 import { createMpm, exportMPM, getInstructions } from './instructions/index';
-import { getRange } from './transformers/Transformer';
 import { clearResidualCache, deriveResidual, residualStats } from './residual';
 import type { AlignedNote, AlignedPedal, Alignment } from './alignment';
 import type { DatedTimeSignature } from './timeSignature';
@@ -131,7 +130,7 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
         work.provenance.map((call) => [call.id, call.segment] as const),
     );
     const outcomes: CallOutcome[] = transformers.map((transformer) => {
-        const range = getRange(transformer.options, alignment, residual);
+        const range = transformer.range(alignment, residual);
         const segment = segmentOf.get(transformer.id);
         return {
             id: transformer.id,

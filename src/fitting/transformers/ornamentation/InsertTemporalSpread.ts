@@ -16,6 +16,7 @@ import {
   type ScopedTransformationOptions,
 } from '../Transformer';
 import { noteOrderOf } from './noteOrder';
+import { type Range, rangeAt } from '../range';
 
 export type ArpeggioPlacement = 'on-beat' | 'before-beat' | 'estimate' | 'none';
 export type DatedArpeggioPlacement = Map<number, ArpeggioPlacement>;
@@ -80,6 +81,10 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
         scope: 'global',
       },
     );
+  }
+
+  range(): Range | undefined {
+    return 'date' in this.options ? rangeAt(this.options.date) : undefined;
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {

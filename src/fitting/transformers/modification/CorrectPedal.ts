@@ -2,6 +2,8 @@ import { v4 } from 'uuid';
 import { Alignment, redrawPress, type AlignedPedal } from '../../alignment';
 import { isPressTravel, returnToRest, type Travel } from '../../../performance/pedalTravel';
 import { AbstractTransformer, type TransformationOptions } from '../Transformer';
+import type { Residual } from '../../residual';
+import { type Range, rangeOfPress } from '../range';
 
 /** The press the correction is about, by the `xml:id` the alignment knows it under. */
 interface AboutPress extends TransformationOptions {
@@ -23,7 +25,7 @@ export interface AddedPress extends AboutPress {
   type: AlignedPedal['type'];
   /** The take it is counted under, where one is known. Descriptive: nothing after this call selects by it. */
   source?: string;
-  /** Its `milliseconds.date`. Not spelled `date`, which `getRange` would read as a tick. */
+  /** Its `milliseconds.date`. Not spelled `date`, which every other call reads as a tick. */
   onsetMs: number;
   travel: Travel;
 }
@@ -65,6 +67,11 @@ export class CorrectPedal extends AbstractTransformer<CorrectPedalOptions> {
   constructor(options?: CorrectPedalOptions) {
     // About no press at all: the registry instantiates once to read `name`.
     super(options ?? { pedal: '', remove: true });
+  }
+
+  /** The press it is about, as the residual places it. */
+  range(msm: Alignment, residual?: Residual): Range | undefined {
+    return rangeOfPress(this.options.pedal, msm, residual);
   }
 
   protected transform(msm: Alignment): void {

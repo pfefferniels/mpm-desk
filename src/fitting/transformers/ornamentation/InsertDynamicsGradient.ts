@@ -14,6 +14,7 @@ import {
 } from '../Transformer';
 import { head, isNonEmpty, last, numberAt } from 'espressivo';
 import { noteOrderOf } from './noteOrder';
+import { type Range, rangeAt } from '../range';
 
 /**
  * The velocity ramp across an arpeggio, in the units a `<dynamicsGradient>`'s
@@ -224,6 +225,10 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
       note.velocity = standard;
     });
   };
+
+  range(): Range | undefined {
+    return isSingleGradient(this.options) ? rangeAt(this.options.date) : undefined;
+  }
 
   protected transform(msm: Alignment, mpm: Mpm): void {
     const chords = msm.in(this.options.scope).chords();

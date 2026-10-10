@@ -40,6 +40,10 @@ export class MergeMetricalAccentuations extends AbstractTransformer<MergeMetrica
     );
   }
 
+  range(): undefined {
+    return undefined;
+  }
+
   protected transform(_: Alignment, mpm: Mpm): void {
     const allDefs = getDefinitions(mpm, 'accentuationPatternDef', this.options.scope);
     if (allDefs.length <= 1) return;
