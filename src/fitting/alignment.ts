@@ -253,22 +253,6 @@ export class Alignment {
   }
 
   /**
-   * Attach arbitrary extra keys to one note.
-   *
-   * The keys are by definition not in `AlignedNote`, so the write goes through an index signature
-   * the type does not have. That cast is the whole of the untypedness and it stays here.
-   */
-  public addCustomInfo(scoreId: string, info: Record<string, unknown>): void {
-    const target = this.allNotes.find((note) => note['xml:id'] === scoreId);
-    if (!target) return;
-
-    const bag = target as unknown as Record<string, unknown>;
-    for (const [key, value] of Object.entries(info)) {
-      bag[key] = value;
-    }
-  }
-
-  /**
    * Deletes the silence before the first note is being played
    */
   public shiftToFirstOnset(): void {

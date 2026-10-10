@@ -11,7 +11,7 @@
  * also run, and the schema would have to import the registry to state its own types.
  */
 import { compareTransformers, validate } from './transformers/Order';
-import { canonicalName, createTransformer } from './transformers/TransformerRegistry';
+import { createTransformer } from './transformers/TransformerRegistry';
 import { InsertMetadata } from './transformers/metadata/InsertMetadata';
 import { RoundNumbers } from './transformers/rounding/RoundNumbers';
 import { TranslatePhysicalTimeToTicks } from './transformers/tempo/TranslatePhysicalTimeToTicks';
@@ -33,8 +33,7 @@ import type { Call } from '../model/Work';
  *   in `requires`, so a chain that forgot it does not fit worse: `validate` reports and `runFit`
  *   throws.
  *
- * So it is injected here, as {@link InsertMetadata} is, and a file listing one is listing a
- * ghost, which `src/model/loadWork.ts` drops on open.
+ * So it is injected here, as {@link InsertMetadata} is, and a saved one is filtered out.
  *
  * Unconditionally rather than when something needs it. A condition would be a second copy of a
  * rule `Order.ts` already states, and "only when a later call requires it" is the wrong rule
@@ -67,11 +66,8 @@ const APPLIED_TO_THE_SCORE = new Set(['Align']);
 /** Whether the chain leaves this call to the document rather than running it. */
 export const isDocumentCall = (name: string): boolean => APPLIED_TO_THE_SCORE.has(name);
 
-/**
- * Whether `name` names a call the run makes for itself — under either spelling of
- * `TranslatePhysicalTimeToTicks`, since the shipped file carries the misspelled one.
- */
-export const isInjectedCall = (name: string): boolean => INJECTED.has(canonicalName(name));
+/** Whether `name` names a call the run makes for itself. */
+export const isInjectedCall = (name: string): boolean => INJECTED.has(name);
 
 interface BuiltChain {
     /** The chain as it will run: metadata substituted, in reduction order. */

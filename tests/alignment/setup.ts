@@ -21,7 +21,7 @@ export function renderToPng(svgString: string): Buffer {
   return Buffer.from(resvg.render().asPng())
 }
 
-export interface Comparison {
+interface Comparison {
   /** Share of the picture that differs, in percent */
   share: number
   /** The render, with the differing pixels in red — what to look at when the share surprises you */

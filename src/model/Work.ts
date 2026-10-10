@@ -12,9 +12,7 @@
  * A claim says what it claims in its own words, in {@link Segment.note}. No controlled vocabulary
  * behind it: a fixed set of motivations is a worse version of the prose a reconstruction already
  * writes, and a placeholder that reads like a real word cannot be told from one on the page.
- *
- * A JSON-LD file in CIDOC-CRM and CRMinf is read by migrating it; `migrateWork.ts` records what
- * that shape carried and what became of it.
+
  */
 
 /** What a reconstruction is *of*: a name, and the two documents it moves between. */
@@ -38,10 +36,7 @@ interface Work {
  */
 export interface Call {
     id: string;
-    /**
-     * The transformer's name as it was written, not as it is spelled now. The registry keeps
-     * aliases, which is why `TranslatePhyiscalTimeToTicks` still loads.
-     */
+    /** The name of the transformer that made the call, as the registry knows it. */
     name: string;
     options: Record<string, unknown>;
 
@@ -110,7 +105,7 @@ export interface Segment {
      * **The only thing a segment says about itself.** The label the tree of words shows, and the
      * reason a reader can see the shape of a reconstruction without reading a single option.
      * One field rather than two, so that nobody has to decide per sentence which kind of writing
-     * a note is; `migrateWork.ts` records how the second was folded in.
+     * a note is.
      *
      * The tree sets it along a branch at whatever length it runs to, so a long note is a long
      * branch. See `segment-stack/words.ts`.
@@ -189,13 +184,12 @@ export function serializeWorkFile(work: WorkFile): string {
 /**
  * The recording ids a `MakeChoice` call preferred — which reading each note was taken from.
  *
- * Read off the provenance rather than stored. A JSON-LD file states it separately, and the
- * migration refuses to run unless the stated value and this one agree.
+ * Read off the provenance rather than stored.
  */
 export const sourcesOf = (provenance: readonly Call[]): string[] => {
     const options = provenance
         .filter((call) => call.name === 'MakeChoice')
-        .map((call) => call.options as Record<string, unknown>);
+        .map((call) => call.options);
     const ids = options.flatMap((o) =>
         typeof o['prefer'] === 'string'
             ? [o['prefer']]

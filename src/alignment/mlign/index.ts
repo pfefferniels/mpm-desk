@@ -36,7 +36,7 @@ import type { NoteSpan } from "../../performance/midiSpans";
  * performance range ran away can reach this — but such a window is a hang
  * rather than an error unless it is caught first.
  */
-export const MAX_WINDOW_TOKENS = 12000;
+const MAX_WINDOW_TOKENS = 12000;
 
 /**
  * The largest similarity matrix worth allocating, in cells.
@@ -147,7 +147,7 @@ export interface AlignResult {
     stats: AlignStats;
 }
 
-export interface AlignOptions {
+interface AlignOptions {
     /**
      * Which checkpoint to align with. `DEFAULT_MODEL` when unset, and ignored
      * when `modelUrl` names a file directly.

@@ -21,13 +21,13 @@ import type { NoteSpan } from '../../performance/midiSpans';
  * over again.
  */
 
-export interface ScoreEdits {
+interface ScoreEdits {
     mei: string;
     /** How many decisions were carried out. Zero is worth reporting; it means none could be. */
     changed: number;
 }
 
-export interface ScoreEditInput {
+interface ScoreEditInput {
     mei: string;
     divergences: readonly Divergence[];
     resolutions: ReadonlyMap<string, Resolution>;

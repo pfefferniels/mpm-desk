@@ -188,8 +188,8 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
      * Open the desk that wrote this element.
      *
      * `focusCall` is the editor's existing answer to "take me to the decision behind this": it
-     * switches desk by the call's `transformerName` — through `TRANSFORMER_ALIASES`, so a retired
-     * name still lands — puts the call's own scope on the picker, names it in the URL hash and
+     * switches desk by the call's `transformerName` — through `TRANSFORMER_ALIASES`, so a call another
+     * desk serves still lands — puts the call's own scope on the picker, names it in the URL hash and
      * selects it. A call whose transformer has no desk of its own is still selected and still
      * linkable; it simply has nowhere to go, which is the honest outcome.
      *

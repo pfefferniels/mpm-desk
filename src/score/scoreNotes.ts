@@ -50,7 +50,7 @@ export type ScoreNote = {
     note: string; // MEI note ID
 }
 
-export type ScoreNoteOptions = {
+type ScoreNoteOptions = {
     /**
      * Whether a pitch sounding twice at the same moment - a unison written in two
      * voices - is read as one note. An aligner that expects one score note per

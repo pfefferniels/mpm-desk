@@ -41,7 +41,7 @@ const VELOCITY_SCALE = 64.0;
 const PITCH_SCALE = 64.0;
 
 /** The model's input for one window, ready to hand to the ONNX session. */
-export interface Featurized {
+interface Featurized {
     /** Score notes in the window. */
     n: number;
     /** Performed notes in the window. */
@@ -89,11 +89,6 @@ export function tablesToRow(score: readonly ScoreNote[], perf: readonly PerfNote
             Math.trunc(note.velocity),
         ]),
     };
-}
-
-/** Featurizes the whole row as a single sequence. */
-export function featurizeRow(row: MlignRow): Featurized {
-    return featurizeWindow(row, [0, row.score.length, 0, row.perf.length]);
 }
 
 /** Featurizes score `[s0, s1)` against perf `[p0, p1)`. */

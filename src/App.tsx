@@ -22,6 +22,7 @@ import './fitting/transformers/Order';
 
 import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
 import { lockedScopes, NO_SCOPE_LOCK } from './desks/scopeLock';
+import { TRANSFORMER_ALIASES } from './desks/transformerAliases';
 import type { SecondaryData } from './desks/TransformerViewProps';
 import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
@@ -49,8 +50,8 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { useEditorFit } from './hooks/useEditorFit';
 import { asMSM } from './fitting/asMSM';
 import type { Alignment } from './fitting/alignment';
-import { getInstructions } from './fitting/instructions/index';
-import type { ScopedTransformationOptions, Transformer } from './fitting/transformers/Transformer';
+import { getInstructions, isScope } from './fitting/instructions/index';
+import type { Transformer } from './fitting/transformers/Transformer';
 import {
     initialHistory,
     metadataOf,
@@ -58,9 +59,8 @@ import {
     workHistoryReducer,
     type Secondary,
 } from './model/workReducer';
-import { migrateIfNeeded } from './model/loadWork';
 import { buildWorkArchive } from './model/exportWork';
-import { sourcesOf, type WorkFile } from './model/Work';
+import { parseWorkFile, sourcesOf, type WorkFile } from './model/Work';
 import { documentSlug, downloadAsFile } from './utils/utils';
 
 /**
@@ -80,18 +80,6 @@ import { documentSlug, downloadAsFile } from './utils/utils';
  * A new call lands ungrouped: grouping is its own step, with its own desk, and the narrative desk
  * shows what a call wrote in amber until somebody says what it is for.
  */
-
-/**
- * Calls another transformer's desk serves: retired names, and `CorrectPedal`, which the
- * corrections desk makes beside `Modify`.
- */
-const TRANSFORMER_ALIASES: Record<string, string> = {
-    ApproximateLogarithmicTempo: 'InsertTempo',
-    TranslatePhysicalTimeToTicks: 'InsertTempo',
-    TranslatePhyiscalTimeToTicks: 'InsertTempo',
-    CorrectPedal: 'Modify',
-};
-
 export const App = () => {
     // Named `workHistory`, not `history`: the global of that name is what `pushState` below is
     // reached through, and shadowing it here made an undo stack look like a browser one.
@@ -228,7 +216,7 @@ export const App = () => {
 
     const loadWorkFromJson = useCallback((content: string) => {
         try {
-            const loaded = migrateIfNeeded(content);
+            const loaded = parseWorkFile(content);
             dispatch({ type: 'load', work: loaded });
             setSavedWork(loaded);
 
@@ -312,9 +300,7 @@ export const App = () => {
         async (file: File) => {
             const zip = await JSZip.loadAsync(file);
             const meiFile = zip.file('transcription.mei');
-            // `work.json` is the current name; older archives carry `info.json`, and those are
-            // worth being able to open.
-            const jsonFile = zip.file('work.json') ?? zip.file('info.json');
+            const jsonFile = zip.file('work.json');
             // Read before the MEI is: `loadMei` empties the takes, because opening a score is
             // opening a different piece, and an archive's takes are that score's own.
             const midiFiles = zip.file(/^recordings\//);
@@ -494,14 +480,14 @@ export const App = () => {
             const call = callsRef.current.find((entry) => entry.id === id);
             if (!call) return;
 
-            const name = TRANSFORMER_ALIASES[call.name] ?? call.name;
+            const name = TRANSFORMER_ALIASES.get(call.name) ?? call.name;
             const entry = correspondingDesks.find(
                 ({ transformerName }) => transformerName === name,
             );
             if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
 
-            const options = call.options as Partial<ScopedTransformationOptions>;
-            if (options.scope !== undefined) setScope(options.scope);
+            const { scope } = call.options;
+            if (isScope(scope)) setScope(scope);
 
             const prefix = call.id.slice(0, 8);
             if (window.location.hash.slice(1) !== prefix)

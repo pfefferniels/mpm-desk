@@ -26,7 +26,7 @@ describe('isCallOf', () => {
     test('takes only a name the registry holds, under its current spelling', () => {
         // @ts-expect-error `Align` is applied to the score, not registered.
         isCallOf('Align');
-        // @ts-expect-error a retired spelling is an alias, not a name a call is read under.
+        // @ts-expect-error a misspelling is not a name the registry holds.
         isCallOf('TranslatePhyiscalTimeToTicks');
     });
 });

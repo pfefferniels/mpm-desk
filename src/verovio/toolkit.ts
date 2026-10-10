@@ -129,10 +129,8 @@ export async function loadVerovio(): Promise<VerovioToolkit> {
  * for an option the build does not have would silently do nothing, so it asks first.
  */
 export function supportsOption(toolkit: VerovioToolkit, name: string): boolean {
-    const available = toolkit.getAvailableOptions() as unknown as {
-        groups?: Record<string, { options?: Record<string, unknown> }>;
-    };
-    return Object.values(available.groups ?? {}).some((group) => name in (group.options ?? {}));
+    const { groups } = toolkit.getAvailableOptions();
+    return Object.values(groups).some((group) => name in group.options);
 }
 
 /**
@@ -184,15 +182,6 @@ export function unitsPerSecond(options?: Partial<ScoreOptions>): number {
         ...options,
     };
     return performanceScale * unit * 10;
-}
-
-/**
- * The same axis in pixels, once the page has been scaled down for the SVG. Anything drawn
- * *beside* the score rather than into it — a piano roll of the recording — has to follow it too.
- */
-export function pixelsPerSecond(options?: Partial<ScoreOptions>): number {
-    const { scale = 100 } = { ...defaultOptions, ...options };
-    return (unitsPerSecond(options) * scale) / 1000;
 }
 
 /** The distance between two staff lines, in the units the SVG is drawn in. */

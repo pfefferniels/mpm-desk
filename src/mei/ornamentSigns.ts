@@ -39,7 +39,7 @@ export interface OrnamentSign {
  * A note may carry more than one sign (a trill with a turned ending, say), so the
  * map holds every one of them.
  */
-export function ornamentSigns(doc: Document): Map<string, OrnamentSign[]> {
+function ornamentSigns(doc: Document): Map<string, OrnamentSign[]> {
     const signs = new Map<string, OrnamentSign[]>();
 
     const add = (noteId: string, sign: OrnamentSign) => {

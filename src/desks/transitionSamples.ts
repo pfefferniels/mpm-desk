@@ -5,7 +5,7 @@
  */
 
 /** One sampled point of a transition: where it sits on screen, and what the curve holds there. */
-export interface TransitionSample {
+interface TransitionSample {
   /** The sample's x, in pixels. */
   readonly x: number;
   /** The transition's value there, in the instruction's own units. */
@@ -13,7 +13,7 @@ export interface TransitionSample {
 }
 
 /** A point of the drawn outline, both coordinates in pixels. */
-export interface AreaPoint {
+interface AreaPoint {
   readonly x: number;
   readonly y: number;
 }
