@@ -15,7 +15,15 @@ interface Held {
 
 interface Gathered {
     bySegment: Map<string, Held>;
-    /** Instructions whose call names no segment, or names one this file no longer holds. */
+    /**
+     * Instructions no claim holds: every call answerable for them names no segment, or one this
+     * file no longer holds.
+     *
+     * An instruction a claimed call holds is not ungrouped because an unclaimed one reshaped it
+     * too. Calls that are about no place stay out of the segments — `StylizeOrnamentation` and the
+     * piece-wide `InsertDynamicsGradient` touch every arpeggio — and listing what they reshaped
+     * would report a hundred instructions as unclaimed that each have their claim.
+     */
     ungrouped: Instruction[];
 }
 
@@ -94,5 +102,9 @@ export function gatherInstructions(
         }
     }
 
-    return { bySegment, ungrouped };
+    const claimed = new Set<string>();
+    for (const { instructions } of bySegment.values())
+        for (const { id } of instructions) claimed.add(id);
+
+    return { bySegment, ungrouped: ungrouped.filter(({ id }) => !claimed.has(id)) };
 }

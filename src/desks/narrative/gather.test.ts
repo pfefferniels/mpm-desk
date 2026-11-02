@@ -145,4 +145,24 @@ describe('gathering a segment’s instructions', () => {
         expect(ungrouped.map((i) => i.id)).toEqual(['tempo_0', 'rubato_0']);
         expect(bySegment.get('s1')?.instructions).toEqual([]);
     });
+
+    it('does not call a claimed instruction ungrouped because an unclaimed call reshaped it', () => {
+        // A piece-wide call is about no place and so in no segment. What it reshaped still has the
+        // claim that wrote it; only what it alone is answerable for is unclaimed.
+        const { bySegment, ungrouped } = gatherInstructions(
+            segments('s1'),
+            [
+                call('spread', 'InsertTemporalSpread', { segment: 's1', elements: ['ornament_0'] }),
+                call('gradient', 'InsertDynamicsGradient', {
+                    elements: ['ornament_0', 'ornament_9'],
+                }),
+            ],
+            types({ ornament_0: 'ornament', ornament_9: 'ornament' }),
+        );
+
+        expect(bySegment.get('s1')?.instructions.map((i) => i.id)).toEqual(['ornament_0']);
+        expect(ungrouped.map((i) => [i.id, i.callName])).toEqual([
+            ['ornament_9', 'InsertDynamicsGradient'],
+        ]);
+    });
 });
