@@ -70,9 +70,12 @@ console.log(`span types: ${JSON.stringify(actual)}`);
 
 const failures: string[] = [];
 if (unknown.length) failures.push(`unknown transformers: ${unknown.map((c) => c.name).join(', ')}`);
-if (reconstruction.segments.length !== baked.segments.length)
+// The bake was taken before the segments were regrouped (November 2026), so it is held to the
+// derivation span for span, by type, and not segment for segment. Every segment is bound to a
+// place, so each one the file holds is drawn.
+if (reconstruction.segments.length !== work.segments.length)
     failures.push(
-        `segments: ${String(reconstruction.segments.length)} derived vs ${String(baked.segments.length)} baked`,
+        `segments: ${String(reconstruction.segments.length)} derived vs ${String(work.segments.length)} in the file`,
     );
 for (const type of new Set([...Object.keys(expected), ...Object.keys(actual)]))
     if (expected[type] !== actual[type])
@@ -85,9 +88,16 @@ for (const type of new Set([...Object.keys(expected), ...Object.keys(actual)]))
 // than an instruction, so it would contribute nothing either way; `TranslatePhysicalTimeToTicks`
 // reshapes ornaments the `InsertTemporalSpread` calls wrote and still hold, which is why the
 // ornament tally below is unmoved by its call leaving the file; and `RoundNumbers` disowns
-// everything it touches, so it reports no elements at all.
-if (projection.ungroupedCalls !== 3)
-    failures.push(`ungrouped calls: ${String(projection.ungroupedCalls)}, expected 3`);
+// everything it touches, so it reports no elements at all. Beside them, every call the file
+// claims under no segment because it is about no place; its own `InsertMetadata` is replaced by
+// the injected one.
+const unclaimed = work.provenance.filter(
+    (call) => call.segment === undefined && call.name !== 'InsertMetadata',
+).length;
+if (projection.ungroupedCalls !== 3 + unclaimed)
+    failures.push(
+        `ungrouped calls: ${String(projection.ungroupedCalls)}, expected ${String(3 + unclaimed)}`,
+    );
 if (projection.droppedElements !== 0)
     failures.push(`dropped elements: ${String(projection.droppedElements)}`);
 

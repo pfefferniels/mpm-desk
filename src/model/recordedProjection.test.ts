@@ -45,14 +45,16 @@ describe('the projection the viewer derives', () => {
     it('reproduces the same segments and spans a full fit produces', () => {
         const { reconstruction, stats } = project();
 
-        expect(reconstruction.segments).toHaveLength(128);
+        // Every segment is bound to a place, so every one the file holds is drawn.
+        expect(reconstruction.segments).toHaveLength(109);
+        expect(stats.placelessSegments).toBe(0);
 
         const tally: Record<string, number> = {};
         for (const segment of reconstruction.segments)
             for (const span of segment.spans) tally[span.type] = (tally[span.type] ?? 0) + 1;
 
-        // 97 rather than 98: the piece-wide `InsertDynamicsGradient` sweep is claimed under
-        // „[Pauschale Werte, vorläufig]", which reports no range and so is drawn nowhere.
+        // 97 of the 100 ornaments: three are written by the piece-wide `InsertDynamicsGradient`
+        // alone, which is about no place and so in no segment.
         expect(tally).toEqual({
             ornament: 97,
             movement: 100,
@@ -63,9 +65,29 @@ describe('the projection the viewer derives', () => {
             articulation: 26,
         });
 
-        // The one call in no segment is the substituted `InsertMetadata`, which writes
-        // `<metadata>` rather than an instruction. Nothing recorded should be unaccounted for.
+        // Nothing recorded should be unaccounted for.
         expect(stats.droppedElements).toBe(0);
+    });
+
+    /**
+     * A segment is one claim about one place in the music. A call that acts on no place — a
+     * piece-wide edit of the definitions, the metadata, a choice of reading — makes no such claim,
+     * and neither does a `Modify`, which corrects the recording the fit is made against rather
+     * than saying anything about the performance. None of them is claimed under a segment.
+     */
+    it('claims under a segment only calls that act at a place', () => {
+        for (const call of work.provenance) {
+            if (call.segment === undefined) continue;
+            expect(call.range, `${call.name} ${call.id} is claimed but acts nowhere`).toBeDefined();
+            expect(call.name, call.id).not.toBe('Modify');
+        }
+    });
+
+    it('lets every segment continue one the file holds', () => {
+        const ids = new Set(work.segments.map((segment) => segment.id));
+        for (const segment of work.segments)
+            if (segment.continues !== undefined)
+                expect(ids.has(segment.continues), `${segment.id} continues ${segment.continues}`).toBe(true);
     });
 
     it('gives every segment a word', () => {

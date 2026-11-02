@@ -72,17 +72,21 @@ export interface Call {
      * - The instruction cannot. A `<tempo>`'s attributes say what it does to the sound and
      *   nothing about why. Writing the segment into it as `@corresp`, as the JSON-LD file did,
      *   puts editorial grouping inside the performance document.
-     * - Its date cannot. The claims overlap heavily, 195 overlapping pairs in the shipped
-     *   reconstruction and 78 of them nested, so a tick names no single segment.
+     * - Its date cannot. The claims overlap heavily, 149 overlapping pairs in the shipped
+     *   reconstruction and 63 of them nested, so a tick names no single segment.
      *
      * Recorded here rather than as a list of element ids on the segment. A call is the unit that
      * writes a gesture (`InsertPedal` writes a press as `_start` plus `_moveDown`), so a list on
      * the segment could express splitting one, at the price of a second copy of what
      * {@link Call.elements} already says.
      *
-     * A call that writes no instruction may carry a segment and still contributes nothing to the
-     * narrative, which is built from elements. It is excluded by having nothing to show rather
-     * than by a list of which transformers count.
+     * A segment is one claim about one place in the music, so only a call that acts at a place
+     * belongs under one. Two kinds stay unclaimed: corrections of the recording (`Modify`,
+     * `MakeChoice`), which change the evidence and write no instruction, and calls with no
+     * {@link Call.range} (`MergeMetricalAccentuations`, `StylizeOrnamentation`, a piece-wide
+     * `InsertDynamicsGradient`, `InsertMetadata`), which rewrite definitions across the piece and
+     * say nothing about a place. The narrative is still built from elements, so a call that
+     * writes nothing would show nothing anywhere; the rule is about what a claim is.
      */
     segment?: string;
 }
@@ -115,12 +119,13 @@ export interface Segment {
      * The id of the segment this one picks up from, where the gesture runs on across a break.
      *
      * **Recorded, not used.** Nothing reads it: one word per segment leaves the viewer nothing
-     * to merge. It stays in the file because it is thirteen recorded editorial judgements,
-     * migrated out of the JSON-LD `continue` and checked to resolve, and a format that drops
-     * what it has no current use for loses scholarship.
+     * to merge. It stays in the file because it is eight recorded editorial judgements,
+     * migrated out of the JSON-LD `continue`, and a format that drops what it has no current use
+     * for loses scholarship. `recordedProjection.test.ts` checks that each resolves: renaming
+     * the segments to UUIDs once left ten of them naming ids that were gone.
      *
      * A link between segments rather than a flag on a call, and specifically **not** espressivo's
-     * `ApproximateLogarithmicTempo.continue`. Two of the thirteen name the same predecessor, so
+     * `ApproximateLogarithmicTempo.continue`. Two of the eight name the same predecessor, so
      * it is a forest rather than a chain: read it as "picks up from", not "next".
      */
     continues?: string;
