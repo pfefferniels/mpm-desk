@@ -4,6 +4,18 @@ import type { PerformanceReader } from "../utils/mpm";
 import { TempoInstructionView } from "./TempoInstructionView";
 import { DynamicsInstructionView } from "./DynamicsInstructionView";
 import { GenericInstructionView } from "./GenericInstructionView";
+import { encodingOf } from "./encoding";
+
+const ENCODING_STYLE = {
+    margin: 0,
+    padding: '8px 12px',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    fontSize: 10.5,
+    lineHeight: 1.5,
+    whiteSpace: 'pre-wrap' as const,
+    wordBreak: 'break-all' as const,
+    color: '#1f2937',
+};
 
 interface InstructionPopoverProps {
     mpm: PerformanceReader;
@@ -50,6 +62,11 @@ export const InstructionPopover = ({
     );
 
     // Anchor at the click position
+    const definition = useMemo(
+        () => (focus && instruction ? mpm.defFor(instruction)?.toXML() ?? null : null),
+        [focus, instruction, mpm],
+    );
+
     const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
 
     /**
@@ -107,8 +124,18 @@ export const InstructionPopover = ({
                     <TempoInstructionView tempi={tempi} meter={mpm.meter} />
                 ) : dynamics ? (
                     <DynamicsInstructionView dynamics={dynamics} meter={mpm.meter} />
-                ) : (
+                ) : focus ? null : (
                     <GenericInstructionView type={instruction.type} date={instruction.date} />
+                )}
+                {/* A sign stands for one instruction: its encoding exactly as the performance
+                    has it, and the definition its name.ref points to. */}
+                {focus && (
+                    <div style={{ maxWidth: 460, borderTop: "1px solid #f1f5f9" }}>
+                        <pre style={ENCODING_STYLE}>{encodingOf(instruction.element.toXML())}</pre>
+                        {definition && (
+                            <pre style={{ ...ENCODING_STYLE, paddingTop: 0, color: "#6b7280" }}>{encodingOf(definition)}</pre>
+                        )}
+                    </div>
                 )}
             </Paper>
         </Popper>

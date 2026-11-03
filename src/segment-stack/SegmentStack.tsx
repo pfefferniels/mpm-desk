@@ -628,7 +628,9 @@ export const SegmentStack = ({ segments, mpm, band }: SegmentStackProps) => {
                 )}
                 </div>
             </div>
-            {cardSegments.length > 0 && cardAnchorEl && activeSpanIds.size === 0 && !signFocus && (
+            {/* With the score in the middle the card would cover the very signs it is about, and
+                what it told is told there: a word lights its signs, a sign shows its encoding. */}
+            {!band && cardSegments.length > 0 && cardAnchorEl && activeSpanIds.size === 0 && (
                 <SegmentTimelinePopover
                     segments={cardSegments}
                     mpm={mpm}

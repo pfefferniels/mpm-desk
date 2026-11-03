@@ -209,10 +209,12 @@ export const ScoreBand = memo(function ScoreBand({
     const anyLit = spotlit.size > 0;
     const stretch = engraved ? pxPerTick / engraved.pxPerTick : 1;
 
+    // Two steps: a word lights its signs, and a sign shows its own instruction's encoding. The
+    // sign keeps its segment lit, so the way from the word into the score keeps the others in
+    // view; the stack ignores this while a word is held open.
     const handle = (sign: Sign, entering: boolean, target: Element) => {
-        const ofLocked = sign.segmentIds.some((id) => locked.has(id));
-        if (ofLocked) onSignFocus(entering ? { elementId: sign.elementId, anchor: target } : null);
-        else onSegmentHover(entering ? sign.segmentIds[0] : null);
+        onSignFocus(entering ? { elementId: sign.elementId, anchor: target } : null);
+        onSegmentHover(entering ? sign.segmentIds[0] : null);
     };
 
     return (
