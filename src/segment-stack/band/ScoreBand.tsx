@@ -17,7 +17,7 @@ import { buildSigns, laneLayout, type BandGeometry, type NotePlacement, type Sig
  */
 
 /** verovio's `scale` for the band, and the MEI unit it is drawn in. */
-const SCALE = 45;
+const SCALE = 40;
 const UNIT = 9;
 /** How many pixels one tick takes per unit of `performanceScale`, at one millisecond per tick. */
 const PX_PER_TICK_PER_SCALE = ((UNIT * 10) / 1000) * (SCALE / 1000);
@@ -101,8 +101,9 @@ const measure = (root: HTMLElement, scoreNotes: ReadonlyMap<string, ScoreNote>, 
         end,
     };
     const lanes = laneLayout(geometry);
-    const padTop = Math.max(4, 1.6 * staffSpace - lanes.tempo);
-    const padBottom = Math.max(4, lanes.soft + staffSpace - base.height);
+    // Room for half a tempo arrowhead above its lane, and for nothing more under the soft pedal's.
+    const padTop = Math.max(4, staffSpace - lanes.tempo);
+    const padBottom = Math.max(4, lanes.soft + 0.6 * staffSpace - base.height);
     const shift = (y: number) => y + padTop;
     return {
         offset,

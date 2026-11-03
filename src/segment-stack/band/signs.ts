@@ -125,8 +125,10 @@ export function laneLayout(g: BandGeometry): Lanes {
         // more than half a tempo arrowhead.
         tempo: ceiling - 3.8 * ss,
         hairpin: (upper.bottom + lower.top) / 2,
-        pedal: floor + 2.6 * ss,
-        soft: floor + 4.4 * ss,
+        // A pedal fully down rises 1.3 spaces off its lane: clear of the lowest note, and of the
+        // soft pedal's lane under it.
+        pedal: floor + 2 * ss,
+        soft: floor + 3.8 * ss,
     };
 }
 

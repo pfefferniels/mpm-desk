@@ -134,6 +134,11 @@ describe('the signs the band draws', () => {
         expect(lanes.hairpin).toBeGreaterThan(140);
         expect(lanes.hairpin).toBeLessThan(200);
         expect(lanes.pedal).toBeGreaterThan(240);
+        // A pedal fully down, 1.3 spaces off its lane, clears the lowest staff and the soft
+        // pedal's lane; the band keeps no more room under them than that.
+        expect(lanes.pedal - 1.3 * geometry.staffSpace).toBeGreaterThan(240);
+        expect(lanes.soft - 1.3 * geometry.staffSpace).toBeGreaterThan(lanes.pedal);
+        expect(lanes.soft).toBeLessThanOrEqual(240 + 4 * geometry.staffSpace);
     });
 
     it('gives a ramp to the segment it opens, not to the one it closes', () => {
