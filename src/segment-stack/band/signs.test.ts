@@ -102,6 +102,15 @@ describe('the signs the band draws', () => {
         expect(b0 - a1).toBeGreaterThanOrEqual(3 * geometry.staffSpace);
     });
 
+    it('draws a hairpin shorter than its stretch too, so that one stands apart from the next', () => {
+        const xs = (id: string) => [...byElement.get(id)!.stroke.matchAll(/[ML]([-\d.]+) /g)].map((m) => Number(m[1]));
+        const cres = xs('dynamics_2520'); // 1.3½–1.4½
+        const dim = xs('dynamics_3600'); // 1.4½–2.1
+        expect(Math.min(...cres)).toBeGreaterThan(2520 / 10);
+        expect(Math.max(...cres)).toBeLessThan(3600 / 10);
+        expect(Math.min(...dim) - Math.max(...cres)).toBeGreaterThanOrEqual(3 * geometry.staffSpace);
+    });
+
     it('opens a crescendo towards its end and a decrescendo towards its start', () => {
         // 36 → 44 from 1.3½, then 40 → 36 from 1.1
         const cres = byElement.get('dynamics_2520')!.stroke;

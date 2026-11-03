@@ -8,7 +8,8 @@
  * - `<tempo>`: a flat line over the stretch it governs, drawn shorter than it so that one tempo
  *   stands apart from the next, its arrow pointing right where it moves forward and left where
  *   it slows down; a constant tempo has no arrow.
- * - `<dynamics>`: a hairpin opened as far as the volume changes.
+ * - `<dynamics>`: a hairpin opened as far as the volume changes, drawn shorter than its stretch
+ *   as a tempo is.
  * - `<rubato>`: a slur over the notes of its frame, read as the old practice reads one: the
  *   first note under it lengthened.
  * - `<accentuationPattern>`: an accent `>` on each note the pattern weights above its lightest
@@ -153,15 +154,23 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
         return Number.isFinite(to) ? to : g.end;
     };
 
-    const tempo = (i: Instruction): Drawn | null => {
-        const t = mpm.tempoOf(i);
-        if (!t) return null;
-        // Shorter than the stretch it governs, by a fifth at either end, so neighbours stand apart.
+    /**
+     * Where a sign for the stretch an instruction governs begins and ends: shorter than the
+     * stretch by a fifth at either end, so that one stands apart from the next and a row of
+     * them reads as so many gestures rather than as one line.
+     */
+    const shortened = (i: Instruction): [number, number] => {
         const from = X(i.date);
         const to = X(reachEnd(i));
         const inset = clamp((to - from) * 0.2, 1.5 * ss, 5 * ss);
         const x0 = Math.min(from + inset, (from + to) / 2 - 0.75 * ss);
-        const x1 = Math.max(to - inset, x0 + 1.5 * ss);
+        return [x0, Math.max(to - inset, x0 + 1.5 * ss)];
+    };
+
+    const tempo = (i: Instruction): Drawn | null => {
+        const t = mpm.tempoOf(i);
+        if (!t) return null;
+        const [x0, x1] = shortened(i);
         const y = lanes.tempo;
         const line = polyline([[x0, y], [x1, y]]);
         const anchor = { x: (x0 + x1) / 2, y };
@@ -182,8 +191,7 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
     const dynamics = (i: Instruction): Drawn | null => {
         const d = mpm.dynamicsOf(i);
         if (!d) return null;
-        const x0 = X(i.date) + 0.2 * ss;
-        const x1 = Math.max(x0 + ss, X(reachEnd(i)) - 0.4 * ss);
+        const [x0, x1] = shortened(i);
         const y = lanes.hairpin;
         const change = d.transitionTo - d.volume;
         if (Math.abs(change) < 0.5) {
