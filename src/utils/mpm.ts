@@ -26,20 +26,26 @@
  * never a round trip.
  */
 import {
+    ArticulationMap,
     DEFAULT_CONTROLLER,
     DynamicsMap,
     MetricalAccentuationMap,
     MovementMap,
     Mpm,
+    OrnamentationMap,
     RubatoMap,
     TempoMap,
     dynamicsAt,
     positionAt,
+    rubatoAt,
     tempoAt,
+    type Articulation,
     type Dynamics,
     type Element,
     type GenericMap,
     type Movement,
+    type Ornament,
+    type Rubato,
     type StyleKind,
     type Tempo,
 } from 'espressivo';
@@ -121,6 +127,12 @@ export interface PerformanceReader {
     dynamicsOf(instruction: Instruction): Dynamics | null;
     /** The resolved `<movement>` — the pedal, or whatever controller it names. */
     movementOf(instruction: Instruction): Movement | null;
+    /** The resolved `<rubato>`: its frame and window, its def's values filled in. */
+    rubatoOf(instruction: Instruction): Rubato | null;
+    /** The resolved `<ornament>`, its `ornamentDef` looked up. */
+    ornamentOf(instruction: Instruction): Ornament | null;
+    /** The resolved `<articulation>`, its `articulationDef` looked up. */
+    articulationOf(instruction: Instruction): Articulation | null;
     /**
      * The `<…Def>` the instruction points at by name, resolved through the `<style>` in
      * force at its date; null where it names none or the name does not resolve.
@@ -314,6 +326,9 @@ export const readPerformance = (mpmXml: string, meter: Meter): PerformanceReader
         tempoOf,
         dynamicsOf,
         movementOf,
+        rubatoOf,
+        ornamentOf,
+        articulationOf,
 
         defFor: ({ type, date, map, element }) => {
             const ref = STYLE_REF[type];
@@ -337,6 +352,15 @@ const dynamicsOf = ({ map, index }: Instruction) =>
 const movementOf = ({ map, index }: Instruction) =>
     map instanceof MovementMap ? map.getMovementDataOf(index) : null;
 
+const rubatoOf = ({ map, index }: Instruction) =>
+    map instanceof RubatoMap ? map.getRubatoDataOf(index) : null;
+
+const ornamentOf = ({ map, index }: Instruction) =>
+    map instanceof OrnamentationMap ? map.getOrnamentDataOf(index) : null;
+
+const articulationOf = ({ map, index }: Instruction) =>
+    map instanceof ArticulationMap ? map.getArticulationDataOf(index) : null;
+
 /**
  * Where a chart should stop drawing an instruction that runs to the end of time.
  *
@@ -349,5 +373,5 @@ export const spanEnd = (span: { startDate: number; endDate: number }, meter: Met
         ? span.startDate + meter.ppq
         : span.endDate;
 
-export { dynamicsAt, positionAt, tempoAt };
-export type { Dynamics, Element, Movement, Tempo };
+export { dynamicsAt, positionAt, rubatoAt, tempoAt };
+export type { Articulation, Dynamics, Element, Movement, Ornament, Rubato, Tempo };

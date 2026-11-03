@@ -647,10 +647,11 @@ export const SegmentStack = ({ segments, mpm, band }: SegmentStackProps) => {
                     mpm={mpm}
                     activeSpanIds={activeSpanIds}
                     svg={svg}
+                    notes={band?.scoreNotes}
                 />
             )}
             {signFocus && (
-                <InstructionPopover mpm={mpm} activeSpanIds={NO_SPANS} svg={null} focus={signFocus} />
+                <InstructionPopover mpm={mpm} activeSpanIds={NO_SPANS} svg={null} focus={signFocus} notes={band?.scoreNotes} />
             )}
         </Card>
     );

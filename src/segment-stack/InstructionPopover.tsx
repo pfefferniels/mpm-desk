@@ -1,9 +1,14 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { Popper, Paper } from "@mui/material";
 import type { PerformanceReader } from "../utils/mpm";
 import { TempoInstructionView } from "./TempoInstructionView";
 import { DynamicsInstructionView } from "./DynamicsInstructionView";
 import { GenericInstructionView } from "./GenericInstructionView";
+import { RubatoInstructionView } from "./RubatoInstructionView";
+import { OrnamentInstructionView } from "./OrnamentInstructionView";
+import { ArticulationInstructionView } from "./ArticulationInstructionView";
+import { articulate, articulatedNotes, msPerTickAt, notesAt, rollOf, type ChartNote } from "./instructionShapes";
+import { getLaneColor } from "./spanColors";
 import { encodingOf } from "./encoding";
 
 const ENCODING_STYLE = {
@@ -27,13 +32,22 @@ interface InstructionPopoverProps {
      * place of the selection and of the click position while it is there.
      */
     focus?: { elementId: string; anchor: Element } | null;
+    /**
+     * The score's notes, for the charts that show what an instruction does to them: a
+     * rubato's frame, a rolled chord, an articulated note. Without them those charts show
+     * the instruction on stand-in notes, or not at all.
+     */
+    notes?: readonly ChartNote[];
 }
+
+const NO_NOTES: readonly ChartNote[] = [];
 
 export const InstructionPopover = ({
     mpm,
     activeSpanIds,
     svg,
     focus,
+    notes = NO_NOTES,
 }: InstructionPopoverProps) => {
     // A span's id is the MPM element it leads with, so the selection names the
     // instruction to show outright.
@@ -60,6 +74,39 @@ export const InstructionPopover = ({
         () => (instruction?.type === 'dynamics' ? mpm.dynamicsAround(instruction) : null),
         [instruction, mpm],
     );
+
+    // What a rubato, an ornament or an articulation does to the notes it acts on.
+    const shape = useMemo((): ReactNode => {
+        if (!instruction) return null;
+        const color = getLaneColor(instruction.type);
+        switch (instruction.type) {
+            case 'rubato': {
+                const rubato = mpm.rubatoOf(instruction);
+                return rubato && <RubatoInstructionView rubato={rubato} onsets={notes.map(n => n.date)} color={color} />;
+            }
+            case 'ornament': {
+                const ornament = mpm.ornamentOf(instruction);
+                const roll = ornament && rollOf(ornament, notesAt(instruction, notes));
+                return roll && <OrnamentInstructionView roll={roll} msPerTick={msPerTickAt(mpm, instruction.date)} color={color} />;
+            }
+            case 'articulation': {
+                const articulation = mpm.articulationOf(instruction);
+                if (!articulation) return null;
+                // An articulation acts on each of its notes alike; the first stands for them.
+                const note = articulatedNotes(articulation, notes)[0] ?? { date: articulation.date, duration: mpm.meter.ppq };
+                return (
+                    <ArticulationInstructionView
+                        written={note.duration}
+                        played={articulate(articulation, note)}
+                        msPerTick={msPerTickAt(mpm, articulation.date)}
+                        color={color}
+                    />
+                );
+            }
+            default:
+                return null;
+        }
+    }, [instruction, mpm, notes]);
 
     // Anchor at the click position
     const definition = useMemo(
@@ -124,6 +171,8 @@ export const InstructionPopover = ({
                     <TempoInstructionView tempi={tempi} meter={mpm.meter} />
                 ) : dynamics ? (
                     <DynamicsInstructionView dynamics={dynamics} meter={mpm.meter} />
+                ) : shape ? (
+                    shape
                 ) : focus ? null : (
                     <GenericInstructionView type={instruction.type} date={instruction.date} />
                 )}

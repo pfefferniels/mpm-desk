@@ -17,8 +17,8 @@ const MEI = `<?xml version="1.0" encoding="UTF-8"?>
 
 describe('the score the band engraves', () => {
     const { mei, removed } = prepareBandMei(MEI, [
-        { id: 'a', date: 0, duration: 720 },
-        { id: 'b', date: 720, duration: 720 },
+        { id: 'a', date: 0, duration: 720, pitch: 60 },
+        { id: 'b', date: 720, duration: 720, pitch: 62 },
     ]);
     const doc = new DOMParser().parseFromString(mei, 'application/xml');
 

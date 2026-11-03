@@ -76,10 +76,10 @@ export const noteOrderOf = (sortedByOnset: readonly AlignedNote[]): string => {
  * default rather than to nothing: for an audition, the chord in some order beats silence, and
  * the renderer would have skipped the ornament outright.
  */
-export const sequenceOf = (
+export const sequenceOf = <N extends Pick<AlignedNote, 'xml:id' | 'midi.pitch'>>(
   noteOrder: string | readonly string[] | undefined,
-  notes: readonly AlignedNote[],
-): AlignedNote[] => {
+  notes: readonly N[],
+): N[] => {
   const stated = (typeof noteOrder === 'string' ? noteOrder : (noteOrder ?? []).join(' ')).trim();
   const byPitch = (descending: boolean) =>
     [...notes].sort((a, b) =>
@@ -94,7 +94,7 @@ export const sequenceOf = (
     .replace(/#/g, '')
     .split(/\s+/)
     .map((id) => byId.get(id))
-    .filter((note): note is AlignedNote => note !== undefined);
+    .filter((note): note is N => note !== undefined);
 
   return named.length === 0 ? byPitch(false) : named;
 };

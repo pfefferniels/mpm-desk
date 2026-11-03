@@ -37,6 +37,8 @@ export interface ScoreNote {
     id: string;
     date: number;
     duration: number;
+    /** `@midi.pitch`. */
+    pitch: number;
 }
 
 export const readScoreNotes = (msmXml: string): ScoreNote[] => {
@@ -46,7 +48,10 @@ export const readScoreNotes = (msmXml: string): ScoreNote[] => {
         const id = note.getAttribute('xml:id');
         const date = Number(note.getAttribute('date'));
         const duration = Number(note.getAttribute('duration'));
-        if (id && Number.isFinite(date)) notes.push({ id, date, duration: Number.isFinite(duration) ? duration : 0 });
+        const pitch = Number(note.getAttribute('midi.pitch'));
+        if (id && Number.isFinite(date)) {
+            notes.push({ id, date, duration: Number.isFinite(duration) ? duration : 0, pitch: Number.isFinite(pitch) ? pitch : 60 });
+        }
     }
     return notes;
 };
