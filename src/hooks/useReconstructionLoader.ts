@@ -12,6 +12,11 @@ interface Work {
     /** The performance as MPM XML — what the segments point into. */
     performanceMpm: string;
     /**
+     * The transcription, for the score the viewer sets in the middle of the tree. Null where it
+     * could not be fetched: the tree is drawn from the other three and stands without it.
+     */
+    transcriptionMei: string | null;
+    /**
      * The chain as it was fetched, verbatim.
      *
      * `reconstruction` is a projection of it and cannot be turned back into it, so the text is
@@ -51,8 +56,9 @@ export const useReconstruction = (): { work: Work | null; error: Error | null } 
             text(publishedUrl('score')),
             text(publishedUrl('performance')),
             text(publishedUrl('work')),
+            text(publishedUrl('mei')).catch(() => null),
         ])
-            .then(([scoreMsm, performanceMpm, workJson]) => {
+            .then(([scoreMsm, performanceMpm, workJson, transcriptionMei]) => {
                 if (cancelled) return;
 
                 const file = parseWorkFile(workJson);
@@ -69,7 +75,7 @@ export const useReconstruction = (): { work: Work | null; error: Error | null } 
                     elementTypes,
                 });
 
-                setWork({ scoreMsm, performanceMpm, workJson, reconstruction });
+                setWork({ scoreMsm, performanceMpm, workJson, transcriptionMei, reconstruction });
             })
             .catch((reason: unknown) => {
                 if (!cancelled) setError(reason instanceof Error ? reason : new Error(String(reason)));

@@ -10,12 +10,12 @@ import { ViewerToolbar } from './components/ViewerToolbar';
 import { downloadAsFile } from './utils/utils';
 import { readMeter, readNoteDates } from './utils/score';
 import { readPerformance } from './utils/mpm';
-import { publishedUrl } from './model/published';
 import { useReconstruction } from './hooks/useReconstructionLoader';
 import { PinchZoomHandler } from './hooks/usePinchZoom';
 import { LoadingScreen } from './components/LoadingScreen';
 import { SampleLoadingNotice } from './components/SampleLoading';
 import { PIANO_VELOCITIES } from './performance/piano';
+import { prepareBandMei, readScoreNotes } from './segment-stack/band/bandMei';
 
 const ViewerInner = () => {
     const { work, error } = useReconstruction();
@@ -48,21 +48,36 @@ const ViewerInner = () => {
     const dateByNoteId = useMemo(() => work ? readNoteDates(work.scoreMsm) : new Map(), [work]);
 
     /**
+     * The score in the middle of the tree: the transcription without its own performance marks,
+     * laid out on the tree's tick axis. Without a transcription, or one that cannot be read, the
+     * tree grows from its line as before.
+     */
+    const band = useMemo(() => {
+        if (!work?.transcriptionMei) return undefined;
+        try {
+            const scoreNotes = readScoreNotes(work.scoreMsm);
+            return { mei: prepareBandMei(work.transcriptionMei, scoreNotes).mei, scoreNotes };
+        } catch (reason) {
+            console.error('The score band could not be prepared', reason);
+            return undefined;
+        }
+    }, [work]);
+
+    /**
      * Download: the same four files the editor saves, so what you see can be opened and edited.
      *
      * `work.json` goes in verbatim rather than as the tree drawn from it. The tree is a projection
      * — it drops the options each call was made with — and the editor opens `work.json`, so a zip
      * carrying only the projection loads there as a score with no work behind it.
      *
-     * The MEI is the provenance of the other three, and nothing on screen needs it, so it is
-     * fetched here rather than on load; a piece served without one still yields the rest.
+     * The MEI is the provenance of the other three, and was fetched on load for the score band;
+     * a piece served without one still yields the rest.
      */
     const handleDownload = useCallback(async () => {
         if (!work) return;
 
-        const response = await fetch(publishedUrl('mei'));
         const zip = new JSZip();
-        if (response.ok) zip.file('transcription.mei', await response.text());
+        if (work.transcriptionMei !== null) zip.file('transcription.mei', work.transcriptionMei);
         zip.file('work.json', work.workJson);
         zip.file('performance.mpm', work.performanceMpm);
         zip.file('score.msm', work.scoreMsm);
@@ -108,7 +123,7 @@ const ViewerInner = () => {
                             instead of on the stem. `dvh` so a phone's retracting
                             toolbar does not cut the bottom off. */}
                         <div style={{ height: '100dvh' }}>
-                            <SegmentStack segments={work.reconstruction.segments} mpm={mpm} />
+                            <SegmentStack segments={work.reconstruction.segments} mpm={mpm} band={band} />
                         </div>
                     </ScrollSyncProvider>
                 </SelectionProvider>

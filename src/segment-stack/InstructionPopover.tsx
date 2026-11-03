@@ -10,19 +10,26 @@ interface InstructionPopoverProps {
     activeSpanIds: Set<string>;
     /** The drawing a click in it opens this popover — the node, so the listener follows it. */
     svg: SVGSVGElement | null;
+    /**
+     * An instruction pointed at directly, and where: a sign in the score band. It takes the
+     * place of the selection and of the click position while it is there.
+     */
+    focus?: { elementId: string; anchor: Element } | null;
 }
 
 export const InstructionPopover = ({
     mpm,
     activeSpanIds,
     svg,
+    focus,
 }: InstructionPopoverProps) => {
     // A span's id is the MPM element it leads with, so the selection names the
     // instruction to show outright.
     const activeId = useMemo(() => {
+        if (focus) return focus.elementId;
         if (activeSpanIds.size !== 1) return null;
         return activeSpanIds.values().next().value ?? null;
-    }, [activeSpanIds]);
+    }, [activeSpanIds, focus]);
 
     const instruction = useMemo(
         () => (activeId ? mpm.byId(activeId) ?? null : null),
@@ -67,11 +74,12 @@ export const InstructionPopover = ({
     }, [activeSpanIds, svg]);
 
     const virtualElement = useMemo(() => {
+        if (focus) return focus.anchor;
         if (!anchorPos) return null;
         return {
             getBoundingClientRect: () => new DOMRect(anchorPos.x, anchorPos.y, 0, 0),
         };
-    }, [anchorPos]);
+    }, [anchorPos, focus]);
 
     if (!instruction || !virtualElement) return null;
 

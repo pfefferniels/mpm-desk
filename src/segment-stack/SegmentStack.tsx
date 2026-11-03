@@ -16,6 +16,8 @@ import { wordFor, wordWidth } from "./words";
 import { InstructionPopover } from "./InstructionPopover";
 import { SegmentTimelinePopover } from "./SegmentTimeline";
 import { elementOwners, segmentsSoundingAt } from "./sounding";
+import { ScoreBand, type SignFocus } from "./band/ScoreBand";
+import type { ScoreNote } from "./band/bandMei";
 import { setsEqual } from "../utils/utils";
 
 /**
@@ -59,9 +61,17 @@ const settleAddress = (segment: Segment) => {
 interface SegmentStackProps {
     segments: Segment[];
     mpm: PerformanceReader;
+    /**
+     * The score to set in the middle of the tree, with every claimed instruction drawn into it
+     * (see `band/ScoreBand`). The viewer passes it; without it the tree grows from a line.
+     */
+    band?: { mei: string; scoreNotes: readonly ScoreNote[] };
 }
 
-export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
+/** An empty selection, for the popover that answers to a sign rather than to the selection. */
+const NO_SPANS = new Set<string>();
+
+export const SegmentStack = ({ segments, mpm, band }: SegmentStackProps) => {
     const { play, stop, exaggeration, isPlaying, subscribeNoteEvents } = usePlayback();
     const { activeSpanIds, setActiveSpanIds } = useSelection();
     const stretchX = useSymbolicZoom();
@@ -100,6 +110,14 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
      * what asks for its inside.
      */
     const [playingSegmentIds, setPlayingSegmentIds] = useState<Set<string>>(new Set());
+    /**
+     * How far the tree opens for the score: the words leaning down start below it. Zero without
+     * one, and the band's own room before its first engraving tells it better.
+     */
+    const [bandHeight, setBandHeight] = useState(band ? 200 : 0);
+    const gap = band ? bandHeight : 0;
+    /** The sign of an opened segment that the pointer is on, whose instruction the card shows. */
+    const [signFocus, setSignFocus] = useState<SignFocus | null>(null);
     const playRef = useLatest(play);
     const stopRef = useLatest(stop);
     const exaggerationRef = useLatest(exaggeration);
@@ -222,10 +240,10 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     useEffect(() => {
         const card = cardRef.current;
         if (!card) return;
-        const overflow = totalHeight - card.clientHeight;
+        const overflow = totalHeight + gap - card.clientHeight;
         if (overflow <= 0) return;
-        card.scrollTop = Math.max(0, Math.min(overflow, centreY - card.clientHeight / 2));
-    }, [totalHeight, centreY]);
+        card.scrollTop = Math.max(0, Math.min(overflow, centreY + gap / 2 - card.clientHeight / 2));
+    }, [totalHeight, centreY, gap]);
 
     const labelById = useMemo(() => {
         const map = new Map<string, LabelPlacement>();
@@ -258,6 +276,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
     const lockSegment = useCallback((segmentId: string) => {
         setLockedSegmentIds(new Set([segmentId]));
         setActiveSpanIds(new Set());
+        setSignFocus(null);
     }, [setActiveSpanIds]);
 
     const handleLock = useCallback((segmentId: string) => {
@@ -330,6 +349,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
 
     const handleUnlock = useCallback(() => {
         setLockedSegmentIds(new Set());
+        setSignFocus(null);
         setHoveredSegmentId(null);
         stopRef.current();
         handleClearSelection();
@@ -401,7 +421,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
         const leansUp = placed.some(l => l.side === -1);
         const y = leansUp
             ? centreY - Math.max(...placed.filter(l => l.side === -1).map(l => l.offset))
-            : centreY + Math.max(...placed.map(l => l.offset));
+            : centreY + gap + Math.max(...placed.map(l => l.offset));
         return {
             getBoundingClientRect: () => {
                 const ctm = svg?.getScreenCTM();
@@ -412,7 +432,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
             },
             contextElement: svg ?? undefined,
         };
-    }, [labelById, centreY, stretchX, svg]);
+    }, [labelById, centreY, gap, stretchX, svg]);
 
     const lockedSegments = useMemo(() => {
         if (lockedSegmentIds.size === 0) return [];
@@ -497,19 +517,21 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                 display: "flex",
                 alignItems: "center",
             }}>
+                <div style={{ position: "relative", width: maxX, height: totalHeight + gap, flex: "none" }}>
                 <svg
                     width={maxX}
-                    height={totalHeight}
+                    height={totalHeight + gap}
                     ref={setSvg}
-                    viewBox={`0 0 ${maxDate} ${totalHeight}`}
+                    viewBox={`0 0 ${maxDate} ${totalHeight + gap}`}
                     preserveAspectRatio="none"
+                    style={{ display: "block" }}
                 >
                     {/* Background rect for click-to-clear-selection */}
                     <rect
                         x={0}
                         y={0}
                         width={maxDate}
-                        height={totalHeight}
+                        height={totalHeight + gap}
                         fill="white"
                         onClick={handleUnlock}
                     />
@@ -525,7 +547,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                                 footRef={anchorRef(label.tick)}
                                 side={label.side}
                                 offset={label.offset}
-                                centreY={centreY}
+                                centreY={label.side === 1 ? centreY + gap : centreY}
                                 fontSize={label.fontSize}
                                 length={label.length}
                                 opacity={opacities.get(label.segment.id) ?? 1}
@@ -546,7 +568,7 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                             footRef={anchorRef(label.tick)}
                             side={label.side}
                             offset={label.offset}
-                            centreY={centreY}
+                            centreY={label.side === 1 ? centreY + gap : centreY}
                             fontSize={label.fontSize}
                             length={label.length}
                             opacity={1}
@@ -561,29 +583,52 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                     {/* The ruler reads over the tree rather than under it: it is on
                         the trunk now, where the branches have their feet, and a bar
                         number you cannot find is worse than one crossing a word. */}
+                    {/* Under the score where there is one, so its numbers are not covered. */}
                     <BarLines
                         maxDate={maxDate}
                         meter={mpm.meter}
                         stretchX={packStretchX}
-                        centreY={centreY}
+                        centreY={centreY + gap}
                         anchorRef={anchorRef}
                     />
 
-                    {/* The centre line the story is told around */}
-                    <line
-                        className="centreLine"
-                        x1={0}
-                        y1={centreY}
-                        x2={maxDate}
-                        y2={centreY}
-                        stroke="#9ca3af"
-                        strokeWidth={1}
-                        pointerEvents="none"
-                        vectorEffect="non-scaling-stroke"
-                    />
+                    {/* The centre line the story is told around, or the score in its place */}
+                    {!band && (
+                        <line
+                            className="centreLine"
+                            x1={0}
+                            y1={centreY}
+                            x2={maxDate}
+                            y2={centreY}
+                            stroke="#9ca3af"
+                            strokeWidth={1}
+                            pointerEvents="none"
+                            vectorEffect="non-scaling-stroke"
+                        />
+                    )}
                 </svg>
+                {band && (
+                    <div style={{ position: "absolute", left: 0, top: centreY, width: maxX, height: gap }}>
+                        <ScoreBand
+                            mei={band.mei}
+                            scoreNotes={band.scoreNotes}
+                            segments={segments}
+                            mpm={mpm}
+                            pxPerTick={stretchX}
+                            width={maxX}
+                            spotlit={spotlitIds}
+                            locked={lockedSegmentIds}
+                            onHeight={setBandHeight}
+                            onSegmentHover={handleHoverChange}
+                            onSegmentLock={handleLock}
+                            onSignFocus={setSignFocus}
+                            onBackgroundClick={handleUnlock}
+                        />
+                    </div>
+                )}
+                </div>
             </div>
-            {cardSegments.length > 0 && cardAnchorEl && activeSpanIds.size === 0 && (
+            {cardSegments.length > 0 && cardAnchorEl && activeSpanIds.size === 0 && !signFocus && (
                 <SegmentTimelinePopover
                     segments={cardSegments}
                     mpm={mpm}
@@ -593,12 +638,15 @@ export const SegmentStack = ({ segments, mpm }: SegmentStackProps) => {
                     interactive={lockedSegments.length > 0}
                 />
             )}
-            {activeSpanIds.size === 1 && (
+            {activeSpanIds.size === 1 && !signFocus && (
                 <InstructionPopover
                     mpm={mpm}
                     activeSpanIds={activeSpanIds}
                     svg={svg}
                 />
+            )}
+            {signFocus && (
+                <InstructionPopover mpm={mpm} activeSpanIds={NO_SPANS} svg={null} focus={signFocus} />
             )}
         </Card>
     );
