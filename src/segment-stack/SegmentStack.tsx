@@ -308,10 +308,10 @@ export const SegmentStack = ({ segments, mpm, band }: SegmentStackProps) => {
      *
      * `https://welte225.org/mpm/<id>` is a segment's identifier, and welte225.org sends it here
      * as `#<id>`, a prefix of the id included (see {@link linkedSegment}). The word is locked
-     * from the first render (see `lockedSegmentIds`), and the viewer opens at a zoom that fits
-     * the piece to the window, so nothing needs bringing into view on arrival. After that the
-     * address is followed, so the back button reopens the word it left. Nothing sounds on
-     * arrival, only on a click.
+     * from the first render (see `lockedSegmentIds`) and brought into view, since the viewer
+     * opens at a zoom the music can be read at rather than one that shows the whole piece. After
+     * that the address is followed, so the back button reopens the word it left. Nothing sounds
+     * on arrival, only on a click.
      */
     const followHash = useEffectEvent(() => {
         const linked = linkedSegment(segments);
@@ -330,7 +330,9 @@ export const SegmentStack = ({ segments, mpm, band }: SegmentStackProps) => {
 
     const settleOnArrival = useEffectEvent(() => {
         const linked = linkedSegment(segments);
-        if (linked) settleAddress(linked);
+        if (!linked) return;
+        settleAddress(linked);
+        scrollToDate(linked.from);
     });
 
     useEffect(() => {

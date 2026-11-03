@@ -50,9 +50,10 @@ describe('the signs the band draws', () => {
             ['accentuationPattern', 'articulation', 'dynamics', 'movement', 'ornament', 'rubato', 'tempo'],
         );
         expect(new Set(signs.map((s) => s.elementId)).size).toBe(signs.length);
-        // Everything claimed is drawn, but the moment a pedal is fully up, which has no extent.
+        // Everything claimed is drawn, but the moment a pedal is fully up, which has no extent, and
+        // a pattern that weights every beat alike, which accents nothing.
         const missing = [...claimed].filter((id) => !byElement.has(id)).map((id) => mpm.byId(id)?.type);
-        expect(new Set(missing)).toEqual(new Set(['movement']));
+        expect([...new Set(missing)].sort()).toEqual(['accentuationPattern', 'movement']);
         for (const sign of signs) expect(sign.stroke.length + sign.fill.length, sign.elementId).toBeGreaterThan(0);
     });
 
@@ -82,6 +83,25 @@ describe('the signs the band draws', () => {
         expect(Math.max(...ys)).toBeLessThan(110)
     });
 
+    it('marks accentuation with accents only, on the beats weighted above the lightest', () => {
+        const accents = signs.filter((s) => s.type === 'accentuationPattern');
+        expect(accents.length).toBeGreaterThan(30);
+        for (const sign of accents) expect(sign.stroke, sign.elementId).not.toMatch(/Q/);
+        // new-pattern weights beat 1 at 0 and beat 2 at −1: the accent falls on 1.1, not on the
+        // afterbeat at 1.2 it lightens.
+        const xs = [...byElement.get('accentuationPattern_720')!.stroke.matchAll(/M([-\d.]+)/g)].map((m) => Number(m[1]));
+        expect(xs).toHaveLength(1);
+        expect(xs[0]).toBeLessThan(1440 / 10);
+    });
+
+    it('draws a tempo shorter than its stretch, so that neighbours stand apart', () => {
+        const [[a0], [a1]] = ends(byElement.get('tempo_2160')!.stroke); // 1.3–1.4
+        const [[b0]] = ends(byElement.get('tempo_2880')!.stroke); // 1.4–2.2
+        expect(a0).toBeGreaterThan(2160 / 10);
+        expect(a1).toBeLessThan(2880 / 10);
+        expect(b0 - a1).toBeGreaterThanOrEqual(3 * geometry.staffSpace);
+    });
+
     it('opens a crescendo towards its end and a decrescendo towards its start', () => {
         // 36 → 44 from 1.3½, then 40 → 36 from 1.1
         const cres = byElement.get('dynamics_2520')!.stroke;
@@ -100,7 +120,7 @@ describe('the signs the band draws', () => {
         const lanes = laneLayout(geometry);
         // The tempo line and its arrowhead stay over the highest slur arch, 2.8 spaces over the top note.
         const ceiling = lanes.stress + 0.9 * geometry.staffSpace;
-        expect(lanes.tempo + 0.4 * geometry.staffSpace).toBeLessThan(ceiling - 2.8 * geometry.staffSpace);
+        expect(lanes.tempo + 0.7 * geometry.staffSpace).toBeLessThan(ceiling - 2.8 * geometry.staffSpace);
         expect(lanes.stress).toBeLessThan(110);
         expect(lanes.hairpin).toBeGreaterThan(140);
         expect(lanes.hairpin).toBeLessThan(200);

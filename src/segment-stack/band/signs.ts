@@ -5,14 +5,15 @@
  * the stretch of music the instruction acts on and drawn to its own values, so that two
  * instructions of a kind differ on the page as they differ in the sound:
  *
- * - `<tempo>`: a flat line over the stretch it governs, its arrow pointing right where it moves
- *   forward and left where it slows down; a constant tempo has no arrow.
+ * - `<tempo>`: a flat line over the stretch it governs, drawn shorter than it so that one tempo
+ *   stands apart from the next, its arrow pointing right where it moves forward and left where
+ *   it slows down; a constant tempo has no arrow.
  * - `<dynamics>`: a hairpin opened as far as the volume changes.
  * - `<rubato>`: a slur over the notes of its frame, read as the old practice reads one: the
  *   first note under it lengthened.
- * - `<accentuationPattern>`: a stress mark on every beat the pattern weights, `>` for the strong
- *   and `◡` for the weak, as large as the velocity it adds or takes; a level dash where it weights
- *   nothing audible.
+ * - `<accentuationPattern>`: an accent `>` on each note the pattern weights above its lightest
+ *   beat, as large as the difference — the notes without one are the light ones. A pattern that
+ *   weights every beat alike changes nothing and is not drawn.
  * - `<articulation>`: staccato, staccatissimo, tenuto or an accent at the note, and a held arc
  *   as long as a note is held over.
  * - `<ornament>`: an arpeggio line before the chord, its head showing which way it rolls.
@@ -63,6 +64,8 @@ export interface Sign {
     /** …and drawn filled: arrowheads, dots, wedges. */
     fill: string;
     dashed?: boolean;
+    /** How heavy its line is drawn, against the others' 1. */
+    weight?: number;
     /** Where a pointer is most likely to be, for anchoring the instruction's card. */
     anchor: { x: number; y: number };
 }
@@ -94,11 +97,11 @@ const num = (value: string | undefined, fallback: number) => {
     return value !== undefined && Number.isFinite(n) ? n : fallback;
 };
 
-/** A filled arrowhead with its tip at (x, y), pointing along `angle`. */
-const arrowHead = (x: number, y: number, angle: number, size: number) => {
+/** A filled arrowhead with its tip at (x, y), pointing along `angle`, opened by `spread` radians. */
+const arrowHead = (x: number, y: number, angle: number, size: number, spread = 0.42) => {
     const back = (a: number) => [x - size * Math.cos(angle + a), y - size * Math.sin(angle + a)];
-    const [x1, y1] = back(0.42);
-    const [x2, y2] = back(-0.42);
+    const [x1, y1] = back(spread);
+    const [x2, y2] = back(-spread);
     return `M${r(x)} ${r(y)}L${r(x1)} ${r(y1)}L${r(x2)} ${r(y2)}Z`;
 };
 
@@ -117,8 +120,9 @@ export function laneLayout(g: BandGeometry): Lanes {
     }
     return {
         stress: ceiling - 0.9 * ss,
-        // Clear of the highest slur arch, which stands at most 2.8 staff spaces over its notes.
-        tempo: ceiling - 3.5 * ss,
+        // Clear of the highest slur arch, which stands at most 2.8 staff spaces over its notes, by
+        // more than half a tempo arrowhead.
+        tempo: ceiling - 3.8 * ss,
         hairpin: (upper.bottom + lower.top) / 2,
         pedal: floor + 2.6 * ss,
         soft: floor + 4.4 * ss,
@@ -129,6 +133,7 @@ interface Drawn {
     stroke: string;
     fill: string;
     dashed?: boolean;
+    weight?: number;
     anchor: { x: number; y: number };
 }
 
@@ -151,18 +156,26 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
     const tempo = (i: Instruction): Drawn | null => {
         const t = mpm.tempoOf(i);
         if (!t) return null;
-        const x0 = X(i.date) + 0.2 * ss;
-        const x1 = Math.max(x0 + ss, X(reachEnd(i)) - 0.3 * ss);
+        // Shorter than the stretch it governs, by a fifth at either end, so neighbours stand apart.
+        const from = X(i.date);
+        const to = X(reachEnd(i));
+        const inset = clamp((to - from) * 0.2, 1.5 * ss, 5 * ss);
+        const x0 = Math.min(from + inset, (from + to) / 2 - 0.75 * ss);
+        const x1 = Math.max(to - inset, x0 + 1.5 * ss);
         const y = lanes.tempo;
         const line = polyline([[x0, y], [x1, y]]);
         const anchor = { x: (x0 + x1) / 2, y };
-        if (t.kind !== 'transitioning' || t.transitionTo === t.bpm) return { stroke: line, fill: '', anchor };
+        // Drawn heavy: it is the one sign that speaks for a whole stretch at a glance.
+        const weight = 2;
+        if (t.kind !== 'transitioning' || t.transitionTo === t.bpm) return { stroke: line, fill: '', anchor, weight };
         // Forward to the right, holding back to the left.
         const forward = t.transitionTo > t.bpm;
+        const size = 1.3 * ss;
         return {
             stroke: line,
-            fill: forward ? arrowHead(x1, y, 0, 0.8 * ss) : arrowHead(x0, y, Math.PI, 0.8 * ss),
+            fill: forward ? arrowHead(x1, y, 0, size, 0.5) : arrowHead(x0, y, Math.PI, size, 0.5),
             anchor,
+            weight,
         };
     };
 
@@ -233,6 +246,8 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
             .filter((a) => Number.isFinite(a.beat))
             .sort((a, b) => a.beat - b.beat);
         if (!length || accents.length === 0) return null;
+        // Read relative to the pattern's lightest beat: what stands above it is accented.
+        const lightest = Math.min(...accents.map((a) => a.value));
         const { from, to } = mpm.reachOf(i);
         const sticks = attrs.stickToMeasures !== 'false';
         let stroke = '';
@@ -245,18 +260,16 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
             const beat = 1 + ((date - tsDate) % cycle) / beatTicks;
             const at = accents.find((a) => Math.abs(a.beat - beat) < 1e-6);
             if (!at) continue;
-            const weight = at.value * scale;
-            if (Math.abs(weight) < 0.5) continue;
+            const weight = (at.value - lightest) * scale;
+            if (weight < 0.5) continue;
             const ids = onsets.get(date) ?? [];
             const tops = ids.map((id) => g.notes.get(id)).filter((n): n is NotePlacement => !!n && n.staff === 1);
             const x = tops.length ? Math.min(...tops.map((n) => n.x)) + tops[0].width / 2 : X(date);
             const y = localTop(tops) - 0.9 * ss;
-            const size = clamp(Math.abs(weight) / 6, 0.4, 1.3) * ss;
-            if (weight > 0) stroke += polyline([[x - size, y - size / 2], [x + size, y], [x - size, y + size / 2]]);
-            else stroke += `M${r(x - size)} ${r(y - size / 3)}Q${r(x)} ${r(y + size)} ${r(x + size)} ${r(y - size / 3)}`;
+            const size = clamp(weight / 6, 0.4, 1.3) * ss;
+            stroke += polyline([[x - size, y - size / 2], [x + size, y], [x - size, y + size / 2]]);
         }
-        // A pattern that weights nothing audibly is still there to be pointed at: a level dash.
-        if (!stroke) stroke = polyline([[X(from), lanes.stress], [X(from) + 0.8 * ss, lanes.stress]]);
+        if (!stroke) return null;
         return { stroke, fill: '', anchor: { x: X(from), y: lanes.stress } };
     };
 

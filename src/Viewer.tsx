@@ -17,6 +17,19 @@ import { SampleLoadingNotice } from './components/SampleLoading';
 import { PIANO_VELOCITIES } from './performance/piano';
 import { prepareBandMei, readScoreNotes } from './segment-stack/band/bandMei';
 
+/** How wide a bar opens in the score band, in pixels, and how many share a window. */
+const READABLE_BAR_MIN = 220;
+const READABLE_BAR_MAX = 320;
+const BARS_IN_VIEW = 5;
+
+/** Ticks in a bar of the metre the piece ends in, which for a piece in one metre is its metre. */
+const barTicksOf = (scoreMsm: string): number => {
+    const meter = readMeter(scoreMsm);
+    const last = meter.signatures.at(-1);
+    const { numerator = 4, denominator = 4 } = last ?? {};
+    return (numerator * 4 * meter.ppq) / denominator;
+};
+
 const ViewerInner = () => {
     const { work, error } = useReconstruction();
     const [stretchX, setStretchX] = useState<number>(20);
@@ -29,12 +42,19 @@ const ViewerInner = () => {
         [segments],
     );
 
-    // Fit piece to viewport width once the segments are in. Adjusted while rendering the
-    // load that brings them rather than in an effect afterwards: React re-renders with the
-    // fitted zoom before it paints, so the tree is never shown at the placeholder zoom and
-    // then jerked to its real width. It happens once — after that the zoom is the reader's.
-    if (!fitted && maxDate > 0) {
-        setStretchX(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, (window.innerWidth * 200) / maxDate)));
+    // The opening zoom, set once the segments are in. Adjusted while rendering the load that
+    // brings them rather than in an effect afterwards: React re-renders with it before it paints,
+    // so the tree is never shown at the placeholder zoom and then jerked to its real width. It
+    // happens once — after that the zoom is the reader's.
+    //
+    // With the score in the middle, the opening view is one the music can be read at: a bar a
+    // fifth of the window wide, within what notation needs and no wider. Without a score, the
+    // whole piece fits the window, as the tree alone reads best.
+    if (!fitted && maxDate > 0 && work) {
+        const pxPerTick = work.transcriptionMei
+            ? Math.min(READABLE_BAR_MAX, Math.max(READABLE_BAR_MIN, window.innerWidth / BARS_IN_VIEW)) / barTicksOf(work.scoreMsm)
+            : window.innerWidth / maxDate;
+        setStretchX(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, pxPerTick * 200)));
         setFitted(true);
     }
 
