@@ -5,11 +5,11 @@
  * the stretch of music the instruction acts on and drawn to its own values, so that two
  * instructions of a kind differ on the page as they differ in the sound:
  *
- * - `<tempo>`: an arrow along the tempo curve, rising into an accelerando and falling into a
- *   ritardando, bent the way `@meanTempoAt` bends it.
+ * - `<tempo>`: a flat line over the stretch it governs, its arrow pointing right where it moves
+ *   forward and left where it slows down; a constant tempo has no arrow.
  * - `<dynamics>`: a hairpin opened as far as the volume changes.
- * - `<rubato>`: an arc over its frame, the warp the frame applies; up where the frame's first
- *   notes are held back (long–short), down where they are hurried (short–long).
+ * - `<rubato>`: a slur over the notes of its frame, read as the old practice reads one: the
+ *   first note under it lengthened.
  * - `<accentuationPattern>`: a stress mark on every beat the pattern weights, `>` for the strong
  *   and `◡` for the weak, as large as the velocity it adds or takes; a level dash where it weights
  *   nothing audible.
@@ -70,7 +70,6 @@ export interface Sign {
 /** The lanes the signs are set in, from the staves outward. */
 interface Lanes {
     stress: number;
-    rubato: number;
     tempo: number;
     hairpin: number;
     pedal: number;
@@ -118,8 +117,8 @@ export function laneLayout(g: BandGeometry): Lanes {
     }
     return {
         stress: ceiling - 0.9 * ss,
-        rubato: ceiling - 2.4 * ss,
-        tempo: ceiling - 4.4 * ss,
+        // Clear of the highest slur arch, which stands at most 2.8 staff spaces over its notes.
+        tempo: ceiling - 3.5 * ss,
         hairpin: (upper.bottom + lower.top) / 2,
         pedal: floor + 2.6 * ss,
         soft: floor + 4.4 * ss,
@@ -152,27 +151,18 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
     const tempo = (i: Instruction): Drawn | null => {
         const t = mpm.tempoOf(i);
         if (!t) return null;
-        const x0 = X(i.date);
+        const x0 = X(i.date) + 0.2 * ss;
         const x1 = Math.max(x0 + ss, X(reachEnd(i)) - 0.3 * ss);
         const y = lanes.tempo;
-        if (t.kind !== 'transitioning') {
-            const tip: [number, number] = [x1, y];
-            return { stroke: polyline([[x0, y], tip]), fill: arrowHead(x1, y, 0, 0.8 * ss), anchor: { x: x0, y } };
-        }
-        const change = Math.log(t.transitionTo / t.bpm);
-        const h = clamp(Math.abs(change) * 4 * ss, 0.6 * ss, 2.6 * ss) * Math.sign(change || 1);
-        const y0 = y + h / 2;
-        const points: [number, number][] = [];
-        for (let k = 0; k <= 24; k++) {
-            const u = k / 24;
-            points.push([x0 + (x1 - x0) * u, y0 - h * Math.pow(u, t.exponent)]);
-        }
-        const [ax, ay] = points[points.length - 1];
-        const [bx, by] = points[points.length - 3];
+        const line = polyline([[x0, y], [x1, y]]);
+        const anchor = { x: (x0 + x1) / 2, y };
+        if (t.kind !== 'transitioning' || t.transitionTo === t.bpm) return { stroke: line, fill: '', anchor };
+        // Forward to the right, holding back to the left.
+        const forward = t.transitionTo > t.bpm;
         return {
-            stroke: polyline(points),
-            fill: arrowHead(ax, ay, Math.atan2(ay - by, ax - bx), 0.8 * ss),
-            anchor: { x: (x0 + x1) / 2, y },
+            stroke: line,
+            fill: forward ? arrowHead(x1, y, 0, 0.8 * ss) : arrowHead(x0, y, Math.PI, 0.8 * ss),
+            anchor,
         };
     };
 
@@ -196,27 +186,40 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
         };
     };
 
+    /** The topmost of these noteheads, or the staff's top line where that is higher. */
+    const upperTop = g.staves.get(1)?.top ?? lanes.stress + 0.9 * ss;
+    const localTop = (heads: readonly NotePlacement[]) => Math.min(upperTop, ...heads.map((n) => n.top));
+    /** The noteheads struck at `date` on the upper staff, or on any where it has none. */
+    const headsAt = (date: number) => {
+        const heads = (onsets.get(date) ?? []).map((id) => g.notes.get(id)).filter((n): n is NotePlacement => !!n);
+        const upper = heads.filter((n) => n.staff === 1);
+        return upper.length ? upper : heads;
+    };
+
     const rubato = (i: Instruction): Drawn | null => {
         const { attrs } = attributesOf(i.element.toXML());
         const length = num(attrs.frameLength, 0);
         if (length <= 0) return null;
-        const intensity = num(attrs.intensity, 1);
-        const late = num(attrs.lateStart, 0);
-        const early = num(attrs.earlyEnd, 1);
-        const x0 = X(i.date) + 0.15 * ss;
-        const x1 = X(i.date + length) - 0.15 * ss;
-        const warp = (u: number) => late + (early - late) * Math.pow(u, intensity) - u;
-        let most = 0;
-        for (let k = 1; k < 24; k++) most = Math.max(most, Math.abs(warp(k / 24)));
-        const gain = most > 0 ? clamp(most * 16 * ss, 0.35 * ss, 1.4 * ss) / most : 0;
-        const y = lanes.rubato;
-        const points: [number, number][] = [];
-        for (let k = 0; k <= 24; k++) {
-            const u = k / 24;
-            points.push([x0 + (x1 - x0) * u, y - warp(u) * gain]);
-        }
-        const ends = `${polyline([[x0, y - 0.35 * ss], [x0, y + 0.35 * ss]])}${polyline([[x1, y - 0.35 * ss], [x1, y + 0.35 * ss]])}`;
-        return { stroke: polyline(points) + ends, fill: '', anchor: { x: (x0 + x1) / 2, y } };
+        const struck = dates.filter((d) => d >= i.date && d < i.date + length).map(headsAt).filter((h) => h.length);
+        if (struck.length === 0) return null;
+        const centre = (heads: readonly NotePlacement[]) => {
+            const top = heads.reduce((a, b) => (b.top < a.top ? b : a));
+            return top.x + top.width / 2;
+        };
+        // From the first note of the frame to its last; a frame struck once reaches to its end.
+        const xa = centre(struck[0]);
+        const xb = struck.length > 1 ? centre(struck[struck.length - 1]) : Math.max(xa + ss, X(i.date + length) - 0.3 * ss);
+        // Over the stress marks of its own notes, as a slur stands over the articulation it binds.
+        const y = localTop(struck.flat()) - 1.8 * ss;
+        const arch = clamp((xb - xa) * 0.12, 0.5 * ss, 1.0 * ss);
+        const thick = 0.24 * ss;
+        const third = (xb - xa) / 3;
+        const outer = y - arch / 0.75;
+        const inner = y - (arch - thick) / 0.75;
+        const fill =
+            `M${r(xa)} ${r(y)}C${r(xa + third)} ${r(outer)} ${r(xb - third)} ${r(outer)} ${r(xb)} ${r(y)}` +
+            `C${r(xb - third)} ${r(inner)} ${r(xa + third)} ${r(inner)} ${r(xa)} ${r(y)}Z`;
+        return { stroke: '', fill, anchor: { x: (xa + xb) / 2, y: y - arch } };
     };
 
     const accentuation = (i: Instruction): Drawn | null => {
@@ -247,7 +250,7 @@ export function buildSigns(segments: readonly Segment[], mpm: PerformanceReader,
             const ids = onsets.get(date) ?? [];
             const tops = ids.map((id) => g.notes.get(id)).filter((n): n is NotePlacement => !!n && n.staff === 1);
             const x = tops.length ? Math.min(...tops.map((n) => n.x)) + tops[0].width / 2 : X(date);
-            const y = Math.min(lanes.stress, ...tops.map((n) => n.top - 0.9 * ss));
+            const y = localTop(tops) - 0.9 * ss;
             const size = clamp(Math.abs(weight) / 6, 0.4, 1.3) * ss;
             if (weight > 0) stroke += polyline([[x - size, y - size / 2], [x + size, y], [x - size, y + size / 2]]);
             else stroke += `M${r(x - size)} ${r(y - size / 3)}Q${r(x)} ${r(y + size)} ${r(x + size)} ${r(y - size / 3)}`;

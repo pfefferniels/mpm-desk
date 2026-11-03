@@ -56,11 +56,30 @@ describe('the signs the band draws', () => {
         for (const sign of signs) expect(sign.stroke.length + sign.fill.length, sign.elementId).toBeGreaterThan(0);
     });
 
-    it('raises the tempo arrow into an accelerando and lowers it into a ritardando', () => {
-        const [accelStart, accelEnd] = ends(byElement.get('tempo_0')!.stroke);
-        expect(accelEnd[1]).toBeLessThan(accelStart[1]);
-        const [ritStart, ritEnd] = ends(byElement.get('tempo_720')!.stroke);
-        expect(ritEnd[1]).toBeGreaterThan(ritStart[1]);
+    it('draws tempo flat, its arrow right where it moves forward and left where it slows down', () => {
+        const tip = (id: string) => {
+            const sign = byElement.get(id)!;
+            const [[x0, y0], [x1, y1]] = ends(sign.stroke);
+            const [tx] = sign.fill.match(/^M([-\d.]+)/)!.slice(1).map(Number);
+            expect(y0).toBe(y1);
+            return { tx, x0, x1 };
+        };
+        const accel = tip('tempo_0'); // 59 → 66
+        expect(accel.tx).toBe(accel.x1);
+        const rit = tip('tempo_720'); // 76 → 48
+        expect(rit.tx).toBe(rit.x0);
+    });
+
+    it('draws a rubato as a slur from the first note of its frame to the last', () => {
+        // rubato_2880: a quarter's frame at 1.4, struck at 1.4 and 1.4½ (ticks 2880 and 3240)
+        const slur = byElement.get('rubato_2880')!
+        expect(slur.stroke).toBe('')
+        const xs = [...slur.fill.matchAll(/([-\d.]+) ([-\d.]+)/g)].map((m) => Number(m[1]))
+        expect(Math.min(...xs)).toBeCloseTo(2880 / 10 + 6, 0)
+        expect(Math.max(...xs)).toBeCloseTo(3240 / 10 + 6, 0)
+        // arched upwards, over its notes
+        const ys = [...slur.fill.matchAll(/([-\d.]+) ([-\d.]+)/g)].map((m) => Number(m[2]))
+        expect(Math.max(...ys)).toBeLessThan(110)
     });
 
     it('opens a crescendo towards its end and a decrescendo towards its start', () => {
@@ -77,10 +96,11 @@ describe('the signs the band draws', () => {
         expect(width(dim, 'start')).toBeGreaterThan(width(dim, 'end'));
     });
 
-    it('keeps the lanes apart: tempo over rubato over stress over the staff, pedal under it', () => {
+    it('keeps the lanes apart: tempo over stress over the staff, pedal under it', () => {
         const lanes = laneLayout(geometry);
-        expect(lanes.tempo).toBeLessThan(lanes.rubato);
-        expect(lanes.rubato).toBeLessThan(lanes.stress);
+        // The tempo line and its arrowhead stay over the highest slur arch, 2.8 spaces over the top note.
+        const ceiling = lanes.stress + 0.9 * geometry.staffSpace;
+        expect(lanes.tempo + 0.4 * geometry.staffSpace).toBeLessThan(ceiling - 2.8 * geometry.staffSpace);
         expect(lanes.stress).toBeLessThan(110);
         expect(lanes.hairpin).toBeGreaterThan(140);
         expect(lanes.hairpin).toBeLessThan(200);
