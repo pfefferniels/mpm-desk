@@ -67,7 +67,8 @@ no copy. To publish a change made in the editor, replace the files there. After 
 chain, `npx vite-node scripts/recordOutcomes.ts` rewrites `work.json`, `performance.mpm` and
 `score.msm` in place, and `scripts/recordArtefacts.test.ts` fails until that has been done.
 
-The landing page of welte225.org, which follows the roll from an idea to a physical object, draws
+The page [welte225.org/journey/](https://welte225.org/journey/), which follows the roll from an idea
+to a physical object, draws
 what `npx vite-node scripts/recordJourney.ts` works out with this repository's code: the score band
 and its signs as the viewer engraves and builds them, the claims packed as the viewer packs them,
 the performance as playback renders it, and from the edition the versions R1–R4 and the copy St2.

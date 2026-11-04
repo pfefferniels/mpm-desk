@@ -1,5 +1,5 @@
 /**
- * The data of the landing page of welte225.org, which follows the roll from an idea to a physical
+ * The data of welte225.org/journey/, the page that follows the roll from an idea to a physical
  * object: the reconstruction's claims, the MPM instructions drawn into the score, the performance
  * they render, the versions of the roll's text from R1 to R4, and the copy St2 that carries the
  * last of them.
