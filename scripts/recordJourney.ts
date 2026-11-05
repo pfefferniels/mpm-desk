@@ -9,9 +9,9 @@
  * performance is rendered as playback renders it — so the page itself needs nothing but a browser.
  * It writes `journey/data.json` into the checkout of welte225.org, beside the files it reads.
  *
- * The page shows no score. The signs are drawn into the space the roll's notes will take: each note
- * at its notated date and on the row of its pitch, the two staves the signs are laid out against
- * standing where a grand staff's lines would be on those rows.
+ * The page shows no score. Each sign is drawn on its own, small, to be gathered with the others of
+ * its claim into a pile: against a geometry in which a bar is a few pixels wide and a note stands on
+ * a row of its pitch, so that a long hairpin keeps its opening and a tempo its arrowhead.
  *
  *     npx vite-node scripts/recordJourney.ts
  *
@@ -415,35 +415,39 @@ const residual = Math.sqrt(pairs.reduce((s, [ms, mm]) => s + (mmOfMs(ms) - mm) *
 // ---------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------
-// The signs, drawn into the space of the roll rather than into a score
+// The signs, each drawn small, to be gathered by claim
 // ---------------------------------------------------------------------------------------------
 
-/** The track pitch of the red roll, across the paper, in millimetres (punch-225), for the paper's true proportion. */
-const TRACK_MM = 3.193;
-const rowH = TRACK_MM * slope;
-/** A note's row, from the middle of the roll: a red roll's note track is its MIDI pitch less 13. */
-const yOfPitch = (pitch: number) => (63.5 - pitch) * rowH;
-/** The staff space the signs are drawn to. */
+/** How wide a bar is drawn for the signs: a hairpin over two bars is a hairpin, not a line. */
+const SIGN_BAR_PX = 36;
+const signPxPerTick = SIGN_BAR_PX / barTicks;
+/** The staff space the signs are drawn to, and how far apart two semitones stand. */
 const SIGN_SPACE = 8;
+const SIGN_SEMITONE = 1.4;
+const yOfPitch = (pitch: number) => (60.5 - pitch) * SIGN_SEMITONE;
 
 const geometry: BandGeometry = {
-    x: (tick) => tick * pxPerTick,
+    x: (tick) => tick * signPxPerTick,
     staffSpace: SIGN_SPACE,
-    // where a grand staff's lines would be on these rows: E4 to F5, and G2 to A3
+    // where a grand staff's lines would be: E4 to F5, and G2 to A3
     staves: new Map([
         [1, { top: yOfPitch(77), bottom: yOfPitch(64) }],
         [2, { top: yOfPitch(57), bottom: yOfPitch(43) }],
     ]),
     notes: new Map(scoreNotes.map((note): [string, NotePlacement] => [note.id, {
-        x: note.date * pxPerTick,
-        width: Math.min(1.2 * SIGN_SPACE, Math.max(3, note.duration * pxPerTick)),
-        top: yOfPitch(note.pitch) - rowH / 2,
-        bottom: yOfPitch(note.pitch) + rowH / 2,
+        x: note.date * signPxPerTick,
+        width: Math.min(1.2 * SIGN_SPACE, Math.max(2, note.duration * signPxPerTick)),
+        top: yOfPitch(note.pitch) - SIGN_SEMITONE / 2,
+        bottom: yOfPitch(note.pitch) + SIGN_SEMITONE / 2,
         staff: staffOf.get(note.id) ?? (note.pitch >= 60 ? 1 : 2),
     }])),
     scoreNotes: new Map(scoreNotes.map((note) => [note.id, note])),
     end,
 };
+
+/** The height of a track, for the paper's true proportion. */
+const TRACK_MM = 3.193;
+const rowH = TRACK_MM * slope;
 
 const signs = buildSigns(segments, mpm, geometry).map((sign) => {
     const instruction = mpm.byId(sign.elementId);
