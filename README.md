@@ -69,10 +69,10 @@ chain, `npx vite-node scripts/recordOutcomes.ts` rewrites `work.json`, `performa
 
 The page [welte225.org/journey/](https://welte225.org/journey/), which follows the roll from an idea
 to a physical object, draws
-what `npx vite-node scripts/recordJourney.ts` works out with this repository's code: the score band
-and its signs as the viewer engraves and builds them, the claims packed as the viewer packs them,
-the performance as playback renders it, and from the edition the versions R1–R4 and the copy St2.
-It writes `journey/data.json` and `journey/score.svg` there; run it after a change to the
+what `npx vite-node scripts/recordJourney.ts` works out with this repository's code: the signs as
+the viewer builds them, laid out on the roll's rows rather than on an engraved score, the claims
+packed as the viewer packs them, the performance as playback renders it, and from the edition the
+versions R1–R4 and the copy St2. It writes `journey/data.json` there; run it after a change to the
 reconstruction or to the edition.
 
 The tests read that checkout, expected beside this repository as `../welte225.org` or wherever

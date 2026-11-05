@@ -4,11 +4,14 @@
  * they render, the versions of the roll's text from R1 to R4, and the copy St2 that carries the
  * last of them.
  *
- * Everything the page draws is worked out here, with this repository's own code — the score band
- * is engraved and its signs built as the viewer engraves and builds them, the claims' words are
- * packed as the viewer packs them, the performance is rendered as playback renders it — so the
- * page itself needs nothing but a browser. It writes `journey/data.json` and `journey/score.svg`
- * into the checkout of welte225.org, beside the files it reads.
+ * Everything the page draws is worked out here, with this repository's own code — the signs are
+ * built as the viewer builds them, the claims' words are packed as the viewer packs them, the
+ * performance is rendered as playback renders it — so the page itself needs nothing but a browser.
+ * It writes `journey/data.json` into the checkout of welte225.org, beside the files it reads.
+ *
+ * The page shows no score. The signs are drawn into the space the roll's notes will take: each note
+ * at its notated date and on the row of its pitch, the two staves the signs are laid out against
+ * standing where a grand staff's lines would be on those rows.
  *
  *     npx vite-node scripts/recordJourney.ts
  *
@@ -33,9 +36,8 @@ import { readPerformance } from '../src/utils/mpm';
 import { readMeter } from '../src/utils/score';
 import { renderPerformance } from '../src/utils/espressivo';
 import { asSpans, type NoteSpan, type PedalSpan } from '../src/performance/midiSpans';
-import { loadVerovio, renderScore } from '../src/verovio/toolkit';
-import { prepareBandMei, readScoreNotes, SYMBOLIC_RECORDING, type ScoreNote } from '../src/segment-stack/band/bandMei';
-import { buildSigns, laneLayout, type BandGeometry, type NotePlacement } from '../src/segment-stack/band/signs';
+import { readScoreNotes, type ScoreNote } from '../src/segment-stack/band/bandMei';
+import { buildSigns, type BandGeometry, type NotePlacement } from '../src/segment-stack/band/signs';
 import { encodingOf } from '../src/segment-stack/encoding';
 import {
     arcPathD,
@@ -107,197 +109,38 @@ const scoreNoteById = new Map(scoreNotes.map((note) => [note.id, note]));
 const end = Math.max(0, ...scoreNotes.map((note) => note.date + note.duration));
 
 // ---------------------------------------------------------------------------------------------
-// The score band, engraved as the viewer engraves it, and measured off the SVG
+// What the transcription says beyond the MSM: which staff a note is written in, where bars begin
 // ---------------------------------------------------------------------------------------------
 
-/** verovio's `scale` and `unit` for the band, as in `ScoreBand.tsx`. */
-const SCALE = 40;
-const UNIT = 9;
-const PX_PER_TICK_PER_SCALE = ((UNIT * 10) / 1000) * (SCALE / 1000);
+const meiDoc = new DOMParser().parseFromString(transcriptionMei, 'application/xml');
+const xmlId = (element: Element) => element.getAttribute('xml:id') ?? element.getAttributeNS('http://www.w3.org/XML/1998/namespace', 'id');
 
-const toolkit = await loadVerovio();
-const bandMei = prepareBandMei(transcriptionMei, scoreNotes).mei;
-const engraving = renderScore(toolkit, bandMei, {
-    performanceAlignment: true,
-    performanceRecording: SYMBOLIC_RECORDING,
-    performanceBreaks: 'time',
-    performanceSystemDuration: 3600,
-    performanceScale: Math.min(1000, Math.max(0.1, pxPerTick / PX_PER_TICK_PER_SCALE)),
-    performanceUnmatched: 'plain',
-    performanceVelocityOpacity: false,
-    performanceRuler: false,
-    adjustPageWidth: true,
-    adjustPageHeight: true,
-    scale: SCALE,
-    unit: UNIT,
-    pageMarginLeft: 0,
-    pageMarginRight: 0,
-    pageMarginTop: 0,
-    pageMarginBottom: 0,
-    // the same ids on every run, so that the file changes only where the engraving does
-    xmlIdSeed: 225,
-})[0] ?? '';
-if (!engraving) throw new Error('The score could not be engraved');
+/** The staff each note is written in: 1 the upper, 2 the lower. */
+const staffOf = new Map<string, number>();
+for (const note of meiDoc.getElementsByTagName('note')) {
+    const id = xmlId(note);
+    let parent = note.parentElement;
+    while (parent && parent.localName !== 'staff') parent = parent.parentElement;
+    if (id && parent) staffOf.set(id, Number(parent.getAttribute('n') ?? 1));
+}
 
-/** The box a path's points and control points span: a little generous on curves, which is all a glyph needs. */
-const pathBox = (d: string) => {
-    const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e-?\d+)?/g) ?? [];
-    let x = 0, y = 0, startX = 0, startY = 0, command = 'M';
-    const xs: number[] = [];
-    const ys: number[] = [];
-    const take = (n: number) => tokens.splice(0, n).map(Number);
-    const visit = (px: number, py: number) => { xs.push(px); ys.push(py); };
-    while (tokens.length) {
-        if (/[a-zA-Z]/.test(tokens[0] ?? '')) command = tokens.shift() as string;
-        const relative = command === command.toLowerCase();
-        const ox = relative ? x : 0;
-        const oy = relative ? y : 0;
-        switch (command.toUpperCase()) {
-            case 'M': case 'L': case 'T': {
-                const [a, b] = take(2);
-                x = ox + a; y = oy + b; visit(x, y);
-                if (command.toUpperCase() === 'M') { startX = x; startY = y; command = relative ? 'l' : 'L'; }
-                break;
-            }
-            case 'H': x = (relative ? x : 0) + take(1)[0]; visit(x, y); break;
-            case 'V': y = (relative ? y : 0) + take(1)[0]; visit(x, y); break;
-            case 'C': {
-                const [a, b, c, e, f, g] = take(6);
-                visit(ox + a, oy + b); visit(ox + c, oy + e);
-                x = ox + f; y = oy + g; visit(x, y);
-                break;
-            }
-            case 'S': case 'Q': {
-                const [a, b, c, e] = take(4);
-                visit(ox + a, oy + b);
-                x = ox + c; y = oy + e; visit(x, y);
-                break;
-            }
-            case 'A': {
-                const [, , , , , f, g] = take(7);
-                x = ox + f; y = oy + g; visit(x, y);
-                break;
-            }
-            case 'Z': x = startX; y = startY; break;
-            default: tokens.shift();
-        }
-    }
-    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
-};
-
-const measureEngraving = (svgText: string) => {
-    const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
-    const root = doc.documentElement;
-    const width = parseFloat(root.getAttribute('width') ?? '0');
-    const height = parseFloat(root.getAttribute('height') ?? '0');
-    const scaled = root.querySelector('svg.definition-scale');
-    const viewBox = (scaled?.getAttribute('viewBox') ?? '0 0 1 1').split(/\s+/).map(Number);
-    const u = width / viewBox[2];
-    const margin = (root.querySelector('g.page-margin')?.getAttribute('transform') ?? '')
-        .match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)/);
-    const [mx, my] = margin ? [Number(margin[1]), Number(margin[2])] : [0, 0];
-
-    // Every glyph a notehead uses, by id, as the box it draws: flipped, as `scale(1,-1)` draws it.
-    const glyphs = new Map<string, ReturnType<typeof pathBox>>();
-    for (const g of root.querySelectorAll('defs > g[id]')) {
-        const d = g.querySelector('path')?.getAttribute('d');
-        if (d) {
-            const box = pathBox(d);
-            glyphs.set(g.id, { x0: box.x0, x1: box.x1, y0: -box.y1, y1: -box.y0 });
-        }
-    }
-
-    const notes = new Map<string, NotePlacement & { y: number }>();
-    for (const g of root.querySelectorAll('g.note[data-id]')) {
-        const id = g.getAttribute('data-id');
-        const use = g.querySelector('.notehead use');
-        const transform = use?.getAttribute('transform')?.match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\)\s*scale\(\s*([-\d.]+)/);
-        const glyph = glyphs.get((use?.getAttribute('xlink:href') ?? use?.getAttribute('href') ?? '').replace(/^#/, ''));
-        if (!id || !transform || !glyph) continue;
-        const [x, y, s] = transform.slice(1, 4).map(Number);
-        const staff = Number(g.closest('g.staff')?.getAttribute('data-n') ?? 1);
-        notes.set(id, {
-            x: (mx + x + glyph.x0 * s) * u,
-            width: (glyph.x1 - glyph.x0) * s * u,
-            top: (my + y + glyph.y0 * s) * u,
-            bottom: (my + y + glyph.y1 * s) * u,
-            y: (my + y) * u,
-            staff,
-        });
-    }
-
-    const lineYs = (staff: Element) => [...staff.children]
-        .filter((child) => child.tagName.toLowerCase() === 'path')
-        .map((line) => Number((line.getAttribute('d') ?? '').match(/^M\s*[-\d.]+\s+([-\d.]+)/)?.[1]))
-        .filter(Number.isFinite);
-    const staves = new Map<number, { top: number; bottom: number }>();
-    for (const g of root.querySelectorAll('g.staff[data-n]')) {
-        const n = Number(g.getAttribute('data-n'));
-        const ys = lineYs(g);
-        if (staves.has(n) || ys.length === 0) continue;
-        staves.set(n, { top: (my + Math.min(...ys)) * u, bottom: (my + Math.max(...ys)) * u });
-    }
-
-    // Where each bar begins: the left end of its first staff's lines.
-    const bars: { n: number; x: number }[] = [];
-    for (const g of root.querySelectorAll('g.measure')) {
-        const n = Number(g.getAttribute('data-n'));
-        const line = g.querySelector('g.staff > path')?.getAttribute('d')?.match(/^M\s*([-\d.]+)/);
-        if (Number.isFinite(n) && line) bars.push({ n, x: (mx + Number(line[1])) * u });
-    }
-
-    return { width, height, notes, staves, bars };
-};
-
-const measured = measureEngraving(engraving);
+/**
+ * Where the bars begin, in ticks: from the first note of the first full bar on, a bar's length
+ * apart. The piece opens with an upbeat, which is not counted.
+ */
+const measures = [...meiDoc.getElementsByTagName('measure')];
+const firstDates = measures.map((measure) => Math.min(...[...measure.getElementsByTagName('note')]
+    .map((note) => scoreNoteById.get(xmlId(note) ?? '')?.date ?? Infinity)));
+const firstBar = firstDates.length > 1 && firstDates[0] < firstDates[1] && firstDates[1] - firstDates[0] < barTicks
+    ? firstDates[1]
+    : firstDates[0] ?? 0;
+const bars: { n: number; tick: number }[] = [];
+for (let tick = firstBar, n = 1; tick < end; tick += barTicks, n++) bars.push({ n, tick });
 
 const median = (values: number[]) => {
     const sorted = [...values].sort((a, b) => a - b);
     return sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
 };
-
-/** Where the engraving's own tick 0 lies, which the band shifts onto the axis, as in `ScoreBand.tsx`. */
-const offset = median([...measured.notes].flatMap(([id, note]) => {
-    const score = scoreNoteById.get(id);
-    return score ? [note.x - score.date * pxPerTick] : [];
-}));
-
-const unshifted: BandGeometry = {
-    x: (tick) => tick * pxPerTick,
-    staffSpace: (() => {
-        const upper = measured.staves.get(1);
-        return upper ? (upper.bottom - upper.top) / 4 : 8;
-    })(),
-    staves: measured.staves,
-    notes: new Map([...measured.notes].map(([id, note]) => [id, { ...note, x: note.x - offset }])),
-    scoreNotes: new Map(scoreNotes.map((note) => [note.id, note])),
-    end,
-};
-const lanes = laneLayout(unshifted);
-const padTop = Math.max(4, unshifted.staffSpace - lanes.tempo);
-const padBottom = Math.max(4, lanes.soft + 0.6 * unshifted.staffSpace - measured.height);
-const bandHeight = Math.ceil(padTop + measured.height + padBottom);
-const down = (y: number) => y + padTop;
-const geometry: BandGeometry = {
-    ...unshifted,
-    staves: new Map([...unshifted.staves].map(([n, s]) => [n, { top: down(s.top), bottom: down(s.bottom) }])),
-    notes: new Map([...unshifted.notes].map(([id, n]) => [id, { ...n, top: down(n.top), bottom: down(n.bottom) }])),
-};
-
-const signs = buildSigns(segments, mpm, geometry).map((sign) => {
-    const instruction = mpm.byId(sign.elementId);
-    return {
-        id: sign.elementId,
-        type: sign.type,
-        segments: sign.segmentIds,
-        stroke: sign.stroke,
-        fill: sign.fill,
-        ...(sign.dashed && { dashed: true }),
-        ...(sign.weight !== undefined && sign.weight !== 1 && { weight: r2(sign.weight) }),
-        anchor: { x: r1(sign.anchor.x), y: r1(sign.anchor.y) },
-        encoding: instruction ? encodingOf(instruction.element.toXML()) : '',
-    };
-});
 
 // ---------------------------------------------------------------------------------------------
 // The claims, packed as the viewer packs them at this zoom
@@ -571,25 +414,61 @@ const residual = Math.sqrt(pairs.reduce((s, [ms, mm]) => s + (mmOfMs(ms) - mm) *
 
 // ---------------------------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------------------------
+// The signs, drawn into the space of the roll rather than into a score
+// ---------------------------------------------------------------------------------------------
+
+/** The track pitch of the red roll, across the paper, in millimetres (punch-225), for the paper's true proportion. */
+const TRACK_MM = 3.193;
+const rowH = TRACK_MM * slope;
+/** A note's row, from the middle of the roll: a red roll's note track is its MIDI pitch less 13. */
+const yOfPitch = (pitch: number) => (63.5 - pitch) * rowH;
+/** The staff space the signs are drawn to. */
+const SIGN_SPACE = 8;
+
+const geometry: BandGeometry = {
+    x: (tick) => tick * pxPerTick,
+    staffSpace: SIGN_SPACE,
+    // where a grand staff's lines would be on these rows: E4 to F5, and G2 to A3
+    staves: new Map([
+        [1, { top: yOfPitch(77), bottom: yOfPitch(64) }],
+        [2, { top: yOfPitch(57), bottom: yOfPitch(43) }],
+    ]),
+    notes: new Map(scoreNotes.map((note): [string, NotePlacement] => [note.id, {
+        x: note.date * pxPerTick,
+        width: Math.min(1.2 * SIGN_SPACE, Math.max(3, note.duration * pxPerTick)),
+        top: yOfPitch(note.pitch) - rowH / 2,
+        bottom: yOfPitch(note.pitch) + rowH / 2,
+        staff: staffOf.get(note.id) ?? (note.pitch >= 60 ? 1 : 2),
+    }])),
+    scoreNotes: new Map(scoreNotes.map((note) => [note.id, note])),
+    end,
+};
+
+const signs = buildSigns(segments, mpm, geometry).map((sign) => {
+    const instruction = mpm.byId(sign.elementId);
+    return {
+        id: sign.elementId,
+        type: sign.type,
+        segments: sign.segmentIds,
+        stroke: sign.stroke,
+        fill: sign.fill,
+        ...(sign.dashed && { dashed: true }),
+        ...(sign.weight !== undefined && sign.weight !== 1 && { weight: r2(sign.weight) }),
+        anchor: { x: r1(sign.anchor.x), y: r1(sign.anchor.y) },
+        encoding: instruction ? encodingOf(instruction.element.toXML()) : '',
+    };
+});
+
 const symbolIndex = new Map([...symbols.keys()].map((id, index) => [id, index]));
 const claimIndex = new Map(claims.map((claim, index) => [claim.id, index]));
 
 const data = {
     about: 'Written by scripts/recordJourney.ts in mpm-desk; do not edit by hand.',
     score: {
-        file: 'score.svg',
-        width: measured.width,
-        height: measured.height,
         pxPerTick,
         end,
-        offset: r1(offset),
-        padTop: r1(padTop),
-        bandHeight,
-        staffSpace: r2(geometry.staffSpace),
-        bars: measured.bars.map((bar) => ({ n: bar.n, x: r1(bar.x - offset) })),
-        notes: Object.fromEntries([...geometry.notes].map(([id, n]) => [id, {
-            x: r1(n.x), w: r1(n.width), y: r1(down((measured.notes.get(id) as { y: number }).y)), h: r1(n.bottom - n.top), staff: n.staff,
-        }])),
+        bars: bars.map((bar) => ({ n: bar.n, tick: r1(bar.tick) })),
     },
     tree: { above: r1(tree.centreY), below: r1(tree.totalHeight - tree.centreY) },
     claims,
@@ -599,6 +478,9 @@ const data = {
         notes: performed.map((note) => ({
             id: note.id,
             pitch: note.pitch,
+            // where the score has it
+            tick: r1((scoreNoteById.get(note.id) as ScoreNote).date),
+            dur: r1((scoreNoteById.get(note.id) as ScoreNote).duration),
             from: r1(mmOfMs(note.on)),
             to: r1(mmOfMs(note.off)),
             velocity: note.velocity,
@@ -609,6 +491,8 @@ const data = {
     roll: {
         /** x = a + b · mm, in the band's pixels. */
         axis: { a: r2(intercept), b: slope },
+        /** The height of a track, for the paper's true proportion; the signs are drawn to it. */
+        rowH,
         versions: VERSIONS.map((version) => version.siglum),
         // By their place in this list, as the notes and holes refer to them: ids the page has no use for.
         symbols: [...symbols.values()].map(({ hole, ...symbol }) => ({
@@ -633,7 +517,6 @@ const data = {
 
 const out = resolve(checkout, 'journey');
 mkdirSync(out, { recursive: true });
-writeFileSync(resolve(out, 'score.svg'), engraving, 'utf-8');
 writeFileSync(resolve(out, 'data.json'), JSON.stringify(data), 'utf-8');
 
 console.log(`${String(claims.length)} claims, ${String(signs.length)} signs, ${String(performed.length)} performed notes, ${String(pedals.length)} pedals`);
