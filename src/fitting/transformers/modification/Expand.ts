@@ -1,10 +1,8 @@
 import type { Alignment, AlignedNote, AlignedPedal } from '../../alignment';
 import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
 import { type Range, rangeOfNotes } from '../range';
+import { expansion, type ExpansionPoint } from '../../expansion';
 import { displace, restretch, restretchPress, type ModifySelector } from './Modify';
-
-/** A value as the recording has it, and the value it is to have instead. */
-export type ExpansionPoint = [from: number, to: number];
 
 /**
  * What an expansion is about: one of `Modify`'s three selectors, or none of them.
@@ -30,25 +28,6 @@ export type ExpandOptions = ScopedTransformationOptions &
   };
 
 /**
- * The map the points draw, or `null` where they draw none: fewer than two, a value that is not a
- * finite number, or recorded values that do not rise.
- */
-export const expansion = (points: readonly ExpansionPoint[]): ((value: number) => number) | null => {
-  if (points.length < 2) return null;
-  if (points.some(([from, to]) => !Number.isFinite(from) || !Number.isFinite(to))) return null;
-  for (let k = 1; k < points.length; k++) if (!(points[k][0] > points[k - 1][0])) return null;
-
-  return (value) => {
-    // The segment the value falls in; below the first point the first, above the last the last.
-    let k = 1;
-    while (k < points.length - 1 && value > points[k][0]) k++;
-    const [x0, y0] = points[k - 1];
-    const [x1, y1] = points[k];
-    return y0 + ((value - x0) * (y1 - y0)) / (x1 - x0);
-  };
-};
-
-/**
  * A correction to the recording that maps a whole range of values onto another, rather than
  * shifting each by the same amount.
  *
@@ -60,9 +39,11 @@ export const expansion = (points: readonly ExpansionPoint[]): ((value: number) =
  * along the line, so a note is moved further the softer it was recorded.
  *
  * The aspects are `Modify`'s, read the same way. For `velocity` the value is the velocity. For
- * `onset` it is the time of the attack in the recording, in milliseconds, and the event moves
- * without changing its length, as under `Modify`; for `duration` it is the length, and the
- * release moves. A roll played at the wrong speed would want both, with the same points.
+ * `onset` it is the time of the attack, in milliseconds from the first note's — the zero every
+ * desk shows, rather than the start of the roll, whose leader is no part of the performance —
+ * and the event moves without changing its length, as under `Modify`; for `duration` it is the
+ * length, and the release moves. A roll played at the wrong speed would want both, with the same
+ * points.
  *
  * ## Which events
  *
@@ -78,6 +59,13 @@ export const expansion = (points: readonly ExpansionPoint[]): ((value: number) =
  * expansions of one aspect apply one after the other, in the order of the calls.
  *
  * Like `Modify` it writes no instruction.
+ *
+ * ## What follows it
+ *
+ * The guides of the dynamics curve are set on the expanded scale, so the editor moves them with
+ * an expansion of velocity when one is added or taken away (`src/model/guides.ts`), and the
+ * desks draw where an event was before it as a grey ghost, by running the map backwards
+ * (`useCorrectionDeltas`).
  */
 export class Expand extends AbstractTransformer<ExpandOptions> {
   readonly name = 'Expand';
@@ -150,14 +138,22 @@ export class Expand extends AbstractTransformer<ExpandOptions> {
         for (const note of notes) note.velocity = Math.max(0, map(note.velocity));
         return;
 
-      case 'onset':
+      case 'onset': {
+        // The first note's onset among all of them, as `shiftToFirstOnset` will take it.
+        const zero = msm.allNotes.reduce(
+          (first, note) =>
+            Number.isFinite(note['milliseconds.date']) ? Math.min(first, note['milliseconds.date']) : first,
+          Infinity,
+        );
+        if (!Number.isFinite(zero)) return;
         for (const event of [...notes, ...pedals]) {
           const onset = event['milliseconds.date'];
           // A note the recording never played has no onset to map, as under `Modify`.
           if (!Number.isFinite(onset)) continue;
-          displace(event, map(onset) - onset);
+          displace(event, zero + map(onset - zero) - onset);
         }
         return;
+      }
 
       case 'duration':
         for (const note of notes) {

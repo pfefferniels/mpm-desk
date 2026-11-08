@@ -25,6 +25,7 @@ import type {
 } from '../fitting/transformers/voices/ProcessVoices';
 import type { Action, Resolution } from '../alignment/readings';
 import { isRecordedModelId, type RecordedModelId } from '../alignment/mlign/models';
+import { followExpansions, movesGuides } from './guides';
 
 /** The empty document the editor starts on, before a file is opened. */
 export const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [], segments: [] };
@@ -357,13 +358,26 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             // for. Folding it into whichever claim overlaps its range would write claims nobody
             // made. Stripped here rather than trusted from the caller: the rule is the
             // document's.
-            return { ...state, provenance: [...state.provenance, ungrouped(action.call)] };
+            const provenance = [...state.provenance, ungrouped(action.call)];
+            // An expansion of velocity changes the scale the guides were set on; they move with
+            // it. See `guides.ts`.
+            return {
+                ...state,
+                provenance: movesGuides(action.call)
+                    ? followExpansions(state.provenance, provenance)
+                    : provenance,
+            };
         }
 
         case 'remove-calls': {
             const dropping = new Set(action.ids);
-            const provenance = state.provenance.filter((call) => !dropping.has(call.id));
-            if (provenance.length === state.provenance.length) return state;
+            const kept = state.provenance.filter((call) => !dropping.has(call.id));
+            if (kept.length === state.provenance.length) return state;
+
+            // Taking an expansion of velocity away takes the guides back to the scale before it.
+            const provenance = state.provenance.some((call) => dropping.has(call.id) && movesGuides(call))
+                ? followExpansions(state.provenance, kept)
+                : kept;
 
             // A claim nothing is made under any more is not a claim. The segments hold no lists
             // to prune, since the calls named them, so this is the only place removal reaches

@@ -1,11 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 import { createMpm, type Mpm } from '../../../src/fitting/instructions/index';
 import { Alignment, type AlignedNote, type AlignedPedal } from '../../../src/fitting/alignment';
-import {
-    Expand,
-    expansion,
-    type ExpandOptions,
-} from '../../../src/fitting/transformers/modification/Expand';
+import { Expand, type ExpandOptions } from '../../../src/fitting/transformers/modification/Expand';
+import { expansion, inverseExpansion } from '../../../src/fitting/expansion';
 import { Modify } from '../../../src/fitting/transformers/modification/Modify';
 import { buildChain } from '../../../src/fitting/chain';
 import { parseWorkFile, serializeWorkFile, type WorkFile } from '../../../src/model/Work';
@@ -77,6 +74,22 @@ describe('the map the points draw', () => {
         const map = expansion(roll.points)!;
         expect(map(35 - 19)).toBeCloseTo(20 - 26);
         expect(map(54 + 19)).toBeCloseTo(46 + 26);
+    });
+
+    test('runs back the same way, beyond the points as well', () => {
+        const points: ExpandOptions['points'] = [
+            [35, 20],
+            [45, 30],
+            [54, 46],
+        ];
+        const map = expansion(points)!;
+        const back = inverseExpansion(points)!;
+        for (const value of [10, 35, 40, 45, 50, 54, 70]) expect(back(map(value))).toBeCloseTo(value, 9);
+    });
+
+    test('has no way back where it does not rise throughout', () => {
+        expect(inverseExpansion([[35, 20], [45, 30], [54, 25]])).toBeNull();
+        expect(inverseExpansion([[35, 20], [54, 20]])).toBeNull();
     });
 
     test.each([
@@ -154,7 +167,7 @@ describe("velocity, with Modify's selectors", () => {
 });
 
 describe('the timing aspects', () => {
-    // Twice as slow, from the start of the recording: what a roll played at half its speed asks.
+    // Twice as slow, from the first note on: what a roll played at half its speed asks.
     const slower = (aspect: 'onset' | 'duration'): ExpandOptions => ({
         scope: 'global',
         aspect,
@@ -164,12 +177,25 @@ describe('the timing aspects', () => {
         ],
     });
 
+    /** The first note at 0 ms, so its onset is the zero the points are measured from. */
+    const first = () => note('first', { 'milliseconds.date': 0, 'milliseconds.date.end': 500 });
+
     test('onset moves every event without changing its length, the pedals with the notes', () => {
-        const msm = new Alignment([note('a', { 'milliseconds.date': 1000, 'milliseconds.date.end': 1500 })]);
+        const msm = new Alignment([first(), note('a', { 'milliseconds.date': 1000, 'milliseconds.date.end': 1500 })]);
         msm.pedals = [pedal('p', { 'milliseconds.date': 3000, 'milliseconds.date.end': 4000 })];
         run(new Expand(slower('onset')), msm);
-        expect(msm.allNotes[0]).toMatchObject({ 'milliseconds.date': 2000, 'milliseconds.date.end': 2500 });
+        expect(msm.allNotes[1]).toMatchObject({ 'milliseconds.date': 2000, 'milliseconds.date.end': 2500 });
         expect(msm.pedals[0]).toMatchObject({ 'milliseconds.date': 6000, 'milliseconds.date.end': 7000 });
+    });
+
+    test('onset is measured from the first note, not from the start of the roll', () => {
+        // The roll's leader: the first note sounds 28 seconds in.
+        const msm = new Alignment([
+            note('first', { 'milliseconds.date': 28000, 'milliseconds.date.end': 28500 }),
+            note('a', { 'milliseconds.date': 29000, 'milliseconds.date.end': 29500 }),
+        ]);
+        run(new Expand(slower('onset')), msm);
+        expect(msm.allNotes.map((n) => n['milliseconds.date'])).toEqual([28000, 30000]);
     });
 
     test('duration moves every release and keeps every attack', () => {
@@ -181,17 +207,17 @@ describe('the timing aspects', () => {
     });
 
     test('both, with the same points, make the whole recording slower', () => {
-        const msm = new Alignment([note('a', { 'milliseconds.date': 1000, 'milliseconds.date.end': 1500 })]);
+        const msm = new Alignment([first(), note('a', { 'milliseconds.date': 1000, 'milliseconds.date.end': 1500 })]);
         run(new Expand(slower('onset')), msm);
         run(new Expand(slower('duration')), msm);
-        expect(msm.allNotes[0]).toMatchObject({ 'milliseconds.date': 2000, 'milliseconds.date.end': 3000 });
+        expect(msm.allNotes[1]).toMatchObject({ 'milliseconds.date': 2000, 'milliseconds.date.end': 3000 });
     });
 
     test('a call on one part leaves the pedals, which belong to no part, where they are', () => {
-        const msm = new Alignment([note('a')]);
+        const msm = new Alignment([first(), note('a')]);
         msm.pedals = [pedal('p')];
         run(new Expand({ ...slower('onset'), scope: 0 }), msm);
-        expect(msm.allNotes[0]['milliseconds.date']).toBe(2000);
+        expect(msm.allNotes[1]['milliseconds.date']).toBe(2000);
         expect(msm.pedals[0]).toEqual(pedal('p'));
     });
 

@@ -19,7 +19,7 @@ import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
 import { Clear } from "@mui/icons-material";
 import { COMMITTED_GHOST, DeltaGhost } from "../corrections/DeltaGhost";
-import { useModifyDeltas } from "../corrections/useModifyDeltas";
+import { useCorrectionDeltas } from "../corrections/useCorrectionDeltas";
 import { svgPoint, svgUnitsPerPixel } from "../../utils/svgPoint";
 import { clamp } from "../../fitting/utils";
 import { anchorsOf, nearestAnchor, type DynamicsAnchor } from "./anchors";
@@ -143,13 +143,13 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     const axisBleed = 1
 
     /**
-     * Which velocities were corrected by hand, and by how much.
+     * Which velocities were corrected, by hand or by an expansion, and by how much.
      *
-     * Read-only here: this desk emits no `Modify` of its own any more, so there is nothing
+     * Read-only here: this desk emits no correction of its own any more, so there is nothing
      * pending to hold out of the sum and the ghosts are a pure function of the chain and the
      * alignment. The corrections desk is where the dots themselves are moved.
      */
-    const modifyDeltas = useModifyDeltas(msm, part, 'velocity')
+    const modifyDeltas = useCorrectionDeltas(msm, part, 'velocity')
 
     const screenY = (velocity: number) => (127 - velocity) * stretchY
 
