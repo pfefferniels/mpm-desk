@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { useState, type ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { CallSelectionProvider, useCallSelection } from './CallSelection';
-import type { CallOutcome } from '../model/Reconstruction';
+import type { CallOutcome } from '../fitting/fit';
 
 const outcomes: CallOutcome[] = [
     { id: 'first curve', elements: ['dynamics_0', 'dynamics_1440'], range: { from: 0, to: 1440 } },

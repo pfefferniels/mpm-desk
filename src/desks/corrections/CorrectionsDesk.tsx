@@ -61,9 +61,8 @@ const lineTooltip = ({ change, before }: LineDraft): string =>
  * the *ground* a performance is fitted to rather than the performance itself: `MakeChoice` picks
  * between the readings of a passage, these correct the reading that was picked, and
  * `InsertMetadata` says who did the picking. None of them puts anything in the MPM, which is why
- * they are grouped together in the aspect menu and why nothing here appears in the narrative. A
- * correction states that the roll scan read something wrong rather than claiming anything about
- * the performance.
+ * they are grouped together in the aspect menu. A correction states that the roll scan read
+ * something wrong rather than claiming anything about the performance.
  *
  * ## The selector says what, the grab says which property
  *

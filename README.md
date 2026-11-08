@@ -1,9 +1,10 @@
 # MPM Desk
 
 An editor for reconstructing a recorded performance as
-[Music Performance Markup (MPM)](https://github.com/axelberndt/MPM), and a viewer for reading the
-result. The editor puts a recording note against note with its score, fits what the two differ by
-as MPM instructions, and lets those be grouped into claims about the performance.
+[Music Performance Markup (MPM)](https://github.com/axelberndt/MPM). It puts a recording note
+against note with its score and fits what the two differ by as MPM instructions. Reading the
+result is the business of the landing page of [welte225.org](https://welte225.org/), which loads
+the published reconstruction itself.
 
 ## Setup
 
@@ -34,27 +35,23 @@ record of what it used.
 | `npm run knip` | Unused files, exports and dependencies |
 | `npm run verovio:build` | Rebuild the vendored toolkit from the fork |
 
-## Routes
+## The editor
 
-`/` is the viewer. It fetches the reconstruction of WM 225 from
-[welte225.org](https://welte225.org/), which holds the only copy, and draws it as a tree of claims
-along the timeline, with playback. `/#<segment id>`, or an unambiguous prefix of at least eight
-characters, opens it at that segment; that is where a segment's identifier
-`https://welte225.org/mpm/<id>` sends a visitor.
+The editor opens at every path; `/editor`, where it used to live, still works. `/#<call id>`, or
+an unambiguous prefix of at least eight characters, selects that call once a project is open.
 
-`/editor` is the editor. The alignment desk says which sounded event realises which written note;
-the others plot what the recording did in one dimension (tempo, rubato, dynamics, accentuation,
-articulation, arpeggiation, pedalling) and turn a gesture on that plot into a transformer call.
-Furthermore there is a desk for the document itself (title and author, which MEI voice goes into
-which part) and the narrative desk, where MPM instructions can be grouped into one "narrative",
-e.g. about musical direction.
+The alignment desk says which sounded event realises which written note; the others plot what the
+recording did in one dimension (tempo, rubato, dynamics, accentuation, articulation, arpeggiation,
+pedalling) and turn a gesture on that plot into a transformer call. Furthermore there are desks
+for the document itself (title and author, which MEI voice goes into which part) and the markup
+desk, which shows the MPM as text.
 
 ## Export
 
 A project is a zip of
 
     transcription.mei    the score, with one <recording> per take
-    work.json            the reconstruction: transformer calls and narrative frames
+    work.json            the reconstruction: the transformer calls, and what each wrote
     performance.mpm      the MPM the chain wrote
     score.msm            the score that MPM is performed against
     recordings/*.mid     the takes
@@ -78,7 +75,6 @@ The tests read that checkout, expected beside this repository as `../welte225.or
 | `src/fitting/` | the transformer chain, run in a worker |
 | `src/model/` | the work file, the reducer over it, saving and loading |
 | `src/alignment/` | putting a recording note against note with the score |
-| `src/segment-stack/` | the viewer's tree of claims |
 | `src/verovio/` | the toolkit wrapper and the performed layout |
 | `scripts/` | one-shot tools, run with `vite-node` |
 

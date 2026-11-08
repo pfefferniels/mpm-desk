@@ -2,27 +2,25 @@
  * The fold at the centre of the editor: a work file in, a performance and its provenance out.
  *
  * One function, called from two places that must not disagree: the worker the editor drives, and
- * `scripts/verifyChain.ts`, which checks the result against the shipped reconstruction. Free of
- * React, of the DOM and of the worker protocol, so the thing under test is the thing that runs.
+ * `scripts/recordArtefacts.ts`, which checks the result against the shipped reconstruction. Free
+ * of React, of the DOM and of the worker protocol, so the thing under test is the thing that runs.
  *
  * {@link FitResult} is plain data. The MPM crosses as XML rather than as espressivo's `Mpm`,
  * which is a live XML tree structured clone cannot carry, and the main thread parses it back into
  * a `PerformanceReader`. The same boundary espressivo's own facade draws, costing about ten
  * milliseconds on a document of this size against three seconds of fitting.
  *
- * It decides nothing. The chain and the segmentation are the reconstruction's, and this runs what
- * it is given in the one order the fitters compose in. A call naming a transformer this build
+ * It decides nothing. The chain is the reconstruction's, and this runs what it is given in the one
+ * order the fitters compose in. A call naming a transformer this build
  * does not have is reported, never skipped silently.
  */
 import { buildChain } from './chain';
 import { validate } from './transformers/Order';
-import { createMpm, exportMPM, getInstructions } from './instructions/index';
+import { createMpm, exportMPM } from './instructions/index';
 import { clearResidualCache, deriveResidual, residualStats } from './residual';
 import type { AlignedNote, AlignedPedal, Alignment } from './alignment';
 import type { DatedTimeSignature } from './timeSignature';
 import type { Call, WorkFile } from '../model/Work';
-import { projectReconstruction, type CallOutcome, type ProjectionStats } from '../model/Reconstruction';
-import type { Reconstruction } from '../model/Reconstruction';
 
 /**
  * The recording as the chain left it, flattened enough to cross a worker boundary.
@@ -47,18 +45,38 @@ export interface Ground {
     timeSignatures: DatedTimeSignature[];
 }
 
+/**
+ * What one call of the run is answerable for: the elements it wrote, and where it acted.
+ *
+ * Reported by the run because nothing else can say either. A call's elements are the difference
+ * the document shows before and after it, and a recorded pedal has no symbolic date until the
+ * residual places it. The editor's selection reads both (`CallSelection`), and a save records
+ * them on the call (`Call.elements`, `Call.range`).
+ */
+export interface CallOutcome {
+    /** The `Call.id` this is reporting for. */
+    id: string;
+    /** The `xml:id`s of the MPM elements the call is answerable for — written or changed. */
+    elements: readonly string[];
+    /**
+     * The stretch of score the call acted on, in ticks; `null` where it names no place at all.
+     *
+     * `to` is `null` where the call names a single date rather than a span — a `<tempo>` is
+     * placed at a date and reaches to the next one, which is a fact about the map and not about
+     * the call.
+     */
+    range: { from: number; to: number | null } | null;
+}
+
 export interface FitResult {
     /** The performance the chain wrote, as MPM XML. */
     mpm: string;
     /** The recording the chain was fitted to, as the chain left it — every desk's ground. */
     ground: Ground;
-    /** What the tree draws — segments and spans, projected onto the ticks the calls acted on. */
-    reconstruction: Reconstruction;
-    /** Per call: the elements it is answerable for, where it acted, and under which claim. */
+    /** Per call: the elements it is answerable for, and where it acted. */
     outcomes: CallOutcome[];
     /** Calls naming a transformer this build does not have. Reported, never dropped in silence. */
     unknown: Call[];
-    projection: ProjectionStats;
     timing: {
         /** Milliseconds spent running the chain. */
         chainMs: number;
@@ -89,7 +107,7 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
     // anything still held is the previous run's and can only be a false hit.
     clearResidualCache();
 
-    const { transformers, unknown, title, author } = buildChain(work.provenance);
+    const { transformers, unknown } = buildChain(work.provenance);
 
     const problems = validate(transformers);
     if (problems.length) throw new ChainInvalidError(problems.map((p) => p.message));
@@ -114,38 +132,14 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
 
     // Every instruction has an `xml:id` by now — `AbstractTransformer.run` refuses to let a call
     // finish having left one without, because an unnamed instruction cannot be attributed to the
-    // call that wrote it. The narrowing is the type system catching up with that guarantee, not a
-    // case being handled.
-    const elementTypes = new Map(
-        getInstructions(mpm)
-            .filter((instruction): instruction is typeof instruction & { id: string } =>
-                instruction.id !== undefined,
-            )
-            .map((instruction) => [instruction.id, instruction.type]),
-    );
-    // Which claim a call's instructions are made under is the file's to say, not the run's —
-    // see `Call.segment`. A transformer the chain substituted has no entry here and stays
-    // unclaimed, which is the honest answer for something nobody wrote down.
-    const segmentOf = new Map(
-        work.provenance.map((call) => [call.id, call.segment] as const),
-    );
+    // call that wrote it.
     const outcomes: CallOutcome[] = transformers.map((transformer) => {
         const range = transformer.range(alignment, residual);
-        const segment = segmentOf.get(transformer.id);
         return {
             id: transformer.id,
             elements: [...transformer.created],
             range: range ? { from: range.from, to: range.to ?? null } : null,
-            ...(segment !== undefined && { segment }),
         };
-    });
-
-    const { reconstruction, stats } = projectReconstruction({
-        title,
-        author,
-        claims: work.segments,
-        outcomes,
-        elementTypes,
     });
 
     return {
@@ -155,10 +149,8 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
             pedals: alignment.pedals,
             timeSignatures: alignment.timeSignatures,
         },
-        reconstruction,
         outcomes,
         unknown,
-        projection: stats,
         timing: { chainMs, residual: { ...residualStats } },
     };
 }

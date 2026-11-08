@@ -177,8 +177,8 @@ describe('removing the selected calls', () => {
     });
 
     it('leaves Backspace to a text field', () => {
-        // The narrative desk's Word field and the metadata desk's title take Backspace as text,
-        // with a call selected or not.
+        // The metadata desk's title and author take Backspace as text, with a call selected or
+        // not.
         const onRemoveCalls = vi.fn();
         mount({ selected: new Set(['a']), onRemoveCalls });
         const field = document.createElement('input');

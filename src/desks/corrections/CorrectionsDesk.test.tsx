@@ -149,7 +149,6 @@ const mount = (initialCalls: readonly Call[] = []) => {
                                     msm={msm}
                                     mpm={mpm}
                                     residual={deriveResidual(msm, mpm)}
-                                    projected={[]}
                                     performanceXml=""
                                     secondary={{}}
                                     setSecondary={vi.fn()}

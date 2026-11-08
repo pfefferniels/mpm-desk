@@ -231,7 +231,7 @@ describe('its place in the chain', () => {
 
     test('a call survives the work file with its vertices', () => {
         const call = new CorrectPedal({ pedal: 'p1', travel: redrawn });
-        const work = { provenance: [{ id: call.id, name: call.name, options: call.options }], segments: [] };
+        const work = { provenance: [{ id: call.id, name: call.name, options: call.options }] };
 
         const reopened = parseWorkFile(serializeWorkFile(work as unknown as WorkFile));
 

@@ -1,11 +1,13 @@
 /**
- * The three files the viewer loads, produced from the MEI and the work file as published.
+ * The three files welte225.org publishes beside the MEI, produced from the MEI and the work file
+ * as published.
  *
- * `Call.elements` and `Call.range` cannot be worked out by a reader: `elements` is a diff over the
- * document before and after a call, and `range` needs the residual wherever a pedal is involved.
- * Recording them lets the viewer draw the tree from `work.json` and `performance.mpm` alone, with
- * no fitting code and no wait — which is what makes the three a build output rather than a source,
- * and what `recordOutcomes.ts` writes and `recordArtefacts.test.ts` checks has not gone stale.
+ * `performance.mpm` and `score.msm` are what the chain and the conversion make of the MEI, and
+ * the landing page reads them without running either. `Call.elements` and `Call.range` cannot be
+ * worked out by a reader either: `elements` is a diff over the document before and after a call,
+ * and `range` needs the residual wherever a pedal is involved. That is what makes the three a
+ * build output rather than a source, and what `recordOutcomes.ts` writes and
+ * `recordArtefacts.test.ts` checks has not gone stale.
  *
  * Nothing here writes. The script does that, and the test must not.
  */

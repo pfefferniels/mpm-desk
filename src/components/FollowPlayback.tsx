@@ -21,26 +21,19 @@ interface FollowPlaybackProps {
  * selected ones, and the desk scrolls along.
  *
  * Renders nothing. A subscriber rather than an option on `play()`, because who plays and who
- * follows are different questions: the play button sits in the app bar, and what following means
- * depends on which desk is open. A desk that plots one dimension wants the sounding calls lit on
- * its plot, which is what selecting them does. The narrative desk wants its rows lit and its
- * selection left alone, the selection there being the grouping in progress, so it follows on its
- * own and this is not mounted with it.
+ * follows are different questions: the play button sits in the app bar, and a desk that plots one
+ * dimension wants the sounding calls lit on its plot, which is what selecting them does.
  *
  * Which calls are sounding is what is in effect at the note's date, kind by kind — a `<tempo>`
  * until the next tempo, an ornament only on its own notes — mapped back through the fit's
  * report of who wrote what. `callForElement` is the only thing that knows that mapping.
- *
- * A preview scoped to particular instructions — a narrative chip, a word in the viewer — is
- * left alone: the reader asked for those and is looking at them already.
  */
 export const FollowPlayback = ({ mpm, signatures }: FollowPlaybackProps) => {
     const { subscribeNoteEvents } = usePlayback();
     const { setActiveCallIds, callForElement } = useCallSelection();
     const { scrollToDate } = useScrollSync();
 
-    const follow = useEffectEvent(({ date, scoped }: PlaybackNoteEvent) => {
-        if (scoped) return;
+    const follow = useEffectEvent(({ date }: PlaybackNoteEvent) => {
         const sounding = new Set<string>();
         for (const type of instructionTypes) {
             const effective = instructionsEffectiveAtDate(mpm, date, type, undefined, signatures);

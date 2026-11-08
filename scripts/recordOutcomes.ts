@@ -1,5 +1,5 @@
 /**
- * Write the three files the viewer loads, into the checkout of welte225.org.
+ * Write the three files welte225.org publishes beside the MEI, into a checkout of it.
  *
  * Run after any edit made outside the editor — a change to the chain, to a fitter, or to the MEI —
  * and commit there. The editor does the same thing on save, and `recordArtefacts.test.ts` fails

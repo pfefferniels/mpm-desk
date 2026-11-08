@@ -4,8 +4,8 @@
  * Everything else a desk does can be undone or refitted; the archive is what is left when the tab
  * is closed, and it is written by folding three separate things together. So what is checked here
  * is that nothing goes missing on the way out: which reading each note was taken from lands on the
- * note, what the run made each call answerable for lands on the call, and the four files a viewer
- * expects are all in the bag with their contents intact — including the option envelopes, which
+ * note, what the run made each call answerable for lands on the call, and the four files
+ * welte225.org publishes are all in the bag with their contents intact — including the option envelopes, which
  * turn into `{}` the moment a round trip skips {@link serializeWorkFile}.
  *
  * A couple of tests below pin behaviour that is arguably wrong rather than behaviour that is
@@ -18,7 +18,7 @@ import { buildWorkArchive, injectChoices, provenanceOf, type WorkArchiveInput } 
 import { parseWorkFile, type Call } from './Work';
 import { Alignment, type AlignedNote } from '../fitting/alignment';
 import { createMpm, exportMPM } from '../fitting/instructions/index';
-import type { CallOutcome } from './Reconstruction';
+import type { CallOutcome } from '../fitting/fit';
 
 /**
  * Three notes, and one `<when>` per note under a single take.
@@ -252,7 +252,7 @@ describe('provenanceOf', () => {
     });
 
     it('passes a call no outcome mentions through untouched', () => {
-        const unrun = call('a', { elements: ['tempo_0'], segment: 's1' });
+        const unrun = call('a', { elements: ['tempo_0'] });
         const [folded] = provenanceOf([unrun], [outcome('b')]);
 
         expect(folded).toBe(unrun);
@@ -265,15 +265,6 @@ describe('provenanceOf', () => {
         );
 
         expect(folded.map((entry) => entry.id)).toEqual(['a', 'b', 'c']);
-    });
-
-    it('keeps the claim the call was made under', () => {
-        const [folded] = provenanceOf(
-            [call('a', { segment: 's1' })],
-            [outcome('a', { elements: ['tempo_0'] })],
-        );
-
-        expect(folded.segment).toBe('s1');
     });
 
     // Behaviour recorded rather than wanted.
@@ -304,13 +295,9 @@ describe('buildWorkArchive', () => {
                 id: 'a',
                 name: 'InsertTempo',
                 options: { from: 0, bpm: 60 },
-                segment: 's1',
             },
         ],
-        segments: [{ id: 's1', note: 'Hinspielen auf 1' }],
-        outcomes: [
-            { id: 'a', segment: 's1', elements: ['tempo_0'], range: { from: 0, to: 720 } },
-        ],
+        outcomes: [{ id: 'a', elements: ['tempo_0'], range: { from: 0, to: 720 } }],
         metadata: { author: 'Clara Schumann', title: 'Träumerei' },
         ...overrides,
     });
@@ -329,7 +316,7 @@ describe('buildWorkArchive', () => {
         return file.async('string');
     };
 
-    it('holds the four files the viewer reads, and no others', async () => {
+    it('holds the four files welte225.org publishes, and no others', async () => {
         const zip = await readBack(await buildWorkArchive(input()));
 
         expect(Object.keys(zip.files).sort()).toEqual([
@@ -386,12 +373,10 @@ describe('buildWorkArchive', () => {
                     id: 'a',
                     name: 'InsertTempo',
                     options: { from: 0, bpm: 60 },
-                    segment: 's1',
                     elements: ['tempo_0'],
                     range: { from: 0, to: 720 },
                 },
             ],
-            segments: [{ id: 's1', note: 'Hinspielen auf 1' }],
         });
     });
 

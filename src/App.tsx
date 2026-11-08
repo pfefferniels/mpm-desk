@@ -15,9 +15,6 @@ import { convertMeiToMsm } from 'espressivo';
 // than left to whichever module happens to be imported first: the registry is module-level
 // state, and a chain reconstructed before it is populated silently loses every call it cannot
 // name. The fitting worker imports it on its own side for the same reason.
-//
-// Not at the shared entry: the viewer never rebuilds a chain, so that would make every reader
-// of a finished reconstruction download the whole fitting chain.
 import './fitting/transformers/Order';
 
 import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
@@ -66,19 +63,13 @@ import { documentSlug, downloadAsFile } from './utils/utils';
 /**
  * The editor.
  *
- * Its own component tree, mounted at `/editor`. The viewer at `/` is a different tree over the
- * same document and the two are kept apart on purpose — see `main.tsx`.
- *
  * Each desk plots what the recording did in one dimension and turns a gesture on that plot into a
  * transformer call. Below them sits the chain in `src/fitting/`, which runs in a worker over a
- * document that is a `WorkFile`: a flat list of calls and a flat list of segments.
+ * document that is a `WorkFile`: a flat list of calls.
  *
- * The document itself lives in `workReducer`, so the rules that hold the two arrays together are
- * testable without React. Every desk reaches it through `useWorkDocument`, so the aspect registry
- * has no exceptions rendered by name out of a branch here.
- *
- * A new call lands ungrouped: grouping is its own step, with its own desk, and the narrative desk
- * shows what a call wrote in amber until somebody says what it is for.
+ * The document itself lives in `workReducer`, so the rules about it are testable without React.
+ * Every desk reaches it through `useWorkDocument`, so the aspect registry has no exceptions
+ * rendered by name out of a branch here.
  */
 export const App = () => {
     // Named `workHistory`, not `history`: the global of that name is what `pushState` below is
@@ -343,7 +334,7 @@ export const App = () => {
      * What a desk's gesture becomes.
      *
      * A desk hands over a constructed `Transformer` and only its three data fields are kept: a
-     * call is a name, an id and its options. It lands in no segment, as the note at the top says.
+     * call is a name, an id and its options.
      *
      * Here rather than on `useWorkDocument` because it is two things at once. The document gains
      * a call, and that call becomes the selection, which is `CallSelection`'s half.
@@ -428,7 +419,8 @@ export const App = () => {
     const archiveName = useMemo(() => `${documentSlug(metadata.title)}.zip`, [metadata.title]);
 
     /**
-     * Save, which is a download: the four-file archive the viewer reads.
+     * Save, which is a download: the archive Open reads back, whose first four files welte225.org
+     * publishes.
      *
      * `buildWorkArchive` is the pure, tested half. This is the rest: the download itself, and
      * noticing that the document on disk is now this one.
@@ -445,7 +437,6 @@ export const App = () => {
             mpm,
             scoreMsm,
             calls: work.provenance,
-            segments: work.segments,
             outcomes: result.outcomes,
             metadata,
             // The same boundary `setSecondary` crosses in the other direction, and the only
@@ -612,7 +603,6 @@ export const App = () => {
         return <LoadingScreen message={pending ? 'Running the chain' : undefined} />;
     }
 
-    const isNarrativeSelected = deskEntry?.aspect === 'narrative';
     const DeskComponent = deskEntry?.desk;
 
     /** What the open desk calls itself. */
@@ -644,7 +634,6 @@ export const App = () => {
         msm: alignment,
         mpm,
         residual,
-        projected: result.reconstruction.segments,
         performanceXml: result.mpm,
         secondary,
         setSecondary,
@@ -737,14 +726,10 @@ export const App = () => {
                                         />
                                     </Box>
 
-                                    {/* The narrative desk follows the playhead on its own terms —
-                                        rows lit, selection left alone — see `FollowPlayback`. */}
-                                    {!isNarrativeSelected && (
-                                        <FollowPlayback
-                                            mpm={mpm}
-                                            signatures={alignment.timeSignatures}
-                                        />
-                                    )}
+                                    <FollowPlayback
+                                        mpm={mpm}
+                                        signatures={alignment.timeSignatures}
+                                    />
                                     <PinchZoomHandler />
                                 </ScrollSyncProvider>
                             </CallSelectionProvider>

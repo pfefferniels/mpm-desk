@@ -2,9 +2,9 @@
  * The shipped reconstruction against the chain that produces it.
  *
  * `work.json`, `performance.mpm` and `score.msm`, as published on welte225.org, are a build
- * output: the viewer draws the tree from what they *record* rather than from a run, which lets it
- * carry no fitting code. So they go stale in silence, a fitter changing and nobody re-running
- * `recordOutcomes.ts` (issue #37 caught that five days after it started).
+ * output: a reader takes what they *record* rather than running the chain. So they go stale in
+ * silence, a fitter changing and nobody re-running `recordOutcomes.ts` (issue #37 caught that five
+ * days after it started).
  *
  * Compared byte for byte, which the chain permits by deriving every id it mints from what that id
  * names (issue #48). The exception is espressivo's own `meico_<uuid>`, minted for an element the
@@ -13,8 +13,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
-import type { Published } from '../src/model/published';
-import { publishedPath } from '../src/test/published';
+import { publishedPath, type Published } from '../src/test/published';
 import { recordArtefacts } from './recordArtefacts';
 
 /** The ids espressivo mints for the elements a conversion invents. */
@@ -22,7 +21,7 @@ const withoutMintedIds = (xml: string): string => xml.replace(/ xml:id="meico_[^
 
 const shipped = (file: Published) => readFileSync(publishedPath(file), 'utf-8');
 
-describe('the files the viewer loads are what the chain produces', () => {
+describe('the published files are what the chain produces', () => {
     const recorded = recordArtefacts();
 
     test('the work file records the outcomes this chain reports', () => {

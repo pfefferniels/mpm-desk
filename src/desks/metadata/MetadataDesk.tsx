@@ -1,9 +1,7 @@
 import { Box } from "@mui/material";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useMode } from "../../hooks/ModeProvider";
 import { useWorkDocument } from "../../hooks/WorkDocument";
 import { describesPerformance } from "../../model/workReducer";
-import { WORD_FONT_FAMILY } from "../../segment-stack/words";
 
 interface Metadata {
     author: string
@@ -13,12 +11,13 @@ interface Metadata {
 interface MetadataDeskProps {
     metadata: Metadata
     setMetadata: React.Dispatch<React.SetStateAction<Metadata>>
-    isEditorMode: boolean
-    segmentCount: number
     callCount: number
 }
 
 const UI_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/** The title and author are set in a serif; see `index.css` for the faces. */
+const TITLE_FONT_FAMILY = '"EB Garamond", Garamond, "Times New Roman", serif';
 
 /**
  * The column.
@@ -37,7 +36,7 @@ const page = {
 } as const;
 
 const titleType = {
-    fontFamily: WORD_FONT_FAMILY,
+    fontFamily: TITLE_FONT_FAMILY,
     fontSize: 'clamp(1.5rem, 3vw, 2rem)',
     fontWeight: 400,
     lineHeight: 1.15,
@@ -45,7 +44,7 @@ const titleType = {
 } as const;
 
 const authorType = {
-    fontFamily: WORD_FONT_FAMILY,
+    fontFamily: TITLE_FONT_FAMILY,
     fontSize: '1.125rem',
     fontWeight: 400,
     lineHeight: 1.4,
@@ -86,8 +85,7 @@ const useAutoHeight = (text: string) => {
  * A field that reads as set type until you go near it.
  *
  * The block is drawn wider than the glyphs — padding out, margin back in — so hovering the line
- * shows something to click without the text having moved to make room for it. In view mode the
- * same string is a `<span>` with neither, which lands it in exactly the same place.
+ * shows something to click without the text having moved to make room for it.
  */
 const field = {
     display: 'block',
@@ -113,8 +111,6 @@ const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 export const MetadataDesk = ({
     metadata,
     setMetadata,
-    isEditorMode,
-    segmentCount,
     callCount,
 }: MetadataDeskProps) => {
     // Typing stays local and reaches the document on blur: a commit rebuilds the chain's
@@ -161,47 +157,35 @@ export const MetadataDesk = ({
 
     return (
         <Box sx={page}>
-            {isEditorMode ? (
-                <Box
-                    component="textarea"
-                    ref={titleRef}
-                    rows={1}
-                    aria-label="Title"
-                    placeholder="Untitled"
-                    value={draft.title}
-                    onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-                        setDraft((current) => ({ ...current, title: event.target.value }));
-                    }}
-                    onKeyDown={handleKeyDown}
-                    onBlur={commit}
-                    sx={{ ...titleType, ...field }}
-                />
-            ) : (
-                <Box component="span" sx={{ ...titleType, display: 'block' }}>
-                    {metadata.title || 'Untitled'}
-                </Box>
-            )}
+            <Box
+                component="textarea"
+                ref={titleRef}
+                rows={1}
+                aria-label="Title"
+                placeholder="Untitled"
+                value={draft.title}
+                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+                    setDraft((current) => ({ ...current, title: event.target.value }));
+                }}
+                onKeyDown={handleKeyDown}
+                onBlur={commit}
+                sx={{ ...titleType, ...field }}
+            />
 
-            {isEditorMode ? (
-                <Box
-                    component="textarea"
-                    ref={authorRef}
-                    rows={1}
-                    aria-label="Author"
-                    placeholder="Unattributed"
-                    value={draft.author}
-                    onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-                        setDraft((current) => ({ ...current, author: event.target.value }));
-                    }}
-                    onKeyDown={handleKeyDown}
-                    onBlur={commit}
-                    sx={{ ...authorType, ...field, ...authorGap }}
-                />
-            ) : (
-                <Box component="span" sx={{ ...authorType, ...authorGap, display: 'block' }}>
-                    {metadata.author || 'Unattributed'}
-                </Box>
-            )}
+            <Box
+                component="textarea"
+                ref={authorRef}
+                rows={1}
+                aria-label="Author"
+                placeholder="Unattributed"
+                value={draft.author}
+                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+                    setDraft((current) => ({ ...current, author: event.target.value }));
+                }}
+                onKeyDown={handleKeyDown}
+                onBlur={commit}
+                sx={{ ...authorType, ...field, ...authorGap }}
+            />
 
             <Box
                 sx={{
@@ -211,7 +195,7 @@ export const MetadataDesk = ({
                     color: '#9ca3af',
                 }}
             >
-                {count(segmentCount, 'segment')} · {count(callCount, 'call')}
+                {count(callCount, 'call')}
             </Box>
         </Box>
     )
@@ -221,7 +205,7 @@ export const MetadataDesk = ({
  * The metadata desk as the registry dispatches it.
  *
  * Split from the component above rather than folded into it, and the split is the point: the
- * page is a function of five values and is worth testing as one — eight cases drive it directly,
+ * page is a function of three values and is worth testing as one — seven cases drive it directly,
  * including a rerender that proves an externally replaced document does not lose an unsaved
  * draft. Reading the document inside it would put a provider harness between every one of those
  * assertions and the thing asserted.
@@ -231,8 +215,7 @@ export const MetadataDesk = ({
  * desk is handed.
  */
 export const MetadataDeskEntry = () => {
-    const { metadata, setMetadata, segments, calls } = useWorkDocument();
-    const { isEditorMode } = useMode();
+    const { metadata, setMetadata, calls } = useWorkDocument();
 
     // `InsertMetadata` writes `<metadata>` rather than an instruction, so counting it would make
     // an otherwise empty document report a call it does not have.
@@ -242,8 +225,6 @@ export const MetadataDeskEntry = () => {
         <MetadataDesk
             metadata={metadata}
             setMetadata={setMetadata}
-            isEditorMode={isEditorMode}
-            segmentCount={segments.length}
             callCount={callCount}
         />
     );

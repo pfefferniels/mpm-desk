@@ -3,7 +3,6 @@ import type { Mpm } from '../fitting/instructions/index';
 import type { Residual } from '../fitting/residual';
 import type { Scope } from '../fitting/instructions/index';
 import type { Transformer } from '../fitting/transformers/Transformer';
-import type { Segment as Gestures } from '../model/Reconstruction';
 import type { TempoSecondaryData } from './tempo/secondary';
 
 /**
@@ -59,16 +58,6 @@ export interface ViewProps {
      * `DeskSwitch.tsx` — so each of them narrows this once and none of them ever draws without one.
      */
     residual: Residual | null;
-
-    /**
-     * The claims as the last run projected them — one entry per claim that still has a gesture in
-     * the document, keyed by the same id.
-     *
-     * A fit output like the three above, and here for the same reason they are: not derivable
-     * from `mpm` alone, because a span's reach is reported by the call that wrote it rather than
-     * written on the instruction.
-     */
-    projected: readonly Gestures[];
 
     /** The finished performance as XML, for the drawings that sample the document directly. */
     performanceXml: string;

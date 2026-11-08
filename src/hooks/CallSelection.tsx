@@ -8,15 +8,10 @@ import {
 } from 'react';
 import { useLatest } from './useLatest';
 import type { Call } from '../model/Work';
-import type { CallOutcome } from '../model/Reconstruction';
+import type { CallOutcome } from '../fitting/fit';
 
 /**
  * What the editor has selected: calls, and the MPM elements they wrote.
- *
- * The editor's selection, deliberately not the viewer's. `SelectionProvider` selects *spans* and
- * only reads; this selects *calls* and can remove and replace them. A span is a run of elements of
- * one type as the tree draws it, a call is something a person did. One provider for both would put
- * a mode flag in the middle of a hot path.
  *
  * ## The one coupling between a desk and the rest of the editor
  *
@@ -52,7 +47,10 @@ interface CallSelectionValue {
     callForElement: (elementId: string) => string | undefined;
     removeCall: (id: string) => void;
     removeActiveCalls: () => void;
-    /** Scroll the narrative desk to a call, so selecting in one place shows it in the other. */
+    /**
+     * Take the reader to a call: open the desk that made it, on the call's own scope, and select
+     * it. How the markup desk answers a click on an instruction.
+     */
     focusCall: (id: string) => void;
 }
 

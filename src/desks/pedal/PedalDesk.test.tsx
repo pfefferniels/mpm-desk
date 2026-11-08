@@ -125,7 +125,6 @@ const renderDesk = (pedals: readonly AlignedPedal[], mpm: Mpm, placed = pedals) 
                         msm={msm}
                         mpm={mpm}
                         residual={placing(placed)}
-                        projected={[]}
                         performanceXml=''
                         secondary={{}}
                         setSecondary={vi.fn()}

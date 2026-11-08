@@ -3,8 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MetadataDesk } from './MetadataDesk'
 
 const props = {
-    isEditorMode: true,
-    segmentCount: 3,
     callCount: 12,
 }
 
@@ -123,32 +121,16 @@ describe('MetadataDesk', () => {
         expect(setMetadata).not.toHaveBeenCalled()
     })
 
-    it('reads as set type, not as a form, in view mode', () => {
-        render(
-            <MetadataDesk
-                {...props}
-                isEditorMode={false}
-                metadata={{ title: 'Sonata in A', author: 'Niels Pfeffer' }}
-                setMetadata={vi.fn()}
-            />
-        )
-
-        expect(screen.queryByLabelText('Title')).not.toBeInTheDocument()
-        expect(screen.getByText('Sonata in A')).toBeInTheDocument()
-        expect(screen.getByText('Niels Pfeffer')).toBeInTheDocument()
-    })
-
     it('counts what the document holds', () => {
         render(
             <MetadataDesk
                 {...props}
-                segmentCount={1}
-                callCount={12}
+                callCount={1}
                 metadata={{ title: '', author: '' }}
                 setMetadata={vi.fn()}
             />
         )
 
-        expect(screen.getByText('1 segment · 12 calls')).toBeInTheDocument()
+        expect(screen.getByText('1 call')).toBeInTheDocument()
     })
 })

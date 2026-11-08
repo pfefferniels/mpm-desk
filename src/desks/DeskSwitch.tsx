@@ -183,8 +183,8 @@ const allOf =
  *
  * Zero aligned notes is a blank surface with no gesture on it that can write anything: the plots
  * are `msm.end` wide, which is 0, and the chords they draw from are empty. The desks that read
- * the MPM or the score instead are not gated, since the narrative, markup and metadata desks all
- * have something to do before a note has been played.
+ * the MPM or the score instead are not gated, since the markup and metadata desks both have
+ * something to do before a note has been played.
  *
  * The voices desk is the one gated over a surface that is not blank; its entry says why.
  */
@@ -299,8 +299,8 @@ export const correspondingDesks: DeskEntry[] = [
     //
     // No `transformerName`: the `Align` call it writes is one the chain does not run (see
     // `chain.ts`). Nothing looks for a desk by that name either, since an `Align` writes no
-    // instruction and so reaches neither the narrative nor the markup desk, which is where
-    // `focusCall` is reached from.
+    // instruction and so never reaches the markup desk, which is where `focusCall` is reached
+    // from.
     {
         aspect: 'alignment',
         desk: lazy(() =>
@@ -711,37 +711,6 @@ export const correspondingDesks: DeskEntry[] = [
         // can put one on the tick grid at all.
         holdOut: ['movement'],
         unavailable: allOf(needsRecording, needsChoice, needsTempo),
-    },
-    // The argument
-    {
-        aspect: 'narrative',
-        displayName: 'Narrative',
-        desk: lazy(() =>
-            import('./narrative/NarrativeDesk').then((m) => ({ default: m.NarrativeDesk })),
-        ),
-        group: 'argument',
-        help: {
-            summary:
-                'The instructions grouped into claims, in score order, with those belonging to no ' +
-                'claim listed at the bottom. A working view, so it is a table.',
-            actions: [
-                {
-                    gesture: 'Click an instruction chip',
-                    does: 'select its call, and hear that one instruction over its reach',
-                },
-                { gesture: 'Backspace', does: 'remove the selected calls' },
-                {
-                    gesture: 'Hover a gesture',
-                    does: "quote the element's attributes below the row",
-                },
-                {
-                    gesture: 'Click assign',
-                    does: "move the selected instructions into that row's segment",
-                },
-                { gesture: 'Click dissolve', does: 'ungroup it. The instructions survive' },
-                { gesture: 'Type in Word', does: 'say what the claim says. It saves as you type' },
-            ],
-        },
     },
     // The artefact itself. Last, and a group of its own, because it is what every desk above it
     // has been writing rather than another aspect of the performance. Named for what it shows:

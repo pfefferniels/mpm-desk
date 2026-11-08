@@ -65,8 +65,8 @@ const placedPresses = (
 /**
  * Write a press's line as the movements the fit makes of it.
  *
- * A movement's `xml:id` names what it does to the pedal, so the narrative's chips read
- * `_down`, `_held`, `_up`, `_rest` rather than a count.
+ * A movement's `xml:id` names what it does to the pedal, so the markup reads `_down`, `_held`,
+ * `_up`, `_rest` rather than a count.
  */
 const writeLine = (map: MovementMap, press: PlacedPress, line: readonly TickVertex[]) => {
   const fitted = approximateMovements(line);

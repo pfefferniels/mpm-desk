@@ -1,18 +1,9 @@
 /**
  * The work file: what a reconstruction is saved as, and read back from.
  *
- * Two arrays, and nothing else.
- *
- * - **`provenance`**: the calls, in the order they ran, each with the options it ran with. The
- *   reconstructible half. Rebuild the chain out of it, run it over the same MEI, and the same
- *   MPM comes back.
- * - **`segments`**: what the reconstruction claims, one entry per claim. A segment holds prose
- *   and nothing else; which instructions it covers is read off {@link Call.segment}.
- *
- * A claim says what it claims in its own words, in {@link Segment.note}. No controlled vocabulary
- * behind it: a fixed set of motivations is a worse version of the prose a reconstruction already
- * writes, and a placeholder that reads like a real word cannot be told from one on the page.
-
+ * One array, and the little that names it: **`provenance`**, the calls, in the order they ran,
+ * each with the options it ran with. Rebuild the chain out of it, run it over the same MEI, and
+ * the same MPM comes back.
  */
 
 /** What a reconstruction is *of*: a name, and the two documents it moves between. */
@@ -46,7 +37,8 @@ export interface Call {
      * **Recorded, because it cannot be derived.** A call's elements are the difference the
      * document shows before and after it runs — which credits a call that *reshaped* an
      * instruction as well as one that added it — so nothing short of running the chain can say
-     * what they are.
+     * what they are. Written down, the published file says without a chain which decision wrote
+     * which instruction of `performance.mpm`.
      */
     elements?: string[];
 
@@ -61,79 +53,10 @@ export interface Call {
      * know which is which.
      */
     range?: { from: number; to: number | null };
-
-    /**
-     * The {@link Segment} this call's instructions are claimed under. Absent while it is claimed
-     * under none, which is what a call made a moment ago looks like.
-     *
-     * **The link points this way round on purpose.** What an editor groups is MPM instructions,
-     * and this is the only place that can say which claim an instruction serves:
-     *
-     * - The instruction cannot. A `<tempo>`'s attributes say what it does to the sound and
-     *   nothing about why. Writing the segment into it as `@corresp`, as the JSON-LD file did,
-     *   puts editorial grouping inside the performance document.
-     * - Its date cannot. The claims overlap heavily, 149 overlapping pairs in the shipped
-     *   reconstruction and 63 of them nested, so a tick names no single segment.
-     *
-     * Recorded here rather than as a list of element ids on the segment. A call is the unit that
-     * writes a gesture (`InsertPedal` writes a press as `_start` plus `_moveDown`), so a list on
-     * the segment could express splitting one, at the price of a second copy of what
-     * {@link Call.elements} already says.
-     *
-     * A segment is one claim about one place in the music, so only a call that acts at a place
-     * belongs under one. Two kinds stay unclaimed: corrections of the recording (`Modify`, `Expand`,
-     * `MakeChoice`), which change the evidence and write no instruction, and calls with no
-     * {@link Call.range} (`MergeMetricalAccentuations`, `StylizeOrnamentation`, a piece-wide
-     * `InsertDynamicsGradient`, `InsertMetadata`), which rewrite definitions across the piece and
-     * say nothing about a place. The narrative is still built from elements, so a call that
-     * writes nothing would show nothing anywhere; the rule is about what a claim is.
-     */
-    segment?: string;
-}
-
-/**
- * A claim the reconstruction makes about a stretch of the performance.
- *
- * Editorial content and nothing else. It names no members: which instructions a claim covers is
- * read the other way, off {@link Call.segment} and through {@link Call.elements}, so that the
- * same fact is written once. What the calls *did* — what they wrote, where they acted — stays on
- * the calls, and a list here would be the same facts at a coarser grain, free to disagree with
- * the finer ones.
- */
-export interface Segment {
-    id: string;
-    /**
-     * The narrative: what is going on in the performer's head here, in the reconstruction's own
-     * words. „Nachschlag schattieren", „Hineinfallen", „mit Inegalité vorwärts zum b".
-     *
-     * **The only thing a segment says about itself.** The label the tree of words shows, and the
-     * reason a reader can see the shape of a reconstruction without reading a single option.
-     * One field rather than two, so that nobody has to decide per sentence which kind of writing
-     * a note is.
-     *
-     * The tree sets it along a branch at whatever length it runs to, so a long note is a long
-     * branch. See `segment-stack/words.ts`.
-     */
-    note?: string;
-    /**
-     * The id of the segment this one picks up from, where the gesture runs on across a break.
-     *
-     * **Recorded, not used.** Nothing reads it: one word per segment leaves the viewer nothing
-     * to merge. It stays in the file because it is eight recorded editorial judgements,
-     * migrated out of the JSON-LD `continue`, and a format that drops what it has no current use
-     * for loses scholarship. `recordedProjection.test.ts` checks that each resolves: renaming
-     * the segments to UUIDs once left ten of them naming ids that were gone.
-     *
-     * A link between segments rather than a flag on a call, and specifically **not** espressivo's
-     * `ApproximateLogarithmicTempo.continue`. Two of the eight name the same predecessor, so
-     * it is a forest rather than a chain: read it as "picks up from", not "next".
-     */
-    continues?: string;
 }
 
 export interface WorkFile extends Work {
     provenance: Call[];
-    segments: Segment[];
     /**
      * Desk state that is not part of what the pipeline reads — today the tempo desk's clusters,
      * its silent onsets and its drawn lines. Opaque here on purpose: the file carries it so a
@@ -171,14 +94,30 @@ function reviver(_: string, value: unknown) {
 }
 
 /**
+ * What a work file saved before November 2026 carries and this one does not: the claims the
+ * calls were grouped under, `segments` beside the provenance and a `segment` on each call.
+ */
+interface LegacyWorkFile extends WorkFile {
+    segments?: unknown;
+    provenance: (Call & { segment?: unknown })[];
+}
+
+/**
  * Read a work file, reviving the `Map` and `Set` options a chain needs in order to run.
  *
  * Deliberately *not* validating beyond the shape: a file naming a transformer this build does
  * not have is a real case — it is what a reconstruction saved by a newer build looks like — and
  * it is the chain builder's business to report, not this function's to refuse.
+ *
+ * The claims an older file grouped its calls under are dropped on the way in, so that the next
+ * save writes a file without them. Nothing reads them any more, and a field carried through
+ * unread is one nobody can edit.
  */
 export function parseWorkFile(json: string): WorkFile {
-    return JSON.parse(json, reviver) as WorkFile;
+    const work = JSON.parse(json, reviver) as LegacyWorkFile;
+    delete work.segments;
+    for (const call of work.provenance) delete call.segment;
+    return work;
 }
 
 /** Write a work file, with the `Map` and `Set` options wrapped so they survive. */

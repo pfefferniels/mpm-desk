@@ -67,7 +67,6 @@ const mount = () => {
                     msm={msm}
                     mpm={createMpm()}
                     residual={null}
-                    projected={[]}
                     performanceXml=""
                     secondary={{}}
                     setSecondary={vi.fn()}

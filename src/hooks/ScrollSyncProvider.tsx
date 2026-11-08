@@ -37,7 +37,7 @@ interface RegistryEntry {
  * `seconds * zoom` everywhere physical, so syncing is a copy and `scrollToDate` a
  * multiplication. The conversion appears only where the two meet.
  *
- * **Why both domains.** The tree and every desk that reads the score live in ticks. The tempo
+ * **Why both domains.** Every desk that reads the score lives in ticks. The tempo
  * desk does not: its x-axis is the *recording's* elapsed seconds, the skyline being one box per
  * inter-onset interval (`60 / (secs(end) - secs(start))`), which is a fact about the recording
  * rather than the score. `utils/timeMapping.ts` holds the `[tick, seconds]` table they are
@@ -175,8 +175,8 @@ export const ScrollSyncProvider: React.FC<ScrollSyncProviderProps> = ({
         });
     }, []);
 
-    // Defaulted, so a scroller that lives in ticks — the tree, and every desk
-    // that reads the score — registers by naming itself and nothing else.
+    // Defaulted, so a scroller that lives in ticks — every desk that reads the
+    // score — registers by naming itself and nothing else.
     const register = useCallback((id: string, element: HTMLElement, domain: ScrollDomain = 'symbolic') => {
         // If other elements in the same domain are registered, sync to their scroll position
         for (const entry of registryRef.current.values()) {

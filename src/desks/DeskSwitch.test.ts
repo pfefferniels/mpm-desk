@@ -137,7 +137,7 @@ describe('the desk registry', () => {
                     : [{ aspect: entry.aspect, name: entry.transformerName }],
             );
 
-            // Several desks carry no transformer — metadata, narrative, markup — so the list is a
+            // Several desks carry no transformer — metadata, alignment, markup — so the list is a
             // subset of the registry, but it is not supposed to be an empty one.
             expect(claimed.length).toBeGreaterThan(0);
 
@@ -366,9 +366,9 @@ describe('the desk registry', () => {
 
         it('leaves the desks that read the document alone', () => {
             // The counter-examples, and the reason `unavailable` is not simply "is anything
-            // loaded": all four have something to show and something to do before a note has been
+            // loaded": all three have something to show and something to do before a note has been
             // played. Gating one would lock the reader out of the desk that starts the work.
-            for (const aspect of ['metadata', 'alignment', 'narrative', 'markup'])
+            for (const aspect of ['metadata', 'alignment', 'markup'])
                 expect(
                     deskNamed(aspect)?.unavailable?.({ readings: 0, aligned: 0, tempos: 0, unchosen: 0 }),
                     `the ${aspect} desk is greyed out over a score with nothing in it`,

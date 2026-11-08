@@ -83,7 +83,7 @@ describe('DeskToolbar', () => {
     });
 
     it('renders nothing where there is no bar to portal into', () => {
-        // The viewer's tree, and every desk test that mounts without a provider.
+        // Every desk test that mounts without a provider.
         const { container } = mount(
             null,
             <DeskToolbar>

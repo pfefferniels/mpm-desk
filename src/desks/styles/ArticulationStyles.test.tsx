@@ -50,7 +50,6 @@ const renderDesk = (mpm: Mpm, part: Scope = 'global') => {
                 msm={new Alignment([])}
                 mpm={mpm}
                 residual={null}
-                projected={[]}
                 performanceXml=''
                 secondary={{}}
                 setSecondary={vi.fn()}

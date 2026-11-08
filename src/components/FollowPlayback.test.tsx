@@ -1,6 +1,6 @@
 /**
  * The editor following the playhead: the calls whose instructions are sounding are the
- * selected ones — and a scoped preview, which the reader asked for, leaves the selection alone.
+ * selected ones.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -17,8 +17,7 @@ import { ZoomContext } from '../hooks/ZoomProvider';
 import { PlaybackProvider, usePlayback } from '../hooks/PlaybackProvider';
 import { CallSelectionProvider, useCallSelection } from '../hooks/CallSelection';
 import { ScrollSyncProvider } from '../hooks/ScrollSyncProvider';
-import { outcomesOf, type Reconstruction } from '../model/Reconstruction';
-import type { Call } from '../model/Work';
+import { oneCallPerInstruction } from '../test/oneCallPerInstruction';
 import { FollowPlayback } from './FollowPlayback';
 
 let rig = createFakePiano();
@@ -32,22 +31,7 @@ const scoreMsm = readFileSync('src/test/fixtures/score.msm', 'utf-8');
 const performanceMpm = readFileSync('src/test/fixtures/performance.mpm', 'utf-8');
 const dateByNoteId = readNoteDates(scoreMsm);
 const mpm = parseMPM(performanceMpm);
-const { segments } = JSON.parse(
-    readFileSync('src/test/fixtures/segments.json', 'utf-8'),
-) as Reconstruction;
-
-/** One call per span of the shipped reconstruction, answerable for that span's elements. */
-const calls: Call[] = segments.flatMap((segment) =>
-    segment.spans.map((span) => ({
-        id: `call:${span.id}`,
-        name: `Insert:${span.type}`,
-        options: {},
-        elements: [...span.elements],
-        range: { from: span.from, to: span.to },
-        segment: segment.id,
-    })),
-);
-const outcomes = outcomesOf(calls);
+const { calls, outcomes } = oneCallPerInstruction(mpm);
 
 /** The calls the follow ought to select at `date`, worked out the long way round. */
 const callsSoundingAt = (date: number) => {
@@ -164,30 +148,6 @@ describe('following the playhead in the editor', () => {
         const later = callsSoundingAt(lastDate!);
         expect(later).not.toEqual(first);
         expect([...selected].sort()).toEqual(later);
-
-        await unmount();
-    });
-
-    it('leaves the selection alone during a scoped preview', async () => {
-        const unmount = await mount();
-
-        act(() => {
-            play!({ exaggerate: 1 });
-        });
-        act(() => {
-            rig.transport.advanceTo(10);
-        });
-        const before = [...selected].sort();
-        expect(before.length).toBeGreaterThan(0);
-
-        // A preview of particular instructions — what a chip or a word plays.
-        act(() => {
-            play!({ mpmIds: calls[0].elements!, isolate: true });
-        });
-        act(() => {
-            rig.transport.advanceTo(60);
-        });
-        expect([...selected].sort()).toEqual(before);
 
         await unmount();
     });

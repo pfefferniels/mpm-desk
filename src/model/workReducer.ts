@@ -1,11 +1,10 @@
 /**
  * Every edit a work file can undergo, as one pure function, and undo/redo over it.
  *
- * The rules hold *between* the two arrays: a call names the claim it is made under and a claim
- * exists because calls are made under it, so removing a call can retire a segment, and creating
- * a segment is meaningless until a call points at it. Keeping them here leaves nowhere else to
- * write them. What stays in the component is what is not the document: the open desk, the lit
- * calls, the zoom, the snackbar.
+ * Kept apart from the component so the rules about the document — that an expansion of velocity
+ * carries the guides with it, that metadata, voices and alignments are edited in place on their
+ * one call — are testable without React. What stays in the component is what is not the
+ * document: the open desk, the lit calls, the zoom, the snackbar.
  *
  * Pure throughout: no `crypto.randomUUID()`, no `Date.now()`, no mutation of the state or of
  * anything reachable from it. A fresh id arrives in the action (see {@link WorkAction}
@@ -17,7 +16,7 @@
  * (see {@link Call}), so no cheap deep-equal compares two work files honestly.
  */
 
-import type { Call, Segment, WorkFile } from './Work';
+import type { Call, WorkFile } from './Work';
 import type {
     PartLayout,
     VoiceMove,
@@ -28,7 +27,7 @@ import { isRecordedModelId, type RecordedModelId } from '../alignment/mlign/mode
 import { followExpansions, movesGuides } from './guides';
 
 /** The empty document the editor starts on, before a file is opened. */
-export const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [], segments: [] };
+export const EMPTY_WORK: WorkFile = { name: '', mei: '', mpm: '', provenance: [] };
 
 /**
  * The desk bag, as much of it as this file is allowed to know.
@@ -53,16 +52,10 @@ export type MetadataUpdate = WorkMetadata | ((previous: WorkMetadata) => WorkMet
 export type WorkAction =
     /** A whole file, opened. Replaces the document — and, in the history below, forgets the past. */
     | { type: 'load'; work: WorkFile }
-    /** What a desk's gesture becomes. Lands under no claim; see {@link ungrouped}. */
+    /** What a desk's gesture becomes. */
     | { type: 'add-call'; call: Call }
-    /** Calls, deleted. Takes any claim nothing is left under with them. */
+    /** Calls, deleted. */
     | { type: 'remove-calls'; ids: readonly string[] }
-    /** Calls put under a claim — an existing one, a new one, or none at all. */
-    | { type: 'group-calls'; callIds: readonly string[]; segment: Segment | null }
-    /** A claim withdrawn. Its calls survive, unclaimed. */
-    | { type: 'dissolve-segment'; segmentId: string }
-    /** The claims themselves rewritten — in practice, one segment's prose edited. */
-    | { type: 'set-segments'; segments: Segment[] }
     /** The desk bag replaced, or updated from its previous value. */
     | { type: 'set-secondary'; update: SecondaryUpdate }
     /**
@@ -91,24 +84,8 @@ export type WorkAction =
      */
     | { type: 'set-alignment'; alignment: WorkAlignment; newCallId: string };
 
-/**
- * A call with its `segment` taken off.
- *
- * Deleted rather than set to `undefined`. Both write the same file, since `JSON.stringify` drops
- * an undefined value, but only one of them says so in a debugger.
- */
-const ungrouped = (call: Call): Call => {
-    const next = { ...call };
-    delete next.segment;
-    return next;
-};
-
 /** Shared so that a bag that was never there and a bag emptied to `{}` compare as one thing. */
 const NO_SECONDARY: Secondary = {};
-
-/** True when `next` is the same list, entry for entry, as `previous`. */
-const sameEntries = <T>(next: readonly T[], previous: readonly T[]): boolean =>
-    next.length === previous.length && next.every((entry, index) => entry === previous[index]);
 
 // The title and author travel on the chain, as the options of the one `InsertMetadata` call:
 // the runner builds `<metadata>` out of whatever call it carries, so a copy held beside the
@@ -330,13 +307,13 @@ export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
  * These three do not. `InsertMetadata` writes `<metadata>` and no instruction. `ProcessVoices`
  * says which MEI voice goes into which MSM part, a statement about the score's encoding. `Align`
  * says which sounding event realises which written note, which a reconstruction reads before it
- * has claimed anything. `Modify`, `CorrectPedal` and `MakeChoice` are not exceptions: reshaping
+ * has said anything. `Modify`, `CorrectPedal` and `MakeChoice` are not exceptions: reshaping
  * the performance is still a statement about it.
  *
- * **By name, and only for counting.** The narrative uses the better rule, a call having no
- * elements to show (see {@link Call.segment}), which stays right for transformers this build has
- * never heard of. That rule cannot be used here: `elements` is recorded by a run, so a call made
- * a moment ago has none, and this has to answer before the fit comes back.
+ * **By name, and only for counting.** A call having no elements to show would be the better rule,
+ * staying right for transformers this build has never heard of, but it cannot be used here:
+ * `elements` is recorded by a run, so a call made a moment ago has none, and this has to answer
+ * before the fit comes back.
  */
 const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices', 'Align']);
 
@@ -353,12 +330,7 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             return action.work;
 
         case 'add-call': {
-            // **A new call lands ungrouped.** Grouping is its own step with its own desk, so the
-            // narrative desk shows what a new call wrote in amber until somebody says what it is
-            // for. Folding it into whichever claim overlaps its range would write claims nobody
-            // made. Stripped here rather than trusted from the caller: the rule is the
-            // document's.
-            const provenance = [...state.provenance, ungrouped(action.call)];
+            const provenance = [...state.provenance, action.call];
             // An expansion of velocity changes the scale the guides were set on; they move with
             // it. See `guides.ts`.
             return {
@@ -379,60 +351,7 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
                 ? followExpansions(state.provenance, kept)
                 : kept;
 
-            // A claim nothing is made under any more is not a claim. The segments hold no lists
-            // to prune, since the calls named them, so this is the only place removal reaches
-            // them.
-            const standing = new Set(provenance.map((call) => call.segment));
-            return {
-                ...state,
-                provenance,
-                segments: state.segments.filter((segment) => standing.has(segment.id)),
-            };
-        }
-
-        case 'group-calls': {
-            // **One update rather than two**: done in two, the state in between holds a claim
-            // nothing is made under, which `remove-calls` would be within its rights to sweep
-            // away.
-            if (action.callIds.length === 0) return state;
-            const moving = new Set(action.callIds);
-            const { segment } = action;
-
-            const provenance = state.provenance.map((call) => {
-                if (!moving.has(call.id)) return call;
-                if (!segment) return call.segment === undefined ? call : ungrouped(call);
-                return call.segment === segment.id ? call : { ...call, segment: segment.id };
-            });
-            const segments =
-                segment && !state.segments.some(({ id }) => id === segment.id)
-                    ? [...state.segments, segment]
-                    : state.segments;
-
-            if (segments === state.segments && sameEntries(provenance, state.provenance))
-                return state;
-            return { ...state, provenance, segments };
-        }
-
-        case 'dissolve-segment': {
-            // The calls survive and become unclaimed — the honest place for them. Deleting what
-            // a withdrawn claim covered would delete the reconstruction, not the reading of it.
-            const { segmentId } = action;
-            const held = state.provenance.some((call) => call.segment === segmentId);
-            const known = state.segments.some(({ id }) => id === segmentId);
-            if (!held && !known) return state;
-
-            return {
-                ...state,
-                provenance: state.provenance.map((call) =>
-                    call.segment === segmentId ? ungrouped(call) : call,
-                ),
-                segments: state.segments.filter(({ id }) => id !== segmentId),
-            };
-        }
-
-        case 'set-segments': {
-            if (sameEntries(action.segments, state.segments)) return state;
-            return { ...state, segments: action.segments };
+            return { ...state, provenance };
         }
 
         case 'set-secondary': {
@@ -461,8 +380,8 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
                 authors: after.author ? [{ number: 0, text: after.author }] : [],
                 comments: after.title ? [{ text: after.title }] : [],
             };
-            // Likewise the rest of the call: an `InsertMetadata` may carry a segment and, after a
-            // run, the elements it is answerable for.
+            // Likewise the rest of the call: after a run, an `InsertMetadata` carries the elements
+            // it is answerable for.
             const call: Call = existing
                 ? { ...existing, options }
                 : { id: action.newCallId, name: 'InsertMetadata', options };
@@ -496,8 +415,8 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
                 parts: after.parts,
                 moves: after.moves,
             };
-            // Likewise the rest of the call: a `ProcessVoices` may carry a segment, and a rename is
-            // not the moment to drop it.
+            // Likewise the rest of the call: a `ProcessVoices` may carry what a run recorded on
+            // it, and a rename is not the moment to drop it.
             const call: Call = existing
                 ? { ...existing, options }
                 : { id: action.newCallId, name: 'ProcessVoices', options };
@@ -550,7 +469,7 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
 /**
  * How far back Ctrl-Z reaches.
  *
- * A snapshot is a whole `WorkFile`, but the calls and segments an edit did not touch are shared
+ * A snapshot is a whole `WorkFile`, but the calls an edit did not touch are shared
  * between entries, so one costs a spine of a couple of hundred pointers rather than a copy of
  * the document. A hundred of those is further back than anyone remembers having edited.
  */
@@ -601,8 +520,8 @@ const remember = (past: readonly WorkFile[], present: WorkFile): WorkFile[] =>
  *   from a freshly opened file into edits made to a different one would be an offer to corrupt
  *   it. There is no undoing past the file you opened.
  * - **An edit that changed nothing is not a step.** `workReducer` says so by handing back the
- *   state it was given, which is exactly what a blur on an untouched field or a click on the
- *   claim a call is already under produces. Every one of those recorded would be a Ctrl-Z that
+ *   state it was given, which is exactly what a blur on an untouched field or a removal of calls
+ *   the document does not hold produces. Every one of those recorded would be a Ctrl-Z that
  *   appears to do nothing.
  * - **The desk bag is not in the history.** `secondary` is per-desk editorial working state —
  *   the skyline's boxes, hand-marked silent onsets, drawn trails — and it explicitly does not

@@ -120,8 +120,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                 minWidth: collapsed ? undefined : '180px',
                 // `ListItemButton.Mui-selected` tints with `alpha(primary.main, …)` rather than
                 // `action.selected`, and against a near-black primary that tint is a hair off
-                // the hover fill. A rule down the left edge says "this one" at a glance, which
-                // is the device `SegmentRow` already uses for the sounding row.
+                // the hover fill. A rule down the left edge says "this one" at a glance.
                 '& .Mui-selected': {
                     bgcolor: 'action.hover',
                     boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.primary.main}`,

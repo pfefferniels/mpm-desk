@@ -1,6 +1,21 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { PUBLISHED, type Published } from '../model/published';
+
+/**
+ * Where the reconstruction of WM 225 is published.
+ *
+ * welte225.org holds the only copy, as the four files an archive of the editor is made of; this
+ * repository bundles none. The tests and `scripts/recordOutcomes.ts` work on a checkout of that
+ * repository.
+ */
+const PUBLISHED = {
+    mei: 'mpm/transcription.mei',
+    work: 'mpm/work.json',
+    performance: 'mpm/performance.mpm',
+    score: 'mpm/score.msm',
+} as const;
+
+export type Published = keyof typeof PUBLISHED;
 
 /**
  * The published files on disk: a checkout of welte225.org, the sibling directory unless

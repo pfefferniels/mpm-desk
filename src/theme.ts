@@ -10,10 +10,10 @@ import { createTheme } from '@mui/material/styles';
  * against an unconfigured theme to MUI's `rgba(0,0,0,0.6)`. Every hand-written literal that stays
  * behind still matches.
  *
- * **`src/segment-stack/spanColors.ts` is deliberately not here.** That is a categorical data
+ * **The markup desk's `TYPE_COLORS` is deliberately not here.** That is a categorical data
  * palette — MPM element type to hue — and it belongs to the drawings, not to the chrome. Folding
  * it into `palette` would invite `sx` to reach for a tempo green as if it were a UI accent, and
- * would tie the meaning of a lane's colour to a decision about buttons.
+ * would tie the meaning of a type's colour to a decision about buttons.
  *
  * **White and neutral gray, deliberately.** The desks plot data on white: a tinted ground is not a
  * neutral choice about taste, it shifts every plotted colour sitting on it, and the residuals and
@@ -50,9 +50,8 @@ export const theme = createTheme({
             dark: '#000000',
             contrastText: '#ffffff',
         },
-        // The "needs attention" amber the app already speaks: the overwritten-instruction count
-        // (`SegmentRow.tsx`), the unassigned banner (`NarrativeDesk.tsx`), the chips that carry a
-        // warning (`InstructionChips.tsx`) and the same in `App.tsx` all say `#b45309` by hand.
+        // The "needs attention" amber: the unsaved dot in the app bar, a tool status that went
+        // wrong, an alignment notice.
         warning: {
             main: '#b45309',
             contrastText: '#ffffff',
@@ -78,8 +77,7 @@ export const theme = createTheme({
             hover: gray[100],
         },
     },
-    // 6, not MUI's 4: the narrative desk's own controls already round at 6, and the desks are
-    // where most of the app's surface is.
+    // 6, not MUI's 4.
     shape: {
         borderRadius: 6,
     },
@@ -130,9 +128,9 @@ export const theme = createTheme({
                  * that are not decoration.
                  *
                  * `font-synthesis: none` because two of the app's faces cannot be synthesised
-                 * over: Bravura Text ships a single weight, and EB Garamond's 600 is a real
-                 * SemiBold file — a browser faking either one puts a smeared approximation next to
-                 * the genuine article on the same line.
+                 * over: Bravura Text ships a single weight, and EB Garamond's italic is a real
+                 * file — a browser faking either one puts a smeared approximation next to the
+                 * genuine article on the same line.
                  */
                 html: {
                     fontSynthesis: 'none',
@@ -140,10 +138,9 @@ export const theme = createTheme({
                 },
                 /**
                  * The one behaviour of the deleted global `button {}` rule that no inline style
-                 * replaces. The narrative desk's raw `<button>`s set their colour, border, radius
-                 * and padding but never their font, and its filter `<input>` renders in the UA
-                 * font today; without this they would fall back to the platform form font while
-                 * everything around them is Inter.
+                 * replaces. A raw `<button>` or `<textarea>` sets its colour, border, radius and
+                 * padding but never its font; without this it would fall back to the platform form
+                 * font while everything around it is Inter.
                  */
                 'button, input, optgroup, select, textarea': {
                     fontFamily: 'inherit',

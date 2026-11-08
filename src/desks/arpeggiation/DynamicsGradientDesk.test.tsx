@@ -72,7 +72,6 @@ const renderDesk = (part: Scope) => {
                                 msm={msm}
                                 mpm={mpm}
                                 residual={deriveResidual(msm, mpm)}
-                                projected={[]}
                                 performanceXml=""
                                 secondary={{}}
                                 setSecondary={vi.fn()}

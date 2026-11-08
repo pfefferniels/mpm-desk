@@ -80,8 +80,6 @@ interface BuiltChain {
      * answer is the partial chain plus a list of what was dropped. Nothing is dropped silently.
      */
     unknown: Call[];
-    title: string;
-    author: string;
 }
 
 /**
@@ -90,16 +88,15 @@ interface BuiltChain {
  * The metadata call is rebuilt rather than reused: an MPM needs a `<metadata>` whether or not
  * the chain says so, so the imported one is dropped and a fresh one made from the title and
  * author it carried. That way a document and a reconstruction state their metadata through one
- * code path, and the call belongs to no segment — it writes `<metadata>`, not an instruction.
+ * code path.
  *
  * The {@link INJECTED} calls are added on the same footing, and a saved one is dropped so a file
  * naming one does not run it twice. The second run would do no work, skipping an ornament already
  * in ticks and rounding being idempotent, and would still be wrong: two calls in the chain, one
  * credited with everything and the other with nothing.
  *
- * No injected call is in `provenance`, so none reaches the narrative desk (which reads the
- * document) or a saved file (`provenanceOf` enriches only calls the document holds). They exist
- * for the length of a run.
+ * No injected call is in `provenance`, so none reaches a saved file (`provenanceOf` enriches only
+ * calls the document holds). They exist for the length of a run.
  *
  * The traffic runs the other way for {@link APPLIED_TO_THE_SCORE}: those calls are in the
  * document and not in the chain.
@@ -135,7 +132,7 @@ export function buildChain(provenance: readonly Call[]): BuiltChain {
         ...transformers.filter((t) => t.name !== 'InsertMetadata' && !isInjectedCall(t.name)),
     ].sort(compareTransformers);
 
-    return { transformers: chain, unknown, title, author };
+    return { transformers: chain, unknown };
 }
 
 /**

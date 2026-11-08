@@ -4,8 +4,8 @@
   font-display: swap;
 }
 
-/* The tree, and the title over it. EB Garamond, self-hosted: no Garamond ships
-   with macOS, and a reading tool should not need the network to set its type. */
+/* The metadata desk's title and author. EB Garamond, self-hosted: no Garamond
+   ships with macOS, and a tool should not need the network to set its type. */
 @font-face {
   font-family: 'EB Garamond';
   src: url('/fonts/EBGaramond-Regular.woff2') format('woff2');
@@ -18,13 +18,6 @@
   src: url('/fonts/EBGaramond-Italic.woff2') format('woff2');
   font-weight: 400;
   font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'EB Garamond';
-  src: url('/fonts/EBGaramond-SemiBold.woff2') format('woff2');
-  font-weight: 600;
-  font-style: normal;
   font-display: swap;
 }
 

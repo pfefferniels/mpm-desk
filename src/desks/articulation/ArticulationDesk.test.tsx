@@ -85,7 +85,6 @@ const renderDesk = (part: Scope, mpm: Mpm = createMpm(), score: Alignment = msm)
                                 msm={score}
                                 mpm={mpm}
                                 residual={residual}
-                                projected={[]}
                                 performanceXml=""
                                 secondary={{}}
                                 setSecondary={vi.fn()}

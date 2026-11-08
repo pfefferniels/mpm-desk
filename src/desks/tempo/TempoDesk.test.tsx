@@ -106,7 +106,6 @@ const Desk = ({
                                 msm={msm}
                                 mpm={mpm}
                                 residual={deriveResidual(msm, mpm)}
-                                projected={[]}
                                 performanceXml=""
                                 secondary={secondary}
                                 setSecondary={setSecondary}

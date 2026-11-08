@@ -278,7 +278,7 @@ describe('its place in the chain', () => {
 
     test('a call survives the work file with its points', () => {
         const call = new Expand(roll);
-        const work = { provenance: [{ id: call.id, name: call.name, options: call.options }], segments: [] };
+        const work = { provenance: [{ id: call.id, name: call.name, options: call.options }] };
         const [read] = parseWorkFile(serializeWorkFile(work as unknown as WorkFile)).provenance;
         expect(read.options).toEqual(roll);
     });

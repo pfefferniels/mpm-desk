@@ -13,8 +13,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import type { Alignment } from '../../fitting/alignment';
 import type { Residual } from '../../fitting/residual';
-import type { Call } from '../../model/Work';
-import { outcomesOf, type Reconstruction } from '../../model/Reconstruction';
+import { oneCallPerInstruction } from '../../test/oneCallPerInstruction';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { WorkDocumentProvider } from '../../hooks/WorkDocument';
 import { initialHistory } from '../../model/workReducer';
@@ -25,26 +24,11 @@ import { MarkupDesk } from './MarkupDesk';
 const performanceMpm = readFileSync('src/test/fixtures/performance.mpm', 'utf-8');
 const scoreMsm = readFileSync('src/test/fixtures/score.msm', 'utf-8');
 const mpm = parseMPM(performanceMpm);
-const { segments: projected } = JSON.parse(
-    readFileSync('src/test/fixtures/segments.json', 'utf-8'),
-) as Reconstruction;
-
-/** The work file the projection came from, read back off it: one call per span. */
-const calls: Call[] = projected.flatMap((segment) =>
-    segment.spans.map((span) => ({
-        id: `call:${span.id}`,
-        name: `Insert:${span.type}`,
-        options: {},
-        elements: [...span.elements],
-        range: { from: span.from, to: span.to },
-        segment: segment.id,
-    })),
-);
-const outcomes = outcomesOf(calls);
+const { calls, outcomes } = oneCallPerInstruction(mpm);
 
 /** A call that wrote at least one element, and the first element it wrote. */
-const claimed = calls.find((call) => (call.elements ?? []).length > 0)!;
-const claimedElement = claimed.elements![0];
+const writer = calls.find((call) => (call.elements ?? []).length > 0)!;
+const written = writer.elements![0];
 
 /**
  * The alignment, stated as the two things this desk asks of it. Building a real one would be
@@ -100,7 +84,6 @@ const mount = (initial?: readonly string[]) => {
                     mei: '',
                     mpm: '',
                     provenance: [...calls],
-                    segments: [],
                 })}
                 dispatch={() => {}}
             >
@@ -111,7 +94,6 @@ const mount = (initial?: readonly string[]) => {
                         residual={{} as Residual}
                         secondary={{}}
                         setSecondary={() => {}}
-                        projected={projected}
                         performanceXml={performanceMpm}
                     />
                 </DeskToolbarProvider>
@@ -178,26 +160,26 @@ describe('MarkupDesk', () => {
     });
 
     it('lights the lines a selected call wrote', () => {
-        const { container } = mount([claimed.id]);
+        const { container } = mount([writer.id]);
 
         const lit = [...container.querySelectorAll('[data-active]')];
-        expect(lit.length).toBe(new Set(claimed.elements).size);
-        expect(lit.map((row) => row.getAttribute('data-id'))).toContain(claimedElement);
+        expect(lit.length).toBe(new Set(writer.elements).size);
+        expect(lit.map((row) => row.getAttribute('data-id'))).toContain(written);
     });
 
     it('opens the desk that wrote an instruction when its line is clicked', () => {
         const view = mount();
 
-        fireEvent.click(view.container.querySelector(`[data-id="${claimedElement}"]`)!);
+        fireEvent.click(view.container.querySelector(`[data-id="${written}"]`)!);
 
-        expect(view.focusCall).toHaveBeenCalledWith(claimed.id);
+        expect(view.focusCall).toHaveBeenCalledWith(writer.id);
     });
 
     it('says so on the line, so the click is not a surprise', () => {
         const view = mount();
-        const row = view.container.querySelector(`[data-id="${claimedElement}"]`)!;
+        const row = view.container.querySelector(`[data-id="${written}"]`)!;
 
-        expect(row.getAttribute('title')).toContain(claimedElement);
+        expect(row.getAttribute('title')).toContain(written);
         expect(row.getAttribute('title')).toContain('Open the desk that wrote this');
     });
 
