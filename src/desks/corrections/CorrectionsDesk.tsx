@@ -11,7 +11,7 @@ import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
 import { coveredBy, useEventSelection } from './useEventSelection';
-import { useModifyDeltas } from './useModifyDeltas';
+import { useCorrectionDeltas } from './useCorrectionDeltas';
 import { useLineGhosts } from './useLineGhosts';
 import type { LineDraft } from './lineDraft';
 import { VelocityPlot } from './VelocityPlot';
@@ -25,7 +25,10 @@ type Plot = 'velocity' | 'timing';
 type Draft = { aspect: ModifyOptions['aspect']; change: number } | LineDraft;
 
 /** The call sent and not yet answered by a fit. */
-type Pending = { call: 'Modify'; options: ModifyOptions } | { call: 'CorrectPedal'; draft: LineDraft };
+type Pending =
+    | { call: 'Modify'; options: ModifyOptions }
+    | { call: 'CorrectPedal'; draft: LineDraft }
+    | { call: 'Expand'; id: string };
 
 const signed = (change: number) => `${change > 0 ? '+' : ''}${String(change)}`;
 
@@ -112,15 +115,18 @@ export const CorrectionsDesk = ({
     }
 
     const pendingModify = pending?.call === 'Modify' ? pending.options : undefined;
-    const velocityGhosts = useModifyDeltas(msm, part, 'velocity', pendingModify);
-    const onsetGhosts = useModifyDeltas(msm, part, 'onset', pendingModify);
-    const durationGhosts = useModifyDeltas(msm, part, 'duration', pendingModify);
+    const unfitted = pending?.call === 'Expand' ? pending.id : undefined;
+    const velocityGhosts = useCorrectionDeltas(msm, part, 'velocity', pendingModify, unfitted);
+    const onsetGhosts = useCorrectionDeltas(msm, part, 'onset', pendingModify, unfitted);
+    const durationGhosts = useCorrectionDeltas(msm, part, 'duration', pendingModify, unfitted);
     const lineGhosts = useLineGhosts(msm, onsetGhosts);
 
     const preview: Draft | undefined = pending
         ? pending.call === 'Modify'
             ? pending.options
-            : pending.draft
+            : pending.call === 'CorrectPedal'
+              ? pending.draft
+              : undefined
         : draft;
     const previewIds = pendingModify ? coveredBy(pendingModify, msm, part) : selected;
     const timingPreview: TimingPreview | undefined =
@@ -227,7 +233,11 @@ export const CorrectionsDesk = ({
     };
 
     const expand = (aspect: ExpandOptions['aspect'], points: ExpandOptions['points']) => {
-        addTransformer(new Expand({ ...(selection ?? {}), scope: part, aspect, points }));
+        const call = new Expand({ ...(selection ?? {}), scope: part, aspect, points });
+        addTransformer(call);
+        // Not drawn ahead of the fit, unlike a shift: where each event lands depends on the map.
+        // So the call is only held out of the ghosts until the fit shows what it did.
+        setPending({ call: 'Expand', id: call.id });
         setExpanding(false);
         setDraft(undefined);
         clear();

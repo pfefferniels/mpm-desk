@@ -4,10 +4,11 @@ import type { ReactNode } from 'react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import type { Call } from '../../model/Work';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
-import { useModifyDeltas } from './useModifyDeltas';
+import { useCorrectionDeltas } from './useCorrectionDeltas';
 
 /**
- * The ghosts: which events the chain has already corrected, and by how much.
+ * The ghosts: which events the chain has already corrected, and by how much — by hand or by an
+ * expansion of the scale.
  *
  * Two desks read it: the corrections desk while it has a call in flight, the dynamics desk with
  * nothing in flight ever. What it must not do is count a call twice. A correction sent but not
@@ -58,9 +59,11 @@ const wrapperFor = (calls: readonly Call[]) =>
 const deltas = (
     calls: readonly Call[],
     aspect: 'velocity' | 'onset' | 'duration' = 'velocity',
-    pending?: Parameters<typeof useModifyDeltas>[3],
+    pending?: Parameters<typeof useCorrectionDeltas>[3],
+    unfitted?: string,
+    on: Alignment = msm,
 ) =>
-    renderHook(() => useModifyDeltas(msm, 'global', aspect, pending), {
+    renderHook(() => useCorrectionDeltas(on, 'global', aspect, pending, unfitted), {
         wrapper: wrapperFor(calls),
     }).result.current;
 
@@ -150,4 +153,77 @@ it('still shows an earlier correction of the same note while a new one is in fli
     );
 
     expect(result.get('a')).toBe(-10);
+});
+
+describe('an expansion', () => {
+    // The alignment as the chain left it: 'a' recorded at 35, 'b' at 54, 'c' at 35 and then
+    // lowered by hand. Expanded through [[35, 20], [54, 46]], 'a' sits at 20, 'b' at 46, and 'c'
+    // at 20 - 6.
+    const expanded = () =>
+        new Alignment([
+            { ...note('a', 0), velocity: 20 },
+            { ...note('b', 720), velocity: 46 },
+            { ...note('c', 1440), velocity: 14 },
+        ]);
+    const roll = { scope: 'global', aspect: 'velocity', points: [[35, 20], [54, 46]] };
+
+    it('is undone back to what the roll recorded, the further the softer', () => {
+        const result = deltas([call(roll, 'Expand')], 'velocity', undefined, undefined, expanded());
+
+        expect(result.get('a')).toBeCloseTo(-15, 9);
+        expect(result.get('b')).toBeCloseTo(-8, 9);
+    });
+
+    it('is undone after the corrections by hand, which ran after it', () => {
+        const result = deltas(
+            [call(roll, 'Expand'), call({ scope: 'global', aspect: 'velocity', change: -6, noteIDs: ['c'] })],
+            'velocity',
+            undefined,
+            undefined,
+            expanded(),
+        );
+
+        // 14 is 20 - 6, and 20 is where the roll's 35 went: 21 below what was recorded.
+        expect(result.get('c')).toBeCloseTo(-21, 9);
+    });
+
+    it('reaches only what its selector names', () => {
+        const result = deltas([call({ ...roll, noteIDs: ['a'] }, 'Expand')], 'velocity', undefined, undefined, expanded());
+
+        expect([...result.keys()]).toEqual(['a']);
+    });
+
+    it('is left out while it is sent and not yet fitted', () => {
+        const sent = call(roll, 'Expand');
+        const result = deltas([sent], 'velocity', undefined, sent.id, expanded());
+
+        expect(result.size).toBe(0);
+    });
+
+    it('leaves no ghost where its map has no way back', () => {
+        const folded = { ...roll, points: [[35, 20], [45, 40], [54, 30]] };
+        const result = deltas([call(folded, 'Expand')], 'velocity', undefined, undefined, expanded());
+
+        expect(result.size).toBe(0);
+    });
+
+    it('of onsets is undone from the first note, as it was made', () => {
+        // Twice as slow from the first note on: 'b' was at 720, 'c' at 1440, and 'a', the first,
+        // stayed where it was.
+        const slower = new Alignment([note('a', 0), { ...note('b', 720), 'milliseconds.date': 1440 }, {
+            ...note('c', 1440),
+            'milliseconds.date': 2880,
+        }]);
+        const result = deltas(
+            [call({ scope: 'global', aspect: 'onset', points: [[0, 0], [1000, 2000]] }, 'Expand')],
+            'onset',
+            undefined,
+            undefined,
+            slower,
+        );
+
+        expect(result.has('a')).toBe(false);
+        expect(result.get('b')).toBeCloseTo(720, 9);
+        expect(result.get('c')).toBeCloseTo(1440, 9);
+    });
 });

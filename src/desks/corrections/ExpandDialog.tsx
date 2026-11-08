@@ -14,11 +14,8 @@ import {
     Typography,
 } from '@mui/material';
 import { Add, Remove } from '@mui/icons-material';
-import {
-    expansion,
-    type ExpandOptions,
-    type ExpansionPoint,
-} from '../../fitting/transformers/modification/Expand';
+import { expansion, type ExpansionPoint } from '../../fitting/expansion';
+import type { ExpandOptions } from '../../fitting/transformers/modification/Expand';
 
 type Aspect = ExpandOptions['aspect'];
 
