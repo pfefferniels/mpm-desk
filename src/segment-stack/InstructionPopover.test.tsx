@@ -74,10 +74,13 @@ describe('the card a sign opens', () => {
     })
 
     it('draws a rolled chord note by note', async () => {
-        const { text, dots } = await cardFor(mpm.byId('ornament_4320')!)
+        const ornament = mpm.byId('ornament_4320')!
+        // The gradient's scale is fitted to the velocities, so it is read off the ornament.
+        const scale = Number(ornament.element.getAttributeValue('scale'))
+        const { text, dots } = await cardFor(ornament)
         expect(dots).toBe(4)
         expect(text).toContain('upwards · before the beat')
-        expect(text).toContain('velocity −10 → 0')
+        expect(text).toContain(`velocity −${String(scale)} → 0`)
         expect(text).toContain('<ornamentDef ')
     })
 
