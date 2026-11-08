@@ -55,8 +55,11 @@ describe('a rubato’s comb', () => {
 describe('a rolled chord', () => {
     it('rolls upwards into the beat, the lowest note softest', () => {
         // def_global_ornament_4320: frame.start -132.7702 over 132.7702, intensity 1.7201;
-        // a gradient from -1 to 0 at scale 10
+        // a gradient from -1 to 0, at the scale the ornament states. Read off it rather than
+        // written here: it is fitted to the velocities, so it moves whenever they are corrected.
         const at = instruction('ornament_4320');
+        const scale = Number(at.element.getAttributeValue('scale'));
+        expect(scale).toBeGreaterThan(0);
         const roll = rollOf(mpm.ornamentOf(at)!, notesAt(at, notes))!;
         expect(roll.unit).toBe('ticks');
         const pitches = roll.notes.map((n) => n.pitch);
@@ -64,7 +67,7 @@ describe('a rolled chord', () => {
         expect(roll.notes[0].offset).toBeCloseTo(-132.7702, 4);
         expect(roll.notes.at(-1)!.offset).toBeCloseTo(0, 4);
         expect(roll.notes[1].offset).toBeCloseTo(-132.7702 + Math.pow(1 / 3, 1.7201) * 132.7702, 4);
-        expect(roll.notes[0].velocity).toBeCloseTo(-10, 6);
+        expect(roll.notes[0].velocity).toBeCloseTo(-scale, 6);
         expect(roll.notes.at(-1)!.velocity).toBeCloseTo(0, 6);
     });
 
@@ -89,11 +92,18 @@ describe('an articulated note', () => {
     });
 
     it('plays a note louder by the factor its definition states', () => {
-        const articulation = mpm.articulationOf(instruction('articulation_56520'))!; // relativeVelocity 1.1951
+        // The factor is read off the definition rather than written here: it is fitted to the
+        // velocities, so it moves whenever they are corrected.
+        const at = instruction('articulation_56520');
+        const factor = Number(mpm.defFor(at)?.getAttributeValue('relativeVelocity'));
+        expect(factor).toBeGreaterThan(1);
+        const articulation = mpm.articulationOf(at)!;
         const note = articulatedNotes(articulation, notes)[0];
         const played = articulate(articulation, note);
-        expect(played.velocity).toBeCloseTo(1.1951, 6);
+        expect(played.velocity).toBeCloseTo(factor, 6);
         expect(played.duration).toBe(note.duration);
-        expect(articulationCharacter(played, note.duration)).toBe('held its full length · 20 % louder');
+        expect(articulationCharacter(played, note.duration)).toBe(
+            `held its full length · ${String(Math.round((factor - 1) * 100))} % louder`,
+        );
     });
 });
