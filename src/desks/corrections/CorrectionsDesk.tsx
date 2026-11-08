@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
-import { Check, Clear } from '@mui/icons-material';
+import { Check, Clear, UnfoldMore } from '@mui/icons-material';
 import type { ScopedTransformerViewProps } from '../TransformerViewProps';
 import { Modify, type ModifyOptions } from '../../fitting/transformers/modification/Modify';
 import { CorrectPedal } from '../../fitting/transformers/modification/CorrectPedal';
+import { Expand, type ExpandOptions } from '../../fitting/transformers/modification/Expand';
 import { sameTravel } from '../../performance/pedalTravel';
 import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
@@ -15,6 +16,7 @@ import { useLineGhosts } from './useLineGhosts';
 import type { LineDraft } from './lineDraft';
 import { VelocityPlot } from './VelocityPlot';
 import { TimingRoll, type TimingAspect, type TimingPreview } from './TimingRoll';
+import { ExpandDialog } from './ExpandDialog';
 
 /** Which plot is in front, and so which of the recording's properties is being corrected. */
 type Plot = 'velocity' | 'timing';
@@ -73,15 +75,24 @@ const lineTooltip = ({ change, before }: LineDraft): string =>
  *
  * A drag is a *draft*: nothing is sent until Apply, and until then the displaced events and the
  * blue ghost behind them are the whole of the preview.
+ *
+ * ## Expand, typed rather than dragged
+ *
+ * The one call here that is not a gesture. An `Expand` maps a range of recorded values onto
+ * another — the roll's softest velocity to a softer one, its loudest to somewhat less — so it is
+ * stated as points in a dialog. It takes the selection as its selector, as a `Modify` would, and
+ * with nothing selected it is about every event of the part: the case it is made for, a claim
+ * about the scale the whole roll was recorded on.
  */
 export const CorrectionsDesk = ({
     part,
     msm,
     addTransformer,
-}: ScopedTransformerViewProps<Modify | CorrectPedal>) => {
+}: ScopedTransformerViewProps<Modify | CorrectPedal | Expand>) => {
     const [plot, setPlot] = useState<Plot>('velocity');
     const [draft, setDraft] = useState<Draft>();
     const [pending, setPending] = useState<Pending>();
+    const [expanding, setExpanding] = useState(false);
 
     const { selection, select, clear, selected } = useEventSelection(msm, part);
 
@@ -94,6 +105,7 @@ export const CorrectionsDesk = ({
         setPending(undefined);
         if (lastFit.part !== part) {
             setDraft(undefined);
+            setExpanding(false);
             clear();
         }
         setLastFit({ msm, part });
@@ -179,6 +191,48 @@ export const CorrectionsDesk = ({
         clear();
     };
 
+    // An expansion reaches the selection, or every event of the part. On the velocity plot that
+    // is the notes alone; on the roll the pedals too, where the desk is on the whole piece rather
+    // than on one part — as `Expand` itself has it.
+    const expandAspects: readonly ExpandOptions['aspect'][] =
+        plot === 'velocity' ? ['velocity'] : ['onset', 'duration'];
+    const pedalsOnly = selection !== undefined && 'pedalIDs' in selection;
+    const expandAbout =
+        scopeLabel ?? (plot === 'timing' && part === 'global' ? 'every note and pedal' : 'every note');
+
+    /** The lowest and highest value the expansion would reach, to open the dialog on. */
+    const recorded = (aspect: ExpandOptions['aspect']): [number, number] => {
+        const ids = selection ? coveredBy(selection, msm, part) : undefined;
+        const reached = (id: string) => !ids || ids.has(id);
+        const notes = msm.in(part).notes().filter((n) => reached(n['xml:id']));
+        const pedals =
+            aspect === 'velocity' || (!ids && part !== 'global')
+                ? []
+                : msm.pedals.filter((p) => reached(p['xml:id']));
+        const values = [...notes, ...pedals]
+            .map((event) =>
+                aspect === 'onset'
+                    ? event['milliseconds.date']
+                    : aspect === 'duration'
+                      ? event['milliseconds.date.end'] - event['milliseconds.date']
+                      : 'velocity' in event
+                        ? event.velocity
+                        : NaN,
+            )
+            .filter(Number.isFinite);
+        if (values.length === 0) return [0, 1];
+        const low = Math.floor(Math.min(...values));
+        const high = Math.ceil(Math.max(...values));
+        return [low, high > low ? high : low + 1];
+    };
+
+    const expand = (aspect: ExpandOptions['aspect'], points: ExpandOptions['points']) => {
+        addTransformer(new Expand({ ...(selection ?? {}), scope: part, aspect, points }));
+        setExpanding(false);
+        setDraft(undefined);
+        clear();
+    };
+
     const applyTooltip = line
         ? lineTooltip(line)
         : !scopeLabel
@@ -237,7 +291,33 @@ export const CorrectionsDesk = ({
                         Clear
                     </ToolbarButton>
                 </ToolGroup>
+
+                <ToolGroup>
+                    <ToolbarButton
+                        icon={<UnfoldMore fontSize="small" />}
+                        label="Expand…"
+                        tooltip={
+                            plot === 'velocity' && pedalsOnly
+                                ? 'A pedal has no velocity to expand'
+                                : `Map a range of recorded values onto another, for ${expandAbout}`
+                        }
+                        disabled={plot === 'velocity' && pedalsOnly}
+                        onClick={() => setExpanding(true)}
+                    >
+                        Expand…
+                    </ToolbarButton>
+                </ToolGroup>
             </DeskToolbar>
+
+            {expanding && (
+                <ExpandDialog
+                    about={expandAbout}
+                    aspects={expandAspects}
+                    recorded={recorded}
+                    onClose={() => setExpanding(false)}
+                    onApply={expand}
+                />
+            )}
 
             {plot === 'velocity' ? (
                 <VelocityPlot

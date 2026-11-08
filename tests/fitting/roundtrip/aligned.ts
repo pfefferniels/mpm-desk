@@ -137,10 +137,11 @@ export const runAligned = (): AlignedRun => {
 /**
  * The recording as the chain was asked to reproduce it.
  *
- * Two of the chain's transformers are about the observation rather than about the MPM, and both
+ * Four of the chain's transformers are about the observation rather than about the MPM, and all
  * have to be applied before the recording is a target. `MakeChoice` picks one of the two
- * readings the fixture carries — without it every note is in it twice, once per source — and
- * `Modify` is the editor saying a note was played softer than the roll scan says. Reading the
+ * readings the fixture carries — without it every note is in it twice, once per source —
+ * `CorrectPedal` and `Modify` are the editor saying a press or a note went otherwise than the roll
+ * scan says, and `Expand` that the roll squeezed a whole range of values together. Reading the
  * fixture afresh rather than taking back the alignment the chain ran on is deliberate: a
  * transformer that quietly wrote its answer into the observations would otherwise be measured
  * against its own writing and score perfectly.
@@ -151,7 +152,7 @@ const recording = (info: string): Alignment => {
   const scratch = createMpm();
 
   for (const transformer of transformers) {
-    if (['MakeChoice', 'CorrectPedal', 'Modify'].includes(transformer.name)) {
+    if (['MakeChoice', 'CorrectPedal', 'Expand', 'Modify'].includes(transformer.name)) {
       transformer.run(observed, scratch);
     }
   }

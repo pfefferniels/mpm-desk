@@ -387,6 +387,10 @@ export const correspondingDesks: DeskEntry[] = [
                 { gesture: '⇧⌥-press a pedal', does: 'drop the press' },
                 { gesture: '⌥-press an empty lane', does: 'add a press there' },
                 { gesture: 'Hover a dot', does: 'sound the chord there, on the Velocity plot' },
+                {
+                    gesture: 'Expand…',
+                    does: 'map a range of recorded values onto another, for the selection or, with none, for everything',
+                },
                 { gesture: 'Esc', does: 'drop the selection and the drawn correction' },
             ],
         },

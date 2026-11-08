@@ -81,7 +81,7 @@ export interface Call {
      * {@link Call.elements} already says.
      *
      * A segment is one claim about one place in the music, so only a call that acts at a place
-     * belongs under one. Two kinds stay unclaimed: corrections of the recording (`Modify`,
+     * belongs under one. Two kinds stay unclaimed: corrections of the recording (`Modify`, `Expand`,
      * `MakeChoice`), which change the evidence and write no instruction, and calls with no
      * {@link Call.range} (`MergeMetricalAccentuations`, `StylizeOrnamentation`, a piece-wide
      * `InsertDynamicsGradient`, `InsertMetadata`), which rewrite definitions across the piece and

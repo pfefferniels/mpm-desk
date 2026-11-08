@@ -35,14 +35,14 @@ export type ModifyOptions = ScopedTransformationOptions &
  * where the start would land before the recording begins, that delta is what survives the clamp,
  * so the length survives it too.
  */
-const displace = (event: PerformedAttributes, change: number): void => {
+export const displace = (event: PerformedAttributes, change: number): void => {
   const applied = Math.max(change, -event['milliseconds.date']);
   event['milliseconds.date'] += applied;
   event['milliseconds.date.end'] += applied;
 };
 
 /** Move an event's release, which cannot be dragged back past its own onset. */
-const restretch = (event: PerformedAttributes, change: number): void => {
+export const restretch = (event: PerformedAttributes, change: number): void => {
   event['milliseconds.date.end'] = Math.max(
     event['milliseconds.date'],
     event['milliseconds.date.end'] + change,
@@ -50,7 +50,7 @@ const restretch = (event: PerformedAttributes, change: number): void => {
 };
 
 /** Move a press's release. Where the press carries its line, the release is where the line comes down. */
-const restretchPress = (pedal: AlignedPedal, change: number): void => {
+export const restretchPress = (pedal: AlignedPedal, change: number): void => {
   if (pedal.travel) redrawPress(pedal, releaseShifted(pedal.travel, change));
   else restretch(pedal, change);
 };
@@ -58,8 +58,8 @@ const restretchPress = (pedal: AlignedPedal, change: number): void => {
 /**
  * A correction to the recording.
  *
- * One of the four calls that write no instruction into the performance — `MakeChoice` picks
- * between readings, this and `CorrectPedal` correct the reading that was picked, and
+ * One of the five calls that write no instruction into the performance — `MakeChoice` picks
+ * between readings, this, `CorrectPedal` and `Expand` correct the reading that was picked, and
  * `InsertMetadata` says who did the picking. It runs before the `TranslatePhysicalTimeToTicks` hinge, so
  * it works in the recording's own domain: milliseconds, which is what makes an onset or a
  * duration correction mean anything at all.
