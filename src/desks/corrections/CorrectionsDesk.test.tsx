@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { Alignment, type AlignedNote, type AlignedPedal } from '../../fitting/alignment';
 import type { Call } from '../../model/Work';
@@ -12,6 +12,7 @@ import { createMpm } from '../../fitting/instructions/index';
 import { deriveResidual } from '../../fitting/residual';
 import { Modify } from '../../fitting/transformers/modification/Modify';
 import { CorrectPedal } from '../../fitting/transformers/modification/CorrectPedal';
+import { Expand } from '../../fitting/transformers/modification/Expand';
 import type { Travel } from '../../performance/pedalTravel';
 import { CorrectionsDesk } from './CorrectionsDesk';
 import { defaultPress } from './lineDraft';
@@ -619,5 +620,82 @@ describe('what a gesture on the pedal line turns into', () => {
         const ghost = element('polyline[data-ghost="p2"]');
         expect(ghost.getAttribute('stroke')).toBe('#999');
         expect(ghost.getAttribute('points')).toBe('60,344 60,388 70,388 70,432 90,432 100,432 100,344');
+    });
+});
+
+describe('Expand', () => {
+    /** The one `Expand` the desk sent, unwrapped. */
+    const sentExpansion = (addTransformer: ReturnType<typeof vi.fn>) => {
+        expect(addTransformer).toHaveBeenCalledTimes(1);
+        const sent: unknown = addTransformer.mock.calls[0]?.[0];
+        if (!(sent instanceof Expand)) throw new Error('not an expansion');
+        return sent.options;
+    };
+
+    const type = (label: string, row: number, value: string) => {
+        const field = screen.getAllByLabelText(label)[row];
+        if (!field) throw new Error(`no field ${label} in row ${String(row)}`);
+        act(() => {
+            fireEvent.change(field, { target: { value } });
+        });
+    };
+
+    it('opens on the identity over the recorded velocities, and sends nothing for it', () => {
+        const { addTransformer } = mount();
+        clickToolbarButton('Expand…');
+
+        const recorded = screen.getAllByLabelText('Recorded (velocity)') as HTMLInputElement[];
+        expect(recorded.map((field) => field.value)).toEqual(['64', '80']);
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(addTransformer).not.toHaveBeenCalled();
+    });
+
+    it('with nothing selected, expands every note over the points typed', () => {
+        const { addTransformer } = mount();
+        clickToolbarButton('Expand…');
+        type('New (velocity)', 0, '30');
+        act(() => {
+            screen.getByRole('button', { name: 'Apply' }).click();
+        });
+
+        expect(sentExpansion(addTransformer)).toEqual({
+            scope: 'global',
+            aspect: 'velocity',
+            points: [
+                [64, 30],
+                [80, 80],
+            ],
+        });
+    });
+
+    it('takes the selection as its selector', () => {
+        const { addTransformer } = mount();
+        pressDot(0);
+        clickToolbarButton('Expand…');
+        type('New (velocity)', 1, '60');
+        act(() => {
+            screen.getByRole('button', { name: 'Apply' }).click();
+        });
+
+        expect(sentExpansion(addTransformer)).toMatchObject({ noteIDs: ['a'], aspect: 'velocity' });
+    });
+
+    it('refuses points whose recorded values do not rise', () => {
+        mount();
+        clickToolbarButton('Expand…');
+        type('Recorded (velocity)', 1, '50');
+        type('New (velocity)', 0, '30');
+
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+    });
+
+    it('on the roll, offers onset and duration, for the pedals as well', () => {
+        mount();
+        showRoll();
+        clickToolbarButton('Expand…');
+
+        expect(screen.getByRole('dialog', { name: 'Expand every note and pedal' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Onset' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Duration' })).toBeInTheDocument();
     });
 });

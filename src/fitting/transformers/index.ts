@@ -12,6 +12,7 @@ export * from './rounding/RoundNumbers';
 export * from './Order';
 export * from './choice/MakeChoice';
 export * from './modification/Modify';
+export * from './modification/Expand';
 export * from './modification/CorrectPedal';
 export * from './metadata/index';
 export * from './TransformerRegistry';
