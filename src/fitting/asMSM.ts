@@ -1,15 +1,33 @@
-import { Alignment, AlignedNote, AlignedPedal } from "./alignment"
+import { Alignment, AlignedGrace, AlignedNote, AlignedPedal } from "./alignment"
 import { parseTravel } from "../performance/pedalTravel"
 import { readTimeSignatures } from "../utils/score"
 import { v4 } from "uuid";
+import type { GraceGroup } from "espressivo";
+
+/** What one `<when>` says about the note it times, or nothing where it leaves any of it out. */
+const performedOf = (when: Element) => {
+    const absolute = when.getAttribute('absolute')?.replace('ms', '')
+    const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
+    const velocity = when.querySelector('extData[type="velocity"]')?.textContent
+    if (!absolute || !duration || !velocity) return null
+    return {
+        'milliseconds.date': +absolute,
+        'milliseconds.date.end': +absolute + (+duration),
+        velocity: +velocity,
+        source: when.closest('recording')?.getAttribute('source') || undefined,
+    }
+}
 
 /**
  * Enrich a converted MSM with the performance data encoded in the MEI.
  *
  * @param mei the source MEI, whose `<performance>` holds the onsets, durations and velocities
  * @param msmXml the same MEI converted to MSM — see `utils/espressivo.convertMei`
+ * @param graces what that conversion left out (`MovementDocuments.graces`): the grace notes,
+ * which the MSM has no place for and which come back as {@link AlignedGrace} rows. Omitted, the
+ * alignment has none, and a chain that asks for them fits none.
  */
-export const asMSM = (mei: string, msmXml: string) => {
+export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[] = []) => {
     const msmDoc = new DOMParser().parseFromString(msmXml, 'application/xml')
 
     // Enrich the official MSM with performance information
@@ -170,8 +188,45 @@ export const asMSM = (mei: string, msmXml: string) => {
         })
         .filter((pedal) => pedal !== null) as AlignedPedal[]
 
+    // One row per grace note and `<when>`, as for a score note. A group the conversion could
+    // not tie to a score note is no ornament anyone could write, so it brings no rows.
+    const msmGraces: AlignedGrace[] = graces.flatMap((group, index) => {
+        if (group.principal === null) return []
+        const principal = group.principal
+        const last = Math.max(...group.notes.map((note) => note.slot))
+        const principalPitch = Number(
+            originalNotes
+                .find((note) => note.getAttribute('xml:id') === principal)
+                ?.getAttribute('midi.pitch'),
+        )
+        return group.notes.flatMap((note) => {
+            const id = note.id
+            if (id === null) return []
+            return (whensByRefId.get(id) ?? []).flatMap((when) => {
+                const performed = performedOf(when)
+                if (!performed) return []
+                const row: AlignedGrace = {
+                    'xml:id': id,
+                    group: group.id ?? `grace-${String(index)}`,
+                    principal,
+                    tied:
+                        group.tiedToPrincipal &&
+                        note.slot === last &&
+                        note.pitch === principalPitch,
+                    part: group.part,
+                    date: group.date,
+                    slot: note.slot,
+                    'midi.pitch': note.pitch,
+                    ...performed,
+                }
+                return [row]
+            })
+        })
+    })
+
     const newMSM = new Alignment(msmNotes, readTimeSignatures(msmDoc))
     newMSM.pedals = msmPedals
+    newMSM.graces = msmGraces
 
     return newMSM
 }

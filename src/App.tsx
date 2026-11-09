@@ -234,12 +234,12 @@ export const App = ({ mode = 'edit' }: AppProps) => {
      */
     const readMei = useCallback((content: string) => {
         setMEI(content);
-        const converted = convertMeiToMsm(content)[0]?.msm;
-        if (!converted) {
+        const movement = convertMeiToMsm(content)[0];
+        if (!movement) {
             setMessage('The MEI holds no convertible movement.');
             return;
         }
-        setPristine(asMSM(content, converted));
+        setPristine(asMSM(content, movement.msm, movement.graces));
     }, []);
 
     const loadMei = useCallback(

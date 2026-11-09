@@ -46,6 +46,8 @@ describe('TransformerRegistry', () => {
      * that control. See `Order.ts`.
      *
      * `RoundNumbers` is this repo's own and last: it restates what everything before it wrote.
+     * `InsertGraceNotes` is its own too: espressivo had no transformer for grace notes, which the
+     * MSM leaves out and MPM v3 can play.
      */
     test('the reduction order is exactly the fitters this build has', () => {
       expect(getTransformerOrder()).toEqual([
@@ -56,6 +58,7 @@ describe('TransformerRegistry', () => {
         'Modify',
         'InsertDynamicsGradient',
         'InsertTemporalSpread',
+        'InsertGraceNotes',
         'InsertTempo',
         'TranslatePhysicalTimeToTicks',
         'StylizeOrnamentation',
@@ -87,6 +90,9 @@ describe('TransformerRegistry', () => {
       expect(order.indexOf('InsertTempo')).toBeLessThan(
         order.indexOf('TranslatePhysicalTimeToTicks'),
       );
+      // A grace figure is measured from the onset the spread collapsed its principal's chord onto.
+      expect(order.indexOf('InsertTemporalSpread')).toBeLessThan(order.indexOf('InsertGraceNotes'));
+      expect(order.indexOf('InsertGraceNotes')).toBeLessThan(order.indexOf('InsertTempo'));
       // Everything that works in ticks comes after that conversion.
       for (const name of ['InsertRubato', 'InsertArticulation', 'InsertPedal'])
         expect(order.indexOf('TranslatePhysicalTimeToTicks')).toBeLessThan(order.indexOf(name));
@@ -111,7 +117,7 @@ describe('TransformerRegistry', () => {
         (value): value is new () => Transformer =>
           typeof value === 'function' && value.prototype instanceof AbstractTransformer,
       );
-      expect(exported.length).toBe(20);
+      expect(exported.length).toBe(21);
       for (const constructor of exported) {
         const name = new constructor().name;
         expect(isRegistered(name), `${name} is exported but not registered`).toBe(true);

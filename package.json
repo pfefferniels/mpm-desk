@@ -24,7 +24,7 @@
     "@mui/icons-material": "^5.18.0",
     "@mui/material": "^5.18.0",
     "@types/uuid": "^10.0.0",
-    "espressivo": "^0.10.0",
+    "espressivo": "^0.12.0",
     "jszip": "^3.10.1",
     "midifile-ts": "^1.5.2",
     "onnxruntime-web": "^1.29.0",

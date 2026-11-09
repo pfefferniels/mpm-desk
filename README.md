@@ -50,10 +50,10 @@ where a call's identifier `https://welte225.org/mpm/<id>` sends a visitor.
 
 `/editor` is the editor. The alignment desk says which sounded event realises which written note;
 the others plot what the recording did in one dimension (tempo, rubato, dynamics, accentuation,
-articulation, arpeggiation, pedalling) and turn a gesture on that plot into a transformer call.
-Furthermore there are desks for the document itself (title and author, which MEI voice goes into
-which part) and the markup desk, which shows the MPM as text. The same `#<call id>` opens a call
-once a project is open.
+articulation, arpeggiation, grace notes, pedalling) and turn a gesture on that plot into a
+transformer call. Furthermore there are desks for the document itself (title and author, which MEI
+voice goes into which part) and the markup desk, which shows the MPM as text. The same
+`#<call id>` opens a call once a project is open.
 
 ## Export
 

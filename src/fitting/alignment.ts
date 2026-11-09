@@ -87,6 +87,16 @@ export type AlignedNote = {
 } & PerformedAttributes & {
     'midi.pitch': number;
     velocity: number;
+    /**
+     * How far, in ms, an arpeggio fit moved this onset when it collapsed the chord onto one
+     * (recorded less collapsed), or absent where nothing did.
+     *
+     * `InsertTemporalSpread` writes it as it takes the stagger out, so that a later fitter can
+     * still say where the note sounded. `InsertGraceNotes` needs it: a grace figure replaces its
+     * principal, and the renderer lays the figure out from the chord's onset, not from where the
+     * arpeggio would have put the principal.
+     */
+    spread?: number;
   } & TemporaryAttributes;
 
 /**
@@ -103,6 +113,40 @@ export type AlignedNote = {
  *
  * `xml:id` is an NCName and holds no `/`, so the first one separates the pair unambiguously.
  */
+/**
+ * One recorded grace note: a note the score writes but the MSM has no place for, because it takes
+ * no time of its own.
+ *
+ * Kept apart from {@link AlignedNote} for that reason. Every fitter that walks `allNotes` reads a
+ * row's `date` as the tick the note sounds on, and a grace note has none: it sounds before its
+ * principal and belongs to it. Mixed in, it would be one more onset on the principal's chord for
+ * the arpeggio and tempo fits to explain.
+ *
+ * Read off the MEI by `asMSM`, from what espressivo reports the conversion left out
+ * (`MovementDocuments.graces`): one row per grace note and `<recording>` that timed it.
+ */
+export type AlignedGrace = {
+  /** The MEI grace note's `xml:id`, which the `<when>` names. */
+  readonly 'xml:id': string;
+  /** The `graceGrp` (or grace chord) it belongs to: one ornament per group. */
+  readonly group: string;
+  /** The MSM note the group decorates, the ornament's `@noteid`. */
+  readonly principal: string;
+  /**
+   * Whether this grace note is the one tied into the principal. The principal is then struck as
+   * this note, early, and held — the score has no second onset for it.
+   */
+  readonly tied: boolean;
+  /** The principal's part and date. */
+  readonly part: number;
+  readonly date: number;
+  /** The position of the note's event in its group, from 0. */
+  readonly slot: number;
+  readonly 'midi.pitch': number;
+} & PerformedAttributes & {
+    velocity: number;
+  } & TemporaryAttributes;
+
 export const rowId = (event: Pick<AlignedNote, 'xml:id' | 'source'>): string =>
   `${event['xml:id']}/${event.source ?? ''}`;
 
@@ -198,6 +242,8 @@ type PartNames = ReadonlyMap<number, string>;
 export class Alignment {
   allNotes: AlignedNote[];
   pedals: AlignedPedal[];
+  /** The grace notes the recording timed; see {@link AlignedGrace}. */
+  graces: AlignedGrace[];
   /**
    * The score's time signatures, ascending by date: the whole map, not its first entry.
    *
@@ -219,6 +265,7 @@ export class Alignment {
    */
   constructor(notes?: AlignedNote[], timeSignatures?: readonly DatedTimeSignature[]) {
     this.pedals = [];
+    this.graces = [];
     // Sorted into a copy, not in place. `sort` mutates its receiver, so sorting the array
     // the caller passed would reorder *their* array as a side effect of construction — which
     // would have `clone()` reorder the very score it claims to be copying.
@@ -248,6 +295,7 @@ export class Alignment {
     const clone = new Alignment();
     clone.allNotes = this.allNotes.map((note) => ({ ...note }));
     clone.pedals = this.pedals.map((pedal) => ({ ...pedal }));
+    clone.graces = this.graces.map((grace) => ({ ...grace }));
     clone.timeSignatures = this.timeSignatures.map((signature) => ({ ...signature }));
     return clone;
   }
@@ -275,6 +323,13 @@ export class Alignment {
     notesWithOnset.forEach((n) => {
       n['milliseconds.date'] -= min;
       n['milliseconds.date.end'] -= min;
+    });
+
+    // A grace note may sound before the first note, so it may land below zero. It is left there:
+    // only its distance from its principal is ever read, and clamping would change that.
+    this.graces.forEach((g) => {
+      g['milliseconds.date'] -= min;
+      g['milliseconds.date.end'] -= min;
     });
   }
 
@@ -488,7 +543,9 @@ export class Alignment {
    */
   public sources(): Set<string> {
     return new Set(
-      [...this.allNotes, ...this.pedals].flatMap((event) => (event.source ? [event.source] : [])),
+      [...this.allNotes, ...this.pedals, ...this.graces].flatMap((event) =>
+        event.source ? [event.source] : [],
+      ),
     );
   }
 

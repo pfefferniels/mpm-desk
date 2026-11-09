@@ -13,8 +13,8 @@ import { PULSES_PER_QUARTER } from './ppq';
  * through. What follows is the part that has to be true for that to be an optimisation rather
  * than a bug: the caches must answer differently when the answer is different.
  *
- * The gate (`scripts/verifyChain.ts`) proves the caches change no output over the real 494-call
- * reconstruction. These prove *why*, on cases small enough to reason about.
+ * The gate (`scripts/recordArtefacts.test.ts`) proves the caches change no output over the real
+ * reconstruction, byte for byte. These prove *why*, on cases small enough to reason about.
  */
 
 const BEAT = PULSES_PER_QUARTER;

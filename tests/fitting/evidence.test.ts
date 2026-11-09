@@ -8,6 +8,8 @@ import { InsertTemporalSpread } from '../../src/fitting/transformers/ornamentati
 import { InsertPedal } from '../../src/fitting/transformers/pedal/InsertPedalInstructions';
 import { Modify } from '../../src/fitting/transformers/modification/Modify';
 import { MergeMetricalAccentuations } from '../../src/fitting/transformers/accentuation/MergeMetricalAccentuations';
+import { InsertGraceNotes } from '../../src/fitting/transformers/ornamentation/InsertGraceNotes';
+import type { AlignedGrace } from '../../src/fitting/alignment';
 
 /**
  * What a call was fitted to — `Transformer.evidence`, which a desk marks when the call is selected.
@@ -108,6 +110,29 @@ describe('what a call was fitted to', () => {
         const byPresses = new Modify({ scope: 'global', aspect: 'onset', change: 10, pedalIDs: ['p1'] });
         expect(byNotes.evidence(score())).toEqual(['n720']);
         expect(byPresses.evidence(score())).toEqual(['p1']);
+    });
+
+    test('grace notes: the recorded grace notes of the group, and the principal they lead into', () => {
+        const grace = (id: string, group: string, principal: string, part = 1): AlignedGrace => ({
+            'xml:id': id,
+            group,
+            principal,
+            tied: false,
+            part,
+            date: 1440,
+            slot: 0,
+            'midi.pitch': 62,
+            velocity: 50,
+            'milliseconds.date': 1300,
+            'milliseconds.date.end': 1400,
+        });
+        const msm = score();
+        msm.graces = [grace('g1', 'grp1', 'n1440'), grace('g2', 'grp2', 'n2160'), grace('g3', 'grp3', 'bass0', 2)];
+
+        // One group: not the chord at the principal's date, which no grace note is part of.
+        expect(new InsertGraceNotes({ scope: 'global', group: 'grp1' }).evidence(msm).sort()).toEqual(['g1', 'n1440']);
+        // Every group of a part, where it names none.
+        expect(new InsertGraceNotes({ scope: 0 }).evidence(msm).sort()).toEqual(['g1', 'g2', 'n1440', 'n2160']);
     });
 
     test('a pass over the whole piece: nothing, being about no place in it', () => {

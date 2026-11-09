@@ -204,8 +204,10 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
       // The spread is now the ornament's to render, so the chord is collapsed onto one
       // onset. Each release travels the same distance as its onset: what is taken out here
       // is the stagger, not the length the note was held for.
+      // What is taken out is remembered on the note: see `AlignedNote.spread`.
       sortedByOnset.forEach((note) => {
         note['milliseconds.date.end'] += newOnset - note['milliseconds.date'];
+        note.spread = (note.spread ?? 0) + note['milliseconds.date'] - newOnset;
         note['milliseconds.date'] = newOnset;
       });
     }

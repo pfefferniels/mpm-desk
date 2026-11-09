@@ -537,6 +537,34 @@ export const correspondingDesks: DeskEntry[] = [
         unavailable: allOf(needsRecording, needsChoice),
     },
     {
+        transformerName: 'InsertGraceNotes',
+        desk: lazy(() =>
+            import('./arpeggiation/GraceNotesDesk').then((m) => ({
+                default: m.GraceNotesDesk,
+            })),
+        ),
+        displayName: 'Grace Notes',
+        aspect: 'arpeggiation',
+        group: 'timing',
+        help: {
+            summary:
+                "The score's grace notes, a row per group, with how far ahead of its principal " +
+                'the recording played each and the ornament it is written as.',
+            actions: [
+                { gesture: 'Click a row', does: 'select the group for Insert, and its call' },
+                {
+                    gesture: 'Insert Default',
+                    does: 'write every group in the scope as an ornament on its principal',
+                    edits: true,
+                },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
+            ],
+        },
+        // The same `<ornamentMap>` as the other arpeggiation desks, so the same lock.
+        writes: ['ornament'],
+        unavailable: allOf(needsRecording, needsChoice),
+    },
+    {
         transformerName: 'StylizeOrnamentation',
         desk: lazy(() =>
             import('./styles/OrnamentationStyles').then((m) => ({
