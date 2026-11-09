@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
+import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { createMpm } from '../../fitting/instructions/index';
 import type { MakeChoice } from '../../fitting/transformers/choice/MakeChoice';
@@ -52,7 +55,14 @@ const alignment = () =>
  * over two readings would measure one take against another, so `deriveResidual` refuses one. This
  * desk is where the choice that lifts that is made, and it reads the recorded values off the rows.
  */
-const mount = () => {
+interface MountOptions {
+    /** False to mount the desk as the viewer has it. */
+    editable?: boolean;
+    /** The calls selected, and what the run reported for them. */
+    selected?: { ids: string[]; outcomes: CallOutcome[] };
+}
+
+const mount = ({ editable = true, selected }: MountOptions = {}) => {
     const msm = alignment();
     const addTransformer = vi.fn();
 
@@ -60,21 +70,31 @@ const mount = () => {
     document.body.appendChild(bar);
 
     const { container } = render(
-        <ScrollSyncProvider symbolicZoom={20} physicalZoom={20}>
-            <DeskToolbarProvider target={bar}>
-                <ChoiceDesk
-                    part="global"
-                    msm={msm}
-                    mpm={createMpm()}
-                    residual={null}
-                    projected={[]}
-                    performanceXml=""
-                    secondary={{}}
-                    setSecondary={vi.fn()}
-                    addTransformer={addTransformer as (transformer: MakeChoice) => void}
-                />
-            </DeskToolbarProvider>
-        </ScrollSyncProvider>,
+        <EditingContext value={editable}>
+            <ScrollSyncProvider symbolicZoom={20} physicalZoom={20}>
+                <CallSelectionProvider
+                    calls={[]}
+                    outcomes={selected?.outcomes ?? []}
+                    activeCallIds={new Set(selected?.ids ?? [])}
+                    setActiveCallIds={vi.fn()}
+                    onRemoveCalls={vi.fn()}
+                    focusCall={vi.fn()}
+                >
+                    <DeskToolbarProvider target={bar}>
+                        <ChoiceDesk
+                            part="global"
+                            msm={msm}
+                            mpm={createMpm()}
+                            residual={null}
+                            performanceXml=""
+                            secondary={{}}
+                            setSecondary={vi.fn()}
+                            addTransformer={addTransformer as (transformer: MakeChoice) => void}
+                        />
+                    </DeskToolbarProvider>
+                </CallSelectionProvider>
+            </ScrollSyncProvider>
+        </EditingContext>,
     );
 
     /** A note is drawn once per reading, so the first rect carrying the id is as good as any. */
@@ -86,7 +106,13 @@ const mount = () => {
 
     const scope = () => screen.getByText(/notes$|^ticks|^default$/).textContent;
 
-    return { click, scope, addTransformer };
+    /** The score notes whose group is marked as evidence. */
+    const marked = () =>
+        [...container.querySelectorAll('g[data-evidence]')].map((group) =>
+            group.getAttribute('data-note'),
+        );
+
+    return { click, scope, addTransformer, marked };
 };
 
 describe('marking out what a choice covers', () => {
@@ -142,5 +168,32 @@ describe('marking out what a choice covers', () => {
         click('a', { shiftKey: true });
 
         expect(scope()).toBe('1 notes');
+    });
+});
+
+describe('in the viewer', () => {
+    it('makes no choice, and a click on a note scopes nothing', () => {
+        const { click, addTransformer } = mount({ editable: false });
+
+        expect(screen.queryByRole('button', { name: 'Make Choice' })).toBeNull();
+        expect(screen.queryByText(/notes$|^ticks|^default$/)).toBeNull();
+
+        click('b');
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(addTransformer).not.toHaveBeenCalled();
+    });
+});
+
+describe('what a selected choice was made for', () => {
+    it('marks the notes the choice names, and no others', () => {
+        const { marked } = mount({
+            selected: {
+                ids: ['choice'],
+                outcomes: [{ id: 'choice', elements: [], range: { from: 720, to: 1440 }, evidence: ['b', 'c'] }],
+            },
+        });
+
+        expect(marked()).toEqual(['b', 'c']);
     });
 });

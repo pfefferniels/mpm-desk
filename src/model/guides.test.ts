@@ -28,7 +28,7 @@ const expand = (id: string, options: Record<string, unknown> = {}): Call => ({
     },
 });
 
-const work = (provenance: Call[]): WorkFile => ({ name: '', mei: '', mpm: '', provenance, segments: [] });
+const work = (provenance: Call[]): WorkFile => ({ name: '', mei: '', mpm: '', provenance });
 
 const guidesOf = (state: WorkFile, id: string) => {
     const call = state.provenance.find((c) => c.id === id);

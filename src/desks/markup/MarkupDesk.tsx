@@ -17,7 +17,6 @@ import { ToolStatus } from '../../components/toolbar/ToolStatus';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
 import { useCallSelection } from '../../hooks/CallSelection';
 import { useWorkDocument } from '../../hooks/WorkDocument';
-import { getLaneColor } from '../../segment-stack/spanColors';
 import { renderPerformance } from '../../utils/espressivo';
 import { documentSlug, downloadAsFile } from '../../utils/utils';
 import { indexMarkup } from './markupIndex';
@@ -40,6 +39,23 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 const GRAY_200 = '#e5e7eb';
 const GRAY_400 = '#9ca3af';
 const GRAY_100 = '#f3f4f6';
+
+/**
+ * One colour per MPM element type, for the rule at the left of the line that opens one.
+ *
+ * `movement` is the deliberate odd one out. The pedal is a condition rather than a gesture — it is
+ * what the other instructions are heard through — so it stays neutral and lets the rest carry the
+ * hue. A type with no entry answers `#666`, which is the neutral this wants.
+ */
+const TYPE_COLORS: Record<string, string> = {
+    dynamics: '#8e44ad',
+    tempo: '#16a085',
+    ornament: '#d35400',
+    articulation: '#2c3e50',
+    rubato: '#e74c3c',
+    accentuationPattern: '#2980b9',
+    movement: '#475569',
+};
 
 /**
  * Two shapes, because the row's width and the wrap setting are the same decision.
@@ -71,7 +87,7 @@ const TEXT_WRAPPED: CSSProperties = {
 interface RowProps {
     line: number;
     text: string;
-    /** The element this line opens, where it carries an id — the lane colour's key. */
+    /** The element this line opens, where it carries an id — the type colour's key. */
     type?: string;
     id?: string;
     /** One of the selected calls wrote this element. */
@@ -93,9 +109,7 @@ interface RowProps {
 const Row = memo(({ line, text, type, id, active, wrap, onOpen }: RowProps) => {
     const style: CSSProperties = {
         ...(wrap ? ROW_WRAPPED : ROW),
-        // The tree's own colour for this element type, so a `<tempo>` reads here as the same
-        // thing it is over there. Unknown types answer `#666`, which is the neutral this wants.
-        borderLeft: `3px solid ${type === undefined ? 'transparent' : getLaneColor(type)}`,
+        borderLeft: `3px solid ${type === undefined ? 'transparent' : (TYPE_COLORS[type] ?? '#666')}`,
         ...(active && { background: GRAY_200 }),
     };
 
@@ -122,7 +136,7 @@ Row.displayName = 'Row';
  * Every other desk draws one dimension of the performance. This one draws the artefact all of
  * them are writing, so what a gesture put in the file can be read back. `CallSelection` speaks in
  * the same `xml:id`s the markup carries, so reading it and acting on it are the same place:
- * selecting a claim lands here on its elements, and clicking an instruction opens the desk that
+ * selecting a call lands here on its elements, and clicking an instruction opens the desk that
  * wrote it.
  *
  * ## One export
@@ -178,7 +192,7 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
     useEffect(() => {
         if (firstActive === undefined) return;
         // `nearest`, so the playhead passing through a selection nudges the pane into range
-        // rather than yanking it to the middle — the choice the narrative desk's rows make.
+        // rather than yanking it to the middle.
         viewRef.current
             ?.querySelector(`[data-line="${firstActive}"]`)
             ?.scrollIntoView({ block: 'nearest' });
@@ -193,11 +207,11 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
      * selects it. A call whose transformer has no desk of its own is still selected and still
      * linkable; it simply has nowhere to go, which is the honest outcome.
      *
-     * The miss is left silent on purpose. Whether an element is claimed is only answerable by
+     * The miss is left silent on purpose. Which call wrote an element is only answerable by
      * scanning the run's outcomes, and asking it of all 684 identified lines up front would be a
      * few hundred thousand comparisons on every refit to grey out a state that barely occurs —
      * everything in the MPM was written by something. So the question is asked once, on the
-     * click, and an unclaimed element leaves the editor where it was.
+     * click, and an element no call answers for leaves the editor where it was.
      */
     const open = useCallback(
         (id: string) => {

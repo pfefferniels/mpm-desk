@@ -8,6 +8,7 @@ import { usePiano } from "../../performance/piano"
 import { useNotes } from "../../hooks/NotesProvider"
 import { Fragment, type JSX, type MouseEvent, useState } from "react"
 import { FrameBox, PendingFrame } from "./Frame"
+import { EVIDENCE_COLOUR } from "../evidence"
 
 export type Frame = PartialBy<Omit<InsertRubatoOptions, 'scope'>, 'length'>
 
@@ -25,11 +26,17 @@ interface DatesRowProps {
      */
     residual: Residual
     frame?: Frame
-    onPickDate: (date: number) => void
+    /** What a click on the row marks. Absent in the viewer, where a click marks nothing. */
+    onPickDate?: (date: number) => void
+    /** The score dates of the chords the selected calls were fitted to, marked on the row. */
+    evidenceDates?: ReadonlySet<number>
     instructions: JSX.Element[]
 }
 
-export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onPickDate, instructions }: DatesRowProps) => {
+/** Nothing is evidence: what a row with no call selected marks. */
+const noEvidence: ReadonlySet<number> = new Set()
+
+export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onPickDate, evidenceDates = noEvidence, instructions }: DatesRowProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -96,6 +103,7 @@ export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onP
     }
 
     const handleClick = (event: MouseEvent<SVGGElement>) => {
+        if (!onPickDate) return
         const date = dateUnder(event)
         if (date !== undefined) onPickDate(date)
     }
@@ -116,9 +124,10 @@ export const DatesRow = ({ stretchX, height, width, chords, residual, frame, onP
 
             <path
                 data-date={date}
+                data-evidence={evidenceDates.has(date) ? '' : undefined}
                 className="shouldTick"
                 strokeWidth={cursor === date ? 3 : 2}
-                stroke="gray"
+                stroke={evidenceDates.has(date) ? EVIDENCE_COLOUR : "gray"}
                 fill="none"
                 d={`
                     M ${date * stretchX},0

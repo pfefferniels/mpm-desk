@@ -17,6 +17,7 @@ import type { WorkHistory } from '../../model/workReducer';
 import type { Scope } from '../../fitting/instructions/index';
 import { NO_SCOPE_LOCK } from '../../desks/scopeLock';
 import { EditorAppBar } from './EditorAppBar';
+import { EditingContext } from '../../hooks/Editing';
 
 let rig = createFakePiano();
 
@@ -56,27 +57,32 @@ const Providers = ({ history, children }: { history: WorkHistory; children: Reac
     </ZoomContext>
 );
 
-type Overrides = Partial<Parameters<typeof EditorAppBar>[0]> & { history?: WorkHistory };
+type Overrides = Partial<Parameters<typeof EditorAppBar>[0]> & {
+    history?: WorkHistory;
+    editable?: boolean;
+};
 
-const mount = ({ history = initialHistory(), ...props }: Overrides = {}) =>
+const mount = ({ history = initialHistory(), editable = true, ...props }: Overrides = {}) =>
     render(
-        <Providers history={history}>
-            <EditorAppBar
-                deskRowRef={() => {}}
-                deskName='tempo'
-                parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
-                scope='global'
-                setScope={() => {}}
-                scopeLock={NO_SCOPE_LOCK}
-                pending={false}
-                dirty={false}
-                canPlay
-                canSave
-                onSave={() => {}}
-                onOpen={() => {}}
-                {...props}
-            />
-        </Providers>,
+        <EditingContext value={editable}>
+            <Providers history={history}>
+                <EditorAppBar
+                    deskRowRef={() => {}}
+                    deskName='tempo'
+                    parts={[{ scope: 0, label: 'Part 1' }, { scope: 1, label: 'Part 2' }]}
+                    scope='global'
+                    setScope={() => {}}
+                    scopeLock={NO_SCOPE_LOCK}
+                    pending={false}
+                    dirty={false}
+                    canPlay
+                    canSave
+                    onSave={() => {}}
+                    onOpen={() => {}}
+                    {...props}
+                />
+            </Providers>
+        </EditingContext>,
     );
 
 describe('EditorAppBar', () => {
@@ -103,6 +109,16 @@ describe('EditorAppBar', () => {
         // `getAllBy`: the first mount is still in the document.
         const undos = screen.getAllByRole('button', { name: /undo/i });
         expect(undos.at(-1)).toBeEnabled();
+    });
+
+    it('in the viewer, offers what reads the document and nothing that edits it', () => {
+        mount({ editable: false, history: edited(), dirty: true });
+
+        for (const name of [/undo/i, /redo/i, /^open/i, /save/i])
+            expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /play/i })).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'Scope' })).toBeInTheDocument();
+        expect(screen.getByRole('slider', { name: 'Zoom' })).toBeInTheDocument();
     });
 
     it('names the parts the way the desks do, and never answers with null', () => {

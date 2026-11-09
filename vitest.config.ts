@@ -14,10 +14,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    // The narrative desk's two tests mount a real tree and drive playback through it; each takes
-    // about two seconds alone and comfortably more than five under a parallel full-suite run.
-    // They were failing on the clock rather than on their assertions, twice per run, which is the
-    // kind of failure that teaches people to ignore failures.
+    // The tests that mount a whole desk, or run the chain, take seconds alone and comfortably
+    // more than five under a parallel full-suite run. At the default they failed on the clock
+    // rather than on their assertions, which is the kind of failure that teaches people to ignore
+    // failures.
     testTimeout: 20000,
     setupFiles: './src/test/setup.ts',
     // The toolkit is a 7 MB single file with the WebAssembly base64'd into it, symlinked in as a

@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { Box, IconButton, Popover, Tooltip, Typography } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import type { DeskHelp } from '../../desks/DeskSwitch';
+import { useEditable } from '../../hooks/Editing';
 
 interface DeskHelpButtonProps {
     /** What the open desk calls itself — the popover's heading. */
@@ -19,10 +20,15 @@ interface DeskHelpButtonProps {
  * The words are the registry's, off `DeskHelp` in `DeskSwitch.tsx`. Two reasons they are not each
  * desk's own: the button is drawn before the desk module has loaded, and a desk that shipped
  * without help would then be a desk that says nothing rather than one that fails to compile.
+ *
+ * In the viewer it leaves out the gestures that edit (`DeskAction.edits`), which the viewer does
+ * not offer.
  */
 export const DeskHelpButton = ({ deskName, help }: DeskHelpButtonProps) => {
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
     const label = `About the ${deskName} desk`;
+    const editable = useEditable();
+    const actions = editable ? help.actions : help.actions?.filter((action) => !action.edits);
 
     return (
         <>
@@ -62,7 +68,7 @@ export const DeskHelpButton = ({ deskName, help }: DeskHelpButtonProps) => {
 
                 {/* A grid rather than a table: two columns of phrases with no header row is not a
                     table, and the gesture column has to size itself to the longest gesture. */}
-                {help.actions !== undefined && (
+                {actions !== undefined && actions.length > 0 && (
                     <Box
                         sx={{
                             mt: 1.5,
@@ -73,7 +79,7 @@ export const DeskHelpButton = ({ deskName, help }: DeskHelpButtonProps) => {
                             alignItems: 'baseline',
                         }}
                     >
-                        {help.actions.map(({ gesture, does }) => (
+                        {actions.map(({ gesture, does }) => (
                             <Fragment key={gesture}>
                                 <Typography
                                     variant='caption'

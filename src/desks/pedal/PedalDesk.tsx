@@ -5,6 +5,7 @@ import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { MovementSegment } from "./MovementSegment"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
+import { useEditable } from "../../hooks/Editing"
 import { PressBox } from "./PressBox"
 import { usePiano } from "../../performance/piano"
 import { asMIDI } from "../../utils/utils"
@@ -13,8 +14,18 @@ import { filterMap } from "espressivo"
 import { PedalGutter, TickScale } from "./PedalAxes"
 import { GUTTER_WIDTH, LANE_HEIGHT, MOVEMENT_TOP, pedalPlot, rowY } from "./layout"
 
+/**
+ * The pedal desk: each recorded press as the line it drew, on the tick grid, with the movements
+ * the document holds below, one lane per controller.
+ *
+ * In the viewer a press is not a target — clicking one writes its line as movements — so it
+ * neither lights on hover nor answers a click. Hovering a chord line still sounds the chord, and
+ * clicking a movement still selects the call that wrote it. With a call selected, in either mode,
+ * the press it was fitted to is marked in the evidence colour (`../evidence.ts`).
+ */
 export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertPedal>) => {
-    const { activeElements, setActiveElement } = useCallSelection();
+    const { activeElements, setActiveElement, activeEvidence } = useCallSelection();
+    const editable = useEditable()
 
     const stretchX = useSymbolicZoom()
     const { play, stop } = usePiano()
@@ -111,7 +122,10 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                                 line={line}
                                 y={rowY(pedal.type)}
                                 stretchX={stretchX}
-                                onPick={picked => addTransformer(new InsertPedal({ pedal: picked['xml:id'] }))}
+                                evidence={activeEvidence.has(pedal['xml:id'])}
+                                onPick={editable
+                                    ? picked => addTransformer(new InsertPedal({ pedal: picked['xml:id'] }))
+                                    : undefined}
                             />
                         ))}
 

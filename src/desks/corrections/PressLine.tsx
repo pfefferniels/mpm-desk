@@ -1,6 +1,7 @@
 import { travelOf, type AlignedPedal } from '../../fitting/alignment';
 import { returnToRest, type Travel } from '../../performance/pedalTravel';
 import { lineOf, placeTravel, stepLine, type PedalLane } from '../pedalGeometry';
+import { EVIDENCE_COLOUR } from '../evidence';
 
 /** Where on a press the pointer landed. */
 export type Grab = { at: 'body' } | { at: 'vertex'; index: number } | { at: 'plateau'; index: number };
@@ -19,8 +20,11 @@ interface PressLineProps {
     selected: boolean;
     /** Handles and plateau grabs are offered only while selected or under the pointer. */
     editable: boolean;
+    /** A selected call corrected this press — see `../evidence.ts`. */
+    evidence?: boolean;
     ghost?: GhostLine;
-    onGrab: (grab: Grab, e: React.MouseEvent<SVGElement>) => void;
+    /** Absent in the viewer, where a press is drawn and nothing about it can be grabbed. */
+    onGrab?: (grab: Grab, e: React.MouseEvent<SVGElement>) => void;
     onHover: (hovered: boolean) => void;
 }
 
@@ -38,6 +42,9 @@ const PLATEAU_REACH = 8;
  * The line itself takes no pointer events: a 1.5 px stroke is not a target. The body is grabbed
  * by the box it encloses, a vertex by its handle, a run by an invisible thicker stroke over it.
  * Later elements win where they overlap, so a handle beats the run it ends and both beat the box.
+ *
+ * A press a selected call corrected is drawn in the evidence colour, unless it is the one being
+ * edited, whose own colour says more.
  */
 export const PressLine = ({
     pedal,
@@ -45,6 +52,7 @@ export const PressLine = ({
     stretchX,
     selected,
     editable,
+    evidence = false,
     ghost,
     onGrab,
     onHover,
@@ -72,10 +80,11 @@ export const PressLine = ({
             )}
             <polyline
                 data-line={id}
+                data-evidence={evidence || undefined}
                 points={stepLine(placed, lane.rest)}
                 fill="none"
-                stroke={selected ? SELECTED : PEDAL_LINE}
-                strokeWidth={selected ? 2 : 1.5}
+                stroke={selected ? SELECTED : evidence ? EVIDENCE_COLOUR : PEDAL_LINE}
+                strokeWidth={selected || evidence ? 2 : 1.5}
                 pointerEvents="none"
             />
             <rect
@@ -86,10 +95,11 @@ export const PressLine = ({
                 width={held}
                 height={lane.pressed - lane.rest}
                 fill="transparent"
-                style={{ cursor: 'ew-resize' }}
-                onMouseDown={(e) => onGrab({ at: 'body' }, e)}
+                style={onGrab ? { cursor: 'ew-resize' } : undefined}
+                onMouseDown={onGrab && ((e) => onGrab({ at: 'body' }, e))}
             />
-            {editable &&
+            {onGrab &&
+                editable &&
                 placed.slice(0, -1).map((vertex, i) => (
                     <line
                         key={`run_${String(i)}`}
@@ -105,7 +115,8 @@ export const PressLine = ({
                         onMouseDown={(e) => onGrab({ at: 'plateau', index: i }, e)}
                     />
                 ))}
-            {editable &&
+            {onGrab &&
+                editable &&
                 placed.map((vertex, i) => (
                     <circle
                         key={`vertex_${String(i)}`}

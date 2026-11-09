@@ -57,8 +57,7 @@ export function isRecordedModelId(value: unknown): value is RecordedModelId {
 /** Where a given checkpoint sits, as a URL the browser can fetch. */
 export function modelUrl(model: MlignModelId = DEFAULT_MODEL): string {
     // `BASE_URL` rather than a leading-slash literal, so a sub-path deploy
-    // resolves correctly — the same thing `Viewer.tsx` does for
-    // `transcription.mei`.
+    // resolves correctly.
     const base = import.meta.env?.BASE_URL ?? "/";
     return `${base}${MLIGN_MODELS[model].file}`;
 }

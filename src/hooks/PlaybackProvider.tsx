@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { usePiano } from '../performance/piano';
 import type { AnyEvent } from 'midifile-ts';
 import { renderCached, type RenderRequest, type Rendered } from '../utils/espressivo';
-import { UNIDENTIFIED_NOTE, pickAnchor, renderedRange } from '../utils/anchor';
+import { UNIDENTIFIED_NOTE, pickAnchor } from '../utils/anchor';
 import { useZoom } from './ZoomProvider';
 import { useLatest } from './useLatest';
 
@@ -34,12 +34,10 @@ const BACKOFF_FACTOR = 3;
 const ANCHOR_LEAD_S = 0.02;
 
 /**
- * How long playback is left running past the last note it covers.
+ * How long playback is left running past the last note.
  *
- * A preview's range ends at the following note's onset, which is where the gesture's last note
- * stops being the one you are listening to — but it is still ringing, and stopping the transport
- * damps it. A little tail lets it decay instead of being cut off mid-sound, and does the same for
- * the piece's final chord.
+ * The final chord is still ringing when its onset has passed, and stopping the transport damps
+ * it. A little tail lets it decay instead of being cut off mid-sound.
  */
 const TAIL_MS = 900;
 
@@ -50,29 +48,19 @@ function computeSketchiness(stretchX: number): number {
 }
 
 /**
- * When what is playing is over, in the rendering's own milliseconds: the end of the preview's
- * range, or else the last event in the piece. `events` is sorted by `abs`.
+ * When the piece is over, in the rendering's own milliseconds: its last event. `events` is sorted
+ * by `abs`.
  */
-const endOfPlayback = (rendered: Rendered, heard: { toMs: number } | null): number | undefined =>
-    heard ? heard.toMs : rendered.events.at(-1)?.abs;
+const endOfPlayback = (rendered: Rendered): number | undefined => rendered.events.at(-1)?.abs;
 
 interface PlayOptions {
-    mpmIds?: string[];
-    isolate?: boolean;
     exaggerate?: number;
-    /**
-     * Symbolic tick range to play, instead of the whole piece — a preview of one gesture.
-     * Playback starts at the first note inside it and stops once it is through.
-     */
-    range?: { from: number; to: number };
 }
 
 export interface PlaybackNoteEvent {
     noteId: string;
     /** Symbolic date (ticks) of the sounding note. */
     date: number;
-    /** True when playback is scoped to specific instructions (mpmIds), e.g. a segment preview. */
-    scoped: boolean;
 }
 
 type NoteEventListener = (event: PlaybackNoteEvent) => void;
@@ -87,7 +75,7 @@ interface PlaybackContextValue {
      * Hear every note as it sounds — how anything follows the playhead. Returns the unsubscribe.
      *
      * A subscription rather than an option on `play()`: who plays and who follows are different
-     * questions, and the same run may be followed by the tree, a desk, or nothing at all.
+     * questions, and the same run may be followed by a desk or by nothing at all.
      */
     subscribeNoteEvents: (listener: NoteEventListener) => () => void;
 }
@@ -166,32 +154,18 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         if (noteEventListenersRef.current.size === 0) return;
         const date = dateByNoteIdRef.current.get(event.text);
         if (date === undefined) return;
-        const scoped = playOptionsRef.current?.mpmIds !== undefined;
-        noteEventListenersRef.current.forEach(listener => listener({ noteId: event.text, date, scoped }));
+        noteEventListenersRef.current.forEach(listener => listener({ noteId: event.text, date }));
     }, [dateByNoteIdRef]);
 
     const buildRequest = useCallback((options: PlayOptions | undefined): RenderRequest => {
-        const { mpmIds, isolate, exaggerate } = options || {};
         const request: RenderRequest = {
             msm: scoreMsmRef.current,
             mpm: performanceMpmRef.current,
             sketchiness: computeSketchiness(stretchXRef.current),
         };
-        if (exaggerate !== undefined) request.exaggerate = exaggerate;
-        if (mpmIds) {
-            request.mpmIds = mpmIds;
-            if (request.exaggerate === undefined) request.exaggerate = 1.2;
-            request.isolate = isolate;
-        }
+        if (options?.exaggerate !== undefined) request.exaggerate = options.exaggerate;
         return request;
     }, [scoreMsmRef, performanceMpmRef, stretchXRef]);
-
-    /** Where a preview's tick range falls in this particular rendering, if it names one. */
-    const previewRange = useCallback((options: PlayOptions | undefined, rendered: Rendered) => {
-        const range = options?.range;
-        if (!range) return null;
-        return renderedRange(rendered.noteIds, dateByNoteIdRef.current, range.from, range.to);
-    }, [dateByNoteIdRef]);
 
     /**
      * Stop once what is playing has been heard through.
@@ -226,24 +200,21 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
      * The transport still restarts, so there is a short hole in the rhythm, but nothing is damped:
      * no `stopAll()` is called on the way through, so the sounding notes ring on. Re-striking the
      * note it lands on is a no-op while that note is still held.
-     *
-     * Without one, a `range` preview seeks to the head of its range instead of playing from bar 1.
      */
     const startPlayback = useCallback((options: PlayOptions | undefined, resume: Rendered | null) => {
         try {
             const rendered = resume ?? renderCached(buildRequest(options));
             const noteId = resume ? lastNoteIdRef.current : null;
             if (!pianoRef.current.play(rendered.file, noteListener)) return;
-            const heard = previewRange(options, rendered);
-            const startMs = noteId === null ? heard?.fromMs : rendered.noteIds.get(noteId);
+            const startMs = noteId === null ? undefined : rendered.noteIds.get(noteId);
             if (startMs !== undefined) pianoRef.current.jumpTo(startMs / 1000);
             setIsPlaying(true);
             isPlayingRef.current = true;
-            armStop(endOfPlayback(rendered, heard));
+            armStop(endOfPlayback(rendered));
         } catch (error) {
             console.error('Playback error:', error);
         }
-    }, [armStop, buildRequest, noteListener, pianoRef, previewRange]);
+    }, [armStop, buildRequest, noteListener, pianoRef]);
 
     const play = useCallback((options?: PlayOptions) => {
         lastNoteIdRef.current = null;
@@ -288,7 +259,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
             const result = splice({ events: rendered.events, anchor, cb: noteListener });
             if (result.ok) {
                 // The seam rescales what is left, so the remaining time is re-read here.
-                armStop(endOfPlayback(rendered, previewRange(options, rendered)));
+                armStop(endOfPlayback(rendered));
                 intervalRef.current = Math.max(
                     MIN_UPDATE_INTERVAL_MS,
                     (performance.now() - startedAt) * BACKOFF_FACTOR,
@@ -303,7 +274,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         // No seamless path (hardware output, or samples still loading): restart and seek back in,
         // without a `stopAll()` on the way, which would damp everything sounding.
         startPlayback(options, rendered);
-    }, [armStop, buildRequest, noteListener, pianoRef, previewRange, startPlayback]);
+    }, [armStop, buildRequest, noteListener, pianoRef, startPlayback]);
 
     const scheduleUpdate = useCallback(() => {
         if (!isPlayingRef.current) return;
@@ -340,7 +311,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         prevExaggerationRef.current = exaggeration;
 
         if (!isPlayingRef.current || prev === exaggeration) return;
-        // Carry the new value into the next rendering; scoping (mpmIds/isolate) stays as-is.
+        // Carry the new value into the next rendering.
         playOptionsRef.current = { ...playOptionsRef.current, exaggerate: exaggeration };
         scheduleUpdate();
     }, [exaggeration, scheduleUpdate]);

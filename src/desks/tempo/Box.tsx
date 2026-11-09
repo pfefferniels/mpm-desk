@@ -1,6 +1,7 @@
 import { MouseEventHandler, useState } from "react"
 import { asBPM } from "./Tempo"
 import type { TempoSegment } from "./Tempo"
+import { EVIDENCE_COLOUR } from "../evidence"
 
 type BoxProps = {
   segment: TempoSegment
@@ -19,6 +20,8 @@ type BoxProps = {
   splitMode: boolean
   onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
   drawMode?: boolean
+  /** An interval a selected call was fitted to — see `EVIDENCE_COLOUR`. */
+  evidence?: boolean
 }
 
 /**
@@ -36,7 +39,7 @@ export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [splitSeconds, setSplitSeconds] = useState<number>()
 
-  const { segment, tickToSeconds, stretchX, stretchY, onPlay, onStop, onToggleSelect, onSelect, onRemove, splitMode, onSplit, drawMode } = props
+  const { segment, tickToSeconds, stretchX, stretchY, onPlay, onStop, onToggleSelect, onSelect, onRemove, splitMode, onSplit, drawMode, evidence } = props
   const { selected } = segment
 
   const start = tickToSeconds(segment.date.start)
@@ -129,6 +132,7 @@ export const Box = (props: BoxProps) => {
         data-start={segment.date.start}
         data-length={segment.date.end - segment.date.start}
         data-derived={segment.derived ? '' : undefined}
+        data-evidence={evidence ? '' : undefined}
         points={[
           [start * stretchX, 0].join(','), // start point
           [start * stretchX, upperY].join(','), // move up
@@ -139,9 +143,9 @@ export const Box = (props: BoxProps) => {
         fillOpacity={0.4}
         // The metre's boxes are drawn in grey, because they are the only ones that cannot be
         // selected, split or deleted.
-        stroke={segment.derived ? '#9ca3af' : 'black'}
+        stroke={evidence ? EVIDENCE_COLOUR : segment.derived ? '#9ca3af' : 'black'}
         strokeDasharray={segment.silent ? '1 1' : undefined}
-        strokeWidth={selected ? 2 : 1}
+        strokeWidth={selected ? 2 : evidence ? 1.5 : 1}
         pointerEvents={drawMode ? 'none' : undefined}
         onMouseMove={handleMouseMove}
         onMouseOver={() => {

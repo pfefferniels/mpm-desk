@@ -172,8 +172,8 @@ describe('ProcessVoices', () => {
   });
 
   test('has no range — a layout is not a place in the score', () => {
-    // Even with a move selecting notes: a call that writes no instruction has no span in the
-    // narrative.
+    // Even with a move selecting notes: a call that writes no instruction is about no place,
+    // and so has no evidence to mark either.
     const call = new ProcessVoices({
       parts: [{ number: 1, name: '', voices: ['1/1'] }],
       moves: [{ part: 1, select: { noteIDs: ['a1'] } }],

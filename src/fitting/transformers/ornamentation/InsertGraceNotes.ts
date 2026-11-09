@@ -90,6 +90,21 @@ export class InsertGraceNotes extends AbstractTransformer<InsertGraceNotesOption
     return row === undefined ? undefined : rangeAt(row.date);
   }
 
+  /**
+   * The recorded grace notes of its group, or of every group in its scope, and the principals
+   * they lead into: what the figure's frame and spacing are measured from. Not the notes at the
+   * principal's date, which the default would read, since a grace note is in no chord of the MSM.
+   */
+  override evidence(msm: Alignment): string[] {
+    const graces = msm.graces.filter((grace) => this.covers(grace));
+    return [
+      ...new Set([
+        ...graces.map((grace) => grace['xml:id']),
+        ...graces.map((grace) => grace.principal),
+      ]),
+    ];
+  }
+
   private covers(grace: AlignedGrace): boolean {
     const { scope, group } = this.options;
     if (scope !== 'global' && grace.part - 1 !== scope) return false;

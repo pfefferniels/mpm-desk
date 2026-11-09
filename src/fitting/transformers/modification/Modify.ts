@@ -1,6 +1,6 @@
 import { Alignment, redrawPress, type AlignedPedal, type PerformedAttributes } from '../../alignment';
 import { releaseShifted } from '../../../performance/pedalTravel';
-import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
+import { AbstractTransformer, idsOf, type ScopedTransformationOptions } from '../Transformer';
 import { type Range, rangeOfNotes } from '../range';
 
 /**
@@ -91,6 +91,20 @@ export class Modify extends AbstractTransformer<ModifyOptions> {
     if ('from' in options) return { from: options.from, to: options.to };
     if ('noteIDs' in options) return rangeOfNotes(options.noteIDs, msm);
     return undefined;
+  }
+
+  /** The presses or the notes it names, every reading of each; otherwise its scope over its range. */
+  override evidence(msm: Alignment): string[] {
+    const options = this.options;
+    if ('pedalIDs' in options) {
+      const ids = new Set(options.pedalIDs);
+      return idsOf(msm.pedals.filter((pedal) => ids.has(pedal['xml:id'])));
+    }
+    if ('noteIDs' in options) {
+      const ids = new Set(options.noteIDs);
+      return idsOf(msm.allNotes.filter((note) => ids.has(note['xml:id'])));
+    }
+    return super.evidence(msm);
   }
 
   protected transform(msm: Alignment): void {

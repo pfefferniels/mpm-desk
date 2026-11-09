@@ -17,6 +17,8 @@ import type { LineDraft } from './lineDraft';
 import { VelocityPlot } from './VelocityPlot';
 import { TimingRoll, type TimingAspect, type TimingPreview } from './TimingRoll';
 import { ExpandDialog } from './ExpandDialog';
+import { useEditable } from '../../hooks/Editing';
+import { useCallSelection } from '../../hooks/CallSelection';
 
 /** Which plot is in front, and so which of the recording's properties is being corrected. */
 type Plot = 'velocity' | 'timing';
@@ -61,9 +63,8 @@ const lineTooltip = ({ change, before }: LineDraft): string =>
  * the *ground* a performance is fitted to rather than the performance itself: `MakeChoice` picks
  * between the readings of a passage, these correct the reading that was picked, and
  * `InsertMetadata` says who did the picking. None of them puts anything in the MPM, which is why
- * they are grouped together in the aspect menu and why nothing here appears in the narrative. A
- * correction states that the roll scan read something wrong rather than claiming anything about
- * the performance.
+ * they are grouped together in the aspect menu. A correction states that the roll scan read
+ * something wrong rather than claiming anything about the performance.
  *
  * ## The selector says what, the grab says which property
  *
@@ -86,12 +87,21 @@ const lineTooltip = ({ change, before }: LineDraft): string =>
  * stated as points in a dialog. It takes the selection as its selector, as a `Modify` would, and
  * with nothing selected it is about every event of the part: the case it is made for, a claim
  * about the scale the whole roll was recorded on.
+ *
+ * ## In the viewer
+ *
+ * The two plots and the switch between them, and nothing that makes a correction: no selection,
+ * no drag, no line, no Apply or Expand. What the chain corrected is still drawn as it always is,
+ * as the grey ghost each event or press carries back to where the roll had it, and the events a
+ * selected call corrected are marked in the evidence colour.
  */
 export const CorrectionsDesk = ({
     part,
     msm,
     addTransformer,
 }: ScopedTransformerViewProps<Modify | CorrectPedal | Expand>) => {
+    const editable = useEditable();
+    const { activeEvidence } = useCallSelection();
     const [plot, setPlot] = useState<Plot>('velocity');
     const [draft, setDraft] = useState<Draft>();
     const [pending, setPending] = useState<Pending>();
@@ -172,7 +182,7 @@ export const CorrectionsDesk = ({
 
     // The plots have no focusable element to hang this on, so it is bound on the document — as on
     // the voices desk, where Escape likewise drops what is picked wherever the pointer is.
-    useHotkeys('escape', clearAll, [clearAll]);
+    useHotkeys('escape', clearAll, { enabled: editable }, [clearAll]);
 
     const commit = () => {
         if (line) {
@@ -276,47 +286,51 @@ export const CorrectionsDesk = ({
                     </ToggleButtonGroup>
                 </ToolGroup>
 
-                <ToolGroup>
-                    <ToolbarButton
-                        primary
-                        icon={<Check />}
-                        label={applyLabel}
-                        tooltip={applyTooltip}
-                        disabled={!line && (!scopeLabel || !correction)}
-                        onClick={commit}
-                    >
-                        {applyLabel}
-                    </ToolbarButton>
-                    <ToolbarButton
-                        icon={<Clear fontSize="small" />}
-                        label="Clear selection"
-                        tooltip={
-                            selection
-                                ? 'Forget the selected events and the correction drawn on them (Esc)'
-                                : 'Nothing selected to clear'
-                        }
-                        disabled={!selection}
-                        onClick={clearAll}
-                    >
-                        Clear
-                    </ToolbarButton>
-                </ToolGroup>
+                {editable && (
+                    <ToolGroup>
+                        <ToolbarButton
+                            primary
+                            icon={<Check />}
+                            label={applyLabel}
+                            tooltip={applyTooltip}
+                            disabled={!line && (!scopeLabel || !correction)}
+                            onClick={commit}
+                        >
+                            {applyLabel}
+                        </ToolbarButton>
+                        <ToolbarButton
+                            icon={<Clear fontSize="small" />}
+                            label="Clear selection"
+                            tooltip={
+                                selection
+                                    ? 'Forget the selected events and the correction drawn on them (Esc)'
+                                    : 'Nothing selected to clear'
+                            }
+                            disabled={!selection}
+                            onClick={clearAll}
+                        >
+                            Clear
+                        </ToolbarButton>
+                    </ToolGroup>
+                )}
 
-                <ToolGroup>
-                    <ToolbarButton
-                        icon={<UnfoldMore fontSize="small" />}
-                        label="Expand…"
-                        tooltip={
-                            plot === 'velocity' && pedalsOnly
-                                ? 'A pedal has no velocity to expand'
-                                : `Map a range of recorded values onto another, for ${expandAbout}`
-                        }
-                        disabled={plot === 'velocity' && pedalsOnly}
-                        onClick={() => setExpanding(true)}
-                    >
-                        Expand…
-                    </ToolbarButton>
-                </ToolGroup>
+                {editable && (
+                    <ToolGroup>
+                        <ToolbarButton
+                            icon={<UnfoldMore fontSize="small" />}
+                            label="Expand…"
+                            tooltip={
+                                plot === 'velocity' && pedalsOnly
+                                    ? 'A pedal has no velocity to expand'
+                                    : `Map a range of recorded values onto another, for ${expandAbout}`
+                            }
+                            disabled={plot === 'velocity' && pedalsOnly}
+                            onClick={() => setExpanding(true)}
+                        >
+                            Expand…
+                        </ToolbarButton>
+                    </ToolGroup>
+                )}
             </DeskToolbar>
 
             {expanding && (
@@ -339,6 +353,8 @@ export const CorrectionsDesk = ({
                     preview={preview?.aspect === 'velocity' ? preview.change : 0}
                     previewIds={previewIds}
                     ghosts={velocityGhosts}
+                    editable={editable}
+                    evidence={activeEvidence}
                     range={
                         selection && !('noteIDs' in selection) && !('pedalIDs' in selection)
                             ? { from: selection.from, to: selection.to }
@@ -358,6 +374,8 @@ export const CorrectionsDesk = ({
                     onsetGhosts={onsetGhosts}
                     durationGhosts={durationGhosts}
                     lineGhosts={lineGhosts}
+                    editable={editable}
+                    evidence={activeEvidence}
                 />
             )}
         </div>

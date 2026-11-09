@@ -13,6 +13,7 @@ import { MarkedRegion } from '../dynamics/MarkedRegion';
 import { extractDynamicsSegments } from '../dynamics/segments';
 import { COMMITTED_GHOST, DeltaGhost, PENDING_GHOST } from './DeltaGhost';
 import type { Clicked, SelectionModifiers } from './useEventSelection';
+import { EVIDENCE_COLOUR } from '../evidence';
 
 interface VelocityPlotProps {
     msm: Alignment;
@@ -29,6 +30,13 @@ interface VelocityPlotProps {
     ghosts: ReadonlyMap<string, number>;
     /** The stretch a range selection covers, so the user can see what shift-click reached. */
     range?: { from: number; to?: number };
+    /**
+     * False in the viewer: a dot sounds and plays on, and is neither selected nor dragged, so
+     * nothing about it says it can be.
+     */
+    editable?: boolean;
+    /** What the selected calls corrected, by note id — see `../evidence.ts`. */
+    evidence?: ReadonlySet<string>;
 }
 
 const STRETCH_Y = 3;
@@ -50,6 +58,9 @@ const screenY = (velocity: number) => (127 - velocity) * STRETCH_Y;
  * The same plot the dynamics desk draws, minus the curves — because here the dots *are* the
  * subject rather than the evidence a curve is fitted to. Dragging one up or down states that the
  * roll scan read it wrong.
+ *
+ * A dot a selected call corrected is ringed in the evidence colour. A dot stands for every note of
+ * its chord struck at its velocity, so it is ringed where any of them was corrected.
  */
 export const VelocityPlot = ({
     msm,
@@ -61,6 +72,8 @@ export const VelocityPlot = ({
     previewIds,
     ghosts,
     range,
+    editable = true,
+    evidence,
 }: VelocityPlotProps) => {
     const stretchX = useSymbolicZoom();
     const svgRef = useRef<SVGSVGElement>(null);
@@ -72,6 +85,15 @@ export const VelocityPlot = ({
     const scrollContainerRef = useScrollRegistration('corrections-desk', 'symbolic');
 
     const segments = useMemo(() => extractDynamicsSegments(msm, part), [msm, part]);
+
+    /** `date:velocity` of every dot a corrected note is drawn as. */
+    const evidenced = useMemo(() => {
+        const dots = new Set<string>();
+        if (!evidence || evidence.size === 0) return dots;
+        for (const note of msm.in(part).notes())
+            if (evidence.has(note['xml:id'])) dots.add(`${String(note.date)}:${String(note.velocity)}`);
+        return dots;
+    }, [msm, part, evidence]);
 
     const handlePlay = (from: number, to?: number) => {
         let notes = slice(from, to).map((n) => {
@@ -146,6 +168,24 @@ export const VelocityPlot = ({
             );
         }
 
+        if (evidenced.has(`${String(segment.date.start)}:${String(segment.velocity)}`)) {
+            marks.push(
+                // The date in `data-evidence` itself: `data-date` names the dot, and a ring
+                // stamped with it would be found in its place.
+                <circle
+                    key={`evidence_${segment.date.start}_${i}`}
+                    data-evidence={segment.date.start}
+                    cx={x}
+                    cy={screenY(segment.velocity) + (displaced ? -preview * STRETCH_Y : 0)}
+                    r={6}
+                    fill="none"
+                    stroke={EVIDENCE_COLOUR}
+                    strokeWidth={1.5}
+                    pointerEvents="none"
+                />,
+            );
+        }
+
         circles.push(
             <DynamicsCircle
                 key={`velocity_${segment.date.start}_${i}`}
@@ -157,8 +197,8 @@ export const VelocityPlot = ({
                 stretchX={stretchX}
                 screenY={screenY}
                 handlePlay={handlePlay}
-                cursor="ns-resize"
-                onDragStart={(_, e) => {
+                cursor={editable ? 'ns-resize' : undefined}
+                onDragStart={editable ? (_, e) => {
                     if (!segment.noteID) return;
                     // Selecting comes first and is not conditional on the rest: the same press
                     // says what the correction is about and opens the drag that says how much,
@@ -175,7 +215,7 @@ export const VelocityPlot = ({
                     const pt = svgPoint(svg, 0, e.clientY);
                     if (!pt) return;
                     setDragStartY(pt.y);
-                }}
+                } : undefined}
                 yOffset={displaced ? -preview * STRETCH_Y : 0}
             />,
         );

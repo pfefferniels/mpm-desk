@@ -13,6 +13,7 @@ import { deriveResidual, type Residual } from '../../residual';
 import {
   AbstractTransformer,
   generateId,
+  idsOf,
   type ScopedTransformationOptions,
 } from '../Transformer';
 import { InsertDynamicsInstructions } from '../dynamics/index';
@@ -96,13 +97,36 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
    * 50 cells in the shipped reconstruction, all the 1.5- and 2.5-beat readings a hemiola is made
    * of (issue #47).
    */
+  /**
+   * The dates a cell is sampled at: one per `beatLength`, from its start up to and including its
+   * end. None for a cell of no beat or of no length, which is no cycle to count in.
+   */
+  private beatDates({ from: start, to: end, beatLength }: InsertMetricalAccentuationOptions): number[] {
+    const dates: number[] = [];
+    if (beatLength <= 0 || end - start <= 0) return dates;
+    for (let index = 0; ; index++) {
+      const date = start + Math.round(index * beatLength * PULSES_PER_WHOLE);
+      if (date > end) break;
+      dates.push(date);
+    }
+    return dates;
+  }
+
+  /** The chords on the beats the cell is sampled at, which are all the pattern is fitted to. */
+  override evidence(msm: Alignment): string[] {
+    const score = msm.in(this.options.scope);
+    return idsOf(this.beatDates(this.options).flatMap((date) => score.notesAtDate(date)));
+  }
+
   private extractVelocities(
-    { from: start, to: end, beatLength }: InsertMetricalAccentuationOptions,
+    options: InsertMetricalAccentuationOptions,
     msm: Alignment,
     residual: Residual,
   ): Velocity[] {
     const velocities: Velocity[] = [];
-    if (beatLength <= 0) return velocities;
+    const dates = this.beatDates(options);
+    if (dates.length === 0) return velocities;
+    const { from: start, to: end } = options;
 
     // A score may state no signature, and `Alignment.build()` publishes 4/4 where it does not;
     // espressivo starts a render at 4/4 from tick 0 for the same reason. Beats have to be
@@ -110,15 +134,10 @@ export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetric
     // against one nobody sees.
     const signature = msm.timeSignatureAt(start);
     const beatTicks = PULSES_PER_WHOLE / (signature?.denominator || 4);
-    // The pattern's own length, which is the cell's: a cell of no length is no cycle to count in.
+    // The pattern's own length, which is the cell's.
     const patternTicks = end - start;
-    if (patternTicks <= 0) return velocities;
 
-    for (let index = 0; ; index++) {
-      const beat = index * beatLength;
-      const date = start + Math.round(beat * PULSES_PER_WHOLE);
-      if (date > end) break;
-
+    for (const date of dates) {
       const velocityChanges = filterMap(
         msm.in(this.options.scope).notesAtDate(date),
         (note) => residual.of(note)?.velocity ?? null,

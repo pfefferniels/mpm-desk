@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { ZoomContext } from '../../hooks/ZoomProvider';
@@ -84,7 +86,14 @@ const residual = (): Residual => ({
     pedals: [],
 });
 
-const mount = (part: Scope = 'global') => {
+interface MountOptions {
+    /** False to mount the desk as the viewer has it. */
+    editable?: boolean;
+    /** The calls selected, and what the run reported for them. */
+    selected?: { ids: string[]; outcomes: CallOutcome[] };
+}
+
+const mount = (part: Scope = 'global', { editable = true, selected }: MountOptions = {}) => {
     const msm = alignment();
     const addTransformer = vi.fn();
 
@@ -94,43 +103,44 @@ const mount = (part: Scope = 'global') => {
     document.body.appendChild(bar);
 
     const { unmount } = render(
-        <ZoomContext
-            value={{
-                symbolic: { stretchX: 0.1 },
-                physical: { stretchX: 20 },
-                setStretchX: vi.fn(),
-            }}
-        >
-            <ScrollSyncProvider
-                symbolicZoom={0.1}
-                physicalZoom={20}
-                tickToSeconds={(tick) => tick / 720}
-                secondsToTick={(seconds) => seconds * 720}
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{
+                    symbolic: { stretchX: 0.1 },
+                    physical: { stretchX: 20 },
+                    setStretchX: vi.fn(),
+                }}
             >
-                <CallSelectionProvider
-                    calls={[]}
-                    outcomes={[]}
-                    activeCallIds={new Set()}
-                    setActiveCallIds={vi.fn()}
-                    onRemoveCalls={vi.fn()}
-                    focusCall={vi.fn()}
+                <ScrollSyncProvider
+                    symbolicZoom={0.1}
+                    physicalZoom={20}
+                    tickToSeconds={(tick) => tick / 720}
+                    secondsToTick={(seconds) => seconds * 720}
                 >
-                    <DeskToolbarProvider target={bar}>
-                        <TemporalSpreadDesk
-                            part={part}
-                            msm={msm}
-                            mpm={createMpm()}
-                            residual={residual()}
-                            projected={[]}
-                            performanceXml=''
-                            secondary={{}}
-                            setSecondary={vi.fn()}
-                            addTransformer={addTransformer}
-                        />
-                    </DeskToolbarProvider>
-                </CallSelectionProvider>
-            </ScrollSyncProvider>
-        </ZoomContext>,
+                    <CallSelectionProvider
+                        calls={[]}
+                        outcomes={selected?.outcomes ?? []}
+                        activeCallIds={new Set(selected?.ids ?? [])}
+                        setActiveCallIds={vi.fn()}
+                        onRemoveCalls={vi.fn()}
+                        focusCall={vi.fn()}
+                    >
+                        <DeskToolbarProvider target={bar}>
+                            <TemporalSpreadDesk
+                                part={part}
+                                msm={msm}
+                                mpm={createMpm()}
+                                residual={residual()}
+                                performanceXml=''
+                                secondary={{}}
+                                setSecondary={vi.fn()}
+                                addTransformer={addTransformer}
+                            />
+                        </DeskToolbarProvider>
+                    </CallSelectionProvider>
+                </ScrollSyncProvider>
+            </ZoomContext>
+        </EditingContext>,
     );
 
     return {
@@ -267,5 +277,55 @@ describe('the single insert', () => {
         });
 
         expect(sentOptions(addTransformer)).toMatchObject({ date: 0 });
+    });
+});
+
+describe('in the viewer', () => {
+    it('offers no insert, and a click on a chord selects nothing to insert on', () => {
+        const desk = mount('global', { editable: false });
+
+        expect(screen.queryByRole('button', { name: 'Insert' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Insert Default' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Remove Default' })).toBeNull();
+        // What only draws the plot stays.
+        expect(screen.getByLabelText('Beat Length')).toBeInTheDocument();
+
+        const chord = document.querySelector('g.chord rect');
+        if (!chord) throw new Error('no chord to click');
+        act(() => {
+            chord.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        });
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(desk.addTransformer).not.toHaveBeenCalled();
+        desk.dispose();
+    });
+});
+
+describe('what a selected call was fitted to', () => {
+    it('marks the chord the spread was fitted to, and no other', () => {
+        const desk = mount('global', {
+            selected: {
+                ids: ['spread'],
+                outcomes: [
+                    {
+                        id: 'spread',
+                        elements: ['ornament_720'],
+                        range: { from: 720, to: null },
+                        evidence: ['c', 'd'],
+                    },
+                ],
+            },
+        });
+
+        const marked = [...desk.chords()].filter((chord) => chord.hasAttribute('data-evidence'));
+        expect(marked.map((chord) => chord.getAttribute('data-date'))).toEqual(['720']);
+        desk.dispose();
+    });
+
+    it('marks nothing while nothing is selected', () => {
+        const desk = mount();
+        expect(document.querySelectorAll('[data-evidence]')).toHaveLength(0);
+        desk.dispose();
     });
 });

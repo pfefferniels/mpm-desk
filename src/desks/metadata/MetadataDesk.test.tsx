@@ -3,8 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MetadataDesk } from './MetadataDesk'
 
 const props = {
-    isEditorMode: true,
-    segmentCount: 3,
+    editable: true,
     callCount: 12,
 }
 
@@ -123,11 +122,11 @@ describe('MetadataDesk', () => {
         expect(setMetadata).not.toHaveBeenCalled()
     })
 
-    it('reads as set type, not as a form, in view mode', () => {
+    it('reads as set type, not as a form, in the viewer', () => {
         render(
             <MetadataDesk
                 {...props}
-                isEditorMode={false}
+                editable={false}
                 metadata={{ title: 'Sonata in A', author: 'Niels Pfeffer' }}
                 setMetadata={vi.fn()}
             />
@@ -142,13 +141,12 @@ describe('MetadataDesk', () => {
         render(
             <MetadataDesk
                 {...props}
-                segmentCount={1}
-                callCount={12}
+                callCount={1}
                 metadata={{ title: '', author: '' }}
                 setMetadata={vi.fn()}
             />
         )
 
-        expect(screen.getByText('1 segment · 12 calls')).toBeInTheDocument()
+        expect(screen.getByText('1 call')).toBeInTheDocument()
     })
 })

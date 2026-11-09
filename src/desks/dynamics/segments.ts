@@ -1,4 +1,4 @@
-import type { Alignment } from '../../fitting/alignment';
+import type { AlignedNote, Alignment } from '../../fitting/alignment';
 import type { Scope } from '../TransformerViewProps';
 import type { Range } from '../tempo/Tempo';
 
@@ -17,6 +17,19 @@ export interface DynamicsSegment {
     active: boolean;
     noteID?: string;
 }
+
+/**
+ * The dates of the chords that are evidence: those with any note among `ids`, which are the
+ * selected calls' `activeEvidence`. A dot stands for a chord, or for the notes of one struck at
+ * one velocity, so a velocity plot marks by date rather than by note.
+ */
+export const evidenceDates = (
+    notes: readonly AlignedNote[],
+    ids: ReadonlySet<string>,
+): ReadonlySet<number> => {
+    if (ids.size === 0) return new Set();
+    return new Set(notes.filter((note) => ids.has(note['xml:id'])).map((note) => note.date));
+};
 
 /**
  * The recorded velocities of a part, one dot per distinct velocity per chord.

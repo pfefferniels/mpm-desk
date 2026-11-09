@@ -15,8 +15,8 @@ const DeskToolbarContext = createContext<HTMLElement | null>(null);
 /**
  * Publishes the app bar as the target for `DeskToolbar`.
  *
- * `target` is null wherever there is no bar to portal into — the viewer tree — and a desk under a
- * null target simply renders no toolbar.
+ * `target` is null wherever there is no bar to portal into — a desk mounted on its own, as in a
+ * test — and a desk under a null target simply renders no toolbar.
  */
 export const DeskToolbarProvider = ({
     target,

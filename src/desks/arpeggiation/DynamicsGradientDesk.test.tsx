@@ -10,6 +10,8 @@ import {
 } from '../../fitting/transformers/ornamentation/InsertDynamicsGradient';
 import { wasSounded } from '../noteTiming';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
@@ -41,48 +43,56 @@ beforeAll(() => {
     );
 });
 
-const renderDesk = (part: Scope) => {
+interface RenderOptions {
+    /** False to render the desk as the viewer has it. */
+    editable?: boolean;
+    /** The calls selected, and what the run reported for them. */
+    selected?: { ids: string[]; outcomes: CallOutcome[] };
+}
+
+const renderDesk = (part: Scope, { editable = true, selected }: RenderOptions = {}) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
 
     const mpm = createMpm();
     const addTransformer = vi.fn<(transformer: InsertDynamicsGradient) => void>();
     const { unmount } = render(
-        <ZoomContext
-            value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
-        >
-            <NotesProvider notes={msm.allNotes}>
-                <ScrollSyncProvider
-                    symbolicZoom={0.1}
-                    physicalZoom={20}
-                    tickToSeconds={(tick) => tick / 1440}
-                    secondsToTick={(seconds) => seconds * 1440}
-                >
-                    <CallSelectionProvider
-                        calls={[]}
-                        outcomes={[]}
-                        activeCallIds={new Set()}
-                        setActiveCallIds={vi.fn()}
-                        onRemoveCalls={vi.fn()}
-                        focusCall={vi.fn()}
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
+            >
+                <NotesProvider notes={msm.allNotes}>
+                    <ScrollSyncProvider
+                        symbolicZoom={0.1}
+                        physicalZoom={20}
+                        tickToSeconds={(tick) => tick / 1440}
+                        secondsToTick={(seconds) => seconds * 1440}
                     >
-                        <DeskToolbarProvider target={bar}>
-                            <DynamicsGradientDesk
-                                part={part}
-                                msm={msm}
-                                mpm={mpm}
-                                residual={deriveResidual(msm, mpm)}
-                                projected={[]}
-                                performanceXml=""
-                                secondary={{}}
-                                setSecondary={vi.fn()}
-                                addTransformer={addTransformer}
-                            />
-                        </DeskToolbarProvider>
-                    </CallSelectionProvider>
-                </ScrollSyncProvider>
-            </NotesProvider>
-        </ZoomContext>,
+                        <CallSelectionProvider
+                            calls={[]}
+                            outcomes={selected?.outcomes ?? []}
+                            activeCallIds={new Set(selected?.ids ?? [])}
+                            setActiveCallIds={vi.fn()}
+                            onRemoveCalls={vi.fn()}
+                            focusCall={vi.fn()}
+                        >
+                            <DeskToolbarProvider target={bar}>
+                                <DynamicsGradientDesk
+                                    part={part}
+                                    msm={msm}
+                                    mpm={mpm}
+                                    residual={deriveResidual(msm, mpm)}
+                                    performanceXml=""
+                                    secondary={{}}
+                                    setSecondary={vi.fn()}
+                                    addTransformer={addTransformer}
+                                />
+                            </DeskToolbarProvider>
+                        </CallSelectionProvider>
+                    </ScrollSyncProvider>
+                </NotesProvider>
+            </ZoomContext>
+        </EditingContext>,
     );
 
     return {
@@ -203,6 +213,48 @@ describe('what a click on a chord commits', () => {
         const gradient = committed(desk, date);
         expect(gradient).toEqual({ from: -0.5, to: 0.5 });
         expect(standardOf(gradient, first, last)).toBeCloseTo((first + last) / 2);
+        desk.dispose();
+    });
+});
+
+describe('in the viewer', () => {
+    it('has no bar, and a chord offers no handle to commit a ramp with', () => {
+        const desk = renderDesk('global', { editable: false });
+
+        expect(document.querySelector('button')).toBeNull();
+
+        const group = document.querySelector('svg g[data-date]')!;
+        const rect = group.querySelector('rect')!;
+        rect.getBoundingClientRect = () => ({ top: 0, height: 100 }) as DOMRect;
+        fireEvent.mouseMove(rect, { clientY: 50 });
+        expect(group.querySelector('circle')).toBeNull();
+
+        fireEvent.click(group.querySelector('line')!, { clientY: 50 });
+        expect(desk.addTransformer).not.toHaveBeenCalled();
+        desk.dispose();
+    });
+});
+
+describe('what a selected call was fitted to', () => {
+    it('marks the notes of the chord the ramp was fitted to, and no other chord', () => {
+        const [date, notes] = [...msm.in('global').chords()].find(([, chord]) => chord.length > 2)!;
+        const desk = renderDesk('global', {
+            selected: {
+                ids: ['gradient'],
+                outcomes: [
+                    {
+                        id: 'gradient',
+                        elements: [`ornament_${String(date)}`],
+                        range: { from: date, to: null },
+                        evidence: notes.map((note) => note['xml:id']),
+                    },
+                ],
+            },
+        });
+
+        const marked = [...document.querySelectorAll('[data-evidence]')];
+        expect(marked.map((group) => group.getAttribute('data-evidence'))).toEqual([String(date)]);
+        expect(marked[0]!.querySelectorAll('circle')).toHaveLength(notes.length);
         desk.dispose();
     });
 });

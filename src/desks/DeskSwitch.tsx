@@ -80,6 +80,11 @@ export interface DeskAction {
     gesture: string;
     /** What it does. A phrase, MPM assumed. */
     does: string;
+    /**
+     * The gesture edits the document, so the viewer does not offer it and its help leaves it
+     * out. Absent on one that only reads: selecting, hearing, scrolling.
+     */
+    edits?: true;
 }
 
 /**
@@ -155,6 +160,14 @@ interface DeskEntry {
     writes?: readonly InstructionType[];
 
     /**
+     * The desk is the editor's alone, and the viewer's aspect menu leaves it out.
+     *
+     * For a desk whose subject is work on the document rather than what the reconstruction says,
+     * and which has nothing to show a reader that another desk does not show better.
+     */
+    editOnly?: true;
+
+    /**
      * What this desk needs before it can do anything, or nothing where it always can.
      *
      * An unmet prerequisite greys the entry and says why; see {@link Prerequisite}.
@@ -183,8 +196,8 @@ const allOf =
  *
  * Zero aligned notes is a blank surface with no gesture on it that can write anything: the plots
  * are `msm.end` wide, which is 0, and the chords they draw from are empty. The desks that read
- * the MPM or the score instead are not gated, since the narrative, markup and metadata desks all
- * have something to do before a note has been played.
+ * the MPM or the score instead are not gated, since the markup and metadata desks both have
+ * something to do before a note has been played.
  *
  * The voices desk is the one gated over a surface that is not blank; its entry says why.
  */
@@ -252,9 +265,13 @@ export const correspondingDesks: DeskEntry[] = [
             summary:
                 'Title and author, set as a title page, over a count of what the document holds.',
             actions: [
-                { gesture: 'Click a line', does: 'edit it in place. Leaving the field commits' },
-                { gesture: 'Enter', does: 'commit and leave the field' },
-                { gesture: 'Esc', does: 'discard the edit' },
+                {
+                    gesture: 'Click a line',
+                    does: 'edit it in place. Leaving the field commits',
+                    edits: true,
+                },
+                { gesture: 'Enter', does: 'commit and leave the field', edits: true },
+                { gesture: 'Esc', does: 'discard the edit', edits: true },
             ],
         },
     },
@@ -271,14 +288,30 @@ export const correspondingDesks: DeskEntry[] = [
                 'Which MEI voice goes into which MSM part: the engraved score coloured by part, ' +
                 'with the parts listed beside it.',
             actions: [
-                { gesture: 'Click a notehead', does: 'select that note' },
-                { gesture: '⌘-click a notehead', does: 'add it to the selection, or drop it' },
+                { gesture: 'Click a notehead', does: 'select that note', edits: true },
+                {
+                    gesture: '⌘-click a notehead',
+                    does: 'add it to the selection, or drop it',
+                    edits: true,
+                },
                 { gesture: 'Hover a part', does: 'fade every other part in the score' },
-                { gesture: 'Click a part', does: 'select it alone' },
-                { gesture: '⌘-click a part', does: 'add it. Two or more allow Combine' },
-                { gesture: 'Click a voice chip', does: 'pick that voice whole, for Move to…' },
-                { gesture: 'Esc', does: 'drop the notes, the voice and the parts' },
-                { gesture: 'Enter, Esc in a name field', does: 'commit, revert the rename' },
+                { gesture: 'Click a part', does: 'select it alone', edits: true },
+                {
+                    gesture: '⌘-click a part',
+                    does: 'add it. Two or more allow Combine',
+                    edits: true,
+                },
+                {
+                    gesture: 'Click a voice chip',
+                    does: 'pick that voice whole, for Move to…',
+                    edits: true,
+                },
+                { gesture: 'Esc', does: 'drop the notes, the voice and the parts', edits: true },
+                {
+                    gesture: 'Enter, Esc in a name field',
+                    does: 'commit, revert the rename',
+                    edits: true,
+                },
             ],
         },
         // No hold-out: this desk plots no residual. It draws the score verovio engraves, coloured
@@ -299,14 +332,18 @@ export const correspondingDesks: DeskEntry[] = [
     //
     // No `transformerName`: the `Align` call it writes is one the chain does not run (see
     // `chain.ts`). Nothing looks for a desk by that name either, since an `Align` writes no
-    // instruction and so reaches neither the narrative nor the markup desk, which is where
-    // `focusCall` is reached from.
+    // instruction and so never reaches the markup desk, which is where `focusCall` is reached
+    // from.
+    //
+    // The editor's alone: aligning needs the takes as MIDI, which the published reconstruction
+    // does not carry, and what it settles is in the score every other desk draws.
     {
         aspect: 'alignment',
         desk: lazy(() =>
             import('./alignment/AlignmentDesk').then((m) => ({ default: m.AlignmentDesk })),
         ),
         group: 'general',
+        editOnly: true,
         help: {
             summary:
                 'Which sounding event realises which written note. Align runs the model and ' +
@@ -332,12 +369,17 @@ export const correspondingDesks: DeskEntry[] = [
                 'Every reading on one roll, a brace over each set of readings of a note, so that ' +
                 'one source can be preferred for the piece or for a narrower scope.',
             actions: [
-                { gesture: 'Click a note', does: 'scope the choice to it' },
+                { gesture: 'Click a note', does: 'scope the choice to it', edits: true },
                 {
                     gesture: '⌘-click a note',
                     does: 'add it, where a note scope is already standing',
+                    edits: true,
                 },
-                { gesture: 'Shift-click a later note', does: 'reach from the scope to it' },
+                {
+                    gesture: 'Shift-click a later note',
+                    does: 'reach from the scope to it',
+                    edits: true,
+                },
             ],
         },
         // A choice needs something to choose between. With one take every preference the dialog
@@ -369,29 +411,48 @@ export const correspondingDesks: DeskEntry[] = [
                 'What the roll scan read wrong. A correction edits the recording itself, so it ' +
                 'writes no instruction; a drag is a draft until Apply.',
             actions: [
-                { gesture: 'Press a note or pedal', does: 'select it' },
-                { gesture: '⌘-press', does: 'add it to the selection, or drop it' },
-                { gesture: 'Shift-press', does: 'reach from the selection to it' },
+                { gesture: 'Press a note or pedal', does: 'select it', edits: true },
+                { gesture: '⌘-press', does: 'add it to the selection, or drop it', edits: true },
+                { gesture: 'Shift-press', does: 'reach from the selection to it', edits: true },
                 {
                     gesture: 'Drag up or down',
                     does: 'shift velocity by whole steps, on the Velocity plot',
+                    edits: true,
                 },
                 {
                     gesture: 'Drag sideways',
                     does: 'shift the onset, on the Timing plot. Near the right edge, the release',
+                    edits: true,
                 },
-                { gesture: 'Drag a handle', does: 'move that vertex of the pedal line' },
-                { gesture: 'Drag a flat run', does: 'raise or lower the hold, both ends together' },
-                { gesture: '⌥-press the line', does: 'add a vertex there, and drag it' },
-                { gesture: '⇧⌥-press a handle', does: 'drop that vertex' },
-                { gesture: '⇧⌥-press a pedal', does: 'drop the press' },
-                { gesture: '⌥-press an empty lane', does: 'add a press there' },
+                {
+                    gesture: 'Drag a handle',
+                    does: 'move that vertex of the pedal line',
+                    edits: true,
+                },
+                {
+                    gesture: 'Drag a flat run',
+                    does: 'raise or lower the hold, both ends together',
+                    edits: true,
+                },
+                {
+                    gesture: '⌥-press the line',
+                    does: 'add a vertex there, and drag it',
+                    edits: true,
+                },
+                { gesture: '⇧⌥-press a handle', does: 'drop that vertex', edits: true },
+                { gesture: '⇧⌥-press a pedal', does: 'drop the press', edits: true },
+                { gesture: '⌥-press an empty lane', does: 'add a press there', edits: true },
                 { gesture: 'Hover a dot', does: 'sound the chord there, on the Velocity plot' },
                 {
                     gesture: 'Expand…',
                     does: 'map a range of recorded values onto another, for the selection or, with none, for everything',
+                    edits: true,
                 },
-                { gesture: 'Esc', does: 'drop the selection and the drawn correction' },
+                {
+                    gesture: 'Esc',
+                    does: 'drop the selection and the drawn correction',
+                    edits: true,
+                },
             ],
         },
         // No hold-out: like the dynamics desk, this one plots the recording raw. There is nothing
@@ -418,18 +479,19 @@ export const correspondingDesks: DeskEntry[] = [
                 'variance, with the spreads already written in a strip below.',
             actions: [
                 { gesture: 'Hover a chord', does: 'sound it, and read its frame in ms' },
-                { gesture: 'Click a chord', does: 'select it for Insert' },
+                { gesture: 'Click a chord', does: 'select it for Insert', edits: true },
                 {
                     gesture: 'Insert Default',
                     does: "spread every chord in the scope whose roll is longer than the dialog's "
                         + 'Duration Threshold, in ms',
+                    edits: true,
                 },
                 {
                     gesture: 'Hover a written spread',
                     does: 'audition the roll as that ornament specifies it',
                 },
                 { gesture: 'Click a written spread', does: 'select the call that wrote it' },
-                { gesture: 'Backspace', does: 'remove the selected call' },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
         // Both arpeggiation desks write the same `<ornamentMap>`, so either one of them having
@@ -457,13 +519,18 @@ export const correspondingDesks: DeskEntry[] = [
                     gesture: 'Hover a chord',
                     does: 'sound it. A handle follows the pointer up and down',
                 },
-                { gesture: 'Click the handle', does: 'write a ramp with its zero at that height' },
+                {
+                    gesture: 'Click the handle',
+                    does: 'write a ramp with its zero at that height',
+                    edits: true,
+                },
                 {
                     gesture: "Click the chord's line",
                     does: 'write a ramp over the measured extremes',
+                    edits: true,
                 },
                 { gesture: 'Click a written gradient', does: 'select the call that wrote it' },
-                { gesture: 'Backspace', does: 'remove the selected call' },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
         writes: ['ornament'],
@@ -488,8 +555,9 @@ export const correspondingDesks: DeskEntry[] = [
                 {
                     gesture: 'Insert Default',
                     does: 'write every group in the scope as an ornament on its principal',
+                    edits: true,
                 },
-                { gesture: 'Backspace', does: 'remove the selected call' },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
         // The same `<ornamentMap>` as the other arpeggiation desks, so the same lock.
@@ -514,6 +582,7 @@ export const correspondingDesks: DeskEntry[] = [
                 {
                     gesture: 'Drag a tolerance',
                     does: 're-cluster the preview. Nothing is written until Stylize Ornaments',
+                    edits: true,
                 },
             ],
         },
@@ -529,32 +598,36 @@ export const correspondingDesks: DeskEntry[] = [
                 'curves already in the document drawn over it.',
             actions: [
                 { gesture: 'Hover a box', does: 'sound the passage it covers' },
-                { gesture: 'Click a box', does: 'select it alone' },
-                { gesture: 'Shift-click a box', does: 'add it to the selection' },
-                { gesture: 'Shift+Alt-click a box', does: 'remove it' },
+                { gesture: 'Click a box', does: 'select it alone', edits: true },
+                { gesture: 'Shift-click a box', does: 'add it to the selection', edits: true },
+                { gesture: 'Shift+Alt-click a box', does: 'remove it', edits: true },
                 {
                     gesture: 'Drag in Draw mode',
                     does: 'draw a curve. The whole stroke is fitted, so its shape sets the bend',
+                    edits: true,
                 },
                 {
                     gesture: "Drag from a curve's end",
                     does: "continue it at that curve's beat length",
+                    edits: true,
                 },
                 {
                     gesture: 'Click a box in Split mode',
                     does: 'split it in the middle of its tick range',
+                    edits: true,
                 },
                 {
                     gesture: 'Hover a written curve',
                     does: 'hear the passage re-timed by it, over a click',
                 },
                 { gesture: 'Click a written curve', does: 'select the call that wrote it' },
-                { gesture: 'Esc', does: 'deselect, and cancel the stroke in hand' },
-                { gesture: 'c', does: 'combine the selected boxes' },
-                { gesture: 's', does: 'toggle Split mode' },
+                { gesture: 'Esc', does: 'deselect, and cancel the stroke in hand', edits: true },
+                { gesture: 'c', does: 'combine the selected boxes', edits: true },
+                { gesture: 's', does: 'toggle Split mode', edits: true },
                 {
                     gesture: 'Backspace',
                     does: 'delete the selected boxes, else remove the selected call',
+                    edits: true,
                 },
             ],
         },
@@ -578,14 +651,19 @@ export const correspondingDesks: DeskEntry[] = [
                 {
                     gesture: 'Click twice',
                     does: 'mark a frame between the two dates, either order',
+                    edits: true,
                 },
-                { gesture: 'Click again', does: 'start a new frame, discarding the last' },
-                { gesture: 'Click the frame', does: 'audition the passage it covers' },
+                {
+                    gesture: 'Click again',
+                    does: 'start a new frame, discarding the last',
+                    edits: true,
+                },
+                { gesture: 'Click the frame', does: 'audition the passage it covers', edits: true },
                 {
                     gesture: 'Click a written rubato',
                     does: 'hear its frame warped, and select the call that wrote it',
                 },
-                { gesture: 'Backspace', does: 'remove the selected call' },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
         holdOut: ['rubato'],
@@ -612,20 +690,27 @@ export const correspondingDesks: DeskEntry[] = [
                 {
                     gesture: 'Drag across the plot',
                     does: 'fit a curve between two anchors, in Insert mode',
+                    edits: true,
                 },
                 {
                     gesture: 'Click a dot in Phantom mode',
                     does: 'pencil in a phantom velocity there',
+                    edits: true,
                 },
                 {
                     gesture: 'Click the plot in Phantom mode',
                     does: 'pencil one in on the grid, over a rest or inside a held note',
+                    edits: true,
                 },
-                { gesture: 'Click a phantom', does: 'pick it for ↑ ↓' },
-                { gesture: '↑ ↓', does: 'nudge the phantom last picked by one' },
-                { gesture: 'Shift+Alt-click a phantom', does: 'remove it' },
+                { gesture: 'Click a phantom', does: 'pick it for ↑ ↓', edits: true },
+                { gesture: '↑ ↓', does: 'nudge the phantom last picked by one', edits: true },
+                { gesture: 'Shift+Alt-click a phantom', does: 'remove it', edits: true },
                 { gesture: 'Click a curve', does: 'select the call that wrote it' },
-                { gesture: 'Backspace', does: 'remove the selected call, closer and all' },
+                {
+                    gesture: 'Backspace',
+                    does: 'remove the selected call, closer and all',
+                    edits: true,
+                },
             ],
         },
         writes: ['dynamics'],
@@ -647,14 +732,30 @@ export const correspondingDesks: DeskEntry[] = [
                 'chord, with the accentuation patterns written over it.',
             actions: [
                 { gesture: 'Hover a dot', does: 'sound the chord there' },
-                { gesture: 'Click the plot', does: 'start a candidate range at the nearest dot' },
-                { gesture: 'Move the pointer', does: 'draw the range out to the dot under it' },
-                { gesture: 'Click again', does: 'close the range there' },
-                { gesture: 'Shift-click', does: "move the candidate's nearer end to that dot" },
-                { gesture: 'Esc, Shift+Alt-click the candidate', does: 'clear it' },
+                {
+                    gesture: 'Click the plot',
+                    does: 'start a candidate range at the nearest dot',
+                    edits: true,
+                },
+                {
+                    gesture: 'Move the pointer',
+                    does: 'draw the range out to the dot under it',
+                    edits: true,
+                },
+                { gesture: 'Click again', does: 'close the range there', edits: true },
+                {
+                    gesture: 'Shift-click',
+                    does: "move the candidate's nearer end to that dot",
+                    edits: true,
+                },
+                { gesture: 'Esc, Shift+Alt-click the candidate', does: 'clear it', edits: true },
                 { gesture: 'Click a pattern', does: 'select the call that wrote it' },
-                { gesture: 'Shift-click a pattern', does: 'add it to the merge selection' },
-                { gesture: 'Backspace', does: 'remove the selected call' },
+                {
+                    gesture: 'Shift-click a pattern',
+                    does: 'add it to the merge selection',
+                    edits: true,
+                },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
         holdOut: ['accentuationPattern'],
@@ -679,13 +780,17 @@ export const correspondingDesks: DeskEntry[] = [
                 'vertical, bar thickness by velocity residual, the notated release a dashed tick.',
             actions: [
                 { gesture: 'Hover a note', does: 'sound it' },
-                { gesture: 'Click a note', does: 'start a unit with it' },
-                { gesture: 'Shift-click a note', does: 'add it to the unit, or drop it' },
+                { gesture: 'Click a note', does: 'start a unit with it', edits: true },
+                {
+                    gesture: 'Shift-click a note',
+                    does: 'add it to the unit, or drop it',
+                    edits: true,
+                },
                 {
                     gesture: 'Click an articulated note',
                     does: 'select the call that wrote it. Such a note joins no unit',
                 },
-                { gesture: 'Backspace', does: 'remove the selected call' },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
         holdOut: ['articulation'],
@@ -710,6 +815,7 @@ export const correspondingDesks: DeskEntry[] = [
                 {
                     gesture: 'Drag a tolerance',
                     does: 're-cluster the preview. Nothing is written until Stylize Articulations',
+                    edits: true,
                 },
             ],
         },
@@ -728,47 +834,17 @@ export const correspondingDesks: DeskEntry[] = [
                 {
                     gesture: 'Click a press',
                     does: 'write its line as movements, each traversal fitted as one',
+                    edits: true,
                 },
                 { gesture: 'Hover a chord line', does: 'sound the chord' },
                 { gesture: 'Click a movement', does: 'select the call that wrote it' },
-                { gesture: 'Backspace', does: 'remove the selected call' },
+                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
         // A recorded pedal has no symbolic date of its own; the residual is the only thing that
         // can put one on the tick grid at all.
         holdOut: ['movement'],
         unavailable: allOf(needsRecording, needsChoice, needsTempo),
-    },
-    // The argument
-    {
-        aspect: 'narrative',
-        displayName: 'Narrative',
-        desk: lazy(() =>
-            import('./narrative/NarrativeDesk').then((m) => ({ default: m.NarrativeDesk })),
-        ),
-        group: 'argument',
-        help: {
-            summary:
-                'The instructions grouped into claims, in score order, with those belonging to no ' +
-                'claim listed at the bottom. A working view, so it is a table.',
-            actions: [
-                {
-                    gesture: 'Click an instruction chip',
-                    does: 'select its call, and hear that one instruction over its reach',
-                },
-                { gesture: 'Backspace', does: 'remove the selected calls' },
-                {
-                    gesture: 'Hover a gesture',
-                    does: "quote the element's attributes below the row",
-                },
-                {
-                    gesture: 'Click assign',
-                    does: "move the selected instructions into that row's segment",
-                },
-                { gesture: 'Click dissolve', does: 'ungroup it. The instructions survive' },
-                { gesture: 'Type in Word', does: 'say what the claim says. It saves as you type' },
-            ],
-        },
     },
     // The artefact itself. Last, and a group of its own, because it is what every desk above it
     // has been writing rather than another aspect of the performance. Named for what it shows:

@@ -13,18 +13,18 @@ import {
     type WorkMetadata,
     type WorkVoices,
 } from '../model/workReducer';
-import type { Call, Segment } from '../model/Work';
+import type { Call } from '../model/Work';
 
 /**
  * The document, and the ways it changes.
  *
- * Two desks need more than `ViewProps`, which is what the *fit* produced. The narrative desk
- * edits `segments`, its subject being the claims rather than a dimension of the sound, and the
- * metadata desk edits the title and author and shows how much has been claimed so far.
+ * Some desks need more than `ViewProps`, which is what the *fit* produced. The metadata desk
+ * edits the title and author and counts the calls, the voices desk the voice layout, the
+ * alignment desk what was decided about each take.
  *
- * Widening `ViewProps` with `segments`, `groupCalls`, `dissolveSegment` and the rest would push
- * the narrative desk's business onto all thirteen. So the document goes in a context of its own,
- * beside the two already there, and every desk is handed the same bag.
+ * Widening `ViewProps` with each of those would push one desk's business onto all of them. So the
+ * document goes in a context of its own, beside the two already there, and every desk is handed
+ * the same bag.
  *
  * ## What is deliberately *not* here
  *
@@ -44,8 +44,6 @@ import type { Call, Segment } from '../model/Work';
 interface WorkDocumentValue {
     /** The calls of the chain, in the order the file records them. */
     calls: readonly Call[];
-    /** What the reconstruction claims — one entry per claim. */
-    segments: readonly Segment[];
     /** Title and author, read off the chain's own `InsertMetadata` call. */
     metadata: WorkMetadata;
     /** The voice layout, read off the chain's own `ProcessVoices` call. */
@@ -54,11 +52,6 @@ interface WorkDocumentValue {
     alignments: readonly WorkAlignment[];
 
     removeCalls: (ids: readonly string[]) => void;
-    /** Put calls under a claim — an existing one, a new one, or none at all. */
-    groupCalls: (callIds: readonly string[], segment: Segment | null) => void;
-    /** Withdraw a claim. Its calls survive and become unclaimed — the honest place for them. */
-    dissolveSegment: (segmentId: string) => void;
-    setSegments: (segments: Segment[]) => void;
     setMetadata: (update: MetadataUpdate) => void;
     setVoices: (update: VoicesUpdate) => void;
     /** Record what was decided about one take, on the `Align` call that names its `@source`. */
@@ -94,27 +87,6 @@ export const WorkDocumentProvider = ({
     const removeCalls = useCallback(
         (ids: readonly string[]) => {
             dispatch({ type: 'remove-calls', ids });
-        },
-        [dispatch],
-    );
-
-    const groupCalls = useCallback(
-        (callIds: readonly string[], segment: Segment | null) => {
-            dispatch({ type: 'group-calls', callIds, segment });
-        },
-        [dispatch],
-    );
-
-    const dissolveSegment = useCallback(
-        (segmentId: string) => {
-            dispatch({ type: 'dissolve-segment', segmentId });
-        },
-        [dispatch],
-    );
-
-    const setSegments = useCallback(
-        (segments: Segment[]) => {
-            dispatch({ type: 'set-segments', segments });
         },
         [dispatch],
     );
@@ -159,14 +131,10 @@ export const WorkDocumentProvider = ({
     const value = useMemo<WorkDocumentValue>(
         () => ({
             calls: work.provenance,
-            segments: work.segments,
             metadata,
             voices,
             alignments,
             removeCalls,
-            groupCalls,
-            dissolveSegment,
-            setSegments,
             setMetadata,
             setVoices,
             setAlignment,
@@ -177,14 +145,10 @@ export const WorkDocumentProvider = ({
         }),
         [
             work.provenance,
-            work.segments,
             metadata,
             voices,
             alignments,
             removeCalls,
-            groupCalls,
-            dissolveSegment,
-            setSegments,
             setMetadata,
             setVoices,
             setAlignment,

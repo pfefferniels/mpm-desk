@@ -2,7 +2,7 @@
  * Playback renders on the caller's thread, over the files the app actually ships.
  *
  * The point is the contract: `play()` returns with the piano already holding a parsed MIDI file,
- * and that file carries one text meta event per note-on naming the note — which is how the stack
+ * and that file carries one text meta event per note-on naming the note — which is how the editor
  * follows the playhead.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -10,14 +10,12 @@ import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { act, useEffect } from 'react'
 import type { MidiFile } from 'midifile-ts'
-import { addAbsoluteTime } from 'react-pianosound'
-import { indexNoteIds, renderedRange } from '../utils/anchor'
 import { createFakePiano } from '../test/fakePiano'
 import { readNoteDates } from '../utils/score'
 import { ZoomContext } from './ZoomProvider'
 import { PlaybackProvider, usePlayback } from './PlaybackProvider'
 
-// Same reason as in SegmentStack.test: the piano wants a Web Audio graph jsdom has not got. The
+// The piano wants a Web Audio graph jsdom has not got. The
 // rig underneath is faithful about the two things that matter — a passed tick never fires again,
 // and the sampler is idempotent — so the splice logic is genuinely exercised, not stubbed out.
 let rig = createFakePiano()
@@ -66,11 +64,6 @@ const noteIds = (file: MidiFile) => file.tracks
     .flat()
     .filter(event => event.type === 'meta' && event.subtype === 'text')
     .map(event => (event as { text: string }).text)
-
-const velocities = (file: MidiFile) => file.tracks
-    .flat()
-    .filter(event => event.type === 'channel' && event.subtype === 'noteOn')
-    .map(event => (event as { velocity: number }).velocity)
 
 describe('PlaybackProvider', () => {
     beforeEach(() => {
@@ -125,24 +118,6 @@ describe('PlaybackProvider', () => {
         }
     })
 
-    it('renders a spotlit segment, and renders it differently', async () => {
-        const unmount = await mount()
-
-        act(() => { play!({ exaggerate: 1 }) })
-        const plain = played()!
-
-        // Instructions a segment names; espressivo damps everything else around them.
-        const spotlit = [...performanceMpm.matchAll(/<dynamics [^>]*xml:id="([^"]+)"/g)].slice(0, 3).map(m => m[1])
-        expect(spotlit.length).toBe(3)
-
-        act(() => { play!({ mpmIds: spotlit, isolate: true }) })
-
-        // The same notes sound, played differently: isolating three dynamics damps the rest.
-        expect(noteIds(played()!).length).toBe(noteIds(plain).length)
-        expect(velocities(played()!)).not.toEqual(velocities(plain))
-
-        await unmount()
-    })
 })
 
 describe('moving the exaggeration knob while it plays', () => {
@@ -309,94 +284,5 @@ describe('moving the exaggeration knob while it plays', () => {
         } finally {
             vi.useRealTimers()
         }
-    })
-})
-
-describe('previewing one gesture', () => {
-    /** Well into the piece, so "started here" cannot be confused with "started at the top". */
-    const RANGE = { from: 20000, to: 24000 }
-
-    beforeEach(() => {
-        rig = createFakePiano()
-        play = null
-        setExaggeration = null
-        vi.spyOn(console, 'log').mockImplementation(() => { })
-    })
-
-    /** Where the range sits in the rendering the piano was handed, in seconds. */
-    const heard = () => {
-        const ids = indexNoteIds(addAbsoluteTime(played()!))
-        const span = renderedRange(ids, dateByNoteId, RANGE.from, RANGE.to)!
-        return { from: span.fromMs / 1000, to: span.toMs / 1000 }
-    }
-
-    it('starts at the gesture rather than at bar 1', async () => {
-        const unmount = await mount()
-
-        act(() => { play!({ exaggerate: 1, range: RANGE }) })
-
-        const { from } = heard()
-        expect(from).toBeGreaterThan(10)
-        expect(rig.transport.seconds).toBeCloseTo(from, 1)
-
-        await unmount()
-    })
-
-    it('stops once the gesture is through, instead of playing on to the end', async () => {
-        vi.useFakeTimers()
-        try {
-            const unmount = await mount()
-            act(() => { play!({ exaggerate: 1, range: RANGE }) })
-
-            const { from, to } = heard()
-            expect(to - from).toBeGreaterThan(1)
-            // Far shorter than the piece, which runs about 160 s.
-            expect(to - from).toBeLessThan(40)
-
-            // Still going while the gesture is sounding.
-            act(() => { rig.transport.advanceTo(to - 0.5) })
-            act(() => { vi.advanceTimersByTime((to - from - 0.5) * 1000) })
-            expect(rig.transport.state).toBe('started')
-
-            // And over shortly after it, once the last note has had room to decay.
-            act(() => { vi.advanceTimersByTime(2000) })
-            expect(rig.transport.state).toBe('stopped')
-            expect(rig.piano.held.size).toBe(0)
-
-            await unmount()
-        } finally {
-            vi.useRealTimers()
-        }
-    })
-
-    it('sounds the gesture and stops before the piece runs out', async () => {
-        vi.useFakeTimers()
-        try {
-            const unmount = await mount()
-            act(() => { play!({ mpmIds: [], exaggerate: 1, range: RANGE }) })
-
-            const { from, to } = heard()
-            // Play right through the range, then well past where it ends.
-            act(() => { rig.transport.advanceTo(to) })
-            act(() => { vi.advanceTimersByTime((to - from) * 1000 + 2000) })
-            act(() => { rig.transport.advanceTo(to + 60) })
-
-            const dates = rig.heard.map(id => dateByNoteId.get(id)).filter(d => d !== undefined)
-            expect(dates.length).toBeGreaterThan(3)
-            // Everything sounded belongs to the gesture, bar the tail it is allowed to ring into.
-            expect(Math.min(...dates)).toBeGreaterThanOrEqual(RANGE.from)
-            expect(dates.filter(d => d >= RANGE.to).length).toBeLessThan(dates.length / 2)
-
-            await unmount()
-        } finally {
-            vi.useRealTimers()
-        }
-    })
-
-    it('leaves the whole piece alone when no range is asked for', async () => {
-        const unmount = await mount()
-        act(() => { play!({ exaggerate: 1 }) })
-        expect(rig.transport.seconds).toBe(0)
-        await unmount()
     })
 })

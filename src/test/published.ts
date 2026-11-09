@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PUBLISHED, type Published } from '../model/published';
 
+export type { Published };
+
 /**
  * The published files on disk: a checkout of welte225.org, the sibling directory unless
  * `WELTE225` says otherwise (CI checks the repository out inside the workspace).

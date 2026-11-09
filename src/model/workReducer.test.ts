@@ -1,10 +1,10 @@
 /**
  * What the document does when it is edited.
  *
- * The rules under test are the ones that hold between the two arrays — a call names the claim it
- * is made under, a claim exists because calls are made under it — plus the two smaller promises
- * the reducer makes so that undo can work at all: it never touches what it was given, and it
- * says so by reference when an edit changed nothing.
+ * The rules under test are the ones about the calls — metadata, voices and alignments edited in
+ * place on their one call, nothing a UI does not reach being lost on the way — plus the two
+ * smaller promises the reducer makes so that undo can work at all: it never touches what it was
+ * given, and it says so by reference when an edit changed nothing.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -31,7 +31,7 @@ const aspects = new Set(['relativeDuration']);
 const phantoms = new Map([['note_12', 64]]);
 
 /**
- * Two claims, four calls, one of each envelope-bearing option.
+ * Four calls, one of each envelope-bearing option.
  *
  * Frozen all the way down, so that a reducer reaching for anything reachable from the state
  * throws rather than passing — module code is strict, and a strict-mode write to a frozen object
@@ -43,20 +43,15 @@ const base = (): WorkFile =>
         mei: 'transcription.mei',
         mpm: 'performance.mpm',
         provenance: [
-            { id: 'a', name: 'InsertTempo', options: { from: 0 }, segment: 's1' },
-            { id: 'b', name: 'InsertRubato', options: { date: 720 }, segment: 's1' },
+            { id: 'a', name: 'InsertTempo', options: { from: 0 } },
+            { id: 'b', name: 'InsertRubato', options: { date: 720 } },
             {
                 id: 'c',
                 name: 'InsertArticulation',
                 options: { aspects },
                 elements: ['articulation_0'],
-                segment: 's2',
             },
             { id: 'd', name: 'InsertDynamicsInstructions', options: { phantoms } },
-        ],
-        segments: [
-            { id: 's1', note: 'Hinspielen auf 1' },
-            { id: 's2', note: 'Nachschlag schattieren' },
         ],
     });
 
@@ -77,29 +72,12 @@ const byId = (work: WorkFile, id: string): Call => {
     return call!;
 };
 
-/** Every claim in the file has something claimed under it. */
-const noEmptyClaims = (work: WorkFile) => {
-    const standing = new Set(work.provenance.map((call) => call.segment));
-    expect(work.segments.filter(({ id }) => !standing.has(id))).toEqual([]);
-};
-
 describe('what a desk’s gesture becomes', () => {
-    it('lands under no claim, with the key absent rather than set to undefined', () => {
-        // Handed a call that names one, at that: the rule belongs to the document, not to
-        // whoever built the action.
-        const next = workReducer(base(), {
-            type: 'add-call',
-            call: { id: 'e', name: 'InsertPedal', options: { from: 100 }, segment: 's1' },
-        });
+    it('lands at the end of the chain, as it was handed over', () => {
+        const call: Call = { id: 'e', name: 'InsertPedal', options: { from: 100 } };
+        const next = workReducer(base(), { type: 'add-call', call });
 
-        const added = byId(next, 'e');
-        expect('segment' in added).toBe(false);
-        expect(JSON.parse(JSON.stringify(added))).toEqual({
-            id: 'e',
-            name: 'InsertPedal',
-            options: { from: 100 },
-        });
-        expect(next.provenance.at(-1)).toBe(added);
+        expect(next.provenance.at(-1)).toBe(call);
     });
 
     it('leaves the document it was handed alone', () => {
@@ -110,111 +88,20 @@ describe('what a desk’s gesture becomes', () => {
         });
         expect(before.provenance).toHaveLength(4);
         expect(next.provenance).toHaveLength(5);
-        expect(next.segments).toBe(before.segments);
+        expect(next.provenance[0]).toBe(before.provenance[0]);
     });
 });
 
 describe('removing calls', () => {
-    it('retires exactly the claims nothing is left under', () => {
-        // `c` is all there is under `s2`; `s1` still has `b`.
+    it('takes exactly the calls named', () => {
         const next = workReducer(base(), { type: 'remove-calls', ids: ['a', 'c'] });
-
         expect(next.provenance.map(({ id }) => id)).toEqual(['b', 'd']);
-        expect(next.segments.map(({ id }) => id)).toEqual(['s1']);
-        noEmptyClaims(next);
-    });
-
-    it('keeps a claim that still has something made under it', () => {
-        const next = workReducer(base(), { type: 'remove-calls', ids: ['a'] });
-        expect(next.segments.map(({ id }) => id)).toEqual(['s1', 's2']);
     });
 
     it('says nothing happened when it removed nothing', () => {
         const before = base();
         expect(workReducer(before, { type: 'remove-calls', ids: [] })).toBe(before);
         expect(workReducer(before, { type: 'remove-calls', ids: ['nobody'] })).toBe(before);
-    });
-});
-
-describe('grouping calls under a claim', () => {
-    it('creates the claim and fills it in one state, never in two', () => {
-        const next = workReducer(base(), {
-            type: 'group-calls',
-            callIds: ['d'],
-            segment: { id: 's3', note: 'Hineinfallen' },
-        });
-
-        expect(next.segments.map(({ id }) => id)).toEqual(['s1', 's2', 's3']);
-        expect(byId(next, 'd').segment).toBe('s3');
-        // The reason it is one update: this is the state a two-step version would have shown in
-        // between, and `remove-calls` would have been within its rights to sweep `s3` out of it.
-        noEmptyClaims(next);
-        expect(workReducer(next, { type: 'remove-calls', ids: ['a'] }).segments).toHaveLength(3);
-    });
-
-    it('moves calls into a claim that already exists without repeating it', () => {
-        const next = workReducer(base(), {
-            type: 'group-calls',
-            callIds: ['d'],
-            segment: { id: 's2', note: 'a later edit of the prose, ignored' },
-        });
-        expect(next.segments.map(({ id }) => id)).toEqual(['s1', 's2']);
-        expect(next.segments[1].note).toBe('Nachschlag schattieren');
-        expect(byId(next, 'd').segment).toBe('s2');
-    });
-
-    it('unclaims calls when the claim is null, key absent again', () => {
-        const next = workReducer(base(), { type: 'group-calls', callIds: ['a', 'b'], segment: null });
-        expect('segment' in byId(next, 'a')).toBe(false);
-        expect('segment' in byId(next, 'b')).toBe(false);
-        expect(byId(next, 'c').segment).toBe('s2');
-    });
-
-    it('says nothing happened for an empty selection, or a claim already held', () => {
-        const before = base();
-        expect(workReducer(before, { type: 'group-calls', callIds: [], segment: null })).toBe(
-            before,
-        );
-        expect(
-            workReducer(before, {
-                type: 'group-calls',
-                callIds: ['a', 'b'],
-                segment: before.segments[0],
-            }),
-        ).toBe(before);
-        expect(workReducer(before, { type: 'group-calls', callIds: ['d'], segment: null })).toBe(
-            before,
-        );
-    });
-});
-
-describe('dissolving a claim', () => {
-    it('keeps its calls and leaves them unclaimed', () => {
-        const next = workReducer(base(), { type: 'dissolve-segment', segmentId: 's1' });
-
-        expect(next.provenance.map(({ id }) => id)).toEqual(['a', 'b', 'c', 'd']);
-        expect('segment' in byId(next, 'a')).toBe(false);
-        expect('segment' in byId(next, 'b')).toBe(false);
-        expect(next.segments.map(({ id }) => id)).toEqual(['s2']);
-        expect(byId(next, 'c').segment).toBe('s2');
-    });
-
-    it('says nothing happened for a claim the file does not hold', () => {
-        const before = base();
-        expect(workReducer(before, { type: 'dissolve-segment', segmentId: 's9' })).toBe(before);
-    });
-});
-
-describe('the claims themselves', () => {
-    it('takes a rewritten list, and recognises the same one', () => {
-        const before = base();
-        const edited = [{ id: 's1', note: 'Hinspielen zur 1' }, before.segments[1]];
-        expect(workReducer(before, { type: 'set-segments', segments: edited }).segments).toBe(
-            edited,
-        );
-        expect(workReducer(before, { type: 'set-segments', segments: [...before.segments] })).toBe(
-            before,
-        );
     });
 });
 
@@ -227,7 +114,7 @@ describe('title and author', () => {
             comments: [{ text: 'Träumerei' }],
             relatedResources: [{ uri: 'recording.wav', type: 'audio' }],
         },
-        segment: 's1',
+        elements: ['metadata_0'],
     };
 
     const withMetadata = (): WorkFile =>
@@ -273,7 +160,7 @@ describe('title and author', () => {
 
         const call = byId(next, 'm');
         expect(call.options['relatedResources']).toBe(insertMetadata.options['relatedResources']);
-        expect(call.segment).toBe('s1');
+        expect(call.elements).toBe(insertMetadata.elements);
     });
 
     it('adds the call, with the id the action carried, when the chain has none', () => {
@@ -331,8 +218,8 @@ describe('what counts as a call about the performance', () => {
     });
 
     it('leaves a document that has only been given a title reporting nothing at all', () => {
-        // The case that makes this worth having: naming a reconstruction is not claiming
-        // anything about the performance, and the metadata desk should not say it is.
+        // The case that makes this worth having: naming a reconstruction is not saying anything
+        // about the performance, and the metadata desk should not say it is.
         const named = workReducer(EMPTY_WORK, {
             type: 'set-metadata',
             update: { author: '', title: 'Träumerei' },
@@ -347,7 +234,7 @@ describe('what counts as a call about the performance', () => {
         // `Modify` corrects the recording and `MakeChoice` picks between readings: both say
         // something about the performance, by reshaping rather than by adding. And none of the
         // three has `elements` yet — a run records those — which is why the count is taken off
-        // the name here and off the elements in the narrative.
+        // the name.
         const calls: Call[] = [
             { id: 'x', name: 'Modify', options: { velocity: 0.9 } },
             { id: 'y', name: 'MakeChoice', options: { prefer: 'recording_1' } },
@@ -387,8 +274,6 @@ describe('the option envelopes', () => {
         // the shipped file's 87 envelopes into `{}`, and `{}` has no `.get`.
         const actions: WorkAction[] = [
             { type: 'add-call', call: { id: 'e', name: 'InsertPedal', options: {} } },
-            { type: 'group-calls', callIds: ['c', 'd'], segment: { id: 's3', note: 'nachgeben' } },
-            { type: 'dissolve-segment', segmentId: 's3' },
             { type: 'remove-calls', ids: ['a'] },
             { type: 'set-metadata', update: { author: 'C. S.', title: '' }, newCallId: 'm' },
             { type: 'set-secondary', update: { tempo: {} } },
@@ -402,12 +287,8 @@ describe('the option envelopes', () => {
     it('never writes to the state it was handed', () => {
         // The fixture is frozen all the way down; a reducer that mutated would throw here.
         const actions: WorkAction[] = [
-            { type: 'add-call', call: { id: 'e', name: 'InsertPedal', options: {}, segment: 's1' } },
+            { type: 'add-call', call: { id: 'e', name: 'InsertPedal', options: {} } },
             { type: 'remove-calls', ids: ['c'] },
-            { type: 'group-calls', callIds: ['a'], segment: { id: 's4' } },
-            { type: 'group-calls', callIds: ['b'], segment: null },
-            { type: 'dissolve-segment', segmentId: 's1' },
-            { type: 'set-segments', segments: [{ id: 's4', note: 'weiter' }] },
             { type: 'set-secondary', update: { tempo: {} } },
             { type: 'set-metadata', update: { author: 'C. S.', title: 'T.' }, newCallId: 'm' },
             { type: 'load', work: base() },
@@ -488,8 +369,7 @@ describe('undo and redo', () => {
         const edited = workHistoryReducer(initialHistory(base()), add('e'));
         const noop = [
             { type: 'remove-calls', ids: [] } as const,
-            { type: 'group-calls', callIds: [], segment: null } as const,
-            { type: 'dissolve-segment', segmentId: 's9' } as const,
+            { type: 'remove-calls', ids: ['nobody'] } as const,
             { type: 'set-metadata', update: { author: '', title: '' }, newCallId: 'm' } as const,
         ].reduce(workHistoryReducer, edited);
 
@@ -555,7 +435,7 @@ describe('the voice layout', () => {
             // No UI reaches this; it stands in for whatever a later build adds.
             note: 'hand-written',
         },
-        segment: 's1',
+        elements: ['recorded'],
     };
 
     const withVoices = (): WorkFile =>
@@ -618,7 +498,7 @@ describe('the voice layout', () => {
 
         const call = byId(next, 'v');
         expect(call.options['note']).toBe('hand-written');
-        expect(call.segment).toBe('s1');
+        expect(call.elements).toEqual(['recorded']);
     });
 
     it('adds the call, with the id the action carried, when the chain has none', () => {
@@ -650,7 +530,7 @@ describe('the voice layout', () => {
         ).toBe(work);
     });
 
-    it('says nothing about the performance, so it is not counted as a claim', () => {
+    it('says nothing about the performance, so it is not counted', () => {
         // Laying out voices is a statement about the score's encoding: a reconstruction that has
         // only sorted its voices into parts has claimed nothing yet about how the piece was played.
         expect(describesPerformance(processVoices)).toBe(false);
@@ -676,7 +556,7 @@ describe('the alignment', () => {
             // No UI reaches this; it stands in for whatever a later build adds.
             note: 'hand-written',
         },
-        segment: 's1',
+        elements: ['recorded'],
     };
 
     const aligned = (): WorkFile =>
@@ -772,10 +652,10 @@ describe('the alignment', () => {
 
         const call = byId(next, 'al');
         expect(call.options['note']).toBe('hand-written');
-        expect(call.segment).toBe('s1');
+        expect(call.elements).toEqual(['recorded']);
     });
 
-    it('says nothing about the performance, so it is not counted as a claim', () => {
+    it('says nothing about the performance, so it is not counted', () => {
         // Which sounding event realises which written note is what a reconstruction reads before
         // it has claimed anything at all about how the piece was played.
         expect(describesPerformance(align)).toBe(false);

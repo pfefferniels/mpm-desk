@@ -1,5 +1,5 @@
 import { Alignment, type AlignedGrace, type AlignedNote } from '../../alignment';
-import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
+import { AbstractTransformer, idsOf, type ScopedTransformationOptions } from '../Transformer';
 import { type Range, rangeOfNotes } from '../range';
 
 export interface RangeChoice {
@@ -46,6 +46,14 @@ export class MakeChoice extends AbstractTransformer<MakeChoiceOptions> {
     if ('from' in options) return { from: options.from, to: options.to };
     if ('noteIDs' in options) return rangeOfNotes(options.noteIDs, msm);
     return undefined;
+  }
+
+  /** The notes it names, where it names them; otherwise its scope over its range. */
+  override evidence(msm: Alignment): string[] {
+    const options = this.options;
+    if (!('noteIDs' in options)) return super.evidence(msm);
+    const ids = new Set(options.noteIDs);
+    return idsOf(msm.allNotes.filter((note) => ids.has(note['xml:id'])));
   }
 
   protected transform(msm: Alignment): void {

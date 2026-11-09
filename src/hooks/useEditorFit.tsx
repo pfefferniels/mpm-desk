@@ -131,12 +131,8 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
      * produce the same document each time.
      */
     const chainKey = useMemo(
-        () =>
-            JSON.stringify({
-                provenance: work.provenance.filter((call) => !isDocumentCall(call.name)),
-                segments: work.segments,
-            }),
-        [work.provenance, work.segments],
+        () => JSON.stringify(work.provenance.filter((call) => !isDocumentCall(call.name))),
+        [work.provenance],
     );
 
     const workRef = useLatest(work);

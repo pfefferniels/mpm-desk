@@ -36,7 +36,7 @@ const barTicks = ({ numerator, denominator }: TimeSignature, pulsesPerWhole: num
   (numerator * pulsesPerWhole) / denominator;
 
 /** One bar of the score: where it starts, how long it lasts, and what it is called. */
-export interface Bar {
+interface Bar {
   date: number;
   ticks: number;
   /** What the score calls it: 1 for the first complete bar, 0 for an opening upbeat. */

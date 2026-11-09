@@ -4,6 +4,7 @@ import { Alignment, type AlignedNote } from '../../alignment';
 import {
   AbstractTransformer,
   generateId,
+  idsOf,
   type ScopedTransformationOptions,
 } from '../Transformer';
 import { clamp } from '../../utils';
@@ -59,6 +60,14 @@ export class InsertRubato extends AbstractTransformer<InsertRubatoOptions> {
 
   range(): Range {
     return rangeAt(this.options.date, this.options.length);
+  }
+
+  /** The chords the frame is fitted to: from its date up to its end, and not the one at it. */
+  override evidence(msm: Alignment): string[] {
+    const { scope, date, length } = this.options;
+    return idsOf(
+      msm.in(scope).notes().filter((note) => note.date >= date && note.date < date + length),
+    );
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {

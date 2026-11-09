@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
@@ -83,7 +85,15 @@ const residual = (): Residual => ({
     pedals: [],
 });
 
-const mount = () => {
+interface MountOptions {
+    /** False for the viewer. */
+    editable?: boolean;
+    /** What the last fit reported per call, and which calls are selected. */
+    outcomes?: CallOutcome[];
+    active?: Set<string>;
+}
+
+const mount = ({ editable = true, outcomes = [], active = new Set() }: MountOptions = {}) => {
     const msm = alignment();
     const addTransformer = vi.fn();
 
@@ -93,45 +103,46 @@ const mount = () => {
     document.body.appendChild(bar);
 
     render(
-        <ZoomContext
-            value={{
-                symbolic: { stretchX: STRETCH_X },
-                physical: { stretchX: 20 },
-                setStretchX: vi.fn(),
-            }}
-        >
-            <NotesProvider notes={msm.allNotes}>
-                <ScrollSyncProvider
-                    symbolicZoom={STRETCH_X}
-                    physicalZoom={20}
-                    tickToSeconds={(tick) => tick / 720}
-                    secondsToTick={(seconds) => seconds * 720}
-                >
-                    <CallSelectionProvider
-                        calls={[]}
-                        outcomes={[]}
-                        activeCallIds={new Set()}
-                        setActiveCallIds={vi.fn()}
-                        onRemoveCalls={vi.fn()}
-                        focusCall={vi.fn()}
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{
+                    symbolic: { stretchX: STRETCH_X },
+                    physical: { stretchX: 20 },
+                    setStretchX: vi.fn(),
+                }}
+            >
+                <NotesProvider notes={msm.allNotes}>
+                    <ScrollSyncProvider
+                        symbolicZoom={STRETCH_X}
+                        physicalZoom={20}
+                        tickToSeconds={(tick) => tick / 720}
+                        secondsToTick={(seconds) => seconds * 720}
                     >
-                        <DeskToolbarProvider target={bar}>
-                            <AccentuationDesk
-                                part='global'
-                                msm={msm}
-                                mpm={createMpm()}
-                                residual={residual()}
-                                projected={[]}
-                                performanceXml=''
-                                secondary={{}}
-                                setSecondary={vi.fn()}
-                                addTransformer={addTransformer}
-                            />
-                        </DeskToolbarProvider>
-                    </CallSelectionProvider>
-                </ScrollSyncProvider>
-            </NotesProvider>
-        </ZoomContext>,
+                        <CallSelectionProvider
+                            calls={[]}
+                            outcomes={outcomes}
+                            activeCallIds={active}
+                            setActiveCallIds={vi.fn()}
+                            onRemoveCalls={vi.fn()}
+                            focusCall={vi.fn()}
+                        >
+                            <DeskToolbarProvider target={bar}>
+                                <AccentuationDesk
+                                    part='global'
+                                    msm={msm}
+                                    mpm={createMpm()}
+                                    residual={residual()}
+                                    performanceXml=''
+                                    secondary={{}}
+                                    setSecondary={vi.fn()}
+                                    addTransformer={addTransformer}
+                                />
+                            </DeskToolbarProvider>
+                        </CallSelectionProvider>
+                    </ScrollSyncProvider>
+                </NotesProvider>
+            </ZoomContext>
+        </EditingContext>,
     );
 
     return { addTransformer };
@@ -273,5 +284,49 @@ describe('marking a candidate', () => {
 
         expect(pending()).toBeNull();
         expect(closed()).toBeNull();
+    });
+});
+
+describe('in the viewer', () => {
+    it('offers no control that writes, and marks no candidate', () => {
+        const { addTransformer } = mount({ editable: false });
+
+        expect(screen.queryByRole('button', { name: 'Insert' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Merge' })).toBeNull();
+
+        pointAt(at(0), 'click');
+        pointAt(at(720), 'mousemove');
+        pointAt(at(1440), 'click');
+
+        expect(pending()).toBeNull();
+        expect(closed()).toBeNull();
+        expect(addTransformer).not.toHaveBeenCalled();
+    });
+});
+
+describe('what a selected pattern was fitted to', () => {
+    it('marks the chords on the beats it sampled, and no others', () => {
+        mount({
+            editable: false,
+            outcomes: [
+                { id: 'pattern', elements: [], range: { from: 720, to: 2160 }, evidence: ['b', 'd'] },
+            ],
+            active: new Set(['pattern']),
+        });
+
+        expect(dotAt(720)).toHaveAttribute('data-evidence');
+        expect(dotAt(2160)).toHaveAttribute('data-evidence');
+        expect(dotAt(0)).not.toHaveAttribute('data-evidence');
+        expect(dotAt(1440)).not.toHaveAttribute('data-evidence');
+    });
+
+    it('marks nothing while no call is selected', () => {
+        mount({
+            outcomes: [
+                { id: 'pattern', elements: [], range: { from: 720, to: 2160 }, evidence: ['b', 'd'] },
+            ],
+        });
+
+        expect(document.querySelectorAll('[data-evidence]')).toHaveLength(0);
     });
 });

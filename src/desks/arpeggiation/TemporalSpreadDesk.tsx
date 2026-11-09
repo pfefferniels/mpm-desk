@@ -21,8 +21,19 @@ import { useCallSelection } from "../../hooks/CallSelection";
 import { isCallOf } from "../../fitting/calls";;
 import { useNumberField } from "../../hooks/useNumberField";
 import { SilentOrnaments } from "../SilentOrnaments";
+import { useEditable } from "../../hooks/Editing";
 
+/**
+ * How each chord was rolled, in the recording's own milliseconds, with the spreads written for it.
+ *
+ * In the viewer the plot is only read: a chord sounds as the pointer passes and says how long it
+ * took, a written spread selects the call that wrote it, and the chord that call was fitted to is
+ * marked. What inserts or removes a spread, and the count of spreads still waiting for a style,
+ * is the editor's.
+ */
 export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
+    const editable = useEditable()
+
     /**
      * Which insert the dialog is collecting options for. Held rather than derived from
      * `currentDate`, so that "Insert Default" means the default even while a chord is selected.
@@ -47,7 +58,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
 
     const stretchX = usePhysicalZoom()
     const { tickToSeconds } = useTimeMapping(msm)
-    const { calls, activeElements, setActiveElement, removeCall } = useCallSelection()
+    const { calls, activeElements, activeEvidence, setActiveElement, removeCall } = useCallSelection()
 
     // Scoped, and it has to be: `InsertTemporalSpread` writes one default per part, so a lookup
     // by name alone reports part 1's default while part 2 is on screen. Under the old flip button
@@ -138,7 +149,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                 stretch={stretchX}
                 height={height}
                 spread={existingSpread?.def}
-                onClick={() => setCurrentDate(date)}
+                onClick={editable ? () => setCurrentDate(date) : undefined}
+                evidence={chordNotes.some(note => activeEvidence.has(note['xml:id']))}
                 // `!== undefined`, not truthiness — tick 0 is a real chord, and the first
                 // chord of the piece is exactly the one at it.
                 placement={currentDate !== undefined && date === currentDate ? placement : undefined}
@@ -161,49 +173,54 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                     by a selection the button never displays.
 
                     Split, always mounted, disabled rather than hidden: the state shows in which
-                    button is live, and the readout beside them names the chord.
+                    button is live, and the readout beside them names the chord. In the viewer
+                    neither group is there at all, which is not a state but a different desk.
                 */}
-                <ToolGroup>
-                    <ToolbarButton
-                        primary
-                        icon={<Add />}
-                        label='Insert'
-                        tooltip={currentDate === undefined
-                            ? 'Select a chord in the plot below to spread it'
-                            : 'Insert a temporal spread on the selected chord'}
-                        disabled={currentDate === undefined}
-                        onClick={() => setInsert('chord')}
-                    >
-                        Insert
-                    </ToolbarButton>
-                    <ToolStatus width={88}>
-                        {currentDate === undefined ? 'no chord' : `tick ${currentDate}`}
-                    </ToolStatus>
-                </ToolGroup>
-                <ToolGroup label='Default'>
-                    <ToolbarButton
-                        icon={<Add />}
-                        label='Insert Default'
-                        tooltip={defaultCall
-                            ? 'This part already has a default temporal spread'
-                            : 'Spread every chord in this part that is long enough'}
-                        disabled={defaultCall !== undefined}
-                        onClick={() => setInsert('default')}
-                    >
-                        Insert Default
-                    </ToolbarButton>
-                    <ToolbarButton
-                        icon={<DeleteOutline />}
-                        label='Remove Default'
-                        tooltip={defaultCall
-                            ? 'Remove the default temporal spread from this part'
-                            : 'This part has no default temporal spread'}
-                        disabled={!defaultCall}
-                        onClick={() => { if (defaultCall) removeCall(defaultCall.id) }}
-                    >
-                        Remove Default
-                    </ToolbarButton>
-                </ToolGroup>
+                {editable && (
+                    <>
+                        <ToolGroup>
+                            <ToolbarButton
+                                primary
+                                icon={<Add />}
+                                label='Insert'
+                                tooltip={currentDate === undefined
+                                    ? 'Select a chord in the plot below to spread it'
+                                    : 'Insert a temporal spread on the selected chord'}
+                                disabled={currentDate === undefined}
+                                onClick={() => setInsert('chord')}
+                            >
+                                Insert
+                            </ToolbarButton>
+                            <ToolStatus width={88}>
+                                {currentDate === undefined ? 'no chord' : `tick ${currentDate}`}
+                            </ToolStatus>
+                        </ToolGroup>
+                        <ToolGroup label='Default'>
+                            <ToolbarButton
+                                icon={<Add />}
+                                label='Insert Default'
+                                tooltip={defaultCall
+                                    ? 'This part already has a default temporal spread'
+                                    : 'Spread every chord in this part that is long enough'}
+                                disabled={defaultCall !== undefined}
+                                onClick={() => setInsert('default')}
+                            >
+                                Insert Default
+                            </ToolbarButton>
+                            <ToolbarButton
+                                icon={<DeleteOutline />}
+                                label='Remove Default'
+                                tooltip={defaultCall
+                                    ? 'Remove the default temporal spread from this part'
+                                    : 'This part has no default temporal spread'}
+                                disabled={!defaultCall}
+                                onClick={() => { if (defaultCall) removeCall(defaultCall.id) }}
+                            >
+                                Remove Default
+                            </ToolbarButton>
+                        </ToolGroup>
+                    </>
+                )}
                 {/*
                     `View` and not `Settings`: the beat length reaches `averageBPM` and
                     `<TempoVariance>`, both of which only draw the tempo-curve preview under the
@@ -224,9 +241,11 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                     this desk does — a spread inserted here is inaudible until the Styles desk has
                     given it a definition, and this is where that is said.
                 */}
-                <ToolGroup>
-                    <SilentOrnaments mpm={mpm} scope={part} />
-                </ToolGroup>
+                {editable && (
+                    <ToolGroup>
+                        <SilentOrnaments mpm={mpm} scope={part} />
+                    </ToolGroup>
+                )}
             </DeskToolbar>
 
             <div style={{ position: 'relative', width: '80vw' }}>

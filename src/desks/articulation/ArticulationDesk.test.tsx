@@ -5,6 +5,8 @@ import { convertMeiToMsm } from 'espressivo';
 import { Alignment } from '../../fitting/alignment';
 import { asMSM } from '../../fitting/asMSM';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
@@ -52,7 +54,20 @@ const articulate = (scope: Scope, note: { 'xml:id': string; date: number }): Mpm
     return mpm;
 };
 
-const renderDesk = (part: Scope, mpm: Mpm = createMpm(), score: Alignment = msm) => {
+interface DeskOptions {
+    /** False for the viewer. */
+    editable?: boolean;
+    /** What the last fit reported per call, and which calls are selected. */
+    outcomes?: CallOutcome[];
+    active?: Set<string>;
+}
+
+const renderDesk = (
+    part: Scope,
+    mpm: Mpm = createMpm(),
+    score: Alignment = msm,
+    { editable = true, outcomes = [], active = new Set() }: DeskOptions = {},
+) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
 
@@ -60,45 +75,52 @@ const renderDesk = (part: Scope, mpm: Mpm = createMpm(), score: Alignment = msm)
     // measuring one take against another, and the editor hands the desk the same null.
     const residual = score.unchosenNotes() === 0 ? deriveResidual(score, mpm) : null;
 
+    const addTransformer = vi.fn();
     const { unmount } = render(
-        <ZoomContext
-            value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
-        >
-            <NotesProvider notes={score.allNotes}>
-                <ScrollSyncProvider
-                    symbolicZoom={0.1}
-                    physicalZoom={20}
-                    tickToSeconds={(tick) => tick / 1440}
-                    secondsToTick={(seconds) => seconds * 1440}
-                >
-                    <CallSelectionProvider
-                        calls={[]}
-                        outcomes={[]}
-                        activeCallIds={new Set()}
-                        setActiveCallIds={vi.fn()}
-                        onRemoveCalls={vi.fn()}
-                        focusCall={vi.fn()}
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
+            >
+                <NotesProvider notes={score.allNotes}>
+                    <ScrollSyncProvider
+                        symbolicZoom={0.1}
+                        physicalZoom={20}
+                        tickToSeconds={(tick) => tick / 1440}
+                        secondsToTick={(seconds) => seconds * 1440}
                     >
-                        <DeskToolbarProvider target={bar}>
-                            <ArticulationDesk
-                                part={part}
-                                msm={score}
-                                mpm={mpm}
-                                residual={residual}
-                                projected={[]}
-                                performanceXml=""
-                                secondary={{}}
-                                setSecondary={vi.fn()}
-                                addTransformer={vi.fn()}
-                            />
-                        </DeskToolbarProvider>
-                    </CallSelectionProvider>
-                </ScrollSyncProvider>
-            </NotesProvider>
-        </ZoomContext>,
+                        <CallSelectionProvider
+                            calls={[]}
+                            outcomes={outcomes}
+                            activeCallIds={active}
+                            setActiveCallIds={vi.fn()}
+                            onRemoveCalls={vi.fn()}
+                            focusCall={vi.fn()}
+                        >
+                            <DeskToolbarProvider target={bar}>
+                                <ArticulationDesk
+                                    part={part}
+                                    msm={score}
+                                    mpm={mpm}
+                                    residual={residual}
+                                    performanceXml=""
+                                    secondary={{}}
+                                    setSecondary={vi.fn()}
+                                    addTransformer={addTransformer}
+                                />
+                            </DeskToolbarProvider>
+                        </CallSelectionProvider>
+                    </ScrollSyncProvider>
+                </NotesProvider>
+            </ZoomContext>
+        </EditingContext>,
     );
 
     return {
+        addTransformer,
+        /** The bars drawn with the unit's outline: the notes a unit in progress holds. */
+        inUnit: () => document.querySelectorAll('svg rect[data-date][stroke-width="2"]:not([data-evidence])'),
+        /** The bars marked as what a selected call was fitted to. */
+        evidence: () => document.querySelectorAll('svg rect[data-evidence]'),
         /** One bar per note plotted. */
         bars: () => document.querySelectorAll('svg rect[data-date]'),
         /** The two release ticks each plotted note gets, recorded and notated. */
@@ -202,6 +224,47 @@ describe('what the unit dialog offers', () => {
             absoluteDuration: true,
             absoluteDurationChange: true,
         });
+        desk.dispose();
+    });
+});
+
+describe('in the viewer', () => {
+    it('offers no control that writes, and starts no unit', () => {
+        // The editor first, so the gesture is known to do something where it is allowed to.
+        const editor = renderDesk(0);
+        fireEvent.click(document.querySelector('svg rect[data-date]')!);
+        expect(editor.inUnit()).toHaveLength(1);
+        editor.dispose();
+
+        const viewer = renderDesk(0, createMpm(), msm, { editable: false });
+        expect(screen.queryByRole('button', { name: 'Insert' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Insert Default' })).toBeNull();
+
+        fireEvent.click(document.querySelector('svg rect[data-date]')!);
+        expect(viewer.inUnit()).toHaveLength(0);
+        expect(viewer.addTransformer).not.toHaveBeenCalled();
+        viewer.dispose();
+    });
+});
+
+describe('what a selected articulation was fitted to', () => {
+    it('marks the notes of its unit, and no others', () => {
+        const [first, second] = msm.in(0).notes();
+        const desk = renderDesk(0, createMpm(), msm, {
+            editable: false,
+            outcomes: [
+                {
+                    id: 'unit',
+                    elements: [],
+                    range: { from: first!.date, to: second!.date },
+                    evidence: [first!['xml:id'], second!['xml:id']],
+                },
+            ],
+            active: new Set(['unit']),
+        });
+
+        expect(desk.evidence()).toHaveLength(2);
+        expect(desk.bars().length).toBeGreaterThan(2);
         desk.dispose();
     });
 });

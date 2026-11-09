@@ -16,8 +16,8 @@ import type { AlignedNote, Alignment } from '../fitting/alignment';
 import { exportMPM, type Mpm } from '../fitting/instructions/index';
 import { isCallOf } from '../fitting/calls';
 import type { MakeChoiceOptions } from '../fitting/transformers/choice/MakeChoice';
-import { serializeWorkFile, type Call, type Segment, type WorkFile } from './Work';
-import type { CallOutcome } from './Reconstruction';
+import type { CallOutcome } from '../fitting/fit';
+import { serializeWorkFile, type Call, type WorkFile } from './Work';
 import type { WorkMetadata } from './workReducer';
 import JSZip from 'jszip';
 
@@ -146,7 +146,6 @@ export interface WorkArchiveInput {
     mpm: Mpm;
     scoreMsm: string;
     calls: readonly Call[];
-    segments: readonly Segment[];
     outcomes: readonly CallOutcome[];
     metadata: WorkMetadata;
     secondary?: WorkFile['secondary'];
@@ -161,17 +160,16 @@ export interface WorkArchiveInput {
 }
 
 /**
- * Build the archive the viewer reads.
+ * Build the archive Save writes, and Open reads back.
  *
  *   transcription.mei   the score, with the recording aligned into it
- *   work.json           the chain, what each call wrote, and the segment it wrote it under
+ *   work.json           the chain, and what each call wrote and where
  *   performance.mpm     the MPM this run produced
- *   score.msm           the MEI converted, so the viewer need not convert
+ *   score.msm           the MEI converted, so a reader need not convert
  *   recordings/*.mid    the performances the score was aligned against, where there are any
  *
- * The viewer reads the last three and derives the tree from them. It needs no `segments.json`:
- * every call records its own elements and range, so the projection is a few milliseconds of
- * arithmetic rather than a fourth file that can fall out of step with the first three.
+ * The first four are what welte225.org publishes, unzipped; its landing page reads the MPM and the
+ * score from there.
  *
  * **It does not download.** Handing a blob to the user is a DOM act, the one part of saving that
  * needs a browser and has nothing worth checking. Everything above it can silently write the
@@ -194,7 +192,6 @@ export const buildWorkArchive = async (input: WorkArchiveInput): Promise<Blob> =
         mei: 'transcription.mei',
         mpm: 'performance.mpm',
         provenance: provenanceOf(input.calls, input.outcomes),
-        segments: [...input.segments],
         ...(input.secondary !== undefined && { secondary: input.secondary }),
     };
 

@@ -1,21 +1,13 @@
 /**
  * The espressivo facade: MSM + MPM ⇒ expressive MIDI, in the browser.
  *
- * Pure and synchronous, and called as such: rendering this piece takes ~36 ms, ~53 ms with a
- * spotlight, so playback pays a few frames at the click rather than a worker boundary. It used
- * to run in `espressivo.worker.ts`, back when the same render took ~170 ms.
- *
- * The MEI conversion the backend also served happens at bake time now, in
- * `scripts/deriveSegments.ts`.
+ * Pure and synchronous, and called as such: rendering this piece takes ~36 ms, so playback pays
+ * a few frames at the click rather than a worker boundary. It used to run in
+ * `espressivo.worker.ts`, back when the same render took ~170 ms.
  */
 import { read, type MidiFile } from 'midifile-ts';
 import { addAbsoluteTime, type AbsoluteEvent } from 'react-pianosound';
-import {
-    renderExpressiveMidi,
-    exaggerateMpm,
-    spotlightMpm,
-    weightedFactors,
-} from 'espressivo';
+import { renderExpressiveMidi, exaggerateMpm, weightedFactors } from 'espressivo';
 import { indexNoteIds } from './anchor';
 
 export interface RenderRequest {
@@ -27,10 +19,6 @@ export interface RenderRequest {
     exaggerate?: number;
     /** How loose the rendering is; 1 is neutral. Multiplied with `exaggerate`. */
     sketchiness?: number;
-    /** Instruction ids to bring forward by damping everything else. */
-    mpmIds?: string[];
-    /** With `mpmIds`, how hard to damp the rest. */
-    isolate?: boolean;
 }
 
 /**
@@ -60,8 +48,7 @@ export const EXAGGERATION_MAX = 2.0;
  * slider's travel on the zoom: at `sketchiness` 1.5 the product reaches the ceiling at
  * `exaggerate` 1.27, and the top two thirds of the slider then render identically.
  *
- * `t` is the slider's own normalised travel, the same number `SegmentStack` colours segments by,
- * so the curve and the sound now saturate together.
+ * `t` is the slider's own normalised travel.
  */
 export const effectiveScalar = (exaggerate = 1, sketchiness = 1): number => {
     const floor = Math.min(sketchiness, EXPRESSION_MAX);
@@ -69,48 +56,14 @@ export const effectiveScalar = (exaggerate = 1, sketchiness = 1): number => {
     return floor + t * (EXPRESSION_MAX - floor);
 };
 
-/** How hard non-selected material is damped, with and without `isolate`. */
-const SPOTLIGHT_ATTENUATION = 0.35;
-const ISOLATE_ATTENUATION = 0.05;
-
 /**
  * MSM + MPM ⇒ expressive MIDI. Replaces the backend's `/perform`.
  *
  * The MIDI carries one text meta event per note-on holding the note's `xml:id`, on a grid
  * where one tick is one millisecond — the two properties playback depends on.
  */
-const spotlightKey = (mpm: string, ids: readonly string[], isolate: boolean | undefined) =>
-    `${mpm.length}|${isolate ? 1 : 0}|${ids.join(',')}`;
-
-/**
- * Spotlighting costs ~9 ms and does not depend on the exaggeration scalar, so a segment preview
- * pays for it once however far the slider then travels.
- */
-let spotlightCache: { source: string; key: string; mpm: string } | null = null;
-
-const spotlit = (mpm: string, ids: readonly string[], isolate: boolean | undefined): string => {
-    const key = spotlightKey(mpm, ids, isolate);
-    if (spotlightCache?.source === mpm && spotlightCache.key === key) return spotlightCache.mpm;
-    const result = spotlightMpm(mpm, {
-        ids: [...ids],
-        attenuation: isolate ? ISOLATE_ATTENUATION : SPOTLIGHT_ATTENUATION,
-    }).mpm;
-    spotlightCache = { source: mpm, key, mpm: result };
-    return result;
-};
-
-const renderAtScalar = (
-    msm: string,
-    performanceMpm: string,
-    scalar: number,
-    mpmIds: readonly string[] | undefined,
-    isolate: boolean | undefined,
-): Uint8Array => {
+const renderAtScalar = (msm: string, performanceMpm: string, scalar: number): Uint8Array => {
     let mpm = performanceMpm;
-
-    // Every id a segment names is an instruction espressivo can map onto a dimension;
-    // scripts/verifySegments.ts spotlights each segment against this very MPM to prove it.
-    if (mpmIds?.length) mpm = spotlit(mpm, mpmIds, isolate);
 
     // One scalar, one call. Two `exaggerateMpm` calls would not compose: each scales the level
     // dimensions around a center it computes from the document it is given, so the second
@@ -123,8 +76,8 @@ const renderAtScalar = (
 };
 
 export const renderPerformance = (request: RenderRequest): Uint8Array => {
-    const { msm, mpm, exaggerate, sketchiness, mpmIds, isolate } = request;
-    return renderAtScalar(msm, mpm, effectiveScalar(exaggerate, sketchiness), mpmIds, isolate);
+    const { msm, mpm, exaggerate, sketchiness } = request;
+    return renderAtScalar(msm, mpm, effectiveScalar(exaggerate, sketchiness));
 };
 
 /** A rendering, and everything playback needs to install or splice it. */
@@ -153,19 +106,18 @@ let cacheSource = '';
 const quantize = (scalar: number) => Math.round(scalar * 100) / 100;
 
 export const renderCached = (request: RenderRequest): Rendered => {
-    const { msm, mpm, exaggerate, sketchiness, mpmIds, isolate } = request;
+    const { msm, mpm, exaggerate, sketchiness } = request;
 
     // Keyed on what the render depends on, never on the documents themselves — they are megabytes
     // and they only change when a different work is loaded, which drops the cache wholesale.
     const source = `${msm.length}:${mpm.length}`;
     if (source !== cacheSource) {
         renderCache.clear();
-        spotlightCache = null;
         cacheSource = source;
     }
 
     const scalar = quantize(effectiveScalar(exaggerate, sketchiness));
-    const key = `${scalar}|${isolate ? 1 : 0}|${mpmIds?.join(',') ?? ''}`;
+    const key = String(scalar);
 
     const hit = renderCache.get(key);
     if (hit) {
@@ -175,7 +127,7 @@ export const renderCached = (request: RenderRequest): Rendered => {
         return hit;
     }
 
-    const file = read(renderAtScalar(msm, mpm, scalar, mpmIds, isolate));
+    const file = read(renderAtScalar(msm, mpm, scalar));
     const events = addAbsoluteTime(file);
     const rendered: Rendered = { file, events, noteIds: indexNoteIds(events), scalar };
 

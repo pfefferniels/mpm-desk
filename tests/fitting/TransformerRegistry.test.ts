@@ -156,7 +156,6 @@ describe('TransformerRegistry', () => {
           // index signature, so it takes a fresh object literal to cross that boundary.
           { id: transformer.id, name: transformer.name, options: { ...transformer.options } },
         ],
-        segments: [],
       });
       const { transformers: chain, unknown } = buildChain(parseWorkFile(json).provenance);
 

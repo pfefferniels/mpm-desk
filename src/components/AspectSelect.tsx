@@ -2,6 +2,7 @@ import React, { useState, type ReactElement } from 'react';
 import { Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
 import { ChevronRight, ExpandLess, ExpandMore, InfoOutlined } from '@mui/icons-material';
 import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
+import { useEditable } from '../hooks/Editing';
 
 /**
  * A row, and the wrapper a tooltip on a disabled row needs.
@@ -58,9 +59,12 @@ interface AspectRow {
  *
  * A group is a run of neighbouring entries sharing a `group`, so an entry written away from its
  * group splits it in two on screen; `DeskSwitch.tsx` says as much where the list is written.
+ *
+ * The viewer's menu leaves out the desks that are the editor's alone (`editOnly`).
  */
-const readAspectRows = (): AspectRow[] => {
-    const byAspect = [...Map.groupBy(correspondingDesks, (desk) => desk.aspect)];
+const readAspectRows = (editable: boolean): AspectRow[] => {
+    const desks = editable ? correspondingDesks : correspondingDesks.filter((desk) => !desk.editOnly);
+    const byAspect = [...Map.groupBy(desks, (desk) => desk.aspect)];
     const groupAt = (index: number) => byAspect[index][1][0].group;
 
     return byAspect.map(([aspect, desks], index) => ({
@@ -70,8 +74,9 @@ const readAspectRows = (): AspectRow[] => {
     }));
 };
 
-/** Read once: `correspondingDesks` is a table, and nothing edits it. */
-const aspectRows = readAspectRows();
+/** Read once for each mode: `correspondingDesks` is a table, and nothing edits it. */
+const editorRows = readAspectRows(true);
+const viewerRows = readAspectRows(false);
 
 interface AspectSelectProps {
     selectedDesk: string;
@@ -87,6 +92,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
 }) => {
     const [toExpand, setToExpand] = useState<string>();
     const [collapsed, setCollapsed] = useState(false);
+    const aspectRows = useEditable() ? editorRows : viewerRows;
 
     return (
         <Card
@@ -120,8 +126,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                 minWidth: collapsed ? undefined : '180px',
                 // `ListItemButton.Mui-selected` tints with `alpha(primary.main, …)` rather than
                 // `action.selected`, and against a near-black primary that tint is a hair off
-                // the hover fill. A rule down the left edge says "this one" at a glance, which
-                // is the device `SegmentRow` already uses for the sounding row.
+                // the hover fill. A rule down the left edge says "this one" at a glance.
                 '& .Mui-selected': {
                     bgcolor: 'action.hover',
                     boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.primary.main}`,

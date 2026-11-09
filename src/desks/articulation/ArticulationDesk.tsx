@@ -14,6 +14,8 @@ import { UnitDialog } from "./UnitDialog"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { useCallSelection } from "../../hooks/CallSelection"
+import { useEditable } from "../../hooks/Editing"
+import { EVIDENCE_COLOUR } from "../evidence"
 import { DeskToolbar } from "../../components/DeskToolbar"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
@@ -29,10 +31,12 @@ interface ArticulatedNoteProps extends SVGProps<SVGRectElement> {
     stretchY: number
 
     selected: boolean
+    /** One of the selected calls was fitted to this note — see `../evidence.ts`. */
+    evidence: boolean
     onClick: MouseEventHandler
 }
 
-const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected, ...svgProps }: ArticulatedNoteProps) => {
+const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected, evidence, ...svgProps }: ArticulatedNoteProps) => {
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -82,8 +86,9 @@ const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected
                 ry={2}
                 onMouseOver={handleMouseOver}
                 onMouseOut={handleMouseOut}
-                strokeWidth={selected ? 2 : 0}
-                stroke='black'
+                strokeWidth={selected || evidence ? 2 : 0}
+                stroke={evidence ? EVIDENCE_COLOUR : 'black'}
+                data-evidence={evidence || undefined}
                 {...svgProps}
             />
 
@@ -130,8 +135,19 @@ export type UnitWithDef = {
     def?: ArticulationDef
 }
 
+/**
+ * Where articulations are fitted: each note's recorded span against its notated one, at its pitch.
+ *
+ * A unit is the notes one articulation is fitted to, picked by clicking them; selecting a written
+ * articulation marks the notes of its unit in the evidence colour (`../evidence.ts`).
+ *
+ * In the viewer the desk only reads. No toolbar, since the unit and the default exist to write
+ * one; a click on a note with no articulation starts no unit. A note still sounds on hover, and an
+ * articulated note or an overlay still selects the call that wrote it.
+ */
 export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: ScopedTransformerViewProps<InsertArticulation | MakeDefaultArticulation>) => {
-    const { activeElements, setActiveElement } = useCallSelection();
+    const { activeElements, activeEvidence, setActiveElement } = useCallSelection();
+    const editable = useEditable()
     const [currentUnit, setCurrentUnit] = useState<UnitWithDef>()
     const [unitDialogOpen, setUnitDialogOpen] = useState(false)
 
@@ -179,12 +195,14 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
                     stretchX={stretchX}
                     stretchY={stretchY}
                     selected={currentUnit?.notes.includes(note) || false}
+                    evidence={activeEvidence.has(note['xml:id'])}
                     fill={active ? 'red' : effectiveArtic ? 'orange' : 'gray'}
                     onClick={(e) => {
                         if (effectiveArtic) {
                             if (effectiveArtic.id) setActiveElement(effectiveArtic.id)
                             return
                         }
+                        if (!editable) return
 
                         if ((e.metaKey || e.shiftKey) && currentUnit !== undefined) {
                             if (currentUnit.notes.includes(note)) {
@@ -239,7 +257,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
 
     return (
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll', position: 'relative' }}>
-            <DeskToolbar>
+            {editable && <DeskToolbar>
                 {/*
                     Unlabelled: a group caption is never the desk's own name.
 
@@ -294,7 +312,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
                         Insert Default
                     </ToolbarButton>
                 </ToolGroup>
-            </DeskToolbar>
+            </DeskToolbar>}
 
             <svg width={msm.end * stretchX} height={900}>
                 {overlays}

@@ -20,6 +20,7 @@ import { legendParts, type LegendPart } from './legendParts';
 import { voiceLabel } from './voiceLabel';
 import type { PartLayout, VoiceMove } from '../../fitting/transformers/voices/ProcessVoices';
 import type { WorkVoices } from '../../model/workReducer';
+import { useEditable } from '../../hooks/Editing';
 
 /** What is selected for a move: notes picked in the score, or a voice over a stretch of bars. */
 type Selection =
@@ -38,8 +39,15 @@ type Selection =
  * `setVoices` and never `addTransformer`. A layout is a state, not a sequence of clicks: the part
  * numbers it produces are what every other desk's `scope` names, and they cannot be allowed to
  * drift with the order somebody happened to press things in.
+ *
+ * In the viewer it says what the layout is and nothing more: the score coloured by part, the
+ * parts named and their voices listed, and a part faded in or out as the pointer passes over the
+ * legend. Nothing is picked, moved, combined or renamed, so the bar is empty and the score does
+ * not answer a click. A `ProcessVoices` call is about no place in the score, so there is nothing
+ * of the recording here for a selected call to mark.
  */
 export const VoicesDesk = ({ msm }: ViewProps) => {
+    const editable = useEditable();
     const { mei } = useScoreDocument();
     const { voices: layout, setVoices } = useWorkDocument();
 
@@ -264,7 +272,7 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
      * Escape first and stops the event, so closing the move menu does not also drop the selection
      * it was opened for.
      */
-    useHotkeys('escape', clear, [clear]);
+    useHotkeys('escape', clear, { enabled: editable }, [clear]);
 
     /**
      * How many notes the move would take, or `undefined` while there is nothing to move.
@@ -288,86 +296,88 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
         <>
             <GlobalStyles styles={partStyles(staffSpace() * 0.15)} />
 
-            <DeskToolbar>
-                <ToolGroup label="Select">
-                    <Box
-                        component="select"
-                        aria-label="Source voice"
-                        value={sourceVoice}
-                        onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                            setSourceVoice(event.target.value);
-                        }}
-                        sx={{ height: 30, borderRadius: 1, border: '1px solid #e5e7eb' }}
-                    >
-                        <option value="">Voice…</option>
-                        {voices.map((voice) => (
-                            <option key={voice.key} value={voice.key}>
-                                {voiceLabel(voice)}
-                            </option>
-                        ))}
-                    </Box>
-                    <ToolField label="Bars" type="number" width={64} value={fromBar} onChange={setFromBar} />
-                    <ToolField label="to" type="number" width={64} value={toBar} onChange={setToBar} />
-                    <ToolbarButton
-                        tooltip={
-                            sourceVoice && fromBar && toBar
-                                ? 'Select that voice over those bars'
-                                : 'Pick a voice and a range of bars first'
-                        }
-                        label="Select range"
-                        disabled={!sourceVoice || !fromBar || !toBar}
-                        onClick={selectRange}
-                    >
-                        Select
-                    </ToolbarButton>
-                </ToolGroup>
+            {editable && (
+                <DeskToolbar>
+                    <ToolGroup label="Select">
+                        <Box
+                            component="select"
+                            aria-label="Source voice"
+                            value={sourceVoice}
+                            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                                setSourceVoice(event.target.value);
+                            }}
+                            sx={{ height: 30, borderRadius: 1, border: '1px solid #e5e7eb' }}
+                        >
+                            <option value="">Voice…</option>
+                            {voices.map((voice) => (
+                                <option key={voice.key} value={voice.key}>
+                                    {voiceLabel(voice)}
+                                </option>
+                            ))}
+                        </Box>
+                        <ToolField label="Bars" type="number" width={64} value={fromBar} onChange={setFromBar} />
+                        <ToolField label="to" type="number" width={64} value={toBar} onChange={setToBar} />
+                        <ToolbarButton
+                            tooltip={
+                                sourceVoice && fromBar && toBar
+                                    ? 'Select that voice over those bars'
+                                    : 'Pick a voice and a range of bars first'
+                            }
+                            label="Select range"
+                            disabled={!sourceVoice || !fromBar || !toBar}
+                            onClick={selectRange}
+                        >
+                            Select
+                        </ToolbarButton>
+                    </ToolGroup>
 
-                <ToolGroup label="Edits">
-                    {/* The menu hangs off this box rather than off the button: `ToolbarButton`
-                        wraps its control in a tooltip span and forwards no ref. The width is held
-                        so that a label counting the selection does not push Combine and Clear
-                        sideways every time the selection changes. */}
-                    <Box ref={setMoveButton} sx={{ display: 'inline-flex', minWidth: 148 }}>
-                    <ToolbarButton
-                        primary
-                        tooltip={
-                            pickedVoice
-                                ? 'Move that whole voice into another part'
-                                : selection
-                                  ? 'Move the selected notes into another part'
-                                  : 'Pick a voice in the list, or select notes in the score'
-                        }
-                        label={moveLabel}
-                        disabled={!selection && !pickedVoice}
-                        onClick={() => {
-                            setMoveOpen(true);
-                        }}
-                    >
-                        {moveLabel}
-                    </ToolbarButton>
-                    </Box>
-                    <ToolbarButton
-                        tooltip={
-                            selectedParts.size > 1
-                                ? 'Fold the selected parts into the first of them'
-                                : 'Select two or more parts in the list on the right'
-                        }
-                        label="Combine"
-                        disabled={selectedParts.size < 2}
-                        onClick={combine}
-                    >
-                        Combine
-                    </ToolbarButton>
-                    <ToolbarButton
-                        tooltip={selection ? 'Clear the selection (Esc)' : 'Nothing is selected'}
-                        label="Clear"
-                        disabled={!selection && !pickedVoice && selectedParts.size === 0}
-                        onClick={clear}
-                    >
-                        Clear
-                    </ToolbarButton>
-                </ToolGroup>
-            </DeskToolbar>
+                    <ToolGroup label="Edits">
+                        {/* The menu hangs off this box rather than off the button: `ToolbarButton`
+                            wraps its control in a tooltip span and forwards no ref. The width is held
+                            so that a label counting the selection does not push Combine and Clear
+                            sideways every time the selection changes. */}
+                        <Box ref={setMoveButton} sx={{ display: 'inline-flex', minWidth: 148 }}>
+                        <ToolbarButton
+                            primary
+                            tooltip={
+                                pickedVoice
+                                    ? 'Move that whole voice into another part'
+                                    : selection
+                                      ? 'Move the selected notes into another part'
+                                      : 'Pick a voice in the list, or select notes in the score'
+                            }
+                            label={moveLabel}
+                            disabled={!selection && !pickedVoice}
+                            onClick={() => {
+                                setMoveOpen(true);
+                            }}
+                        >
+                            {moveLabel}
+                        </ToolbarButton>
+                        </Box>
+                        <ToolbarButton
+                            tooltip={
+                                selectedParts.size > 1
+                                    ? 'Fold the selected parts into the first of them'
+                                    : 'Select two or more parts in the list on the right'
+                            }
+                            label="Combine"
+                            disabled={selectedParts.size < 2}
+                            onClick={combine}
+                        >
+                            Combine
+                        </ToolbarButton>
+                        <ToolbarButton
+                            tooltip={selection ? 'Clear the selection (Esc)' : 'Nothing is selected'}
+                            label="Clear"
+                            disabled={!selection && !pickedVoice && selectedParts.size === 0}
+                            onClick={clear}
+                        >
+                            Clear
+                        </ToolbarButton>
+                    </ToolGroup>
+                </DeskToolbar>
+            )}
 
             <Menu
                 open={moveOpen}
@@ -408,7 +418,7 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
 
             <Box sx={{ display: 'flex', height: `calc(100vh - ${String(APP_BAR_HEIGHT)}px - 1rem)` }}>
                 <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#ffffff' }}>
-                    <Score mei={mei} paint={paint} onNoteClick={onNoteClick} />
+                    <Score mei={mei} paint={paint} onNoteClick={editable ? onNoteClick : undefined} />
                 </Box>
                 <PartsLegend
                     parts={parts}
@@ -418,6 +428,7 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                     onSelectVoice={setPickedVoice}
                     onRename={rename}
                     onIsolate={setIsolated}
+                    editable={editable}
                 />
             </Box>
         </>

@@ -20,9 +20,9 @@ import { at } from '../support/at';
  *
  * Two things a combined `work.ts` would pin have no subject here, both deliberately:
  *
- * - **A segment's `elements` filled in from `transformer.created`.** `serializeWorkFile` writes
- *   the `WorkFile` it is handed and derives nothing; what a run produced is projected by
- *   `src/model/Reconstruction.ts` from the outcomes the chain reports.
+ * - **A call's `elements` filled in from `transformer.created`.** `serializeWorkFile` writes
+ *   the `WorkFile` it is handed and derives nothing; what a run produced is folded onto the calls
+ *   by `provenanceOf` in `src/model/exportWork.ts`, from the outcomes the chain reports.
  * - **An import that throws, naming the part of the file it could not read.** `parseWorkFile`
  *   deliberately does not validate: a file naming a transformer this build does not have is a
  *   real case, and reporting it is `buildChain`'s job. The last test below is that check.
@@ -39,11 +39,7 @@ const call = (name: string, options: Record<string, unknown>): Call => ({
 const choice = () => call('MakeChoice', { scope: 'global', prefer: 'take2' });
 const rubato = () => call('InsertRubato', { scope: 'global', date: 0, length: 2880 });
 
-const file = (provenance: Call[], segments: WorkFile['segments'] = []): WorkFile => ({
-  ...work,
-  provenance,
-  segments,
-});
+const file = (provenance: Call[]): WorkFile => ({ ...work, provenance });
 
 describe('the work file', () => {
   test('records every call with the options it ran with', () => {
@@ -56,21 +52,30 @@ describe('the work file', () => {
     expect(read.name).toBe('Träumerei');
   });
 
-  test('carries a segment as it was written, fields this build never heard of and all', () => {
-    // Fields from shapes this build no longer writes — `motivation` and `certainty` were dropped
-    // in the JSON-LD migration, `calls` when the link moved onto the call. A round trip that
-    // quietly tidies them away would edit somebody's file behind their back.
-    const segment = {
-      id: 'segment-1',
-      note: 'Hinspielen auf 1',
-      motivation: 'move' as const,
-      certainty: 'plausible' as const,
-      calls: ['call-InsertRubato'],
-    };
+  /**
+   * A file saved before November 2026 groups its calls under claims: `segments` beside the
+   * provenance, a `segment` on each call. Nothing reads them any more, so they are dropped on the
+   * way in, and the next save writes a file without them. The rest of the call is left alone.
+   */
+  test('drops the claims an older file grouped its calls under', () => {
+    const older = JSON.stringify({
+      ...work,
+      provenance: [
+        { ...choice(), segment: 'segment-1' },
+        { ...rubato(), segment: 'segment-1', elements: ['rubato_0'], range: { from: 0, to: 2880 } },
+      ],
+      segments: [{ id: 'segment-1', note: 'Hinspielen auf 1' }],
+    });
+    const read = parseWorkFile(older);
 
-    expect(parseWorkFile(serializeWorkFile(file([choice(), rubato()], [segment]))).segments).toEqual(
-      [segment],
-    );
+    expect(read).not.toHaveProperty('segments');
+    for (const c of read.provenance) expect(c).not.toHaveProperty('segment');
+    expect(at(read.provenance, 1, 'call')).toEqual({
+      ...rubato(),
+      elements: ['rubato_0'],
+      range: { from: 0, to: 2880 },
+    });
+    expect(serializeWorkFile(read)).not.toContain('segment');
   });
 
   /**
@@ -118,11 +123,7 @@ describe('the work file', () => {
 
 describe('the chain built from it', () => {
   test('comes back as the chain it went out as', () => {
-    const json = serializeWorkFile(
-      file([{ ...choice(), segment: 'segment-1' }, { ...rubato(), segment: 'segment-1' }], [
-        { id: 'segment-1' },
-      ]),
-    );
+    const json = serializeWorkFile(file([choice(), rubato()]));
     const read = parseWorkFile(json);
     const { transformers, unknown } = buildChain(read.provenance);
 
@@ -145,8 +146,6 @@ describe('the chain built from it', () => {
       date: 0,
       length: 2880,
     });
-    // The link survives the round trip on the call, which is where it lives.
-    expect(read.provenance.map((c) => c.segment)).toEqual(['segment-1', 'segment-1']);
   });
 
   test('takes the title and author off the metadata call, and rebuilds it', () => {
@@ -154,14 +153,16 @@ describe('the chain built from it', () => {
       authors: [{ number: 0, text: 'Niels Pfeffer' }],
       comments: [{ text: 'Träumerei' }],
     });
-    const { transformers, title, author } = buildChain([metadata, rubato()]);
+    const { transformers } = buildChain([metadata, rubato()]);
 
-    expect(title).toBe('Träumerei');
-    expect(author).toBe('Niels Pfeffer');
-    // Rebuilt, not reused: the call in the chain is not the one the file described, which is
-    // why it belongs to no segment.
-    expect(transformers.filter((t) => t.name === 'InsertMetadata')).toHaveLength(1);
-    expect(transformers.find((t) => t.name === 'InsertMetadata')?.id).not.toBe(metadata.id);
+    // Rebuilt, not reused: the call in the chain is not the one the file described.
+    const rebuilt = transformers.filter((t) => t.name === 'InsertMetadata');
+    expect(rebuilt).toHaveLength(1);
+    expect(at(rebuilt, 0, 'transformer').id).not.toBe(metadata.id);
+    expect(at(rebuilt, 0, 'transformer').options).toEqual({
+      authors: [{ number: 0, text: 'Niels Pfeffer' }],
+      comments: [{ text: 'Träumerei' }],
+    });
   });
 
   /**
@@ -210,8 +211,8 @@ describe('the chain built from it', () => {
       'InsertMetadata',
       'RoundNumbers',
     ]);
-    // Rebuilt, not reused — the same thing the metadata call proves above, and the reason
-    // neither injected call can carry a segment: it is not in the document at all.
+    // Rebuilt, not reused — the same thing the metadata call proves above: it is not in the
+    // document at all.
     expect(at(transformers, 0, 'transformer').id).not.toBe(`call-${name}`);
     expect(at(transformers, 0, 'transformer').options).toEqual({
       translatePhysicalModifiers: true,

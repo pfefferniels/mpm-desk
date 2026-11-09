@@ -13,6 +13,11 @@ interface PartsLegendProps {
     onSelectVoice: (key: string | undefined) => void;
     onRename: (part: number, name: string) => void;
     onIsolate: (part: number | undefined) => void;
+    /**
+     * False in the viewer: a part's name is text rather than a field, its voices are labels
+     * rather than buttons, and a row is not picked. Hovering one still fades the others.
+     */
+    editable?: boolean;
 }
 
 /**
@@ -30,6 +35,7 @@ export const PartsLegend = ({
     onSelectVoice,
     onRename,
     onIsolate,
+    editable = true,
 }: PartsLegendProps) => (
     <Box
         sx={{
@@ -57,6 +63,7 @@ export const PartsLegend = ({
                 onSelectVoice={onSelectVoice}
                 onRename={onRename}
                 onIsolate={onIsolate}
+                editable={editable}
             />
         ))}
     </Box>
@@ -70,6 +77,7 @@ interface PartRowProps {
     onSelectVoice: (key: string | undefined) => void;
     onRename: (part: number, name: string) => void;
     onIsolate: (part: number | undefined) => void;
+    editable: boolean;
 }
 
 const PartRow = ({
@@ -80,6 +88,7 @@ const PartRow = ({
     onSelectVoice,
     onRename,
     onIsolate,
+    editable,
 }: PartRowProps) => {
     // The field is uncontrolled between commits, so typing does not dispatch. It commits on blur
     // and on Enter, and the reducer answers an unchanged layout by reference — which is what keeps
@@ -97,16 +106,20 @@ const PartRow = ({
             onMouseEnter={() => {
                 onIsolate(part.number);
             }}
-            onClick={(event) => {
-                onSelect(part.number, event.metaKey || event.ctrlKey);
-            }}
+            onClick={
+                editable
+                    ? (event) => {
+                          onSelect(part.number, event.metaKey || event.ctrlKey);
+                      }
+                    : undefined
+            }
             sx={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
                 px: 1.5,
                 py: 0.75,
-                cursor: 'pointer',
+                cursor: editable ? 'pointer' : 'default',
                 bgcolor: selected ? '#f3f4f6' : 'transparent',
                 boxShadow: selected ? 'inset 3px 0 0 #111827' : 'none',
                 '&:hover': { bgcolor: '#f3f4f6' },
@@ -122,23 +135,29 @@ const PartRow = ({
                 }}
             />
             <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                <InputBase
-                    value={value}
-                    placeholder={`Part ${String(part.number)}`}
-                    onChange={(event) => {
-                        setDraft(event.target.value);
-                    }}
-                    onBlur={commit}
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter') event.currentTarget.blur();
-                        if (event.key === 'Escape') setDraft(null);
-                    }}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                    }}
-                    inputProps={{ 'aria-label': `Name of part ${String(part.number)}` }}
-                    sx={{ fontSize: '0.875rem', width: '100%' }}
-                />
+                {editable ? (
+                    <InputBase
+                        value={value}
+                        placeholder={`Part ${String(part.number)}`}
+                        onChange={(event) => {
+                            setDraft(event.target.value);
+                        }}
+                        onBlur={commit}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') event.currentTarget.blur();
+                            if (event.key === 'Escape') setDraft(null);
+                        }}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                        }}
+                        inputProps={{ 'aria-label': `Name of part ${String(part.number)}` }}
+                        sx={{ fontSize: '0.875rem', width: '100%' }}
+                    />
+                ) : (
+                    <Typography sx={{ fontSize: '0.875rem' }} noWrap>
+                        {part.name || `Part ${String(part.number)}`}
+                    </Typography>
+                )}
                 {/* The voices, each one selectable on its own — which is how a part is taken
                     apart. Combine only ever folds parts together, so without this the melody of a
                     two-staff score could never be separated from the accompaniment under it. */}
@@ -148,7 +167,23 @@ const PartRow = ({
                             no voice
                         </Typography>
                     )}
-                    {part.voices.map((voice) => (
+                    {!editable && part.voices.map((voice) => (
+                        <Typography
+                            key={voice.key}
+                            variant="caption"
+                            sx={{
+                                fontSize: '0.72rem',
+                                px: 0.6,
+                                py: 0.1,
+                                borderRadius: '3px',
+                                border: '1px solid #e5e7eb',
+                                color: 'text.secondary',
+                            }}
+                        >
+                            {voiceLabel(voice)}
+                        </Typography>
+                    ))}
+                    {editable && part.voices.map((voice) => (
                         <Box
                             key={voice.key}
                             component="button"

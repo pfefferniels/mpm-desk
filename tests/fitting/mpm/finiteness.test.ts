@@ -87,8 +87,8 @@ describe('a non-finite number never survives a transformer', () => {
 
   test('an instruction with no xml:id is refused for the same reason', () => {
     // Not about finiteness, but the same sweep and the same moment: one without an id
-    // cannot be named in a work file's segment `elements`, so the call that wrote it goes
-    // unattributed and the bake silently drops its span.
+    // cannot be named in a call's `elements`, so the call that wrote it goes unattributed and
+    // the editor cannot select it from the plot.
     expect(() => run(new WritesTempo(60), createMpm())).toThrow(/no xml:id/);
   });
 });

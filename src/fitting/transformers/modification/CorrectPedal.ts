@@ -1,7 +1,7 @@
 import { v4 } from 'uuid';
 import { Alignment, redrawPress, type AlignedPedal } from '../../alignment';
 import { isPressTravel, returnToRest, type Travel } from '../../../performance/pedalTravel';
-import { AbstractTransformer, type TransformationOptions } from '../Transformer';
+import { AbstractTransformer, idsOf, type TransformationOptions } from '../Transformer';
 import type { Residual } from '../../residual';
 import { type Range, rangeOfPress } from '../range';
 
@@ -72,6 +72,11 @@ export class CorrectPedal extends AbstractTransformer<CorrectPedalOptions> {
   /** The press it is about, as the residual places it. */
   range(msm: Alignment, residual?: Residual): Range | undefined {
     return rangeOfPress(this.options.pedal, msm, residual);
+  }
+
+  /** The press it corrects, as the chain left it; nothing for one it removed. */
+  override evidence(msm: Alignment): string[] {
+    return idsOf(msm.pedals.filter((pedal) => pedal['xml:id'] === this.options.pedal));
   }
 
   protected transform(msm: Alignment): void {

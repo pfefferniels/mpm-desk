@@ -17,6 +17,8 @@ import { asMIDI } from "../../utils/utils"
 import { useCallSelection } from "../../hooks/CallSelection"
 import { isCallOf } from "../../fitting/calls"
 import { SilentOrnaments } from "../SilentOrnaments"
+import { useEditable } from "../../hooks/Editing"
+import { EVIDENCE_COLOUR } from "../evidence"
 
 const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
     return (
@@ -53,8 +55,11 @@ const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
 
 type RawGradientProps = {
     notes: AlignedNote[]
-    /** The velocity the user put the chord's standard at, off either handle. */
-    onChoose: (standard: number) => void
+    /**
+     * The velocity the user put the chord's standard at, off either handle. Absent in the viewer,
+     * which offers no handle: the chord is heard as the pointer passes and nothing more.
+     */
+    onChoose?: (standard: number) => void
     getY: (velocity: number) => number
 }
 
@@ -83,7 +88,7 @@ const RawGradient =({ notes, onChoose, getY }: RawGradientProps) => {
     // the `<dynamicsGradient>` is the transformer's to say, see `gradientThrough`.
     const choose = (e: MouseEvent) => {
         const standard = velocityAt(e.clientY)
-        if (standard !== undefined) onChoose(standard)
+        if (standard !== undefined) onChoose?.(standard)
     }
 
     return (
@@ -99,7 +104,7 @@ const RawGradient =({ notes, onChoose, getY }: RawGradientProps) => {
                     play(midi);
                 }
             }}
-            onMouseMove={(e) => setHovered(velocityAt(e.clientY))}
+            onMouseMove={onChoose && ((e) => setHovered(velocityAt(e.clientY)))}
             onMouseLeave={() => setHovered(undefined)}
         >
             <rect
@@ -119,7 +124,7 @@ const RawGradient =({ notes, onChoose, getY }: RawGradientProps) => {
                 strokeWidth={2}
                 onClick={choose}
             />
-            {hovered !== undefined && (
+            {onChoose && hovered !== undefined && (
                 <circle
                     cx={softest.onset * stretchX}
                     cy={getY(hovered)}
@@ -147,6 +152,40 @@ const getDynamicsExtremes = (notes: AlignedNote[]) => {
     };
 };
 
+
+/**
+ * The notes of the chords the selected calls were fitted to, one dot each at the velocity it
+ * sounded at — see `../evidence.ts`. Over the hull and the ramps, and taking no pointer, so a
+ * marked chord can still be heard and its gradient still selected.
+ */
+const Evidence = ({ chords, evidence, getY }: {
+    chords: Iterable<AlignedNote[]>
+    evidence: ReadonlySet<string>
+    getY: (velocity: number) => number
+}) => {
+    const stretchX = usePhysicalZoom()
+    if (evidence.size === 0) return null
+
+    return [...chords]
+        .filter(notes => notes.some(note => evidence.has(note['xml:id'])))
+        .map(notes => (
+            // The date is carried by `data-evidence` itself rather than by `data-date`, which
+            // names the chords the handles are on.
+            <g key={`evidence_${notes[0].date}`} data-evidence={notes[0].date} pointerEvents='none'>
+                {notes.map(note => (
+                    <circle
+                        key={`evidence_note_${note['xml:id']}`}
+                        cx={onsetSeconds(note) * stretchX}
+                        cy={getY(note.velocity)}
+                        r={3.5}
+                        fill={EVIDENCE_COLOUR}
+                        stroke='white'
+                        strokeWidth={1}
+                    />
+                ))}
+            </g>
+        ))
+}
 
 const Hull =({ scoped, getY }: { scoped: ScopedScore, getY: (velocity: number) => void }) => {
     const stretchX = usePhysicalZoom()
@@ -235,12 +274,21 @@ const GradientInstruction = ({ notes, ornament, getY, active, onClick }: Gradien
     )
 }
 
+/**
+ * How loud each note of a rolled chord was against the others, with the ramps written for them.
+ *
+ * In the viewer the plot is only read: a chord sounds as the pointer passes, a written ramp
+ * selects the call that wrote it, and the notes of the chord that call was fitted to are marked.
+ * The handles a ramp is chosen with and the whole bar — the defaults, the sorting the next call
+ * would be written with, the count of ramps still waiting for a style — are the editor's.
+ */
 export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertDynamicsGradient>) => {
+    const editable = useEditable()
     const [sortVelocities, setSortVelocities] = useState(true)
     const stretchX = usePhysicalZoom()
     // The axis spans the whole recording, so the plot keeps its width across the picker.
     const physicalEnd = Math.max(...msm.allNotes.map(releaseSeconds))
-    const { calls, activeElements, setActiveElement, removeCall } = useCallSelection()
+    const { calls, activeElements, activeEvidence, setActiveElement, removeCall } = useCallSelection()
 
     const scoped = msm.in(part)
 
@@ -308,64 +356,66 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
 
     return (
         <div>
-            <DeskToolbar>
-                {/*
-                    `Default` is the first group and still carries its caption, which is the one
-                    place in the bar where that is right rather than an oversight. Every other desk
-                    leads with an unlabelled group holding the action it exists to perform; this
-                    desk's per-chord gradients are committed by dragging on the plot below —
-                    `transform(date, chord, standard)`, off `RawGradient`'s own handles — and
-                    never from the bar. So there is no unlabelled group to lead with, and the caption is what
-                    says that the two buttons under it are about the *default* rather than about
-                    the chord the user was just dragging.
+            {editable && (
+                <DeskToolbar>
+                    {/*
+                        `Default` is the first group and still carries its caption, which is the one
+                        place in the bar where that is right rather than an oversight. Every other desk
+                        leads with an unlabelled group holding the action it exists to perform; this
+                        desk's per-chord gradients are committed by dragging on the plot below —
+                        `transform(date, chord, standard)`, off `RawGradient`'s own handles — and
+                        never from the bar. So there is no unlabelled group to lead with, and the caption is what
+                        says that the two buttons under it are about the *default* rather than about
+                        the chord the user was just dragging.
 
-                    The two of them were one button that flipped between `Insert Default` and
-                    `Remove Default`; see the note in `TemporalSpreadDesk` for why that is now two.
-                */}
-                <ToolGroup label='Default'>
-                    <ToolbarButton
-                        primary
-                        icon={<Add />}
-                        label='Insert Default'
-                        tooltip={defaultCall
-                            ? 'This part already has a default dynamics gradient'
-                            : 'Ramp every arpeggio in this part, up or down with its direction'}
-                        disabled={defaultCall !== undefined}
-                        onClick={transformDefault}
-                    >
-                        Insert Default
-                    </ToolbarButton>
-                    <ToolbarButton
-                        icon={<DeleteOutline />}
-                        label='Remove Default'
-                        tooltip={defaultCall
-                            ? 'Remove the default dynamics gradient from this part'
-                            : 'This part has no default dynamics gradient'}
-                        disabled={!defaultCall}
-                        onClick={() => { if (defaultCall) removeCall(defaultCall.id) }}
-                    >
-                        Remove Default
-                    </ToolbarButton>
-                </ToolGroup>
-                {/*
-                    `Settings` and not `View`: both `transform` and `transformDefault` pass
-                    `sortVelocities` into the call they write, so this changes the performance and
-                    not the drawing of it.
-                */}
-                <ToolGroup label='Settings'>
-                    <ToolCheckbox
-                        checked={sortVelocities}
-                        onChange={setSortVelocities}
-                        label='Sort Velocities'
-                        tooltip='Order the notes of each chord by velocity, so the ramp runs monotonically'
-                    />
-                </ToolGroup>
-                {/* A ramp drawn here is inaudible until the Styles desk has made a definition of
-                    it; see `SilentOrnaments`. */}
-                <ToolGroup>
-                    <SilentOrnaments mpm={mpm} scope={part} />
-                </ToolGroup>
-            </DeskToolbar>
+                        The two of them were one button that flipped between `Insert Default` and
+                        `Remove Default`; see the note in `TemporalSpreadDesk` for why that is now two.
+                    */}
+                    <ToolGroup label='Default'>
+                        <ToolbarButton
+                            primary
+                            icon={<Add />}
+                            label='Insert Default'
+                            tooltip={defaultCall
+                                ? 'This part already has a default dynamics gradient'
+                                : 'Ramp every arpeggio in this part, up or down with its direction'}
+                            disabled={defaultCall !== undefined}
+                            onClick={transformDefault}
+                        >
+                            Insert Default
+                        </ToolbarButton>
+                        <ToolbarButton
+                            icon={<DeleteOutline />}
+                            label='Remove Default'
+                            tooltip={defaultCall
+                                ? 'Remove the default dynamics gradient from this part'
+                                : 'This part has no default dynamics gradient'}
+                            disabled={!defaultCall}
+                            onClick={() => { if (defaultCall) removeCall(defaultCall.id) }}
+                        >
+                            Remove Default
+                        </ToolbarButton>
+                    </ToolGroup>
+                    {/*
+                        `Settings` and not `View`: both `transform` and `transformDefault` pass
+                        `sortVelocities` into the call they write, so this changes the performance and
+                        not the drawing of it.
+                    */}
+                    <ToolGroup label='Settings'>
+                        <ToolCheckbox
+                            checked={sortVelocities}
+                            onChange={setSortVelocities}
+                            label='Sort Velocities'
+                            tooltip='Order the notes of each chord by velocity, so the ramp runs monotonically'
+                        />
+                    </ToolGroup>
+                    {/* A ramp drawn here is inaudible until the Styles desk has made a definition of
+                        it; see `SilentOrnaments`. */}
+                    <ToolGroup>
+                        <SilentOrnaments mpm={mpm} scope={part} />
+                    </ToolGroup>
+                </DeskToolbar>
+            )}
 
             <div style={{ overflow: 'scroll', position: 'relative', paddingBottom: 320 }}>
                 <svg height={height} width={100} style={{ position: 'absolute', top: 0, left: 0 }}>
@@ -417,12 +467,13 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
                                         <RawGradient
                                             key={`gradient_${date}`}
                                             notes={notes}
-                                            onChoose={(standard) => transform(date, notes, standard)}
+                                            onChoose={editable ? (standard) => transform(date, notes, standard) : undefined}
                                             getY={getY}
                                         />
                                     )
                                 }
                             })}
+                        <Evidence chords={scoped.chords().values()} evidence={activeEvidence} getY={getY} />
                     </svg>
                 </div>
             </div>
