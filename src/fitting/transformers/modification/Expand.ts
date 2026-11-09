@@ -1,5 +1,5 @@
 import type { Alignment, AlignedNote, AlignedPedal } from '../../alignment';
-import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
+import { AbstractTransformer, idsOf, type ScopedTransformationOptions } from '../Transformer';
 import { type Range, rangeOfNotes } from '../range';
 import { expansion, type ExpansionPoint } from '../../expansion';
 import { displace, restretch, restretchPress, type ModifySelector } from './Modify';
@@ -91,6 +91,12 @@ export class Expand extends AbstractTransformer<ExpandOptions> {
       return { from: options.from, to: options.to };
     if ('noteIDs' in options && options.noteIDs) return rangeOfNotes(options.noteIDs, msm);
     return undefined;
+  }
+
+  /** What it maps, which is what the map was read off. */
+  override evidence(msm: Alignment): string[] {
+    const { notes, pedals } = this.events(msm);
+    return idsOf([...notes, ...pedals]);
   }
 
   /** The notes and the pedals the call is about. */

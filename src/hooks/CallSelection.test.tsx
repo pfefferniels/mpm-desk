@@ -12,14 +12,14 @@ import { CallSelectionProvider, useCallSelection } from './CallSelection';
 import type { CallOutcome } from '../fitting/fit';
 
 const outcomes: CallOutcome[] = [
-    { id: 'first curve', elements: ['dynamics_0', 'dynamics_1440'], range: { from: 0, to: 1440 } },
-    { id: 'second curve', elements: ['dynamics_1440', 'dynamics_2880'], range: { from: 1440, to: 2880 } },
-    { id: 'tempo as drawn', elements: ['tempo_0'], range: { from: 0, to: 2880 } },
-    { id: 'tempo redrawn', elements: ['tempo_0'], range: { from: 0, to: 2880 } },
-    { id: 'spread 720', elements: ['ornament_720'], range: { from: 720, to: null } },
-    { id: 'spread 1440', elements: ['ornament_1440'], range: { from: 1440, to: null } },
+    { id: 'first curve', elements: ['dynamics_0', 'dynamics_1440'], range: { from: 0, to: 1440 }, evidence: ['n0', 'n720', 'n1440'] },
+    { id: 'second curve', elements: ['dynamics_1440', 'dynamics_2880'], range: { from: 1440, to: 2880 }, evidence: ['n1440', 'n2160', 'n2880'] },
+    { id: 'tempo as drawn', elements: ['tempo_0'], range: { from: 0, to: 2880 }, evidence: [] },
+    { id: 'tempo redrawn', elements: ['tempo_0'], range: { from: 0, to: 2880 }, evidence: [] },
+    { id: 'spread 720', elements: ['ornament_720'], range: { from: 720, to: null }, evidence: [] },
+    { id: 'spread 1440', elements: ['ornament_1440'], range: { from: 1440, to: null }, evidence: [] },
     // Leads with the first ornament, as a pass does, and lists one no placed call reports.
-    { id: 'style pass', elements: ['ornament_720', 'ornament_1440', 'ornament_2160'], range: null },
+    { id: 'style pass', elements: ['ornament_720', 'ornament_1440', 'ornament_2160'], range: null, evidence: [] },
 ];
 
 /** The provider as the editor mounts it, with the selection held as state. */
@@ -91,5 +91,28 @@ describe('what a selected call lights', () => {
         });
         expect(result.current.activeCallIds).toEqual(new Set(['second curve']));
         expect(result.current.activeElements).toEqual(['dynamics_1440', 'dynamics_2880']);
+    });
+});
+
+describe('what a selected call was fitted to', () => {
+    it('is nothing while nothing is selected', () => {
+        const { result } = mount();
+        expect([...result.current.activeEvidence]).toEqual([]);
+    });
+
+    it('is the observations its run reported', () => {
+        const { result } = mount(new Set(['first curve']));
+        expect([...result.current.activeEvidence].sort()).toEqual(['n0', 'n1440', 'n720']);
+    });
+
+    it('is every selected call’s, once each, so a shared chord is marked once', () => {
+        const { result } = mount(new Set(['first curve', 'second curve']));
+        expect([...result.current.activeEvidence].sort()).toEqual([
+            'n0',
+            'n1440',
+            'n2160',
+            'n2880',
+            'n720',
+        ]);
     });
 });

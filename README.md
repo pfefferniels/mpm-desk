@@ -1,10 +1,10 @@
 # MPM Desk
 
 An editor for reconstructing a recorded performance as
-[Music Performance Markup (MPM)](https://github.com/axelberndt/MPM). It puts a recording note
-against note with its score and fits what the two differ by as MPM instructions. Reading the
-result is the business of the landing page of [welte225.org](https://welte225.org/), which loads
-the published reconstruction itself.
+[Music Performance Markup (MPM)](https://github.com/axelberndt/MPM), and a viewer for reading the
+result against the recording. The editor puts a recording note against note with its score and
+fits what the two differ by as MPM instructions; the viewer shows the same plots with editing
+taken away, so that each curve can be read against the observations it was fitted to.
 
 ## Setup
 
@@ -35,16 +35,25 @@ record of what it used.
 | `npm run knip` | Unused files, exports and dependencies |
 | `npm run verovio:build` | Rebuild the vendored toolkit from the fork |
 
-## The editor
+## Routes
 
-The editor opens at every path; `/editor`, where it used to live, still works. `/#<call id>`, or
-an unambiguous prefix of at least eight characters, selects that call once a project is open.
+`/` is the viewer. It fetches the reconstruction of WM 225 from
+[welte225.org](https://welte225.org/), which holds the only copy, runs the chain over it in the
+browser, and opens the editor's desks without the gestures that edit: no drawing, no inserting, no
+undo, no saving. Selecting a curve, a frame, a pattern or a press lights the instructions its call
+wrote and, in blue, the notes or presses it was fitted to (`Transformer.evidence`).
 
-The alignment desk says which sounded event realises which written note; the others plot what the
-recording did in one dimension (tempo, rubato, dynamics, accentuation, articulation, arpeggiation,
-pedalling) and turn a gesture on that plot into a transformer call. Furthermore there are desks
-for the document itself (title and author, which MEI voice goes into which part) and the markup
-desk, which shows the MPM as text.
+`/#<call id>`, or an unambiguous prefix of it at least eight characters long, opens the desk that
+made the call, on the call's scope, with the call selected and scrolled to. The viewer keeps the
+address in step with the call selected, so the URL on screen cites what is on screen; that is
+where a call's identifier `https://welte225.org/mpm/<id>` sends a visitor.
+
+`/editor` is the editor. The alignment desk says which sounded event realises which written note;
+the others plot what the recording did in one dimension (tempo, rubato, dynamics, accentuation,
+articulation, arpeggiation, pedalling) and turn a gesture on that plot into a transformer call.
+Furthermore there are desks for the document itself (title and author, which MEI voice goes into
+which part) and the markup desk, which shows the MPM as text. The same `#<call id>` opens a call
+once a project is open.
 
 ## Export
 

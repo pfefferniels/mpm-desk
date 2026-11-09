@@ -55,13 +55,53 @@ import {
     partNamesOf,
     workHistoryReducer,
     type Secondary,
+    type WorkHistoryAction,
 } from './model/workReducer';
 import { buildWorkArchive } from './model/exportWork';
-import { parseWorkFile, sourcesOf, type WorkFile } from './model/Work';
+import { parseWorkFile, sourcesOf, type Call, type WorkFile } from './model/Work';
+import { callAddress, callAt } from './model/callAddress';
+import { publishedUrl } from './model/published';
+import { EditingContext } from './hooks/Editing';
+import { ViewerAddress } from './components/ViewerAddress';
+import { RevealCall } from './components/RevealCall';
 import { documentSlug, downloadAsFile } from './utils/utils';
 
 /**
- * The editor.
+ * The desk a call was made on, by the name the registry selects it under — or none, where no desk
+ * makes that call, or the one that does is the editor's alone and this is the viewer.
+ */
+const deskOf = (call: Call, editable: boolean): string | undefined => {
+    const name = TRANSFORMER_ALIASES.get(call.name) ?? call.name;
+    const entry = correspondingDesks.find(
+        ({ transformerName, editOnly }) => transformerName === name && (editable || !editOnly),
+    );
+    return entry && (entry.displayName ?? entry.aspect);
+};
+
+/** Where the viewer opens, and goes back to: the desk most of the reconstruction was made on. */
+const VIEWER_DESK = 'tempo';
+
+/** Every edit refused: what the viewer's document is dispatched through. Opening one is not an edit. */
+const opensOnly =
+    (dispatch: (action: WorkHistoryAction) => void) =>
+    (action: WorkHistoryAction): void => {
+        if (action.type === 'load') dispatch(action);
+    };
+
+interface AppProps {
+    /**
+     * `edit` for the editor at `/editor`, `view` for the viewer at every other path.
+     *
+     * One component for both, because the viewer is the editor's desks with editing taken away
+     * — see `hooks/Editing.tsx`. What differs is here: the viewer opens the published
+     * reconstruction itself rather than asking for a file, offers no desk that is the editor's
+     * alone, and refuses every edit to the document.
+     */
+    mode?: 'edit' | 'view';
+}
+
+/**
+ * The editor, and the viewer.
  *
  * Each desk plots what the recording did in one dimension and turns a gesture on that plot into a
  * transformer call. Below them sits the chain in `src/fitting/`, which runs in a worker over a
@@ -71,7 +111,9 @@ import { documentSlug, downloadAsFile } from './utils/utils';
  * Every desk reaches it through `useWorkDocument`, so the aspect registry has no exceptions
  * rendered by name out of a branch here.
  */
-export const App = () => {
+export const App = ({ mode = 'edit' }: AppProps) => {
+    const editable = mode === 'edit';
+
     // Named `workHistory`, not `history`: the global of that name is what `pushState` below is
     // reached through, and shadowing it here made an undo stack look like a browser one.
     const [workHistory, dispatch] = useReducer(workHistoryReducer, undefined, () =>
@@ -79,12 +121,23 @@ export const App = () => {
     );
     const work = workHistory.present;
 
+    /**
+     * What the document is edited through: `dispatch` in the editor, and in the viewer a dispatch
+     * that refuses everything but opening. Every gesture a desk withholds in the viewer is also
+     * refused here, so one it forgot to withhold edits nothing.
+     */
+    const edit = useMemo(() => (editable ? dispatch : opensOnly(dispatch)), [editable]);
+
     const [pristine, setPristine] = useState<Alignment | null>(null);
     const [mei, setMEI] = useState<string>();
     const [performances, setPerformances] = useState<readonly Performance[]>([]);
     const [message, setMessage] = useState<string>();
 
-    const [selectedDesk, setSelectedDesk] = useState<string>('metadata');
+    const [selectedDesk, setSelectedDesk] = useState<string>(editable ? 'metadata' : VIEWER_DESK);
+    /** Why the viewer has nothing to show, where fetching the published reconstruction failed. */
+    const [loadError, setLoadError] = useState<string>();
+    /** The call last opened, for the desk to scroll to — see `RevealCall`. */
+    const [opened, setOpened] = useState<{ id: string } | null>(null);
     const [scope, setScope] = useState<'global' | number>('global');
     const [activeCallIds, setActiveCallIds] = useState<Set<string>>(new Set());
     const [stretchX, setStretchX] = useState<number>(20);
@@ -200,30 +253,82 @@ export const App = () => {
             // A score with no recording aligned into it has nothing for any other desk to draw:
             // every one of them plots what the performance did, and there is no performance yet.
             // So it opens where the work actually starts.
-            if (!content.includes('<when')) setSelectedDesk('alignment');
+            if (editable && !content.includes('<when')) setSelectedDesk('alignment');
         },
-        [readMei],
+        [readMei, editable],
     );
 
-    const loadWorkFromJson = useCallback((content: string) => {
-        try {
-            const loaded = parseWorkFile(content);
-            dispatch({ type: 'load', work: loaded });
-            setSavedWork(loaded);
+    /**
+     * Open the desk a call was made on, put its scope on the picker, and select it. Where no desk
+     * makes it, it is still selected: the markup desk, or whichever is open, shows what it wrote.
+     */
+    const openCall = useCallback(
+        (call: Call) => {
+            const desk = deskOf(call, editable);
+            if (desk) setSelectedDesk(desk);
+            const { scope } = call.options;
+            if (isScope(scope)) setScope(scope);
+            setActiveCallIds(new Set([call.id]));
+            setOpened({ id: call.id });
+        },
+        [editable],
+    );
 
-            // A link into a call selects it, and this is the moment that can be decided: the
-            // document is in hand and the URL has not moved.
-            const hash = window.location.hash.slice(1);
-            const match = hash
-                ? loaded.provenance.find((call) => call.id.startsWith(hash))
-                : undefined;
-            if (match) setActiveCallIds(new Set([match.id]));
+    const loadWorkFromJson = useCallback(
+        (content: string) => {
+            try {
+                const loaded = parseWorkFile(content);
+                dispatch({ type: 'load', work: loaded });
+                setSavedWork(loaded);
 
-            setMessage(undefined);
-        } catch (reason) {
-            setMessage(reason instanceof Error ? reason.message : String(reason));
-        }
-    }, []);
+                // A link into a call opens it, and this is the moment that can be decided: the
+                // document is in hand and the URL has not moved.
+                const match = callAt(window.location.hash.slice(1), loaded.provenance);
+                if (match) openCall(match);
+
+                setMessage(undefined);
+            } catch (reason) {
+                setMessage(reason instanceof Error ? reason.message : String(reason));
+            }
+        },
+        [openCall],
+    );
+
+    /**
+     * The viewer's document: the reconstruction as welte225.org publishes it, which is the only
+     * copy. The MEI and the chain are all a run needs, as they are all opening an archive reads;
+     * the published MPM and score are what the chain makes of them, and are made again here.
+     */
+    useEffect(() => {
+        if (editable) return;
+        let cancelled = false;
+
+        const text = async (url: string) => {
+            const response = await fetch(url);
+            if (!response.ok)
+                throw new Error(`${url}: ${String(response.status)} ${response.statusText}`);
+            return response.text();
+        };
+
+        Promise.all([text(publishedUrl('mei')), text(publishedUrl('work'))])
+            .then(([meiText, workText]) => {
+                if (cancelled) return;
+                loadMei(meiText);
+                loadWorkFromJson(workText);
+            })
+            .catch((reason: unknown) => {
+                if (cancelled) return;
+                setLoadError(
+                    `The reconstruction could not be fetched from welte225.org. ${
+                        reason instanceof Error ? reason.message : String(reason)
+                    }`,
+                );
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [editable, loadMei, loadWorkFromJson]);
 
     const handleOpenMei = useCallback(
         async (file: File) => {
@@ -345,20 +450,23 @@ export const App = () => {
             name: transformer.name,
             options: transformer.options as Record<string, unknown>,
         };
-        dispatch({ type: 'add-call', call });
-        setActiveCallIds(new Set([call.id]));
-    }, []);
+        edit({ type: 'add-call', call });
+        if (editable) setActiveCallIds(new Set([call.id]));
+    }, [edit, editable]);
 
-    const removeCalls = useCallback((ids: readonly string[]) => {
-        dispatch({ type: 'remove-calls', ids });
-    }, []);
+    const removeCalls = useCallback(
+        (ids: readonly string[]) => {
+            edit({ type: 'remove-calls', ids });
+        },
+        [edit],
+    );
 
     const setSecondary = useCallback<React.Dispatch<React.SetStateAction<SecondaryData>>>(
         (update) => {
             // The bag is `Record<string, unknown>` to the document and typed per desk to the
             // desks — deliberately both, because `Work.ts` says nothing outside a desk may
             // depend on its shape. This is that boundary, and the only place it is crossed.
-            dispatch({
+            edit({
                 type: 'set-secondary',
                 update:
                     typeof update === 'function'
@@ -366,7 +474,7 @@ export const App = () => {
                         : (update as Secondary),
             });
         },
-        [],
+        [edit],
     );
 
     /**
@@ -468,25 +576,20 @@ export const App = () => {
     /** Switch to the desk that made a call, put the scope on it, and name it in the hash. */
     const focusCall = useCallback(
         (id: string) => {
-            const call = callsRef.current.find((entry) => entry.id === id);
+            const calls = callsRef.current;
+            const call = calls.find((entry) => entry.id === id);
             if (!call) return;
 
-            const name = TRANSFORMER_ALIASES.get(call.name) ?? call.name;
-            const entry = correspondingDesks.find(
-                ({ transformerName }) => transformerName === name,
+            openCall(call);
+
+            const address = callAddress(
+                call.id,
+                calls.map((entry) => entry.id),
             );
-            if (entry) setSelectedDesk(entry.displayName ?? entry.aspect);
-
-            const { scope } = call.options;
-            if (isScope(scope)) setScope(scope);
-
-            const prefix = call.id.slice(0, 8);
-            if (window.location.hash.slice(1) !== prefix)
-                window.history.pushState(null, '', '#' + prefix);
-
-            setActiveCallIds(new Set([id]));
+            if (window.location.hash.slice(1) !== address)
+                window.history.pushState(null, '', '#' + address);
         },
-        [callsRef],
+        [callsRef, openCall],
     );
 
     const onHashChange = useEffectEvent(() => {
@@ -506,8 +609,8 @@ export const App = () => {
             const [only] = activeCallIds;
             if (only.startsWith(hash)) return;
         }
-        const match = work.provenance.find((call) => call.id.startsWith(hash));
-        if (match) setActiveCallIds(new Set([match.id]));
+        const match = callAt(hash, work.provenance);
+        if (match) openCall(match);
     });
 
     useEffect(() => {
@@ -594,6 +697,7 @@ export const App = () => {
     );
 
     if (!mei) {
+        if (!editable) return <LoadingScreen message={loadError} />;
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
     }
     // No `residual` here. A document whose readings still stand side by side has none — and it is
@@ -625,9 +729,11 @@ export const App = () => {
 
     // A desk the menu greys out must not be the one on screen, or it draws a choice that cannot
     // be made while the row that would take the reader off it is disabled. The alignment desk is
-    // where the work starts and is available for every document.
-    if (deskEntry?.unavailable?.(documentFacts)) {
-        setSelectedDesk('alignment');
+    // where the work starts and is available for every document; the viewer, which has no
+    // alignment desk and a document whose work is done, goes back to where it opens. Likewise a
+    // desk the viewer's menu does not list.
+    if (deskEntry?.unavailable?.(documentFacts) || (!editable && deskEntry?.editOnly)) {
+        setSelectedDesk(editable ? 'alignment' : VIEWER_DESK);
     }
 
     const deskProps = {
@@ -640,137 +746,147 @@ export const App = () => {
     };
 
     return (
-        <ZoomContext value={zoomContextValue}>
-            <div style={{ maxWidth: '100vw' }}>
-                <WorkDocumentProvider history={workHistory} dispatch={dispatch}>
-                    <ScoreDocumentProvider
-                        mei={mei}
-                        setMei={readMei}
-                        recording={recording}
-                        pristine={pristine}
-                    >
-                        <PerformancesProvider value={performancesValue}>
-                        <PlaybackProvider
-                            scoreMsm={scoreMsm}
-                            performanceMpm={result.mpm}
-                            dateByNoteId={dateByNoteId}
+        <EditingContext value={editable}>
+            <ZoomContext value={zoomContextValue}>
+                <div style={{ maxWidth: '100vw' }}>
+                    <WorkDocumentProvider history={workHistory} dispatch={edit}>
+                        <ScoreDocumentProvider
+                            mei={mei}
+                            setMei={readMei}
+                            recording={recording}
+                            pristine={pristine}
                         >
-                            <CallSelectionProvider
-                                calls={work.provenance}
-                                outcomes={result.outcomes}
-                                activeCallIds={activeCallIds}
-                                setActiveCallIds={setActiveCallIds}
-                                onRemoveCalls={removeCalls}
-                                focusCall={focusCall}
+                            <PerformancesProvider value={performancesValue}>
+                            <PlaybackProvider
+                                scoreMsm={scoreMsm}
+                                performanceMpm={result.mpm}
+                                dateByNoteId={dateByNoteId}
                             >
-                                <ScrollSyncProvider
-                                    symbolicZoom={zoomContextValue.symbolic.stretchX}
-                                    physicalZoom={zoomContextValue.physical.stretchX}
-                                    tickToSeconds={tickToSeconds}
-                                    secondsToTick={secondsToTick}
+                                <CallSelectionProvider
+                                    calls={work.provenance}
+                                    outcomes={result.outcomes}
+                                    activeCallIds={activeCallIds}
+                                    setActiveCallIds={setActiveCallIds}
+                                    onRemoveCalls={removeCalls}
+                                    focusCall={focusCall}
                                 >
-                                    <EditorAppBar
-                                        deskRowRef={setDeskRow}
-                                        deskName={deskName}
-                                        help={deskEntry?.help}
-                                        parts={parts}
-                                        scope={scope}
-                                        setScope={setScope}
-                                        scopeLock={scopeLock}
-                                        pending={pending}
-                                        dirty={dirty}
-                                        canPlay={getInstructions(mpm).length > 0}
-                                        canSave={work.provenance.length > 0}
-                                        onSave={saveWork}
-                                        onOpen={openFilePicker}
-                                    />
-
-                                    <EditorHotkeys onSave={saveWork} onOpen={openFilePicker} />
-
-                                    <SampleLoadingNotice />
-
-                                    {/* The desk, and the aspect menu that floats over it. This box
-                                        is the menu's containing block: the menu is `position:
-                                        absolute`, so without one `top: 0` resolves against the
-                                        page. No desk reserves a gutter for it; the menu collapses
-                                        to an icon when it is in the way. */}
-                                    <Box sx={{ position: 'relative' }}>
-                                        <DeskToolbarProvider target={deskRow}>
-                                            <NotesProvider notes={alignment.allNotes}>
-                                                {/* A desk that throws must not take the editor with it:
-                                                the work is unsaved and Save lives in the bar above.
-                                                The open desk is the reset key, so switching away
-                                                from a broken one clears it. */}
-                                                <DeskErrorBoundary resetKey={selectedDesk}>
-                                                    <Suspense
-                                                        fallback={
-                                                            <LoadingScreen message="Opening the desk" />
-                                                        }
-                                                    >
-                                                        {DeskComponent && (
-                                                            <DeskComponent
-                                                                {...deskProps}
-                                                                addTransformer={addTransformer}
-                                                                part={scope}
-                                                            />
-                                                        )}
-                                                    </Suspense>
-                                                </DeskErrorBoundary>
-                                            </NotesProvider>
-                                        </DeskToolbarProvider>
-
-                                        <AspectSelect
-                                            selectedDesk={selectedDesk}
-                                            setSelectedDesk={setSelectedDesk}
-                                            documentFacts={documentFacts}
+                                    <ScrollSyncProvider
+                                        symbolicZoom={zoomContextValue.symbolic.stretchX}
+                                        physicalZoom={zoomContextValue.physical.stretchX}
+                                        tickToSeconds={tickToSeconds}
+                                        secondsToTick={secondsToTick}
+                                    >
+                                        <EditorAppBar
+                                            deskRowRef={setDeskRow}
+                                            deskName={deskName}
+                                            help={deskEntry?.help}
+                                            parts={parts}
+                                            scope={scope}
+                                            setScope={setScope}
+                                            scopeLock={scopeLock}
+                                            pending={pending}
+                                            dirty={dirty}
+                                            canPlay={getInstructions(mpm).length > 0}
+                                            canSave={work.provenance.length > 0}
+                                            onSave={saveWork}
+                                            onOpen={openFilePicker}
                                         />
-                                    </Box>
 
-                                    <FollowPlayback
-                                        mpm={mpm}
-                                        signatures={alignment.timeSignatures}
-                                    />
-                                    <PinchZoomHandler />
-                                </ScrollSyncProvider>
-                            </CallSelectionProvider>
-                        </PlaybackProvider>
-                        </PerformancesProvider>
-                    </ScoreDocumentProvider>
-                </WorkDocumentProvider>
+                                        <EditorHotkeys onSave={saveWork} onOpen={openFilePicker} />
 
-                {/* Open reaches this through `fileInputRef`. It resets its own value on change,
-                    or opening the same file twice in a row fires no `change` event at all. */}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/xml,.mei,.zip,.mid,.midi"
-                    style={{ display: 'none' }}
-                    onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) handleOpenFile(file);
-                        event.target.value = '';
-                    }}
-                />
+                                        <SampleLoadingNotice />
 
-                <Snackbar
-                    open={message !== undefined}
-                    autoHideDuration={4000}
-                    onClose={() => {
-                        setMessage(undefined);
-                    }}
-                >
-                    <Alert
+                                        {/* The desk, and the aspect menu that floats over it. This box
+                                            is the menu's containing block: the menu is `position:
+                                            absolute`, so without one `top: 0` resolves against the
+                                            page. No desk reserves a gutter for it; the menu collapses
+                                            to an icon when it is in the way. */}
+                                        <Box sx={{ position: 'relative' }}>
+                                            <DeskToolbarProvider target={deskRow}>
+                                                <NotesProvider notes={alignment.allNotes}>
+                                                    {/* A desk that throws must not take the editor with it:
+                                                    the work is unsaved and Save lives in the bar above.
+                                                    The open desk is the reset key, so switching away
+                                                    from a broken one clears it. */}
+                                                    <DeskErrorBoundary resetKey={selectedDesk}>
+                                                        <Suspense
+                                                            fallback={
+                                                                <LoadingScreen message="Opening the desk" />
+                                                            }
+                                                        >
+                                                            {DeskComponent && (
+                                                                <DeskComponent
+                                                                    {...deskProps}
+                                                                    addTransformer={addTransformer}
+                                                                    part={scope}
+                                                                />
+                                                            )}
+                                                            {DeskComponent && opened && (
+                                                                <RevealCall
+                                                                    key={selectedDesk}
+                                                                    opened={opened}
+                                                                    outcomes={result.outcomes}
+                                                                />
+                                                            )}
+                                                        </Suspense>
+                                                    </DeskErrorBoundary>
+                                                </NotesProvider>
+                                            </DeskToolbarProvider>
+
+                                            <AspectSelect
+                                                selectedDesk={selectedDesk}
+                                                setSelectedDesk={setSelectedDesk}
+                                                documentFacts={documentFacts}
+                                            />
+                                        </Box>
+
+                                        <FollowPlayback
+                                            mpm={mpm}
+                                            signatures={alignment.timeSignatures}
+                                        />
+                                        <PinchZoomHandler />
+                                        {!editable && <ViewerAddress />}
+                                    </ScrollSyncProvider>
+                                </CallSelectionProvider>
+                            </PlaybackProvider>
+                            </PerformancesProvider>
+                        </ScoreDocumentProvider>
+                    </WorkDocumentProvider>
+
+                    {/* Open reaches this through `fileInputRef`. It resets its own value on change,
+                        or opening the same file twice in a row fires no `change` event at all. */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/xml,.mei,.zip,.mid,.midi"
+                        style={{ display: 'none' }}
+                        onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) handleOpenFile(file);
+                            event.target.value = '';
+                        }}
+                    />
+
+                    <Snackbar
+                        open={message !== undefined}
+                        autoHideDuration={4000}
                         onClose={() => {
                             setMessage(undefined);
                         }}
-                        severity="error"
-                        variant="filled"
-                        sx={{ width: '40%' }}
                     >
-                        {message}
-                    </Alert>
-                </Snackbar>
-            </div>
-        </ZoomContext>
+                        <Alert
+                            onClose={() => {
+                                setMessage(undefined);
+                            }}
+                            severity="error"
+                            variant="filled"
+                            sx={{ width: '40%' }}
+                        >
+                            {message}
+                        </Alert>
+                    </Snackbar>
+                </div>
+            </ZoomContext>
+        </EditingContext>
     );
 };

@@ -9,6 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AspectSelect } from './AspectSelect';
 import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
+import { EditingContext } from '../hooks/Editing';
 
 /** A document every desk has work to do for — see `DeskSwitch.test.ts`. */
 const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9, unchosen: 0 };
@@ -120,5 +121,28 @@ describe('the aspect menu', () => {
         const { container } = mount({ readings: 1 });
         const groups = new Set(correspondingDesks.map(({ group }) => group));
         expect(container.querySelectorAll('hr')).toHaveLength(groups.size);
+    });
+});
+
+describe('the viewer’s aspect menu', () => {
+    it('leaves out the desks that are the editor’s alone, and keeps the rest', () => {
+        render(
+            <EditingContext value={false}>
+                <AspectSelect
+                    selectedDesk='tempo'
+                    setSelectedDesk={() => {}}
+                    documentFacts={FITTED}
+                />
+            </EditingContext>,
+        );
+
+        for (const desk of correspondingDesks) {
+            const listed = screen.queryAllByText(desk.aspect).length > 0;
+            expect(listed, `${desk.aspect} in the viewer's menu`).toBe(
+                // An aspect stays while any desk under it is offered.
+                correspondingDesks.some((other) => other.aspect === desk.aspect && !other.editOnly),
+            );
+        }
+        expect(screen.queryByText('alignment')).not.toBeInTheDocument();
     });
 });

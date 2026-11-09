@@ -17,6 +17,7 @@ import { PlaybackProvider } from '../hooks/PlaybackProvider';
 import { WorkDocumentProvider } from '../hooks/WorkDocument';
 import { CallSelectionProvider } from '../hooks/CallSelection';
 import { initialHistory } from '../model/workReducer';
+import { EditingContext } from '../hooks/Editing';
 import { EditorHotkeys } from './EditorHotkeys';
 
 let rig = createFakePiano();
@@ -60,33 +61,37 @@ const mount = ({
     onOpen = () => {},
     selected = new Set<string>(),
     onRemoveCalls = () => {},
+    editable = true,
 }: {
     onSave?: () => void;
     onOpen?: () => void;
     selected?: Set<string>;
     onRemoveCalls?: (ids: readonly string[]) => void;
+    editable?: boolean;
 } = {}) =>
     render(
-        <ZoomContext
-            value={{
-                symbolic: { stretchX: 20 },
-                physical: { stretchX: 20 },
-                setStretchX: () => {},
-            }}
-        >
-            <WorkDocumentProvider history={initialHistory()} dispatch={() => {}}>
-                <PlaybackProvider
-                    scoreMsm={scoreMsm}
-                    performanceMpm={performanceMpm}
-                    dateByNoteId={dateByNoteId}
-                >
-                    <Selection selected={selected} onRemoveCalls={onRemoveCalls}>
-                        <EditorHotkeys onSave={onSave} onOpen={onOpen} />
-                        <button>Insert</button>
-                    </Selection>
-                </PlaybackProvider>
-            </WorkDocumentProvider>
-        </ZoomContext>,
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{
+                    symbolic: { stretchX: 20 },
+                    physical: { stretchX: 20 },
+                    setStretchX: () => {},
+                }}
+            >
+                <WorkDocumentProvider history={initialHistory()} dispatch={() => {}}>
+                    <PlaybackProvider
+                        scoreMsm={scoreMsm}
+                        performanceMpm={performanceMpm}
+                        dateByNoteId={dateByNoteId}
+                    >
+                        <Selection selected={selected} onRemoveCalls={onRemoveCalls}>
+                            <EditorHotkeys onSave={onSave} onOpen={onOpen} />
+                            <button>Insert</button>
+                        </Selection>
+                    </PlaybackProvider>
+                </WorkDocumentProvider>
+            </ZoomContext>
+        </EditingContext>,
     );
 
 /** A keydown as the document sees it, with the browser's own default still available to cancel. */
@@ -190,5 +195,30 @@ describe('removing the selected calls', () => {
         expect(onRemoveCalls).not.toHaveBeenCalled();
         expect(event.defaultPrevented).toBe(false);
         field.remove();
+    });
+});
+
+describe('the viewer’s keys', () => {
+    beforeEach(() => {
+        rig = createFakePiano();
+    });
+
+    it('play, and do nothing else', () => {
+        const onSave = vi.fn();
+        const onOpen = vi.fn();
+        const onRemoveCalls = vi.fn();
+        mount({ editable: false, onSave, onOpen, onRemoveCalls, selected: new Set(['a']) });
+
+        press(document, { key: 's', code: 'KeyS', ctrlKey: true });
+        press(document, { key: 'o', code: 'KeyO', ctrlKey: true });
+        const backspace = press(document, { key: 'Backspace', code: 'Backspace' });
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onOpen).not.toHaveBeenCalled();
+        expect(onRemoveCalls).not.toHaveBeenCalled();
+        expect(backspace.defaultPrevented).toBe(false);
+
+        press(document, { key: ' ', code: 'Space' });
+        expect(rig.played.length).toBeGreaterThan(0);
     });
 });

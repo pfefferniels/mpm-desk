@@ -46,12 +46,13 @@ export interface Ground {
 }
 
 /**
- * What one call of the run is answerable for: the elements it wrote, and where it acted.
+ * What one call of the run is answerable for: the elements it wrote, where it acted, and what of
+ * the recording it was fitted to.
  *
- * Reported by the run because nothing else can say either. A call's elements are the difference
- * the document shows before and after it, and a recorded pedal has no symbolic date until the
- * residual places it. The editor's selection reads both (`CallSelection`), and a save records
- * them on the call (`Call.elements`, `Call.range`).
+ * Reported by the run because nothing else can say any of it. A call's elements are the
+ * difference the document shows before and after it, and a recorded pedal has no symbolic date
+ * until the residual places it. The selection reads all three (`CallSelection`); a save records
+ * the first two on the call (`Call.elements`, `Call.range`).
  */
 export interface CallOutcome {
     /** The `Call.id` this is reporting for. */
@@ -66,6 +67,12 @@ export interface CallOutcome {
      * the call.
      */
     range: { from: number; to: number | null } | null;
+    /**
+     * The `xml:id`s of the aligned notes, or the recorded presses, the call was fitted to or
+     * corrected — `Transformer.evidence`. Not recorded on save: it is what a desk marks when the
+     * call is selected, and a desk only ever draws a run.
+     */
+    evidence: readonly string[];
 }
 
 export interface FitResult {
@@ -139,6 +146,7 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
             id: transformer.id,
             elements: [...transformer.created],
             range: range ? { from: range.from, to: range.to ?? null } : null,
+            evidence: transformer.evidence(alignment, residual),
         };
     });
 

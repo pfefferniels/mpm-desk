@@ -10,6 +10,7 @@ import { Alignment, type AlignedNote } from '../../alignment';
 import {
   AbstractTransformer,
   generateId,
+  idsOf,
   type ScopedTransformationOptions,
 } from '../Transformer';
 import { v4 } from 'uuid';
@@ -156,6 +157,12 @@ export class InsertArticulation extends AbstractTransformer<InsertArticulationOp
 
   range(msm: Alignment): Range | undefined {
     return rangeOfNotes(this.options.noteIDs, msm);
+  }
+
+  /** The notes of the unit, and none of the others its range happens to span. */
+  override evidence(msm: Alignment): string[] {
+    const ids = new Set(this.options.noteIDs);
+    return idsOf(msm.allNotes.filter((note) => ids.has(note['xml:id'])));
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {

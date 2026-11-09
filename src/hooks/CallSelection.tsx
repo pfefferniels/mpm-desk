@@ -33,6 +33,12 @@ interface CallSelectionValue {
     activeCallIds: Set<string>;
     /** The `xml:id`s that answer to the selected calls — what a desk highlights. */
     activeElements: string[];
+    /**
+     * What of the recording the selected calls were fitted to: the `xml:id`s of aligned notes and
+     * of recorded presses (`CallOutcome.evidence`). What a desk marks among its data points, so a
+     * curve can be read against the observations it was drawn from.
+     */
+    activeEvidence: ReadonlySet<string>;
     setActiveCallIds: (ids: SetStateAction<Set<string>>) => void;
     toggleActiveCall: (id: string) => void;
     /** Select the call answerable for this MPM element. How clicking a drawn instruction works. */
@@ -130,6 +136,18 @@ export const CallSelectionProvider = ({
     }, [activeCallIds, owners]);
     const activeElementsRef = useLatest(activeElements);
 
+    const evidenceById = useMemo(
+        () => new Map(outcomes.map((outcome) => [outcome.id, outcome.evidence])),
+        [outcomes],
+    );
+    const activeEvidence = useMemo(() => {
+        const ids = new Set<string>();
+        for (const call of activeCallIds)
+            for (const id of evidenceById.get(call) ?? []) ids.add(id);
+        return ids as ReadonlySet<string>;
+    }, [activeCallIds, evidenceById]);
+    const activeEvidenceRef = useLatest(activeEvidence);
+
     const toggleActiveCall = useCallback(
         (id: string) => {
             const next = new Set(activeRef.current);
@@ -171,8 +189,9 @@ export const CallSelectionProvider = ({
         setActiveCallIds(new Set());
     }, [removeRef, activeRef, setActiveCallIds]);
 
-    // Only `activeCallIds` should re-render consumers. `calls` and `activeElements` are read
-    // through getters so that a chain edit — which happens on every gesture — does not.
+    // Only `activeCallIds` should re-render consumers. `calls`, `activeElements` and
+    // `activeEvidence` are read through getters so that a chain edit — which happens on every
+    // gesture — does not.
     const value = useMemo<CallSelectionValue>(
         () => ({
             get calls() {
@@ -180,6 +199,9 @@ export const CallSelectionProvider = ({
             },
             get activeElements() {
                 return activeElementsRef.current;
+            },
+            get activeEvidence() {
+                return activeEvidenceRef.current;
             },
             activeCallIds,
             setActiveCallIds,
@@ -193,6 +215,7 @@ export const CallSelectionProvider = ({
         [
             callsRef,
             activeElementsRef,
+            activeEvidenceRef,
             activeCallIds,
             setActiveCallIds,
             toggleActiveCall,

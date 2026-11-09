@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MetadataDesk } from './MetadataDesk'
 
 const props = {
+    editable: true,
     callCount: 12,
 }
 
@@ -119,6 +120,21 @@ describe('MetadataDesk', () => {
 
         expect(title).toHaveValue(long)
         expect(setMetadata).not.toHaveBeenCalled()
+    })
+
+    it('reads as set type, not as a form, in the viewer', () => {
+        render(
+            <MetadataDesk
+                {...props}
+                editable={false}
+                metadata={{ title: 'Sonata in A', author: 'Niels Pfeffer' }}
+                setMetadata={vi.fn()}
+            />
+        )
+
+        expect(screen.queryByLabelText('Title')).not.toBeInTheDocument()
+        expect(screen.getByText('Sonata in A')).toBeInTheDocument()
+        expect(screen.getByText('Niels Pfeffer')).toBeInTheDocument()
     })
 
     it('counts what the document holds', () => {

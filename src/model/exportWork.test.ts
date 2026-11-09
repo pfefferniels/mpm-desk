@@ -202,6 +202,7 @@ describe('provenanceOf', () => {
         id,
         elements: [],
         range: null,
+        evidence: [],
         ...rest,
     });
 
@@ -297,7 +298,7 @@ describe('buildWorkArchive', () => {
                 options: { from: 0, bpm: 60 },
             },
         ],
-        outcomes: [{ id: 'a', elements: ['tempo_0'], range: { from: 0, to: 720 } }],
+        outcomes: [{ id: 'a', elements: ['tempo_0'], range: { from: 0, to: 720 }, evidence: [] }],
         metadata: { author: 'Clara Schumann', title: 'Träumerei' },
         ...overrides,
     });

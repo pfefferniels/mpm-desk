@@ -2,6 +2,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { usePlayback } from '../hooks/PlaybackProvider';
 import { useWorkDocument } from '../hooks/WorkDocument';
 import { useCallSelection } from '../hooks/CallSelection';
+import { useEditable } from '../hooks/Editing';
 
 interface EditorHotkeysProps {
     onSave: () => void;
@@ -17,7 +18,8 @@ interface EditorHotkeysProps {
  * are render-null components for the same reason.
  *
  * One file so that something answers "what keys does the editor have", and so that no binding
- * exists only while a toolbar happens to be mounted.
+ * exists only while a toolbar happens to be mounted. In the viewer only Space is bound: the rest
+ * edit, save or open, and the viewer does none of the three.
  *
  * ## Backspace
  *
@@ -38,11 +40,13 @@ export const EditorHotkeys = ({ onSave, onOpen }: EditorHotkeysProps) => {
     const { undo, redo } = useWorkDocument();
     const { isPlaying, play, stop } = usePlayback();
     const { activeCallIds, removeActiveCalls } = useCallSelection();
+    const editable = useEditable();
+    const editing = { preventDefault: true, enabled: editable };
 
-    useHotkeys('mod+z', undo, { preventDefault: true }, [undo]);
-    useHotkeys('mod+shift+z', redo, { preventDefault: true }, [redo]);
-    useHotkeys('mod+s', onSave, { preventDefault: true }, [onSave]);
-    useHotkeys('mod+o', onOpen, { preventDefault: true }, [onOpen]);
+    useHotkeys('mod+z', undo, editing, [undo]);
+    useHotkeys('mod+shift+z', redo, editing, [redo]);
+    useHotkeys('mod+s', onSave, editing, [onSave]);
+    useHotkeys('mod+o', onOpen, editing, [onOpen]);
 
     useHotkeys(
         ['backspace', 'delete'],
@@ -51,6 +55,7 @@ export const EditorHotkeys = ({ onSave, onOpen }: EditorHotkeysProps) => {
             event.preventDefault();
             removeActiveCalls();
         },
+        { enabled: editable },
         [activeCallIds, removeActiveCalls],
     );
 

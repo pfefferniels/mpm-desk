@@ -5,7 +5,7 @@ import {
   type InstructionType,
   type Scope,
 } from '../instructions/index';
-import { Alignment } from '../alignment';
+import { Alignment, type AlignedNote, type AlignedPedal } from '../alignment';
 import type { Residual } from '../residual';
 import type { Range } from './range';
 import { Mpm } from 'espressivo';
@@ -34,8 +34,7 @@ export interface Transformer {
   /**
    * The `xml:id`s of the MPM elements this call is answerable for, as of its last run.
    *
-   * Derived, never declared — see {@link AbstractTransformer.run}. It is what a work file's
-   * segments name, and what the bake turns into spans.
+   * Derived, never declared — see {@link AbstractTransformer.run}.
    */
   created: string[];
   run(msm: Alignment, mpm: Mpm): void;
@@ -47,8 +46,24 @@ export interface Transformer {
    * from its own options.
    */
   range(msm: Alignment, residual?: Residual): Range | undefined;
+  /**
+   * What of the recording this call was fitted to, or corrected: the `xml:id`s of the aligned
+   * notes, or of the recorded presses, its options pick out. Empty for a call about no place.
+   *
+   * The other half of {@link created}. Those are what the call wrote into the MPM; these are the
+   * observations it wrote it from, which is what a reader asking "where does this curve come
+   * from?" wants marked on the plot.
+   *
+   * @param residual as for {@link range}, which the default reads.
+   */
+  evidence(msm: Alignment, residual?: Residual): string[];
   readonly requires: TransformerConstructor[];
 }
+
+/** The ids of these notes or presses, once each: a note has a row per reading until a choice. */
+export const idsOf = (events: readonly (AlignedNote | AlignedPedal)[]): string[] => [
+  ...new Set(events.map((event) => event['xml:id'])),
+];
 
 /**
  * The default chaining behavior.
@@ -124,6 +139,22 @@ export abstract class AbstractTransformer<
    * rather than being taken for one.
    */
   abstract range(msm: Alignment, residual?: Residual): Range | undefined;
+
+  /**
+   * By default, the notes of the call's scope over its {@link range}, both ends included, and
+   * those at the one date where the range names no end. That is what a call placed by a span
+   * reads: a tempo or a dynamics curve passes through the chords at both of its ends, and a
+   * spread or a gradient is about the one chord at its date.
+   *
+   * A call that reads something else says so: one that names its notes, one about a press, a
+   * frame that stops short of its end.
+   */
+  evidence(msm: Alignment, residual?: Residual): string[] {
+    const range = this.range(msm, residual);
+    if (!range) return [];
+    const scope = (this.options as Partial<ScopedTransformationOptions>).scope ?? 'global';
+    return idsOf(msm.in(scope).notesInRange(range.from, range.to ?? range.from));
+  }
 
   protected abstract transform(msm: Alignment, mpm: Mpm): void;
 }

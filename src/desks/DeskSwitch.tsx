@@ -80,6 +80,11 @@ export interface DeskAction {
     gesture: string;
     /** What it does. A phrase, MPM assumed. */
     does: string;
+    /**
+     * The gesture edits the document, so the viewer does not offer it and its help leaves it
+     * out. Absent on one that only reads: selecting, hearing, scrolling.
+     */
+    edits?: true;
 }
 
 /**
@@ -153,6 +158,14 @@ interface DeskEntry {
      * does not have.
      */
     writes?: readonly InstructionType[];
+
+    /**
+     * The desk is the editor's alone, and the viewer's aspect menu leaves it out.
+     *
+     * For a desk whose subject is work on the document rather than what the reconstruction says,
+     * and which has nothing to show a reader that another desk does not show better.
+     */
+    editOnly?: true;
 
     /**
      * What this desk needs before it can do anything, or nothing where it always can.
@@ -252,9 +265,13 @@ export const correspondingDesks: DeskEntry[] = [
             summary:
                 'Title and author, set as a title page, over a count of what the document holds.',
             actions: [
-                { gesture: 'Click a line', does: 'edit it in place. Leaving the field commits' },
-                { gesture: 'Enter', does: 'commit and leave the field' },
-                { gesture: 'Esc', does: 'discard the edit' },
+                {
+                    gesture: 'Click a line',
+                    does: 'edit it in place. Leaving the field commits',
+                    edits: true,
+                },
+                { gesture: 'Enter', does: 'commit and leave the field', edits: true },
+                { gesture: 'Esc', does: 'discard the edit', edits: true },
             ],
         },
     },
@@ -301,12 +318,16 @@ export const correspondingDesks: DeskEntry[] = [
     // `chain.ts`). Nothing looks for a desk by that name either, since an `Align` writes no
     // instruction and so never reaches the markup desk, which is where `focusCall` is reached
     // from.
+    //
+    // The editor's alone: aligning needs the takes as MIDI, which the published reconstruction
+    // does not carry, and what it settles is in the score every other desk draws.
     {
         aspect: 'alignment',
         desk: lazy(() =>
             import('./alignment/AlignmentDesk').then((m) => ({ default: m.AlignmentDesk })),
         ),
         group: 'general',
+        editOnly: true,
         help: {
             summary:
                 'Which sounding event realises which written note. Align runs the model and ' +

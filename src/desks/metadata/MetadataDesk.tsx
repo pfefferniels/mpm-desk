@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWorkDocument } from "../../hooks/WorkDocument";
+import { useEditable } from "../../hooks/Editing";
 import { describesPerformance } from "../../model/workReducer";
 
 interface Metadata {
@@ -11,6 +12,8 @@ interface Metadata {
 interface MetadataDeskProps {
     metadata: Metadata
     setMetadata: React.Dispatch<React.SetStateAction<Metadata>>
+    /** False in the viewer, where the two fields are set type rather than a form. */
+    editable: boolean
     callCount: number
 }
 
@@ -85,7 +88,8 @@ const useAutoHeight = (text: string) => {
  * A field that reads as set type until you go near it.
  *
  * The block is drawn wider than the glyphs — padding out, margin back in — so hovering the line
- * shows something to click without the text having moved to make room for it.
+ * shows something to click without the text having moved to make room for it. In the viewer the
+ * same string is a `<span>` with neither, which lands it in exactly the same place.
  */
 const field = {
     display: 'block',
@@ -111,6 +115,7 @@ const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 export const MetadataDesk = ({
     metadata,
     setMetadata,
+    editable,
     callCount,
 }: MetadataDeskProps) => {
     // Typing stays local and reaches the document on blur: a commit rebuilds the chain's
@@ -157,35 +162,47 @@ export const MetadataDesk = ({
 
     return (
         <Box sx={page}>
-            <Box
-                component="textarea"
-                ref={titleRef}
-                rows={1}
-                aria-label="Title"
-                placeholder="Untitled"
-                value={draft.title}
-                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-                    setDraft((current) => ({ ...current, title: event.target.value }));
-                }}
-                onKeyDown={handleKeyDown}
-                onBlur={commit}
-                sx={{ ...titleType, ...field }}
-            />
+            {editable ? (
+                <Box
+                    component="textarea"
+                    ref={titleRef}
+                    rows={1}
+                    aria-label="Title"
+                    placeholder="Untitled"
+                    value={draft.title}
+                    onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+                        setDraft((current) => ({ ...current, title: event.target.value }));
+                    }}
+                    onKeyDown={handleKeyDown}
+                    onBlur={commit}
+                    sx={{ ...titleType, ...field }}
+                />
+            ) : (
+                <Box component="span" sx={{ ...titleType, display: 'block' }}>
+                    {metadata.title || 'Untitled'}
+                </Box>
+            )}
 
-            <Box
-                component="textarea"
-                ref={authorRef}
-                rows={1}
-                aria-label="Author"
-                placeholder="Unattributed"
-                value={draft.author}
-                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-                    setDraft((current) => ({ ...current, author: event.target.value }));
-                }}
-                onKeyDown={handleKeyDown}
-                onBlur={commit}
-                sx={{ ...authorType, ...field, ...authorGap }}
-            />
+            {editable ? (
+                <Box
+                    component="textarea"
+                    ref={authorRef}
+                    rows={1}
+                    aria-label="Author"
+                    placeholder="Unattributed"
+                    value={draft.author}
+                    onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+                        setDraft((current) => ({ ...current, author: event.target.value }));
+                    }}
+                    onKeyDown={handleKeyDown}
+                    onBlur={commit}
+                    sx={{ ...authorType, ...field, ...authorGap }}
+                />
+            ) : (
+                <Box component="span" sx={{ ...authorType, ...authorGap, display: 'block' }}>
+                    {metadata.author || 'Unattributed'}
+                </Box>
+            )}
 
             <Box
                 sx={{
@@ -205,7 +222,7 @@ export const MetadataDesk = ({
  * The metadata desk as the registry dispatches it.
  *
  * Split from the component above rather than folded into it, and the split is the point: the
- * page is a function of three values and is worth testing as one — seven cases drive it directly,
+ * page is a function of four values and is worth testing as one — eight cases drive it directly,
  * including a rerender that proves an externally replaced document does not lose an unsaved
  * draft. Reading the document inside it would put a provider harness between every one of those
  * assertions and the thing asserted.
@@ -216,6 +233,7 @@ export const MetadataDesk = ({
  */
 export const MetadataDeskEntry = () => {
     const { metadata, setMetadata, calls } = useWorkDocument();
+    const editable = useEditable();
 
     // `InsertMetadata` writes `<metadata>` rather than an instruction, so counting it would make
     // an otherwise empty document report a call it does not have.
@@ -225,6 +243,7 @@ export const MetadataDeskEntry = () => {
         <MetadataDesk
             metadata={metadata}
             setMetadata={setMetadata}
+            editable={editable}
             callCount={callCount}
         />
     );

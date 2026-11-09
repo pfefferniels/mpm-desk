@@ -13,22 +13,26 @@ import { theme } from './theme';
 import './index.css';
 
 /**
- * The editor, at every path.
+ * Two routes over one component tree.
  *
- * The desks: each one plots what the recording did in its own dimension and lets that be
- * annotated — the tempo skyline, the dynamics curve, the rubato frames — and the markup desk
- * shows the document they have been writing. Reading a finished reconstruction is the landing
- * page of welte225.org's business, which loads the published files itself; there is no viewer
- * here.
+ * `/editor` is the **editor**: the desks, each plotting what the recording did in its own
+ * dimension and turning a gesture on that plot into a transformer call — the tempo skyline, the
+ * dynamics curve, the rubato frames — and the markup desk, which shows the document they have
+ * been writing.
  *
- * Every path, rather than `/` alone, so that `/editor`, where the editor used to live and where
- * links given out still point, opens it as well. GitHub Pages serves the app for it through the
- * `404.html` fallback that `vite.config.ts` writes.
+ * Every other path is the **viewer**: the same desks over the reconstruction welte225.org
+ * publishes, with every gesture that edits taken away. It is for reading a curve against the
+ * observations it was fitted to, which is why it is the editor's desks rather than a drawing of
+ * its own. `App` says what differs between the two; `hooks/Editing.tsx` is how a desk asks.
+ * GitHub Pages serves the app for `/editor` through the `404.html` fallback `vite.config.ts`
+ * writes.
  *
- * `lazy` so that the loading screen paints while the editor's chunk, the desks with the fitting
- * chain behind them, is still arriving.
+ * `lazy` so that the loading screen paints while the chunk with the desks and the fitting chain
+ * behind them is still arriving.
  */
-const Editor = lazy(async () => ({ default: (await import('./App')).App }));
+const isEditor = /^\/editor\/?$/.test(window.location.pathname);
+
+const App = lazy(async () => ({ default: (await import('./App')).App }));
 
 const root = document.getElementById('root');
 if (!root) throw new Error('no #root to mount on');
@@ -38,7 +42,7 @@ if (!root) throw new Error('no #root to mount on');
  *
  * Above `Suspense` because `CssBaseline` has to have set the body background and `color-scheme`
  * before the first paint, and the first paint is the loading screen — put it inside and the fallback
- * flashes in the user agent's colours while the editor's chunk is still arriving.
+ * flashes in the user agent's colours while the app's chunk is still arriving.
  *
  * `enableColorScheme` is a bug fix rather than tidying. The deleted `:root` said
  * `color-scheme: light dark`, which told a dark-mode browser it could paint form controls dark —
@@ -51,7 +55,7 @@ createRoot(root).render(
             <CssBaseline enableColorScheme />
             <Suspense fallback={<LoadingScreen />}>
                 <PianoContextProvider velocities={PIANO_VELOCITIES}>
-                    <Editor />
+                    <App mode={isEditor ? 'edit' : 'view'} />
                 </PianoContextProvider>
             </Suspense>
         </ThemeProvider>

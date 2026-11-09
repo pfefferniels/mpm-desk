@@ -16,6 +16,7 @@ import type { DeskHelp } from '../../desks/DeskSwitch';
 import type { PartOption, ScopeLock } from '../../desks/scopeLock';
 import { usePlayback } from '../../hooks/PlaybackProvider';
 import { useWorkDocument } from '../../hooks/WorkDocument';
+import { useEditable } from '../../hooks/Editing';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, useZoom } from '../../hooks/ZoomProvider';
 import { sampleLoadingHint, useSampleLoading } from '../../performance/piano';
 import { shortcut } from '../../utils/shortcut';
@@ -117,6 +118,12 @@ const ScopeOption = ({ label, note }: { label: string; note?: string }) => (
  * and unmounts moves every control to the right of it, and changes the bar's height, which
  * pushes the plot below up and down while you work.
  *
+ * ## In the viewer
+ *
+ * What edits the document goes — the unsaved dot, Undo and Redo, Open and Save — and what reads
+ * it stays: the title, playback, the scope, the zoom. Removed rather than disabled, unlike the
+ * rule above: those controls are not unavailable for a moment, they are not part of a viewer.
+ *
  * ## Why row one places its own rules and row two does not
  *
  * `ToolGroup` draws its own left border unless it is first, which is right for a row whose
@@ -143,6 +150,7 @@ export const EditorAppBar = ({
     const { isPlaying, play, stop } = usePlayback();
     const samples = useSampleLoading();
     const { stretchX, setStretchX } = useZoom();
+    const editable = useEditable();
 
     return (
         <AppBar
@@ -202,35 +210,39 @@ export const EditorAppBar = ({
                 {/* Faded rather than unmounted, so the two controls after it never move. It is
                     `aria-hidden` because a coloured dot is not an announcement; what the state
                     is reaches a reader through the Save button's own description below. */}
-                <Box
-                    aria-hidden
-                    sx={{
-                        flexShrink: 0,
-                        width: 7,
-                        height: 7,
-                        borderRadius: '50%',
-                        bgcolor: 'warning.main',
-                        opacity: dirty ? 1 : 0,
-                        transition: 'opacity 150ms',
-                    }}
-                />
+                {editable && (
+                    <>
+                        <Box
+                            aria-hidden
+                            sx={{
+                                flexShrink: 0,
+                                width: 7,
+                                height: 7,
+                                borderRadius: '50%',
+                                bgcolor: 'warning.main',
+                                opacity: dirty ? 1 : 0,
+                                transition: 'opacity 150ms',
+                            }}
+                        />
 
-                <Divider orientation="vertical" flexItem sx={{ my: 1 }} />
+                        <Divider orientation="vertical" flexItem sx={{ my: 1 }} />
 
-                <ToolbarButton
-                    icon={<Undo fontSize="small" />}
-                    label="Undo"
-                    tooltip={`Undo (${shortcut('Z')})`}
-                    disabled={!canUndo}
-                    onClick={undo}
-                />
-                <ToolbarButton
-                    icon={<Redo fontSize="small" />}
-                    label="Redo"
-                    tooltip={`Redo (${shortcut('Z', true)})`}
-                    disabled={!canRedo}
-                    onClick={redo}
-                />
+                        <ToolbarButton
+                            icon={<Undo fontSize="small" />}
+                            label="Undo"
+                            tooltip={`Undo (${shortcut('Z')})`}
+                            disabled={!canUndo}
+                            onClick={undo}
+                        />
+                        <ToolbarButton
+                            icon={<Redo fontSize="small" />}
+                            label="Redo"
+                            tooltip={`Redo (${shortcut('Z', true)})`}
+                            disabled={!canRedo}
+                            onClick={redo}
+                        />
+                    </>
+                )}
 
                 <Divider orientation="vertical" flexItem sx={{ my: 1 }} />
 
@@ -342,27 +354,31 @@ export const EditorAppBar = ({
                     )}
                 </Box>
 
-                <ToolbarButton
-                    icon={<UploadFile fontSize="small" />}
-                    tooltip={`Open a ZIP or MEI (${shortcut('O')})`}
-                    onClick={onOpen}
-                >
-                    Open
-                </ToolbarButton>
-                <ToolbarButton
-                    primary
-                    icon={<Save fontSize="small" />}
-                    label="Save"
-                    tooltip={
-                        canSave
-                            ? dirty
-                                ? `Save — unsaved changes (${shortcut('S')})`
-                                : `Save (${shortcut('S')})`
-                            : 'Nothing to save yet'
-                    }
-                    disabled={!canSave}
-                    onClick={onSave}
-                />
+                {editable && (
+                    <>
+                        <ToolbarButton
+                            icon={<UploadFile fontSize="small" />}
+                            tooltip={`Open a ZIP or MEI (${shortcut('O')})`}
+                            onClick={onOpen}
+                        >
+                            Open
+                        </ToolbarButton>
+                        <ToolbarButton
+                            primary
+                            icon={<Save fontSize="small" />}
+                            label="Save"
+                            tooltip={
+                                canSave
+                                    ? dirty
+                                        ? `Save — unsaved changes (${shortcut('S')})`
+                                        : `Save (${shortcut('S')})`
+                                    : 'Nothing to save yet'
+                            }
+                            disabled={!canSave}
+                            onClick={onSave}
+                        />
+                    </>
+                )}
             </Stack>
 
             <Box

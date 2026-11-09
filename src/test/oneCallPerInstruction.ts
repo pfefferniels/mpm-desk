@@ -27,6 +27,7 @@ export const oneCallPerInstruction = (mpm: Mpm): { calls: Call[]; outcomes: Call
         id: call.id,
         elements: call.elements ?? [],
         range: call.range ?? null,
+        evidence: [],
     }));
     return { calls, outcomes };
 };

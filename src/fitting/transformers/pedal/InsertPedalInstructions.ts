@@ -1,7 +1,7 @@
 import type { MovementMap, Normalized } from 'espressivo';
 import { Mpm, requireMap } from '../../instructions/index';
 import { Alignment, type AlignedPedal } from '../../alignment';
-import { AbstractTransformer, type TransformationOptions } from '../Transformer';
+import { AbstractTransformer, idsOf, type TransformationOptions } from '../Transformer';
 import { TranslatePhysicalTimeToTicks } from '../tempo/index';
 import { deriveResidual, type Residual } from '../../residual';
 import { filterMap } from 'espressivo';
@@ -149,6 +149,12 @@ export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
   range(msm: Alignment, residual?: Residual): Range | undefined {
     const options = this.options;
     return rangeOfPress(options.pedal, msm, residual, isRamp(options) ? options : undefined);
+  }
+
+  /** The recorded press whose line it writes, or every press where it names none. */
+  override evidence(msm: Alignment): string[] {
+    const { pedal } = this.options;
+    return idsOf(msm.pedals.filter((p) => pedal === undefined || p['xml:id'] === pedal));
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {
