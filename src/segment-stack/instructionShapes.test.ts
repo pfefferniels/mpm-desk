@@ -71,6 +71,19 @@ describe('a rolled chord', () => {
         expect(roll.notes.at(-1)!.velocity).toBeCloseTo(0, 6);
     });
 
+    it('draws a grace figure with its own notes, in milliseconds before the beat', () => {
+        // grace_pxnvdff: the B♭ of bar 3's left hand, then the F it is tied into, the principal,
+        // struck early and held — 724 and 616 ms before the chord's onset, as the roll has them.
+        const at = instruction('grace_pxnvdff');
+        const roll = rollOf(mpm.ornamentOf(at)!, notesAt(at, notes))!;
+        expect(roll.unit).toBe('ms');
+        expect(roll.notes.map((n) => [n.id, n.pitch])).toEqual([
+            ['n1or9mhw', 46],
+            ['nanro74', 53],
+        ]);
+        expect(roll.notes.map((n) => n.offset)).toEqual([-724, -616]);
+    });
+
     it('gives a tick its length by the tempo in force', () => {
         const ms = msPerTickAt(mpm, 4320);
         expect(ms).not.toBeNull();

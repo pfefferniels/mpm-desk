@@ -37,12 +37,13 @@ export interface Recorded {
 export const recordArtefacts = (): Recorded => {
     const mei = readFileSync(publishedPath('mei'), 'utf-8');
     const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
-    const score = convertMeiToMsm(mei)[0].msm;
+    const movement = convertMeiToMsm(mei)[0];
+    const score = movement.msm;
 
     // The chain is noisy about MSM parts it cannot match; that is a property of the fixture.
     const say = console.log;
     console.log = () => undefined;
-    const result = runFit(work, asMSM(mei, score));
+    const result = runFit(work, asMSM(mei, score, movement.graces));
     console.log = say;
 
     const outcomeById = new Map(result.outcomes.map((outcome) => [outcome.id, outcome]));

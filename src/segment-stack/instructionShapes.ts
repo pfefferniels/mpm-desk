@@ -81,6 +81,10 @@ export interface Roll {
  * Each note is its own step, as the renderer makes it, and the def's gradient and spread are
  * applied in the renderer's order (`applyOrnament`): velocity first, then time.
  *
+ * An MPM v3 ornament's own notes — a grace note's pool, say — are steps too, where its
+ * `@note.order` names them: their pitch is given outright, or as an interval from the principal.
+ * A diatonic interval needs the key and is left out.
+ *
  * @param chord the notes at the ornament's date
  */
 export const rollOf = (ornament: Ornament, chord: readonly ChartNote[]): Roll | null => {
@@ -88,7 +92,17 @@ export const rollOf = (ornament: Ornament, chord: readonly ChartNote[]): Roll | 
     if (!def || chord.length === 0) return null;
     const spread = def.getTemporalSpread();
     const gradient = def.getDynamicsGradient();
-    const ordered = sequenceOf(ornament.noteOrder ?? undefined, chord.map((n) => ({ 'xml:id': n.id, 'midi.pitch': n.pitch })));
+    const principal = chord.find((n) => n.id === ornament.noteid?.replace(/^#/, ''));
+    const pool = ornament.notes.flatMap((note) => {
+        const { kind, value } = note.pitchSpec;
+        if (kind === 'midi') return [{ 'xml:id': note.id, 'midi.pitch': value }];
+        if (kind === 'chromatic' && principal) return [{ 'xml:id': note.id, 'midi.pitch': principal.pitch + value }];
+        return [];
+    });
+    const ordered = sequenceOf(ornament.noteOrder ?? undefined, [
+        ...chord.map((n) => ({ 'xml:id': n.id, 'midi.pitch': n.pitch })),
+        ...pool,
+    ]);
     const stand = ordered.map((note) => {
         const element = new Element('note');
         element.addAttribute(new Attribute('midi.pitch', String(note['midi.pitch'])));

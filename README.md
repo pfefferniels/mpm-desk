@@ -44,7 +44,8 @@ characters, opens it at that segment; that is where a segment's identifier
 
 `/editor` is the editor. The alignment desk says which sounded event realises which written note;
 the others plot what the recording did in one dimension (tempo, rubato, dynamics, accentuation,
-articulation, arpeggiation, pedalling) and turn a gesture on that plot into a transformer call.
+articulation, arpeggiation, grace notes, pedalling) and turn a gesture on that plot into a
+transformer call.
 Furthermore there is a desk for the document itself (title and author, which MEI voice goes into
 which part) and the narrative desk, where MPM instructions can be grouped into one "narrative",
 e.g. about musical direction.

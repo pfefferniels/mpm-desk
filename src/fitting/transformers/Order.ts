@@ -10,6 +10,7 @@ import { CorrectPedal } from './modification/CorrectPedal';
 import {
   InsertTemporalSpread,
   InsertDynamicsGradient,
+  InsertGraceNotes,
   StylizeOrnamentation,
 } from './ornamentation/index';
 import { InsertPedal } from './pedal/InsertPedalInstructions';
@@ -31,7 +32,7 @@ import {
 // Register the transformers, in reduction order — which is the order a chain runs in, whatever
 // order its calls were written.
 //
-// Twenty-one of them. What is registered is decided by whether anything in the editor can reach
+// Twenty-two of them. What is registered is decided by whether anything in the editor can reach
 // it, rather than by how often a transformer is used.
 //
 // Not registered: `InsertAsynchrony`, `CompressOrnamentation` and `ApproximateLogarithmicTempo`
@@ -82,6 +83,11 @@ const REGISTERED = [
   // dropped into it silently. Gradient first, and the question does not arise.
   InsertDynamicsGradient,
   InsertTemporalSpread,
+  // After the spread, which it reads: a grace figure replaces its principal, and is measured from
+  // the onset the spread collapsed the principal's chord onto, plus the stagger it took out of the
+  // principal (`AlignedNote.spread`). Before `InsertTempo`, like the spread, because it reads
+  // onsets in the recording's own domain, and before the hinge, which turns its frame into ticks.
+  InsertGraceNotes,
   // Before `TranslatePhysicalTimeToTicks`, because `InsertTempo` calls `shiftToFirstOnset`, which
   // rewrites `milliseconds.date` on every note — and the hinge below reads the physical domain in
   // order to convert it. `requires` cannot carry this: it asserts that a name appears *earlier* in

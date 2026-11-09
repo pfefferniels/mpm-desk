@@ -34,7 +34,8 @@ console.log(`registered: ${String(order.length)} — ${order.join(', ')}`);
 
 const mei = readFileSync(publishedPath('mei'), 'utf-8');
 const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
-const alignment = asMSM(mei, convertMeiToMsm(mei)[0].msm);
+const movement = convertMeiToMsm(mei)[0];
+const alignment = asMSM(mei, movement.msm, movement.graces);
 console.log(
     `alignment notes: ${String(alignment.allNotes.length)} | pedals: ${String(alignment.pedals.length)}`,
 );

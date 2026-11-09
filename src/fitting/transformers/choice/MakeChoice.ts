@@ -1,4 +1,4 @@
-import { Alignment, type AlignedNote } from '../../alignment';
+import { Alignment, type AlignedGrace, type AlignedNote } from '../../alignment';
 import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
 import { type Range, rangeOfNotes } from '../range';
 
@@ -130,6 +130,37 @@ export class MakeChoice extends AbstractTransformer<MakeChoiceOptions> {
       // the element after each removal, so two adjacent pedals from the rejected source
       // would leave the second one in.
       msm.pedals = msm.pedals.filter((pedal) => pedal.source === pedallingPreference);
+    }
+
+    this.chooseGraces(msm, timingPreference, velocityPreference);
+  }
+
+  /**
+   * A grace note is chosen as a score note is: the timing reading's row, carrying the velocity
+   * reading's velocity where the two differ, over the stretch the choice covers — a range by its
+   * principal's date, a note list by its principal. Grouped by id rather than by date, duration
+   * and pitch as score notes are, because a grace note has no date or duration of its own.
+   */
+  private chooseGraces(msm: Alignment, timing: string, velocity: string): void {
+    const options = this.options;
+    const covers = (grace: AlignedGrace): boolean => {
+      if (!grace.source) return false;
+      if ('from' in options) return grace.date >= options.from && grace.date <= options.to;
+      if ('noteIDs' in options) return options.noteIDs.includes(grace.principal);
+      return true;
+    };
+
+    const dropped = new Set<AlignedGrace>();
+    const kept: AlignedGrace[] = [];
+    for (const rows of Map.groupBy(msm.graces.filter(covers), (grace) => grace['xml:id']).values()) {
+      const prototype = rows.find((grace) => grace.source === timing);
+      if (!prototype) continue;
+      const voiced = rows.find((grace) => grace.source === velocity) ?? prototype;
+      rows.forEach((grace) => dropped.add(grace));
+      kept.push({ ...prototype, velocity: voiced.velocity });
+    }
+    if (dropped.size > 0) {
+      msm.graces = msm.graces.filter((grace) => !dropped.has(grace)).concat(kept);
     }
   }
 }
