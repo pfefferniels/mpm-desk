@@ -1,6 +1,6 @@
 
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { CombineAdjacentRubatos } from "../../fitting/transformers/rubato/CombineAdjacentRubatos"
 import { InsertRubato } from "../../fitting/transformers/rubato/InsertRubato"
@@ -10,14 +10,26 @@ import { RubatoInstruction } from "./RubatoInstruction"
 import { DatesRow, Frame } from "./DatesRow"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
+import { useEditable } from "../../hooks/Editing"
 import { DeskToolbar } from "../../components/DeskToolbar"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
 import { Add, Clear, Merge } from "@mui/icons-material"
 import { usePiano } from "../../performance/piano"
 
+/**
+ * The rubato desk: each chord's score date against where the recording put it on the tick grid,
+ * with rubato held out, and the rubatos the document holds drawn below.
+ *
+ * In the viewer there is no frame to mark and nothing to insert or combine, so the desk has no
+ * toolbar and a click on the row picks no date. Hovering the row still sounds the nearest date,
+ * and a written rubato still auditions its frame and selects the call that wrote it. With a call
+ * selected, in either mode, the dates it was fitted to are marked in the evidence colour
+ * (`../evidence.ts`).
+ */
 export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedTransformerViewProps<InsertRubato | CombineAdjacentRubatos>) => {
-    const { activeElements, setActiveElement } = useCallSelection();
+    const { activeElements, setActiveElement, activeEvidence } = useCallSelection();
+    const editable = useEditable()
     const { play, stop } = usePiano()
     const [frame, setFrame] = useState<Frame>()
     const stretchX = useSymbolicZoom()
@@ -63,6 +75,16 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
     const allRubatos = getInstructions(mpm, 'rubato', part)
     const chords = msm.in(part).chords()
 
+    /** The dates of this part's chords any of whose notes a selected call was fitted to. */
+    const evidenceDates = useMemo(
+        () => new Set(
+            msm.in(part).notes()
+                .filter(note => activeEvidence.has(note['xml:id']))
+                .map(note => note.date)
+        ),
+        [msm, part, activeEvidence]
+    )
+
     const rubatoElements = allRubatos.map(rubato => {
         const notes = msm.in(part).notes()
         // `@frameLength` is optional on a `<rubato>`: an instruction that carries no frame
@@ -105,7 +127,7 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
 
     return (
         <div ref={scrollContainerRef} style={{ width: '100vw', overflow: 'scroll' }}>
-            <DeskToolbar>
+            {editable && <DeskToolbar>
                 <ToolGroup>
                     {/*
                         `disabled` is `handleInsertRubato`'s own `if (!frame || !frame.length)
@@ -162,7 +184,7 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
                         Clear Frame
                     </ToolbarButton>
                 </ToolGroup>
-            </DeskToolbar>
+            </DeskToolbar>}
 
             <svg
                 width={svgWidth + marginLeft}
@@ -177,7 +199,8 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
                         width={svgWidth}
                         chords={chords}
                         residual={residual}
-                        onPickDate={addMarker}
+                        onPickDate={editable ? addMarker : undefined}
+                        evidenceDates={evidenceDates}
                         instructions={rubatoElements}
                     />
                 </g>

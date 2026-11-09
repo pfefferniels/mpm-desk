@@ -5,17 +5,28 @@ import { onsetSeconds } from "../noteTiming";
 import type { ArpeggioPlacement } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
 import { rowId, type AlignedNote } from "../../fitting/alignment";
 import { FrameDomain, type TemporalSpread } from "espressivo";
+import { EVIDENCE_COLOUR } from "../evidence";
 
 interface ChordSpreadProps {
     notes: AlignedNote[];
     spread?: TemporalSpread;
     placement?: ArpeggioPlacement;
-    onClick: () => void;
+    /** Selects the chord for an insert. Absent in the viewer, where a chord is only heard. */
+    onClick?: () => void;
+    /** One of the selected calls was fitted to this chord — see `../evidence.ts`. */
+    evidence?: boolean;
     stretch: number
     height: number
 }
 
-export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height }: ChordSpreadProps) => {
+/**
+ * One chord as it was rolled: a frame from its first onset to its last, a line per note, and the
+ * line a pending insert would place it on.
+ *
+ * Where a selected call was fitted to it, the frame is outlined and its notes drawn in the
+ * evidence colour, over the red the frame always has.
+ */
+export const ChordSpread = ({ notes, onClick, spread, placement, evidence = false, stretch, height }: ChordSpreadProps) => {
     const { play, stop } = usePiano();
     const [hovered, setHovered] = useState(false);
 
@@ -40,7 +51,7 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
     }
 
     return (
-        <g className='chord'>
+        <g className='chord' data-date={notes[0].date} data-evidence={evidence || undefined}>
             <rect
                 onMouseOver={() => {
                     const midi = asMIDI(notes);
@@ -60,7 +71,9 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
                 width={frameLength * stretch}
                 height={height}
                 fill='red'
-                fillOpacity={hovered ? 0.5 : 0.3} />
+                fillOpacity={hovered ? 0.5 : 0.3}
+                stroke={evidence ? EVIDENCE_COLOUR : undefined}
+                strokeWidth={evidence ? 2 : undefined} />
 
             {notes.map(note => {
                 return (
@@ -70,8 +83,8 @@ export const ChordSpread = ({ notes, onClick, spread, placement, stretch, height
                         x2={onsetSeconds(note) * stretch}
                         y1={0}
                         y2={height}
-                        stroke='gray'
-                        strokeWidth={notes.length === 1 ? 0.4 : 0.7} />
+                        stroke={evidence ? EVIDENCE_COLOUR : 'gray'}
+                        strokeWidth={evidence ? 1.2 : notes.length === 1 ? 0.4 : 0.7} />
                 );
             })}
 

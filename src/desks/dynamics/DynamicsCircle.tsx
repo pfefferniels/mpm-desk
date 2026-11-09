@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { DynamicsSegment } from "./segments";
+import { EVIDENCE_COLOUR } from "../evidence";
 
 interface DynamicsCircleProps {
     segment: DynamicsSegment;
@@ -25,8 +26,14 @@ interface DynamicsCircleProps {
      */
     onDragStart?: (segment: DynamicsSegment, event: React.MouseEvent<SVGCircleElement>) => void;
     yOffset?: number;
+    /**
+     * One of the selected calls was fitted to this dot's chord, which is drawn in
+     * `EVIDENCE_COLOUR` — see `../evidence.ts`. The chord rather than the note, so a caller marks
+     * every dot of a chord whose notes a call read.
+     */
+    evidence?: boolean;
 }
-export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handlePlay, handleClick, cursor, onDragStart, yOffset = 0 }: DynamicsCircleProps) => {
+export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handlePlay, handleClick, cursor, onDragStart, yOffset = 0, evidence = false }: DynamicsCircleProps) => {
     const [hovered, setHovered] = useState(false);
 
     const y = screenY(segment.velocity) + yOffset;
@@ -72,13 +79,14 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
 
             <circle
                 data-date={segment.date.start}
+                data-evidence={evidence || undefined}
                 cx={segment.date.start * stretchX}
                 cy={y}
-                r={3}
-                fill={datePlayed === segment.date.start ? 'blue' : 'black'}
-                fillOpacity={0.4}
-                stroke={'black'}
-                strokeWidth={segment.active ? 3 : 1}
+                r={evidence ? 3.5 : 3}
+                fill={datePlayed === segment.date.start ? 'blue' : evidence ? EVIDENCE_COLOUR : 'black'}
+                fillOpacity={evidence ? 0.6 : 0.4}
+                stroke={evidence ? EVIDENCE_COLOUR : 'black'}
+                strokeWidth={segment.active ? 3 : evidence ? 1.5 : 1}
                 style={cursor ? { cursor } : undefined}
                 onMouseDown={onDragStart ? (e) => {
                     e.preventDefault();

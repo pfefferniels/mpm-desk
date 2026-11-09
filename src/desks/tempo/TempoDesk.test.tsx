@@ -5,6 +5,8 @@ import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import { InsertTempo } from '../../fitting/transformers/tempo/InsertTempo';
 import { scopeData } from './secondary';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
@@ -59,73 +61,100 @@ const alignment = () =>
  * Holding it is what lets a test watch the desk edit it — which for the drawn curves is the whole
  * behaviour: they are written at one click and dropped at a later fit.
  */
+/** A selection to mount the desk under: what the fit reported, and which calls are selected. */
+interface Selection {
+    outcomes: CallOutcome[];
+    active: Set<string>;
+}
+
+const noSelection: Selection = { outcomes: [], active: new Set() };
+
 const Desk = ({
     part,
     mpm,
     initial = {},
     bar,
     addTransformer = vi.fn(),
+    editable = true,
+    selection = noSelection,
 }: {
     part: Scope;
     mpm: Mpm;
     initial?: SecondaryData;
     bar: HTMLElement;
     addTransformer?: (transformer: InsertTempo) => void;
+    editable?: boolean;
+    selection?: Selection;
 }) => {
     const msm = useMemo(() => alignment(), []);
     const [secondary, setSecondary] = useState(initial);
 
     return (
-        <ZoomContext
-            value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
-        >
-            <NotesProvider notes={msm.allNotes}>
-                <ScrollSyncProvider
-                    symbolicZoom={0.1}
-                    physicalZoom={20}
-                    tickToSeconds={(tick) => tick / 1440}
-                    secondsToTick={(seconds) => seconds * 1440}
-                >
-                    <CallSelectionProvider
-                        calls={[]}
-                        outcomes={[]}
-                        activeCallIds={new Set()}
-                        setActiveCallIds={vi.fn()}
-                        onRemoveCalls={vi.fn()}
-                        focusCall={vi.fn()}
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
+            >
+                <NotesProvider notes={msm.allNotes}>
+                    <ScrollSyncProvider
+                        symbolicZoom={0.1}
+                        physicalZoom={20}
+                        tickToSeconds={(tick) => tick / 1440}
+                        secondsToTick={(seconds) => seconds * 1440}
                     >
-                        <DeskToolbarProvider target={bar}>
-                            <span data-testid="drawn">
-                                {scopeData(secondary.tempo, part).drawnLines?.length ?? 0}
-                            </span>
-                            <span data-testid="stored">
-                                {scopeData(secondary.tempo, part).tempoCluster?.length ?? 0}
-                            </span>
-                            <TempoDesk
-                                part={part}
-                                msm={msm}
-                                mpm={mpm}
-                                residual={deriveResidual(msm, mpm)}
-                                performanceXml=""
-                                secondary={secondary}
-                                setSecondary={setSecondary}
-                                addTransformer={addTransformer}
-                            />
-                        </DeskToolbarProvider>
-                    </CallSelectionProvider>
-                </ScrollSyncProvider>
-            </NotesProvider>
-        </ZoomContext>
+                        <CallSelectionProvider
+                            calls={[]}
+                            outcomes={selection.outcomes}
+                            activeCallIds={selection.active}
+                            setActiveCallIds={vi.fn()}
+                            onRemoveCalls={vi.fn()}
+                            focusCall={vi.fn()}
+                        >
+                            <DeskToolbarProvider target={bar}>
+                                <span data-testid="drawn">
+                                    {scopeData(secondary.tempo, part).drawnLines?.length ?? 0}
+                                </span>
+                                <span data-testid="stored">
+                                    {scopeData(secondary.tempo, part).tempoCluster?.length ?? 0}
+                                </span>
+                                <TempoDesk
+                                    part={part}
+                                    msm={msm}
+                                    mpm={mpm}
+                                    residual={deriveResidual(msm, mpm)}
+                                    performanceXml=""
+                                    secondary={secondary}
+                                    setSecondary={setSecondary}
+                                    addTransformer={addTransformer}
+                                />
+                            </DeskToolbarProvider>
+                        </CallSelectionProvider>
+                    </ScrollSyncProvider>
+                </NotesProvider>
+            </ZoomContext>
+        </EditingContext>
     );
 };
 
-const renderDesk = (part: Scope, secondary: SecondaryData = {}, mpm: Mpm = createMpm()) => {
+const renderDesk = (
+    part: Scope,
+    secondary: SecondaryData = {},
+    mpm: Mpm = createMpm(),
+    { editable = true, selection = noSelection }: { editable?: boolean; selection?: Selection } = {},
+) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
     const addTransformer = vi.fn();
 
     const { rerender, unmount } = render(
-        <Desk part={part} mpm={mpm} initial={secondary} bar={bar} addTransformer={addTransformer} />,
+        <Desk
+            part={part}
+            mpm={mpm}
+            initial={secondary}
+            bar={bar}
+            addTransformer={addTransformer}
+            editable={editable}
+            selection={selection}
+        />,
     );
 
     return {
@@ -145,6 +174,8 @@ const renderDesk = (part: Scope, secondary: SecondaryData = {}, mpm: Mpm = creat
                     initial={secondary}
                     bar={bar}
                     addTransformer={addTransformer}
+                    editable={editable}
+                    selection={selection}
                 />,
             ),
         dispose: () => {
@@ -393,6 +424,75 @@ describe('inserting the drawn curves', () => {
         // A refused chain hands back no new document, and a curve that was not written stays.
         fit(mpm);
         expect(drawn()).toHaveLength(1);
+        dispose();
+    });
+});
+
+describe('the desk in the viewer', () => {
+    const viewer = { editable: false };
+
+    it('offers nothing to draw, split, insert or combine with, and keeps the Metre toggle', () => {
+        const { bar, dispose } = renderDesk(0, oneDrawnLine, withOneTempo(), viewer);
+
+        for (const name of ['Draw', 'Split', 'Insert', 'Combine'])
+            expect(within(bar).queryByRole('button', { name })).toBeNull();
+        expect(within(bar).getByRole('checkbox', { name: 'Metre' })).toBeInTheDocument();
+        dispose();
+    });
+
+    it('neither selects, combines nor splits a box, and writes nothing back', () => {
+        const { storedBoxes, addTransformer, dispose } = renderDesk(0, {}, createMpm(), viewer);
+        const boxes = document.querySelectorAll('polygon.box:not([data-derived])');
+
+        fireEvent.click(boxes[0]);
+        fireEvent.click(boxes[1], { shiftKey: true });
+        fireEvent.click(boxes[2], { shiftKey: true, altKey: true });
+        const skyline = document.querySelector('svg.skyline')!;
+        fireEvent.keyDown(skyline, { key: 'c' });
+        fireEvent.keyDown(skyline, { key: 's' });
+        fireEvent.keyDown(skyline, { key: 'Backspace' });
+
+        expect(storedBoxes()).toBe(0);
+        expect(document.querySelectorAll('polygon.box:not([data-derived])')).toHaveLength(4);
+        expect(document.querySelector('svg.skyline')).not.toHaveStyle({ cursor: 'crosshair' });
+        expect(addTransformer).not.toHaveBeenCalled();
+        dispose();
+    });
+});
+
+describe('what a selected call was fitted to', () => {
+    /** A tempo over the second and third quarters of part one, fitted to the chords at both ends. */
+    const selection: Selection = {
+        outcomes: [
+            {
+                id: 'tempo call',
+                elements: ['t1'],
+                range: { from: 720, to: 1440 },
+                evidence: ['a2', 'a3'],
+            },
+        ],
+        active: new Set(['tempo call']),
+    };
+
+    const marked = (selector: string) =>
+        [...document.querySelectorAll(`${selector}[data-evidence]`)].map((element) =>
+            Number(element.getAttribute(selector.startsWith('polygon') ? 'data-start' : 'data-date')),
+        );
+
+    it('marks the onsets it read and the interval between them, in the editor and the viewer', () => {
+        for (const editable of [true, false]) {
+            const { dispose } = renderDesk(0, {}, withOneTempo(), { editable, selection });
+            expect(marked('line.onset')).toEqual([720, 1440]);
+            // The box from 720 to 1440 lies between two of them; the boxes either side reach an
+            // onset the call did not read.
+            expect(marked('polygon.box:not([data-derived])')).toEqual([720]);
+            dispose();
+        }
+    });
+
+    it('marks nothing with no call selected', () => {
+        const { dispose } = renderDesk(0, {}, withOneTempo());
+        expect(document.querySelectorAll('[data-evidence]')).toHaveLength(0);
         dispose();
     });
 });

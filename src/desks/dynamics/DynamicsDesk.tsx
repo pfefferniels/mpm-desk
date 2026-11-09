@@ -11,9 +11,10 @@ import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
 import { VerticalScale } from "./VerticalScale";
-import { extractDynamicsSegments } from "./segments";
+import { evidenceDates, extractDynamicsSegments } from "./segments";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { useEditable } from "../../hooks/Editing";
 import { DeskToolbar } from "../../components/DeskToolbar";
 import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
@@ -55,11 +56,19 @@ const MIN_GRID_SPACING = 4;
  * recording sounds a note there — over a rest, or inside a held note. It is editorial, so it is
  * not free: it lands on a grid, quarter notes unless the toolbar says otherwise. A curve is fitted
  * between two anchors, and a phantom is one.
+ *
+ * Selecting a curve marks the dots it was fitted over in the evidence colour (`../evidence.ts`):
+ * the chords of its scope from the anchor it starts on to the one it ends on.
+ *
+ * In the viewer the desk only reads. No toolbar, since both modes, the grid and the phantoms exist
+ * to write a curve; no drag across the plot; no phantom. A dot still sounds on hover and plays on
+ * click, and a curve still selects the call that wrote it.
  */
 export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<
     InsertDynamicsInstructions
 >) => {
-    const { activeElements, setActiveElement } = useCallSelection();
+    const { activeElements, activeEvidence, setActiveElement } = useCallSelection();
+    const editable = useEditable()
     const [datePlayed, setDatePlayed] = useState<number>()
     const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
     const [mode, setMode] = useState<'insert' | 'phantom'>('insert')
@@ -123,6 +132,12 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     }, [mpm, part])
 
     const segments = useMemo(() => extractDynamicsSegments(msm, part), [msm, part])
+    const marked = evidenceDates(msm.in(part).notes(), activeEvidence)
+
+    // What a press on the plot does. In the viewer, neither: drawing a curve and pencilling in a
+    // phantom are the two ways this desk writes.
+    const inserting = editable && mode === 'insert'
+    const pencilling = editable && mode === 'phantom'
 
     // The optimistic preview is answered by the next fit, the drawn curve being in `mpm` by
     // then. Cleared during render, React's way of adjusting state when a prop changes, rather
@@ -273,11 +288,12 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                 screenY={screenY}
                 handlePlay={handlePlay}
                 handleClick={(e) => {
-                    if (mode !== 'phantom') return
+                    if (!pencilling) return
                     e.stopPropagation()
                     pencilIn({ date: segment.date.start, velocity: segment.velocity })
                 }}
-                cursor={mode === 'insert' ? 'crosshair' : undefined}
+                cursor={inserting ? 'crosshair' : undefined}
+                evidence={marked.has(segment.date.start)}
             />
         )
     })
@@ -303,7 +319,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     return (
         <div>
             <Box sx={{ m: 1 }}>{part !== 'global' && `Part ${part + 1}`}</Box>
-            <DeskToolbar>
+            {editable && <DeskToolbar>
                 <ToolGroup label='Mode'>
                     <ToggleButtonGroup
                         value={mode}
@@ -374,7 +390,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         Clear Phantoms
                     </ToolbarButton>
                 </ToolGroup>
-            </DeskToolbar>
+            </DeskToolbar>}
 
             {/*
                 The scale has a column of its own, laid out beside the scroller, so the chart
@@ -417,13 +433,13 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                                 chartHeight
                             ].join(' ')
                         }
-                        onMouseDown={mode === 'insert' ? (e) => {
+                        onMouseDown={inserting ? (e) => {
                             const svg = e.currentTarget
                             const pt = svgPoint(svg, e.clientX, e.clientY)
                             if (!pt) return
                             setDragFrom(anchorNear(svg, pt.x))
                         } : undefined}
-                        onMouseMove={mode === 'insert' ? (e) => {
+                        onMouseMove={inserting ? (e) => {
                             if (!dragFrom) return
                             const svg = e.currentTarget
                             const pt = svgPoint(svg, e.clientX, e.clientY)
@@ -432,7 +448,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             const to = anchorNear(svg, pt.x)
                             setDragTo(to && to.date > dragFrom.date ? to : undefined)
                         } : undefined}
-                        onMouseUp={mode === 'insert' ? () => {
+                        onMouseUp={inserting ? () => {
                             if (dragFrom && dragTo) {
                                 setPendingInsert({ from: dragFrom.date, to: dragTo.date })
                                 addTransformer(new InsertDynamicsInstructions({
@@ -444,8 +460,8 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             }
                             cancelDrag()
                         } : undefined}
-                        onMouseLeave={mode === 'insert' ? () => cancelDrag() : undefined}
-                        onClick={mode === 'phantom' ? (e) => {
+                        onMouseLeave={inserting ? () => cancelDrag() : undefined}
+                        onClick={pencilling ? (e) => {
                             const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
                             if (!pt) return
                             const phantom = snapPhantom(
@@ -456,13 +472,13 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             if (phantom) pencilIn(phantom)
                         } : undefined}
                     >
-                        {mode === 'phantom' && gridLines}
+                        {pencilling && gridLines}
                         {/*
                             A fitted curve is filled down to the baseline, so in Phantom mode it
                             covers most of the surface a phantom would be placed on. Selecting one
                             is an Insert-mode gesture.
                         */}
-                        <g pointerEvents={mode === 'phantom' ? 'none' : undefined}>
+                        <g pointerEvents={pencilling ? 'none' : undefined}>
                             {curves}
                         </g>
                         {circles}

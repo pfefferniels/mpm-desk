@@ -16,6 +16,9 @@ import { PedalLanes } from "./PedalLanes"
 import { PedalLaneLabels } from "../PedalBand"
 import { PEDAL_AREA, PEDAL_GUTTER, PEDAL_LABEL_WIDTH, pedalLanes } from "../pedalGeometry"
 import { rangeCovering, reachedTo } from "../dateRange"
+import { useEditable } from "../../hooks/Editing"
+import { useCallSelection } from "../../hooks/CallSelection"
+import { EVIDENCE_COLOUR } from "../evidence"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
 // returns <path> attribute @d.
@@ -85,11 +88,20 @@ interface ArticulatedNoteProps {
     notes: AlignedNote[]
     stretchX: number
     stretchY: number
-    onClick: (e: MouseEvent<Element>, note: AlignedNote) => void
+    /** Scopes the choice to the note. Absent in the viewer, where a choice is not made. */
+    onClick?: (e: MouseEvent<Element>, note: AlignedNote) => void
     colorFor: (source: string) => string
+    /** One of the selected calls chose for this note — see `../evidence.ts`. */
+    evidence: boolean
 }
 
-const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: ArticulatedNoteProps) => {
+/**
+ * One score note as each reading has it: a bar per reading that differs, braced together.
+ *
+ * Where a selected call made its choice for this note, the brace is drawn in the evidence colour
+ * and the group is shown at full strength, however little its readings differ.
+ */
+const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }: ArticulatedNoteProps) => {
     const [hovered, setHovered] = useState(false)
 
     if (!notes.length) return null
@@ -106,7 +118,9 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: Articulat
 
     return (
         <g
-            opacity={hovered ? 1 : (variationScore / (notes.length * 4) || 1)}
+            data-evidence={evidence || undefined}
+            data-note={notes[0]['xml:id']}
+            opacity={hovered || evidence ? 1 : (variationScore / (notes.length * 4) || 1)}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
@@ -138,7 +152,7 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: Articulat
                             stroke='black'
                             strokeWidth={0.8}
                             strokeDasharray={hovered ? 'none' : '1 1'}
-                            onClick={(e) => onClick(e, note)}
+                            onClick={onClick && ((e) => onClick(e, note))}
                             key={`noteRect_${note["xml:id"]}`}
                         />
 
@@ -165,15 +179,23 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor }: Articulat
                         5,
                         0.55
                     )}
-                stroke={'black'}
-                strokeWidth={hovered ? 2 : 1.2}
+                stroke={evidence ? EVIDENCE_COLOUR : 'black'}
+                strokeWidth={hovered || evidence ? 2 : 1.2}
                 fill='none'
             />
         </g>
     )
 }
 
+/**
+ * The readings of the score side by side, note by note, and the choice of which to take.
+ *
+ * In the viewer the readings are only shown: nothing is chosen, so the bar is empty and a click
+ * on a note scopes nothing. The notes a selected `MakeChoice` chose for are marked.
+ */
 export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
+    const editable = useEditable()
+    const { activeEvidence } = useCallSelection()
     const [currentChoice, setCurrentChoice] = useState<RangeChoice | NoteChoice>()
     const [prefer, setPrefer] = useState<Preference>()
     const [insert, setInsert] = useState(false)
@@ -217,7 +239,8 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                 stretchX={stretchX}
                 stretchY={stretchY}
                 colorFor={colorFor}
-                onClick={(e) => {
+                evidence={notes.some(note => activeEvidence.has(note['xml:id']))}
+                onClick={editable ? (e) => {
                     if (!e.shiftKey && !e.metaKey) {
                         const newChoice: NoteChoice = {
                             noteIDs: [notes[0]['xml:id']],
@@ -248,7 +271,7 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                             setCurrentChoice(reachedTo(currentChoice, date))
                         }
                     }
-                }}
+                } : undefined}
             />
         ))
     }
@@ -283,46 +306,48 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
 
     return (
         <>
-            <DeskToolbar>
-                {/*
-                    Unlabelled, because the group's caption is never the desk's own name and `Range
-                    Choice` was exactly that. The desk name leads the toolbar row now.
+            {editable && (
+                <DeskToolbar>
+                    {/*
+                        Unlabelled, because the group's caption is never the desk's own name and `Range
+                        Choice` was exactly that. The desk name leads the toolbar row now.
 
-                    `Make Choice` is the primary and is deliberately *not* disabled when nothing is
-                    selected: a choice with no range is the documented way to state a preferred
-                    source for the whole piece, so no selection is a legitimate scope rather than a
-                    missing precondition. The readout beside it says which of the three scopes is in
-                    force, which is the information the old label was carrying.
-                */}
-                <ToolGroup>
-                    <ToolbarButton
-                        primary
-                        label='Make Choice'
-                        tooltip={currentChoice
-                            ? `Choose a preferred source for ${choiceScope}`
-                            : 'Choose a preferred source for the whole piece — click notes to narrow it'}
-                        onClick={() => setInsert(true)}
-                    >
-                        Make Choice
-                    </ToolbarButton>
-                    {/* 120px, measured for `ticks 12345–67890` at ten-point tabular figures —
-                        104 was short of it, so the very case it was sized for was the one that
-                        ellipsized. Anything longer still truncates, which is the point: the
-                        button after it does not move. */}
-                    <ToolStatus width={120}>{choiceScope}</ToolStatus>
-                    <ToolbarButton
-                        icon={<Clear fontSize='small' />}
-                        label='Clear Choice'
-                        tooltip={currentChoice
-                            ? 'Forget the selected notes and go back to the default scope'
-                            : 'Nothing selected to clear'}
-                        disabled={!currentChoice}
-                        onClick={() => setCurrentChoice(undefined)}
-                    >
-                        Clear Choice
-                    </ToolbarButton>
-                </ToolGroup>
-            </DeskToolbar>
+                        `Make Choice` is the primary and is deliberately *not* disabled when nothing is
+                        selected: a choice with no range is the documented way to state a preferred
+                        source for the whole piece, so no selection is a legitimate scope rather than a
+                        missing precondition. The readout beside it says which of the three scopes is in
+                        force, which is the information the old label was carrying.
+                    */}
+                    <ToolGroup>
+                        <ToolbarButton
+                            primary
+                            label='Make Choice'
+                            tooltip={currentChoice
+                                ? `Choose a preferred source for ${choiceScope}`
+                                : 'Choose a preferred source for the whole piece — click notes to narrow it'}
+                            onClick={() => setInsert(true)}
+                        >
+                            Make Choice
+                        </ToolbarButton>
+                        {/* 120px, measured for `ticks 12345–67890` at ten-point tabular figures —
+                            104 was short of it, so the very case it was sized for was the one that
+                            ellipsized. Anything longer still truncates, which is the point: the
+                            button after it does not move. */}
+                        <ToolStatus width={120}>{choiceScope}</ToolStatus>
+                        <ToolbarButton
+                            icon={<Clear fontSize='small' />}
+                            label='Clear Choice'
+                            tooltip={currentChoice
+                                ? 'Forget the selected notes and go back to the default scope'
+                                : 'Nothing selected to clear'}
+                            disabled={!currentChoice}
+                            onClick={() => setCurrentChoice(undefined)}
+                        >
+                            Clear Choice
+                        </ToolbarButton>
+                    </ToolGroup>
+                </DeskToolbar>
+            )}
 
             {/*
                 The lane names have a column of their own beside the scroller, so `sustain` still

@@ -23,6 +23,7 @@ import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
 import { DeskToolbar } from "../../components/DeskToolbar"
 import { usePhysicalZoom } from "../../hooks/ZoomProvider"
 import { useCallSelection } from "../../hooks/CallSelection"
+import { useEditable } from "../../hooks/Editing"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { useTimeMapping } from "../../hooks/useTimeMapping"
 import { usePiano } from "../../performance/piano"
@@ -33,9 +34,33 @@ import { MidiFile } from "midifile-ts"
 /** One array, so that a desk with no drawn curve keeps the same identity from render to render. */
 const noDrawnLines: DrawnLine[] = []
 
+/**
+ * The tempo desk: the recording's inter-onset intervals as a skyline of boxes, the tempo curves
+ * the document holds drawn over them, and in the editor the strokes that become new ones.
+ *
+ * In the viewer it is the same skyline with nothing to draw with: no Draw or Split, no Insert or
+ * Combine, and the boxes neither select, split nor delete. What stays is reading — hovering a box
+ * or a curve to hear it, clicking a curve to select the call that wrote it — and with a call
+ * selected, the onsets it was fitted to and the boxes between them are marked in the evidence
+ * colour (`../evidence.ts`), in either mode.
+ */
 export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecondary }: ScopedTransformerViewProps<InsertTempo>) => {
-    const { activeElements, setActiveElement } = useCallSelection()
+    const { activeElements, setActiveElement, activeEvidence } = useCallSelection()
+    const editable = useEditable()
     const tempoData = useMemo(() => scopeData(secondary.tempo, part), [secondary.tempo, part])
+
+    /**
+     * The dates of this part's chords any of whose notes a selected call was fitted to. Dates
+     * rather than ids, because the skyline is drawn from onsets and the boxes between them.
+     */
+    const evidenceDates = useMemo(
+        () => new Set(
+            msm.in(part).notes()
+                .filter(note => activeEvidence.has(note['xml:id']))
+                .map(note => note.date)
+        ),
+        [msm, part, activeEvidence]
+    )
 
     /**
      * The boxes, the split onsets and the drawn curves live in the work file alone, under the
@@ -351,55 +376,63 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
     return (
         <div>
             <DeskToolbar>
-                {/*
-                    Draw and Split are one state, so they are one group.
+                {editable && (
+                    <>
+                        {/*
+                            Draw and Split are one state, so they are one group.
 
-                    They were two — a "Mode" holding Draw and a "Segments" holding Split beside
-                    Combine — which put two values of the same `SkylineMode` under different
-                    captions with a rule between them, reading as two independent switches that
-                    could both be on. An exclusive `ToggleButtonGroup` says what the state
-                    actually is, and says it in one place.
+                            They were two — a "Mode" holding Draw and a "Segments" holding Split beside
+                            Combine — which put two values of the same `SkylineMode` under different
+                            captions with a rule between them, reading as two independent switches that
+                            could both be on. An exclusive `ToggleButtonGroup` says what the state
+                            actually is, and says it in one place.
 
-                    The `?? undefined` keeps today's click-to-deselect: an exclusive group
-                    answers a click on the pressed button with `null`, which is a third spelling
-                    of "no mode" that `SkylineMode` does not have.
-                */}
-                <ToolGroup label='Mode'>
-                    <ToggleButtonGroup
-                        size='small'
-                        exclusive
-                        value={mode ?? null}
-                        onChange={(_, next: SkylineMode | null) => setMode(next ?? undefined)}
-                    >
-                        <ToggleButton value='draw'>Draw</ToggleButton>
-                        <ToggleButton value='split'>Split</ToggleButton>
-                    </ToggleButtonGroup>
-                </ToolGroup>
+                            The `?? undefined` keeps today's click-to-deselect: an exclusive group
+                            answers a click on the pressed button with `null`, which is a third spelling
+                            of "no mode" that `SkylineMode` does not have.
+                        */}
+                        <ToolGroup label='Mode'>
+                            <ToggleButtonGroup
+                                size='small'
+                                exclusive
+                                value={mode ?? null}
+                                onChange={(_, next: SkylineMode | null) => setMode(next ?? undefined)}
+                            >
+                                <ToggleButton value='draw'>Draw</ToggleButton>
+                                <ToggleButton value='split'>Split</ToggleButton>
+                            </ToggleButtonGroup>
+                        </ToolGroup>
 
+                        <ToolGroup>
+                            <ToolbarButton
+                                primary
+                                icon={<Add />}
+                                label='Insert'
+                                tooltip={drawnLines.length === 0
+                                    ? 'Draw a tempo curve first — there is nothing to insert'
+                                    : `Write ${drawnLines.length} drawn ${drawnLines.length === 1 ? 'curve' : 'curves'} into the document`}
+                                disabled={drawnLines.length === 0}
+                                onClick={insertTempoValues}
+                            >
+                                Insert
+                            </ToolbarButton>
+                            <ToolbarButton
+                                icon={<Merge />}
+                                label='Combine'
+                                tooltip={selectedSegments.length < 2
+                                    ? 'Select two or more segments to combine them'
+                                    : `Combine the ${selectedSegments.length} selected segments into one`}
+                                disabled={selectedSegments.length < 2}
+                                onClick={combineSegments}
+                            >
+                                Combine
+                            </ToolbarButton>
+                        </ToolGroup>
+                    </>
+                )}
+
+                {/* What is drawn, and so the viewer's as much as the editor's. */}
                 <ToolGroup>
-                    <ToolbarButton
-                        primary
-                        icon={<Add />}
-                        label='Insert'
-                        tooltip={drawnLines.length === 0
-                            ? 'Draw a tempo curve first — there is nothing to insert'
-                            : `Write ${drawnLines.length} drawn ${drawnLines.length === 1 ? 'curve' : 'curves'} into the document`}
-                        disabled={drawnLines.length === 0}
-                        onClick={insertTempoValues}
-                    >
-                        Insert
-                    </ToolbarButton>
-                    <ToolbarButton
-                        icon={<Merge />}
-                        label='Combine'
-                        tooltip={selectedSegments.length < 2
-                            ? 'Select two or more segments to combine them'
-                            : `Combine the ${selectedSegments.length} selected segments into one`}
-                        disabled={selectedSegments.length < 2}
-                        onClick={combineSegments}
-                    >
-                        Combine
-                    </ToolbarButton>
                     <ToolCheckbox
                         checked={groupByMetre}
                         onChange={setGroupByMetre}
@@ -442,13 +475,14 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                             tickToSeconds={tickToSeconds}
                             stretchX={stretchX}
                             stretchY={stretchY}
-                            mode={mode}
+                            mode={editable ? mode : undefined}
                             committedTempos={displayTempos}
                             silentOnsets={silentOnsets}
                             msm={msm}
                             drawnLines={shownLines}
                             onDrawLine={(line) => updateDrawnLines([...resolveOverlaps(drawnLines, line), line])}
                             onToggleSplitMode={() => setMode(prev => prev === 'split' ? undefined : 'split')}
+                            evidenceDates={evidenceDates}
                             onSplit={(first, second, onset) => {
                                 setSilentOnset(second.date.start, onset)
                                 setTempoCluster(new TempoCluster([...tempoCluster.segments, first, second]))

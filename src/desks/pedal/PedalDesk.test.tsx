@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { Alignment, type AlignedNote, type AlignedPedal } from '../../fitting/alignment'
 import { createMpm, requireMap, type Mpm } from '../../fitting/instructions/index'
 import type { PedalResidual, Residual } from '../../fitting/residual'
 import type { Normalized } from 'espressivo'
 import { CallSelectionProvider } from '../../hooks/CallSelection'
+import { EditingContext } from '../../hooks/Editing'
+import type { CallOutcome } from '../../fitting/fit'
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider'
 import { ZoomContext } from '../../hooks/ZoomProvider'
 import { PedalDesk } from './PedalDesk'
@@ -97,42 +99,56 @@ const withMovements = (...controllers: string[]): Mpm => {
     return mpm
 }
 
-const renderDesk = (pedals: readonly AlignedPedal[], mpm: Mpm, placed = pedals) => {
+interface Mode {
+    editable?: boolean
+    /** What the fit reported, and which calls are selected. */
+    outcomes?: CallOutcome[]
+    active?: Set<string>
+}
+
+const renderDesk = (
+    pedals: readonly AlignedPedal[],
+    mpm: Mpm,
+    placed = pedals,
+    { editable = true, outcomes = [], active = new Set<string>() }: Mode = {},
+) => {
     const msm = new Alignment([note('n1', 0), note('n2', 720)])
     msm.pedals = [...pedals]
     const addTransformer = vi.fn()
 
     render(
-        <ZoomContext
-            value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
-        >
-            <ScrollSyncProvider
-                symbolicZoom={0.1}
-                physicalZoom={20}
-                tickToSeconds={tick => tick / 1440}
-                secondsToTick={seconds => seconds * 1440}
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
             >
-                <CallSelectionProvider
-                    calls={[]}
-                    outcomes={[]}
-                    activeCallIds={new Set()}
-                    setActiveCallIds={vi.fn()}
-                    onRemoveCalls={vi.fn()}
-                    focusCall={vi.fn()}
+                <ScrollSyncProvider
+                    symbolicZoom={0.1}
+                    physicalZoom={20}
+                    tickToSeconds={tick => tick / 1440}
+                    secondsToTick={seconds => seconds * 1440}
                 >
-                    <PedalDesk
-                        part='global'
-                        msm={msm}
-                        mpm={mpm}
-                        residual={placing(placed)}
-                        performanceXml=''
-                        secondary={{}}
-                        setSecondary={vi.fn()}
-                        addTransformer={addTransformer}
-                    />
-                </CallSelectionProvider>
-            </ScrollSyncProvider>
-        </ZoomContext>,
+                    <CallSelectionProvider
+                        calls={[]}
+                        outcomes={outcomes}
+                        activeCallIds={active}
+                        setActiveCallIds={vi.fn()}
+                        onRemoveCalls={vi.fn()}
+                        focusCall={vi.fn()}
+                    >
+                        <PedalDesk
+                            part='global'
+                            msm={msm}
+                            mpm={mpm}
+                            residual={placing(placed)}
+                            performanceXml=''
+                            secondary={{}}
+                            setSecondary={vi.fn()}
+                            addTransformer={addTransformer}
+                        />
+                    </CallSelectionProvider>
+                </ScrollSyncProvider>
+            </ZoomContext>
+        </EditingContext>,
     )
 
     return addTransformer
@@ -193,5 +209,39 @@ describe('PedalDesk', () => {
         expect(scroller).not.toBeNull()
         expect([...scroller!.querySelectorAll('text')].map(text => text.textContent))
             .not.toContain('sustain')
+    })
+
+    it('writes nothing on a click in the viewer, where a press is no target', () => {
+        const addTransformer = renderDesk([pedal('sustain', 0)], createMpm(), undefined, {
+            editable: false,
+        })
+        const press = document.querySelector('[data-press="sustain_0"]')!
+
+        fireEvent.click(press)
+
+        expect(addTransformer).not.toHaveBeenCalled()
+        expect(press).not.toHaveStyle({ cursor: 'pointer' })
+    })
+
+    it('marks the press a selected call was fitted to, in the editor and the viewer', () => {
+        for (const editable of [true, false]) {
+            renderDesk([pedal('sustain', 0), pedal('soft', 720)], createMpm(), undefined, {
+                editable,
+                outcomes: [
+                    { id: 'pedal call', elements: [], range: { from: 0, to: 720 }, evidence: ['sustain_0'] },
+                ],
+                active: new Set(['pedal call']),
+            })
+
+            expect([...document.querySelectorAll('g.pedalPress[data-evidence]')].map(press =>
+                press.getAttribute('data-id'),
+            )).toEqual(['pedalPress_sustain_0'])
+            cleanup()
+        }
+    })
+
+    it('marks no press with no call selected', () => {
+        renderDesk([pedal('sustain', 0)], createMpm())
+        expect(document.querySelectorAll('[data-evidence]')).toHaveLength(0)
     })
 })

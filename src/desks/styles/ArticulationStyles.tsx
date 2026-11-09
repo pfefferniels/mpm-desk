@@ -7,6 +7,9 @@ import { DeskToolbar } from "../../components/DeskToolbar"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
+import { useCallSelection } from "../../hooks/CallSelection"
+import { useEditable } from "../../hooks/Editing"
+import { isCallOf } from "../../fitting/calls"
 import { Plot } from "./Plot"
 
 /**
@@ -29,9 +32,28 @@ const placeable = (points: readonly IPoint[]) => points.filter(point => point.va
  */
 const placement = new StylizeArticulation()
 
+/** Where the sliders start, and what the viewer clusters at where the chain stylizes nothing. */
+const DEFAULT_TOLERANCES = { volumeTolerance: 0.05, relativeDurationTolerance: 0.15 }
+
+/**
+ * The articulations of a scope as the clustering places them, and the tolerances that decide
+ * which share a def.
+ *
+ * In the viewer the plot is the clustering the reconstruction made: at the tolerances of its own
+ * `StylizeArticulation` call, with no sliders and no button. Where it made none, at the defaults,
+ * and it says so — the colours are then what stylizing would do, not what was done.
+ */
 export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransformerViewProps<StylizeArticulation>) => {
-    const [volumeTolerance, setVolumeTolerance] = useState(0.05)
-    const [relativeDurationTolerance, setRelativeDurationTolerance] = useState(0.15)
+    const editable = useEditable()
+    const { calls } = useCallSelection()
+    const written = calls.find(isCallOf('StylizeArticulation'))
+
+    const [draftVolume, setVolumeTolerance] = useState(DEFAULT_TOLERANCES.volumeTolerance)
+    const [draftDuration, setRelativeDurationTolerance] = useState(DEFAULT_TOLERANCES.relativeDurationTolerance)
+    const shown = editable
+        ? { volumeTolerance: draftVolume, relativeDurationTolerance: draftDuration }
+        : { ...DEFAULT_TOLERANCES, ...written?.options }
+    const { volumeTolerance, relativeDurationTolerance } = shown
 
     const transformArticulations = () => {
         addTransformer(new StylizeArticulation({
@@ -61,7 +83,7 @@ export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransfor
 
     return (
         <div>
-            <DeskToolbar>
+            {editable && <DeskToolbar>
                 <ToolGroup>
                     <ToolbarButton
                         primary
@@ -75,9 +97,17 @@ export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransfor
                         Stylize Articulations
                     </ToolbarButton>
                 </ToolGroup>
-            </DeskToolbar>
+            </DeskToolbar>}
 
-            <Stack direction='row' spacing={1}>
+            {!editable && (
+                <Typography variant='body2' color='text.secondary' sx={{ width: 600, py: 1 }}>
+                    {written
+                        ? `Clustered as the reconstruction stylized its articulations: volume within ${volumeTolerance}, duration within ${relativeDurationTolerance}.`
+                        : 'The reconstruction does not stylize its articulations. The colours are what the default tolerances would make of them.'}
+                </Typography>
+            )}
+
+            {editable && <Stack direction='row' spacing={1}>
                 <Typography gutterBottom>
                     Volume Tolerance
                 </Typography>
@@ -101,14 +131,14 @@ export const ArticulationStyles = ({ mpm, addTransformer, part }: ScopedTransfor
                     max={1}
                     valueLabelDisplay="auto"
                 />
-            </Stack>
+            </Stack>}
 
             {placeable(articulationPoints).length === 0
                 ? (
                     <Typography color='text.secondary' sx={{ width: 600, py: 4 }}>
                         Nothing here to cluster: a shared def needs both relative attributes and
-                        no absolute one. Fit articulations first, or look in another scope — this
-                        plot shows the scope the bar is set to.
+                        no absolute one. {editable ? 'Fit articulations first, or look' : 'Look'} in
+                        another scope — this plot shows the scope the bar is set to.
                     </Typography>
                 )
                 : (

@@ -9,6 +9,7 @@ import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
 import { DeleteOutline } from "@mui/icons-material";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { useEditable } from "../../hooks/Editing";
 import { isCallOf } from "../../fitting/calls";
 import { SilentOrnaments } from "../SilentOrnaments";
 
@@ -44,8 +45,21 @@ const Tolerance = ({ label, note, unit, value, min, max, step, onChange }: Toler
     </Box>
 )
 
+/** Where the sliders start, and what the viewer clusters at where the chain stylizes nothing. */
+const DEFAULT_TOLERANCES = { tickTolerance: 10, intensityTolerance: 0.2, gradientTolerance: 0.2 }
+
+/**
+ * The fitted ornaments of a scope as the clustering places them, and the tolerances that decide
+ * which share a definition.
+ *
+ * In the viewer the plot is the clustering the reconstruction made: at the tolerances of its own
+ * `StylizeOrnamentation` call, with the sliders and both buttons gone and the tolerances stated
+ * instead. Where it made none, at the defaults, and it says so. The count of silent ornaments
+ * stays in the bar, being a fact about the chain rather than a control.
+ */
 export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const { calls, removeCall } = useCallSelection()
+    const editable = useEditable()
 
     // By name alone, and unlike the two arpeggiation desks that is correct here.
     // `StylizeOrnamentationOptions` carries no `scope` — `transform` loops over `scopesOf(mpm)`
@@ -54,9 +68,12 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
     // `t.options.scope === part` would compare against an attribute that is never written and
     // leave `Stylize Ornaments` live forever.
     const existingTransformer = calls.find(isCallOf('StylizeOrnamentation'))
-    const [tickTolerance, setTickTolerance] = useState(10)
-    const [intensityTolerance, setIntensityTolerance] = useState(0.2)
-    const [gradientTolerance, setGradientTolerance] = useState(0.2)
+    const [draftTick, setTickTolerance] = useState(DEFAULT_TOLERANCES.tickTolerance)
+    const [draftIntensity, setIntensityTolerance] = useState(DEFAULT_TOLERANCES.intensityTolerance)
+    const [draftGradient, setGradientTolerance] = useState(DEFAULT_TOLERANCES.gradientTolerance)
+    const { tickTolerance, intensityTolerance, gradientTolerance } = editable
+        ? { tickTolerance: draftTick, intensityTolerance: draftIntensity, gradientTolerance: draftGradient }
+        : { ...DEFAULT_TOLERANCES, ...existingTransformer?.options }
 
     const transformOrnaments = () => {
         addTransformer(new StylizeOrnamentation({
@@ -90,28 +107,30 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
             */}
             <DeskToolbar>
                 <ToolGroup>
-                    <ToolbarButton
-                        primary
-                        label='Stylize Ornaments'
-                        tooltip={existingTransformer
-                            ? 'The chain already holds a Stylize Ornaments call'
-                            : 'Cluster the fitted ornaments and define one style per cluster'}
-                        disabled={existingTransformer !== undefined}
-                        onClick={transformOrnaments}
-                    >
-                        Stylize Ornaments
-                    </ToolbarButton>
-                    <ToolbarButton
-                        icon={<DeleteOutline />}
-                        label='Remove Style'
-                        tooltip={existingTransformer
-                            ? 'Drop the ornament definitions and leave the ornaments as fitted'
-                            : 'The ornaments are not stylized yet'}
-                        disabled={!existingTransformer}
-                        onClick={() => { if (existingTransformer) removeCall(existingTransformer.id) }}
-                    >
-                        Remove Style
-                    </ToolbarButton>
+                    {editable && <>
+                        <ToolbarButton
+                            primary
+                            label='Stylize Ornaments'
+                            tooltip={existingTransformer
+                                ? 'The chain already holds a Stylize Ornaments call'
+                                : 'Cluster the fitted ornaments and define one style per cluster'}
+                            disabled={existingTransformer !== undefined}
+                            onClick={transformOrnaments}
+                        >
+                            Stylize Ornaments
+                        </ToolbarButton>
+                        <ToolbarButton
+                            icon={<DeleteOutline />}
+                            label='Remove Style'
+                            tooltip={existingTransformer
+                                ? 'Drop the ornament definitions and leave the ornaments as fitted'
+                                : 'The ornaments are not stylized yet'}
+                            disabled={!existingTransformer}
+                            onClick={() => { if (existingTransformer) removeCall(existingTransformer.id) }}
+                        >
+                            Remove Style
+                        </ToolbarButton>
+                    </>}
                     {/*
                         Beside the buttons, because here it says what they did rather than what
                         was forgotten: a run that leaves the count above zero has skipped those
@@ -160,34 +179,43 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                 </Box>
 
                 <Stack spacing={3} sx={{ width: 240 }}>
-                    <Tolerance
-                        label='Frame'
-                        note='frame.start and frameLength'
-                        unit='ms'
-                        value={tickTolerance}
-                        onChange={setTickTolerance}
-                        step={1}
-                        min={1}
-                        max={200}
-                    />
-                    <Tolerance
-                        label='Intensity'
-                        note='temporalSpread intensity'
-                        value={intensityTolerance}
-                        onChange={setIntensityTolerance}
-                        step={0.05}
-                        min={0}
-                        max={2}
-                    />
-                    <Tolerance
-                        label='Gradient'
-                        note='dynamicsGradient ends, within a frame cluster'
-                        value={gradientTolerance}
-                        onChange={setGradientTolerance}
-                        step={0.05}
-                        min={0}
-                        max={2}
-                    />
+                    {!editable && (
+                        <Typography variant='body2' color='text.secondary'>
+                            {existingTransformer
+                                ? `Clustered as the reconstruction stylized its ornaments: frame within ${tickTolerance} ms, intensity within ${intensityTolerance}, gradient within ${gradientTolerance}.`
+                                : 'The reconstruction does not stylize its ornaments. The colours are what the default tolerances would make of them.'}
+                        </Typography>
+                    )}
+                    {editable && <>
+                        <Tolerance
+                            label='Frame'
+                            note='frame.start and frameLength'
+                            unit='ms'
+                            value={tickTolerance}
+                            onChange={setTickTolerance}
+                            step={1}
+                            min={1}
+                            max={200}
+                        />
+                        <Tolerance
+                            label='Intensity'
+                            note='temporalSpread intensity'
+                            value={intensityTolerance}
+                            onChange={setIntensityTolerance}
+                            step={0.05}
+                            min={0}
+                            max={2}
+                        />
+                        <Tolerance
+                            label='Gradient'
+                            note='dynamicsGradient ends, within a frame cluster'
+                            value={gradientTolerance}
+                            onChange={setGradientTolerance}
+                            step={0.05}
+                            min={0}
+                            max={2}
+                        />
+                    </>}
                     <Typography variant='body2' color='text.secondary'>
                         {`${styles.points.length} ornaments → ${styles.definitions} definitions`}
                     </Typography>

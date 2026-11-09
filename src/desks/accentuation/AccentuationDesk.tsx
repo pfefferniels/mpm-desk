@@ -14,6 +14,7 @@ import { Residual } from "../../fitting/residual";
 import { Box } from "@mui/material";
 import { DynamicsCircle } from "../dynamics/DynamicsCircle";
 import { DynamicsSegment } from "../dynamics/DynamicsDesk";
+import { evidenceDates } from "../dynamics/segments";
 import { Pattern } from "./Pattern";
 import { Add, Delete, Merge } from "@mui/icons-material";
 import { AccentuationDialog } from "./AccentuationDialog";
@@ -21,6 +22,7 @@ import { NameDialog } from "./NameDialog";
 import { Preview } from "./Preview";
 import { useSymbolicZoom } from "../../hooks/ZoomProvider";
 import { useCallSelection } from "../../hooks/CallSelection";
+import { useEditable } from "../../hooks/Editing";
 import { svgPoint } from "../../utils/svgPoint";
 import { afterClick, fittable, isPending, type Candidate, type Cell } from "./candidate";
 import { DeskToolbar } from "../../components/DeskToolbar";
@@ -80,8 +82,21 @@ const extractDynamicsSegments = (msm: Alignment, part: Scope, residual: Residual
     return segments
 }
 
+/**
+ * Where metrical accentuation patterns are fitted to what the dynamics curves leave over.
+ *
+ * Each dot is a chord's residual velocity: recorded minus rendered, with this desk's own
+ * dimension held out. A pattern is fitted to the chords on the beats of a candidate range, and
+ * selecting one marks exactly those in the evidence colour (`../evidence.ts`) — the beats it
+ * sampled, not every chord the range spans.
+ *
+ * In the viewer the desk only reads. No toolbar, since Insert, the candidate and Merge all exist
+ * to write; a click on the plot starts no candidate and a shift-click on a pattern adds it to no
+ * merge. A dot still sounds on hover, and a pattern still selects the call that wrote it.
+ */
 export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: ScopedTransformerViewProps<InsertMetricalAccentuation | MergeMetricalAccentuations>) => {
-    const { activeElements, setActiveElement } = useCallSelection();
+    const { activeElements, activeEvidence, setActiveElement } = useCallSelection();
+    const editable = useEditable()
     const { play, stop } = usePiano()
     const { slice } = useNotes()
 
@@ -254,6 +269,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
     }
 
     const handleClick = (event: MouseEvent<SVGSVGElement>) => {
+        if (!editable) return
         const date = dateUnder(event)
         if (date === undefined) return
 
@@ -261,6 +277,8 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
         setCursor(date)
         setCandidate(prev => afterClick(prev, date, shiftKey, () => `pattern-${v4().slice(0, 8)}`))
     }
+
+    const marked = evidenceDates(msm.in(part).notes(), activeEvidence)
 
     const circles: JSX.Element[] = segments.map((segment, i) => {
         return (
@@ -271,6 +289,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                 stretchX={stretchX}
                 screenY={getScreenY}
                 handlePlay={handlePlay}
+                evidence={marked.has(segment.date.start)}
             />
         )
     })
@@ -286,7 +305,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
             <Box sx={{ m: 1, position: 'sticky', left: 0 }}>
                 {part !== 'global' && `Part ${part + 1}`}
             </Box>
-            <DeskToolbar>
+            {editable && <DeskToolbar>
                 {/*
                     Unlabelled: a group caption is never the desk's own name.
 
@@ -345,7 +364,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                     </ToolbarButton>
                     <ToolStatus width={88}>{`${selectedPatterns.length} selected`}</ToolStatus>
                 </ToolGroup>
-            </DeskToolbar>
+            </DeskToolbar>}
 
             {/*
                 The gesture lives on the surface rather than on the dots. A click is answered by
@@ -421,7 +440,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
                                 // The plot underneath turns a click into a candidate. This one
                                 // is spoken for.
                                 e.stopPropagation()
-                                if (e.shiftKey) {
+                                if (e.shiftKey && editable) {
                                     if (selectedPatterns.includes(pattern)) {
                                         setSelectedPatterns(selectedPatterns.filter(p => p !== pattern))
                                     }

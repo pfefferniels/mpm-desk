@@ -1,7 +1,9 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
@@ -79,7 +81,11 @@ const residual = (): Residual => ({
     pedals: [],
 });
 
-const mount = () => {
+const mount = ({
+    editable = true,
+    outcomes = [],
+    active = new Set<string>(),
+}: { editable?: boolean; outcomes?: CallOutcome[]; active?: Set<string> } = {}) => {
     const msm = alignment();
     const addTransformer = vi.fn();
 
@@ -89,47 +95,49 @@ const mount = () => {
     document.body.appendChild(bar);
 
     render(
-        <ZoomContext
-            value={{
-                symbolic: { stretchX: STRETCH_X },
-                physical: { stretchX: 20 },
-                setStretchX: vi.fn(),
-            }}
-        >
-            <NotesProvider notes={msm.allNotes}>
-                <ScrollSyncProvider
-                    symbolicZoom={STRETCH_X}
-                    physicalZoom={20}
-                    tickToSeconds={(tick) => tick / 720}
-                    secondsToTick={(seconds) => seconds * 720}
-                >
-                    <CallSelectionProvider
-                        calls={[]}
-                        outcomes={[]}
-                        activeCallIds={new Set()}
-                        setActiveCallIds={vi.fn()}
-                        onRemoveCalls={vi.fn()}
-                        focusCall={vi.fn()}
+        <EditingContext value={editable}>
+            <ZoomContext
+                value={{
+                    symbolic: { stretchX: STRETCH_X },
+                    physical: { stretchX: 20 },
+                    setStretchX: vi.fn(),
+                }}
+            >
+                <NotesProvider notes={msm.allNotes}>
+                    <ScrollSyncProvider
+                        symbolicZoom={STRETCH_X}
+                        physicalZoom={20}
+                        tickToSeconds={(tick) => tick / 720}
+                        secondsToTick={(seconds) => seconds * 720}
                     >
-                        <DeskToolbarProvider target={bar}>
-                            <RubatoDesk
-                                part='global'
-                                msm={msm}
-                                mpm={createMpm()}
-                                residual={residual()}
-                                performanceXml=''
-                                secondary={{}}
-                                setSecondary={vi.fn()}
-                                addTransformer={addTransformer}
-                            />
-                        </DeskToolbarProvider>
-                    </CallSelectionProvider>
-                </ScrollSyncProvider>
-            </NotesProvider>
-        </ZoomContext>,
+                        <CallSelectionProvider
+                            calls={[]}
+                            outcomes={outcomes}
+                            activeCallIds={active}
+                            setActiveCallIds={vi.fn()}
+                            onRemoveCalls={vi.fn()}
+                            focusCall={vi.fn()}
+                        >
+                            <DeskToolbarProvider target={bar}>
+                                <RubatoDesk
+                                    part='global'
+                                    msm={msm}
+                                    mpm={createMpm()}
+                                    residual={residual()}
+                                    performanceXml=''
+                                    secondary={{}}
+                                    setSecondary={vi.fn()}
+                                    addTransformer={addTransformer}
+                                />
+                            </DeskToolbarProvider>
+                        </CallSelectionProvider>
+                    </ScrollSyncProvider>
+                </NotesProvider>
+            </ZoomContext>
+        </EditingContext>,
     );
 
-    return { addTransformer };
+    return { addTransformer, bar };
 };
 
 /** The row's hit surface, which every gesture below is aimed at rather than at a mark on it. */
@@ -216,5 +224,58 @@ describe('marking a frame', () => {
         expect(insertButton()).toBeDisabled();
         expect(document.querySelector('g.pendingFrame line')?.getAttribute('x1'))
             .toBe(String(at(1440)));
+    });
+});
+
+describe('the desk in the viewer', () => {
+    it('has no toolbar, and a click on the row marks no frame', () => {
+        const { addTransformer, bar } = mount({ editable: false });
+        expect(bar.childElementCount).toBe(0);
+
+        pointAt(at(400), 'click');
+        pointAt(at(1120), 'mousemove');
+        pointAt(at(1120), 'click');
+
+        expect(document.querySelector('g.pendingFrame')).toBeNull();
+        expect(addTransformer).not.toHaveBeenCalled();
+    });
+
+    it('still reads the date under the pointer', () => {
+        mount({ editable: false });
+        pointAt(at(700), 'mousemove');
+        expect(document.querySelector('g.cursorDate text')?.textContent).toBe('720');
+    });
+});
+
+describe('what a selected call was fitted to', () => {
+    /** A frame over the second and third quarters: the chords it reads, and not the one at its end. */
+    const fitted = {
+        outcomes: [
+            {
+                id: 'rubato call',
+                elements: [],
+                range: { from: 720, to: 2160 },
+                evidence: ['b', 'c'],
+            },
+        ],
+        active: new Set(['rubato call']),
+    };
+
+    const marked = () =>
+        [...document.querySelectorAll('path.shouldTick[data-evidence]')].map((path) =>
+            Number(path.getAttribute('data-date')),
+        );
+
+    it('marks the dates it read, in the editor and the viewer', () => {
+        for (const editable of [true, false]) {
+            mount({ editable, ...fitted });
+            expect(marked()).toEqual([720, 1440]);
+            cleanup();
+        }
+    });
+
+    it('marks nothing with no call selected', () => {
+        mount();
+        expect(marked()).toEqual([]);
     });
 });

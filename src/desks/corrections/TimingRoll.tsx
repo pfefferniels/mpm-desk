@@ -34,6 +34,7 @@ import { defaultPress, withDraft, type LineDraft } from './lineDraft';
 import { PressLine, SELECTED, SELECTED_EDGE, type Grab } from './PressLine';
 import type { LineGhost } from './useLineGhosts';
 import type { Clicked, SelectionModifiers } from './useEventSelection';
+import { EVIDENCE_COLOUR } from '../evidence';
 
 /** Which end of an event was grabbed, and so which of its two times the drag is about. */
 export type TimingAspect = 'onset' | 'duration';
@@ -57,6 +58,13 @@ interface TimingRollProps {
     durationGhosts: ReadonlyMap<string, number>;
     /** The line each press had before the chain redrew it, keyed by pedal id. */
     lineGhosts: ReadonlyMap<string, LineGhost>;
+    /**
+     * False in the viewer: nothing is selected, dragged, redrawn, added or dropped, and no event
+     * offers a cursor that says it could be.
+     */
+    editable?: boolean;
+    /** What the selected calls corrected, by note or pedal id — see `../evidence.ts`. */
+    evidence?: ReadonlySet<string>;
 }
 
 const PITCH_LOW = 21;
@@ -149,6 +157,8 @@ const withPreview = (
  * it is selected, every vertex is a handle and every flat run can be raised or lowered, an
  * alt-press on the line adds a vertex, a shift-alt-press drops one, and a shift-alt-press on the
  * body drops the press. An alt-press on an empty stretch of a lane adds a press there.
+ *
+ * A note or a press a selected call corrected is outlined in the evidence colour.
  */
 export const TimingRoll = ({
     msm,
@@ -162,6 +172,8 @@ export const TimingRoll = ({
     onsetGhosts,
     durationGhosts,
     lineGhosts,
+    editable = true,
+    evidence,
 }: TimingRollProps) => {
     const stretchX = usePhysicalZoom();
     const svgRef = useRef<SVGSVGElement>(null);
@@ -387,6 +399,7 @@ export const TimingRoll = ({
         const rectWidth = Math.max(1, soundedSeconds(note) * stretchX + dw);
         const y = pitchY(note['midi.pitch']);
         const isSelected = selected.has(id);
+        const isEvidence = evidence?.has(id) ?? false;
 
         marks.push(...ghostFor(id, x, x + rectWidth, y + NOTE_HEIGHT / 2));
 
@@ -394,17 +407,20 @@ export const TimingRoll = ({
             <rect
                 key={`note_${id}_${String(i)}`}
                 data-id={id}
+                data-evidence={isEvidence || undefined}
                 x={x}
                 y={y}
                 width={rectWidth}
                 height={Math.max(2, NOTE_HEIGHT - 0.5)}
                 fill={isSelected ? SELECTED : 'black'}
                 fillOpacity={isSelected ? 0.75 : 0.45}
-                stroke={isSelected ? SELECTED_EDGE : 'none'}
-                strokeWidth={0.8}
-                style={{ cursor: 'ew-resize' }}
-                onMouseDown={(e) =>
-                    beginDrag(e, { kind: 'note', id, date: note.date }, x, rectWidth)
+                stroke={isSelected ? SELECTED_EDGE : isEvidence ? EVIDENCE_COLOUR : 'none'}
+                strokeWidth={isEvidence && !isSelected ? 1.5 : 0.8}
+                style={editable ? { cursor: 'ew-resize' } : undefined}
+                onMouseDown={
+                    editable
+                        ? (e) => beginDrag(e, { kind: 'note', id, date: note.date }, x, rectWidth)
+                        : undefined
                 }
             />,
         );
@@ -442,8 +458,9 @@ export const TimingRoll = ({
                 stretchX={stretchX}
                 selected={selected.has(id)}
                 editable={selected.has(id) || hovered === id}
+                evidence={evidence?.has(id) ?? false}
                 ghost={draftGhost(id) ?? committedGhost(id)}
-                onGrab={(grab, e) => grabPress(grab, e, pedal, lane)}
+                onGrab={editable ? (grab, e) => grabPress(grab, e, pedal, lane) : undefined}
                 onHover={(over) => setHovered((current) => (over ? id : current === id ? undefined : current))}
             />,
         );
@@ -502,8 +519,9 @@ export const TimingRoll = ({
                     onMouseLeave={endDrag}
                 >
                     <PedalRails lanes={lanes} width={width} />
-                    {/* Under everything: the one thing an empty stretch of a lane takes is a new press. */}
-                    {lanes.map((lane) => (
+                    {/* Under everything: the one thing an empty stretch of a lane takes is a new
+                        press — in the editor. */}
+                    {editable && lanes.map((lane) => (
                         <rect
                             key={`lane_${lane.type}`}
                             data-lane={lane.type}

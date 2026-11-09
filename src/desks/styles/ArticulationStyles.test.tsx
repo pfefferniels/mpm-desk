@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { Alignment } from '../../fitting/alignment';
 import { ArticulationStyles } from './ArticulationStyles';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
+import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { Call } from '../../model/Work';
 import {
     createMpm,
     ensureDefaultStyle,
@@ -38,24 +41,46 @@ const articulate = (scope: Scope, modifiers: ArticulationModifiers, mpm: Mpm = c
 /** Both relative attributes and no absolute one: the only shape a shared def can cover. */
 const clusterable = { relativeDuration: 1.1, relativeVelocity: 0.9 };
 
-const renderDesk = (mpm: Mpm, part: Scope = 'global') => {
+interface DeskOptions {
+    /** False for the viewer. */
+    editable?: boolean;
+    /** The chain, where the viewer looks for the `StylizeArticulation` that was made. */
+    calls?: Call[];
+}
+
+const renderDesk = (
+    mpm: Mpm,
+    part: Scope = 'global',
+    { editable = true, calls = [] }: DeskOptions = {},
+) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
     const addTransformer = vi.fn();
 
     const { container } = render(
-        <DeskToolbarProvider target={bar}>
-            <ArticulationStyles
-                part={part}
-                msm={new Alignment([])}
-                mpm={mpm}
-                residual={null}
-                performanceXml=''
-                secondary={{}}
-                setSecondary={vi.fn()}
-                addTransformer={addTransformer}
-            />
-        </DeskToolbarProvider>,
+        <EditingContext value={editable}>
+            <CallSelectionProvider
+                calls={calls}
+                outcomes={[]}
+                activeCallIds={new Set()}
+                setActiveCallIds={vi.fn()}
+                onRemoveCalls={vi.fn()}
+                focusCall={vi.fn()}
+            >
+                <DeskToolbarProvider target={bar}>
+                    <ArticulationStyles
+                        part={part}
+                        msm={new Alignment([])}
+                        mpm={mpm}
+                        residual={null}
+                        performanceXml=''
+                        secondary={{}}
+                        setSecondary={vi.fn()}
+                        addTransformer={addTransformer}
+                    />
+                </DeskToolbarProvider>
+            </CallSelectionProvider>
+        </EditingContext>,
     );
 
     return {
@@ -132,5 +157,31 @@ describe('the button', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('in the viewer', () => {
+    it('offers neither the button nor the tolerances, and says it stylized nothing', () => {
+        const { plot } = renderDesk(articulate('global', clusterable), 'global', { editable: false });
+
+        expect(screen.queryByRole('button', { name: 'Stylize Articulations' })).toBeNull();
+        expect(screen.queryAllByRole('slider')).toHaveLength(0);
+        expect(screen.getByText(/does not stylize its articulations/)).toBeInTheDocument();
+        expect(plot()).not.toBeNull();
+    });
+
+    it('clusters at the tolerances the chain stylized with', () => {
+        renderDesk(articulate('global', clusterable), 'global', {
+            editable: false,
+            calls: [
+                {
+                    id: 'style',
+                    name: 'StylizeArticulation',
+                    options: { volumeTolerance: 0.3, relativeDurationTolerance: 0.4 },
+                },
+            ],
+        });
+
+        expect(screen.getByText(/volume within 0.3, duration within 0.4/)).toBeInTheDocument();
     });
 });

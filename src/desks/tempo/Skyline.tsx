@@ -12,6 +12,8 @@ import { onsetSeconds } from "../noteTiming"
 import { svgPoint } from "../../utils/svgPoint"
 import type { MidiFile } from "midifile-ts"
 import type { Scope } from "../TransformerViewProps"
+import { useEditable } from "../../hooks/Editing"
+import { EVIDENCE_COLOUR } from "../evidence"
 
 export type SkylineMode = 'split' | 'draw' | undefined
 
@@ -47,9 +49,26 @@ interface SkylineProps {
   onPlayTempo?: (midi: MidiFile | undefined) => void
   onStopTempo?: () => void
   committedTempoMidis: (MidiFile | undefined)[]
+
+  /**
+   * The dates of the chords the selected calls were fitted to. Their onset ticks are marked, and
+   * so is every measured box both of whose ends are among them — the intervals the fit read.
+   */
+  evidenceDates?: ReadonlySet<number>
 }
 
-export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLine, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, onPlaySegment, onStopSegment, activeElements, onActivateElement, committedTempos, silentOnsets, msm, onPlayTempo, onStopTempo, committedTempoMidis }: SkylineProps) {
+/** Nothing is evidence: what a skyline with no call selected marks. */
+const noEvidence: ReadonlySet<number> = new Set()
+
+/**
+ * The boxes, the curves over them, and the strokes that become new ones.
+ *
+ * In the viewer (`useEditable`) every gesture that changes the boxes is withheld — selecting,
+ * removing, splitting, combining and the keys for them — and the desk passes no mode, so nothing
+ * can be drawn. Hovering and clicking a written curve stay.
+ */
+export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLine, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, onPlaySegment, onStopSegment, activeElements, onActivateElement, committedTempos, silentOnsets, msm, onPlayTempo, onStopTempo, committedTempoMidis, evidenceDates = noEvidence }: SkylineProps) {
+  const editable = useEditable()
   const [, setHoveredKey] = useState<string>()
   const [drawStart, setDrawStart] = useState<{ x: number, y: number }>()
   const [drawEnd, setDrawEnd] = useState<{ x: number, y: number }>()
@@ -112,10 +131,12 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
   // Escape means wherever it is pressed; the keys that edit are on the focused SVG below.
   const unselectOnEscape = useCallback((event: KeyboardEvent) => {
     if (event.key !== 'Escape') return
+    cancelDraw()
+    // The viewer selects no boxes, and writes none back.
+    if (!editable) return
     tempos.unselectAll()
     setTempos(new TempoCluster(tempos.segments))
-    cancelDraw()
-  }, [tempos, setTempos])
+  }, [tempos, setTempos, editable])
 
   useEffect(() => {
     document.addEventListener('keydown', unselectOnEscape)
@@ -190,8 +211,9 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
       onMouseLeave={() => cancelDraw()}
       onKeyDown={(e) => {
         // A shortcut of the editor's passes through: ⌘S saves, and must not toggle Split on
-        // its way to the handler that does.
-        if (e.metaKey || e.ctrlKey || e.altKey) return
+        // its way to the handler that does. And every key here edits the boxes, which the viewer
+        // does not.
+        if (!editable || e.metaKey || e.ctrlKey || e.altKey) return
         // Backspace is also the editor's key for removing the selected call. Boxes first, and
         // a press that took some goes no further, so it does not take the call as well.
         if (e.key === 'Backspace') {
@@ -214,17 +236,23 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
         offset={Math.max(...(tempos.segments.map(t => tickToSeconds(t.date.end)))) || 0}
       />
 
-      {onsets.map((onset) => (
-        <line
-          key={`tick_${onset.date}`}
-          x1={tickToSeconds(onset.date) * stretchX}
-          x2={tickToSeconds(onset.date) * stretchX}
-          y1={0}
-          y2={10}
-          stroke="gray"
-          strokeWidth={0.5}
-        />
-      ))}
+      {onsets.map((onset) => {
+        const evidence = evidenceDates.has(onset.date)
+        return (
+          <line
+            key={`tick_${onset.date}`}
+            className='onset'
+            data-date={onset.date}
+            data-evidence={evidence ? '' : undefined}
+            x1={tickToSeconds(onset.date) * stretchX}
+            x2={tickToSeconds(onset.date) * stretchX}
+            y1={0}
+            y2={evidence ? 14 : 10}
+            stroke={evidence ? EVIDENCE_COLOUR : "gray"}
+            strokeWidth={evidence ? 1.5 : 0.5}
+          />
+        )
+      })}
 
       {tempos?.sort(tickToSeconds).map((tempo: TempoSegment, index: number) => {
         const boxKey = `${tempo.date.start}_${tempo.date.end}`
@@ -235,7 +263,9 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
             onMouseLeave={() => setHoveredKey(k => k === boxKey ? undefined : k)}
           >
             {/* A derived box is the metre's own reading and is recomputed from the measured
-                ones, so it hovers and auditions but neither selects, splits nor deletes. */}
+                ones, so it hovers and auditions but neither selects, splits nor deletes — and
+                in the viewer no box does. Evidence marks measured boxes alone: the metre's
+                stand over many of them and would only repeat the mark in grey's place. */}
             <Box
               segment={tempo}
               tickToSeconds={tickToSeconds}
@@ -243,19 +273,20 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
               stretchY={stretchY || 0}
               onPlay={onPlaySegment}
               onStop={onStopSegment}
+              evidence={!tempo.derived && evidenceDates.has(tempo.date.start) && evidenceDates.has(tempo.date.end)}
               onSelect={() => {
-                if (isDrawMode || tempo.derived) return
+                if (!editable || isDrawMode || tempo.derived) return
                 tempos.unselectAll()
                 tempo.selected = true
                 setTempos(new TempoCluster(tempos.segments))
               }}
               onToggleSelect={() => {
-                if (isDrawMode || tempo.derived) return
+                if (!editable || isDrawMode || tempo.derived) return
                 tempo.selected = !tempo.selected
                 setTempos(new TempoCluster(tempos.segments))
               }}
               onRemove={() => {
-                if (tempo.derived) return
+                if (!editable || tempo.derived) return
                 tempos.removeTempo(tempo)
                 setTempos(new TempoCluster(tempos.segments))
               }}

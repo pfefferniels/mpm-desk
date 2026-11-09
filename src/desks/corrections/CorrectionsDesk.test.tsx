@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Alignment, type AlignedNote, type AlignedPedal } from '../../fitting/alignment';
 import type { Call } from '../../model/Work';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
+import { EditingContext } from '../../hooks/Editing';
+import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { NotesProvider } from '../../hooks/NotesProvider';
 import { ScoreDocumentProvider } from '../../hooks/ScoreDocument';
@@ -113,7 +115,14 @@ const alignment = () => {
  * here, so the desk stays in the state it is in between sending a correction and being answered.
  * The pristine copy the line ghosts are read from is therefore the same recording.
  */
-const mount = (initialCalls: readonly Call[] = []) => {
+interface MountOptions {
+    /** False to mount the desk as the viewer has it. */
+    editable?: boolean;
+    /** The calls selected, and what the run reported for them. */
+    selected?: { ids: string[]; outcomes: CallOutcome[] };
+}
+
+const mount = (initialCalls: readonly Call[] = [], { editable = true, selected }: MountOptions = {}) => {
     const msm = alignment();
     const mpm = createMpm();
     const addTransformer = vi.fn();
@@ -127,48 +136,50 @@ const mount = (initialCalls: readonly Call[] = []) => {
         const [calls, setCalls] = useState<readonly Call[]>(initialCalls);
 
         return (
-            <NotesProvider notes={msm.allNotes}>
-                <ScoreDocumentProvider mei={undefined} setMei={vi.fn()} recording="" pristine={alignment()}>
-                    <ScrollSyncProvider
-                        symbolicZoom={20}
-                        physicalZoom={20}
-                        tickToSeconds={(tick) => tick / 720}
-                        secondsToTick={(seconds) => seconds * 720}
-                    >
-                        <CallSelectionProvider
-                            calls={calls}
-                            outcomes={[]}
-                            activeCallIds={new Set()}
-                            setActiveCallIds={vi.fn()}
-                            onRemoveCalls={vi.fn()}
-                            focusCall={vi.fn()}
+            <EditingContext value={editable}>
+                <NotesProvider notes={msm.allNotes}>
+                    <ScoreDocumentProvider mei={undefined} setMei={vi.fn()} recording="" pristine={alignment()}>
+                        <ScrollSyncProvider
+                            symbolicZoom={20}
+                            physicalZoom={20}
+                            tickToSeconds={(tick) => tick / 720}
+                            secondsToTick={(seconds) => seconds * 720}
                         >
-                            <DeskToolbarProvider target={bar}>
-                                <CorrectionsDesk
-                                    part="global"
-                                    msm={msm}
-                                    mpm={mpm}
-                                    residual={deriveResidual(msm, mpm)}
-                                    performanceXml=""
-                                    secondary={{}}
-                                    setSecondary={vi.fn()}
-                                    addTransformer={(transformer) => {
-                                        addTransformer(transformer);
-                                        setCalls((current) => [
-                                            ...current,
-                                            {
-                                                id: transformer.id,
-                                                name: transformer.name,
-                                                options: transformer.options as unknown as Record<string, unknown>,
-                                            },
-                                        ]);
-                                    }}
-                                />
-                            </DeskToolbarProvider>
-                        </CallSelectionProvider>
-                    </ScrollSyncProvider>
-                </ScoreDocumentProvider>
-            </NotesProvider>
+                            <CallSelectionProvider
+                                calls={calls}
+                                outcomes={selected?.outcomes ?? []}
+                                activeCallIds={new Set(selected?.ids ?? [])}
+                                setActiveCallIds={vi.fn()}
+                                onRemoveCalls={vi.fn()}
+                                focusCall={vi.fn()}
+                            >
+                                <DeskToolbarProvider target={bar}>
+                                    <CorrectionsDesk
+                                        part="global"
+                                        msm={msm}
+                                        mpm={mpm}
+                                        residual={deriveResidual(msm, mpm)}
+                                        performanceXml=""
+                                        secondary={{}}
+                                        setSecondary={vi.fn()}
+                                        addTransformer={(transformer) => {
+                                            addTransformer(transformer);
+                                            setCalls((current) => [
+                                                ...current,
+                                                {
+                                                    id: transformer.id,
+                                                    name: transformer.name,
+                                                    options: transformer.options as unknown as Record<string, unknown>,
+                                                },
+                                            ]);
+                                        }}
+                                    />
+                                </DeskToolbarProvider>
+                            </CallSelectionProvider>
+                        </ScrollSyncProvider>
+                    </ScoreDocumentProvider>
+                </NotesProvider>
+            </EditingContext>
         );
     };
 
@@ -696,5 +707,73 @@ describe('Expand', () => {
         expect(screen.getByRole('dialog', { name: 'Expand every note and pedal' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Onset' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Duration' })).toBeInTheDocument();
+    });
+});
+
+describe('in the viewer', () => {
+    it('keeps the switch between the plots and nothing that makes a correction', () => {
+        mount([], { editable: false });
+
+        expect(screen.getByRole('button', { name: 'Velocity' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Timing' })).toBeInTheDocument();
+        for (const name of [/^Apply/, /^Clear/, /^Expand/])
+            expect(screen.queryByRole('button', { name })).toBeNull();
+    });
+
+    it('selects and drags nothing on the velocity plot', () => {
+        const { addTransformer } = mount([], { editable: false });
+
+        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 40 });
+
+        expect(dotAt(0).getAttribute('stroke-width')).toBe('1');
+        expect(addTransformer).not.toHaveBeenCalled();
+    });
+
+    it('offers no handle, no drag and no new press on the roll', () => {
+        const { addTransformer } = mount([], { editable: false });
+        showRoll();
+
+        drag(element('rect[data-id="b"]'), { clientX: 5, clientY: 5 }, { clientX: 25, clientY: 5 });
+        press(element('rect[data-id="p2"]'), { clientX: 80, clientY: 400 });
+
+        expect(document.querySelectorAll('circle[data-vertex]')).toHaveLength(0);
+        // An empty stretch of a lane takes a new press in the editor, and is not there to be
+        // pressed in the viewer.
+        expect(document.querySelector('rect[data-lane]')).toBeNull();
+        expect(element('rect[data-id="b"]').getAttribute('style')).toBeNull();
+        expect(addTransformer).not.toHaveBeenCalled();
+    });
+});
+
+describe('what a selected call corrected', () => {
+    const selecting = (evidence: string[]): MountOptions => ({
+        selected: {
+            ids: ['correction'],
+            outcomes: [{ id: 'correction', elements: [], range: null, evidence }],
+        },
+    });
+
+    it('rings the dots of the corrected notes on the velocity plot', () => {
+        mount([], selecting(['b']));
+
+        const marked = [...document.querySelectorAll('[data-evidence]')];
+        expect(marked.map((mark) => mark.getAttribute('data-evidence'))).toEqual(['720']);
+    });
+
+    it('outlines the corrected notes and presses on the roll, and nothing else', () => {
+        mount([], selecting(['a', 'p2']));
+        showRoll();
+
+        expect(element('rect[data-id="a"]')).toHaveAttribute('data-evidence');
+        expect(element('rect[data-id="b"]')).not.toHaveAttribute('data-evidence');
+        expect(element('polyline[data-line="p2"]')).toHaveAttribute('data-evidence');
+        expect(element('polyline[data-line="p1"]')).not.toHaveAttribute('data-evidence');
+    });
+
+    it('marks nothing while nothing is selected', () => {
+        mount();
+        showRoll();
+
+        expect(document.querySelectorAll('[data-evidence]')).toHaveLength(0);
     });
 });
