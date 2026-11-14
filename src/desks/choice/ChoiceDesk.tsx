@@ -230,7 +230,10 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
     // group notes with the same xml:id
     const grouped = Object.groupBy(msm.allNotes, note => note['xml:id'])
     for (const [xmlId, notes] of Object.entries(grouped)) {
-        if (!notes || !notes.length) return
+        // On to the next note rather than out of the component, where `return` handed React
+        // `undefined` for the whole desk. `Object.groupBy` makes no empty group, so this is for
+        // its type, but a guard that would blank the desk if it ever fired is no guard.
+        if (!notes || !notes.length) continue
 
         groups.push((
             <ChoiceGroup
