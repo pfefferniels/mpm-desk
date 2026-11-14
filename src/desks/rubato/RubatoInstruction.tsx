@@ -89,7 +89,9 @@ export const RubatoInstruction = ({ active, onClick, rubato, onsetDates, stretch
     onsetDates.forEach((date, i) => {
         const tickDate = calculateRubatoOnDate(date, rubato)
         lines.push((
-            <g key={`rubatoLine_${rubato.date}`}>
+            // By the onset, which `RubatoDesk` hands over from a `Set`: every line of one rubato
+            // shares `rubato.date`, which React then warned about once per line.
+            <g key={`rubatoLine_${date}`}>
                 <line
                     x1={tickDate * stretchX}
                     x2={tickDate * stretchX}
