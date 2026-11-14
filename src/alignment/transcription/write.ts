@@ -1,0 +1,570 @@
+/**
+ * Writing the transcription into the document, as readings.
+ *
+ * Everything the performer did differently goes into an `<app>` holding what the source writes
+ * in `<rdg source="original">` beside what was played in `<rdg source="performance">`, the
+ * vocabulary the alignment desk has always written by hand. Nothing of the source is changed or
+ * lost: taking the first reading of every `<app>` gives the score back as it was, and
+ * {@link revertTranscription} does exactly that.
+ *
+ * The readings are kept as small as the notation allows, because a note that stands in both
+ * readings stands in the document twice:
+ *
+ *   a note added to a written chord    an `<app>` inside the `<chord>`, holding the new note
+ *   a note of a chord not played       an `<app>` around that note, its performance reading empty
+ *   a note played at another pitch     an `<app>` around that note, holding the played one
+ *   a note on its own not played       an `<app>` around it, holding a rest of its length
+ *   a grace note                       an `<app>` before the note it leans on
+ *   a note at a place of its own       a new `<layer>` in the staff, inside an `<app>`
+ *
+ * Only a note added to a *single* written note needs that note in both readings, because one
+ * note and another make a `<chord>`, and a chord is a different element from a note.
+ *
+ * Every measure stays as long as it was. A new layer is padded with `<space>` to the barline,
+ * a note taken out leaves a rest, and a triplet is closed inside its quarter, so that verovio
+ * counts the other voices exactly as before.
+ */
+
+import { ownAccidental } from "../../score/accidentals";
+import type { FigureSign } from "./figure";
+import { UNITS } from "./grid";
+import { fitsLayer, layOut, type LayerItem, type LayerPiece, type NoteValue } from "./place";
+import type { MeasureModel, ScoreEvent, ScoreModel, StaffModel, WrittenNote } from "./scoreModel";
+import { accidentalOf, type Spelling } from "./spell";
+
+const MEI_NS = "http://www.music-encoding.org/ns/mei";
+
+/** What marks an `<app>` as written here, so that it can be found and taken out again. */
+const TRANSCRIPTION = "transcription";
+
+/** What marks a written note whose accidental was restated here to keep it sounding as it did. */
+const PINNED = "transcription-pin";
+
+/** A note to be written: what was played, and what it is called. */
+export interface NewNote {
+    id: string;
+    pitch: number;
+    spelling: Spelling;
+    /** The divergence it belongs to, which is what a reader's decision is filed under */
+    group: string;
+    /** Why the performance has it: `added-octave`, `ornamentation`, `substitution`, … */
+    reason: string;
+    /** How sure the placement is, in [0, 1] */
+    confidence: number;
+}
+
+/** Everything that happens to one written event. */
+export interface EventEdit {
+    event: ScoreEvent;
+    /** Played notes that join it */
+    add: NewNote[];
+    /** Written notes of it that were not played */
+    remove: WrittenNote[];
+    /** Written notes of it played at another pitch */
+    replace: Map<WrittenNote, NewNote>;
+    /** Grace notes that lean on it, each inner list one moment, in the order they sounded */
+    graces: NewNote[][];
+}
+
+/** A played moment written at a place of its own. */
+export interface OwnPlace {
+    /** Grid units from the barline */
+    start: number;
+    value: NoteValue;
+    notes: NewNote[];
+    graces: NewNote[][];
+}
+
+export interface StaffAddition {
+    staff: StaffModel;
+    places: OwnPlace[];
+}
+
+export interface SignEdit {
+    anchor: WrittenNote;
+    sign: FigureSign;
+    group: string;
+    confidence: number;
+}
+
+export interface Edits {
+    events: EventEdit[];
+    staves: StaffAddition[];
+    signs: SignEdit[];
+}
+
+interface Attribution {
+    /** Who answers for the reading, for `@resp` */
+    resp?: string;
+}
+
+/** `high` from four in five, `medium` from one in two: what `@cert` can say. */
+const certaintyOf = (confidence: number): string =>
+    confidence >= 0.8 ? "high" : confidence >= 0.5 ? "medium" : "low";
+
+/** Attributes a `<chord>` carries for its notes, moved up when a note becomes one. */
+const EVENT_ATTRIBUTES = [
+    "dur", "dots", "dur.ges", "dots.ges", "dur.ppq", "grace", "grace.time", "stem.dir",
+    "stem.len", "stem.mod", "cue", "tuplet", "beam", "breaksec",
+];
+
+/**
+ * Carry the edits out.
+ *
+ * Returns the ids of the notes actually written, by divergence, which is not always all of
+ * them: a note whose staff or event could not be found again is left out rather than guessed.
+ */
+export function applyEdits(
+    model: ScoreModel,
+    edits: Edits,
+    attribution: Attribution = {},
+): Map<string, string[]> {
+    const { doc } = model;
+    const written = new Map<string, string[]>();
+    const record = (note: NewNote) => {
+        const list = written.get(note.group);
+        if (list) list.push(note.id);
+        else written.set(note.group, [note.id]);
+    };
+    const notation = planNotation(edits);
+
+    /** An `<app>` with both readings, the performance one attributed. */
+    const appFor = (notes: readonly { reason: string; confidence: number }[], fallback: string) => {
+        const app = doc.createElementNS(MEI_NS, "app");
+        app.setAttribute("type", TRANSCRIPTION);
+
+        const original = doc.createElementNS(MEI_NS, "rdg");
+        original.setAttribute("source", "original");
+        app.appendChild(original);
+
+        const performance = doc.createElementNS(MEI_NS, "rdg");
+        performance.setAttribute("source", "performance");
+        performance.setAttribute("reason", notes[0]?.reason ?? fallback);
+        if (attribution.resp) performance.setAttribute("resp", attribution.resp);
+        const least = notes.reduce((min, note) => Math.min(min, note.confidence), 1);
+        performance.setAttribute("cert", certaintyOf(notes.length > 0 ? least : 1));
+        app.appendChild(performance);
+
+        return { app, original, performance };
+    };
+
+    /** A `<note>` for a played note, spelled, with no length of its own. */
+    const noteFor = (note: NewNote): Element => {
+        const element = doc.createElementNS(MEI_NS, "note");
+        const how = notation.get(note);
+        element.setAttribute("xml:id", note.id);
+        element.setAttribute("pname", note.spelling.pname);
+        element.setAttribute("oct", String(how?.oct ?? note.spelling.oct));
+        if (how && how.oct !== note.spelling.oct) element.setAttribute("oct.ges", String(note.spelling.oct));
+        if (how?.accid) element.setAttribute("accid", how.accid);
+        else element.setAttribute("accid.ges", accidentalOf(note.spelling.alter));
+        record(note);
+        return element;
+    };
+
+    /** A grace moment: one note, or a chord of them. */
+    const graceFor = (moment: NewNote[]): Element => {
+        const notes = moment.map((note) => noteFor(note));
+        const element = notes.length === 1 ? notes[0] : doc.createElementNS(MEI_NS, "chord");
+        if (notes.length > 1) notes.forEach((note) => element.appendChild(note));
+        element.setAttribute("grace", "unacc");
+        element.setAttribute("dur", "8");
+        return element;
+    };
+
+    // The events first: what joins, leaves or changes inside the notation there is
+    for (const edit of [...edits.events].sort((a, b) => a.event.onset - b.event.onset)) {
+        const { event } = edit;
+        const element = event.element;
+        const parent = element.parentElement;
+        if (!parent) continue;
+
+        if (edit.graces.length > 0) {
+            const { app, performance } = appFor(edit.graces.flat(), "ornamentation");
+            for (const moment of edit.graces) performance.appendChild(graceFor(moment));
+            parent.insertBefore(app, element);
+        }
+
+        const removed = new Set(edit.remove);
+        const staying = event.notes.filter((note) => !removed.has(note));
+        const sounding = staying.length + edit.add.length;
+
+        if (edit.remove.length === 0 && edit.add.length === 0 && edit.replace.size === 0) continue;
+
+        if (sounding === 0) {
+            // Nothing of it was played: the reading is its length in silence
+            const { app, original, performance } = appFor([], "simplification");
+            parent.insertBefore(app, element);
+            original.appendChild(element);
+            if (!event.grace) performance.appendChild(restLike(doc, element));
+            continue;
+        }
+
+        if (element.localName === "chord") {
+            for (const note of edit.remove) {
+                const { app, original } = appFor([], "simplification");
+                note.element.parentElement?.insertBefore(app, note.element);
+                original.appendChild(note.element);
+            }
+            for (const [note, played] of edit.replace) {
+                const { app, original, performance } = appFor([played], "substitution");
+                note.element.parentElement?.insertBefore(app, note.element);
+                original.appendChild(note.element);
+                performance.appendChild(substituteFor(note, noteFor(played)));
+            }
+            if (edit.add.length > 0) {
+                const { app, performance } = appFor(edit.add, "fuller-chord");
+                for (const note of edit.add) performance.appendChild(noteFor(note));
+                element.appendChild(app);
+            }
+            continue;
+        }
+
+        // A single written note. Played at another pitch it stays a note; joined by another
+        // it becomes a chord, which is the one place the written note has to be said twice
+        const only = event.notes[0];
+        const replacement = edit.replace.get(only);
+        const unplayed = removed.has(only);
+        const { app, original, performance } = appFor(
+            [...(replacement ? [replacement] : []), ...edit.add],
+            replacement || unplayed ? "substitution" : "fuller-chord",
+        );
+        parent.insertBefore(app, element);
+        original.appendChild(element);
+
+        // Not played, with something else struck in its place: what was struck takes its
+        // length and its stem, exactly as a note played at another pitch does
+        const [first, ...others] = edit.add;
+        const kept = replacement
+            ? substituteFor(only, noteFor(replacement))
+            : unplayed
+              ? substituteFor(only, noteFor(first))
+              : (element.cloneNode(true) as Element);
+        const joining = unplayed && !replacement ? others : edit.add;
+
+        if (joining.length === 0) {
+            performance.appendChild(kept);
+            continue;
+        }
+
+        const chord = doc.createElementNS(MEI_NS, "chord");
+        for (const attribute of EVENT_ATTRIBUTES) {
+            const value = kept.getAttribute(attribute);
+            if (value === null) continue;
+            chord.setAttribute(attribute, value);
+            kept.removeAttribute(attribute);
+        }
+        chord.appendChild(kept);
+        for (const note of joining) chord.appendChild(noteFor(note));
+        performance.appendChild(chord);
+    }
+
+    // The voice the added notes go into is the same one all through the piece: the first
+    // number no layer of that staff uses anywhere. Numbered bar by bar instead it would be
+    // voice 2 where the bar has one voice and voice 3 where it has two, and a reader sorting
+    // voices into parts would find the performer's additions scattered among the composer's.
+    const highestLayer = new Map<string, number>();
+    for (const measure of model.measures) {
+        for (const staff of measure.staves) {
+            for (const layer of staff.layers) {
+                highestLayer.set(staff.n, Math.max(highestLayer.get(staff.n) ?? 0, Number(layer.n) || 0));
+            }
+        }
+    }
+
+    // Then the places of their own, a layer at a time
+    for (const addition of edits.staves) {
+        const { staff } = addition;
+        const measure = staff.measure;
+
+        const layers = packLayers(addition.places, measure);
+        let n = highestLayer.get(staff.n) ?? 0;
+
+        for (const places of layers) {
+            const { app, performance } = appFor(
+                places.flatMap((place) => [...place.notes, ...place.graces.flat()]),
+                "added-note",
+            );
+            const layer = doc.createElementNS(MEI_NS, "layer");
+            layer.setAttribute("n", String(++n));
+
+            const items: LayerItem<OwnPlace>[] = places.map((place) => ({
+                start: place.start,
+                value: place.value,
+                payload: place,
+            }));
+
+            const build = (pieces: LayerPiece<OwnPlace>[], into: Element) => {
+                for (const piece of pieces) {
+                    if (piece.kind === "tuplet") {
+                        const tuplet = doc.createElementNS(MEI_NS, "tuplet");
+                        tuplet.setAttribute("num", "3");
+                        tuplet.setAttribute("numbase", "2");
+                        build(piece.pieces, tuplet);
+                        into.appendChild(tuplet);
+                        continue;
+                    }
+                    if (piece.kind === "space") {
+                        into.appendChild(valued(doc.createElementNS(MEI_NS, "space"), piece.value));
+                        continue;
+                    }
+
+                    const place = piece.item.payload;
+                    for (const moment of place.graces) into.appendChild(graceFor(moment));
+                    const notes = place.notes.map((note) => noteFor(note));
+                    const sounding = notes.length === 1 ? notes[0] : doc.createElementNS(MEI_NS, "chord");
+                    if (notes.length > 1) notes.forEach((note) => sounding.appendChild(note));
+                    into.appendChild(valued(sounding, piece.value));
+                }
+            };
+            build(layOut(items, measure), layer);
+
+            performance.appendChild(layer);
+            staff.element.appendChild(app);
+        }
+    }
+
+    for (const edit of edits.signs) {
+        const measure = edit.anchor.event.layer.staff.measure.element;
+        const { app, performance } = appFor([{ reason: "ornamentation", confidence: edit.confidence }], "ornamentation");
+        const sign = doc.createElementNS(MEI_NS, edit.sign.name);
+        sign.setAttribute("startid", `#${edit.anchor.id}`);
+        if (edit.sign.name === "mordent") sign.setAttribute("form", edit.sign.form);
+        performance.appendChild(sign);
+        measure.appendChild(app);
+    }
+
+    return written;
+}
+
+/** Write a note value onto an element. */
+function valued(element: Element, value: NoteValue): Element {
+    element.setAttribute("dur", value.dur);
+    if (value.dots > 0) element.setAttribute("dots", String(value.dots));
+    return element;
+}
+
+/** A rest as long as an event, by the event's own account of how long that is. */
+function restLike(doc: Document, event: Element): Element {
+    const rest = doc.createElementNS(MEI_NS, "rest");
+    const source =
+        event.hasAttribute("dur") || event.localName !== "chord"
+            ? event
+            : [...event.children].find((child) => child.hasAttribute("dur")) ?? event;
+    for (const attribute of ["dur", "dots", "dur.ges", "dots.ges", "dur.ppq"]) {
+        const value = source.getAttribute(attribute);
+        if (value !== null) rest.setAttribute(attribute, value);
+    }
+    if (!rest.hasAttribute("dur")) rest.setAttribute("dur", "4");
+    return rest;
+}
+
+/**
+ * The played note standing where a written one stood: the written note's length, stem and
+ * articulation, the played note's pitch and name.
+ */
+function substituteFor(written: WrittenNote, played: Element): Element {
+    for (const attribute of written.element.attributes) {
+        if (played.hasAttribute(attribute.name)) continue;
+        if (["pname", "oct", "accid", "accid.ges", "oct.ges", "pnum", "pname.ges", "xml:id"].includes(attribute.name)) continue;
+        played.setAttribute(attribute.name, attribute.value);
+    }
+    for (const child of written.element.children) {
+        if (child.localName !== "accid") played.appendChild(child.cloneNode(true));
+    }
+    return played;
+}
+
+/**
+ * Sort places into as few layers as hold them.
+ *
+ * Moments at one place and of one length are one chord. The rest go into the first layer they
+ * fit beside what is already in it, and a new one when they fit none.
+ */
+function packLayers(places: readonly OwnPlace[], measure: MeasureModel): OwnPlace[][] {
+    const merged: OwnPlace[] = [];
+    for (const place of [...places].sort((a, b) => a.start - b.start || b.value.units - a.value.units)) {
+        const same = merged.find(
+            (other) => other.start === place.start && other.value.units === place.value.units,
+        );
+        if (same) {
+            same.notes.push(...place.notes);
+            same.graces.push(...place.graces);
+        } else {
+            merged.push({ ...place, notes: [...place.notes], graces: [...place.graces] });
+        }
+    }
+
+    const layers: OwnPlace[][] = [];
+    for (const place of merged) {
+        const item = { start: place.start, value: place.value, payload: place };
+        const home = layers.find((layer) => fits(layer, item, measure));
+        if (home) home.push(place);
+        else layers.push([place]);
+    }
+    return layers;
+}
+
+const fits = (layer: OwnPlace[], item: LayerItem<OwnPlace>, measure: MeasureModel): boolean =>
+    fitsLayer(
+        layer.map((place) => ({ start: place.start, value: place.value, payload: place })),
+        item,
+        measure,
+    );
+
+/** How one new note is written: its octave on the page, and its accidental if it prints one. */
+interface NoteNotation {
+    /** The octave it is written in, which an ottava moves away from the one it sounds in */
+    oct: number;
+    /** The accidental printed on it; absent where the notation has already said it */
+    accid?: string;
+}
+
+/**
+ * Work out what every new note prints, and keep the notes around them meaning what they meant.
+ *
+ * An accidental holds to the end of its bar, on its line, for every voice of the staff. So what
+ * a note prints depends on everything written on that line before it, and what it prints
+ * changes everything after it. Three things can therefore go wrong when a reading changes the
+ * notes of a bar, and one pass over each line settles all of them:
+ *
+ *   a new note needs an accidental the bar has not yet said, and gets it;
+ *   a new note carries one that would change a written note after it, which the performer
+ *     played as written, so that note has its own accidental restated;
+ *   a written note with an accidental was not played, and the note after it that relied on
+ *     that accidental has it restated too.
+ *
+ * A restated accidental is one the source does not print. It says nothing the source does not
+ * mean, it is marked, and {@link revertTranscription} takes it off again.
+ */
+function planNotation(edits: Edits): Map<NewNote, NoteNotation> {
+    const plan = new Map<NewNote, NoteNotation>();
+
+    interface Arrival { note: NewNote; staff: StaffModel; onset: number; like?: WrittenNote }
+    const arrivals: Arrival[] = [];
+    const gone = new Set<WrittenNote>();
+
+    for (const edit of edits.events) {
+        const staff = edit.event.layer.staff;
+        const like = edit.event.notes[0];
+        edit.graces.flat().forEach((note, index) => arrivals.push({ note, staff, onset: edit.event.onset - 1e-6 * (edit.graces.flat().length - index), like }));
+        for (const note of [...edit.add, ...edit.replace.values()]) arrivals.push({ note, staff, onset: edit.event.onset, like });
+        for (const note of [...edit.remove, ...edit.replace.keys()]) gone.add(note);
+    }
+    for (const addition of edits.staves) {
+        const { staff } = addition;
+        const like = staff.layers.flatMap((layer) => layer.events).find((event) => event.notes.length > 0)?.notes[0];
+        for (const place of addition.places) {
+            const onset = staff.measure.onset + place.start / UNITS;
+            place.graces.flat().forEach((note, index) => arrivals.push({ note, staff, onset: onset - 1e-6 * (place.graces.flat().length - index), like }));
+            for (const note of place.notes) arrivals.push({ note, staff, onset, like });
+        }
+    }
+
+    // By bar and staff number, since an accidental holds across the voices of a staff
+    const touched = new Map<string, { measure: MeasureModel; n: string }>();
+    const keyOf = (measure: MeasureModel, n: string) => `${String(measure.index)}|${n}`;
+    for (const arrival of arrivals) touched.set(keyOf(arrival.staff.measure, arrival.staff.n), { measure: arrival.staff.measure, n: arrival.staff.n });
+    for (const note of gone) {
+        const staff = note.event.layer.staff;
+        touched.set(keyOf(staff.measure, staff.n), { measure: staff.measure, n: staff.n });
+    }
+
+    for (const [key, { measure, n }] of touched) {
+        type Entry =
+            | { onset: number; line: string; alter: number; written: WrittenNote }
+            | { onset: number; line: string; alter: number; arrival: Arrival; oct: number };
+        const entries: Entry[] = [];
+        let signature: ReadonlyMap<string, string> = new Map();
+
+        for (const staff of measure.staves) {
+            if (staff.n !== n) continue;
+            signature = staff.key;
+            for (const layer of staff.layers) {
+                for (const event of layer.events) {
+                    for (const note of event.notes) {
+                        if (gone.has(note)) continue;
+                        entries.push({ onset: event.onset - (event.grace ? 1e-6 : 0), line: `${note.pname}${String(note.oct)}`, alter: note.alter, written: note });
+                    }
+                }
+            }
+        }
+        for (const arrival of arrivals) {
+            if (keyOf(arrival.staff.measure, arrival.staff.n) !== key) continue;
+            // Under an ottava the page writes an octave away from the sound, and a note added
+            // there is written the way its neighbours are
+            const shift = arrival.like ? arrival.like.sounding - arrival.like.oct : 0;
+            const oct = arrival.note.spelling.oct - shift;
+            entries.push({ onset: arrival.onset, line: `${arrival.note.spelling.pname}${String(oct)}`, alter: arrival.note.spelling.alter, arrival, oct });
+        }
+
+        // In the order they sound; at one moment, what is written before what is new
+        entries.sort((a, b) => a.onset - b.onset || ("written" in a ? 0 : 1) - ("written" in b ? 0 : 1));
+
+        const standing = new Map<string, number>();
+        for (const entry of entries) {
+            const pname = entry.line[0];
+            const fromKey = signature.get(pname);
+            const state = standing.get(entry.line) ?? (fromKey === "s" ? 1 : fromKey === "f" ? -1 : 0);
+
+            if ("written" in entry) {
+                const element = entry.written.element;
+                if (writtenAccidental(element) !== undefined) {
+                    standing.set(entry.line, entry.alter);
+                } else if (state !== entry.alter && ownAccidental(element) === undefined) {
+                    // It relied on an accidental the reading has changed or taken away
+                    element.setAttribute("accid", accidentalOf(entry.alter));
+                    const type = element.getAttribute("type");
+                    element.setAttribute("type", type ? `${type} ${PINNED}` : PINNED);
+                    standing.set(entry.line, entry.alter);
+                }
+                continue;
+            }
+
+            if (state !== entry.alter) {
+                plan.set(entry.arrival.note, { oct: entry.oct, accid: accidentalOf(entry.alter) });
+                standing.set(entry.line, entry.alter);
+            } else {
+                plan.set(entry.arrival.note, { oct: entry.oct });
+            }
+        }
+    }
+
+    return plan;
+}
+
+/** The accidental a note has printed on it, which is the kind that holds for the bar. */
+function writtenAccidental(note: Element): string | undefined {
+    const attribute = note.getAttribute("accid");
+    if (attribute !== null) return attribute;
+    for (const child of note.children) {
+        if (child.localName === "accid" && child.hasAttribute("accid")) return child.getAttribute("accid") ?? undefined;
+    }
+    return undefined;
+}
+
+/**
+ * Take every reading written here out again, leaving the score as its source has it.
+ *
+ * The inverse of {@link applyEdits}, and what lets a reader change their mind: the document is
+ * taken back to the source and transcribed again with the new decision, rather than patched.
+ * Readings somebody made by hand carry no mark and are left alone.
+ */
+export function revertTranscription(doc: Document): void {
+    for (const app of [...doc.querySelectorAll(`app[type="${TRANSCRIPTION}"]`)]) {
+        const parent = app.parentNode;
+        if (!parent) continue;
+        const original = [...app.children].find(
+            (child) => child.localName === "rdg" && child.getAttribute("source") === "original",
+        );
+        for (const child of original ? [...original.childNodes] : []) parent.insertBefore(child, app);
+        parent.removeChild(app);
+    }
+
+    for (const note of [...doc.querySelectorAll(`[type~="${PINNED}"]`)]) {
+        note.removeAttribute("accid");
+        const rest = (note.getAttribute("type") ?? "").split(/\s+/).filter((token) => token && token !== PINNED);
+        if (rest.length > 0) note.setAttribute("type", rest.join(" "));
+        else note.removeAttribute("type");
+    }
+}

@@ -31,7 +31,7 @@
  * The quarter-tone values are commented out in verovio and fall through to zero,
  * so they are left out here for the same answer.
  */
-const ALTERATION: Record<string, number> = {
+export const ALTERATION: Record<string, number> = {
     tf: -3,
     ff: -2,
     f: -1,
@@ -226,7 +226,7 @@ function inSoundingOrder(notes: Element[], onsets: Map<string, number>): Element
  * way and gets zero out of it, so the note is altered by nothing rather than by
  * the key signature.
  */
-function ownAccidental(note: Element): string | undefined {
+export function ownAccidental(note: Element): string | undefined {
     const stated = note.getAttribute("accid.ges") ?? note.getAttribute("accid");
     if (stated !== null) return stated;
 
@@ -243,7 +243,7 @@ function ownAccidental(note: Element): string | undefined {
  * whatever was in force, while a staffDef that carries no key at all — the mid-score
  * one that only changes a clef, say — leaves it alone.
  */
-function keySignatureOf(element: Element): Map<string, string> | undefined {
+export function keySignatureOf(element: Element): Map<string, string> | undefined {
     for (const child of element.children) {
         if (child.localName === "keySig") return accidentalsOf(child);
     }
@@ -254,7 +254,7 @@ function keySignatureOf(element: Element): Map<string, string> | undefined {
 }
 
 /** What a `<keySig>` alters, by pitch name. */
-function accidentalsOf(keySig: Element): Map<string, string> {
+export function accidentalsOf(keySig: Element): Map<string, string> {
     // A signature that is not one of the ordinary ones writes itself out
     const written = [...keySig.children].filter((child) => child.localName === "keyAccid");
     if (written.length > 0) {
@@ -291,7 +291,7 @@ function signatureAccidentals(sig: string): Map<string, string> {
  * that matters: an accidental in a reading nobody plays would carry to the notes
  * after it.
  */
-function readableChildren(element: Element): Element[] {
+export function readableChildren(element: Element): Element[] {
     if (element.localName !== "app" && element.localName !== "choice") {
         return [...element.children];
     }

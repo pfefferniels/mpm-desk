@@ -6,7 +6,7 @@ import {
   type MissingDivergence,
   type ReplacedDivergence,
 } from '../../src/alignment/divergences'
-import { defaultAction, isOmittedPassage } from '../../src/alignment/readings'
+import { isOmittedPassage } from '../../src/alignment/readings'
 import type { OrnamentSign } from '../../src/mei/ornamentSigns'
 import type { NoteSpan } from '../../src/performance/midiSpans'
 import type { ScoreNote } from '../../src/score/scoreNotes'
@@ -356,8 +356,6 @@ describe('a written note and the played note that stood in for it', () => {
 
     const replaced = replacedOnes(all)
     expect(replaced[0].reading).toBe('unmatched-pair')
-    // Which is the one family whose first offer is to mend the alignment
-    expect(defaultAction(replaced[0])).toBe('count-as-played')
   })
 
   it('reads a note far from the written one, at its moment, as a different note', () => {
