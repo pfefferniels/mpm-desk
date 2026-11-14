@@ -59,7 +59,7 @@ import {
 } from './model/workReducer';
 import { buildWorkArchive } from './model/exportWork';
 import { parseWorkFile, sourcesOf, type Call, type WorkFile } from './model/Work';
-import { callAddress, callAt } from './model/callAddress';
+import { callAddress, callAt, missedAddress } from './model/callAddress';
 import { publishedUrl } from './model/published';
 import { EditingContext } from './hooks/Editing';
 import { ViewerAddress } from './components/ViewerAddress';
@@ -119,7 +119,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const [pristine, setPristine] = useState<Alignment | null>(null);
     const [mei, setMEI] = useState<string>();
     const [performances, setPerformances] = useState<readonly Performance[]>([]);
-    const [message, setMessage] = useState<string>();
+    /**
+     * What the snackbar says, and how gravely. Nearly everything raised here went wrong; a link
+     * that names no call did not, and reads as news rather than as a fault.
+     */
+    const [message, setMessage] = useState<{ text: string; severity: 'error' | 'info' }>();
 
     const [selectedDesk, setSelectedDesk] = useState<string>(editable ? 'metadata' : VIEWER_DESK);
     /** Why the viewer has nothing to show, where fetching the published reconstruction failed. */
@@ -210,8 +214,16 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const [reportedFitMessage, setReportedFitMessage] = useState(fitMessage);
     if (fitMessage !== reportedFitMessage) {
         setReportedFitMessage(fitMessage);
-        if (fitMessage) setMessage(fitMessage);
+        if (fitMessage) setMessage({ text: fitMessage, severity: 'error' });
     }
+
+    /**
+     * The message last raised, held through the snackbar's exit, so that it fades out as it was
+     * rather than emptied and in the colour an `Alert` with no severity takes. Likewise adjusted
+     * during render.
+     */
+    const [shownMessage, setShownMessage] = useState(message);
+    if (message !== undefined && message !== shownMessage) setShownMessage(message);
 
     /**
      * The MEI, and the alignment read out of it.
@@ -224,7 +236,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
         setMEI(content);
         const movement = convertMeiToMsm(content)[0];
         if (!movement) {
-            setMessage('The MEI holds no convertible movement.');
+            setMessage({ text: 'The MEI holds no convertible movement.', severity: 'error' });
             return;
         }
         setPristine(asMSM(content, movement.msm, movement.graces));
@@ -244,6 +256,31 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             if (editable && !content.includes('<when')) setSelectedDesk('alignment');
         },
         [readMei, editable],
+    );
+
+    /**
+     * Say that an address names no call, and put the URL back to citing what is on screen: the
+     * call still selected, or nothing.
+     *
+     * Left in place, the address would stand in the bar naming nothing while the desk showed
+     * something else, and a reader copying it to cite what they see would cite neither.
+     * `replaceState`, because the address was never a place.
+     */
+    const missedLink = useCallback(
+        (address: string, calls: readonly Call[], selected: ReadonlySet<string>) => {
+            setMessage({ text: missedAddress(address, calls), severity: 'info' });
+            const [only] = selected;
+            const shown =
+                selected.size === 1 && only !== undefined
+                    ? '#' + callAddress(only, calls.map((call) => call.id))
+                    : '';
+            window.history.replaceState(
+                window.history.state,
+                '',
+                window.location.pathname + window.location.search + shown,
+            );
+        },
+        [],
     );
 
     /**
@@ -269,17 +306,23 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                 dispatch({ type: 'load', work: loaded });
                 setSavedWork(loaded);
 
-                // A link into a call opens it, and this is the moment that can be decided: the
-                // document is in hand and the URL has not moved.
-                const match = callAt(window.location.hash.slice(1), loaded.provenance);
-                if (match) openCall(match);
-
                 setMessage(undefined);
+
+                // A link into a call opens it, and this is the moment that can be decided: the
+                // document is in hand and the URL has not moved. Nothing of this document is
+                // selected yet, so a link that names no call leaves no address behind.
+                const address = window.location.hash.slice(1);
+                const match = callAt(address, loaded.provenance);
+                if (match) openCall(match);
+                else if (address) missedLink(address, loaded.provenance, new Set());
             } catch (reason) {
-                setMessage(reason instanceof Error ? reason.message : String(reason));
+                setMessage({
+                    text: reason instanceof Error ? reason.message : String(reason),
+                    severity: 'error',
+                });
             }
         },
-        [openCall],
+        [openCall, missedLink],
     );
 
     /**
@@ -341,7 +384,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             const buffer = await file.arrayBuffer();
             const problem = checkPerformance(buffer);
             if (problem) {
-                setMessage(problem);
+                setMessage({ text: problem, severity: 'error' });
                 return undefined;
             }
 
@@ -349,7 +392,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             try {
                 midi = read(buffer);
             } catch {
-                setMessage(`${file.name} could not be read as MIDI.`);
+                setMessage({ text: `${file.name} could not be read as MIDI.`, severity: 'error' });
                 return undefined;
             }
 
@@ -365,7 +408,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             // the same name would replace the first in the zip and leave its `Align` call naming
             // a file that holds somebody else's playing.
             if (current.some((held) => held.name === performance.name)) {
-                setMessage(`${performance.name} is already open.`);
+                setMessage({ text: `${performance.name} is already open.`, severity: 'error' });
                 return current;
             }
             return [...current, performance];
@@ -415,7 +458,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                 void handleOpenMidi(file);
             // An unrecognised suffix must say so, or it is indistinguishable from a file that
             // failed to parse.
-            else setMessage(`Cannot open ${file.name} — expected a .zip, .mei, .xml or .mid.`);
+            else
+                setMessage({
+                    text: `Cannot open ${file.name} — expected a .zip, .mei, .xml or .mid.`,
+                    severity: 'error',
+                });
         },
         [handleOpenZip, handleOpenMei, handleOpenMidi],
     );
@@ -593,12 +640,16 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             }
             return;
         }
-        if (activeCallIds.size === 1) {
-            const [only] = activeCallIds;
-            if (only.startsWith(hash)) return;
-        }
         const match = callAt(hash, work.provenance);
-        if (match) openCall(match);
+        if (!match) {
+            missedLink(hash, work.provenance, activeCallIds);
+            return;
+        }
+        // The call already selected is not opened again, which would take the reader off the
+        // desk they went to with it. By what the address names rather than by the selection's
+        // id starting with it, which a fragment too short to be an address also does.
+        if (activeCallIds.size === 1 && activeCallIds.has(match.id)) return;
+        openCall(match);
     });
 
     useEffect(() => {
@@ -861,7 +912,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                         }}
                     />
 
+                    {/* Keyed on what it says, so that a message raised while another is showing
+                        gets its own four seconds: the timer starts when the bar opens, and a bar
+                        already open would otherwise take the second down with the first. */}
                     <Snackbar
+                        key={shownMessage?.text}
                         open={message !== undefined}
                         autoHideDuration={4000}
                         onClose={() => {
@@ -872,11 +927,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                             onClose={() => {
                                 setMessage(undefined);
                             }}
-                            severity="error"
+                            severity={shownMessage?.severity}
                             variant="filled"
                             sx={{ width: '40%' }}
                         >
-                            {message}
+                            {shownMessage?.text}
                         </Alert>
                     </Snackbar>
                 </div>
