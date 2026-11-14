@@ -10,9 +10,11 @@ import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { act, useEffect } from 'react'
 import type { MidiFile } from 'midifile-ts'
+import { addAbsoluteTime } from 'react-pianosound'
 import { createFakePiano } from '../test/fakePiano'
 import { readNoteDates } from '../utils/score'
 import { ZoomContext } from './ZoomProvider'
+import { EditingContext } from './Editing'
 import { PlaybackProvider, usePlayback } from './PlaybackProvider'
 
 // The piano wants a Web Audio graph jsdom has not got. The
@@ -44,17 +46,20 @@ const Capture = () => {
     return null
 }
 
-const mount = async () => {
+/** Mounted at a zoom wide enough that it changes nothing, in the editor unless said otherwise. */
+const mount = async ({ stretchX = 20, editable = true }: { stretchX?: number; editable?: boolean } = {}) => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const root = createRoot(container)
     await act(async () => {
         root.render(
-            <ZoomContext value={{ symbolic: { stretchX: 20 }, physical: { stretchX: 20 }, setStretchX: () => { } }}>
-                <PlaybackProvider scoreMsm={scoreMsm} performanceMpm={performanceMpm} dateByNoteId={dateByNoteId}>
-                    <Capture />
-                </PlaybackProvider>
-            </ZoomContext>
+            <EditingContext value={editable}>
+                <ZoomContext value={{ symbolic: { stretchX }, physical: { stretchX }, setStretchX: () => { } }}>
+                    <PlaybackProvider scoreMsm={scoreMsm} performanceMpm={performanceMpm} dateByNoteId={dateByNoteId}>
+                        <Capture />
+                    </PlaybackProvider>
+                </ZoomContext>
+            </EditingContext>
         )
     })
     return async () => { await act(async () => root.unmount()); container.remove() }
@@ -118,6 +123,42 @@ describe('PlaybackProvider', () => {
         }
     })
 
+})
+
+describe('the zoom', () => {
+    beforeEach(() => {
+        rig = createFakePiano()
+        play = null
+        vi.spyOn(console, 'log').mockImplementation(() => { })
+    })
+
+    /** When each note sounds in what play() hands the piano, mounted as given. */
+    const onsetsPlayed = async (options: { stretchX: number; editable: boolean }) => {
+        const unmount = await mount(options)
+        act(() => { play!() })
+        const onsets = addAbsoluteTime(played()!)
+            .filter(event => event.type === 'meta' && event.subtype === 'text')
+            .map(event => event.abs)
+        await unmount()
+        return onsets
+    }
+
+    // Zoomed out to 2, the editor's sketchiness would be 1.32: the viewer has nothing on screen
+    // that says so, and a reader there has to hear the reconstruction as it was published.
+    it('leaves what the viewer plays as published', async () => {
+        const wide = await onsetsPlayed({ stretchX: 20, editable: false })
+        const zoomedOut = await onsetsPlayed({ stretchX: 2, editable: false })
+
+        expect(zoomedOut).toEqual(wide)
+    })
+
+    it('still loosens what the editor plays', async () => {
+        const wide = await onsetsPlayed({ stretchX: 20, editable: true })
+        const zoomedOut = await onsetsPlayed({ stretchX: 2, editable: true })
+
+        expect(zoomedOut).toHaveLength(wide.length)
+        expect(zoomedOut).not.toEqual(wide)
+    })
 })
 
 describe('moving the exaggeration knob while it plays', () => {

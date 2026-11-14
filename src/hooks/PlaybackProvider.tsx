@@ -4,6 +4,7 @@ import type { AnyEvent } from 'midifile-ts';
 import { renderCached, type RenderRequest, type Rendered } from '../utils/espressivo';
 import { UNIDENTIFIED_NOTE, pickAnchor } from '../utils/anchor';
 import { useZoom } from './ZoomProvider';
+import { useEditable } from './Editing';
 import { useLatest } from './useLatest';
 
 const SKETCH_THRESHOLD = 10;
@@ -95,15 +96,26 @@ interface PlaybackProviderProps {
 export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, children }: PlaybackProviderProps) => {
     const piano = usePiano();
     const { stretchX } = useZoom();
+    const editable = useEditable();
     const [isPlaying, setIsPlaying] = useState(false);
     const [exaggeration, setExaggeration] = useState(1.0);
+
+    /**
+     * How loose the zoom makes the rendering: in the editor only.
+     *
+     * The viewer plays the reconstruction as it is published, at every zoom. Nothing on its
+     * screen says that zooming out exaggerates what is heard, and a reader comparing a curve
+     * against the recording has to hear the curve that is drawn, not one stretched by up to half
+     * again because the plot was made smaller to see more of it.
+     */
+    const sketchiness = editable ? computeSketchiness(stretchX) : 1;
 
     // Store props and the unstable usePiano() references in refs so downstream callbacks and the
     // context value stay stable.
     const scoreMsmRef = useLatest(scoreMsm);
     const performanceMpmRef = useLatest(performanceMpm);
     const dateByNoteIdRef = useLatest(dateByNoteId);
-    const stretchXRef = useLatest(stretchX);
+    const sketchinessRef = useLatest(sketchiness);
     const pianoRef = useLatest(piano);
 
     // Track playback state for mid-playback updates
@@ -161,11 +173,11 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         const request: RenderRequest = {
             msm: scoreMsmRef.current,
             mpm: performanceMpmRef.current,
-            sketchiness: computeSketchiness(stretchXRef.current),
+            sketchiness: sketchinessRef.current,
         };
         if (options?.exaggerate !== undefined) request.exaggerate = options.exaggerate;
         return request;
-    }, [scoreMsmRef, performanceMpmRef, stretchXRef]);
+    }, [scoreMsmRef, performanceMpmRef, sketchinessRef]);
 
     /**
      * Stop once what is playing has been heard through.
@@ -292,17 +304,15 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         }, wait);
     }, [applyUpdate]);
 
-    // Re-render on zoom change during playback
-    const prevStretchXRef = useRef(stretchX);
+    // Re-render on zoom change during playback, wherever the zoom changes what is heard
+    const prevSketchinessRef = useRef(sketchiness);
     useEffect(() => {
-        const prev = prevStretchXRef.current;
-        prevStretchXRef.current = stretchX;
+        const prev = prevSketchinessRef.current;
+        prevSketchinessRef.current = sketchiness;
 
-        if (!isPlayingRef.current) return;
-        // Skip if sketchiness didn't actually change
-        if (computeSketchiness(prev) === computeSketchiness(stretchX)) return;
+        if (!isPlayingRef.current || prev === sketchiness) return;
         scheduleUpdate();
-    }, [stretchX, scheduleUpdate]);
+    }, [sketchiness, scheduleUpdate]);
 
     // Re-render on exaggeration change during playback
     const prevExaggerationRef = useRef(exaggeration);
