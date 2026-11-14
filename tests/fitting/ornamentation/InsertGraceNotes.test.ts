@@ -89,9 +89,9 @@ const figure = (mpm: Mpm, principal: string) => {
       .toArray()
       .map((n) => [n.getAttributeValue('id', 'http://www.w3.org/XML/1998/namespace'), n.getAttributeValue('midi.pitch')]),
     frame: spread && {
-      start: spread.frameStart,
-      length: spread.getFrameLength(),
-      domain: spread.frameDomain,
+      start: spread.getFrame().offset.value,
+      length: spread.getFrame().length.value,
+      domain: spread.getFrame().length.domain,
       shift: spread.noteOffShift,
     },
   };
@@ -117,7 +117,7 @@ describe('an untied group', () => {
       ['g2', '76'],
     ]);
     // In milliseconds, from the principal's date: the first grace 300 ms ahead, the principal on it.
-    expect(frame).toMatchObject({ start: -300, length: 300, shift: 'monophonic' });
+    expect(frame).toMatchObject({ start: -300, length: 300, domain: 'milliseconds', shift: 'monophonic' });
   });
 
   test('keeps the stagger an arpeggio fit took out of its principal', () => {

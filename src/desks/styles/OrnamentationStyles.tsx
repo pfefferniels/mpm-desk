@@ -160,7 +160,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                             <>
                                 <Plot
                                     points={styles.points}
-                                    x={axisOver('frame.start (ms)', styles.points, 0)}
+                                    x={axisOver('frame.offset (ms)', styles.points, 0)}
                                     y={axisOver('frameLength (ms)', styles.points, 1)}
                                     width={560}
                                     height={320}
@@ -189,7 +189,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                     {editable && <>
                         <Tolerance
                             label='Frame'
-                            note='frame.start and frameLength'
+                            note='frame.offset and frameLength'
                             unit='ms'
                             value={tickTolerance}
                             onChange={setTickTolerance}

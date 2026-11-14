@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import type { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { type ArpeggioPlacement, InsertTemporalSpread } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
 import { getDefinition, getInstructions, type Instruction } from "../../fitting/instructions/index";
-import { FrameDomain, type TemporalSpread } from "espressivo";
+import type { TemporalSpread } from "espressivo";
+import { frameIn } from "./spreadFrame";
 import { onsetSeconds, releaseSeconds } from "../noteTiming";
 import { ChordSpread } from "./ChordSpread";
 import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
@@ -127,7 +128,10 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     const height = 250;
     const instructionHeight = 40;
 
-    const tickBasedSpreads = temporalSpreads.filter(s => s.def.frameDomain === FrameDomain.Ticks);
+    const tickBasedSpreads = temporalSpreads.flatMap(s => {
+        const frame = frameIn(s.def, 'ticks');
+        return frame ? [{ ...s, frame }] : [];
+    });
 
     // Scoped, and it has to be: this is both what the plot draws and what a written spread is
     // measured over below, and `InsertTemporalSpread` frames the chord as `in(scope).chords()`. Left
@@ -271,6 +275,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                                         key={`spreadInstruction_${ornament.id ?? `${ornament.date}_${index}`}`}
                                         ornament={ornament}
                                         spread={ornament.def}
+                                        frame={ornament.frame}
                                         notes={chordsByDate.get(ornament.date) ?? []}
                                         tickToSeconds={tickToSeconds}
                                         stretch={stretchX}

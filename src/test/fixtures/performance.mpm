@@ -11,290 +11,290 @@
           <styleDef name="performance_style">
             <ornamentDef name="def_global_0_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="0" frameLength="80" noteoff.shift="false" time.unit="ticks" intensity="1.0020230099065808"></temporalSpread>
+              <temporalSpread frame.offset="0ticks" frameLength="80ticks" noteoff.shift="false" intensity="1.0020230099065808"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_1_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="0" frameLength="93" noteoff.shift="false" time.unit="ticks" intensity="1.1082875481302918"></temporalSpread>
+              <temporalSpread frame.offset="0ticks" frameLength="93ticks" noteoff.shift="false" intensity="1.1082875481302918"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_2_0">
               <dynamicsGradient transition.from="1" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="-91.5" frameLength="91.25" noteoff.shift="true" time.unit="ticks" intensity="1"></temporalSpread>
+              <temporalSpread frame.offset="-91.5ticks" frameLength="91.25ticks" noteoff.shift="true" intensity="1"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_2_1">
               <dynamicsGradient transition.from="1" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-99" frameLength="98" noteoff.shift="true" time.unit="ticks" intensity="0.7690041723225369"></temporalSpread>
+              <temporalSpread frame.offset="-99ticks" frameLength="98ticks" noteoff.shift="true" intensity="0.7690041723225369"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_3_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="-45" frameLength="49.666666666666664" noteoff.shift="false" time.unit="ticks" intensity="0.2196778114619016"></temporalSpread>
+              <temporalSpread frame.offset="-45ticks" frameLength="49.666666666666664ticks" noteoff.shift="false" intensity="0.2196778114619016"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_3_1">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-43" frameLength="53.5" noteoff.shift="false" time.unit="ticks" intensity="0.24068905120595788"></temporalSpread>
+              <temporalSpread frame.offset="-43ticks" frameLength="53.5ticks" noteoff.shift="false" intensity="0.24068905120595788"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_d8d9d1f2-9ae6-4623-8ae0-daaf373e22ed">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-42" frameLength="59" noteoff.shift="false" time.unit="ticks" intensity="0.11384444092246954"></temporalSpread>
+              <temporalSpread frame.offset="-42ticks" frameLength="59ticks" noteoff.shift="false" intensity="0.11384444092246954"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_4_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="-134.5" frameLength="134.5" noteoff.shift="false" time.unit="ticks" intensity="0.8668335885384013"></temporalSpread>
+              <temporalSpread frame.offset="-134.5ticks" frameLength="134.5ticks" noteoff.shift="false" intensity="0.8668335885384013"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_5_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="-151.5" frameLength="151.5" noteoff.shift="false" time.unit="ticks" intensity="1.8714672626624778"></temporalSpread>
+              <temporalSpread frame.offset="-151.5ticks" frameLength="151.5ticks" noteoff.shift="false" intensity="1.8714672626624778"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_6_0">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-70.5" frameLength="70" noteoff.shift="false" time.unit="ticks" intensity="1.1636523073981841"></temporalSpread>
+              <temporalSpread frame.offset="-70.5ticks" frameLength="70ticks" noteoff.shift="false" intensity="1.1636523073981841"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_f04e93ea-5f2b-431f-9ee7-b39825e785a2">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-78" frameLength="78" noteoff.shift="false" time.unit="ticks" intensity="1.196760180259175"></temporalSpread>
+              <temporalSpread frame.offset="-78ticks" frameLength="78ticks" noteoff.shift="false" intensity="1.196760180259175"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_7_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="-43" frameLength="43" noteoff.shift="false" time.unit="ticks" intensity="1.0604750800466003"></temporalSpread>
+              <temporalSpread frame.offset="-43ticks" frameLength="43ticks" noteoff.shift="false" intensity="1.0604750800466003"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_1deb3dc2-1aae-4d64-b72a-e3ab13391470">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-1" frameLength="55" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="55ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_f4bfe657-1396-4b5b-a9ed-b59b0fa09afc">
-              <temporalSpread frame.start="-1" frameLength="61" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="61ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_9_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="-96.5" frameLength="96.33333333333333" noteoff.shift="false" time.unit="ticks" intensity="0.9044465826102895"></temporalSpread>
+              <temporalSpread frame.offset="-96.5ticks" frameLength="96.33333333333333ticks" noteoff.shift="false" intensity="0.9044465826102895"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_9_1">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-95" frameLength="94" noteoff.shift="false" time.unit="ticks" intensity="0.6698019244666559"></temporalSpread>
+              <temporalSpread frame.offset="-95ticks" frameLength="94ticks" noteoff.shift="false" intensity="0.6698019244666559"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_23b4307d-25b9-4802-8895-a1a9ec181087">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-118" frameLength="118" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-118ticks" frameLength="118ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_511840da-ecb9-4eb1-b86b-755493dc448d">
-              <temporalSpread frame.start="-121" frameLength="121" noteoff.shift="false" time.unit="ticks" intensity="1.1995645535194022"></temporalSpread>
+              <temporalSpread frame.offset="-121ticks" frameLength="121ticks" noteoff.shift="false" intensity="1.1995645535194022"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_24c74f88-759b-42d5-aed4-8d7cb6d5a0af">
-              <temporalSpread frame.start="-68" frameLength="96" noteoff.shift="false" time.unit="ticks" intensity="0.1187617190195021"></temporalSpread>
+              <temporalSpread frame.offset="-68ticks" frameLength="96ticks" noteoff.shift="false" intensity="0.1187617190195021"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_a3eea7f4-95e6-4900-88f0-cc29b3148876">
-              <temporalSpread frame.start="-64" frameLength="89" noteoff.shift="false" time.unit="ticks" intensity="0.14149443894871588"></temporalSpread>
+              <temporalSpread frame.offset="-64ticks" frameLength="89ticks" noteoff.shift="false" intensity="0.14149443894871588"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_global_12_0">
               <dynamicsGradient transition.from="0" transition.to="0"></dynamicsGradient>
-              <temporalSpread frame.start="-158" frameLength="157" noteoff.shift="false" time.unit="ticks" intensity="0.9963783521682227"></temporalSpread>
+              <temporalSpread frame.offset="-158ticks" frameLength="157ticks" noteoff.shift="false" intensity="0.9963783521682227"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_97e944b0-c097-4344-8236-ddb1a2161be5">
-              <temporalSpread frame.start="-159" frameLength="158" noteoff.shift="false" time.unit="ticks" intensity="0.8435120585586539"></temporalSpread>
+              <temporalSpread frame.offset="-159ticks" frameLength="158ticks" noteoff.shift="false" intensity="0.8435120585586539"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_b203a8f1-ade4-4b24-9e56-aa7b5e8dfb8b">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-180" frameLength="180" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-180ticks" frameLength="180ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_61f2507c-9c04-41a2-8697-67077cd47b97">
-              <temporalSpread frame.start="-114" frameLength="114" noteoff.shift="false" time.unit="ticks" intensity="0.1767053977738201"></temporalSpread>
+              <temporalSpread frame.offset="-114ticks" frameLength="114ticks" noteoff.shift="false" intensity="0.1767053977738201"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_a8b1a82a-ea41-4115-bf2c-bec778ba313c">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-133" frameLength="133" noteoff.shift="false" time.unit="ticks" intensity="1.7201219933203724"></temporalSpread>
+              <temporalSpread frame.offset="-133ticks" frameLength="133ticks" noteoff.shift="false" intensity="1.7201219933203724"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_bba66867-61fb-4fc1-a23f-4c754498e195">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="0" frameLength="41" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="0ticks" frameLength="41ticks" noteoff.shift="true"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_63183dcf-2b82-4044-80cd-36fc4a667032">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-63" frameLength="162" noteoff.shift="false" time.unit="ticks" intensity="1.2310636723300197"></temporalSpread>
+              <temporalSpread frame.offset="-63ticks" frameLength="162ticks" noteoff.shift="false" intensity="1.2310636723300197"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_d07e7999-e91c-47d7-98d1-9df40ca4f9b1">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-1" frameLength="15" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="15ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_d48c24d4-d69e-47c5-9470-5f0538bf0668">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-1" frameLength="27" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="27ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_4c7c085d-2d31-4fd7-b619-1a9a615c9370">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-29" frameLength="73" noteoff.shift="false" time.unit="ticks" intensity="1.2449425154925904"></temporalSpread>
+              <temporalSpread frame.offset="-29ticks" frameLength="73ticks" noteoff.shift="false" intensity="1.2449425154925904"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_2c06570e-93e6-4aec-98f7-7d7efb791e17">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-30" frameLength="64" noteoff.shift="false" time.unit="ticks" intensity="1.2498115277135975"></temporalSpread>
+              <temporalSpread frame.offset="-30ticks" frameLength="64ticks" noteoff.shift="false" intensity="1.2498115277135975"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_723db2d6-cc94-4a77-9b6a-c876ed61132a">
-              <temporalSpread frame.start="-51" frameLength="86" noteoff.shift="false" time.unit="ticks" intensity="0.6045863037914023"></temporalSpread>
+              <temporalSpread frame.offset="-51ticks" frameLength="86ticks" noteoff.shift="false" intensity="0.6045863037914023"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_c9dee21c-ee89-4e2d-b1f0-80a0f33dd655">
-              <temporalSpread frame.start="-80" frameLength="207" noteoff.shift="false" time.unit="ticks" intensity="2.0512945346606317"></temporalSpread>
+              <temporalSpread frame.offset="-80ticks" frameLength="207ticks" noteoff.shift="false" intensity="2.0512945346606317"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_99231008-4779-49d4-ab1c-4dc5337e6c50">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-89" frameLength="171" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-89ticks" frameLength="171ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_06d859de-f605-4a73-8cea-e333834ba027">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-69" frameLength="170" noteoff.shift="false" time.unit="ticks" intensity="2.114875162169038"></temporalSpread>
+              <temporalSpread frame.offset="-69ticks" frameLength="170ticks" noteoff.shift="false" intensity="2.114875162169038"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_dbaa951a-ab9a-420f-ae20-28f52a630388">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-70" frameLength="115" noteoff.shift="false" time.unit="ticks" intensity="0.47435942926310465"></temporalSpread>
+              <temporalSpread frame.offset="-70ticks" frameLength="115ticks" noteoff.shift="false" intensity="0.47435942926310465"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_968bfe00-c41e-4cd0-ae0a-1e60adcdd5e3">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-125" frameLength="125" noteoff.shift="false" time.unit="ticks" intensity="2.9502096008828493"></temporalSpread>
+              <temporalSpread frame.offset="-125ticks" frameLength="125ticks" noteoff.shift="false" intensity="2.9502096008828493"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_694878ba-3906-47a1-afc3-769d07c3d741">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="0" frameLength="83" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="0ticks" frameLength="83ticks" noteoff.shift="true"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_b0f1a7ae-e193-47f3-ae7c-ab1a2ec0cf85">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-10" frameLength="36" noteoff.shift="false" time.unit="ticks" intensity="1.9566085229176367"></temporalSpread>
+              <temporalSpread frame.offset="-10ticks" frameLength="36ticks" noteoff.shift="false" intensity="1.9566085229176367"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_32772b8a-ba57-442a-b728-18644f240ae6">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="0" frameLength="105" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="0ticks" frameLength="105ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_a47f6dfa-315a-4945-bc2f-dc3aa506dc59">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-18" frameLength="40" noteoff.shift="false" time.unit="ticks" intensity="1.463227238768576"></temporalSpread>
+              <temporalSpread frame.offset="-18ticks" frameLength="40ticks" noteoff.shift="false" intensity="1.463227238768576"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_ffb199d0-768b-4f0c-94f6-0205e2ba43cc">
-              <temporalSpread frame.start="0" frameLength="96" noteoff.shift="true" time.unit="ticks" intensity="0.1000003108665233"></temporalSpread>
+              <temporalSpread frame.offset="0ticks" frameLength="96ticks" noteoff.shift="true" intensity="0.1000003108665233"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_bc7223dc-2e72-4006-8502-80ab2567fce1">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-1" frameLength="151" noteoff.shift="true" time.unit="ticks" intensity="1.2223925617345743"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="151ticks" noteoff.shift="true" intensity="1.2223925617345743"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_b74e8335-f4f8-421e-8318-aebe78bc503c">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-89" frameLength="198" noteoff.shift="false" time.unit="ticks" intensity="1.3554219443239597"></temporalSpread>
+              <temporalSpread frame.offset="-89ticks" frameLength="198ticks" noteoff.shift="false" intensity="1.3554219443239597"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_968b89ab-a6c6-480e-9785-022e7c4051a3">
-              <temporalSpread frame.start="-79" frameLength="78" noteoff.shift="false" time.unit="ticks" intensity="0.6102374270479378"></temporalSpread>
+              <temporalSpread frame.offset="-79ticks" frameLength="78ticks" noteoff.shift="false" intensity="0.6102374270479378"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_0f6fe3dc-5b00-4932-8e7e-eda3063bdf9d">
-              <temporalSpread frame.start="-1" frameLength="103" noteoff.shift="false" time.unit="ticks" intensity="0.41037376386056423"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="103ticks" noteoff.shift="false" intensity="0.41037376386056423"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_6284719e-bc8c-4d80-b8f9-69820f67331f">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-76" frameLength="146" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-76ticks" frameLength="146ticks" noteoff.shift="true"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_a40f9aad-24b3-4397-9f86-fb41bbc8b6bc">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="0" frameLength="247" noteoff.shift="false" time.unit="ticks" intensity="1.2435719786586827"></temporalSpread>
+              <temporalSpread frame.offset="0ticks" frameLength="247ticks" noteoff.shift="false" intensity="1.2435719786586827"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_a20f4108-9d92-49de-b27f-77774fcd9a9c">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-93" frameLength="151" noteoff.shift="false" time.unit="ticks" intensity="0.5126441461909349"></temporalSpread>
+              <temporalSpread frame.offset="-93ticks" frameLength="151ticks" noteoff.shift="false" intensity="0.5126441461909349"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_bc964214-bb18-4174-9e09-4cb4c1d532ca">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-74" frameLength="128" noteoff.shift="false" time.unit="ticks" intensity="0.7009978498969031"></temporalSpread>
+              <temporalSpread frame.offset="-74ticks" frameLength="128ticks" noteoff.shift="false" intensity="0.7009978498969031"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_5d95d341-6e57-4aaf-9a9d-8ca83101f06a">
-              <temporalSpread frame.start="-23" frameLength="71" noteoff.shift="true" time.unit="ticks" intensity="3.0700353315506064"></temporalSpread>
+              <temporalSpread frame.offset="-23ticks" frameLength="71ticks" noteoff.shift="true" intensity="3.0700353315506064"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_29a03297-3e9d-445d-a800-273ce26a66a8">
-              <temporalSpread frame.start="-137" frameLength="136" noteoff.shift="false" time.unit="ticks" intensity="1.2494298088983515"></temporalSpread>
+              <temporalSpread frame.offset="-137ticks" frameLength="136ticks" noteoff.shift="false" intensity="1.2494298088983515"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_d4db73a0-8c30-48bc-b8f7-ee36e9f111a8">
-              <temporalSpread frame.start="-1" frameLength="92" noteoff.shift="false" time.unit="ticks" intensity="0.19930873804349764"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="92ticks" noteoff.shift="false" intensity="0.19930873804349764"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_b4371c00-47f7-455d-a06a-00e68b0126c0">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-147" frameLength="147" noteoff.shift="false" time.unit="ticks" intensity="0.25879331978998404"></temporalSpread>
+              <temporalSpread frame.offset="-147ticks" frameLength="147ticks" noteoff.shift="false" intensity="0.25879331978998404"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_34951744-6b48-4939-9999-1aff3e812027">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-94" frameLength="94" noteoff.shift="false" time.unit="ticks" intensity="0.1000003108665233"></temporalSpread>
+              <temporalSpread frame.offset="-94ticks" frameLength="94ticks" noteoff.shift="false" intensity="0.1000003108665233"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_d2a59f61-0d46-49e2-82fb-c064be778250">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-17" frameLength="33" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-17ticks" frameLength="33ticks" noteoff.shift="true"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_3b872ad8-01d6-4e6f-b4b1-5c180d556949">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-180" frameLength="180" noteoff.shift="true" time.unit="ticks" intensity="1.1780530738934296"></temporalSpread>
+              <temporalSpread frame.offset="-180ticks" frameLength="180ticks" noteoff.shift="true" intensity="1.1780530738934296"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_3b19873b-09e4-4b7a-a4e4-f5a8dc82be3b">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-105" frameLength="179" noteoff.shift="false" time.unit="ticks" intensity="0.6404319423205087"></temporalSpread>
+              <temporalSpread frame.offset="-105ticks" frameLength="179ticks" noteoff.shift="false" intensity="0.6404319423205087"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_a781222c-cc7f-4b54-8ab6-842d6948eff8">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-30" frameLength="48" noteoff.shift="false" time.unit="ticks" intensity="0.27064765127656154"></temporalSpread>
+              <temporalSpread frame.offset="-30ticks" frameLength="48ticks" noteoff.shift="false" intensity="0.27064765127656154"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_c2877083-eb64-447d-ad90-838937d9bcf6">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-122" frameLength="121" noteoff.shift="false" time.unit="ticks" intensity="0.5652389344387011"></temporalSpread>
+              <temporalSpread frame.offset="-122ticks" frameLength="121ticks" noteoff.shift="false" intensity="0.5652389344387011"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_7e01db78-0818-4e10-bb61-08f0d218479d">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-64" frameLength="64" noteoff.shift="true" time.unit="ticks" intensity="1.0000001051264078"></temporalSpread>
+              <temporalSpread frame.offset="-64ticks" frameLength="64ticks" noteoff.shift="true" intensity="1.0000001051264078"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_7c466da3-7f9a-46eb-b524-88be1435e78d">
-              <temporalSpread frame.start="-44" frameLength="110" noteoff.shift="false" time.unit="ticks" intensity="2.459431487898674"></temporalSpread>
+              <temporalSpread frame.offset="-44ticks" frameLength="110ticks" noteoff.shift="false" intensity="2.459431487898674"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_6d219b63-56b2-409f-8cc6-f3394b353fef">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-68" frameLength="171" noteoff.shift="false" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-68ticks" frameLength="171ticks" noteoff.shift="false"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_b0ba2041-5ee9-40e3-9a2e-6fe542f3ac2a">
-              <temporalSpread frame.start="-48" frameLength="68" noteoff.shift="false" time.unit="ticks" intensity="0.14029101283657291"></temporalSpread>
+              <temporalSpread frame.offset="-48ticks" frameLength="68ticks" noteoff.shift="false" intensity="0.14029101283657291"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_4c47152d-1405-4c03-ab11-24353953d852">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-95" frameLength="95" noteoff.shift="true" time.unit="ticks" intensity="0.1000003108665233"></temporalSpread>
+              <temporalSpread frame.offset="-95ticks" frameLength="95ticks" noteoff.shift="true" intensity="0.1000003108665233"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_00c078d2-0409-4734-b19f-01cef85273b2">
-              <temporalSpread frame.start="-39" frameLength="38" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-39ticks" frameLength="38ticks" noteoff.shift="true"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_aa772c50-a329-4236-9385-9b6fbe2d8fc9">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-48" frameLength="48" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-48ticks" frameLength="48ticks" noteoff.shift="true"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_b0973c95-e8c2-4a8d-a7a1-f678e376acab">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-62" frameLength="122" noteoff.shift="true" time.unit="ticks"></temporalSpread>
+              <temporalSpread frame.offset="-62ticks" frameLength="122ticks" noteoff.shift="true"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_fb917ba3-b617-4efa-bfdd-c711d9e20df2">
-              <temporalSpread frame.start="-60" frameLength="59" noteoff.shift="false" time.unit="ticks" intensity="0.1000003108665233"></temporalSpread>
+              <temporalSpread frame.offset="-60ticks" frameLength="59ticks" noteoff.shift="false" intensity="0.1000003108665233"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_1d37a186-bfd4-4f7e-8a30-a52ec108e5d7">
-              <temporalSpread frame.start="-150" frameLength="343" noteoff.shift="false" time.unit="ticks" intensity="1.3579999312108157"></temporalSpread>
+              <temporalSpread frame.offset="-150ticks" frameLength="343ticks" noteoff.shift="false" intensity="1.3579999312108157"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_c78eb236-8e6d-4b84-91c7-b2cd90388f27">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-49" frameLength="119" noteoff.shift="false" time.unit="ticks" intensity="1.8281150838621931"></temporalSpread>
+              <temporalSpread frame.offset="-49ticks" frameLength="119ticks" noteoff.shift="false" intensity="1.8281150838621931"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_2980c5b1-6870-41ed-970b-e723f31cce57">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-109" frameLength="109" noteoff.shift="false" time.unit="ticks" intensity="0.9668279792510075"></temporalSpread>
+              <temporalSpread frame.offset="-109ticks" frameLength="109ticks" noteoff.shift="false" intensity="0.9668279792510075"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_337d405e-cb39-46e5-81da-b9fdde452190">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-69" frameLength="69" noteoff.shift="true" time.unit="ticks" intensity="0.4064081944530116"></temporalSpread>
+              <temporalSpread frame.offset="-69ticks" frameLength="69ticks" noteoff.shift="true" intensity="0.4064081944530116"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_0deb1b33-4690-4ad6-a8ee-0a386dc0ac41">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-40" frameLength="40" noteoff.shift="false" time.unit="ticks" intensity="0.6844803539585136"></temporalSpread>
+              <temporalSpread frame.offset="-40ticks" frameLength="40ticks" noteoff.shift="false" intensity="0.6844803539585136"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_5f774fca-c094-41cc-82bf-3ea74667ca06">
               <dynamicsGradient transition.from="0" transition.to="-1"></dynamicsGradient>
-              <temporalSpread frame.start="-8" frameLength="21" noteoff.shift="false" time.unit="ticks" intensity="2.086813231123509"></temporalSpread>
+              <temporalSpread frame.offset="-8ticks" frameLength="21ticks" noteoff.shift="false" intensity="2.086813231123509"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_1bfad7b1-0467-4334-8bbd-adc72fe6a26c">
-              <temporalSpread frame.start="-17" frameLength="27" noteoff.shift="false" time.unit="ticks" intensity="0.16099194171249204"></temporalSpread>
+              <temporalSpread frame.offset="-17ticks" frameLength="27ticks" noteoff.shift="false" intensity="0.16099194171249204"></temporalSpread>
             </ornamentDef>
             <ornamentDef name="def_051ffe1b-7d51-4c9b-9fc6-6eefbde1eda2">
-              <temporalSpread frame.start="-1" frameLength="24.48729157532216" noteoff.shift="false" time.unit="ticks" intensity="0.651072550362038"></temporalSpread>
+              <temporalSpread frame.offset="-1ticks" frameLength="24.48729157532216ticks" noteoff.shift="false" intensity="0.651072550362038"></temporalSpread>
             </ornamentDef>
           </styleDef>
         </ornamentationStyles>
