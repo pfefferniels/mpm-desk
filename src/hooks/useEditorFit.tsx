@@ -40,6 +40,8 @@ interface EditorFit {
     result: FitResult | null;
     /** The performance the chain wrote, parsed once. */
     mpm: Mpm | null;
+    /** The performance as the open desk's own call found it, where it plots that; see `input`. */
+    found: Mpm | null;
     /** The recording as the chain left it, rebuilt as an `Alignment`. */
     alignment: Alignment | null;
     /** What the MPM does not explain, with the open desk's own dimension held out. */
@@ -55,9 +57,19 @@ interface UseEditorFitParams {
     /** The alignment as loaded, never run over. Null until an MEI is open. */
     pristine: Alignment | null;
     holdOut: readonly InstructionType[] | undefined;
+    /** The transformers whose input any desk plots, kept on every fit: `PLOTTED_INPUTS`. */
+    keep: readonly string[];
+    /** The one of them the open desk plots, if it plots one. */
+    input: string | undefined;
 }
 
-export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): EditorFit => {
+export const useEditorFit = ({
+    work,
+    pristine,
+    holdOut,
+    keep,
+    input,
+}: UseEditorFitParams): EditorFit => {
     const [result, setResult] = useState<FitResult | null>(null);
     const [pending, setPending] = useState(false);
     const [ready, setReady] = useState(false);
@@ -147,10 +159,18 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
             type: 'fit',
             requestId,
             work: workRef.current,
+            before: keep,
         } satisfies FitRequest);
-    }, [chainKey, ready, workRef]);
+    }, [chainKey, ready, workRef, keep]);
 
     const mpm = useMemo(() => (result ? parseMPM(result.mpm) : null), [result]);
+
+    // Parsed for the open desk alone, and only where it asks: every other desk draws the finished
+    // document, and a parse is ten milliseconds on each fit for nothing.
+    const found = useMemo(() => {
+        const xml = input === undefined ? undefined : result?.before[input];
+        return xml === undefined ? null : parseMPM(xml);
+    }, [result, input]);
 
     const alignment = useMemo(() => {
         if (!result) return null;
@@ -186,5 +206,5 @@ export const useEditorFit = ({ work, pristine, holdOut }: UseEditorFitParams): E
         return deriveResidual(alignment, mpm, without ? { without } : {});
     }, [alignment, mpm, without]);
 
-    return { result, mpm, alignment, residual, pending, problems, error };
+    return { result, mpm, found, alignment, residual, pending, problems, error };
 };

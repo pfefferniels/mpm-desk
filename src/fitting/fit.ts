@@ -79,6 +79,17 @@ export interface CallOutcome {
 export interface FitResult {
     /** The performance the chain wrote, as MPM XML. */
     mpm: string;
+    /**
+     * The performance as it stood just before a call ran, as MPM XML, by the name of its
+     * transformer — for each name {@link FitOptions.before} asked about and the chain holds a call
+     * of. The first such call, where there are several.
+     *
+     * For the two style desks, which plot what their call was handed rather than what it left:
+     * a style call moves what the fitters measured into shared definitions and takes it off the
+     * instructions, so the finished document no longer says where any of them was before it was
+     * clustered.
+     */
+    before: Partial<Record<string, string>>;
     /** The recording the chain was fitted to, as the chain left it — every desk's ground. */
     ground: Ground;
     /** Per call: the elements it is answerable for, and where it acted. */
@@ -91,6 +102,19 @@ export interface FitResult {
         /** How much of that went on residuals, and how much the caches saved. */
         residual: typeof residualStats;
     };
+}
+
+interface FitOptions {
+    /**
+     * Transformers, by name, to keep the document as it stood just before their call ran — see
+     * {@link FitResult.before}.
+     *
+     * Read off the run rather than made by running the chain again without the call: what the call
+     * clustered is the document the calls before it had written, and a second run would only
+     * agree with that for as long as nothing downstream wrote back into what it reads. Costs a
+     * serialization per name the chain holds, against a fold of seconds.
+     */
+    before?: readonly string[];
 }
 
 export class ChainInvalidError extends Error {
@@ -106,11 +130,17 @@ export class ChainInvalidError extends Error {
  * @param alignment written through as the chain runs — `MakeChoice` and `Modify` edit the
  * observations, and `InsertTempo` shifts every onset to the first — so a caller that also wants
  * the recording as it arrived needs a second one. The editor keeps a pristine copy and clones.
+ * @param options what to keep of the run besides its result; nothing by default, and nothing
+ * kept changes what the chain writes.
  * @throws {ChainInvalidError} a call requires a transformer the chain does not run before it.
  * That is a statement about the chain rather than about the recording, and running the part of
  * it that happens to be well-ordered would produce a document that looks fitted and is not.
  */
-export function runFit(work: WorkFile, alignment: Alignment): FitResult {
+export function runFit(
+    work: WorkFile,
+    alignment: Alignment,
+    { before: wanted = [] }: FitOptions = {},
+): FitResult {
     // The caches are module state keyed on a document and an alignment. Both are fresh here, so
     // anything still held is the previous run's and can only be a false hit.
     clearResidualCache();
@@ -121,8 +151,14 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
     if (problems.length) throw new ChainInvalidError(problems.map((p) => p.message));
 
     const mpm = createMpm();
+    const before: Partial<Record<string, string>> = {};
     const startedAt = Date.now();
-    for (const transformer of transformers) transformer.run(alignment, mpm);
+    for (const transformer of transformers) {
+        if (wanted.includes(transformer.name) && before[transformer.name] === undefined) {
+            before[transformer.name] = exportMPM(mpm);
+        }
+        transformer.run(alignment, mpm);
+    }
     const chainMs = Date.now() - startedAt;
 
     // Read once, after the run. A `<pedal>` has no symbolic date of its own, so placing one is
@@ -153,6 +189,7 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
 
     return {
         mpm: exportMPM(mpm),
+        before,
         ground: {
             notes: alignment.allNotes,
             pedals: alignment.pedals,
