@@ -309,6 +309,52 @@ describe('what the skyline draws in draw mode', () => {
     });
 });
 
+describe('a written curve', () => {
+    /** Two written curves, so that what is each curve's and what is the skyline's can be told apart. */
+    const withTwoTempos = () => {
+        const mpm = withOneTempo();
+        requireMap(mpm, 'tempo', 0).addTempo({
+            date: 720,
+            bpm: 90,
+            transitionTo: 120,
+            meanTempoAt: 0.5,
+            beatLength: 0.25,
+            id: 't2',
+        });
+        return mpm;
+    };
+
+    it('meets the pointer across a band much wider than the line it draws', () => {
+        // Hovering a curve and clicking it to select its call both land here, and the line itself
+        // is two pixels wide.
+        const { dispose } = renderDesk(0, {}, withTwoTempos());
+        const curves = document.querySelectorAll('g.tempoLine');
+        expect(curves).toHaveLength(2);
+
+        for (const curve of curves) {
+            const line = curve.querySelector('polyline:not(.tempoLineHit)')!;
+            const hit = curve.querySelector('polyline.tempoLineHit')!;
+            expect(hit.getAttribute('points')).toBe(line.getAttribute('points'));
+            expect(Number(hit.getAttribute('stroke-width'))).toBeGreaterThanOrEqual(
+                4 * Number(line.getAttribute('stroke-width')),
+            );
+            // Its own `pointer-events` would beat the `none` the skyline sets on the curves' group
+            // under Draw, and a stroke would take the curve it crossed with it.
+            expect(hit).not.toHaveAttribute('pointer-events');
+        }
+        dispose();
+    });
+
+    it('states its flash once for the whole skyline, not once per curve', () => {
+        const { dispose } = renderDesk(0, {}, withTwoTempos());
+        const rules = [...document.querySelectorAll('style')].filter((style) =>
+            style.textContent?.includes('@keyframes tempo-highlight-fade'),
+        );
+        expect(rules).toHaveLength(1);
+        dispose();
+    });
+});
+
 describe('the keys the skyline answers', () => {
     const skyline = () => document.querySelector('svg.skyline')!;
     const splitButton = (bar: HTMLElement) => within(bar).getByRole('button', { name: 'Split' });

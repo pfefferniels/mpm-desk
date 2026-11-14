@@ -13,6 +13,31 @@ import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCal
 const bpmLabel = (bpm: number | string | undefined): string | undefined =>
     typeof bpm === 'number' ? bpm.toFixed(2) : bpm
 
+/**
+ * How wide a written curve is to the pointer: six pixels either side of a line drawn two wide.
+ *
+ * The line alone was the target for hovering a curve and for clicking it to select its call, and
+ * two pixels is a target that takes aiming for. Not wider: a curve runs along the tops of the boxes
+ * under it, and every pixel of band is a pixel of box that no longer answers a click.
+ */
+const HIT_WIDTH = 12
+
+/**
+ * The flash a curve gives when its call is selected, as one rule for every curve.
+ *
+ * Keyframes are global to the document whatever element states them, so each curve rendering its
+ * own `<style>` wrote the same rule once per curve, sixty times over on the reconstruction. The
+ * skyline renders this once, beside the curves.
+ */
+export const TempoLineKeyframes = () => (
+    <style>{`
+        @keyframes tempo-highlight-fade {
+            from { opacity: 0.2; }
+            to { opacity: 0; }
+        }
+    `}</style>
+)
+
 interface TempoLineProps {
     tempo: TempoWithEndDate
     startTime: number
@@ -48,6 +73,8 @@ export const TempoLine = ({ tempo, startTime, stretchX, stretchY, active, onClic
     }
 
     if (curvePoints.length === 0) return null
+
+    const points = curvePoints.map(p => `${p.time * stretchX},${p.bpm * -stretchY}`).join(' ')
 
     const color = 'hsl(220, 60%, 40%)'
 
@@ -87,19 +114,24 @@ export const TempoLine = ({ tempo, startTime, stretchX, stretchY, active, onClic
             )}
 
             <polyline
-                points={curvePoints.map(p => `${p.time * stretchX},${p.bpm * -stretchY}`).join(' ')}
+                points={points}
                 fill="none"
                 strokeWidth={hovered ? 3 : 2}
                 stroke={color}
                 strokeOpacity={hovered ? 1 : 0.7}
             />
 
-            <style>{`
-                @keyframes tempo-highlight-fade {
-                    from { opacity: 0.2; }
-                    to { opacity: 0; }
-                }
-            `}</style>
+            {/* What the pointer meets: the same line, wide and unpainted. `transparent` rather than
+                `none`, because an unpainted stroke takes no pointer events, and no
+                `pointerEvents` of its own, because the skyline turns the curves' off under Draw by
+                setting it on their group, and a child that stated one would not inherit that. */}
+            <polyline
+                className="tempoLineHit"
+                points={points}
+                fill="none"
+                strokeWidth={HIT_WIDTH}
+                stroke="transparent"
+            />
         </g>
     )
 }

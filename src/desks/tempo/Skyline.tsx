@@ -4,7 +4,7 @@ import { TempoCluster } from "./Tempo"
 import type { TempoSegment, Onset, DrawnLine } from "./Tempo"
 import { inferBeatLength, beatLengthLabel, findOnsetTick } from "./Tempo"
 import { fitMeanTempoAt, optimizeForElapsedTime } from "../../fitting/transformers/tempo/tempoCalculations"
-import { TempoLine } from "./TempoLine"
+import { TempoLine, TempoLineKeyframes } from "./TempoLine"
 import HorizontalScale from "./HorizontalScale"
 import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
 import type { Alignment } from "../../fitting/alignment"
@@ -302,6 +302,7 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
           but do not take the pointer — a curve crossed mid-stroke would otherwise audition itself
           and take the selection with it. */}
       <g pointerEvents={isDrawMode ? 'none' : undefined}>
+        <TempoLineKeyframes />
         {committedTempos.map((t, i) => {
           // The skyline is in seconds throughout, and `silentOnsets` already is; the recording
           // states its onsets in milliseconds, so the conversion goes through `noteTiming`.
