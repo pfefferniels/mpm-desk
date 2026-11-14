@@ -825,9 +825,10 @@ export const correspondingDesks: DeskEntry[] = [
         group: 'dynamics',
         help: {
             summary:
-                'One point per articulation in scope, relative duration against relative volume, ' +
-                'coloured by cluster. Both axes are ratios against the notated value, so 1 is a ' +
-                'place on each.',
+                'One point per articulation in scope, relative duration against relative volume ' +
+                'as it renders, coloured by cluster. Both axes are ratios against the notated ' +
+                'value, so 1 is a place on each; an absolute duration is none, and is counted ' +
+                'rather than drawn.',
             actions: [
                 {
                     gesture: 'Drag a tolerance',
@@ -836,6 +837,7 @@ export const correspondingDesks: DeskEntry[] = [
                 },
             ],
         },
+        plotsInput: true,
     },
     // Pedalling
     {

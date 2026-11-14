@@ -24,16 +24,23 @@ import {
  * The values go on the def and not on the instruction, which is where `InsertArticulation` puts
  * them and the whole reason `StylizeArticulation.effectiveOf` exists — an instruction read on its
  * own says nothing at all.
+ *
+ * @param key names the def and the instruction, for a second articulation in one scope
  */
-const articulate = (scope: Scope, modifiers: ArticulationModifiers, mpm: Mpm = createMpm()) => {
-    const name = `def_${scope}`;
+const articulate = (
+    scope: Scope,
+    modifiers: ArticulationModifiers,
+    mpm: Mpm = createMpm(),
+    key = String(scope),
+) => {
+    const name = `def_${key}`;
     insertDefinition(mpm, 'articulationDef', makeArticulationDef(name, modifiers), scope);
     ensureDefaultStyle(mpm, 'articulation', scope);
     requireMap(mpm, 'articulation', scope).addArticulation({
         date: 0,
-        noteid: '#n1',
+        noteid: `#n_${key}`,
         nameRef: name,
-        id: `articulation_${scope}`,
+        id: `articulation_${key}`,
     });
     return mpm;
 };
@@ -46,12 +53,14 @@ interface DeskOptions {
     editable?: boolean;
     /** The chain, where the viewer looks for the `StylizeArticulation` that was made. */
     calls?: Call[];
+    /** The document as that call found it. */
+    found?: Mpm | null;
 }
 
 const renderDesk = (
     mpm: Mpm,
     part: Scope = 'global',
-    { editable = true, calls = [] }: DeskOptions = {},
+    { editable = true, calls = [], found }: DeskOptions = {},
 ) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
@@ -72,6 +81,7 @@ const renderDesk = (
                         part={part}
                         msm={new Alignment([])}
                         mpm={mpm}
+                        found={found}
                         residual={null}
                         performanceXml=''
                         secondary={{}}
@@ -86,7 +96,8 @@ const renderDesk = (
     return {
         addTransformer,
         plot: () => container.querySelector('svg'),
-        emptyNote: () => screen.queryByText(/Nothing here to cluster/),
+        points: () => [...container.querySelectorAll('circle')],
+        emptyNote: () => screen.queryByText(/this plot shows the scope the bar is set to/),
         button: () => screen.getByRole('button', { name: 'Stylize Articulations' }),
     };
 };
@@ -100,17 +111,49 @@ describe('the plot', () => {
     });
 
     /**
-     * Issue #41's second state, and the one a count of the points would miss. `clustersOf` answers
-     * one point per articulation whether it can place it or not, so this scope hands the plot a
-     * point that carries no coordinates: two axes over nothing, with no word about it.
+     * Issue #41's second state, and the one a count of the points would miss: one point per
+     * articulation, none of which has a place on the plot. An absolute duration replaces the
+     * notated one, so it is no ratio of it.
      */
-    it('says the same where nothing in the scope can be placed', () => {
+    it('says why where every articulation in the scope has an absolute duration', () => {
         const { plot, emptyNote } = renderDesk(
             articulate('global', { absoluteDuration: 400, ...clusterable }),
         );
 
-        expect(emptyNote()).toBeInTheDocument();
+        expect(emptyNote()).toHaveTextContent(/absolute duration/);
         expect(plot()).toBeNull();
+    });
+
+    /**
+     * The reconstruction's own shape. `InsertArticulation` states only the aspects a call
+     * measured, and 56 of the 65 articulations name a def stating a relative duration alone. The
+     * clustering places none of those, and drawing only what it placed showed 3 points at Global.
+     */
+    it('draws an articulation whose def states a relative duration alone, at a volume of 1', () => {
+        const { points } = renderDesk(articulate('global', { relativeDuration: 1.2 }));
+
+        expect(points()).toHaveLength(1);
+        // 0.5 to 1.5 over 400px, so a volume of 1 is halfway down. Grey: no shared def can
+        // carry it, since the def states no velocity to merge.
+        expect(points()[0]).toHaveAttribute('cy', '200');
+        expect(points()[0]).toHaveAttribute('fill', '#9ca3af');
+    });
+
+    it('draws one whose def states a volume alone, widening the axis rather than clipping it', () => {
+        const { points } = renderDesk(articulate('global', { relativeVelocity: 1.78 }));
+
+        expect(points()).toHaveLength(1);
+        expect(Number(points()[0]?.getAttribute('cy'))).toBeGreaterThanOrEqual(0);
+    });
+
+    it('counts under the plot what it cannot draw', () => {
+        const mpm = articulate('global', clusterable);
+        articulate('global', { absoluteDuration: 400 }, mpm, 'absolute');
+
+        const { points } = renderDesk(mpm);
+
+        expect(points()).toHaveLength(1);
+        expect(screen.getByText(/Not drawn: 1 with an absolute duration/)).toBeInTheDocument();
     });
 
     it('draws once the scope holds something to cluster', () => {
@@ -160,7 +203,51 @@ describe('the button', () => {
     });
 });
 
+describe('once stylized', () => {
+    const style: Call = {
+        id: 'style',
+        name: 'StylizeArticulation',
+        options: { volumeTolerance: 0.3, relativeDurationTolerance: 0.4 },
+    };
+
+    /**
+     * The call takes the largest cluster's instructions away for a `defaultArticulation` and
+     * repoints the rest at their cluster's mean, so the finished document no longer holds what
+     * was clustered. The desk draws the document the call found instead.
+     */
+    it('draws the articulations as the call found them', () => {
+        const { points } = renderDesk(createMpm(), 'global', {
+            calls: [style],
+            found: articulate('global', clusterable),
+        });
+
+        expect(points()).toHaveLength(1);
+    });
+
+    it('holds the tolerances at the call, and offers Remove Style instead of a second call', () => {
+        const { button } = renderDesk(createMpm(), 'global', {
+            calls: [style],
+            found: articulate('global', clusterable),
+        });
+
+        expect(button()).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Remove Style' })).toBeEnabled();
+        const sliders = screen.getAllByRole('slider');
+        expect(sliders.map((slider) => slider.getAttribute('aria-valuenow'))).toEqual(['0.3', '0.4']);
+        sliders.forEach((slider) => {
+            expect(slider).toBeDisabled();
+        });
+    });
+});
+
 describe('in the viewer', () => {
+    it('sends nobody to fit anything where the scope holds no articulation', () => {
+        const { emptyNote } = renderDesk(createMpm(), 'global', { editable: false });
+
+        expect(emptyNote()).toHaveTextContent(/The reconstruction articulates nothing in this scope/);
+        expect(emptyNote()).not.toHaveTextContent(/Fit/);
+    });
+
     it('offers neither the button nor the tolerances, and says it stylized nothing', () => {
         const { plot } = renderDesk(articulate('global', clusterable), 'global', { editable: false });
 

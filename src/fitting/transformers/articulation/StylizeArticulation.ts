@@ -192,6 +192,29 @@ export class StylizeArticulation extends AbstractTransformer<StylizeArticulation
     return this.generateClusters(articulations.map((a) => this.effectiveOf(a, mpm)));
   }
 
+  /**
+   * Where each articulation sits on the Style desk's two axes, whether or not the clustering can
+   * place it: the relative duration and the relative velocity it renders with, in the order given.
+   *
+   * Not {@link clustersOf}'s coordinates. Those exist only for an articulation whose def *states*
+   * both ratios, since a shared def merges stated values; read as the renderer reads it, a ratio
+   * left unstated is 1. `InsertArticulation` states only the aspects a call measured, so most of
+   * the reconstruction's 65 articulations state a relative duration alone, and a plot of the
+   * clustering's coordinates drew 3 of them.
+   *
+   * Undefined for one in which an absolute duration is in force, which replaces the notated
+   * duration rather than scaling it and so is no point on a ratio axis.
+   */
+  positionsOf(
+    articulations: readonly Articulation[],
+    mpm: Mpm,
+  ): (readonly [number, number] | undefined)[] {
+    return articulations.map((articulation) => {
+      const { relativeDuration, relativeVelocity, absolute } = this.effectiveOf(articulation, mpm);
+      return absolute ? undefined : [relativeDuration ?? 1, relativeVelocity ?? 1];
+    });
+  }
+
   generateClusters(effective: EffectiveArticulation[]): IPoint[] {
     const coordinates: number[][] = [];
     const placed: number[] = [];

@@ -176,8 +176,11 @@ describe('the desk registry', () => {
             expect(PLOTTED_INPUTS).toEqual(plotting.map((entry) => entry.transformerName));
         });
 
-        it('is the ornament style desk, whose call clears what it clustered', () => {
-            expect(PLOTTED_INPUTS).toContain('StylizeOrnamentation');
+        it('is each style desk, whose call takes away what it clustered', () => {
+            expect([...PLOTTED_INPUTS].sort()).toEqual([
+                'StylizeArticulation',
+                'StylizeOrnamentation',
+            ]);
         });
     });
 
