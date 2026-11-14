@@ -56,12 +56,25 @@ const Unmet = () => <InfoOutlined sx={{ fontSize: 16, flexShrink: 0 }} />;
  * 32px is the floor rather than a snug fit: `dense` puts the label's own box at 28, which is under
  * what is comfortable to aim at. `ListItemText` carries 4px of margin above and below that would
  * otherwise push the row past the floor and undo it.
+ *
+ * Capitalised as the app bar capitalises the open desk's name, so that the row and the bar spell
+ * one name the same way. The registry's aspects are lowercase and its display names are not.
  */
-const rowStyle = { minHeight: 32, '& .MuiListItemText-root': { my: 0 } };
+const rowStyle = { minHeight: 32, textTransform: 'capitalize', '& .MuiListItemText-root': { my: 0 } };
 
 /** An aspect as the menu lists it: the desks that share it, and whether it opens a group. */
 interface AspectRow {
     aspect: string;
+    /**
+     * What the row says, and for an aspect of one desk what a click on it selects: that desk's
+     * name, `displayName ?? aspect`, which is what the app bar calls it once it is open and what
+     * `App` puts in `selectedDesk` when it opens a call's desk. The aspect itself named a desk the
+     * bar then called something else — `source choice` opened Base Text, `accentuation` opened
+     * Metrical Accentuation — and a desk opened from a call was never marked in the menu.
+     *
+     * An aspect of several desks is a heading over their names, and says the aspect.
+     */
+    label: string;
     desks: typeof correspondingDesks;
     startsGroup: boolean;
 }
@@ -81,6 +94,7 @@ const readAspectRows = (editable: boolean): AspectRow[] => {
 
     return byAspect.map(([aspect, desks], index) => ({
         aspect,
+        label: desks.length === 1 ? (desks[0].displayName ?? aspect) : aspect,
         desks,
         startsGroup: index > 0 && groupAt(index) !== groupAt(index - 1),
     }));
@@ -190,7 +204,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                         {/* Metadata is an entry in `correspondingDesks` like any other now, so
                             it is listed by the loop below rather than written in by hand. Its
                             own group is what keeps the rule under it. */}
-                        {aspectRows.map(({ aspect, desks, startsGroup }) => {
+                        {aspectRows.map(({ aspect, label, desks, startsGroup }) => {
                             const reason = desks[0].unavailable?.(documentFacts);
 
                             return (
@@ -200,18 +214,18 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                         <Row reason={reason}>
                                             <ListItemButton
                                                 sx={rowStyle}
-                                                selected={aspect === selectedDesk}
+                                                selected={label === selectedDesk}
                                                 disabled={reason !== undefined}
                                                 onClick={
                                                     reason === undefined
                                                         ? () => {
-                                                              pick(aspect);
+                                                              pick(label);
                                                               setToExpand(undefined);
                                                           }
                                                         : undefined
                                                 }
                                             >
-                                                <ListItemText>{aspect}</ListItemText>
+                                                <ListItemText>{label}</ListItemText>
                                                 {reason !== undefined && <Unmet />}
                                             </ListItemButton>
                                         </Row>

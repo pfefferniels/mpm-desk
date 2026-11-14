@@ -28,7 +28,7 @@ const rowNamed = (aspect: string) => {
     };
 };
 
-const mount = (facts: Partial<DocumentFacts>, aspect = 'source choice') => {
+const mount = (facts: Partial<DocumentFacts>, aspect = 'Base Text') => {
     const setSelectedDesk = vi.fn();
     const { container } = render(
         <AspectSelect
@@ -50,7 +50,24 @@ describe('the aspect menu', () => {
         expect(icon).toBeNull();
 
         fireEvent.click(row!);
-        expect(setSelectedDesk).toHaveBeenCalledWith('source choice');
+        expect(setSelectedDesk).toHaveBeenCalledWith('Base Text');
+    });
+
+    it('names a desk of its own aspect as the app bar does, and marks it when it is open', () => {
+        // The bar says `displayName ?? aspect`, and so does `App` when it opens the desk of a call.
+        // A row that said, and sent, the aspect named the desk differently from the bar above it,
+        // and was not marked when a link opened that desk.
+        render(
+            <AspectSelect
+                selectedDesk='Metrical Accentuation'
+                setSelectedDesk={() => {}}
+                documentFacts={FITTED}
+            />,
+        );
+
+        expect(screen.queryByText('accentuation')).not.toBeInTheDocument();
+        expect(rowNamed('Metrical Accentuation').row).toHaveClass('Mui-selected');
+        expect(rowNamed('Base Text').row).not.toHaveClass('Mui-selected');
     });
 
     it('greys out Base Text when there is only one recording, and says why', () => {
@@ -202,11 +219,15 @@ describe('the viewer’s aspect menu', () => {
         );
 
         for (const desk of correspondingDesks) {
-            const listed = screen.queryAllByText(desk.aspect).length > 0;
-            expect(listed, `${desk.aspect} in the viewer's menu`).toBe(
-                // An aspect stays while any desk under it is offered.
-                correspondingDesks.some((other) => other.aspect === desk.aspect && !other.editOnly),
+            // An aspect stays while any desk under it is offered, and a row with one desk under it
+            // says that desk's name.
+            const offered = correspondingDesks.filter(
+                (other) => other.aspect === desk.aspect && !other.editOnly,
             );
+            const label =
+                offered.length === 1 ? (offered[0].displayName ?? desk.aspect) : desk.aspect;
+            const listed = screen.queryAllByText(label).length > 0;
+            expect(listed, `${label} in the viewer's menu`).toBe(offered.length > 0);
         }
         expect(screen.queryByText('alignment')).not.toBeInTheDocument();
     });
