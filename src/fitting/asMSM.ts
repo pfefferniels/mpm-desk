@@ -1,4 +1,4 @@
-import { Alignment, AlignedGrace, AlignedNote, AlignedPedal } from "./alignment"
+import { Alignment, AlignedGrace, AlignedNote, AlignedPedal, ScoreNote } from "./alignment"
 import { parseTravel } from "../performance/pedalTravel"
 import { readTimeSignatures } from "../utils/score"
 import { v4 } from "uuid";
@@ -116,6 +116,27 @@ export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[]
         }
     }
 
+    // What the score says of an MSM note, the recording aside.
+    const scoreOf = (note: Element): ScoreNote => {
+        const part = Number(note.closest('part')?.getAttribute('number'))
+        const voice = voiceByNoteId.get(note.getAttribute('xml:id') ?? '')
+        return {
+            part,
+            // A note the MEI does not place falls back to the part it is in, so `staff` is
+            // total and always agrees with `part`. It does not arise in practice — 476 of 476
+            // notes resolve — but a partial `staff` is a layout that half-applies.
+            staff: voice?.staff || String(part),
+            layer: voice?.layer ?? '',
+            'xml:id': note.getAttribute('xml:id') || v4(),
+            'date': Number(note.getAttribute('date')),
+            'duration': Number(note.getAttribute('duration')),
+            'pitchname': note.getAttribute('pitchname') || '',
+            'octave': Number(note.getAttribute('octave')),
+            'accidentals': Number(note.getAttribute('accidentals')),
+            'midi.pitch': Number(note.getAttribute('midi.pitch')),
+        }
+    }
+
     // Collect notes with performance data
     const msmNotes: AlignedNote[] = []
     for (const note of originalNotes) {
@@ -132,23 +153,8 @@ export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[]
 
             if (!absolute || !duration || !velocity) continue
 
-            const part = Number(note.closest('part')?.getAttribute('number'))
-            const voice = voiceByNoteId.get(noteId ?? '')
-
             msmNotes.push({
-                part,
-                // A note the MEI does not place falls back to the part it is in, so `staff` is
-                // total and always agrees with `part`. It does not arise in practice — 476 of 476
-                // notes resolve — but a partial `staff` is a layout that half-applies.
-                staff: voice?.staff || String(part),
-                layer: voice?.layer ?? '',
-                'xml:id': note.getAttribute('xml:id') || v4(),
-                'date': Number(note.getAttribute('date')),
-                'duration': Number(note.getAttribute('duration')),
-                'pitchname': note.getAttribute('pitchname') || '',
-                'octave': Number(note.getAttribute('octave')),
-                'accidentals': Number(note.getAttribute('accidentals')),
-                'midi.pitch': Number(note.getAttribute('midi.pitch')),
+                ...scoreOf(note),
 
                 // performance stuff. the MEI states both in milliseconds already, and MSM wants
                 // an absolute release rather than a length
@@ -224,9 +230,24 @@ export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[]
         })
     })
 
+    // A principal its last grace note is tied into has no `<when>` of its own: the roll struck it
+    // as that grace note, early, and held it, so the `<when>` names the grace note and the loop
+    // above passed the principal by. It stays out of the notes, where a fitter would read it as
+    // struck on its date, but not out of the score, where the figure written on it has to find
+    // it. See `Alignment.tiedPrincipals`.
+    const timed = new Set(msmNotes.map((note) => note['xml:id']))
+    const tiedInto = new Set(msmGraces.filter((grace) => grace.tied).map((grace) => grace.principal))
+    const tiedPrincipals = originalNotes
+        .filter((note) => {
+            const id = note.getAttribute('xml:id') ?? ''
+            return tiedInto.has(id) && !timed.has(id)
+        })
+        .map(scoreOf)
+
     const newMSM = new Alignment(msmNotes, readTimeSignatures(msmDoc))
     newMSM.pedals = msmPedals
     newMSM.graces = msmGraces
+    newMSM.tiedPrincipals = tiedPrincipals
 
     return newMSM
 }

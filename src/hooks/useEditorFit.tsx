@@ -115,6 +115,7 @@ export const useEditorFit = ({
                 allNotes: pristine.allNotes,
                 pedals: pristine.pedals,
                 graces: pristine.graces,
+                tiedPrincipals: pristine.tiedPrincipals,
                 timeSignatures: pristine.timeSignatures,
             },
         } satisfies FitRequest);
@@ -177,6 +178,7 @@ export const useEditorFit = ({
         const rebuilt = new Alignment(result.ground.notes, result.ground.timeSignatures);
         rebuilt.pedals = result.ground.pedals;
         rebuilt.graces = result.ground.graces;
+        rebuilt.tiedPrincipals = result.ground.tiedPrincipals;
         return rebuilt;
     }, [result]);
 

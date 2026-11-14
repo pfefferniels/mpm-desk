@@ -5,7 +5,7 @@ import {
   requireMap,
   setOrnamentDraft,
 } from '../../instructions/index';
-import { Alignment, type AlignedNote } from '../../alignment';
+import { Alignment, type AlignedNote, type ScoreNote } from '../../alignment';
 import { isDefined } from '../../utils';
 import {
   AbstractTransformer,
@@ -166,6 +166,7 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
     mpm: Mpm,
     date: number,
     chord: AlignedNote[],
+    unseen: readonly ScoreNote[],
     gradientFor: (direction: ArpeggioDirection) => GradientRange,
   ) => {
     const struck = struckOrder(chord);
@@ -204,7 +205,7 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
       // by ascending pitch, rendering the ramp along a sequence nothing fitted it to. Written
       // here as well as by `InsertTemporalSpread`, since a spread is not always asked for over
       // the same chord. See issue #20.
-      noteOrder: noteOrderOf(struck),
+      noteOrder: noteOrderOf(struck, unseen),
     };
     const element = fillInAt(map, options, {
       localName: 'ornament',
@@ -231,17 +232,26 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {
-    const chords = msm.in(this.options.scope).chords();
+    const score = msm.in(this.options.scope);
+    const chords = score.chords();
     const options = this.options;
 
     if (isSingleGradient(options)) {
       const chord = chords.get(options.date);
       if (!chord) return;
-      this.applyGradient(mpm, options.date, chord, () => options.gradient);
+      this.applyGradient(
+        mpm,
+        options.date,
+        chord,
+        score.tiedPrincipalsAt(options.date),
+        () => options.gradient,
+      );
     } else {
       for (const [date, chord] of chords) {
         if (chord.length === 1) continue;
-        this.applyGradient(mpm, date, chord, (direction) => options[direction]);
+        this.applyGradient(mpm, date, chord, score.tiedPrincipalsAt(date), (direction) =>
+          options[direction],
+        );
       }
     }
   }

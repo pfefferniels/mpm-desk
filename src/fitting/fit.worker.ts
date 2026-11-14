@@ -42,6 +42,7 @@ export interface AlignmentData {
     allNotes: Alignment['allNotes'];
     pedals: Alignment['pedals'];
     graces: Alignment['graces'];
+    tiedPrincipals: Alignment['tiedPrincipals'];
     timeSignatures: Alignment['timeSignatures'];
 }
 
@@ -86,6 +87,7 @@ self.onmessage = (event: MessageEvent<FitRequest>) => {
             pristine = new Alignment(message.alignment.allNotes, message.alignment.timeSignatures);
             pristine.pedals = message.alignment.pedals;
             pristine.graces = message.alignment.graces;
+            pristine.tiedPrincipals = message.alignment.tiedPrincipals;
             post({
                 type: 'loaded',
                 requestId: message.requestId,

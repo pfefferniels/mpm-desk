@@ -100,6 +100,24 @@ export type AlignedNote = {
   } & TemporaryAttributes;
 
 /**
+ * What the score says of a note: an {@link AlignedNote} without what the recording did with it,
+ * which is all {@link Alignment.serializeScore} writes of one.
+ */
+export type ScoreNote = Pick<
+  AlignedNote,
+  | 'xml:id'
+  | 'part'
+  | 'staff'
+  | 'layer'
+  | 'date'
+  | 'duration'
+  | 'pitchname'
+  | 'accidentals'
+  | 'octave'
+  | 'midi.pitch'
+>;
+
+/**
  * What identifies one row of the alignment: the note or pedal, and the take it came from.
  *
  * An `xml:id` names an event in the *score*. The alignment holds one row per `<when>`, so a
@@ -175,7 +193,7 @@ export class ScopedScore {
   ) {}
 
   /** Whether this scope answers for a note. The one place a part number is compared. */
-  private covers(note: AlignedNote): boolean {
+  private covers(note: Pick<AlignedNote, 'part'>): boolean {
     return this.scope === 'global' || note.part - 1 === this.scope;
   }
 
@@ -209,6 +227,15 @@ export class ScopedScore {
   /** The notes of this scope sounding at one score date. */
   public notesAtDate(date: number): AlignedNote[] {
     return this.score.allNotes.filter((note) => this.covers(note) && note.date === date);
+  }
+
+  /**
+   * What else this scope's score has at one date: the principals there that the recording
+   * strikes only as the grace note tied into them ({@link Alignment.tiedPrincipals}). Notes the
+   * rendered score holds and {@link ScopedScore.notesAtDate} does not.
+   */
+  public tiedPrincipalsAt(date: number): ScoreNote[] {
+    return this.score.tiedPrincipals.filter((note) => this.covers(note) && note.date === date);
   }
 
   /** The notes of this scope between two score dates, both ends included. */
@@ -245,6 +272,23 @@ export class Alignment {
   /** The grace notes the recording timed; see {@link AlignedGrace}. */
   graces: AlignedGrace[];
   /**
+   * The principals grace notes are tied into, where the recording times them only through that
+   * grace note: score notes the alignment has no row for and the rendered score has to hold.
+   *
+   * The roll strikes such a principal as its tied grace note, early, and holds it, so the
+   * `<when>` that times it names the grace note ({@link AlignedGrace.tied}). That keeps it out of
+   * `allNotes`, and rightly: every fitter reads a row there as struck on its date, and this one
+   * sounds where its grace figure puts it, often a beat ahead, where the arpeggio and tempo fits
+   * would take it for a chord note struck early.
+   *
+   * It is a note of the score all the same, and the figure needs it there. `InsertGraceNotes`
+   * writes the group as an ornament on it (`@noteid`), and the renderer plays an ornament by
+   * replacing its principal with the figure; without the note there is nothing to replace, and
+   * the whole figure, grace notes and held principal alike, is skipped. So the score half is kept
+   * here and {@link Alignment.serializeScore} writes it with the rest.
+   */
+  tiedPrincipals: ScoreNote[];
+  /**
    * The score's time signatures, ascending by date: the whole map, not its first entry.
    *
    * A score with an anacrusis states the upbeat bar first and the metre of the piece second, so
@@ -266,6 +310,7 @@ export class Alignment {
   constructor(notes?: AlignedNote[], timeSignatures?: readonly DatedTimeSignature[]) {
     this.pedals = [];
     this.graces = [];
+    this.tiedPrincipals = [];
     // Sorted into a copy, not in place. `sort` mutates its receiver, so sorting the array
     // the caller passed would reorder *their* array as a side effect of construction — which
     // would have `clone()` reorder the very score it claims to be copying.
@@ -296,6 +341,7 @@ export class Alignment {
     clone.allNotes = this.allNotes.map((note) => ({ ...note }));
     clone.pedals = this.pedals.map((pedal) => ({ ...pedal }));
     clone.graces = this.graces.map((grace) => ({ ...grace }));
+    clone.tiedPrincipals = this.tiedPrincipals.map((note) => ({ ...note }));
     clone.timeSignatures = this.timeSignatures.map((signature) => ({ ...signature }));
     return clone;
   }
@@ -355,6 +401,10 @@ export class Alignment {
    * What goes to espressivo when a residual is derived. The recording states itself in the same
    * attributes a render writes, so a document carrying both is ambiguous about which timing it
    * means, and the residual exists to keep the recording and the rendering apart.
+   *
+   * Every note the alignment has a row for, and the {@link Alignment.tiedPrincipals} it has none
+   * for: the score the chain's MPM is rendered against, which has to hold every note an ornament
+   * names.
    */
   public serializeScore(names?: PartNames): string | undefined {
     return this.build(false, names);
@@ -415,7 +465,10 @@ export class Alignment {
     // `computeTickTimes` both key by id.
     const written = new Set<string>();
 
-    for (const part of [...this.parts()].sort((a, b) => a - b)) {
+    // A tied principal's part as well, which a voice layout could leave holding nothing else.
+    const parts = new Set([...this.parts(), ...this.tiedPrincipals.map((note) => note.part - 1)]);
+
+    for (const part of [...parts].sort((a, b) => a - b)) {
       const element = Msm.makePart({
         name: names?.get(part + 1) ?? `part${String(part)}`,
         number: part + 1,
@@ -446,6 +499,22 @@ export class Alignment {
             millisecondsDate: note['milliseconds.date'],
             millisecondsDateEnd: note['milliseconds.date.end'],
           }),
+        });
+      }
+
+      // The score half alone, performed or not: what the recording did with a tied principal is
+      // on its grace note's row, and the figure written on it is what plays it.
+      for (const note of this.tiedPrincipals.filter((n) => n.part === part + 1)) {
+        if (written.has(note['xml:id'])) continue;
+        written.add(note['xml:id']);
+        msm.addNote(element, {
+          id: note['xml:id'],
+          date: note.date,
+          duration: note.duration,
+          midiPitch: note['midi.pitch'],
+          pitchname: note.pitchname,
+          accidentals: note.accidentals,
+          octave: note.octave,
         });
       }
     }

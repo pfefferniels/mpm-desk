@@ -65,6 +65,34 @@ describe('ProcessVoices', () => {
     expect(partsOf(msm)).toEqual({ a1: 1, a2: 2, b1: 2, b2: 2 });
   });
 
+  // It has no row, but the rendered score holds it, and in the part its voice is laid out in.
+  test('lays a tied principal out with its voice', () => {
+    const msm = score();
+    msm.tiedPrincipals = [
+      {
+        'xml:id': 'p',
+        part: 1,
+        staff: '1',
+        layer: '2',
+        date: 720,
+        duration: 2160,
+        pitchname: 'f',
+        accidentals: 0,
+        octave: 3,
+        'midi.pitch': 53,
+      },
+    ];
+    new ProcessVoices({
+      parts: [
+        { number: 1, name: 'melody', voices: ['1/1'] },
+        { number: 2, name: 'accompaniment', voices: ['1/2', '2/1', '2/2'] },
+      ],
+      moves: [],
+    }).run(msm, createMpm());
+
+    expect(msm.tiedPrincipals.map((n) => n.part)).toEqual([2]);
+  });
+
   test('a voice no part names keeps the part it was in', () => {
     const msm = score();
     new ProcessVoices({

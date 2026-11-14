@@ -1,4 +1,4 @@
-import { Alignment } from '../../alignment';
+import { Alignment, type ScoreNote } from '../../alignment';
 import { voiceKey } from '../../voices';
 import { nameScope, type Mpm } from '../../instructions/index';
 import { AbstractTransformer, type TransformationOptions } from '../Transformer';
@@ -103,7 +103,7 @@ export class ProcessVoices extends AbstractTransformer<ProcessVoicesOptions> {
       // as the downbeat of the bar following the range — so an inclusive end would take the first
       // note of the next bar as well. It did: a move over bars 12-20 previewed twelve notes and
       // applied to thirteen.
-      for (const note of msm.allNotes) {
+      for (const note of [...msm.allNotes, ...msm.tiedPrincipals]) {
         if (voiceKey(note) === voice && note.date >= from && note.date < to) {
           partOfNote.set(note['xml:id'], move.part);
         }
@@ -116,10 +116,15 @@ export class ProcessVoices extends AbstractTransformer<ProcessVoicesOptions> {
     //
     // Mapped in place rather than filtered and concatenated the way `MakeChoice` does, so the array
     // stays sorted by date, which is what `NotesProvider.slice` binary-searches.
-    msm.allNotes = msm.allNotes.map((note) => {
+    //
+    // A tied principal is laid out with its voice like any other note: the rendered score puts it
+    // in the part it names, and the part-local instructions it sounds under are that part's.
+    const laidOut = <N extends ScoreNote>(note: N): N => {
       const next = partOfNote.get(note['xml:id']) ?? partOfVoice.get(voiceKey(note)) ?? note.part;
       return next === note.part ? note : { ...note, part: next };
-    });
+    };
+    msm.allNotes = msm.allNotes.map(laidOut);
+    msm.tiedPrincipals = msm.tiedPrincipals.map(laidOut);
 
     // The names, onto the MPM parts that will hold the instructions. Only for a part that actually
     // holds notes — an empty `<part>` in the performance describes nothing.

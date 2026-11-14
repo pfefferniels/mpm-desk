@@ -93,7 +93,8 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
     // `StylizeOrnamentation` to collect.
     const ornaments: { options: AddOrnamentOptions; draft: OrnamentDraft }[] = [];
 
-    const chords = msm.in(this.options.scope).chords();
+    const score = msm.in(this.options.scope);
+    const chords = score.chords();
     for (const [date, chordNotes] of chords) {
       if ('date' in this.options && date !== this.options.date) {
         // if a date is specified, only process that date
@@ -114,7 +115,7 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
 
       // Which notes the roll visits, and in what order. Shared with `InsertDynamicsGradient`,
       // which measures its ramp along the same sequence and writes the same attribute.
-      const noteOrder = noteOrderOf(sortedByOnset);
+      const noteOrder = noteOrderOf(sortedByOnset, score.tiedPrincipalsAt(date));
 
       // the arpeggio's duration is the time distance between first and last onset, in ms
       const duration = lastNote['milliseconds.date'] - firstNote['milliseconds.date'];

@@ -20,7 +20,7 @@
  * shipped reconstruction had none and one of them rolled 48 55 67 60 64.
  */
 import { head, isNonEmpty, pairwise } from 'espressivo';
-import type { AlignedNote } from '../../alignment';
+import type { AlignedNote, ScoreNote } from '../../alignment';
 
 /**
  * A little helper function to determine how an array is sorted.
@@ -52,9 +52,22 @@ const determineSortDirection = (arr: number[]) => {
  * order they were struck, which is what was measured, whatever the pitches did. Its one cost is
  * that it names *these* notes and no others, where a keyword takes every note at the date — the
  * right side of that trade for a fit that only measured the notes it could see an onset for.
+ *
+ * Which is also why a keyword is only written where the chord *is* every note at the date. The
+ * score the MPM is rendered against holds the principals grace notes are tied into
+ * (`Alignment.tiedPrincipals`), which have no onset of their own and so are in no chord. A
+ * keyword would take one into the roll as one more slot, and every note after it would be struck
+ * a step late; it sounds with its grace figure instead, often a beat ahead.
+ *
+ * @param unseen what else the score has at the chord's date, as `ScopedScore.tiedPrincipalsAt`
+ * gives it. Any at all, and the list is written.
  */
-export const noteOrderOf = (sortedByOnset: readonly AlignedNote[]): string => {
-  const direction = determineSortDirection(sortedByOnset.map((note) => note['midi.pitch']));
+export const noteOrderOf = (
+  sortedByOnset: readonly AlignedNote[],
+  unseen: readonly ScoreNote[] = [],
+): string => {
+  const direction =
+    unseen.length > 0 ? 0 : determineSortDirection(sortedByOnset.map((note) => note['midi.pitch']));
   if (direction === 1) return 'ascending pitch';
   if (direction === -1) return 'descending pitch';
   return sortedByOnset.map((note) => `#${note['xml:id']}`).join(' ');
