@@ -5,7 +5,7 @@ import { InsertRubato } from '../../src/fitting/transformers/rubato/InsertRubato
 import { InsertArticulation } from '../../src/fitting/transformers/articulation/InsertArticulation';
 import { InsertMetricalAccentuation } from '../../src/fitting/transformers/accentuation/InsertMetricalAccentuation';
 import { InsertTemporalSpread } from '../../src/fitting/transformers/ornamentation/InsertTemporalSpread';
-import { InsertPedal } from '../../src/fitting/transformers/pedal/InsertPedalInstructions';
+import { InsertPedal } from '../../src/fitting/transformers/pedal/InsertPedal';
 import { Modify } from '../../src/fitting/transformers/modification/Modify';
 import { MergeMetricalAccentuations } from '../../src/fitting/transformers/accentuation/MergeMetricalAccentuations';
 import { InsertGraceNotes } from '../../src/fitting/transformers/ornamentation/InsertGraceNotes';

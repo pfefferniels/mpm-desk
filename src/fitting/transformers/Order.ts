@@ -13,7 +13,7 @@ import {
   InsertGraceNotes,
   StylizeOrnamentation,
 } from './ornamentation/index';
-import { InsertPedal } from './pedal/InsertPedalInstructions';
+import { InsertPedal } from './pedal/InsertPedal';
 import { RoundNumbers } from './rounding/RoundNumbers';
 import { InsertRubato } from './rubato/InsertRubato';
 import { CombineAdjacentRubatos } from './rubato/CombineAdjacentRubatos';
