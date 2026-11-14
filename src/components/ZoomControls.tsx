@@ -18,6 +18,12 @@ type OptionPair<P extends string, T> =
 
 type ZoomControlsProps = OptionPair<'x', number> & OptionPair<'y', number>;
 
+/**
+ * How much of the left edge the vertical slider takes, so that what a desk draws there can stand
+ * clear of it. The tempo desk's BPM scale sat under it, its figures behind the rail.
+ */
+export const VERTICAL_SLIDER_WIDTH = 32;
+
 export const ZoomControls = ({ stretchX, setStretchX, rangeX, stretchY, setStretchY, rangeY }: ZoomControlsProps) => {
     return (
         <>
@@ -50,12 +56,23 @@ export const ZoomControls = ({ stretchX, setStretchX, rangeX, stretchY, setStret
                     bottom: 0,
                     marginTop: 'auto',
                     marginBottom: 'auto',
+                    width: VERTICAL_SLIDER_WIDTH,
                     height: 300,
                 }}>
                     <Slider
                         sx={{
                             '& input[type="range"]': {
                                 WebkitAppearance: 'slider-vertical',
+                            },
+                            // A vertical slider puts its value to the left of the thumb, which
+                            // against the window's left edge is off the screen. Mirrored to the
+                            // right, arrow and all; the figures beside it are covered only while
+                            // the thumb is held.
+                            '& .MuiSlider-valueLabel': {
+                                right: 'auto',
+                                left: 30,
+                                transformOrigin: 'left center',
+                                '&::before': { right: 'auto', left: 0 },
                             },
                         }}
                         aria-label="Vertical Stretch"

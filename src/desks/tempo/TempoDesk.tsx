@@ -13,7 +13,7 @@ import { combineByMeter } from "./metricGrouping"
 import { scopeData, withScopeData } from "./secondary"
 import type { TempoScopeData } from "./secondary"
 import { VerticalScale } from "./VerticalScale"
-import { ZoomControls } from "../../components/ZoomControls"
+import { VERTICAL_SLIDER_WIDTH, ZoomControls } from "../../components/ZoomControls"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
 import type { Scope } from "../TransformerViewProps"
 import { Add, Merge } from "@mui/icons-material"
@@ -449,10 +449,12 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
                     rangeY={[1, 2]}
                 />
 
+                {/* Beside the stretch slider, where it was under it: the figures 0 to 140 sat
+                    behind the slider's rail and its marks. */}
                 {tickToSeconds && (
                     <svg style={{
                         position: 'absolute',
-                        left: 0,
+                        left: VERTICAL_SLIDER_WIDTH,
                         top: '3rem',
                         width: 40,
                         height: -chartHeight + 100,

@@ -17,6 +17,7 @@ import { deriveResidual } from '../../fitting/residual';
 import type { Scope } from '../../fitting/instructions/index';
 import type { SecondaryData } from '../TransformerViewProps';
 import { TempoDesk } from './TempoDesk';
+import { VERTICAL_SLIDER_WIDTH } from '../../components/ZoomControls';
 
 /** The skyline hovers a box to audition it, and Tone in jsdom is a slow way to assert nothing. */
 vi.mock('react-pianosound', () => ({
@@ -351,6 +352,21 @@ describe('a written curve', () => {
             style.textContent?.includes('@keyframes tempo-highlight-fade'),
         );
         expect(rules).toHaveLength(1);
+        dispose();
+    });
+});
+
+describe('the left edge of the desk', () => {
+    it('stands the BPM scale beside the stretch slider, not under it', () => {
+        const { dispose } = renderDesk(0, {}, withOneTempo());
+        const slider = screen.getByRole('slider', { name: 'Vertical Stretch' });
+        // The box the slider is positioned in, against the desk's left edge.
+        const column = slider.closest('.MuiSlider-root')!.parentElement!;
+        const scale = document.querySelector('line.verticalScale')!.closest('svg')!;
+
+        expect(getComputedStyle(column).left).toBe('0px');
+        expect(getComputedStyle(column).width).toBe(`${String(VERTICAL_SLIDER_WIDTH)}px`);
+        expect(scale.style.left).toBe(`${String(VERTICAL_SLIDER_WIDTH)}px`);
         dispose();
     });
 });
