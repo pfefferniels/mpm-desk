@@ -359,7 +359,7 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                             tooltip={
                                 selectedParts.size > 1
                                     ? 'Fold the selected parts into the first of them'
-                                    : 'Select two or more parts in the list on the right'
+                                    : 'Select two or more parts in the list on the left'
                             }
                             label="Combine"
                             disabled={selectedParts.size < 2}
@@ -416,10 +416,11 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                 </MenuList>
             </Menu>
 
+            {/* The legend on the left of the score, where it was on the right. The aspect menu
+                floats over the top right of every desk, and there it covered the legend, which,
+                unlike the score, cannot be scrolled out from under it: the colours of the score
+                were left with no key while the menu was open. */}
             <Box sx={{ display: 'flex', height: `calc(100vh - ${String(APP_BAR_HEIGHT)}px - 1rem)` }}>
-                <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#ffffff' }}>
-                    <Score mei={mei} paint={paint} onNoteClick={editable ? onNoteClick : undefined} />
-                </Box>
                 <PartsLegend
                     parts={parts}
                     selected={selectedParts}
@@ -430,6 +431,9 @@ export const VoicesDesk = ({ msm }: ViewProps) => {
                     onIsolate={setIsolated}
                     editable={editable}
                 />
+                <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#ffffff' }}>
+                    <Score mei={mei} paint={paint} onNoteClick={editable ? onNoteClick : undefined} />
+                </Box>
             </Box>
         </>
     );
