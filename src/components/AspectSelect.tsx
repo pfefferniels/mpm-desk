@@ -1,5 +1,17 @@
 import React, { useState, type ReactElement } from 'react';
-import { Card, Collapse, Divider, IconButton, List, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
+import {
+    Card,
+    Collapse,
+    Divider,
+    IconButton,
+    List,
+    ListItemButton,
+    ListItemText,
+    Tooltip,
+    Typography,
+    useMediaQuery,
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ChevronRight, ExpandLess, ExpandMore, InfoOutlined } from '@mui/icons-material';
 import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
 import { useEditable } from '../hooks/Editing';
@@ -91,8 +103,29 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
     documentFacts,
 }) => {
     const [toExpand, setToExpand] = useState<string>();
-    const [collapsed, setCollapsed] = useState(false);
+
+    /**
+     * A phone, where the open card is over half the screen and the plot is what was opened.
+     *
+     * There the card starts folded, and folds again once a desk is picked: on a window that
+     * narrow it covers the desk it has just opened, and a reader who wanted the list again has the
+     * same button that brought it out. On a wider window it opens and stays open, as it always
+     * has. `noSsr` so the first render already knows, and a phone never sees the card open for a
+     * frame.
+     *
+     * `useTheme` rather than a query written as a function of the theme: this module is rendered
+     * without a `ThemeProvider` in its tests, and MUI's default theme answers the same question
+     * with the same breakpoints.
+     */
+    const { breakpoints } = useTheme();
+    const narrow = useMediaQuery(breakpoints.down('sm'), { noSsr: true });
+    const [collapsed, setCollapsed] = useState(narrow);
     const aspectRows = useEditable() ? editorRows : viewerRows;
+
+    const pick = (desk: string) => {
+        setSelectedDesk(desk);
+        if (narrow) setCollapsed(true);
+    };
 
     return (
         <Card
@@ -172,7 +205,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                                 onClick={
                                                     reason === undefined
                                                         ? () => {
-                                                              setSelectedDesk(aspect);
+                                                              pick(aspect);
                                                               setToExpand(undefined);
                                                           }
                                                         : undefined
@@ -215,7 +248,7 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
                                                                 disabled={childReason !== undefined}
                                                                 onClick={
                                                                     childReason === undefined
-                                                                        ? () => setSelectedDesk(displayName)
+                                                                        ? () => pick(displayName)
                                                                         : undefined
                                                                 }
                                                             >

@@ -5,7 +5,7 @@
  * Greyed rather than hidden, which is the rule `ToolbarButton` records for the toolbar — a control
  * that disappears leaves the reader to guess what makes it come back.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AspectSelect } from './AspectSelect';
 import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
@@ -121,6 +121,71 @@ describe('the aspect menu', () => {
         const { container } = mount({ readings: 1 });
         const groups = new Set(correspondingDesks.map(({ group }) => group));
         expect(container.querySelectorAll('hr')).toHaveLength(groups.size);
+    });
+});
+
+/**
+ * A window as narrow as a phone, as far as `matchMedia` can say: every `max-width` query matches
+ * and no other does, which is the one question `breakpoints.down('sm')` asks. jsdom has no
+ * `matchMedia` of its own, and without one the menu takes the window for a wide one.
+ */
+const onAPhone = () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('max-width'),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    }));
+};
+
+describe('the aspect menu on a phone', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    /** Not `mount`, which reads a row, and a menu that starts folded has none to read. */
+    const renderMenu = () => {
+        const setSelectedDesk = vi.fn();
+        render(
+            <AspectSelect
+                selectedDesk='metadata'
+                setSelectedDesk={setSelectedDesk}
+                documentFacts={FITTED}
+            />,
+        );
+        return setSelectedDesk;
+    };
+
+    it('starts folded, where open it would cover most of the desk', () => {
+        onAPhone();
+        renderMenu();
+
+        expect(screen.queryByText('tempo')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Show the aspect list' }));
+        expect(screen.getByText('tempo')).toBeInTheDocument();
+    });
+
+    it('folds again once a desk is picked, so the desk is what is seen', () => {
+        onAPhone();
+        const setSelectedDesk = renderMenu();
+        fireEvent.click(screen.getByRole('button', { name: 'Show the aspect list' }));
+
+        fireEvent.click(screen.getByText('tempo'));
+        expect(setSelectedDesk).toHaveBeenCalledWith('tempo');
+        expect(screen.queryByText('tempo')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Show the aspect list' })).toBeInTheDocument();
+    });
+
+    it('stays open after a pick on a wider window, as it always has', () => {
+        const setSelectedDesk = renderMenu();
+
+        fireEvent.click(screen.getByText('tempo'));
+        expect(setSelectedDesk).toHaveBeenCalledWith('tempo');
+        expect(screen.getByText('rubato')).toBeInTheDocument();
     });
 });
 
