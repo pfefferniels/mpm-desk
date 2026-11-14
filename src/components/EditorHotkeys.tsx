@@ -38,7 +38,7 @@ interface EditorHotkeysProps {
  */
 export const EditorHotkeys = ({ onSave, onOpen }: EditorHotkeysProps) => {
     const { undo, redo } = useWorkDocument();
-    const { isPlaying, play, stop } = usePlayback();
+    const { isPlaying, isPending, play, stop } = usePlayback();
     const { activeCallIds, removeActiveCalls } = useCallSelection();
     const editable = useEditable();
     const editing = { preventDefault: true, enabled: editable };
@@ -62,7 +62,7 @@ export const EditorHotkeys = ({ onSave, onOpen }: EditorHotkeysProps) => {
     useHotkeys(
         'space',
         () => {
-            if (isPlaying) stop();
+            if (isPlaying || isPending) stop();
             else play();
         },
         {
@@ -96,7 +96,7 @@ export const EditorHotkeys = ({ onSave, onOpen }: EditorHotkeysProps) => {
                     'button, summary, [role="button"], [role="combobox"], [role="listbox"], [contenteditable="true"]',
                 ) !== null,
         },
-        [isPlaying, play, stop],
+        [isPlaying, isPending, play, stop],
     );
 
     return null;

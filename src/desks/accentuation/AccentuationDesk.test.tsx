@@ -13,11 +13,6 @@ import { InsertMetricalAccentuation } from '../../fitting/transformers/accentuat
 import type { Residual } from '../../fitting/residual';
 import { AccentuationDesk } from './AccentuationDesk';
 
-/** The plot sounds a chord as the pointer passes it, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
-
 /**
  * An identity screen matrix, which jsdom has no notion of.
  *

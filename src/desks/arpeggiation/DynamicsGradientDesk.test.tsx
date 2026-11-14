@@ -22,11 +22,6 @@ import { deriveResidual } from '../../fitting/residual';
 import { publishedPath } from '../../test/published';
 import { DynamicsGradientDesk } from './DynamicsGradientDesk';
 
-/** Hovering a chord sounds it, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
-
 /**
  * The shipped transcription on one reading, as in `ArticulationDesk.test.tsx` — `asMSM` makes a
  * note per `<when>`, and a desk only ever sees a score `MakeChoice` has run over.

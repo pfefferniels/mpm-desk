@@ -19,11 +19,6 @@ import type { SecondaryData } from '../TransformerViewProps';
 import { TempoDesk } from './TempoDesk';
 import { VERTICAL_SLIDER_WIDTH } from '../../components/ZoomControls';
 
-/** The skyline hovers a box to audition it, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
-
 const note = (id: string, date: number, part: number, seconds: number): AlignedNote => ({
     'xml:id': id,
     part,

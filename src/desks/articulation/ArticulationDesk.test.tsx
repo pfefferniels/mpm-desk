@@ -17,11 +17,6 @@ import { deriveResidual } from '../../fitting/residual';
 import { publishedPath } from '../../test/published';
 import { ArticulationDesk } from './ArticulationDesk';
 
-/** Hovering a note sounds it, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
-
 /**
  * The shipped transcription as loaded: two staves, every note with its recorded onset, and each
  * score note here once per take. `asMSM` makes a note per `<when>`, so the file's two readings

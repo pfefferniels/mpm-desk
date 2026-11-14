@@ -12,11 +12,6 @@ import { InsertTemporalSpread } from '../../fitting/transformers/ornamentation/I
 import type { Residual } from '../../fitting/residual';
 import { TemporalSpreadDesk } from './TemporalSpreadDesk';
 
-/** The chords sound as the pointer passes them, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn(), playSingleNote: vi.fn() }),
-}));
-
 /**
  * The click track `TemporalSpreadInstruction` auditions a written spread with.
  *

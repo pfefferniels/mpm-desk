@@ -16,11 +16,6 @@ import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { ZoomContext } from '../../hooks/ZoomProvider';
 import { DynamicsDesk } from './DynamicsDesk';
 
-/** Hovering a dot sounds its chord, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
-
 /**
  * An identity screen matrix, which jsdom has no notion of — see the same stub in
  * `AccentuationDesk.test.tsx`. With it a client coordinate is a user coordinate, so the drag below

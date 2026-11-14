@@ -11,11 +11,6 @@ import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider'
 import { ZoomContext } from '../../hooks/ZoomProvider'
 import { PedalDesk } from './PedalDesk'
 
-/** The chord lines sound a chord on hover, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}))
-
 const note = (id: string, date: number): AlignedNote => ({
     'xml:id': id,
     part: 1,

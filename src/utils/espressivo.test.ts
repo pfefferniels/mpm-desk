@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { EXAGGERATION_MAX, EXPRESSION_MAX, effectiveScalar } from './espressivo'
+import { readFileSync } from 'node:fs'
+import { EXAGGERATION_MAX, EXPRESSION_MAX, effectiveScalar, renderCached, type Rendered } from './espressivo'
 
 // Zoom sets the floor and the slider spends what is left. Multiplying the two and clamping the
 // product spends the slider's headroom on the zoom instead: at sketchiness 1.5 it hits the
@@ -54,5 +55,37 @@ describe('effectiveScalar', () => {
     it('treats an omitted knob as neutral', () => {
         expect(effectiveScalar()).toBe(1)
         expect(effectiveScalar(1.5)).toBeCloseTo(effectiveScalar(1.5, 1), 10)
+    })
+})
+
+describe('renderCached', () => {
+    const msm = readFileSync('src/test/fixtures/score.msm', 'utf-8')
+    const mpm = readFileSync('src/test/fixtures/performance.mpm', 'utf-8')
+
+    const onsets = (rendered: Rendered) => [...rendered.noteIds.values()]
+
+    // A curve redrawn in the editor can put one number where another as wide was, and the
+    // document comes out exactly as long as it went in. The cache used to know a document by its
+    // length alone, so Play went on sounding the one from before the edit.
+    it('never hands two different documents of one length the same rendering', () => {
+        const edited = mpm.replace('bpm="59.15049362182617"', 'bpm="99.15049362182617"')
+        expect(edited).toHaveLength(mpm.length)
+        expect(edited).not.toBe(mpm)
+
+        const before = renderCached({ msm, mpm })
+        const after = renderCached({ msm, mpm: edited })
+
+        expect(after).not.toBe(before)
+        expect(onsets(after)).not.toEqual(onsets(before))
+        // And back again: the first document is not answered with the edit's rendering either.
+        expect(onsets(renderCached({ msm, mpm }))).toEqual(onsets(before))
+    })
+
+    it('serves the same documents from the cache, however they arrived', () => {
+        const first = renderCached({ msm, mpm, exaggerate: 1.5 })
+        // Equal text in a different string, as a fetch or an undo would hand it over.
+        const copy = [...mpm].join('')
+
+        expect(renderCached({ msm, mpm: copy, exaggerate: 1.5 })).toBe(first)
     })
 })
