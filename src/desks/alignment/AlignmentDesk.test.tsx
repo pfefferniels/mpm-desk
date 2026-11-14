@@ -27,10 +27,6 @@ import { AlignmentDesk } from './AlignmentDesk';
  * test, so every assertion after the first would look at a tree that had been taken down.
  */
 
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
-
 const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
 let desk: HTMLElement;

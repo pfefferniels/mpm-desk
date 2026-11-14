@@ -24,6 +24,9 @@ interface PlaybackBarProps {
 export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => {
     const { durationMs, range, setRange, whole, playing, play, stop, status } = playback;
     const samples = useSampleLoading();
+    // Not `status !== "done"`: until something has asked for sound the piano has not begun to
+    // fetch at all, and pressing this is one of the ways to ask.
+    const waiting = status === "loading" || status === "error";
 
     if (durationMs === 0) return null;
 
@@ -32,7 +35,7 @@ export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => 
             <IconButton
                 color="primary"
                 onClick={playing ? stop : play}
-                disabled={status !== "done"}
+                disabled={waiting}
                 title={
                     samples.loading || samples.failed
                         ? sampleLoadingHint(samples)
@@ -55,7 +58,7 @@ export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => 
                     valueLabelDisplay="auto"
                     valueLabelFormat={clock}
                     disableSwap
-                    disabled={status !== "done"}
+                    disabled={waiting}
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ mt: -0.5 }}>
                     {whole

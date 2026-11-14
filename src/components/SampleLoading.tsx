@@ -46,8 +46,8 @@ export const SampleProgress = ({ size = 20 }: { size?: number }) => {
  * The notice a play gets when the samples are not there.
  *
  * Open while the refusal is newer than the last dismissal and the piano is still not ready, so it
- * closes itself the moment the samples arrive without an effect to time it. Mounted once per tree,
- * inside the `PianoContextProvider` whose piano it reports on.
+ * closes itself the moment the samples arrive without an effect to time it. Mounted once per tree:
+ * there is one piano to report on, and it is the one `performance/piano.ts` hands out.
  */
 export const SampleLoadingNotice = () => {
     const loading = useSampleLoading();

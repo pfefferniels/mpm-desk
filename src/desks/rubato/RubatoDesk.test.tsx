@@ -13,11 +13,6 @@ import { InsertRubato } from '../../fitting/transformers/rubato/InsertRubato';
 import type { Residual } from '../../fitting/residual';
 import { RubatoDesk } from './RubatoDesk';
 
-/** The row auditions a date as the pointer passes it, and Tone in jsdom is a slow way to assert nothing. */
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
-
 /**
  * An identity screen matrix, which jsdom has no notion of.
  *

@@ -53,7 +53,10 @@ export interface Playback {
     playing: boolean;
     play: () => void;
     stop: () => void;
-    /** Whether the piano is ready, still fetching its samples, or has failed */
+    /**
+     * Whether the piano is ready, still fetching its samples, or has failed. `undefined` until
+     * something has asked for sound, which is when the samples are sent for.
+     */
     status: "loading" | "done" | "error" | undefined;
 }
 
@@ -109,8 +112,11 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         if (playable.length === 0) return;
 
         stop();
-        setPlaying(true);
-        piano.play(midiFileOf(playable, pedals, { fromMs, toMs }), (event: AnyEvent) => {
+        // Refused while the samples are still coming, and the first press is what sends for
+        // them: the button stays Play and shows the download rather than going to Stop over
+        // silence
+        const file = midiFileOf(playable, pedals, { fromMs, toMs });
+        const schedule = piano.play(file, (event: AnyEvent) => {
             if (event.type !== "meta" || event.subtype !== "text" || !("text" in event)) return;
 
             const id = (event as AnyEvent & { text: string }).text;
@@ -121,6 +127,8 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
             element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
             setTimeout(() => element.classList.remove(PLAYING_CLASS), HIGHLIGHT_MS);
         });
+        if (!schedule) return;
+        setPlaying(true);
 
         // The transport runs on after the last note, so the end of the sound is
         // worked out here rather than waited for - otherwise the button stays on

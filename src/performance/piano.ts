@@ -11,12 +11,17 @@
  * how far the download has got so a control can show it, and records the refusal so something on
  * screen can say why nothing was heard. Import `usePiano` from here rather than from
  * `react-pianosound`, or a play goes through ungated.
+ *
+ * It is also what starts the download. Nothing is fetched until something asks to be heard, and
+ * most visits to the viewer never do: the first play or audition is refused like any other made
+ * while the samples are coming, and is what sets them coming, since `PianoProvider` mounts the
+ * piano once this says sound is wanted.
  */
 
 import { useMemo, useSyncExternalStore } from 'react'
-import { usePiano as usePianoSound } from 'react-pianosound'
+import type { usePiano as usePianoSound } from 'react-pianosound'
 
-/** Velocity layers to load. Both trees mount `PianoContextProvider` with this. */
+/** Velocity layers to load: what `PianoProvider` mounts the piano with, and the count below. */
 export const PIANO_VELOCITIES = 3
 
 /** Where `@tonejs/piano` fetches its samples from — its own default `url`. */
@@ -81,6 +86,41 @@ const subscribe = (listener: () => void) => {
     }
 }
 
+type Piano = ReturnType<typeof usePianoSound>
+
+/**
+ * Whether anything has asked to be heard yet.
+ *
+ * The download waits for this. While the piano was mounted at the root, every visit fetched the
+ * 16 MB on arrival, before anyone had pressed Play or passed over anything that sounds.
+ */
+let wanted = false
+
+/** The piano `PianoProvider` mounted, as the library's own hook last handed it over. */
+let mounted: Piano | null = null
+
+/** Send for the samples: the first asking mounts the piano, and mounting starts the download. */
+const want = () => {
+    if (wanted) return
+    wanted = true
+    announce()
+}
+
+/** Whether the piano should be mounted, which is what `PianoProvider` watches. */
+export const useSoundWanted = (): boolean =>
+    useSyncExternalStore(subscribe, () => wanted, () => false)
+
+/**
+ * Hand over what the library's `usePiano` returned, or `null` once the piano is gone.
+ *
+ * After every render of the component holding that hook rather than once, because it hands back a
+ * new object each time and that object's `play` closes over the piano and status of its render.
+ */
+export const publishPiano = (piano: Piano | null) => {
+    mounted = piano
+    announce()
+}
+
 interface SampleLoading {
     /** Still fetching, so nothing will sound yet */
     loading: boolean
@@ -97,7 +137,7 @@ interface SampleLoading {
 
 /** How far the piano has got with its samples. */
 export const useSampleLoading = (): SampleLoading => {
-    const { status } = usePianoSound()
+    const { status } = useMounted()
     const loaded = useSyncExternalStore(subscribe, () => arrived.size, () => 0)
 
     return useMemo(() => {
@@ -145,18 +185,59 @@ const refuseNote = () => {
     refuse()
 }
 
-type Piano = ReturnType<typeof usePianoSound>
+/**
+ * The piano before there is one.
+ *
+ * Every play is refused, and is what sends for the samples. Refused rather than kept for later: a
+ * press of Play that went off seconds afterwards, when the download was through, would be a sound
+ * nobody remembers asking for. The notice says why nothing was heard, and the transport shows the
+ * download until a press will be.
+ */
+const silent: Piano = {
+    status: undefined,
+    play: () => {
+        want()
+        return refusePlay()
+    },
+    playSingleNote: () => {
+        want()
+        refuseNote()
+    },
+    stop: () => {},
+    jumpTo: () => {},
+    splice: () => ({ ok: false, reason: 'not-loaded' }),
+    getTransportSeconds: () => 0,
+    getSchedule: () => null,
+    canSplice: false,
+    device: 'synthetic',
+}
+
+/**
+ * The piano there is, or `silent`, and what to make of its status.
+ *
+ * A piano that has said nothing yet is loading once sound has been asked for: it is on its way,
+ * mounting or mounted and not yet through the effect that starts its download. Before that,
+ * nothing is coming and nothing is missing, so the status stays `undefined` and a play goes
+ * through to `silent`, which asks.
+ */
+const useMounted = (): { piano: Piano; status: Piano['status'] } => {
+    const piano = useSyncExternalStore(subscribe, () => mounted, () => null) ?? silent
+    const asked = useSoundWanted()
+    return { piano, status: piano.status ?? (asked ? 'loading' : undefined) }
+}
 
 /**
  * The piano, refusing to pretend.
  *
- * Only a piano that says it is loading or has failed is gated. `undefined` — the instant before
- * the provider's effect has run, and what a test's stub reports — passes through, because the
- * question here is whether the samples are known to be missing, not whether they are known to be
- * there.
+ * Only a piano that is loading or has failed is gated. `undefined` passes through, which is the
+ * piano before anything has asked for one: the question here is whether the samples are known to
+ * be missing, not whether they are known to be there.
+ *
+ * Safe without a `PianoProvider` above, as in a test that mounts a desk on its own: the piano
+ * there is `silent`, and simply never arrives.
  */
 export const usePiano = (): Piano => {
-    const piano = usePianoSound()
-    if (piano.status !== 'loading' && piano.status !== 'error') return piano
-    return { ...piano, play: refusePlay, playSingleNote: refuseNote }
+    const { piano, status } = useMounted()
+    if (status !== 'loading' && status !== 'error') return piano
+    return { ...piano, status, play: refusePlay, playSingleNote: refuseNote }
 }

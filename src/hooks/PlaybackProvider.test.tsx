@@ -22,8 +22,8 @@ import { PlaybackProvider, usePlayback } from './PlaybackProvider'
 // and the sampler is idempotent — so the splice logic is genuinely exercised, not stubbed out.
 let rig = createFakePiano()
 
-vi.mock('react-pianosound', async (importOriginal) => ({
-    ...await importOriginal<typeof import('react-pianosound')>(),
+vi.mock('../performance/piano', async (importOriginal) => ({
+    ...await importOriginal<typeof import('../performance/piano')>(),
     usePiano: () => rig.usePiano(),
 }))
 

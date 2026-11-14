@@ -25,13 +25,9 @@ import { defaultPress } from './lineDraft';
  * Not a screenshot in prose: what this checks is the one thing the hook tests below cannot, that
  * the two plots draw the recording and that a gesture on one of them turns into a `Modify` or a
  * `CorrectPedal` with the right selector and the right aspect. The velocity plot auditions notes
- * as the pointer passes them, so the piano is stubbed — Tone in jsdom is a slow way to assert
- * nothing.
+ * as the pointer passes them, which with no `PianoProvider` mounted reaches a piano that never
+ * comes, so nothing needs stubbing.
  */
-
-vi.mock('react-pianosound', () => ({
-    usePiano: () => ({ play: vi.fn(), stop: vi.fn() }),
-}));
 
 /**
  * An identity screen matrix, which jsdom has no notion of.

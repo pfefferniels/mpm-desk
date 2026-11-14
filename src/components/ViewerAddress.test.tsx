@@ -15,8 +15,8 @@ import { ViewerAddress } from './ViewerAddress';
 
 let rig = createFakePiano();
 
-vi.mock('react-pianosound', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('react-pianosound')>()),
+vi.mock('../performance/piano', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../performance/piano')>()),
     usePiano: () => rig.usePiano(),
 }));
 
