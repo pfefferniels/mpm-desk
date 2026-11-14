@@ -14,8 +14,8 @@
  * ## What legitimately moves it
  *
  * 1. **espressivo omits an attribute at its default and writes some unconditionally.**
- *    `<temporalSpread>` leaves out `noteoff.shift="false"` and `time.unit="ticks"`; `<ornament>`
- *    always carries `scale="0"`. Same documents, different bytes.
+ *    `<temporalSpread>` leaves out `noteoff.shift="false"` and writes `frame.offset` even at
+ *    `0ticks`; `<ornament>` always carries `scale="0"`. Same documents, different bytes.
  * 2. **Last-digit float noise.** The fitters are iterative, so 1e-16 in an input reaches the
  *    output as ~1e-9. `ROUNDTRIP_REPORT=1` is the check that matters there: it reports to two
  *    decimals and must not move at all.

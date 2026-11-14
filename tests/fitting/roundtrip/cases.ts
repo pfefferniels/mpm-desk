@@ -197,9 +197,8 @@ export const tierTwoCases: Case[] = [
           {
             name: 'roll',
             temporalSpread: {
-              'frame.start': -250,
-              frameLength: 500,
-              'time.unit': 'milliseconds',
+              'frame.offset': '-250ms',
+              frameLength: '500ms',
               intensity: 1,
             },
           },
@@ -268,9 +267,8 @@ export const tierTwoCases: Case[] = [
           {
             name: 'roll',
             temporalSpread: {
-              'frame.start': -250,
-              frameLength: 500,
-              'time.unit': 'milliseconds',
+              'frame.offset': '-250ms',
+              frameLength: '500ms',
               intensity: 1,
             },
             dynamicsGradient: { 'transition.from': -1, 'transition.to': 0 },

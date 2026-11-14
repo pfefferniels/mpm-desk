@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { AlignedNote } from "../../fitting/alignment";
 import type { Instruction } from "../../fitting/instructions/index";
 import type { TemporalSpread } from "espressivo";
+import type { SpreadFrame } from "./spreadFrame";
 import { usePiano } from "../../performance/piano";
 import { asMIDI, type PartialBy } from "../../utils/utils";
 import { soundingAt } from "../noteTiming";
@@ -14,6 +15,8 @@ import { NoiseSynth, now as toneNow } from "tone";
 interface TemporalSpreadInstructionProps {
     ornament: Instruction<'ornament'>;
     spread: TemporalSpread;
+    /** The spread's frame in ticks. */
+    frame: SpreadFrame;
     notes: AlignedNote[];
     tickToSeconds: (tick: number) => number;
     stretch: number;
@@ -41,6 +44,7 @@ const PREVIEW_SOUNDING_SECONDS = 0.3;
 export const TemporalSpreadInstruction = ({
     ornament,
     spread,
+    frame,
     notes,
     tickToSeconds,
     stretch,
@@ -73,8 +77,7 @@ export const TemporalSpreadInstruction = ({
         if (n === 0) return;
 
         const intensity = spread.intensity ?? 1;
-        const frameStart = spread.frameStart;
-        const frameLength = spread.getFrameLength();
+        const { start: frameStart, length: frameLength } = frame;
 
         // The one place a desk states `milliseconds.*` rather than asking `noteTiming` for it.
         // These notes are not recorded — they are a preview, synthesized at computed offsets —
@@ -97,14 +100,14 @@ export const TemporalSpreadInstruction = ({
         const beatOffsetSeconds = ticksToSeconds(-frameStart);
         const now = toneNow();
         getClickSynth().triggerAttackRelease("32n", now + beatOffsetSeconds);
-    }, [sortedNotes, spread, ticksToSeconds, play, stop]);
+    }, [sortedNotes, spread, frame, ticksToSeconds, play, stop]);
 
     const handleStop = useCallback(() => {
         stop();
     }, [stop]);
 
-    const xStart = tickToSeconds(ornament.date + spread.frameStart) * stretch;
-    const xEnd = tickToSeconds(ornament.date + spread.frameStart + spread.getFrameLength()) * stretch;
+    const xStart = tickToSeconds(ornament.date + frame.start) * stretch;
+    const xEnd = tickToSeconds(ornament.date + frame.start + frame.length) * stretch;
     const width = xEnd - xStart;
 
     if (width <= 0) return null;

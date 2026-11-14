@@ -65,7 +65,7 @@ const MEASURED: Readonly<Record<string, readonly string[] | undefined>> = {
   articulation: ['date', ...ARTICULATION_MODIFIERS],
   articulationDef: ARTICULATION_MODIFIERS,
   ornament: ['date', 'scale'],
-  temporalSpread: ['frame.start', 'frameLength', 'intensity'],
+  temporalSpread: ['frame.offset', 'frameLength', 'intensity'],
   dynamicsGradient: ['transition.from', 'transition.to'],
   accentuationPattern: ['date', 'scale'],
   accentuationPatternDef: ['length'],
@@ -73,6 +73,13 @@ const MEASURED: Readonly<Record<string, readonly string[] | undefined>> = {
   asynchrony: ['date', 'milliseconds.offset'],
   style: ['date'],
 };
+
+/** The measured attributes whose number is followed by its unit (MPM v3: `-250ms`, `50%`). */
+const WITH_UNIT: Readonly<Record<string, readonly string[] | undefined>> = {
+  temporalSpread: ['frame.offset', 'frameLength'],
+};
+
+const UNIT_SUFFIX = /(ms|ticks|%)$/;
 
 /** The whole subtree, root first. */
 function* elementsUnder(element: Element): Generator<Element> {
@@ -95,6 +102,13 @@ const roundedValue = (value: string): string | null => {
 
   const rounded = String(Number(parsed.toFixed(DECIMALS)));
   return rounded === value ? null : rounded;
+};
+
+/** {@link roundedValue} for a number that may be followed by its unit; the unit stays as written. */
+const roundedValueWithUnit = (value: string): string | null => {
+  const unit = UNIT_SUFFIX.exec(value)?.[0] ?? '';
+  const rounded = roundedValue(value.slice(0, value.length - unit.length));
+  return rounded === null ? null : rounded + unit;
 };
 
 /**
@@ -157,10 +171,14 @@ export class RoundNumbers extends AbstractTransformer<RoundNumbersOptions> {
 }
 
 /** Round one attribute where the element has it. Answers whether its text changed. */
-const roundAttribute = (element: Element, name: string): boolean => {
+const roundAttribute = (
+  element: Element,
+  name: string,
+  rounding: (value: string) => string | null,
+): boolean => {
   const attribute = element.getAttribute(name);
   if (!attribute) return false;
-  const rounded = roundedValue(attribute.getValue());
+  const rounded = rounding(attribute.getValue());
   if (rounded === null) return false;
   // Written through the attribute rather than through `addAttribute`, which removes and
   // re-appends and would therefore move the attribute to the end of the serialized element.
@@ -170,10 +188,16 @@ const roundAttribute = (element: Element, name: string): boolean => {
 
 /** Round what this element measures. Answers whether anything moved. */
 const round = (element: Element): boolean => {
-  const measured = MEASURED[element.getLocalName()] ?? [];
+  const name = element.getLocalName();
+  const measured = MEASURED[name] ?? [];
+  const withUnit = WITH_UNIT[name] ?? [];
+  const roundingOf = (attribute: string) =>
+    withUnit.includes(attribute) ? roundedValueWithUnit : roundedValue;
   // Mapped and then asked, rather than `some`: every attribute is to be rounded, and
   // short-circuiting on the first one that moves would leave the rest of the element alone.
-  return measured.map((name) => roundAttribute(element, name)).includes(true);
+  return measured
+    .map((attribute) => roundAttribute(element, attribute, roundingOf(attribute)))
+    .includes(true);
 };
 
 /**
