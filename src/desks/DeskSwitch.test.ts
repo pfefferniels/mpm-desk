@@ -24,7 +24,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { correspondingDesks, type DocumentFacts } from './DeskSwitch';
-import { TRANSFORMER_ALIASES } from './transformerAliases';
+import { deskOfCall, TRANSFORMER_ALIASES } from './transformerAliases';
 import { getTransformerOrder, isRegistered } from '../fitting/transformers/TransformerRegistry';
 
 // The transformer registry is module-level state that `Order.ts` fills in as a side effect of
@@ -104,6 +104,18 @@ const PLOTS_THE_RECORDING = [
  */
 const FITS_THE_RECORDING = PLOTS_THE_RECORDING.filter((aspect) => aspect !== 'corrections');
 
+/**
+ * The transformers the chain registers that no desk opens for, and why: none of them is ever a
+ * call in a saved document, so no link and no line of the markup can name one.
+ */
+const NAMES_NO_CALL: ReadonlyMap<string, string> = new Map([
+    [
+        'RoundNumbers',
+        'the run makes one for itself and drops a saved one (`chain.ts`), and it is answerable ' +
+            'for no element of the markup',
+    ],
+]);
+
 describe('the desk registry', () => {
     it('holds desks at all', () => {
         // Every assertion below quantifies over this list, so an empty one would make the whole
@@ -146,6 +158,35 @@ describe('the desk registry', () => {
                     isRegistered(name),
                     `the ${aspect} desk claims "${name}", which no transformer is registered under`,
                 ).toBe(true);
+        });
+
+        it('opens a desk the viewer offers, for every call the chain can run', () => {
+            // A link to a call, and a click on what it wrote in the markup desk, open the desk
+            // `deskOfCall` names. Where it names none, the call is selected and the reader stays on
+            // whatever desk was open, with nothing on screen to say why: `MergeMetricalAccentuations`
+            // and `InsertMetadata` did exactly that. So every name the chain registers resolves,
+            // through an alias where another desk serves it, or is left out here with the reason.
+            const named = getTransformerOrder().filter((name) => !NAMES_NO_CALL.has(name));
+            expect(named.length).toBeGreaterThan(0);
+
+            for (const name of named) {
+                const key = deskOfCall(name, false);
+                expect(key, `a link to a ${name} call opens no desk in the viewer`).toBeDefined();
+                expect(
+                    deskNamed(key ?? '')?.editOnly,
+                    `a link to a ${name} call opens the ${String(key)} desk, which the viewer does not offer`,
+                ).toBeUndefined();
+            }
+        });
+
+        it('leaves out only names the chain registers and no saved call carries', () => {
+            // So that the exclusions above cannot outlive their reason: a name that comes to
+            // resolve, or is no longer registered at all, belongs off the list.
+            for (const [name, reason] of NAMES_NO_CALL) {
+                expect(isRegistered(name), `${name} is excluded, but not registered`).toBe(true);
+                expect(deskOfCall(name, true), `${name} is excluded (${reason}), but opens a desk`)
+                    .toBeUndefined();
+            }
         });
 
         it('is claimed by only one desk', () => {

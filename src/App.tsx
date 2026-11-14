@@ -19,7 +19,7 @@ import './fitting/transformers/Order';
 
 import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
 import { lockedScopes, NO_SCOPE_LOCK } from './desks/scopeLock';
-import { TRANSFORMER_ALIASES } from './desks/transformerAliases';
+import { deskOfCall } from './desks/transformerAliases';
 import type { SecondaryData } from './desks/TransformerViewProps';
 import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
@@ -65,18 +65,6 @@ import { EditingContext } from './hooks/Editing';
 import { ViewerAddress } from './components/ViewerAddress';
 import { RevealCall } from './components/RevealCall';
 import { documentSlug, downloadAsFile } from './utils/utils';
-
-/**
- * The desk a call was made on, by the name the registry selects it under — or none, where no desk
- * makes that call, or the one that does is the editor's alone and this is the viewer.
- */
-const deskOf = (call: Call, editable: boolean): string | undefined => {
-    const name = TRANSFORMER_ALIASES.get(call.name) ?? call.name;
-    const entry = correspondingDesks.find(
-        ({ transformerName, editOnly }) => transformerName === name && (editable || !editOnly),
-    );
-    return entry && (entry.displayName ?? entry.aspect);
-};
 
 /** Where the viewer opens, and goes back to: the desk most of the reconstruction was made on. */
 const VIEWER_DESK = 'tempo';
@@ -264,7 +252,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
      */
     const openCall = useCallback(
         (call: Call) => {
-            const desk = deskOf(call, editable);
+            const desk = deskOfCall(call.name, editable);
             if (desk) setSelectedDesk(desk);
             const { scope } = call.options;
             if (isScope(scope)) setScope(scope);

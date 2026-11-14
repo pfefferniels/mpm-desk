@@ -255,7 +255,13 @@ const needsChoice: Prerequisite = ({ unchosen }) =>
  */
 export const correspondingDesks: DeskEntry[] = [
     // The document itself. A group of its own, so the menu sets it apart.
+    //
+    // It claims `InsertMetadata` as the voices desk claims `ProcessVoices`: the title and author
+    // are the options of the chain's one call of that name, which this desk edits in place
+    // (`workReducer`), so a link to that call opens here. It writes no instruction and declares no
+    // `writes`, and the call names no scope, so opening it leaves the picker where it was.
     {
+        transformerName: 'InsertMetadata',
         aspect: 'metadata',
         desk: lazy(() =>
             import('./metadata/MetadataDesk').then((m) => ({ default: m.MetadataDeskEntry })),
@@ -331,9 +337,9 @@ export const correspondingDesks: DeskEntry[] = [
     // Base Text then chooses between.
     //
     // No `transformerName`: the `Align` call it writes is one the chain does not run (see
-    // `chain.ts`). Nothing looks for a desk by that name either, since an `Align` writes no
-    // instruction and so never reaches the markup desk, which is where `focusCall` is reached
-    // from.
+    // `chain.ts`), and the registry tests resolve every name here against the chain's. An `Align`
+    // writes no instruction either, so the markup desk never offers one, and a link to one, which
+    // only the editor's document can hold, selects it where the reader is.
     //
     // The editor's alone: aligning needs the takes as MIDI, which the published reconstruction
     // does not carry, and what it settles is in the score every other desk draws.
