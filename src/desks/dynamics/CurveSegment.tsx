@@ -2,16 +2,18 @@ import { computeInnerControlPointsXPositions, volumeAtDate } from "../../fitting
 import { DynamicsWithEndDate } from "../../fitting/transformers/dynamics/InsertDynamicsInstructions"
 import { useMemo, useState } from "react"
 import { areaPath, sampleTransition } from "../transitionSamples"
+import type { VelocityAxis } from "../velocityAxis"
 
 interface CurveSegmentProps {
     active: boolean
     instruction: DynamicsWithEndDate
     stretchX: number
-    stretchY: number
+    /** The plot's, so a curve and the dots it was fitted over are drawn to the one scale. */
+    axis: VelocityAxis
     onClick: () => void
 }
 
-export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick }: CurveSegmentProps) => {
+export const CurveSegment = ({ instruction, stretchX, axis, active, onClick }: CurveSegmentProps) => {
     const [hovered, setHovered] = useState(false)
 
     // The attributes the curve is made of, and not the instruction: the desk reads the map afresh
@@ -32,12 +34,14 @@ export const CurveSegment = ({ instruction, stretchX, stretchY, active, onClick 
 
         const samples = sampleTransition(span, at => volumeAtDate(span, at), stretchX)
 
+        // Filled down to the foot of the axis rather than to velocity 0, which the plot need not
+        // reach: it shows the range its velocities span, and no more.
         return areaPath(
-            samples.map(({ x, value }) => ({ x, y: (127 - value) * stretchY })),
-            127 * stretchY,
+            samples.map(({ x, value }) => ({ x, y: axis.y(value) })),
+            axis.y(axis.min),
             { closed: true }
         )
-    }, [date, endDate, volume, transitionTo, curvature, protraction, stretchX, stretchY])
+    }, [date, endDate, volume, transitionTo, curvature, protraction, stretchX, axis])
 
     return (
         <g

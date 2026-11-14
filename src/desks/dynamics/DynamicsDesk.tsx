@@ -22,6 +22,7 @@ import { Clear } from "@mui/icons-material";
 import { COMMITTED_GHOST, DeltaGhost } from "../corrections/DeltaGhost";
 import { useCorrectionDeltas } from "../corrections/useCorrectionDeltas";
 import { svgPoint, svgUnitsPerPixel } from "../../utils/svgPoint";
+import { velocityAxis } from "../velocityAxis";
 import { clamp } from "../../fitting/utils";
 import { anchorsOf, nearestAnchor, type DynamicsAnchor } from "./anchors";
 import {
@@ -148,7 +149,6 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         setLastFit({ mpm, part })
     }
 
-    const stretchY = 3
     const margin = 20
     const chartHeight = 300 + margin
     // Wide enough for the tick, its gap and a three-digit velocity at font size 8.
@@ -166,7 +166,25 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
      */
     const modifyDeltas = useCorrectionDeltas(msm, part, 'velocity')
 
-    const screenY = (velocity: number) => (127 - velocity) * stretchY
+    /**
+     * The velocities the plot shows, read off everything it draws: the dots, the ghosts at the
+     * value the roll scan had before a correction, the phantoms and both ends of every curve —
+     * a curve runs monotonically between the two, so they bound it. The velocity plot on the
+     * corrections desk reads its range off the same dots and ghosts, and so draws them at the
+     * same heights.
+     *
+     * A phantom nudged past either end, or pencilled in near one, takes the range with it.
+     */
+    const axis = useMemo(() => velocityAxis([
+        ...segments.flatMap(segment => {
+            const delta = segment.noteID ? modifyDeltas.get(segment.noteID) : undefined
+            return delta ? [segment.velocity, segment.velocity - delta] : [segment.velocity]
+        }),
+        ...phantomVelocities.values(),
+        ...instructions.flatMap(i => [+i.volume, +(i.transitionTo ?? i.volume)]),
+    ], chartHeight), [segments, modifyDeltas, phantomVelocities, instructions, chartHeight])
+
+    const screenY = axis.y
 
     const anchors = useMemo(
         () => anchorsOf(segments, phantomVelocities),
@@ -310,7 +328,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                 active={i.id !== undefined && activeElements.includes(i.id)}
                 instruction={i}
                 stretchX={stretchX}
-                stretchY={stretchY}
+                axis={axis}
                 onClick={() => {
                     if (i.id !== undefined) setActiveElement(i.id)
                 }}
@@ -411,13 +429,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                     height={chartHeight}
                     viewBox={`${-scaleWidth + axisBleed} 0 ${scaleWidth} ${chartHeight}`}
                 >
-                    <VerticalScale
-                        min={10}
-                        max={80}
-                        step={5}
-                        height={chartHeight}
-                        stretchY={stretchY}
-                    />
+                    <VerticalScale axis={axis} />
                 </svg>
 
                 <div
@@ -467,7 +479,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
                             if (!pt) return
                             const phantom = snapPhantom(
-                                { date: pt.x / stretchX, velocity: 127 - pt.y / stretchY },
+                                { date: pt.x / stretchX, velocity: axis.velocityAt(pt.y) },
                                 grid,
                                 msm.end
                             )
@@ -520,7 +532,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                             const pts = anchors
                                 .filter(a => a.date >= pendingInsert.from && a.date <= pendingInsert.to)
                             if (pts.length === 0) return null
-                            const baselineY = screenY(0)
+                            const baselineY = screenY(axis.min)
                             let path = `M ${pts[0].date * stretchX} ${baselineY} `
                             for (const p of pts) {
                                 path += `L ${p.date * stretchX} ${screenY(p.velocity)} `
