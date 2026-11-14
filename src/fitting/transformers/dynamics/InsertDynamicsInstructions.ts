@@ -29,7 +29,7 @@ export type DynamicsWithEndDate = AddDynamicsOptions & WithEndDate;
 export interface InsertDynamicsInstructionsOptions extends ScopedTransformationOptions {
   from: number;
   to: number;
-  phantomVelocities: Map<number, number>;
+  guides: Map<number, number>;
 }
 
 export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynamicsInstructionsOptions> {
@@ -42,7 +42,7 @@ export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynami
         scope: 'global',
         from: 0,
         to: 0,
-        phantomVelocities: new Map(),
+        guides: new Map(),
       },
     );
   }
@@ -115,12 +115,12 @@ export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynami
 
   private asPoints(msm: Alignment, part: Scope): DynamicsPoints[] {
     const chords = msm.in(part).chords();
-    const { phantomVelocities } = this.options;
+    const { guides } = this.options;
 
-    // A phantom velocity is not tied to a chord. Pencilled in over a rest or inside a held note
+    // A guide is not tied to a chord. Pencilled in over a rest or inside a held note
     // it is a date the recording has nothing to say about, and the curve is to pass through it
     // all the same — so the two sets of dates are merged rather than the chords being walked.
-    const dates = [...new Set([...chords.keys(), ...phantomVelocities.keys()])].sort(
+    const dates = [...new Set([...chords.keys(), ...guides.keys()])].sort(
       (a, b) => a - b,
     );
 
@@ -130,15 +130,15 @@ export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynami
       // rather than a fact. A note that arrives without one reaches the mean below as `NaN`.
       const notesWithVolume = (chords.get(date) ?? []).filter((n) => n.velocity !== undefined);
 
-      // Where a chord sounds too, the phantom stands in for its mean whether or not it happens
-      // to be `0` — `||` read a phantom of 0 as no phantom at all (issue #46). Where there is
+      // Where a chord sounds too, the guide stands in for its mean whether or not it happens
+      // to be `0` — `||` read a guide of 0 as no guide at all (issue #46). Where there is
       // neither, the mean is `0 / 0`: no chord to measure is not a velocity of NaN, and a point
       // with no velocity is not a point.
-      const phantomVelocity = phantomVelocities.get(date);
-      if (phantomVelocity === undefined && notesWithVolume.length === 0) return [];
+      const guide = guides.get(date);
+      if (guide === undefined && notesWithVolume.length === 0) return [];
 
       const velocity =
-        phantomVelocity ??
+        guide ??
         notesWithVolume.reduce((sum, curr) => sum + curr.velocity, 0) / notesWithVolume.length;
 
       return [{ date, velocity }];

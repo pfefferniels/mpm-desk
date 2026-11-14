@@ -25,14 +25,14 @@ import { svgPoint, svgUnitsPerPixel } from "../../utils/svgPoint";
 import { clamp } from "../../fitting/utils";
 import { anchorsOf, nearestAnchor, type DynamicsAnchor } from "./anchors";
 import {
-    DEFAULT_PHANTOM_GRID,
-    PHANTOM_GRIDS,
+    DEFAULT_GUIDE_GRID,
+    GUIDE_GRIDS,
     gridDates,
     gridLabel,
     gridTicks,
-    snapPhantom,
-    type PhantomGrid,
-} from "./phantomGrid";
+    snapGuide,
+    type GuideGrid,
+} from "./guideGrid";
 
 export type { DynamicsSegment } from "./segments";
 
@@ -52,16 +52,16 @@ const MIN_GRID_SPACING = 4;
  * marked by a grey ghost at the value the roll scan read, because fitting a curve over a dot
  * means knowing whether the dot is what was recorded.
  *
- * A phantom velocity is a value the curve is to pass through at a date, whether or not the
+ * A guide is a value the curve is to pass through at a date, whether or not the
  * recording sounds a note there — over a rest, or inside a held note. It is editorial, so it is
  * not free: it lands on a grid, quarter notes unless the toolbar says otherwise. A curve is fitted
- * between two anchors, and a phantom is one.
+ * between two anchors, and a guide is one.
  *
  * Selecting a curve marks the dots it was fitted over in the evidence colour (`../evidence.ts`):
  * the chords of its scope from the anchor it starts on to the one it ends on.
  *
- * In the viewer the desk only reads. No toolbar, since both modes, the grid and the phantoms exist
- * to write a curve; no drag across the plot; no phantom. A dot still sounds on hover and plays on
+ * In the viewer the desk only reads. No toolbar, since both modes, the grid and the guides exist
+ * to write a curve; no drag across the plot; no guide. A dot still sounds on hover and plays on
  * click, and a curve still selects the call that wrote it.
  */
 export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<
@@ -70,11 +70,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     const { activeElements, activeEvidence, setActiveElement } = useCallSelection();
     const editable = useEditable()
     const [datePlayed, setDatePlayed] = useState<number>()
-    const [currentPhantomDate, setCurrentPhantomDate] = useState<number>()
-    const [mode, setMode] = useState<'insert' | 'phantom'>('insert')
-    const [grid, setGrid] = useState<PhantomGrid>(DEFAULT_PHANTOM_GRID)
+    const [currentGuideDate, setCurrentGuideDate] = useState<number>()
+    const [mode, setMode] = useState<'insert' | 'guide'>('insert')
+    const [grid, setGrid] = useState<GuideGrid>(DEFAULT_GUIDE_GRID)
 
-    const [phantomVelocities, setPhantomVelocities] = useState<Map<number, number>>(new Map())
+    const [guides, setGuides] = useState<Map<number, number>>(new Map())
     const [dragFrom, setDragFrom] = useState<DynamicsAnchor>()
     const [dragTo, setDragTo] = useState<DynamicsAnchor>()
     const [dragMouse, setDragMouse] = useState<{ x: number, y: number }>()
@@ -90,17 +90,17 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
             // Before `preventDefault`, and `=== undefined` rather than falsy: the desk must not
-            // swallow an arrow it does not act on, and a phantom on the first grid line sits at
+            // swallow an arrow it does not act on, and a guide on the first grid line sits at
             // date 0.
-            if (currentPhantomDate === undefined) return
+            if (currentGuideDate === undefined) return
 
             e.preventDefault()
-            setPhantomVelocities(prev => {
-                const entry = prev.get(currentPhantomDate)
+            setGuides(prev => {
+                const entry = prev.get(currentGuideDate)
                 if (entry === undefined) return prev
 
                 const next = new Map(prev)
-                next.set(currentPhantomDate, clamp(entry + (e.key === 'ArrowUp' ? 1 : -1), 0, 127))
+                next.set(currentGuideDate, clamp(entry + (e.key === 'ArrowUp' ? 1 : -1), 0, 127))
                 return next
             })
         }
@@ -110,7 +110,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [currentPhantomDate]);
+    }, [currentGuideDate]);
 
     const instructions = useMemo(() => {
         const dynamics = getInstructions(mpm, 'dynamics', part)
@@ -135,9 +135,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     const marked = evidenceDates(msm.in(part).notes(), activeEvidence)
 
     // What a press on the plot does. In the viewer, neither: drawing a curve and pencilling in a
-    // phantom are the two ways this desk writes.
+    // guide are the two ways this desk writes.
     const inserting = editable && mode === 'insert'
-    const pencilling = editable && mode === 'phantom'
+    const pencilling = editable && mode === 'guide'
 
     // The optimistic preview is answered by the next fit, the drawn curve being in `mpm` by
     // then. Cleared during render, React's way of adjusting state when a prop changes, rather
@@ -169,8 +169,8 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     const screenY = (velocity: number) => (127 - velocity) * stretchY
 
     const anchors = useMemo(
-        () => anchorsOf(segments, phantomVelocities),
-        [segments, phantomVelocities]
+        () => anchorsOf(segments, guides),
+        [segments, guides]
     )
 
     const gridLines = useMemo(() => {
@@ -194,9 +194,9 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     const anchorNear = (svg: SVGSVGElement, svgX: number) =>
         nearestAnchor(anchors, svgX / stretchX, (SNAP_REACH * svgUnitsPerPixel(svg)) / stretchX)
 
-    const pencilIn = (phantom: DynamicsAnchor) => {
-        setPhantomVelocities(prev => new Map(prev).set(phantom.date, phantom.velocity))
-        setCurrentPhantomDate(phantom.date)
+    const pencilIn = (guide: DynamicsAnchor) => {
+        setGuides(prev => new Map(prev).set(guide.date, guide.velocity))
+        setCurrentGuideDate(guide.date)
     }
 
     const cancelDrag = () => {
@@ -231,31 +231,31 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
 
     const circles: JSX.Element[] = []
 
-    phantomVelocities.forEach((velocity, date) => {
+    guides.forEach((velocity, date) => {
         circles.push(
             <text
-                key={`phantom_velocity_${date}`}
+                key={`guide_${date}`}
                 x={date * stretchX}
                 y={screenY(velocity)}
                 fill='darkred'
-                fontWeight={date === currentPhantomDate ? 'bold' : 'normal'}
+                fontWeight={date === currentGuideDate ? 'bold' : 'normal'}
                 textAnchor='middle'
                 dominantBaseline='middle'
                 style={{ cursor: 'pointer' }}
                 onClick={(e) => {
-                    // The plot beneath places a phantom wherever it is clicked, so a click meant
+                    // The plot beneath places a guide wherever it is clicked, so a click meant
                     // for one already there must not reach it.
                     e.stopPropagation()
                     if (e.altKey && e.shiftKey) {
-                        setPhantomVelocities(prev => {
+                        setGuides(prev => {
                             const next = new Map(prev)
                             next.delete(date)
                             return next
                         })
-                        if (currentPhantomDate === date) setCurrentPhantomDate(undefined)
+                        if (currentGuideDate === date) setCurrentGuideDate(undefined)
                         return
                     }
-                    setCurrentPhantomDate(date)
+                    setCurrentGuideDate(date)
                 }}
             >
                 x
@@ -335,7 +335,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         size='small'
                     >
                         <ToggleButton value='insert'>Insert</ToggleButton>
-                        <ToggleButton value='phantom'>Phantom</ToggleButton>
+                        <ToggleButton value='guide'>Guide</ToggleButton>
                     </ToggleButtonGroup>
                 </ToolGroup>
 
@@ -343,15 +343,15 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                     <ToggleButtonGroup
                         value={grid}
                         exclusive
-                        disabled={mode !== 'phantom'}
-                        onChange={(_, newGrid: PhantomGrid | null) => {
+                        disabled={mode !== 'guide'}
+                        onChange={(_, newGrid: GuideGrid | null) => {
                             if (newGrid !== null) {
                                 setGrid(newGrid)
                             }
                         }}
                         size='small'
                     >
-                        {PHANTOM_GRIDS.map(candidate => (
+                        {GUIDE_GRIDS.map(candidate => (
                             <ToggleButton key={candidate} value={candidate}>
                                 {gridLabel(candidate)}
                             </ToggleButton>
@@ -362,32 +362,32 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                 {/*
                     Shown in both modes, disabled in the one it cannot act in.
 
-                    It was behind `mode === 'phantom' &&`, so switching mode mounted a whole
+                    It was behind `mode === 'guide' &&`, so switching mode mounted a whole
                     captioned group and shoved everything to its right — the largest reflow in the
                     bar. Disabled says the same thing without moving anything, and the tooltip
                     says which mode would make it live.
 
-                    It also makes the modes self-documenting: Phantom's one action is legible from
+                    It also makes the modes self-documenting: Guide's one action is legible from
                     Insert mode, so the user can see what a mode offers before entering it.
 
-                    Still "Clear Phantoms" rather than "Clear" now that it is the group's only
+                    Still "Clear Guides" rather than "Clear" now that it is the group's only
                     button: what it discards is a set of pencilled-in velocities, not the curve
                     the desk is drawing, and the shorter label would read as the latter.
                 */}
                 <ToolGroup>
                     <ToolbarButton
                         icon={<Clear />}
-                        label='Clear Phantoms'
-                        tooltip={phantomVelocities.size === 0
-                            ? 'No phantom velocities to clear'
-                            : `Discard the ${phantomVelocities.size} phantom ${phantomVelocities.size === 1 ? 'velocity' : 'velocities'}`}
-                        disabled={phantomVelocities.size === 0}
+                        label='Clear Guides'
+                        tooltip={guides.size === 0
+                            ? 'No guides to clear'
+                            : `Discard the ${guides.size} ${guides.size === 1 ? 'guide' : 'guides'}`}
+                        disabled={guides.size === 0}
                         onClick={() => {
-                            setPhantomVelocities(new Map())
-                            setCurrentPhantomDate(undefined)
+                            setGuides(new Map())
+                            setCurrentGuideDate(undefined)
                         }}
                     >
-                        Clear Phantoms
+                        Clear Guides
                     </ToolbarButton>
                 </ToolGroup>
             </DeskToolbar>}
@@ -454,7 +454,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                                 addTransformer(new InsertDynamicsInstructions({
                                     from: dragFrom.date,
                                     to: dragTo.date,
-                                    phantomVelocities,
+                                    guides,
                                     scope: part
                                 }))
                             }
@@ -464,18 +464,18 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         onClick={pencilling ? (e) => {
                             const pt = svgPoint(e.currentTarget, e.clientX, e.clientY)
                             if (!pt) return
-                            const phantom = snapPhantom(
+                            const guide = snapGuide(
                                 { date: pt.x / stretchX, velocity: 127 - pt.y / stretchY },
                                 grid,
                                 msm.end
                             )
-                            if (phantom) pencilIn(phantom)
+                            if (guide) pencilIn(guide)
                         } : undefined}
                     >
                         {pencilling && gridLines}
                         {/*
-                            A fitted curve is filled down to the baseline, so in Phantom mode it
-                            covers most of the surface a phantom would be placed on. Selecting one
+                            A fitted curve is filled down to the baseline, so in Guide mode it
+                            covers most of the surface a guide would be placed on. Selecting one
                             is an Insert-mode gesture.
                         */}
                         <g pointerEvents={pencilling ? 'none' : undefined}>

@@ -275,7 +275,7 @@ const chainFor = (spec: Case, msm: Alignment): Transformer[] => {
           scope: 'global',
           from: window.from,
           to: window.to,
-          phantomVelocities: new Map(),
+          guides: new Map(),
         }),
       );
     }

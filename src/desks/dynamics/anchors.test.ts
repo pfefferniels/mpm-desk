@@ -16,14 +16,14 @@ describe('anchorsOf', () => {
         ])
     })
 
-    it('adds a date no chord sounds at, where a phantom is pencilled in', () => {
+    it('adds a date no chord sounds at, where a guide is pencilled in', () => {
         expect(anchorsOf([dot(0, 50)], new Map([[360, 20]]))).toEqual([
             { date: 0, velocity: 50 },
             { date: 360, velocity: 20 },
         ])
     })
 
-    it('lets a phantom replace the chord at its own date', () => {
+    it('lets a guide replace the chord at its own date', () => {
         expect(anchorsOf([dot(0, 50)], new Map([[0, 20]]))).toEqual([{ date: 0, velocity: 20 }])
     })
 
@@ -44,7 +44,7 @@ describe('nearestAnchor', () => {
         expect(nearestAnchor(anchors, 180, 100)).toBeUndefined()
     })
 
-    it('reaches a phantom exactly as it reaches a chord', () => {
+    it('reaches a guide exactly as it reaches a chord', () => {
         expect(nearestAnchor(anchors, 340, 400)).toEqual({ date: 360, velocity: 20 })
     })
 })

@@ -1,11 +1,11 @@
 /**
  * The guides of the dynamics curve, moved with the expansions of velocity.
  *
- * A guide — a phantom velocity of `InsertDynamicsInstructions` — is a value the curve has to pass
- * through, set on the plot of the velocities as the chain left them: after every `Expand`. So it
- * is a value on the expanded scale, and when an expansion comes or goes, the scale changes under
- * it. Left where it was, a guide set beside the softest notes would end up far above or below
- * them. Moved with the scale, it stays beside them.
+ * A guide — one of the `guides` of `InsertDynamicsInstructions` — is a value the curve has to
+ * pass through, set on the plot of the velocities as the chain left them: after every `Expand`.
+ * So it is a value on the expanded scale, and when an expansion comes or goes, the scale changes
+ * under it. Left where it was, a guide set beside the softest notes would end up far above or
+ * below them. Moved with the scale, it stays beside them.
  *
  * Done here, when a call is added or removed, rather than in the chain: the work file keeps
  * stating each guide as the value the curve passes through, which is what a reader of it expects
@@ -90,7 +90,7 @@ export const followExpansions = (before: readonly Call[], after: readonly Call[]
 
     return after.map((call) => {
         if (call.name !== 'InsertDynamicsInstructions') return call;
-        const guides = call.options.phantomVelocities;
+        const guides = call.options.guides;
         if (!(guides instanceof Map) || guides.size === 0) return call;
         const scope = call.options.scope ?? 'global';
 
@@ -109,6 +109,6 @@ export const followExpansions = (before: readonly Call[], after: readonly Call[]
             if (next !== value) changed = true;
             moved.set(date, next);
         }
-        return changed ? { ...call, options: { ...call.options, phantomVelocities: moved } } : call;
+        return changed ? { ...call, options: { ...call.options, guides: moved } } : call;
     });
 };

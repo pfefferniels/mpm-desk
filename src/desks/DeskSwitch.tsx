@@ -682,7 +682,7 @@ export const correspondingDesks: DeskEntry[] = [
             summary:
                 'One dot per recorded velocity per chord, with the fitted dynamics curves over ' +
                 'them and a grey ghost where a velocity was corrected by hand. A curve is fitted ' +
-                'between two anchors: a chord onset, or a phantom velocity pencilled in on the ' +
+                'between two anchors: a chord onset, or a guide pencilled in on the ' +
                 'grid where the recording sounds nothing.',
             actions: [
                 { gesture: 'Hover a dot', does: 'sound the chord there' },
@@ -693,18 +693,18 @@ export const correspondingDesks: DeskEntry[] = [
                     edits: true,
                 },
                 {
-                    gesture: 'Click a dot in Phantom mode',
-                    does: 'pencil in a phantom velocity there',
+                    gesture: 'Click a dot in Guide mode',
+                    does: 'pencil in a guide there',
                     edits: true,
                 },
                 {
-                    gesture: 'Click the plot in Phantom mode',
+                    gesture: 'Click the plot in Guide mode',
                     does: 'pencil one in on the grid, over a rest or inside a held note',
                     edits: true,
                 },
-                { gesture: 'Click a phantom', does: 'pick it for ↑ ↓', edits: true },
-                { gesture: '↑ ↓', does: 'nudge the phantom last picked by one', edits: true },
-                { gesture: 'Shift+Alt-click a phantom', does: 'remove it', edits: true },
+                { gesture: 'Click a guide', does: 'pick it for ↑ ↓', edits: true },
+                { gesture: '↑ ↓', does: 'nudge the guide last picked by one', edits: true },
+                { gesture: 'Shift+Alt-click a guide', does: 'remove it', edits: true },
                 { gesture: 'Click a curve', does: 'select the call that wrote it' },
                 {
                     gesture: 'Backspace',

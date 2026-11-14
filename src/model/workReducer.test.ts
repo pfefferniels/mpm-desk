@@ -27,8 +27,8 @@ import type { Resolution } from '../alignment/readings';
 
 /** A `Set`-valued option, held so the tests can ask for it by identity. */
 const aspects = new Set(['relativeDuration']);
-/** A `Map`-valued option, likewise — `InsertDynamicsInstructions`' phantom velocities. */
-const phantoms = new Map([['note_12', 64]]);
+/** A `Map`-valued option, likewise — `InsertDynamicsInstructions`' guides. */
+const guides = new Map([['note_12', 64]]);
 
 /**
  * Four calls, one of each envelope-bearing option.
@@ -51,7 +51,7 @@ const base = (): WorkFile =>
                 options: { aspects },
                 elements: ['articulation_0'],
             },
-            { id: 'd', name: 'InsertDynamicsInstructions', options: { phantoms } },
+            { id: 'd', name: 'InsertDynamicsInstructions', options: { guides } },
         ],
     });
 
@@ -281,7 +281,7 @@ describe('the option envelopes', () => {
         const after = actions.reduce(workReducer, base());
 
         expect(byId(after, 'c').options['aspects']).toBe(aspects);
-        expect(byId(after, 'd').options['phantoms']).toBe(phantoms);
+        expect(byId(after, 'd').options['guides']).toBe(guides);
     });
 
     it('never writes to the state it was handed', () => {

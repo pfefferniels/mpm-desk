@@ -79,18 +79,75 @@ describe('the work file', () => {
   });
 
   /**
+   * Until November 2026 the guides of a dynamics curve were saved as `phantomVelocities`. A file
+   * that names them so is read as if it named them `guides`, where they stood among the options,
+   * so the next save differs from it by the name alone.
+   */
+  test('reads the guides an older file saved as phantom velocities', () => {
+    const older = JSON.stringify({
+      ...work,
+      provenance: [
+        {
+          ...call('InsertDynamicsInstructions', {}),
+          options: {
+            from: 0,
+            to: 2880,
+            phantomVelocities: { dataType: 'Map', value: [[720, 35]] },
+            scope: 'global',
+          },
+        },
+        rubato(),
+      ],
+    });
+    const read = parseWorkFile(older);
+    const options = at(read.provenance, 0, 'call').options;
+
+    expect(Object.keys(options)).toEqual(['from', 'to', 'guides', 'scope']);
+    expect(options['guides']).toEqual(new Map([[720, 35]]));
+    expect(at(read.provenance, 1, 'call')).toEqual(rubato());
+
+    const written = serializeWorkFile(read);
+    expect(written).not.toContain('phantomVelocities');
+    expect(written).toBe(
+      serializeWorkFile(JSON.parse(older.replace('phantomVelocities', 'guides')) as WorkFile),
+    );
+  });
+
+  test('keeps the guides of a call that names both', () => {
+    const both = JSON.stringify(
+      file([
+        call('InsertDynamicsInstructions', {
+          guides: { dataType: 'Map', value: [[720, 35]] },
+          phantomVelocities: { dataType: 'Map', value: [[720, 99]] },
+        }),
+      ]),
+    );
+    const options = at(parseWorkFile(both).provenance, 0, 'call').options;
+
+    expect(options).not.toHaveProperty('phantomVelocities');
+    expect(options['guides']).toEqual(new Map([[720, 35]]));
+  });
+
+  test('leaves an option of that name alone on any other call', () => {
+    const other = JSON.stringify(file([call('InsertRubato', { phantomVelocities: 1 })]));
+    expect(at(parseWorkFile(other).provenance, 0, 'call').options).toEqual({
+      phantomVelocities: 1,
+    });
+  });
+
+  /**
    * The `Map` and `Set` envelopes, which are the whole reason these are not `JSON.parse` and
    * `JSON.stringify` at the call site.
    *
    * A reviver without a matching replacer turns every envelope in the shipped file into `{}` —
-   * and `{}` has no `.get`, so the first phantom velocity read throws somewhere else entirely.
+   * and `{}` has no `.get`, so the first guide read throws somewhere else entirely.
    * The espressivo tests never pinned this; the shipped reconstruction holds 87 of them.
    */
   test('a Set and a Map option survive the round trip as themselves', () => {
     const written = serializeWorkFile(
       file([
         call('InsertArticulation', { aspects: new Set(['relativeDuration', 'relativeVelocity']) }),
-        call('InsertDynamicsInstructions', { phantomVelocities: new Map([['n1', 64]]) }),
+        call('InsertDynamicsInstructions', { guides: new Map([['n1', 64]]) }),
       ]),
     );
 
@@ -102,7 +159,7 @@ describe('the work file', () => {
     expect(at(provenance, 0, 'call').options['aspects']).toEqual(
       new Set(['relativeDuration', 'relativeVelocity']),
     );
-    expect(at(provenance, 1, 'call').options['phantomVelocities']).toEqual(new Map([['n1', 64]]));
+    expect(at(provenance, 1, 'call').options['guides']).toEqual(new Map([['n1', 64]]));
   });
 
   test('names the recordings the chain chose between', () => {

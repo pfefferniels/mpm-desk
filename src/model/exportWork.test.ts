@@ -384,7 +384,7 @@ describe('buildWorkArchive', () => {
     it('carries the `Map` and `Set` options through the round trip', async () => {
         // The envelope handling is the reason `serializeWorkFile` exists. Written with plain
         // `JSON.stringify`, both of these arrive back as `{}` — and `{}` has no `.get`, so the
-        // failure surfaces the next time a phantom velocity is read, somewhere else entirely.
+        // failure surfaces the next time a guide is read, somewhere else entirely.
         const zip = await readBack(
             await buildWorkArchive(
                 input({
@@ -397,7 +397,7 @@ describe('buildWorkArchive', () => {
                         {
                             id: 'b',
                             name: 'InsertDynamicsInstructions',
-                            options: { phantoms: new Map([[720, 64]]) },
+                            options: { guides: new Map([[720, 64]]) },
                         },
                     ],
                     outcomes: [],
@@ -407,7 +407,7 @@ describe('buildWorkArchive', () => {
         const work = parseWorkFile(await entry(zip, 'work.json'));
 
         expect(work.provenance[0].options['aspects']).toEqual(new Set(['relativeDuration']));
-        expect(work.provenance[1].options['phantoms']).toEqual(new Map([[720, 64]]));
+        expect(work.provenance[1].options['guides']).toEqual(new Map([[720, 64]]));
     });
 
     it('names the file after the reconstruction, or `Reconstruction` where it has no name', async () => {
