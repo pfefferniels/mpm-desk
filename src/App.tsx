@@ -11,6 +11,7 @@ import React, {
 import JSZip from 'jszip';
 import { Alert, Box, Snackbar } from '@mui/material';
 import { convertMeiToMsm } from 'espressivo';
+import { performanceReading } from './mei/performanceReading';
 // Populates the transformer registry for this thread. Stated at the editor's own root rather
 // than left to whichever module happens to be imported first: the registry is module-level
 // state, and a chain reconstructed before it is populated silently loses every call it cannot
@@ -253,7 +254,9 @@ export const App = ({ mode = 'edit' }: AppProps) => {
      */
     const readMei = useCallback((content: string) => {
         setMEI(content);
-        const movement = convertMeiToMsm(content)[0];
+        // The reading that was played, which is the one verovio engraves and the one every
+        // `<when>` points into; see `performanceReading`.
+        const movement = convertMeiToMsm(performanceReading(content))[0];
         if (!movement) {
             setMessage({ text: 'The MEI holds no convertible movement.', severity: 'error' });
             return;
