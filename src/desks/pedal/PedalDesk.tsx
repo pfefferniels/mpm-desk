@@ -12,7 +12,7 @@ import { asMIDI } from "../../utils/utils"
 import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { filterMap } from "espressivo"
 import { PedalGutter, TickScale } from "./PedalAxes"
-import { GUTTER_WIDTH, LANE_HEIGHT, MOVEMENT_TOP, pedalPlot, rowY } from "./layout"
+import { GUTTER_WIDTH, LANE_HEIGHT, MOVEMENT_TOP, PLOT_TOP, pedalPlot, rowY } from "./layout"
 
 /**
  * The pedal desk: each recorded press as the line it drew, on the tick grid, with the movements
@@ -97,7 +97,7 @@ export const PedalDesk = ({ msm, mpm, residual, addTransformer }: ScopedTransfor
                                 <g key={`chord_${date}`}>
                                     <line
                                         x1={date * stretchX}
-                                        y1={0}
+                                        y1={PLOT_TOP}
                                         x2={date * stretchX}
                                         y2={MOVEMENT_TOP}
                                         stroke='black'

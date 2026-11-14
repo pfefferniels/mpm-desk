@@ -5,7 +5,7 @@
  * Greyed rather than hidden, which is the rule `ToolbarButton` records for the toolbar — a control
  * that disappears leaves the reader to guess what makes it come back.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AspectSelect } from './AspectSelect';
 import { correspondingDesks, type DocumentFacts } from '../desks/DeskSwitch';
@@ -28,7 +28,7 @@ const rowNamed = (aspect: string) => {
     };
 };
 
-const mount = (facts: Partial<DocumentFacts>, aspect = 'source choice') => {
+const mount = (facts: Partial<DocumentFacts>, aspect = 'Base Text') => {
     const setSelectedDesk = vi.fn();
     const { container } = render(
         <AspectSelect
@@ -50,7 +50,24 @@ describe('the aspect menu', () => {
         expect(icon).toBeNull();
 
         fireEvent.click(row!);
-        expect(setSelectedDesk).toHaveBeenCalledWith('source choice');
+        expect(setSelectedDesk).toHaveBeenCalledWith('Base Text');
+    });
+
+    it('names a desk of its own aspect as the app bar does, and marks it when it is open', () => {
+        // The bar says `displayName ?? aspect`, and so does `App` when it opens the desk of a call.
+        // A row that said, and sent, the aspect named the desk differently from the bar above it,
+        // and was not marked when a link opened that desk.
+        render(
+            <AspectSelect
+                selectedDesk='Metrical Accentuation'
+                setSelectedDesk={() => {}}
+                documentFacts={FITTED}
+            />,
+        );
+
+        expect(screen.queryByText('accentuation')).not.toBeInTheDocument();
+        expect(rowNamed('Metrical Accentuation').row).toHaveClass('Mui-selected');
+        expect(rowNamed('Base Text').row).not.toHaveClass('Mui-selected');
     });
 
     it('greys out Base Text when there is only one recording, and says why', () => {
@@ -124,6 +141,71 @@ describe('the aspect menu', () => {
     });
 });
 
+/**
+ * A window as narrow as a phone, as far as `matchMedia` can say: every `max-width` query matches
+ * and no other does, which is the one question `breakpoints.down('sm')` asks. jsdom has no
+ * `matchMedia` of its own, and without one the menu takes the window for a wide one.
+ */
+const onAPhone = () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('max-width'),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    }));
+};
+
+describe('the aspect menu on a phone', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    /** Not `mount`, which reads a row, and a menu that starts folded has none to read. */
+    const renderMenu = () => {
+        const setSelectedDesk = vi.fn();
+        render(
+            <AspectSelect
+                selectedDesk='metadata'
+                setSelectedDesk={setSelectedDesk}
+                documentFacts={FITTED}
+            />,
+        );
+        return setSelectedDesk;
+    };
+
+    it('starts folded, where open it would cover most of the desk', () => {
+        onAPhone();
+        renderMenu();
+
+        expect(screen.queryByText('tempo')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Show the aspect list' }));
+        expect(screen.getByText('tempo')).toBeInTheDocument();
+    });
+
+    it('folds again once a desk is picked, so the desk is what is seen', () => {
+        onAPhone();
+        const setSelectedDesk = renderMenu();
+        fireEvent.click(screen.getByRole('button', { name: 'Show the aspect list' }));
+
+        fireEvent.click(screen.getByText('tempo'));
+        expect(setSelectedDesk).toHaveBeenCalledWith('tempo');
+        expect(screen.queryByText('tempo')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Show the aspect list' })).toBeInTheDocument();
+    });
+
+    it('stays open after a pick on a wider window, as it always has', () => {
+        const setSelectedDesk = renderMenu();
+
+        fireEvent.click(screen.getByText('tempo'));
+        expect(setSelectedDesk).toHaveBeenCalledWith('tempo');
+        expect(screen.getByText('rubato')).toBeInTheDocument();
+    });
+});
+
 describe('the viewer’s aspect menu', () => {
     it('leaves out the desks that are the editor’s alone, and keeps the rest', () => {
         render(
@@ -137,11 +219,15 @@ describe('the viewer’s aspect menu', () => {
         );
 
         for (const desk of correspondingDesks) {
-            const listed = screen.queryAllByText(desk.aspect).length > 0;
-            expect(listed, `${desk.aspect} in the viewer's menu`).toBe(
-                // An aspect stays while any desk under it is offered.
-                correspondingDesks.some((other) => other.aspect === desk.aspect && !other.editOnly),
+            // An aspect stays while any desk under it is offered, and a row with one desk under it
+            // says that desk's name.
+            const offered = correspondingDesks.filter(
+                (other) => other.aspect === desk.aspect && !other.editOnly,
             );
+            const label =
+                offered.length === 1 ? (offered[0].displayName ?? desk.aspect) : desk.aspect;
+            const listed = screen.queryAllByText(label).length > 0;
+            expect(listed, `${label} in the viewer's menu`).toBe(offered.length > 0);
         }
         expect(screen.queryByText('alignment')).not.toBeInTheDocument();
     });

@@ -10,6 +10,7 @@ import {
     Stack,
     Typography,
 } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import { PlayArrow, Redo, Save, Stop, Undo, UploadFile, ZoomIn } from '@mui/icons-material';
 import type { Scope } from '../../fitting/instructions/index';
 import type { DeskHelp } from '../../desks/DeskSwitch';
@@ -67,6 +68,28 @@ interface EditorAppBarProps {
 /** How wide the fit indicator's slot is, occupied or not. See the note where it is rendered. */
 const STATUS_WIDTH = 92;
 
+/**
+ * Where the bar is laid out for a phone: below `sm`, which is 600px, so every phone held upright
+ * and none of the windows the bar was drawn for.
+ *
+ * Row one does not fit there as it stands. Its fixed slots alone come to some 430px against a
+ * phone's 390, so the one slot that shrinks, the title, shrank to nothing, and the author, which
+ * does not shrink, spilled out of it over the Play button. Below this the row gives up what a
+ * reader of a phone can spare (see each slot), and what still does not fit scrolls sideways, as
+ * row two always has, rather than shrinking the title away.
+ */
+const PHONE = (theme: Theme) => theme.breakpoints.down('sm');
+
+/** Out of sight and still read out, which is what a word in a live region has to stay. */
+const visuallyHidden = {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+    clip: 'rect(0 0 0 0)',
+    whiteSpace: 'nowrap',
+} as const;
+
 /** One row of the bar. Both rows are this tall, and neither ever changes height — see below. */
 const ROW_HEIGHT = 44;
 
@@ -117,6 +140,10 @@ const ScopeOption = ({ label, note }: { label: string; note?: string }) => (
  * and Play is disabled rather than hidden when there is nothing to hear. A control that mounts
  * and unmounts moves every control to the right of it, and changes the bar's height, which
  * pushes the plot below up and down while you work.
+ *
+ * On a phone a few of those widths are smaller and the author is left out, and the row scrolls
+ * sideways where it still does not fit (see `PHONE`). Each width is still fixed there, and both
+ * rows keep their height.
  *
  * ## In the viewer
  *
@@ -171,7 +198,20 @@ export const EditorAppBar = ({
                 direction="row"
                 alignItems="center"
                 spacing={1}
-                sx={{ minHeight: ROW_HEIGHT, px: 1 }}
+                sx={(theme) => ({
+                    minHeight: ROW_HEIGHT,
+                    px: 1,
+                    // Sideways, as row two does, and only on a phone: on a wider window
+                    // nothing here overflows and a scroll container would only clip. `height`
+                    // as well as `minHeight`, because a scrollbar that takes up room is added
+                    // to an auto height, and this row is not to change it.
+                    [PHONE(theme)]: {
+                        height: ROW_HEIGHT,
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        scrollbarWidth: 'thin',
+                    },
+                })}
             >
                 <Stack
                     direction="row"
@@ -186,7 +226,10 @@ export const EditorAppBar = ({
                     // so no pixel count is ever the right one and the honest question is how much
                     // of the bar it may claim. Truncating is fine: the whole title is one click
                     // away on the metadata desk.
-                    sx={{ minWidth: 0, maxWidth: '30%', flexShrink: 1 }}
+                    //
+                    // On a phone it keeps a few words however little room there is: a title
+                    // squeezed to nothing names no document, and the row scrolls there instead.
+                    sx={{ minWidth: { xs: 64, sm: 0 }, maxWidth: '30%', flexShrink: 1 }}
                 >
                     <Typography variant="subtitle2" noWrap sx={{ minWidth: 0 }}>
                         {metadata.title || 'Untitled'}
@@ -200,7 +243,11 @@ export const EditorAppBar = ({
                             // is short and bounded where a title is neither, and splitting the
                             // squeeze between them spent it on the half that had none to give —
                             // it rendered as `Niel…`, which is worse than absent.
-                            sx={{ flexShrink: 0 }}
+                            //
+                            // And absent is what it is on a phone, where there is room for one of
+                            // the two at most and the title is the one that names the document.
+                            // The author is on the metadata desk with it.
+                            sx={{ flexShrink: 0, display: { xs: 'none', sm: 'block' } }}
                         >
                             {metadata.author}
                         </Typography>
@@ -312,7 +359,17 @@ export const EditorAppBar = ({
 
                 <Divider orientation="vertical" flexItem sx={{ my: 1 }} />
 
-                <ZoomIn fontSize="small" sx={{ color: 'text.disabled', flexShrink: 0 }} />
+                {/* On a phone the slider goes without its magnifier and with less travel. The
+                    slider is named for a screen reader either way, and two fingers zoom the
+                    plot there too (`usePinchZoom`). */}
+                <ZoomIn
+                    fontSize="small"
+                    sx={{
+                        color: 'text.disabled',
+                        flexShrink: 0,
+                        display: { xs: 'none', sm: 'inline-block' },
+                    }}
+                />
                 <Slider
                     size="small"
                     aria-label="Zoom"
@@ -321,7 +378,7 @@ export const EditorAppBar = ({
                     max={ZOOM_MAX}
                     step={ZOOM_STEP}
                     onChange={(_, value) => setStretchX(value as number)}
-                    sx={{ width: 110, flexShrink: 0 }}
+                    sx={{ width: { xs: 64, sm: 110 }, flexShrink: 0 }}
                 />
 
                 <Box sx={{ flexGrow: 1 }} />
@@ -332,12 +389,15 @@ export const EditorAppBar = ({
                     beside it, and this one appears on every gesture. And a live region that is
                     unmounted while idle announces nothing when it comes back — the region has
                     to already be in the accessibility tree for a change inside it to be seen.
+
+                    On a phone the slot is the spinner's width and the word is out of sight,
+                    though not out of the region, which is what is announced.
                 */}
                 <Box
                     role="status"
                     aria-live="polite"
                     sx={{
-                        width: STATUS_WIDTH,
+                        width: { xs: 16, sm: STATUS_WIDTH },
                         flexShrink: 0,
                         display: 'flex',
                         alignItems: 'center',
@@ -349,7 +409,12 @@ export const EditorAppBar = ({
                     {pending && (
                         <>
                             <CircularProgress size={13} color="inherit" />
-                            <Typography variant="caption">refitting</Typography>
+                            <Typography
+                                variant="caption"
+                                sx={(theme) => ({ [PHONE(theme)]: visuallyHidden })}
+                            >
+                                refitting
+                            </Typography>
                         </>
                     )}
                 </Box>

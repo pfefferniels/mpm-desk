@@ -177,11 +177,11 @@ describe('the desk registry', () => {
             // reading of the two fields together catches it.
             //
             // What the menu can emit is likewise read off `AspectSelect`: an aspect with one desk
-            // is a row that sends the aspect, an aspect with several is a row that expands into
-            // one child per display name.
+            // is a row that sends that desk's `displayName ?? aspect`, as the app bar names it, and
+            // an aspect with several is a row that expands into one child per display name.
             const emitted = [...byAspect()].flatMap(([aspect, entries]) =>
                 entries.length === 1
-                    ? [aspect]
+                    ? [entries[0].displayName ?? aspect]
                     : entries.flatMap((entry) =>
                           entry.displayName === undefined ? [] : [entry.displayName],
                       ),

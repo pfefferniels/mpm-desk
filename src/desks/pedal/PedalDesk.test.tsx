@@ -178,12 +178,28 @@ describe('PedalDesk', () => {
         expect(names()).toEqual(expect.arrayContaining(['sustain', 'soft', 'ticks']))
     })
 
+    it('stacks the lanes sustain over soft, as the rows of presses above them', () => {
+        // The reconstruction's MPM mentions soft first, and the lanes used to stack in that order
+        // under rows that put sustain on top.
+        renderDesk([pedal('sustain', 0), pedal('soft', 720)], withMovements('soft', 'sustain'))
+        const top = (selector: string) =>
+            Number(/translate\(0, (\d+)\)/.exec(
+                document.querySelector(selector)?.getAttribute('transform') ?? '',
+            )?.[1])
+
+        expect(top('g.controller_sustain')).toBeLessThan(top('g.controller_soft'))
+        expect(names().filter(name => name === 'sustain' || name === 'soft'))
+            .toEqual(['sustain', 'soft', 'sustain', 'soft'])
+    })
+
     it('draws each press as the line it recorded, at rest along the top of its row', () => {
-        // 720 ticks at a tenth of a pixel each; a row thirty tall, with the stroke reaching its floor.
+        // 720 ticks at a tenth of a pixel each; a row thirty tall, with the stroke reaching its
+        // floor. The first row starts eight below the top, so that its line at rest is not drawn
+        // on the edge of the plot, half of it cut off.
         renderDesk([pedal('sustain', 0)], createMpm())
 
         expect(document.querySelector('polyline[data-line="sustain_0"]')?.getAttribute('points'))
-            .toBe('0,0 0,30 72,30 72,0')
+            .toBe('0,8 0,38 72,38 72,8')
     })
 
     it('writes the line of the press that was clicked, and nothing else', () => {

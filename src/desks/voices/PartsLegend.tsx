@@ -26,6 +26,9 @@ interface PartsLegendProps {
  * The authority on the mapping rather than a key to it: hue alone is not accessible — six
  * categorical hues cannot all be pairwise safe under deuteranopia — so each row states its voices
  * in words, and hovering one dims every other part in the score.
+ *
+ * The desk sets it at the left of the score, out from under the aspect menu; the rule on its right
+ * is the edge between the two.
  */
 export const PartsLegend = ({
     parts,
@@ -41,7 +44,7 @@ export const PartsLegend = ({
         sx={{
             width: 232,
             flexShrink: 0,
-            borderLeft: '1px solid #e5e7eb',
+            borderRight: '1px solid #e5e7eb',
             bgcolor: '#ffffff',
             overflowY: 'auto',
         }}

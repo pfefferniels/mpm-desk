@@ -17,6 +17,7 @@ import { deriveResidual } from '../../fitting/residual';
 import type { Scope } from '../../fitting/instructions/index';
 import type { SecondaryData } from '../TransformerViewProps';
 import { TempoDesk } from './TempoDesk';
+import { VERTICAL_SLIDER_WIDTH } from '../../components/ZoomControls';
 
 /** The skyline hovers a box to audition it, and Tone in jsdom is a slow way to assert nothing. */
 vi.mock('react-pianosound', () => ({
@@ -305,6 +306,67 @@ describe('what the skyline draws in draw mode', () => {
         // The blue polyline the stroke left is on screen already; the preview of what it will
         // become is the other mode's reading.
         expect(document.querySelectorAll('g.tempoLine')).toHaveLength(1);
+        dispose();
+    });
+});
+
+describe('a written curve', () => {
+    /** Two written curves, so that what is each curve's and what is the skyline's can be told apart. */
+    const withTwoTempos = () => {
+        const mpm = withOneTempo();
+        requireMap(mpm, 'tempo', 0).addTempo({
+            date: 720,
+            bpm: 90,
+            transitionTo: 120,
+            meanTempoAt: 0.5,
+            beatLength: 0.25,
+            id: 't2',
+        });
+        return mpm;
+    };
+
+    it('meets the pointer across a band much wider than the line it draws', () => {
+        // Hovering a curve and clicking it to select its call both land here, and the line itself
+        // is two pixels wide.
+        const { dispose } = renderDesk(0, {}, withTwoTempos());
+        const curves = document.querySelectorAll('g.tempoLine');
+        expect(curves).toHaveLength(2);
+
+        for (const curve of curves) {
+            const line = curve.querySelector('polyline:not(.tempoLineHit)')!;
+            const hit = curve.querySelector('polyline.tempoLineHit')!;
+            expect(hit.getAttribute('points')).toBe(line.getAttribute('points'));
+            expect(Number(hit.getAttribute('stroke-width'))).toBeGreaterThanOrEqual(
+                4 * Number(line.getAttribute('stroke-width')),
+            );
+            // Its own `pointer-events` would beat the `none` the skyline sets on the curves' group
+            // under Draw, and a stroke would take the curve it crossed with it.
+            expect(hit).not.toHaveAttribute('pointer-events');
+        }
+        dispose();
+    });
+
+    it('states its flash once for the whole skyline, not once per curve', () => {
+        const { dispose } = renderDesk(0, {}, withTwoTempos());
+        const rules = [...document.querySelectorAll('style')].filter((style) =>
+            style.textContent?.includes('@keyframes tempo-highlight-fade'),
+        );
+        expect(rules).toHaveLength(1);
+        dispose();
+    });
+});
+
+describe('the left edge of the desk', () => {
+    it('stands the BPM scale beside the stretch slider, not under it', () => {
+        const { dispose } = renderDesk(0, {}, withOneTempo());
+        const slider = screen.getByRole('slider', { name: 'Vertical Stretch' });
+        // The box the slider is positioned in, against the desk's left edge.
+        const column = slider.closest('.MuiSlider-root')!.parentElement!;
+        const scale = document.querySelector('line.verticalScale')!.closest('svg')!;
+
+        expect(getComputedStyle(column).left).toBe('0px');
+        expect(getComputedStyle(column).width).toBe(`${String(VERTICAL_SLIDER_WIDTH)}px`);
+        expect(scale.style.left).toBe(`${String(VERTICAL_SLIDER_WIDTH)}px`);
         dispose();
     });
 });
