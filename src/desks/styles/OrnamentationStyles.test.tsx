@@ -152,6 +152,22 @@ describe('the plot', () => {
         expect(screen.getByText('3 ornaments → 2 definitions')).toBeInTheDocument();
     });
 
+    it('sends the editor to fit spreads where the scope holds none', () => {
+        renderDesk();
+
+        expect(screen.getByText(/Fit temporal spreads first/)).toBeInTheDocument();
+    });
+
+    /** A reader of the viewer cannot fit anything, so the editor's remedy is no answer there. */
+    it('tells the viewer what the reconstruction did instead', () => {
+        renderDesk({ editable: false, calls: [style] });
+
+        expect(screen.queryByText(/Fit temporal spreads/)).toBeNull();
+        expect(
+            screen.getByText(/The reconstruction fits no temporal spread in this scope/),
+        ).toBeInTheDocument();
+    });
+
     it('labels the frames in the unit they are in', () => {
         renderDesk({ mpm: fitted(FrameDomain.Milliseconds) });
         expect(screen.getByText('frameLength (ms)')).toBeInTheDocument();

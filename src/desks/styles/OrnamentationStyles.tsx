@@ -72,8 +72,8 @@ const unitOf = (units: readonly FrameDomain[]): string =>
  * Drawn from the document as the chain's `StylizeOrnamentation` call found it (`found`), where
  * there is one. The call moves every frame into an `<ornamentDef>` and clears it off the
  * ornament, so the finished document has no ornament left to place: the reconstruction's 97
- * spreads read as "no ornament here carries a frame". Before the call, and in the editor until
- * Stylize, the two are the same document.
+ * spreads drew as an empty plot. Before the call, and in the editor until Stylize, the two are
+ * the same document.
  *
  * Where there is a call the tolerances are its own, in either mode, so the colours are the
  * definitions it wrote rather than what the sliders would make. In the editor the sliders hold at
@@ -178,11 +178,21 @@ export const OrnamentationStyles = ({ mpm, found, addTransformer, part }: Scoped
             */}
             <Stack direction='row' spacing={4} alignItems='flex-start' sx={{ p: 2 }}>
                 <Box>
+                    {/*
+                        Two sentences, one per mode. Fitting is the editor's remedy and no answer to
+                        a reader of the viewer, who can do nothing about it; there the plot is empty
+                        because the reconstruction made no spread here, and the scope is all that
+                        is theirs to change. Spreads rather than frames in the viewer's version: a
+                        grace note's ornament carries a frame too, in the definition its fitter
+                        wrote directly, and is no candidate for a style.
+                    */}
                     {styles.points.length === 0
                         ? (
                             <Typography color='text.secondary' sx={{ width: 560, py: 4 }}>
-                                No ornament here carries a frame. Fit temporal spreads first, or
-                                look in another scope — this plot shows the scope the bar is set to.
+                                {editable
+                                    ? 'No ornament here carries a frame. Fit temporal spreads first, or look in another scope'
+                                    : 'The reconstruction fits no temporal spread in this scope, so it has no ornament here to cluster. Look in another'}
+                                {' — this plot shows the scope the bar is set to.'}
                             </Typography>
                         )
                         : (
