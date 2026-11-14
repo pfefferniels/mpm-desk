@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePiano } from "../../performance/piano";
+import { usePiano, whenSamplesArrive, type Piano } from "../../performance/piano";
 import type { AnyEvent } from "midifile-ts";
 import {
     midiFileOf,
@@ -51,6 +51,11 @@ export interface Playback {
     /** Whether the range still covers the whole performance */
     whole: boolean;
     playing: boolean;
+    /**
+     * A press was refused because the samples were still coming, and starts by itself once
+     * they are here; `stop` cancels it
+     */
+    pending: boolean;
     play: () => void;
     stop: () => void;
     /**
@@ -87,6 +92,16 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
      */
     const [chosen, setChosen] = useState<{ of: number; range: [number, number] }>();
     const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+    /**
+     * What cancels a press that is waiting for the samples. Stop, another press,
+     * another performance and leaving the desk all go through `stop`, which calls it.
+     */
+    const pending = useRef<(() => void) | null>(null);
+    const [waiting, setWaiting] = useState(false);
+    // The latest `stop`, for the timer and the effect below, which call it later
+    // than the render they were made in: `usePiano` hands back a new object on
+    // every render, and an earlier render's `stop` holds a piano since replaced.
+    const latest = useRef<() => void>(() => {});
 
     const durationMs = useMemo(
         () => notes.reduce((longest, note) => Math.max(longest, note.offsetMs), 0),
@@ -97,11 +112,27 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         chosen && chosen.of === durationMs ? chosen.range : [0, durationMs];
 
     const stop = () => {
+        pending.current?.();
+        pending.current = null;
+        setWaiting(false);
         clearTimeout(timer.current);
         timer.current = undefined;
         piano.stop();
         setPlaying(false);
         clearHighlights();
+    };
+
+    /** Light the note a sounding event belongs to, wherever it is drawn */
+    const light = (event: AnyEvent) => {
+        if (event.type !== "meta" || event.subtype !== "text" || !("text" in event)) return;
+
+        const id = (event as AnyEvent & { text: string }).text;
+        const element = elementFor ? elementFor(id) : byDataId(id);
+        if (!element) return;
+
+        element.classList.add(PLAYING_CLASS);
+        element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        setTimeout(() => element.classList.remove(PLAYING_CLASS), HIGHLIGHT_MS);
     };
 
     const play = () => {
@@ -112,36 +143,36 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         if (playable.length === 0) return;
 
         stop();
-        // Refused while the samples are still coming, and the first press is what sends for
-        // them: the button stays Play and shows the download rather than going to Stop over
-        // silence
         const file = midiFileOf(playable, pedals, { fromMs, toMs });
-        const schedule = piano.play(file, (event: AnyEvent) => {
-            if (event.type !== "meta" || event.subtype !== "text" || !("text" in event)) return;
-
-            const id = (event as AnyEvent & { text: string }).text;
-            const element = elementFor ? elementFor(id) : byDataId(id);
-            if (!element) return;
-
-            element.classList.add(PLAYING_CLASS);
-            element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-            setTimeout(() => element.classList.remove(PLAYING_CLASS), HIGHLIGHT_MS);
-        });
-        if (!schedule) return;
-        setPlaying(true);
-
         // The transport runs on after the last note, so the end of the sound is
         // worked out here rather than waited for - otherwise the button stays on
         // "Stop" for a performance that finished a minute ago
         const last = playable.reduce((end, note) => Math.max(end, note.offsetMs), fromMs);
-        timer.current = setTimeout(stop, last - fromMs + TAIL_MS);
+
+        const start = (ready: Piano) => {
+            if (!ready.play(file, light)) return false;
+            setPlaying(true);
+            timer.current = setTimeout(() => latest.current(), last - fromMs + TAIL_MS);
+            return true;
+        };
+        if (start(piano)) return;
+
+        // Refused while the samples are still coming, and the first press is what sends for
+        // them. It starts by itself once they are here, rather than taking a second press,
+        // unless `stop` has cancelled it by then
+        const cancel = whenSamplesArrive((arrived) => {
+            pending.current = null;
+            setWaiting(false);
+            start(arrived);
+        });
+        if (!cancel) return;
+        pending.current = cancel;
+        setWaiting(true);
     };
 
-    // Leaving the page, or loading another performance, has to silence this one.
-    // Held through a ref because `usePiano` hands back a new object on every
-    // render, and an effect keyed on that would stop the sound as fast as it
-    // started.
-    const latest = useRef(stop);
+    // Leaving the page, or loading another performance, has to silence this one,
+    // and drop a press still waiting to start. Through `latest`, because an
+    // effect keyed on `stop` would stop the sound as fast as it started.
     useEffect(() => {
         latest.current = stop;
     });
@@ -153,6 +184,7 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         setRange: (range) => setChosen({ of: durationMs, range }),
         whole: range[0] === 0 && range[1] === durationMs,
         playing,
+        pending: waiting,
         play,
         stop,
         status: piano.status,

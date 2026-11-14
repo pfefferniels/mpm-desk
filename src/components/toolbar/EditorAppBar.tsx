@@ -174,7 +174,7 @@ export const EditorAppBar = ({
     onOpen,
 }: EditorAppBarProps) => {
     const { metadata, undo, redo, canUndo, canRedo } = useWorkDocument();
-    const { isPlaying, play, stop } = usePlayback();
+    const { isPlaying, isPending, play, stop } = usePlayback();
     const samples = useSampleLoading();
     const { stretchX, setStretchX } = useZoom();
     const editable = useEditable();
@@ -296,17 +296,18 @@ export const EditorAppBar = ({
                 {/* Stop, not Pause: `PlaybackProvider` has no pause, and the button used to
                     show one for a handler that called `stop()`. And rendered always rather
                     than only when the MPM has something in it — a control that disappears
-                    teaches nothing about why it is unavailable. */}
+                    teaches nothing about why it is unavailable. A press waiting for the
+                    samples is stopped like a sounding one, so the button offers Stop for it. */}
                 <ToolbarButton
                     icon={
                         samples.loading
                             ? <SampleProgress size={18} />
                             : isPlaying ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />
                     }
-                    label={isPlaying ? 'Stop' : 'Play'}
+                    label={isPlaying || isPending ? 'Stop' : 'Play'}
                     tooltip={
                         samples.loading || samples.failed
-                            ? sampleLoadingHint(samples)
+                            ? sampleLoadingHint(samples, isPending)
                             : canPlay
                                 ? isPlaying
                                     ? 'Stop (Space)'
@@ -315,7 +316,7 @@ export const EditorAppBar = ({
                     }
                     disabled={!canPlay || samples.failed}
                     onClick={() => {
-                        if (isPlaying) stop();
+                        if (isPlaying || isPending) stop();
                         else play();
                     }}
                 />

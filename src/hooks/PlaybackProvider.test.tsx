@@ -5,7 +5,7 @@
  * and that file carries one text meta event per note-on naming the note — which is how the editor
  * follows the playhead.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { act, useEffect } from 'react'
@@ -22,10 +22,33 @@ import { PlaybackProvider, usePlayback } from './PlaybackProvider'
 // and the sampler is idempotent — so the splice logic is genuinely exercised, not stubbed out.
 let rig = createFakePiano()
 
+type RigPiano = ReturnType<typeof rig.usePiano>
+
+/**
+ * Whether the samples are still coming, and the presses waiting for them: the contract
+ * `performance/piano` keeps, played out here so that the rig can stand behind it. While they are
+ * coming the piano refuses, as the real one does.
+ */
+const samples = { loading: false, waiting: new Set<(piano: RigPiano) => void>() }
+
 vi.mock('../performance/piano', async (importOriginal) => ({
     ...await importOriginal<typeof import('../performance/piano')>(),
-    usePiano: () => rig.usePiano(),
+    usePiano: () => samples.loading
+        ? { ...rig.usePiano(), status: 'loading', play: () => null }
+        : rig.usePiano(),
+    whenSamplesArrive: (start: (piano: RigPiano) => void) => {
+        if (!samples.loading) return null
+        samples.waiting.add(start)
+        return () => { samples.waiting.delete(start) }
+    },
 }))
+
+const samplesArrive = () => {
+    samples.loading = false
+    const starts = [...samples.waiting]
+    samples.waiting.clear()
+    for (const start of starts) start(rig.usePiano())
+}
 
 const played = () => rig.played[rig.played.length - 1] ?? null
 
@@ -34,15 +57,19 @@ const performanceMpm = readFileSync('src/test/fixtures/performance.mpm', 'utf-8'
 const dateByNoteId = readNoteDates(scoreMsm)
 
 let play: ReturnType<typeof usePlayback>['play'] | null = null
+let stop: ReturnType<typeof usePlayback>['stop'] | null = null
 let setExaggeration: ReturnType<typeof usePlayback>['setExaggeration'] | null = null
 /** What the transport button reads to decide between Play and Stop. */
 let isPlaying = false
+let isPending = false
 
 const Capture = () => {
     const playback = usePlayback()
     useEffect(() => { play = playback.play }, [playback.play])
+    useEffect(() => { stop = playback.stop }, [playback.stop])
     useEffect(() => { setExaggeration = playback.setExaggeration }, [playback.setExaggeration])
     useEffect(() => { isPlaying = playback.isPlaying }, [playback.isPlaying])
+    useEffect(() => { isPending = playback.isPending }, [playback.isPending])
     return null
 }
 
@@ -158,6 +185,76 @@ describe('the zoom', () => {
 
         expect(zoomedOut).toHaveLength(wide.length)
         expect(zoomedOut).not.toEqual(wide)
+    })
+})
+
+describe('a press of play made while the samples are still coming', () => {
+    beforeEach(() => {
+        rig = createFakePiano()
+        play = null
+        stop = null
+        samples.loading = true
+        samples.waiting.clear()
+        vi.spyOn(console, 'log').mockImplementation(() => { })
+    })
+
+    afterEach(() => {
+        samples.loading = false
+    })
+
+    // The first press on a visit is what sends for the samples. It used to be refused like any
+    // other made while they loaded, and hearing anything took a second press.
+    it('waits for them, and then starts by itself', async () => {
+        const unmount = await mount()
+        act(() => { play!() })
+
+        expect(rig.played).toHaveLength(0)
+        expect(isPlaying).toBe(false)
+        expect(isPending).toBe(true)
+
+        act(() => { samplesArrive() })
+
+        expect(rig.played).toHaveLength(1)
+        expect(isPlaying).toBe(true)
+        expect(isPending).toBe(false)
+
+        await unmount()
+    })
+
+    it('never starts once stopped meanwhile', async () => {
+        const unmount = await mount()
+        act(() => { play!() })
+        act(() => { stop!() })
+        expect(isPending).toBe(false)
+
+        act(() => { samplesArrive() })
+
+        expect(rig.played).toHaveLength(0)
+        expect(isPlaying).toBe(false)
+
+        await unmount()
+    })
+
+    it('starts once, however often it was pressed', async () => {
+        const unmount = await mount()
+        act(() => { play!() })
+        act(() => { play!() })
+
+        act(() => { samplesArrive() })
+
+        expect(rig.played).toHaveLength(1)
+
+        await unmount()
+    })
+
+    it('never starts once the provider has gone', async () => {
+        const unmount = await mount()
+        act(() => { play!() })
+        await unmount()
+
+        act(() => { samplesArrive() })
+
+        expect(rig.played).toHaveLength(0)
     })
 })
 

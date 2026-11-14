@@ -22,11 +22,12 @@ interface PlaybackBarProps {
 }
 
 export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => {
-    const { durationMs, range, setRange, whole, playing, play, stop, status } = playback;
+    const { durationMs, range, setRange, whole, playing, pending, play, stop, status } = playback;
     const samples = useSampleLoading();
-    // Not `status !== "done"`: until something has asked for sound the piano has not begun to
-    // fetch at all, and pressing this is one of the ways to ask.
-    const waiting = status === "loading" || status === "error";
+    // Only once the samples have failed. Until something has asked for sound the piano has not
+    // begun to fetch at all, and pressing this is one of the ways to ask; while they load, a
+    // press waits for them, and pressing again cancels it.
+    const failed = status === "error";
 
     if (durationMs === 0) return null;
 
@@ -34,11 +35,11 @@ export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => 
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <IconButton
                 color="primary"
-                onClick={playing ? stop : play}
-                disabled={waiting}
+                onClick={playing || pending ? stop : play}
+                disabled={failed}
                 title={
                     samples.loading || samples.failed
-                        ? sampleLoadingHint(samples)
+                        ? sampleLoadingHint(samples, pending)
                         : playing
                           ? "Stop"
                           : `Play ${clock(range[0])} to ${clock(range[1])}`
@@ -58,7 +59,7 @@ export const PlaybackBar = ({ playback, width = "14rem" }: PlaybackBarProps) => 
                     valueLabelDisplay="auto"
                     valueLabelFormat={clock}
                     disableSwap
-                    disabled={waiting}
+                    disabled={failed}
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ mt: -0.5 }}>
                     {whole

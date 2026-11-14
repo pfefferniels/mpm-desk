@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
-import { usePiano } from '../performance/piano';
+import { usePiano, whenSamplesArrive, type Piano } from '../performance/piano';
 import type { AnyEvent } from 'midifile-ts';
 import { renderCached, type RenderRequest, type Rendered } from '../utils/espressivo';
 import { UNIDENTIFIED_NOTE, pickAnchor } from '../utils/anchor';
@@ -68,6 +68,11 @@ type NoteEventListener = (event: PlaybackNoteEvent) => void;
 
 interface PlaybackContextValue {
     isPlaying: boolean;
+    /**
+     * A press of play was refused because the samples were still coming, and will start by itself
+     * once they are here. `stop()` cancels it, and a transport offers Stop meanwhile.
+     */
+    isPending: boolean;
     play: (options?: PlayOptions) => void;
     stop: () => void;
     exaggeration: number;
@@ -99,6 +104,20 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
     const editable = useEditable();
     const [isPlaying, setIsPlaying] = useState(false);
     const [exaggeration, setExaggeration] = useState(1.0);
+
+    /**
+     * The documents a press that is waiting for the samples was made for.
+     *
+     * It is pending only while they are still the documents playback has. A press made for one
+     * document does not start on another, and holding what it was made for is how an edit made
+     * meanwhile cancels it, without an effect to notice the edit.
+     */
+    const [pending, setPending] = useState<{ msm: string; mpm: string } | null>(null);
+    const cancelPendingRef = useRef<(() => void) | null>(null);
+    const isPending = pending !== null
+        && pending.msm === scoreMsm
+        && pending.mpm === performanceMpm
+        && piano.status !== 'error';
 
     /**
      * How loose the zoom makes the rendering: in the editor only.
@@ -137,7 +156,18 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
         };
     }, []);
 
+    /** Drop a press that is waiting for the samples, so that it never starts. */
+    const cancelPending = useCallback(() => {
+        cancelPendingRef.current?.();
+        cancelPendingRef.current = null;
+        setPending(null);
+    }, []);
+
+    // Nothing may start once the provider is gone.
+    useEffect(() => () => cancelPendingRef.current?.(), []);
+
     const stop = useCallback(() => {
+        cancelPending();
         pianoRef.current.stop();
         setIsPlaying(false);
         isPlayingRef.current = false;
@@ -151,7 +181,7 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
             clearTimeout(stopTimerRef.current);
             stopTimerRef.current = null;
         }
-    }, [pianoRef]);
+    }, [cancelPending, pianoRef]);
 
     /**
      * The one note listener, shared by the initial play and every later splice — a spliced-in
@@ -190,14 +220,14 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
      * knob rescales time under a running piece, so how long is left is a property of the rendering
      * that is playing rather than of the click that started it.
      */
-    const armStop = useCallback((endMs: number | undefined) => {
+    const armStop = useCallback((endMs: number | undefined, piano: Piano = pianoRef.current) => {
         if (stopTimerRef.current) {
             clearTimeout(stopTimerRef.current);
             stopTimerRef.current = null;
         }
         if (endMs === undefined) return;
-        const { offset } = pianoRef.current.getSchedule() ?? { offset: 0 };
-        const left = endMs + offset * 1000 - pianoRef.current.getTransportSeconds() * 1000;
+        const { offset } = piano.getSchedule() ?? { offset: 0 };
+        const left = endMs + offset * 1000 - piano.getTransportSeconds() * 1000;
         stopTimerRef.current = setTimeout(() => {
             stopTimerRef.current = null;
             stop();
@@ -212,28 +242,60 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
      * The transport still restarts, so there is a short hole in the rhythm, but nothing is damped:
      * no `stopAll()` is called on the way through, so the sounding notes ring on. Re-striking the
      * note it lands on is a no-op while that note is still held.
+     *
+     * Returns whether it started. The piano refuses while its samples are still coming, and the
+     * one it is handed is the one to play on: a press that waited for them gets the piano that
+     * arrived, where `pianoRef` still holds the one that refused.
      */
-    const startPlayback = useCallback((options: PlayOptions | undefined, resume: Rendered | null) => {
+    const startPlayback = useCallback((
+        options: PlayOptions | undefined,
+        resume: Rendered | null,
+        piano: Piano = pianoRef.current,
+    ): boolean => {
         try {
             const rendered = resume ?? renderCached(buildRequest(options));
             const noteId = resume ? lastNoteIdRef.current : null;
-            if (!pianoRef.current.play(rendered.file, noteListener)) return;
+            if (!piano.play(rendered.file, noteListener)) return false;
             const startMs = noteId === null ? undefined : rendered.noteIds.get(noteId);
-            if (startMs !== undefined) pianoRef.current.jumpTo(startMs / 1000);
+            if (startMs !== undefined) piano.jumpTo(startMs / 1000);
             setIsPlaying(true);
             isPlayingRef.current = true;
-            armStop(endOfPlayback(rendered));
+            armStop(endOfPlayback(rendered), piano);
+            return true;
         } catch (error) {
             console.error('Playback error:', error);
+            return false;
         }
     }, [armStop, buildRequest, noteListener, pianoRef]);
 
+    /**
+     * Play from the top, now or, when the samples are still coming, as soon as they are here.
+     *
+     * The first press on a visit is the one that sends for them, and it used to be refused like
+     * any other while they loaded, so hearing anything took a second press nothing asked for. It
+     * now waits instead, and starts by itself unless something cancels it first: `stop()`, another
+     * press, a change of document, or the provider going away.
+     */
     const play = useCallback((options?: PlayOptions) => {
+        cancelPending();
         lastNoteIdRef.current = null;
         playOptionsRef.current = options;
         lastUpdateRef.current = Date.now();
-        startPlayback(options, null);
-    }, [startPlayback]);
+        if (startPlayback(options, null)) return;
+
+        const msm = scoreMsmRef.current;
+        const mpm = performanceMpmRef.current;
+        const cancel = whenSamplesArrive((arrived) => {
+            cancelPendingRef.current = null;
+            setPending(null);
+            if (scoreMsmRef.current !== msm || performanceMpmRef.current !== mpm) return;
+            lastUpdateRef.current = Date.now();
+            startPlayback(options, null, arrived);
+        });
+        if (!cancel) return;
+        cancelPendingRef.current = cancel;
+        setPending({ msm, mpm });
+    }, [cancelPending, performanceMpmRef, scoreMsmRef, startPlayback]);
 
     /**
      * Swap in a rendering at the new knob position without stopping the transport.
@@ -328,12 +390,13 @@ export const PlaybackProvider = ({ scoreMsm, performanceMpm, dateByNoteId, child
 
     const value = useMemo(() => ({
         isPlaying,
+        isPending,
         play,
         stop,
         exaggeration,
         setExaggeration,
         subscribeNoteEvents,
-    }), [isPlaying, play, stop, exaggeration, subscribeNoteEvents]);
+    }), [isPlaying, isPending, play, stop, exaggeration, subscribeNoteEvents]);
 
     return (
         <PlaybackContext value={value}>

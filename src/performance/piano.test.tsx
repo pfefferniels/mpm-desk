@@ -8,11 +8,17 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { useEffect, type ReactNode } from 'react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import type { MidiFile } from 'midifile-ts';
 
 let status: 'loading' | 'done' | 'error' | undefined;
+const statusListeners = new Set<() => void>();
+/** The library's piano saying something new, as its provider does when the download moves on. */
+const report = (next: typeof status) => {
+    status = next;
+    statusListeners.forEach((listener) => listener());
+};
 const play = vi.fn(() => null);
 const playSingleNote = vi.fn();
 /** How often the library's provider has mounted, which is when the real one starts the download. */
@@ -25,7 +31,20 @@ vi.mock('react-pianosound', () => ({
         }, []);
         return children;
     },
-    usePiano: () => ({ status, play, playSingleNote, stop: vi.fn() }),
+    usePiano: () => ({
+        status: useSyncExternalStore(
+            (listener) => {
+                statusListeners.add(listener);
+                return () => {
+                    statusListeners.delete(listener);
+                };
+            },
+            () => status,
+        ),
+        play,
+        playSingleNote,
+        stop: vi.fn(),
+    }),
 }));
 
 /**
@@ -50,7 +69,10 @@ beforeEach(async () => {
     playSingleNote.mockClear();
 }, 20000);
 
-/** A transport, and a gesture that auditions, which are the two ways there are to ask. */
+/**
+ * The two ways there are to ask: a file played, as a transport or a desk's hover plays one, and a
+ * single note auditioned.
+ */
 const Transport = () => {
     const { play: start, playSingleNote: audition } = piano.usePiano();
     const { loading } = piano.useSampleLoading();
@@ -157,5 +179,56 @@ describe('the piano once it has been sent for', () => {
 
         expect(play).toHaveBeenCalledTimes(1);
         expect(screen.getByText('not loading')).toBeInTheDocument();
+    });
+});
+
+describe('once the samples arrive', () => {
+    it('starts a press that waited for them, with the piano that can sound it', () => {
+        status = 'loading';
+        mount();
+        press('play');
+        const start = vi.fn();
+        expect(piano.whenSamplesArrive(start)).not.toBeNull();
+
+        act(() => report('done'));
+
+        expect(start).toHaveBeenCalledTimes(1);
+        expect(start).toHaveBeenCalledWith(expect.objectContaining({ status: 'done', play }));
+    });
+
+    it('does not start one that was cancelled meanwhile', () => {
+        status = 'loading';
+        mount();
+        press('play');
+        const start = vi.fn();
+        const cancel = piano.whenSamplesArrive(start);
+
+        cancel?.();
+        act(() => report('done'));
+
+        expect(start).not.toHaveBeenCalled();
+    });
+
+    it('has nothing to wait for before anything has asked, or once they have failed', () => {
+        mount();
+        expect(piano.whenSamplesArrive(vi.fn())).toBeNull();
+
+        status = 'error';
+        press('play');
+        expect(piano.whenSamplesArrive(vi.fn())).toBeNull();
+    });
+
+    // A note that sounds seconds after the pointer has left what it belongs to says nothing about
+    // that. Only a transport asks to be started late; the piano itself keeps nothing.
+    it('does not sound late what was refused while they loaded', () => {
+        status = 'loading';
+        mount();
+        press('audition');
+        press('play');
+
+        act(() => report('done'));
+
+        expect(playSingleNote).not.toHaveBeenCalled();
+        expect(play).not.toHaveBeenCalled();
     });
 });
