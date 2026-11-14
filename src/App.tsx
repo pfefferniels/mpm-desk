@@ -222,8 +222,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
      * Adjusted during render against the last one seen, rather than from an effect, which would
      * cost a second render of the whole editor per problem reported. The message stays state
      * because it is not purely derived: a failed load writes one too, and dismissing clears it.
+     *
+     * Each problem once: `validate` reports one per call, and a chain refused for a transformer
+     * fifty calls require says the same thing fifty times.
      */
-    const fitMessage = problems ? problems.join('\n') : (error ?? undefined);
+    const fitMessage = problems ? [...new Set(problems)].join('\n') : (error ?? undefined);
     const [reportedFitMessage, setReportedFitMessage] = useState(fitMessage);
     if (fitMessage !== reportedFitMessage) {
         setReportedFitMessage(fitMessage);
@@ -793,14 +796,26 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     );
 
     if (!mei) {
-        if (!editable) return <LoadingScreen message={loadError} />;
+        if (!editable) return <LoadingScreen error={loadError} />;
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
     }
     // No `residual` here. A document whose readings still stand side by side has none — and it is
     // exactly the document the reader has to be able to open, because Base Text is where the
     // choice that gives it one is made.
+    //
+    // A first fit that failed is the load failing: no result is coming, and the snackbar that
+    // would have said why is not on this screen.
     if (!alignment || !mpm || !result) {
-        return <LoadingScreen message={pending ? 'Running the chain' : undefined} />;
+        return (
+            <LoadingScreen
+                message={pending ? 'Running the chain' : undefined}
+                error={
+                    pending || fitMessage === undefined
+                        ? undefined
+                        : `The chain could not be run.\n${fitMessage}`
+                }
+            />
+        );
     }
 
     const DeskComponent = deskEntry?.desk;
