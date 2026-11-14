@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, GlobalStyles, Slider, Stack, Typography } from '@mui/material';
+import { NavigateBefore, NavigateNext } from '@mui/icons-material';
 import { applyAlignment } from '../../alignment/applyAlignment';
 import { divergencesOf, type Divergence } from '../../alignment/divergences';
 import { MismatchedPairError, hasRepeatSigns, toMatches } from '../../alignment/mlign';
 import { DEFAULT_MODEL } from '../../alignment/mlign/models';
 import { recordedAlignment, type RecordedAlignment } from '../../alignment/recorded';
-import { CERTAINTIES, changesNotation, type Attribution, type Resolution } from '../../alignment/readings';
+import { actionFor, notationOf, type Resolution } from '../../alignment/readings';
+import {
+    transcribe,
+    untranscribed,
+    writtenIdOf,
+    type Notation,
+    type Outcome,
+} from '../../alignment/transcription';
 import { ornamentSignsOf } from '../../mei/ornamentSigns';
 import { parseRecordings } from '../../mei/parseRecordings';
 import type { PlayablePedal } from '../../performance/buildMidiFile';
@@ -18,26 +26,41 @@ import { OMITTED_COLOUR } from '../../verovio/omissionMarks';
 import { useScoreDocument } from '../../hooks/ScoreDocument';
 import { usePerformances } from '../../hooks/Performances';
 import { useWorkDocument } from '../../hooks/WorkDocument';
+import type { WorkAlignment } from '../../model/workReducer';
 import { APP_BAR_HEIGHT } from '../../components/toolbar/EditorAppBar';
 import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
 import { ToolField } from '../../components/toolbar/ToolField';
-import { ToolStatus } from '../../components/toolbar/ToolStatus';
 import { DivergencePopover } from './DivergencePopover';
+import { Legend } from './Legend';
 import { PlaybackBar } from './PlaybackBar';
-import { alignmentStyles, paintAlignment, paintingOf } from './paintAlignment';
+import { REPLACED_COLOUR, alignmentStyles, paintAlignment, paintingOf } from './paintAlignment';
 import { marksOf } from './marks';
-import { applyToScore } from './applyToScore';
 import { readScore, runAlignment, type AlignmentRun, type Status } from './runAlignment';
 import { useRecordingPlayback } from './useRecordingPlayback';
 
 /**
- * Which sounding event realises which written note.
+ * The score as it was played.
  *
  * The desk that comes before every other one. Until the score and the recording have been put
  * note against note there is no recording to fit to, only an engraving and a MIDI file that
  * nothing relates.
+ *
+ * ## One press, and the score is the performance's
+ *
+ * Align runs the model and then transcribes, without asking: every note the performer added is
+ * given a place in the bar, a length, a name and a staff and written into the score; every note
+ * left out is taken out of it; every note played at another pitch is written at the pitch it
+ * was played at. All of it goes into `<app>` readings beside the source, so nothing of the
+ * source is lost. See `src/alignment/transcription`.
+ *
+ * What is left for a reader is to look, and three colours say what there is to look at: green
+ * for what was added, red for what was left out, violet for what was changed. Clicking a
+ * coloured note says how it was written and offers the other ways of writing it, grace notes
+ * for a figure too quick to be measured, an ornament sign for one that is conventional, nothing
+ * at all for a slip. That is a correction of a score that already exists, which is a different
+ * thing from being asked sixty questions before there is one.
  *
  * ## What it writes, and where
  *
@@ -47,20 +70,48 @@ import { useRecordingPlayback } from './useRecordingPlayback';
  * what `asMSM` reads to build the alignment the chain folds over. So this desk rewrites the MEI,
  * the one desk that does, and `ScoreDocument` says why.
  *
- * What the *reader* decides goes into the work file, on an `Align` call per take. One thing about
- * a decision does not survive the MEI: an action. A `<when>` carries the reading, the
- * responsibility and the certainty, and nothing says whether the played notes were to be written
- * into the score or the unplayed ones marked as a simplification.
+ * What the *reader* decides goes into the work file, on an `Align` call per take, and only
+ * where they decided something: a divergence nobody has touched has no entry and is written
+ * however the transcriber reads it.
  *
- * ## Align, then Apply
+ * ## The document is always derived
  *
- * Align runs the model and leaves the result standing as a draft. Nothing reaches either document
- * until Apply, and that is what makes the confidence floor usable: moving it re-derives the score
- * from a run already in hand rather than running the model again, which is a minute of work to
- * answer a question about a slider.
+ * The transcription is a function of the source score, the alignment and the reader's choices.
+ * So nothing here patches a transcribed document: it is taken back to its source, which
+ * `untranscribed` does exactly, and transcribed again. That is what makes a change of mind
+ * cheap, and what lets a reopened project be reviewed without running the model.
+ *
+ * One take's alterations are in the score at a time. A document may hold several recordings,
+ * but `<rdg source="performance">` is one reading, and writing a second take's into it takes
+ * the first one's out. The first take keeps its matching; its added notes go back to being
+ * notes the score does not write.
  */
 
 const EMPTY_RESOLUTIONS: ReadonlyMap<string, Resolution> = new Map();
+const EMPTY_OUTCOMES: ReadonlyMap<string, Outcome> = new Map();
+
+/** What a transcription is, as far as telling two apart goes: the notes it wrote and took out. */
+const signatureOf = (mei: string): string =>
+    [...mei.matchAll(/<app[^>]*type="transcription"|xml:id="played-[^"]*"|type="transcribed"/g)]
+        .map((found) => found[0])
+        .sort()
+        .join('|');
+
+/** How many notes were added, left out and changed, which is what the legend counts. */
+const countsOf = (divergences: readonly Divergence[], outcomes: ReadonlyMap<string, Outcome>) => {
+    const counts = { added: 0, omitted: 0, changed: 0, total: 0 };
+    for (const divergence of divergences) {
+        const outcome = outcomes.get(divergence.id);
+        if (!outcome) continue;
+        counts.total++;
+        if (divergence.kind === 'added') counts.added += outcome.noteIds.length;
+        else if (divergence.kind === 'missing' && outcome.written === 'omitted') {
+            counts.omitted += divergence.scoreIds.length;
+        } else if (divergence.kind === 'replaced' && outcome.written === 'variant') counts.changed++;
+    }
+    return counts;
+};
+
 
 export const AlignmentDesk = () => {
     const { mei, setMei } = useScoreDocument();
@@ -70,11 +121,9 @@ export const AlignmentDesk = () => {
 
     /** The take under review. The first there is, until somebody picks another. */
     const [picked, setPicked] = useState<string>();
-    const [minConfidence, setMinConfidence] = useState(0);
-    const [sliderValue, setSliderValue] = useState(0);
     const [scale, setScale] = useState(DEFAULT_PERFORMANCE_SCALE);
 
-    /** This session's run, until it is applied. Absent means: show what the document holds. */
+    /** This session's run, until it is written. Absent means: show what the document holds. */
     const [run, setRun] = useState<AlignmentRun>();
     const [status, setStatus] = useState<Status>();
     const [error, setError] = useState<string>();
@@ -85,10 +134,18 @@ export const AlignmentDesk = () => {
     /** The notes of the score, which both a fresh run and a re-read alignment are grouped over. */
     const [scoreNotes, setScoreNotes] = useState<ScoreNote[]>([]);
 
-    /** The disagreement the reader has opened, and the mark they opened it on. */
+    /** The alteration the reader has opened, and the mark they opened it on. */
     const [selected, setSelected] = useState<string>();
     const [anchor, setAnchor] = useState<Element>();
     const [root, setRoot] = useState<HTMLDivElement | null>(null);
+
+    /**
+     * The score as its source has it: every reading the transcriber wrote taken out again.
+     *
+     * Everything below starts here rather than from the document, because the document may
+     * already hold a transcription and a transcription is never built on another.
+     */
+    const source = useMemo(() => (mei ? untranscribed(mei) : undefined), [mei]);
 
     /**
      * Every take there is to review.
@@ -99,9 +156,9 @@ export const AlignmentDesk = () => {
      * open MIDI file mentions. Reading only the other two showed such a document as having nothing
      * to look at.
      */
-    const sources = useMemo(() => {
-        const inScore = mei
-            ? parseRecordings(mei).recordings.map((entry) => entry.source)
+    const takes = useMemo(() => {
+        const inScore = source
+            ? parseRecordings(source).recordings.map((entry) => entry.source)
             : [];
         return [
             ...new Set([
@@ -110,23 +167,19 @@ export const AlignmentDesk = () => {
                 ...alignments.map((alignment) => alignment.source),
             ]),
         ];
-    }, [mei, performances, alignments]);
+    }, [source, performances, alignments]);
 
-    const source = picked && sources.includes(picked) ? picked : sources[0];
-    const performance = performances.find((entry) => entry.source === source);
-    const recorded = alignments.find((entry) => entry.source === source);
+    const take = picked && takes.includes(picked) ? picked : takes[0];
+    const performance = performances.find((entry) => entry.source === take);
+    const recorded = alignments.find((entry) => entry.source === take);
 
     const resolutions = recorded?.resolutions ?? EMPTY_RESOLUTIONS;
-    /** Memoised, because it is a dependency of `apply` and of `align` and is read off the call. */
-    const attribution = useMemo<Attribution>(
-        () => ({ resp: recorded?.resp ?? '', certainty: recorded?.certainty ?? 'medium' }),
-        [recorded?.resp, recorded?.certainty],
-    );
+    const resp = recorded?.resp ?? '';
 
     useEffect(() => {
-        if (!mei) return;
+        if (!source) return;
         let live = true;
-        readScore(mei)
+        readScore(source)
             .then((notes) => {
                 if (live) setScoreNotes(notes);
             })
@@ -136,23 +189,23 @@ export const AlignmentDesk = () => {
         return () => {
             live = false;
         };
-    }, [mei]);
+    }, [source]);
 
     /** The alignment the document holds for this take, where it holds one. */
     const committed = useMemo((): RecordedAlignment | undefined => {
-        if (!mei || !source) return undefined;
-        const info = parseRecordings(mei).recordings.find((entry) => entry.source === source);
+        if (!source || !take) return undefined;
+        const info = parseRecordings(source).recordings.find((entry) => entry.source === take);
         return info ? recordedAlignment(info) : undefined;
-    }, [mei, source]);
+    }, [source, take]);
 
-    /** A fresh run stands in front of what the document holds, until it is applied. */
+    /** A fresh run stands in front of what the document holds, until it is written. */
     const alignment: RecordedAlignment | undefined = useMemo(() => {
         if (!run) return committed;
         return { ...run.result, spans: run.spans };
     }, [run, committed]);
 
-    const signs = useMemo(() => (mei ? ornamentSignsOf(mei) : new Map()), [mei]);
-    const hasRepeats = useMemo(() => (mei ? hasRepeatSigns(mei) : false), [mei]);
+    const signs = useMemo(() => (source ? ornamentSignsOf(source) : new Map()), [source]);
+    const hasRepeats = useMemo(() => (source ? hasRepeatSigns(source) : false), [source]);
 
     const divergences = useMemo((): Divergence[] => {
         if (!alignment || scoreNotes.length === 0) return [];
@@ -170,44 +223,88 @@ export const AlignmentDesk = () => {
     }, [alignment, scoreNotes, signs, hasRepeats]);
 
     /**
-     * The score as it would be written: the matching, the disagreements, and what the reader has
-     * settled about them.
+     * The source with the matching in it, which is what the transcriber reads.
      *
-     * Derived rather than committed, because it is also what Apply writes — the thing on screen
-     * and the thing that would be saved are one document, so there is nothing to be surprised by.
+     * For a fresh run that is the run written out; otherwise the document already is one.
      */
-    const drawn = useMemo(() => {
-        if (!mei || !source) return undefined;
-        if (!run || !performance) return { mei, recording: source };
+    const aligned = useMemo(() => {
+        if (!source || !take) return undefined;
+        if (!run || !performance) return { mei: source };
 
-        const pairs = toMatches(run.result.matches, minConfidence).filter(
+        const pairs = toMatches(run.result.matches).filter(
             (pair) => !run.hidden.has(pair.score_id),
         );
         try {
             return {
-                mei: applyAlignment(mei, performance.midi, pairs, {
-                    source,
+                mei: applyAlignment(source, performance.midi, pairs, {
+                    source: take,
                     divergences,
-                    resolutions,
+                    // The reading only. What is to be *done* about it is the transcriber's
+                    // business, and it reads that from the choices below.
+                    resolutions: new Map(
+                        [...resolutions].map(([id, { reading }]) => [id, { reading }]),
+                    ),
                 }),
-                recording: source,
             };
         } catch (reason: unknown) {
             // This runs while rendering, where a throw takes the desk down with it
             return {
                 mei: undefined,
-                recording: source,
                 failed: `The alignment could not be written into the score. ${
                     reason instanceof Error ? reason.message : String(reason)
                 }`,
             };
         }
-    }, [mei, source, run, performance, minConfidence, divergences, resolutions]);
+    }, [source, take, run, performance, divergences, resolutions]);
 
-    const resolved = useMemo(() => new Set(resolutions.keys()), [resolutions]);
+    /**
+     * The transcription, twice over.
+     *
+     * `written` is the document: what Write puts into the score. `shown` is the same with the
+     * notes the performer left out still standing, in red, because a note that has been taken
+     * out cannot be seen to have been taken out. The page shows more than the document holds,
+     * and what it shows beyond it is exactly the red.
+     */
+    const transcription = useMemo(() => {
+        if (!aligned?.mei || !take || !alignment || divergences.length === 0) return undefined;
+
+        const choices = new Map<string, Notation>();
+        for (const divergence of divergences) {
+            const action = resolutions.get(divergence.id)?.action;
+            if (action) choices.set(divergence.id, notationOf(action));
+        }
+        const standing = new Map(choices);
+        for (const divergence of divergences) {
+            if (divergence.kind === 'missing') standing.set(divergence.id, 'none');
+        }
+
+        try {
+            const input = {
+                mei: aligned.mei,
+                source: take,
+                divergences,
+                spans: alignment.spans,
+                resp: resp || undefined,
+            };
+            const written = transcribe({ ...input, choices });
+            const shown = transcribe({ ...input, choices: standing });
+            return { written: written.mei, shown: shown.mei, outcomes: written.outcomes };
+        } catch (reason: unknown) {
+            return {
+                failed: `The differences could not be written into the score. ${
+                    reason instanceof Error ? reason.message : String(reason)
+                }`,
+            };
+        }
+    }, [aligned, take, alignment, divergences, resolutions, resp]);
+
+    const outcomes = transcription?.outcomes ?? EMPTY_OUTCOMES;
+    const shown = transcription?.shown ?? aligned?.mei;
+    const failed = aligned?.failed ?? transcription?.failed;
+
     const marks = useMemo(
-        () => marksOf(divergences, alignment?.spans ?? [], resolved),
-        [divergences, alignment, resolved],
+        () => marksOf(divergences, alignment?.spans ?? [], outcomes),
+        [divergences, alignment, outcomes],
     );
 
     const painting = useMemo(
@@ -216,15 +313,24 @@ export const AlignmentDesk = () => {
                 matches: alignment?.matches ?? [],
                 deletions: alignment?.deletions ?? [],
                 divergences,
-                minConfidence,
+                minConfidence: 0,
                 hidden: run?.hidden ?? new Set(),
+                outcomes,
             }),
-        [alignment, divergences, minConfidence, run],
+        [alignment, divergences, run, outcomes],
     );
 
     const paint = useCallback(
         (element: HTMLElement) => {
             paintAlignment(element, painting, selected);
+
+            // A cross is drawn afresh on every repaint, so the one the card was opened on may
+            // no longer be in the document. The card belongs to the alteration, not to a node:
+            // it moves to whichever mark stands for it now.
+            if (!selected) return;
+            const escaped = typeof CSS?.escape === 'function' ? CSS.escape(selected) : selected;
+            const mark = element.querySelector(`[data-divergence="${escaped}"]:not([data-omitted])`);
+            setAnchor((current) => (current?.isConnected ? current : mark ?? undefined));
         },
         [painting, selected],
     );
@@ -233,9 +339,9 @@ export const AlignmentDesk = () => {
         () => ({
             ...performedOptions,
             performanceScale: scale,
-            performanceRecording: drawn?.recording ?? '',
+            performanceRecording: take ?? '',
         }),
-        [scale, drawn],
+        [scale, take],
     );
 
     const pedals = useMemo<PlayablePedal[]>(() => {
@@ -254,30 +360,38 @@ export const AlignmentDesk = () => {
         );
     }, [performance]);
 
-    /** The written note each played note was matched to, for following by ear. */
-    const matchedTo = useMemo(
-        () => new Map((alignment?.matches ?? []).map((m) => [m.performanceId, m.scoreId])),
-        [alignment],
-    );
+    /**
+     * The note on the page each played note is: the written note it was matched to, or the note
+     * the transcriber wrote for it.
+     */
+    const pageNoteOf = useMemo(() => {
+        const notes = new Map((alignment?.matches ?? []).map((m) => [m.performanceId, m.scoreId]));
+        const writtenIds = new Set([...outcomes.values()].flatMap((outcome) => outcome.noteIds));
+        for (const span of alignment?.spans ?? []) {
+            const id = writtenIdOf(span);
+            if (writtenIds.has(id)) notes.set(span.id, id);
+        }
+        return notes;
+    }, [alignment, outcomes]);
 
     /**
      * What to light up while a played note sounds.
      *
      * The ids in the stream are the *performed* notes' own, because the performance is what is
-     * playing. A note that was matched lights the written note it was matched to; one that was not
-     * lights the cross drawn where it was played, which is the only mark on the page that is it.
+     * playing. A note that is on the page lights there; one that is not lights the cross drawn
+     * where it was played, which is the only mark on the page that is it.
      */
     const elementFor = useCallback(
         (performanceId: string) => {
             if (!root) return null;
             const escaped = (id: string) =>
                 typeof CSS?.escape === 'function' ? CSS.escape(id) : id;
-            const scoreId = matchedTo.get(performanceId);
-            return scoreId
-                ? root.querySelector(`[data-id="${escaped(scoreId)}"]`)
+            const noteId = pageNoteOf.get(performanceId);
+            return noteId
+                ? root.querySelector(`[data-id="${escaped(noteId)}"]`)
                 : root.querySelector(`[data-perf-id="${escaped(performanceId)}"]`);
         },
-        [root, matchedTo],
+        [root, pageNoteOf],
     );
 
     const playback = useRecordingPlayback({
@@ -288,7 +402,7 @@ export const AlignmentDesk = () => {
 
     const align = useCallback(
         async (allowMismatch = false) => {
-            if (!mei || !performance || !source) return;
+            if (!source || !performance || !take) return;
 
             setError(undefined);
             setMismatch(undefined);
@@ -297,7 +411,7 @@ export const AlignmentDesk = () => {
 
             try {
                 const fresh = await runAlignment({
-                    mei,
+                    mei: source,
                     midi: performance.midi,
                     model: DEFAULT_MODEL,
                     allowMismatch,
@@ -310,13 +424,13 @@ export const AlignmentDesk = () => {
                 // The settings the run was made with, recorded as soon as it has been made: a
                 // decision taken about it in the next minute has to have somewhere to go.
                 setAlignment({
-                    source,
+                    source: take,
                     midi: performance.name,
                     model: DEFAULT_MODEL,
-                    minConfidence,
+                    minConfidence: 0,
                     resolutions,
-                    resp: attribution.resp,
-                    certainty: attribution.certainty,
+                    resp,
+                    certainty: recorded?.certainty ?? 'medium',
                 });
             } catch (reason: unknown) {
                 if (reason instanceof MismatchedPairError) {
@@ -330,103 +444,128 @@ export const AlignmentDesk = () => {
                 setStatus(undefined);
             }
         },
-        [mei, performance, source, minConfidence, resolutions, attribution, setAlignment],
+        [source, performance, take, resolutions, resp, recorded, setAlignment],
     );
 
     /**
-     * Write what is on screen into the two documents.
+     * Whether the page shows something the document does not hold yet.
      *
-     * The score first, because a decision that changes the notation changes what the next
-     * alignment is *of*: a note written in is a note the model can match rather than report as an
-     * addition all over again.
+     * Asked of the notes rather than of the text: the same transcription serialises with its
+     * attributes in another order after a round trip, and a button that lit up for that would
+     * offer to save nothing.
      */
-    const apply = useCallback(() => {
-        if (!drawn?.mei || !source) return;
+    const unwritten = useMemo(() => {
+        if (run) return true;
+        if (!mei || !transcription?.written) return false;
+        return signatureOf(transcription.written) !== signatureOf(mei);
+    }, [run, mei, transcription]);
 
-        const edited = applyToScore({
-            mei: drawn.mei,
-            divergences,
-            resolutions,
-            spans: alignment?.spans ?? [],
-            attribution,
-        });
-
-        setMei(edited.mei);
+    /** Put what is on the page into the document. */
+    const write = useCallback(() => {
+        const next = transcription?.written ?? aligned?.mei;
+        if (!next) return;
+        setMei(next);
         setRun(undefined);
-        setNotices(
-            edited.changed > 0
-                ? [
-                      `${String(edited.changed)} decision${edited.changed === 1 ? '' : 's'} ` +
-                          `written into the score. Align again to see how the new notation matches.`,
-                  ]
-                : [],
-        );
-    }, [drawn, source, divergences, resolutions, alignment, attribution, setMei]);
+        setNotices([]);
+    }, [transcription, aligned, setMei]);
 
-    const resolve = useCallback(
-        (id: string, resolution: Resolution) => {
-            if (!recorded) return;
+    /**
+     * The record the reader's decisions go on: the one the work file has for this take, or a new
+     * one where it has none.
+     *
+     * A score can arrive aligned, by another tool or from a file somebody was sent, and then
+     * there is a `<recording>` and no `Align` call. A reader of that document can still change
+     * their mind about a note, and the first time they do is when the record is made.
+     */
+    const record = useMemo((): WorkAlignment | undefined => {
+        if (recorded) return recorded;
+        if (!take) return undefined;
+        return {
+            source: take,
+            midi: performance?.name ?? '',
+            model: DEFAULT_MODEL,
+            minConfidence: 0,
+            resolutions: EMPTY_RESOLUTIONS,
+            resp: '',
+            certainty: 'medium',
+        };
+    }, [recorded, take, performance]);
+
+    const choose = useCallback(
+        (divergence: Divergence, notation: Notation) => {
+            if (!record) return;
             setAlignment({
-                ...recorded,
-                resolutions: new Map([...recorded.resolutions, [id, resolution]]),
+                ...record,
+                resolutions: new Map([
+                    ...record.resolutions,
+                    [
+                        divergence.id,
+                        { reading: divergence.reading, action: actionFor(divergence, notation) },
+                    ],
+                ]),
             });
         },
-        [recorded, setAlignment],
+        [record, setAlignment],
     );
 
-    const setAttribution = useCallback(
-        (next: Partial<Attribution>) => {
-            if (!recorded) return;
-            setAlignment({ ...recorded, resp: next.resp ?? recorded.resp, certainty: next.certainty ?? recorded.certainty });
+    const reset = useCallback(
+        (divergence: Divergence) => {
+            if (!record) return;
+            const kept = new Map(record.resolutions);
+            kept.delete(divergence.id);
+            setAlignment({ ...record, resolutions: kept });
         },
-        [recorded, setAlignment],
-    );
-
-    const undecided = useMemo(
-        () => divergences.filter((divergence) => !resolutions.has(divergence.id)),
-        [divergences, resolutions],
+        [record, setAlignment],
     );
 
     /**
-     * Move to the next one that has not been settled, and scroll it into view.
+     * Move to the alteration before or after the one that is open, and bring it into view.
      *
-     * A disagreement whose notes the engraving never draws — a repeat shown once, a note verovio
-     * placed nowhere — is skipped rather than opened on nothing.
+     * In the order they stand on the page, which is the order they were played in. One whose
+     * notes the engraving never draws — a repeat shown once, a note verovio placed nowhere — is
+     * not on the page and so is not in the round.
      */
-    const goToNext = useCallback(() => {
-        if (!root) return;
-
-        for (const divergence of undecided.filter((entry) => entry.id !== selected)) {
-            // Not a note that has been taken out and bracketed: it is still in the layout, so it
-            // would answer the query and then scroll nowhere and anchor the question to a point
-            // of no size
-            const element = root.querySelector(
-                `[data-divergence="${divergence.id}"]:not([data-omitted])`,
-            );
-            if (!element) continue;
-
-            element.scrollIntoView({ block: 'center', inline: 'center' });
-            setSelected(divergence.id);
-            setAnchor(element);
-            return;
+    const onPage = useCallback((): { id: string; element: Element }[] => {
+        if (!root) return [];
+        const seen = new Set<string>();
+        const found: { id: string; element: Element }[] = [];
+        // Not a note that has been bracketed: it is still in the layout, so it would answer the
+        // query and then scroll nowhere and anchor the card to a point of no size
+        for (const element of root.querySelectorAll('[data-divergence]:not([data-omitted])')) {
+            const id = element.getAttribute('data-divergence');
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            found.push({ id, element });
         }
+        return found;
+    }, [root]);
 
-        setSelected(undefined);
-        setAnchor(undefined);
-    }, [root, undecided, selected]);
+    const step = useCallback(
+        (direction: -1 | 1) => {
+            const all = onPage();
+            if (all.length === 0) return;
+            const at = all.findIndex((entry) => entry.id === selected);
+            const next =
+                all[at < 0 ? (direction > 0 ? 0 : all.length - 1) : (at + direction + all.length) % all.length];
+
+            next.element.scrollIntoView({ block: 'center', inline: 'center' });
+            setSelected(next.id);
+            setAnchor(next.element);
+        },
+        [onPage, selected],
+    );
 
     /**
-     * Open the question at the note it is about.
+     * Open the card at the note it is about.
      *
-     * Every disagreement is somewhere in this score already — a cross where an extra note was
-     * played, a red notehead where a written one was not — so the click that asks about one is
-     * the click on it.
+     * Every alteration is somewhere in this score — a green note where one was added, a red one
+     * where one was left out — so the click that asks about one is the click on it.
      */
     const onScoreClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         const element = (event.target as Element).closest('[data-divergence]');
         const id = element?.getAttribute('data-divergence');
 
-        // The popover lets clicks through to the music beneath it, so a click on ordinary
+        // The card lets clicks through to the music beneath it, so a click on ordinary
         // notation is what closes it
         if (!id || !element) {
             setSelected(undefined);
@@ -437,29 +576,22 @@ export const AlignmentDesk = () => {
         setAnchor(element);
     }, []);
 
+    const counts = useMemo(() => countsOf(divergences, outcomes), [divergences, outcomes]);
+    const open = divergences.find((divergence) => divergence.id === selected);
+    const round = selected ? onPage() : [];
     const busy = status !== undefined;
-    const pendingEdits = divergences.filter((divergence) =>
-        changesNotation(resolutions.get(divergence.id)?.action ?? 'record'),
-    ).length;
 
     const alignTooltip = !performance
         ? 'Open a MIDI recording of this score first'
         : busy
           ? 'The model is running'
-          : `Align ${performance.name} against this score`;
+          : `Put ${performance.name} note against note with this score, and write what was played differently into it`;
 
-    const applyTooltip = !drawn?.mei
+    const writeTooltip = !shown
         ? 'Nothing to write yet'
-        : !run
-          ? 'The score already holds this alignment'
-          : pendingEdits > 0
-            ? `Write the alignment and ${String(pendingEdits)} decisions into the score`
-            : 'Write the alignment into the score';
-
-    const label =
-        divergences.length > 0
-            ? `${String(undecided.length)} of ${String(divergences.length)} undecided`
-            : '—';
+        : !unwritten
+          ? 'The score already holds what is shown'
+          : 'Write what is shown into the score, as readings beside the source';
 
     if (!mei) return null;
 
@@ -468,33 +600,19 @@ export const AlignmentDesk = () => {
             <GlobalStyles styles={alignmentStyles(EXTRA_COLOUR, OMITTED_COLOUR)} />
 
             <DeskToolbar>
-                <ToolGroup label="View">
-                    <Slider
-                        aria-label="Zoom"
-                        sx={{ width: '5rem', mx: 1 }}
-                        min={4}
-                        max={64}
-                        step={2}
-                        value={scale}
-                        onChange={(_, value) => {
-                            setScale(value as number);
-                        }}
-                    />
-                </ToolGroup>
-
-                <ToolGroup label="Settings">
+                <ToolGroup label="Performance">
                     <Box
                         component="select"
                         aria-label="Recording"
-                        value={source ?? ''}
+                        value={take ?? ''}
                         onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                             setPicked(event.target.value);
                             setRun(undefined);
                         }}
                         sx={{ height: 30, borderRadius: 1, border: '1px solid #e5e7eb' }}
                     >
-                        {sources.length === 0 && <option value="">No recording</option>}
-                        {sources.map((entry) => (
+                        {takes.length === 0 && <option value="">No recording</option>}
+                        {takes.map((entry) => (
                             <option key={entry} value={entry}>
                                 {performances.find((p) => p.source === entry)?.name ?? entry}
                             </option>
@@ -507,77 +625,91 @@ export const AlignmentDesk = () => {
                     >
                         Add…
                     </ToolbarButton>
-                    <Slider
-                        aria-label="Least confidence"
-                        sx={{ width: '5rem', mx: 1 }}
-                        min={0}
-                        max={0.95}
-                        step={0.05}
-                        value={sliderValue}
-                        onChange={(_, value) => {
-                            setSliderValue(value as number);
-                        }}
-                        onChangeCommitted={(_, value) => {
-                            setMinConfidence(value as number);
-                        }}
-                        disabled={!run}
-                    />
-                    <ToolField
-                        label="Decided by"
-                        width={96}
-                        value={attribution.resp}
-                        onChange={(value) => {
-                            setAttribution({ resp: value });
-                        }}
-                    />
-                    <Box
-                        component="select"
-                        aria-label="Certainty"
-                        value={attribution.certainty}
-                        onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
-                            setAttribution({ certainty: event.target.value });
-                        }}
-                        sx={{ height: 30, borderRadius: 1, border: '1px solid #e5e7eb' }}
-                    >
-                        {CERTAINTIES.map((certainty) => (
-                            <option key={certainty} value={certainty}>
-                                {certainty}
-                            </option>
-                        ))}
-                    </Box>
-                </ToolGroup>
-
-                <ToolGroup>
                     <ToolbarButton
                         label="Align"
                         tooltip={alignTooltip}
                         disabled={!performance || busy}
                         onClick={() => void align()}
                     >
-                        {run ? 'Align again' : 'Align'}
+                        {run || committed ? 'Align again' : 'Align'}
                     </ToolbarButton>
-                    <ToolStatus width={132}>{status ? status.text : label}</ToolStatus>
+                </ToolGroup>
+
+                <ToolGroup label="Played differently">
+                    <Legend
+                        entries={[
+                            {
+                                colour: EXTRA_COLOUR,
+                                count: counts.added,
+                                name: 'added',
+                                meaning: 'Notes the performer played that the source does not write. They are written into the score.',
+                            },
+                            {
+                                colour: OMITTED_COLOUR,
+                                count: counts.omitted,
+                                name: 'left out',
+                                meaning: 'Notes the source writes that were not played. They are taken out of the performance reading.',
+                            },
+                            {
+                                colour: REPLACED_COLOUR,
+                                count: counts.changed,
+                                name: 'changed',
+                                meaning: 'Notes played at another pitch than written. The played pitch is written.',
+                            },
+                        ]}
+                    />
                     <ToolbarButton
-                        label="Go to next"
-                        tooltip={
-                            undecided.length > 0
-                                ? 'Open the next disagreement nobody has settled'
-                                : 'Nothing left undecided'
-                        }
-                        disabled={undecided.length === 0}
-                        onClick={goToNext}
-                    >
-                        Next
-                    </ToolbarButton>
+                        icon={<NavigateBefore fontSize="small" />}
+                        label="Previous"
+                        tooltip="Go to the one before"
+                        disabled={counts.total === 0}
+                        onClick={() => {
+                            step(-1);
+                        }}
+                    />
+                    <ToolbarButton
+                        icon={<NavigateNext fontSize="small" />}
+                        label="Next"
+                        tooltip="Go to the next one"
+                        disabled={counts.total === 0}
+                        onClick={() => {
+                            step(1);
+                        }}
+                    />
+                </ToolGroup>
+
+                <ToolGroup>
+                    <ToolField
+                        label="Decided by"
+                        width={96}
+                        value={resp}
+                        onChange={(value) => {
+                            if (record) setAlignment({ ...record, resp: value });
+                        }}
+                    />
                     <ToolbarButton
                         primary
-                        label="Apply"
-                        tooltip={applyTooltip}
-                        disabled={!run || !drawn?.mei || busy}
-                        onClick={apply}
+                        label="Write into score"
+                        tooltip={writeTooltip}
+                        disabled={!unwritten || !shown || busy}
+                        onClick={write}
                     >
-                        Apply
+                        Write into score
                     </ToolbarButton>
+                </ToolGroup>
+
+                <ToolGroup label="Zoom">
+                    <Slider
+                        aria-label="Zoom"
+                        sx={{ width: '5rem', mx: 1 }}
+                        min={4}
+                        max={64}
+                        step={2}
+                        value={scale}
+                        onChange={(_, value) => {
+                            setScale(value as number);
+                        }}
+                    />
                 </ToolGroup>
             </DeskToolbar>
 
@@ -625,11 +757,24 @@ export const AlignmentDesk = () => {
                     </Alert>
                 ))}
 
-                {drawn?.failed && <Alert severity="error">{drawn.failed}</Alert>}
+                {failed && <Alert severity="error">{failed}</Alert>}
 
                 {/* Only where there is a recording to hear. A transport over nothing is an
                     offer that cannot be taken. */}
-                {(alignment?.spans.length ?? 0) > 0 && <PlaybackBar playback={playback} />}
+                {(alignment?.spans.length ?? 0) > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                        <PlaybackBar playback={playback} />
+                        {counts.total > 0 && (
+                            <Typography variant="body2" color="text.secondary">
+                                {unwritten
+                                    ? 'This is the score as it was played. '
+                                    : 'The score holds this performance. '}
+                                Click a coloured note to see how it was written, or to write it
+                                another way.
+                            </Typography>
+                        )}
+                    </Box>
+                )}
 
                 <Box
                     ref={setRoot}
@@ -640,10 +785,10 @@ export const AlignmentDesk = () => {
                         height: `calc(100vh - ${String(APP_BAR_HEIGHT)}px - 12rem)`,
                     }}
                 >
-                    {drawn?.mei ? (
+                    {shown && (alignment?.spans.length ?? 0) > 0 ? (
                         <Score
                             className="alignment-score"
-                            mei={drawn.mei}
+                            mei={shown}
                             options={options}
                             paint={paint}
                             extenders
@@ -658,15 +803,15 @@ export const AlignmentDesk = () => {
                         <Stack spacing={1} sx={{ p: 4, maxWidth: '34rem' }}>
                             <Typography variant="h6">Nothing aligned yet</Typography>
                             <Typography variant="body2" color="text.secondary">
-                                This score has no recording in it. Add a MIDI performance of it and
-                                press Align: the two are put note against note here, and every
-                                other desk reads what comes out.
+                                Add a MIDI performance of this score and press Align. The two are
+                                put note against note, and whatever was played differently is
+                                written into the score at once, beside what the source has.
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                The matching is worked out in the browser, note by note. It is a
-                                proposal — what the score and the recording disagree about is
-                                yours to read, and nothing is written into the score until you
-                                press Apply.
+                                Then look: notes the performer added are green, notes left out
+                                red, notes changed violet. Click one to see how it was written, or
+                                to have it written another way. Nothing reaches the document until
+                                you press Write into score.
                             </Typography>
                         </Stack>
                     )}
@@ -688,16 +833,26 @@ export const AlignmentDesk = () => {
             />
 
             <DivergencePopover
-                divergence={divergences.find((divergence) => divergence.id === selected)}
+                divergence={open}
+                outcome={selected ? outcomes.get(selected) : undefined}
                 anchor={anchor}
-                resolution={selected ? resolutions.get(selected) : undefined}
-                onResolve={resolve}
+                decided={selected ? resolutions.has(selected) : false}
+                onChoose={choose}
+                onReset={reset}
                 onClose={() => {
                     setSelected(undefined);
                     setAnchor(undefined);
                 }}
-                onNext={goToNext}
-                remaining={undecided.length}
+                onStep={step}
+                position={round.findIndex((entry) => entry.id === selected) + 1}
+                total={round.length}
+                colour={
+                    open?.kind === 'missing'
+                        ? OMITTED_COLOUR
+                        : open?.kind === 'replaced'
+                          ? REPLACED_COLOUR
+                          : EXTRA_COLOUR
+                }
             />
         </>
     );

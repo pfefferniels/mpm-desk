@@ -368,12 +368,13 @@ export const correspondingDesks: DeskEntry[] = [
         editOnly: true,
         help: {
             summary:
-                'Which sounding event realises which written note. Align runs the model and ' +
-                'leaves a draft; Apply writes it into the score.',
+                'The score as it was played. Align puts the recording note against note with ' +
+                'the score and writes what was played differently into it: added notes green, ' +
+                'notes left out red, changed notes violet. Write into score keeps it.',
             actions: [
                 {
-                    gesture: 'Click a disagreement mark',
-                    does: 'open its question: a cross, a bracket or a coloured notehead',
+                    gesture: 'Click a coloured note',
+                    does: 'see how it was written, and have it written another way: as notes, as grace notes, as an ornament sign, or not at all',
                 },
                 { gesture: 'Click elsewhere in the score', does: 'close it' },
                 { gesture: 'Drag the range slider', does: 'narrow what the transport plays' },
