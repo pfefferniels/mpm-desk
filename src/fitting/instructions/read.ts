@@ -98,6 +98,30 @@ export function getInstructions(mpm: Mpm, type?: InstructionType, scope?: Scope)
 }
 
 /**
+ * The instructions of a type that a scope performs: a part's own where it has a map of that type,
+ * the global ones where it has none.
+ *
+ * MPM does not merge the two. espressivo resolves a part's maps as
+ * `dated.getMapOfKind(kind) ?? globalMaps[kind]` (`Performance.resolvePartMaps`), so a part with no
+ * map of the type, or no `<part>` at all, performs the global map whole, and a part with a map
+ * performs that alone, even an empty one. {@link getInstructions} reads the one map it is pointed
+ * at, which is what a writer wants and not what a reader looking at one part wants: over a
+ * document whose maps are all global it answers nothing for every part.
+ *
+ * Each snapshot keeps the scope it is written in, so an inherited one says `'global'`.
+ */
+export const performedInstructions = <K extends InstructionType>(
+  mpm: Mpm,
+  type: K,
+  scope: Scope,
+): Instruction<K>[] =>
+  getInstructions(
+    mpm,
+    type,
+    scope !== 'global' && mapOf(mpm, type, scope) === null ? 'global' : scope,
+  );
+
+/**
  * The instruction with this `xml:id`, or null. It searches every map, so it cannot know which
  * type it will find — callers narrow on `.type`.
  */

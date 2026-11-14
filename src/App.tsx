@@ -19,7 +19,7 @@ import './fitting/transformers/Order';
 
 import { correspondingDesks, PLOTTED_INPUTS, type DocumentFacts } from './desks/DeskSwitch';
 import { lockedScopes, NO_SCOPE_LOCK } from './desks/scopeLock';
-import { TRANSFORMER_ALIASES } from './desks/transformerAliases';
+import { deskOfCall } from './desks/transformerAliases';
 import type { SecondaryData } from './desks/TransformerViewProps';
 import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
@@ -59,23 +59,24 @@ import {
 } from './model/workReducer';
 import { buildWorkArchive } from './model/exportWork';
 import { parseWorkFile, sourcesOf, type Call, type WorkFile } from './model/Work';
-import { callAddress, callAt } from './model/callAddress';
+import { callAddress, callAt, missedAddress } from './model/callAddress';
 import { publishedUrl } from './model/published';
 import { EditingContext } from './hooks/Editing';
 import { ViewerAddress } from './components/ViewerAddress';
+import { ViewHistory, type View } from './components/ViewHistory';
 import { RevealCall } from './components/RevealCall';
 import { documentSlug, downloadAsFile } from './utils/utils';
 
-/**
- * The desk a call was made on, by the name the registry selects it under — or none, where no desk
- * makes that call, or the one that does is the editor's alone and this is the viewer.
- */
-const deskOf = (call: Call, editable: boolean): string | undefined => {
-    const name = TRANSFORMER_ALIASES.get(call.name) ?? call.name;
-    const entry = correspondingDesks.find(
-        ({ transformerName, editOnly }) => transformerName === name && (editable || !editOnly),
+/** A `history.state` that `ViewHistory` wrote, rather than none or what another page left. */
+const isView = (state: unknown): state is View => {
+    if (typeof state !== 'object' || state === null) return false;
+    const { desk, scope, calls } = state as Partial<Record<keyof View, unknown>>;
+    return (
+        typeof desk === 'string' &&
+        isScope(scope) &&
+        Array.isArray(calls) &&
+        calls.every((id) => typeof id === 'string')
     );
-    return entry && (entry.displayName ?? entry.aspect);
 };
 
 /** Where the viewer opens, and goes back to: the desk most of the reconstruction was made on. */
@@ -131,7 +132,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const [pristine, setPristine] = useState<Alignment | null>(null);
     const [mei, setMEI] = useState<string>();
     const [performances, setPerformances] = useState<readonly Performance[]>([]);
-    const [message, setMessage] = useState<string>();
+    /**
+     * What the snackbar says, and how gravely. Nearly everything raised here went wrong; a link
+     * that names no call did not, and reads as news rather than as a fault.
+     */
+    const [message, setMessage] = useState<{ text: string; severity: 'error' | 'info' }>();
 
     const [selectedDesk, setSelectedDesk] = useState<string>(editable ? 'metadata' : VIEWER_DESK);
     /** Why the viewer has nothing to show, where fetching the published reconstruction failed. */
@@ -220,13 +225,24 @@ export const App = ({ mode = 'edit' }: AppProps) => {
      * Adjusted during render against the last one seen, rather than from an effect, which would
      * cost a second render of the whole editor per problem reported. The message stays state
      * because it is not purely derived: a failed load writes one too, and dismissing clears it.
+     *
+     * Each problem once: `validate` reports one per call, and a chain refused for a transformer
+     * fifty calls require says the same thing fifty times.
      */
-    const fitMessage = problems ? problems.join('\n') : (error ?? undefined);
+    const fitMessage = problems ? [...new Set(problems)].join('\n') : (error ?? undefined);
     const [reportedFitMessage, setReportedFitMessage] = useState(fitMessage);
     if (fitMessage !== reportedFitMessage) {
         setReportedFitMessage(fitMessage);
-        if (fitMessage) setMessage(fitMessage);
+        if (fitMessage) setMessage({ text: fitMessage, severity: 'error' });
     }
+
+    /**
+     * The message last raised, held through the snackbar's exit, so that it fades out as it was
+     * rather than emptied and in the colour an `Alert` with no severity takes. Likewise adjusted
+     * during render.
+     */
+    const [shownMessage, setShownMessage] = useState(message);
+    if (message !== undefined && message !== shownMessage) setShownMessage(message);
 
     /**
      * The MEI, and the alignment read out of it.
@@ -239,7 +255,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
         setMEI(content);
         const movement = convertMeiToMsm(content)[0];
         if (!movement) {
-            setMessage('The MEI holds no convertible movement.');
+            setMessage({ text: 'The MEI holds no convertible movement.', severity: 'error' });
             return;
         }
         setPristine(asMSM(content, movement.msm, movement.graces));
@@ -262,12 +278,37 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     );
 
     /**
+     * Say that an address names no call, and put the URL back to citing what is on screen: the
+     * call still selected, or nothing.
+     *
+     * Left in place, the address would stand in the bar naming nothing while the desk showed
+     * something else, and a reader copying it to cite what they see would cite neither.
+     * `replaceState`, because the address was never a place.
+     */
+    const missedLink = useCallback(
+        (address: string, calls: readonly Call[], selected: ReadonlySet<string>) => {
+            setMessage({ text: missedAddress(address, calls), severity: 'info' });
+            const [only] = selected;
+            const shown =
+                selected.size === 1 && only !== undefined
+                    ? '#' + callAddress(only, calls.map((call) => call.id))
+                    : '';
+            window.history.replaceState(
+                window.history.state,
+                '',
+                window.location.pathname + window.location.search + shown,
+            );
+        },
+        [],
+    );
+
+    /**
      * Open the desk a call was made on, put its scope on the picker, and select it. Where no desk
      * makes it, it is still selected: the markup desk, or whichever is open, shows what it wrote.
      */
     const openCall = useCallback(
         (call: Call) => {
-            const desk = deskOf(call, editable);
+            const desk = deskOfCall(call.name, editable);
             if (desk) setSelectedDesk(desk);
             const { scope } = call.options;
             if (isScope(scope)) setScope(scope);
@@ -284,17 +325,23 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                 dispatch({ type: 'load', work: loaded });
                 setSavedWork(loaded);
 
-                // A link into a call opens it, and this is the moment that can be decided: the
-                // document is in hand and the URL has not moved.
-                const match = callAt(window.location.hash.slice(1), loaded.provenance);
-                if (match) openCall(match);
-
                 setMessage(undefined);
+
+                // A link into a call opens it, and this is the moment that can be decided: the
+                // document is in hand and the URL has not moved. Nothing of this document is
+                // selected yet, so a link that names no call leaves no address behind.
+                const address = window.location.hash.slice(1);
+                const match = callAt(address, loaded.provenance);
+                if (match) openCall(match);
+                else if (address) missedLink(address, loaded.provenance, new Set());
             } catch (reason) {
-                setMessage(reason instanceof Error ? reason.message : String(reason));
+                setMessage({
+                    text: reason instanceof Error ? reason.message : String(reason),
+                    severity: 'error',
+                });
             }
         },
-        [openCall],
+        [openCall, missedLink],
     );
 
     /**
@@ -356,7 +403,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             const buffer = await file.arrayBuffer();
             const problem = checkPerformance(buffer);
             if (problem) {
-                setMessage(problem);
+                setMessage({ text: problem, severity: 'error' });
                 return undefined;
             }
 
@@ -364,7 +411,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             try {
                 midi = read(buffer);
             } catch {
-                setMessage(`${file.name} could not be read as MIDI.`);
+                setMessage({ text: `${file.name} could not be read as MIDI.`, severity: 'error' });
                 return undefined;
             }
 
@@ -380,7 +427,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             // the same name would replace the first in the zip and leave its `Align` call naming
             // a file that holds somebody else's playing.
             if (current.some((held) => held.name === performance.name)) {
-                setMessage(`${performance.name} is already open.`);
+                setMessage({ text: `${performance.name} is already open.`, severity: 'error' });
                 return current;
             }
             return [...current, performance];
@@ -430,7 +477,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                 void handleOpenMidi(file);
             // An unrecognised suffix must say so, or it is indistinguishable from a file that
             // failed to parse.
-            else setMessage(`Cannot open ${file.name} — expected a .zip, .mei, .xml or .mid.`);
+            else
+                setMessage({
+                    text: `Cannot open ${file.name} — expected a .zip, .mei, .xml or .mid.`,
+                    severity: 'error',
+                });
         },
         [handleOpenZip, handleOpenMei, handleOpenMidi],
     );
@@ -575,50 +626,92 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const saveWork = useCallback(() => void handleSave(), [handleSave]);
 
     const callsRef = useLatest(work.provenance);
+    const selectedDeskRef = useLatest(selectedDesk);
 
-    /** Switch to the desk that made a call, put the scope on it, and name it in the hash. */
+    /**
+     * Switch to the desk that made a call, put the scope on it, and name it in the hash.
+     *
+     * A new history entry wherever that takes the reader somewhere else, so that Back returns to
+     * where they came from: another call, or another desk. The hash alone does not say so, since
+     * in the viewer it already names the call selected, and the markup desk is where a selected
+     * call's line is clicked. `ViewHistory` records the view into each entry.
+     */
     const focusCall = useCallback(
         (id: string) => {
             const calls = callsRef.current;
             const call = calls.find((entry) => entry.id === id);
             if (!call) return;
 
-            openCall(call);
-
             const address = callAddress(
                 call.id,
                 calls.map((entry) => entry.id),
             );
-            if (window.location.hash.slice(1) !== address)
-                window.history.pushState(null, '', '#' + address);
+            const here = selectedDeskRef.current;
+            const moves =
+                window.location.hash.slice(1) !== address ||
+                (deskOfCall(call.name, editable) ?? here) !== here;
+
+            openCall(call);
+            if (moves) window.history.pushState(null, '', '#' + address);
         },
-        [callsRef, openCall],
+        [callsRef, selectedDeskRef, openCall, editable],
     );
 
+    /**
+     * Back and Forward: put back the desk, scope and selection the entry was left on, where
+     * `ViewHistory` recorded them. An entry that holds none is the hash's to answer, below: one
+     * an address was typed into, or one left while the piece played.
+     *
+     * The calls are those the document still holds, and one call is revealed as an opened one
+     * is. The desk is put back only where the registry still has it; a desk the mode does not
+     * offer is taken off below as any other is.
+     */
+    const onPopState = useEffectEvent(() => {
+        const state: unknown = window.history.state;
+        if (!isView(state)) return;
+
+        if (correspondingDesks.some((entry) => (entry.displayName ?? entry.aspect) === state.desk))
+            setSelectedDesk(state.desk);
+        setScope(state.scope);
+        const calls = state.calls.filter((id) => work.provenance.some((call) => call.id === id));
+        setActiveCallIds(new Set(calls));
+        setOpened(calls.length === 1 ? { id: calls[0] } : null);
+    });
+
     const onHashChange = useEffectEvent(() => {
+        // An entry that holds a view is reached by Back or Forward, which also fire `popstate`,
+        // and that has put the view back. A new entry, an address typed or followed, holds none.
+        if (isView(window.history.state)) return;
+
         const hash = window.location.hash.slice(1);
         if (!hash) {
             if (activeCallIds.size > 0) {
                 setActiveCallIds(new Set());
                 window.history.replaceState(
-                    null,
+                    window.history.state,
                     '',
                     window.location.pathname + window.location.search,
                 );
             }
             return;
         }
-        if (activeCallIds.size === 1) {
-            const [only] = activeCallIds;
-            if (only.startsWith(hash)) return;
-        }
         const match = callAt(hash, work.provenance);
-        if (match) openCall(match);
+        if (!match) {
+            missedLink(hash, work.provenance, activeCallIds);
+            return;
+        }
+        // The call already selected is not opened again, which would take the reader off the
+        // desk they went to with it. By what the address names rather than by the selection's
+        // id starting with it, which a fragment too short to be an address also does.
+        if (activeCallIds.size === 1 && activeCallIds.has(match.id)) return;
+        openCall(match);
     });
 
     useEffect(() => {
+        window.addEventListener('popstate', onPopState);
         window.addEventListener('hashchange', onHashChange);
         return () => {
+            window.removeEventListener('popstate', onPopState);
             window.removeEventListener('hashchange', onHashChange);
         };
     }, []);
@@ -679,10 +772,16 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     /**
      * Which scopes the open desk may not write into, and why — see `scopeLock.ts` for the rule and
      * `writes` in `DeskSwitch.tsx` for what each desk puts under it.
+     *
+     * The editor's only. The lock guards a write, and the viewer makes none: there a part is a
+     * place to read one hand alone, and every map of the published reconstruction is global, so
+     * locking the parts would leave nothing but the whole to read. A desk on a part draws what
+     * that part performs, its own map or the global one (`performedInstructions`).
      */
     const scopeLock = useMemo(
-        () => (mpm ? lockedScopes(mpm, deskEntry?.writes ?? [], parts) : NO_SCOPE_LOCK),
-        [mpm, deskEntry, parts],
+        () =>
+            editable && mpm ? lockedScopes(mpm, deskEntry?.writes ?? [], parts) : NO_SCOPE_LOCK,
+        [editable, mpm, deskEntry, parts],
     );
 
     /**
@@ -706,14 +805,26 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     );
 
     if (!mei) {
-        if (!editable) return <LoadingScreen message={loadError} />;
+        if (!editable) return <LoadingScreen error={loadError} />;
         return <StartScreen onOpenZip={handleOpenZip} onOpenMei={handleOpenMei} />;
     }
     // No `residual` here. A document whose readings still stand side by side has none — and it is
     // exactly the document the reader has to be able to open, because Base Text is where the
     // choice that gives it one is made.
+    //
+    // A first fit that failed is the load failing: no result is coming, and the snackbar that
+    // would have said why is not on this screen.
     if (!alignment || !mpm || !result) {
-        return <LoadingScreen message={pending ? 'Running the chain' : undefined} />;
+        return (
+            <LoadingScreen
+                message={pending ? 'Running the chain' : undefined}
+                error={
+                    pending || fitMessage === undefined
+                        ? undefined
+                        : `The chain could not be run.\n${fitMessage}`
+                }
+            />
+        );
     }
 
     const DeskComponent = deskEntry?.desk;
@@ -731,7 +842,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     // And a scope the picker greys out must not be the one the desk is writing into. Greying an
     // option guards the move onto it and nothing else, so a lock coming into force while the
     // picker is already there needs applying here. `holding[0]` is where the map that locked it
-    // is.
+    // is. Never in the viewer, which locks nothing.
     if (scopeLock.locked.has(scope)) {
         setScope(scopeLock.holding[0] ?? 'global');
     }
@@ -856,6 +967,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                                         />
                                         <PinchZoomHandler />
                                         {!editable && <ViewerAddress />}
+                                        <ViewHistory desk={selectedDesk} scope={scope} />
                                     </ScrollSyncProvider>
                                 </CallSelectionProvider>
                             </PlaybackProvider>
@@ -877,7 +989,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                         }}
                     />
 
+                    {/* Keyed on what it says, so that a message raised while another is showing
+                        gets its own four seconds: the timer starts when the bar opens, and a bar
+                        already open would otherwise take the second down with the first. */}
                     <Snackbar
+                        key={shownMessage?.text}
                         open={message !== undefined}
                         autoHideDuration={4000}
                         onClose={() => {
@@ -888,11 +1004,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                             onClose={() => {
                                 setMessage(undefined);
                             }}
-                            severity="error"
+                            severity={shownMessage?.severity}
                             variant="filled"
                             sx={{ width: '40%' }}
                         >
-                            {message}
+                            {shownMessage?.text}
                         </Alert>
                     </Snackbar>
                 </div>

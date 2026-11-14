@@ -2,7 +2,7 @@ import { ToggleButton, ToggleButtonGroup } from "@mui/material"
 import { computeMillisecondsAt } from "../../fitting/transformers/tempo/tempoCalculations"
 import type { TempoWithEndDate } from "../../fitting/transformers/tempo/tempoCalculations"
 import { InsertTempo } from "../../fitting/transformers/tempo/InsertTempo"
-import { createMpm, getInstructions, requireMap } from "../../fitting/instructions/index"
+import { createMpm, getInstructions, performedInstructions, requireMap } from "../../fitting/instructions/index"
 import type { Mpm } from "../../fitting/instructions/index"
 import { useCallback, useMemo, useState } from "react"
 import { Skyline } from "./Skyline"
@@ -178,7 +178,7 @@ export const TempoDesk = ({ msm, mpm, addTransformer, part, secondary, setSecond
     // one until the piece ends. (The fitting chain reads the same span through
     // `resolveSpan`. There is no `endDate` attribute in the format to read instead.)
     const committedTempos = useMemo<TempoWithEndDate[]>(() => {
-        const tempos = getInstructions(mpm, 'tempo', part)
+        const tempos = performedInstructions(mpm, 'tempo', part)
             .slice()
             .sort((a, b) => a.date - b.date)
         return tempos

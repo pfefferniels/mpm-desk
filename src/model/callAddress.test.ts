@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { callAddress, callAt, MIN_ADDRESS } from './callAddress';
+import { callAddress, callAt, MIN_ADDRESS, missedAddress } from './callAddress';
 
 const ids = [
     '2aac2b1a-7be2-4182-8503-7cc3d7a03229',
@@ -44,5 +44,18 @@ describe('the call an address names', () => {
 
     it('names none where no call starts so: an old segment link, say', () => {
         expect(callAt('0fad3105', calls)).toBeUndefined();
+    });
+});
+
+describe('what the reader is told of an address that names no call', () => {
+    it('says which of the three it is, since each is mended differently', () => {
+        // Too short: more characters might name a call.
+        expect(missedAddress('2aac2b', calls)).toMatch(/too short/);
+        // The start of several: more characters will name one, and there is one to name.
+        expect(missedAddress('9f8b5d24', calls)).toMatch(/start of 2 calls/);
+        // The start of none, which no more characters mend. Quoted as it was followed.
+        expect(missedAddress('deadbeef00', calls)).toBe(
+            'No call of this reconstruction is at #deadbeef00.',
+        );
     });
 });

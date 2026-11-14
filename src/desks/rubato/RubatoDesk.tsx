@@ -5,7 +5,7 @@ import { useScrollRegistration } from "../../hooks/useScrollRegistration"
 import { CombineAdjacentRubatos } from "../../fitting/transformers/rubato/CombineAdjacentRubatos"
 import { InsertRubato } from "../../fitting/transformers/rubato/InsertRubato"
 import type { InsertRubatoOptions } from "../../fitting/transformers/rubato/InsertRubato"
-import { getInstructions } from "../../fitting/instructions/index"
+import { performedInstructions } from "../../fitting/instructions/index"
 import { RubatoInstruction } from "./RubatoInstruction"
 import { DatesRow, Frame } from "./DatesRow"
 import { useSymbolicZoom } from "../../hooks/ZoomProvider"
@@ -72,7 +72,7 @@ export const RubatoDesk = ({ msm, mpm, residual, addTransformer, part }: ScopedT
         })
     }
 
-    const allRubatos = getInstructions(mpm, 'rubato', part)
+    const allRubatos = performedInstructions(mpm, 'rubato', part)
     const chords = msm.in(part).chords()
 
     /** The dates of this part's chords any of whose notes a selected call was fitted to. */

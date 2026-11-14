@@ -6,7 +6,7 @@ import { asMIDI } from "../../utils/utils";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { DynamicsWithEndDate, InsertDynamics } from "../../fitting/transformers/dynamics/InsertDynamics";
 import { AlignedNote } from "../../fitting/alignment";
-import { getInstructions } from "../../fitting/instructions/index";
+import { performedInstructions } from "../../fitting/instructions/index";
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CurveSegment } from "./CurveSegment";
 import { DynamicsCircle } from "./DynamicsCircle";
@@ -114,7 +114,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     }, [currentGuideDate]);
 
     const instructions = useMemo(() => {
-        const dynamics = getInstructions(mpm, 'dynamics', part)
+        const dynamics = performedInstructions(mpm, 'dynamics', part)
         const withEndDate: DynamicsWithEndDate[] = []
         for (let i = 0; i < dynamics.length; i++) {
             // Where the curve stops is the next `<dynamics>`, and nothing else. There is no

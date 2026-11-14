@@ -30,8 +30,9 @@ export const ViewerAddress = () => {
                 ? '#' + callAddress(only, calls.map((call) => call.id))
                 : '';
         if (window.location.hash === hash) return;
+        // The entry's state kept, which is the view Back returns to (`ViewHistory`).
         window.history.replaceState(
-            null,
+            window.history.state,
             '',
             window.location.pathname + window.location.search + hash,
         );

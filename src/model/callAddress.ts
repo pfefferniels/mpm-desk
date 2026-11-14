@@ -33,3 +33,19 @@ export const callAt = <T extends { id: string }>(address: string, calls: readonl
     const matches = calls.filter((call) => call.id.startsWith(address));
     return matches.length === 1 ? matches[0] : undefined;
 };
+
+/**
+ * Why an address opens no call, for the reader who followed it.
+ *
+ * Each of the ways {@link callAt} answers none has its own remedy, so the reader is told which:
+ * too short to be taken for an address, the start of several ids and so in need of more of one,
+ * or the start of none, which no more characters will mend.
+ */
+export const missedAddress = (address: string, calls: readonly { id: string }[]): string => {
+    if (address.length < MIN_ADDRESS)
+        return `#${address} is too short to name a call: an address is at least ${String(MIN_ADDRESS)} characters long.`;
+    const starting = calls.filter((call) => call.id.startsWith(address)).length;
+    if (starting > 1)
+        return `#${address} is the start of ${String(starting)} calls. A longer address names one of them.`;
+    return `No call of this reconstruction is at #${address}.`;
+};

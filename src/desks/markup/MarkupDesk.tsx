@@ -16,7 +16,9 @@ import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolStatus } from '../../components/toolbar/ToolStatus';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
 import { useCallSelection } from '../../hooks/CallSelection';
+import { useEditable } from '../../hooks/Editing';
 import { useWorkDocument } from '../../hooks/WorkDocument';
+import { publishedUrl } from '../../model/published';
 import { renderPerformance } from '../../utils/espressivo';
 import { documentSlug, downloadAsFile } from '../../utils/utils';
 import { indexMarkup } from './markupIndex';
@@ -147,6 +149,9 @@ Row.displayName = 'Row';
  * MIDI renders something the archive does not contain, so it stays, and it is this desk's single
  * `primary`.
  *
+ * The viewer has no Save. There the markup is where welte225.org publishes it, beside the other
+ * three files, and the button's tooltip says so instead.
+ *
  * ## No find field
  *
  * Deliberately none. Every line of the document is in the DOM — there is no virtualisation to
@@ -162,6 +167,7 @@ Row.displayName = 'Row';
 export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
     const { metadata } = useWorkDocument();
     const { activeElements, callForElement, focusCall } = useCallSelection();
+    const editable = useEditable();
 
     const [pane, setPane] = useState<Pane>('MPM');
     const [wrap, setWrap] = useState(false);
@@ -282,7 +288,11 @@ export const MarkupDesk = ({ msm, mpm, performanceXml }: ViewProps) => {
                         primary
                         icon={<Download fontSize='small' />}
                         label='Download MIDI'
-                        tooltip='Render the performance to a MIDI file and save it. The markup itself is already in the archive Save writes.'
+                        tooltip={`Render the performance to a MIDI file and save it. The markup itself is ${
+                            editable
+                                ? 'already in the archive Save writes'
+                                : `published at ${publishedUrl('performance')}`
+                        }.`}
                         onClick={downloadMidi}
                     >
                         Download MIDI
