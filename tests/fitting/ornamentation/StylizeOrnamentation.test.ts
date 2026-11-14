@@ -244,6 +244,27 @@ describe('the definition it writes', () => {
     expect(spread.getAttributeValue('frame.start')).toBeNull();
     expect(spread.getAttributeValue('time.unit')).toBeNull();
   });
+
+  /**
+   * The hinge's ms-to-ticks round trip leaves a roll that began on its beat a few 1e-9 ticks off
+   * it. Written as is, that is `7.3e-9ticks`, which the v3 grammar refuses, so every later parse
+   * logged an error and dropped the attribute.
+   */
+  test('writes float noise around zero as zero, which the v3 grammar can read back', () => {
+    const mpm = createMpm();
+    insertOrnament(
+      mpm,
+      { id: 'roll', date: 0, nameRef: 'neutralArpeggio', scale: 25 },
+      { frameStart: 7.34871719032526e-9, frameLength: 96, frameDomain: FrameDomain.Ticks },
+    );
+
+    run(mpm);
+
+    const def = only(getDefinitions(mpm, 'ornamentDef', 'global'), 'ornamentDef');
+    const spread = def.getXml()!.getChildElements('temporalSpread').get(0);
+    expect(spread.getAttributeValue('frame.offset')).toBe('0ticks');
+    expect(spread.getAttributeValue('frameLength')).toBe('96ticks');
+  });
 });
 
 describe('the styles it previews', () => {

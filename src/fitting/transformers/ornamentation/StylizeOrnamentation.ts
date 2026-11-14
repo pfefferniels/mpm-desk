@@ -104,6 +104,18 @@ interface SpreadValues {
 }
 
 /**
+ * A frame bound as espressivo can read it back.
+ *
+ * Its v3 formatter writes `${value}ticks`, and JavaScript spells anything under 1e-6 in exponent
+ * notation, which the v3 grammar refuses: the hinge's ms-to-ticks round trip leaves offsets of
+ * 1e-10 to 1e-7 ticks where the roll began on the beat, and every parse of the document then
+ * logged them as no MPM v3 temporal value and fell back to the default — 3,100 errors per fit
+ * of WM 225. Such a value is zero to well below anything `RoundNumbers` keeps, so it is written
+ * as zero.
+ */
+const writable = (value: number): number => (Math.abs(value) < 1e-6 ? 0 : value);
+
+/**
  * The note-off shift as a number dbscan can measure.
  *
  * Its epsilon is zero, so all this has to do is keep the three readings apart — and put an
@@ -414,8 +426,8 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
     if (spread) {
       const unit = spread.frameDomain === FrameDomain.Milliseconds ? 'milliseconds' : 'ticks';
       def.setTemporalSpreadFrame(
-        { value: spread.frameStart, domain: unit },
-        { value: spread.frameLength, domain: unit },
+        { value: writable(spread.frameStart), domain: unit },
+        { value: writable(spread.frameLength), domain: unit },
         spread.intensity,
         spread.noteOffShift,
       );
