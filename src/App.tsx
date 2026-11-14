@@ -1006,7 +1006,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                             }}
                             severity={shownMessage?.severity}
                             variant="filled"
-                            sx={{ width: '40%' }}
+                            // A cap rather than a share: the snackbar takes its width from what
+                            // it holds, so 40% of it squeezed a one-line notice into a column a
+                            // word wide and cut it off. `pre-line` keeps a refused chain's
+                            // problems one to a line, as they are joined.
+                            sx={{ maxWidth: 560, whiteSpace: 'pre-line' }}
                         >
                             {shownMessage?.text}
                         </Alert>
