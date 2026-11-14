@@ -1,9 +1,9 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, MenuItem, Select, SelectChangeEvent, Stack } from "@mui/material"
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, MenuItem, Select, SelectChangeEvent, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { MouseEvent, useCallback, useState } from "react"
+import { Fragment, MouseEvent, useCallback, useMemo, useState } from "react"
 import { MakeChoice } from "../../fitting/transformers/choice/MakeChoice"
 import type { NoteChoice, Preference, RangeChoice } from "../../fitting/transformers/choice/MakeChoice"
-import type { AlignedNote } from "../../fitting/alignment"
+import { rowId, type AlignedNote } from "../../fitting/alignment"
 import { onsetSeconds, pedalHeldSeconds, pedalOnsetSeconds, soundedSeconds } from "../noteTiming"
 import { DeskToolbar } from "../../components/DeskToolbar"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
@@ -19,6 +19,9 @@ import { rangeCovering, reachedTo } from "../dateRange"
 import { useEditable } from "../../hooks/Editing"
 import { useCallSelection } from "../../hooks/CallSelection"
 import { EVIDENCE_COLOUR } from "../evidence"
+import { useScoreDocument } from "../../hooks/ScoreDocument"
+import { readingName, readingsOnFittedAxis, takenNotes, takenPedalling } from "./readings"
+import { ReadingsLegend } from "./ReadingsLegend"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
 // returns <path> attribute @d.
@@ -62,21 +65,24 @@ const colors = [
 ]
 
 interface SelectSourceProps {
-    sources: Set<string>
+    sources: readonly string[]
     value: string
     onChange: (event: SelectChangeEvent<string>) => void
+    colorFor: (source: string) => string
 }
 
-const SelectSource = ({ sources, value, onChange }: SelectSourceProps) => {
+/** A reading to prefer, named and coloured as the roll and its legend have it. */
+const SelectSource = ({ sources, value, onChange, colorFor }: SelectSourceProps) => {
     return (
         <FormControl fullWidth>
             <Select
                 value={value}
                 onChange={onChange}
             >
-                {Array.from(sources).map(source => (
-                    <MenuItem key={`select_${source}`} value={source}>
-                        {source}
+                {sources.map(source => (
+                    <MenuItem key={`select_${source}`} value={source} title={source}>
+                        <Box component='span' sx={{ width: 12, height: 12, mr: 1, flexShrink: 0, borderRadius: '2px', bgcolor: colorFor(source) }} />
+                        {readingName(source, sources)}
                     </MenuItem>
                 ))}
             </Select>
@@ -85,30 +91,48 @@ const SelectSource = ({ sources, value, onChange }: SelectSourceProps) => {
 }
 
 interface ArticulatedNoteProps {
+    /** The note's rows, one per reading, in the order the readings are coloured. */
     notes: AlignedNote[]
     stretchX: number
     stretchY: number
     /** Scopes the choice to the note. Absent in the viewer, where a choice is not made. */
     onClick?: (e: MouseEvent<Element>, note: AlignedNote) => void
     colorFor: (source: string) => string
+    nameFor: (source: string) => string
     /** One of the selected calls chose for this note — see `../evidence.ts`. */
     evidence: boolean
+    /**
+     * The reading the chain took this note from, `null` where it took none of them, and
+     * undefined while the readings of it still stand side by side — see `takenNotes`.
+     */
+    taken: string | null | undefined
 }
 
 /**
- * One score note as each reading has it: a bar per reading that differs, braced together.
+ * One score note as each reading has it: a bar per reading, braced together.
+ *
+ * Every reading gets its bar, including one that agrees with another to the millisecond and the
+ * step: a reading drawn only where it differs looks like a take with holes in it, and leaves the
+ * one the chain took undrawn wherever it was the one that agreed.
+ *
+ * Once the chain has taken a reading of the note, that bar is drawn solid and the others are set
+ * back, dashed and faint, and the differences written beside them are counted from the one taken.
+ * The note is then at full strength however little its readings differ, since the bar taken is
+ * what the performance plays and must not fade with them. Before then every bar is dashed until
+ * the note is hovered.
  *
  * Where a selected call made its choice for this note, the brace is drawn in the evidence colour
  * and the group is shown at full strength, however little its readings differ.
  */
-const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }: ArticulatedNoteProps) => {
+const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, nameFor, evidence, taken }: ArticulatedNoteProps) => {
     const [hovered, setHovered] = useState(false)
 
     if (!notes.length) return null
 
-    const refOnset = onsetSeconds(notes[0])
-    const refVel = notes[0].velocity
-    const refPitch = notes[0]["midi.pitch"]
+    const reference = notes.find(note => taken && note.source === taken) ?? notes[0]
+    const refOnset = onsetSeconds(reference)
+    const refVel = reference.velocity
+    const refPitch = reference["midi.pitch"]
 
     const variationScore = notes.reduce((acc, note) => {
         const velDiff = Math.abs(note.velocity - refVel)
@@ -120,7 +144,7 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }:
         <g
             data-evidence={evidence || undefined}
             data-note={notes[0]['xml:id']}
-            opacity={hovered || evidence ? 1 : (variationScore / (notes.length * 4) || 1)}
+            opacity={hovered || evidence || taken !== undefined ? 1 : (variationScore / (notes.length * 4) || 1)}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
@@ -130,42 +154,50 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }:
                 const onset = onsetSeconds(note)
                 const yOffset = i - (notes.length / 2) + 0.5
                 const source = note.source || 'unknown'
-                const velDiff = Math.abs(velocity - refVel)
-                const onsetDiff = Math.abs(onset - refOnset)
-                if (i > 0 && ((velDiff <= 0 && onsetDiff <= 0.02))) return null
+                const state = taken === undefined ? 'open' : note.source === taken ? 'taken' : 'set aside'
 
                 const y = (100 - note["midi.pitch"] + yOffset) * stretchY
 
                 const color = colorFor(source)
 
+                // Keyed by the row, not the note: every reading of a note shares its `xml:id`, so
+                // the id alone is the same key once per reading.
                 return (
-                    <>
+                    <Fragment key={rowId(note)}>
                         <rect
                             data-source={source}
                             data-id={note['xml:id']}
+                            data-taken={state === 'taken' || undefined}
                             x={onset * stretchX}
                             y={y - (stretchY - 0.4) / 2}
                             width={duration * stretchX}
                             height={stretchY * 0.5}
                             fill={color}
                             fillOpacity={(velocity + 40) / 127}
+                            opacity={state === 'set aside' ? 0.35 : undefined}
                             stroke='black'
                             strokeWidth={0.8}
-                            strokeDasharray={hovered ? 'none' : '1 1'}
+                            strokeDasharray={state === 'taken' || (state === 'open' && hovered) ? 'none' : '1 1'}
                             onClick={onClick && ((e) => onClick(e, note))}
-                            key={`noteRect_${note["xml:id"]}`}
-                        />
+                        >
+                            <title>
+                                {`${nameFor(source)}, velocity ${velocity}${state === 'open' ? '' : `, ${state}`}`}
+                            </title>
+                        </rect>
 
+                        {/* Through to the bars: a figure ten pixels high sits over the bar it labels
+                            and the one stacked with it, which a click scoping the choice is aimed at. */}
                         <text
                             x={onset * stretchX + 3}
                             y={y - (stretchY - 0.4) / 2 + stretchY * 0.5 / 2}
                             fontSize={10}
                             fill="black"
                             dominantBaseline="middle"
+                            pointerEvents="none"
                         >
                             {(velocity - refVel) !== 0 && `${(velocity - refVel).toFixed(0)}`}
                         </text>
-                    </>
+                    </Fragment>
                 )
             })}
 
@@ -190,12 +222,25 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }:
 /**
  * The readings of the score side by side, note by note, and the choice of which to take.
  *
+ * Every reading the document holds is drawn, whatever has been chosen: they come from the
+ * alignment as loaded (`readingsOnFittedAxis`), since `msm` is the chain's output and keeps only
+ * the rows a `MakeChoice` took. `msm` says which those were, so the roll can mark them and the
+ * legend can say which reading each choice prefers and over what. The editor draws the same, so
+ * a choice made over the whole piece leaves the other reading there to narrow it against.
+ *
  * In the viewer the readings are only shown: nothing is chosen, so the bar is empty and a click
- * on a note scopes nothing. The notes a selected `MakeChoice` chose for are marked.
+ * on a note scopes nothing. A choice is selected from the legend, and the notes a selected
+ * `MakeChoice` chose for are marked.
  */
 export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
     const editable = useEditable()
     const { activeEvidence } = useCallSelection()
+    const { pristine } = useScoreDocument()
+    // `pristine` is in hand wherever a fit is, so the fallback is for a desk mounted on its own.
+    const recorded = pristine ?? msm
+    const readings = useMemo(() => readingsOnFittedAxis(recorded, msm), [recorded, msm])
+    const taken = useMemo(() => takenNotes(recorded, msm), [recorded, msm])
+    const pedalling = useMemo(() => takenPedalling(recorded, msm), [recorded, msm])
     const [currentChoice, setCurrentChoice] = useState<RangeChoice | NoteChoice>()
     const [prefer, setPrefer] = useState<Preference>()
     const [insert, setInsert] = useState(false)
@@ -216,30 +261,44 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
     }, [registerScroll]);
 
     // Pedals count towards the colouring as well: a reading that only differs in its pedalling
-    // still has a line to draw, and it has to be the colour its notes carry elsewhere.
-    const sourceIDs = Array.from(msm.sources())
+    // still has a line to draw, and it has to be the colour its notes carry elsewhere. Off the
+    // alignment as loaded, as `Alignment.sources` asks, or a reading the chain set aside would
+    // lose its colour and the ones after it would move up into its place.
+    const sourceIDs = Array.from(recorded.sources())
     const colorFor = (source: string) => {
         const index = sourceIDs.indexOf(source)
         // An event written outside any `<recording>` belongs to no reading, so it borrows no
         // reading's colour.
         return index < 0 ? '#9e9e9e' : colors[index % colors.length]
     }
+    const nameFor = (source: string) => readingName(source, sourceIDs)
+    const order = (note: AlignedNote) => {
+        const index = sourceIDs.indexOf(note.source ?? '')
+        return index < 0 ? sourceIDs.length : index
+    }
 
     const groups = []
 
     // group notes with the same xml:id
-    const grouped = Object.groupBy(msm.allNotes, note => note['xml:id'])
+    const grouped = Object.groupBy(readings.notes, note => note['xml:id'])
     for (const [xmlId, notes] of Object.entries(grouped)) {
-        if (!notes || !notes.length) return
+        // On to the next note rather than out of the component, where `return` handed React
+        // `undefined` for the whole desk. `Object.groupBy` makes no empty group, so this is for
+        // its type, but a guard that would blank the desk if it ever fired is no guard.
+        if (!notes || !notes.length) continue
 
         groups.push((
             <ChoiceGroup
                 key={`group_${xmlId}`}
-                notes={notes}
+                // A reading keeps its place within every note, so the eye can follow one take
+                // along a line of the roll.
+                notes={notes.toSorted((a, b) => order(a) - order(b))}
                 stretchX={stretchX}
                 stretchY={stretchY}
                 colorFor={colorFor}
+                nameFor={nameFor}
                 evidence={notes.some(note => activeEvidence.has(note['xml:id']))}
+                taken={taken.get(xmlId)}
                 onClick={editable ? (e) => {
                     if (!e.shiftKey && !e.metaKey) {
                         const newChoice: NoteChoice = {
@@ -257,7 +316,7 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                     else if (currentChoice && e.shiftKey) {
                         const date = notes[0].date
                         if ('noteIDs' in currentChoice) {
-                            const picked = msm.allNotes
+                            const picked = readings.notes
                                 .filter(note => currentChoice.noteIDs.includes(note['xml:id']))
                                 .map(note => note.date)
                             // A cmd-click can take the last id back out, leaving nothing to reach
@@ -276,21 +335,25 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
         ))
     }
 
-    const lanes = pedalLanes(msm.pedals, rollHeight + PEDAL_GUTTER)
+    const lanes = pedalLanes(readings.pedals, rollHeight + PEDAL_GUTTER)
 
     // Far enough for the last thing that sounds, which is not always a note: a pedal held over the
     // final chord ends after every release.
-    const lastRelease = msm.allNotes.reduce(
+    const lastRelease = readings.notes.reduce(
         (acc, note) => Math.max(acc, onsetSeconds(note) + soundedSeconds(note)),
         0,
     )
-    const lastLift = msm.pedals.reduce(
+    const lastLift = readings.pedals.reduce(
         (acc, pedal) => Math.max(acc, pedalOnsetSeconds(pedal) + pedalHeldSeconds(pedal)),
         0,
     )
     const width = Math.max(lastRelease, lastLift) * stretchX
 
-    const sources = new Set(sourceIDs)
+    // How much of the piece each reading supplies, as the chain left it.
+    const takenCounts = new Map<string, number>()
+    for (const source of taken.values()) {
+        if (source) takenCounts.set(source, (takenCounts.get(source) ?? 0) + 1)
+    }
 
     // What the choice is about to cover, said beside the button rather than inside its label.
     //
@@ -366,19 +429,32 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                 </svg>
 
                 <div ref={scrollContainerRef} style={{ flex: 1, minWidth: 0, height: '100%', overflowX: 'scroll', overflowY: 'hidden', position: 'relative' }}>
-                    <svg width={width} height={containerHeight}>
+                    {/* Not selectable: a shift-click reaches the choice to a note, and the browser
+                        took the same click to stretch a text selection over every figure between,
+                        painting them in a blue that reads as the evidence colour. */}
+                    <svg width={width} height={containerHeight} style={{ userSelect: 'none' }}>
                         {groups}
                         <PedalLanes
-                            pedals={msm.pedals}
+                            pedals={readings.pedals}
                             lanes={lanes}
                             sources={sourceIDs}
+                            taken={pedalling}
                             stretchX={stretchX}
                             width={width}
                             colorFor={colorFor}
+                            nameFor={nameFor}
                         />
                     </svg>
                 </div>
             </div>
+
+            <ReadingsLegend
+                readings={sourceIDs}
+                colorFor={colorFor}
+                taken={takenCounts}
+                notes={groups.length}
+                indent={PEDAL_LABEL_WIDTH}
+            />
 
             <Dialog
                 open={insert}
@@ -389,7 +465,8 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                     <Stack spacing={2}>
                         Select Preferred Source:
                         <SelectSource
-                            sources={sources}
+                            sources={sourceIDs}
+                            colorFor={colorFor}
                             value={prefer
                                 ? 'prefer' in prefer
                                     ? prefer.prefer
@@ -408,7 +485,8 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
 
                         Preferred Source for Loudness (Velocity):
                         <SelectSource
-                            sources={sources}
+                            sources={sourceIDs}
+                            colorFor={colorFor}
                             value={prefer
                                 ? 'prefer' in prefer
                                     ? prefer.prefer
@@ -435,7 +513,8 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
 
                         Preferred Source for Timing:
                         <SelectSource
-                            sources={sources}
+                            sources={sourceIDs}
+                            colorFor={colorFor}
                             value={prefer
                                 ? 'prefer' in prefer
                                     ? prefer.prefer
