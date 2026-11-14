@@ -9,7 +9,7 @@ import {
 import {
   InsertPedal,
   type InsertPedalOptions,
-} from '../../../src/fitting/transformers/pedal/InsertPedalInstructions';
+} from '../../../src/fitting/transformers/pedal/InsertPedal';
 import type { AlignedPedal } from '../../../src/fitting/alignment';
 import { at } from '../../support/at';
 import { buildScore, QUARTER } from './score';

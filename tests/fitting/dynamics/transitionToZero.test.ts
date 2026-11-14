@@ -5,7 +5,7 @@ import {
   positionAtDate,
   volumeAtDate,
 } from '../../../src/fitting/transformers/dynamics/Approximation';
-import type { DynamicsWithEndDate } from '../../../src/fitting/transformers/dynamics/InsertDynamicsInstructions';
+import type { DynamicsWithEndDate } from '../../../src/fitting/transformers/dynamics/InsertDynamics';
 import type { InstructionOptions } from '../../../src/fitting/instructions/index';
 
 /**

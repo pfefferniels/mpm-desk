@@ -24,7 +24,7 @@ inside the excerpt's window.
 
 `chain.json` is a work file: a `provenance` of 84 calls. The calls are 15 `InsertTemporalSpread`, 12 `InsertPedal`, 11
 `InsertMetricalAccentuation`, 10 `InsertTempo`, 10 `InsertRubato`, 9
-`InsertDynamicsInstructions`, 8 `InsertArticulation`, 3 `Modify`, and one each of `MakeChoice`,
+`InsertDynamics`, 8 `InsertArticulation`, 3 `Modify`, and one each of `MakeChoice`,
 `InsertDynamicsGradient`, `TranslatePhysicalTimeToTicks`, `StylizeOrnamentation`, `MergeMetricalAccentuations` and `InsertMetadata`. That is
 every aspect the issue asked the fixture to exercise, plus pedalling.
 

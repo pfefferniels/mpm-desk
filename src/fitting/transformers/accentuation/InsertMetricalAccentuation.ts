@@ -16,7 +16,7 @@ import {
   idsOf,
   type ScopedTransformationOptions,
 } from '../Transformer';
-import { InsertDynamicsInstructions } from '../dynamics/index';
+import { InsertDynamics } from '../dynamics/index';
 import { PULSES_PER_WHOLE } from '../../ppq';
 import { filterMap } from 'espressivo';
 import { type Range } from '../range';
@@ -53,7 +53,7 @@ interface FittedAccentuation {
 
 export class InsertMetricalAccentuation extends AbstractTransformer<InsertMetricalAccentuationOptions> {
   readonly name = 'InsertMetricalAccentuation';
-  requires = [InsertDynamicsInstructions];
+  requires = [InsertDynamics];
 
   constructor(options?: InsertMetricalAccentuationOptions) {
     super(

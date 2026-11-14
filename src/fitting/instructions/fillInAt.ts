@@ -23,7 +23,7 @@ interface FillIn<O> {
  * - `InsertDynamicsGradient` and `InsertTemporalSpread` each fit half of one `<ornament>`, a
  *   velocity ramp and a roll. Written separately they would be two `<ornament>`s at one date,
  *   and the renderer would apply both.
- * - `InsertDynamicsInstructions` closes each fitted transition with a `<dynamics>` at the end of
+ * - `InsertDynamics` closes each fitted transition with a `<dynamics>` at the end of
  *   its window, and the next segment's fit lands on that same date. One element carries the
  *   closing volume and the next curve; two make the closer shadow the curve.
  *

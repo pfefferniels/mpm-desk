@@ -27,7 +27,7 @@ import type { Resolution } from '../alignment/readings';
 
 /** A `Set`-valued option, held so the tests can ask for it by identity. */
 const aspects = new Set(['relativeDuration']);
-/** A `Map`-valued option, likewise — `InsertDynamicsInstructions`' guides. */
+/** A `Map`-valued option, likewise — `InsertDynamics`' guides. */
 const guides = new Map([['note_12', 64]]);
 
 /**
@@ -51,7 +51,7 @@ const base = (): WorkFile =>
                 options: { aspects },
                 elements: ['articulation_0'],
             },
-            { id: 'd', name: 'InsertDynamicsInstructions', options: { guides } },
+            { id: 'd', name: 'InsertDynamics', options: { guides } },
         ],
     });
 

@@ -672,7 +672,7 @@ export const correspondingDesks: DeskEntry[] = [
     },
     // Dynamics
     {
-        transformerName: 'InsertDynamicsInstructions',
+        transformerName: 'InsertDynamics',
         aspect: 'dynamics',
         desk: lazy(() =>
             import('./dynamics/DynamicsDesk').then((m) => ({ default: m.DynamicsDesk })),

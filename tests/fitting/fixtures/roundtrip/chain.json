@@ -85,7 +85,7 @@
     },
     {
       "id": "0140cee8-ca70-4505-8c14-1b75864a4316",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "scope": "global",
         "guides": {
@@ -164,7 +164,7 @@
     },
     {
       "id": "5874fd63-6b6a-4739-abe5-c41b2738f292",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "scope": "global",
         "guides": {
@@ -405,7 +405,7 @@
     },
     {
       "id": "03c9d40a-feaf-4f91-a6cd-a458937c0635",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "from": 0,
         "to": 720,
@@ -658,7 +658,7 @@
     },
     {
       "id": "3d64acc0-116d-425b-a805-2cf23854fdac",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "scope": "global",
         "guides": {
@@ -736,7 +736,7 @@
     },
     {
       "id": "4bb70f78-63ab-4a7e-b513-7fdaff6a6310",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "from": 720,
         "to": 2520,
@@ -832,7 +832,7 @@
     },
     {
       "id": "68d087ca-7297-4d29-a359-9659af1016cc",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "from": 2520,
         "to": 3600,
@@ -891,7 +891,7 @@
     },
     {
       "id": "ca94f33d-b75b-4a8c-81ef-87d00b4009a9",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "scope": "global",
         "guides": {
@@ -956,7 +956,7 @@
     },
     {
       "id": "3bcf55db-1a28-48a6-9025-06e4b0c96c38",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "scope": "global",
         "guides": {
@@ -987,7 +987,7 @@
     },
     {
       "id": "0085d53b-c2b2-4dda-8f6e-bcbae8a0edb4",
-      "name": "InsertDynamicsInstructions",
+      "name": "InsertDynamics",
       "options": {
         "scope": "global",
         "guides": {

@@ -1,5 +1,5 @@
 import { computeInnerControlPointsXPositions, volumeAtDate } from "../../fitting/transformers/dynamics/Approximation"
-import { DynamicsWithEndDate } from "../../fitting/transformers/dynamics/InsertDynamicsInstructions"
+import { DynamicsWithEndDate } from "../../fitting/transformers/dynamics/InsertDynamics"
 import { useMemo, useState } from "react"
 import { areaPath, sampleTransition } from "../transitionSamples"
 

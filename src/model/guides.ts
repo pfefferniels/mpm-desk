@@ -1,7 +1,7 @@
 /**
  * The guides of the dynamics curve, moved with the expansions of velocity.
  *
- * A guide — one of the `guides` of `InsertDynamicsInstructions` — is a value the curve has to
+ * A guide — one of the `guides` of `InsertDynamics` — is a value the curve has to
  * pass through, set on the plot of the velocities as the chain left them: after every `Expand`.
  * So it is a value on the expanded scale, and when an expansion comes or goes, the scale changes
  * under it. Left where it was, a guide set beside the softest notes would end up far above or
@@ -78,7 +78,7 @@ const move = (value: number, was: readonly VelocityExpansion[], is: readonly Vel
 };
 
 /**
- * `after`, with the guides of every `InsertDynamicsInstructions` call moved from the scale the
+ * `after`, with the guides of every `InsertDynamics` call moved from the scale the
  * velocity expansions of `before` drew to the one those of `after` draw.
  *
  * A call whose guides do not move is returned as it was, by reference; one whose guides do gets
@@ -89,7 +89,7 @@ export const followExpansions = (before: readonly Call[], after: readonly Call[]
     const is = after.map(velocityExpansion).filter((e): e is VelocityExpansion => e !== null);
 
     return after.map((call) => {
-        if (call.name !== 'InsertDynamicsInstructions') return call;
+        if (call.name !== 'InsertDynamics') return call;
         const guides = call.options.guides;
         if (!(guides instanceof Map) || guides.size === 0) return call;
         const scope = call.options.scope ?? 'global';

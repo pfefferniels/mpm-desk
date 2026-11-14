@@ -1,4 +1,4 @@
-import { InsertPedal } from "../../fitting/transformers/pedal/InsertPedalInstructions"
+import { InsertPedal } from "../../fitting/transformers/pedal/InsertPedal"
 import { rowId } from "../../fitting/alignment"
 import { getInstructions } from "../../fitting/instructions/index"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"

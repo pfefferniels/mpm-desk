@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createMpm } from '../../../src/fitting/instructions/index';
 import type { AlignedPedal } from '../../../src/fitting/alignment';
-import { InsertPedal } from '../../../src/fitting/transformers/pedal/InsertPedalInstructions';
+import { InsertPedal } from '../../../src/fitting/transformers/pedal/InsertPedal';
 import { InsertTempo, TranslatePhysicalTimeToTicks } from '../../../src/fitting/transformers/tempo/index';
 import { compareTransformers } from '../../../src/fitting/transformers/index';
 import { deriveResidual } from '../../../src/fitting/residual';

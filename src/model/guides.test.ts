@@ -10,7 +10,7 @@ import { initialHistory, workHistoryReducer, workReducer } from './workReducer';
 
 const curve = (id: string, guides: [number, number][], scope: unknown = 'global'): Call => ({
     id,
-    name: 'InsertDynamicsInstructions',
+    name: 'InsertDynamics',
     options: { scope, from: 0, to: 2880, guides: new Map(guides) },
 });
 

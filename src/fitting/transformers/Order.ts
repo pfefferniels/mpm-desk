@@ -2,7 +2,7 @@ import { InsertMetricalAccentuation, MergeMetricalAccentuations } from './accent
 import { InsertArticulation, MakeDefaultArticulation } from './articulation/index';
 import { StylizeArticulation } from './articulation/StylizeArticulation';
 import { MakeChoice } from './choice/MakeChoice';
-import { InsertDynamicsInstructions } from './dynamics/index';
+import { InsertDynamics } from './dynamics/index';
 import { InsertMetadata } from './metadata/index';
 import { Modify } from './modification/Modify';
 import { Expand } from './modification/Expand';
@@ -13,7 +13,7 @@ import {
   InsertGraceNotes,
   StylizeOrnamentation,
 } from './ornamentation/index';
-import { InsertPedal } from './pedal/InsertPedalInstructions';
+import { InsertPedal } from './pedal/InsertPedal';
 import { RoundNumbers } from './rounding/RoundNumbers';
 import { InsertRubato } from './rubato/InsertRubato';
 import { CombineAdjacentRubatos } from './rubato/CombineAdjacentRubatos';
@@ -108,7 +108,7 @@ const REGISTERED = [
   StylizeOrnamentation,
   InsertRubato,
   CombineAdjacentRubatos,
-  InsertDynamicsInstructions,
+  InsertDynamics,
   InsertMetricalAccentuation,
   MergeMetricalAccentuations,
   InsertArticulation,
