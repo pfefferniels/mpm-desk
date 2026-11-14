@@ -115,6 +115,22 @@ const mount = ({ editable = true, selected }: MountOptions = {}) => {
     return { click, scope, addTransformer, marked };
 };
 
+/**
+ * First in the file, because React says a key is missing once per component and then never again:
+ * after any other mount the warning would already be spent and this would pass on broken keys.
+ */
+describe('drawing the readings', () => {
+    it('keys every reading of a note apart', () => {
+        const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        try {
+            mount();
+            expect(error.mock.calls.flat().join(' ')).not.toMatch(/unique "key"/);
+        } finally {
+            error.mockRestore();
+        }
+    });
+});
+
 describe('marking out what a choice covers', () => {
     it('takes a plain click as the one note', () => {
         const { click, scope } = mount();

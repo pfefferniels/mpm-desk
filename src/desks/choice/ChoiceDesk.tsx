@@ -1,9 +1,9 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, MenuItem, Select, SelectChangeEvent, Stack } from "@mui/material"
 import { ScopedTransformerViewProps } from "../TransformerViewProps"
-import { MouseEvent, useCallback, useState } from "react"
+import { Fragment, MouseEvent, useCallback, useState } from "react"
 import { MakeChoice } from "../../fitting/transformers/choice/MakeChoice"
 import type { NoteChoice, Preference, RangeChoice } from "../../fitting/transformers/choice/MakeChoice"
-import type { AlignedNote } from "../../fitting/alignment"
+import { rowId, type AlignedNote } from "../../fitting/alignment"
 import { onsetSeconds, pedalHeldSeconds, pedalOnsetSeconds, soundedSeconds } from "../noteTiming"
 import { DeskToolbar } from "../../components/DeskToolbar"
 import { ToolGroup } from "../../components/toolbar/ToolGroup"
@@ -138,8 +138,10 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }:
 
                 const color = colorFor(source)
 
+                // Keyed by the row, not the note: every reading of a note shares its `xml:id`, so
+                // the id alone is the same key once per reading.
                 return (
-                    <>
+                    <Fragment key={rowId(note)}>
                         <rect
                             data-source={source}
                             data-id={note['xml:id']}
@@ -153,7 +155,6 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }:
                             strokeWidth={0.8}
                             strokeDasharray={hovered ? 'none' : '1 1'}
                             onClick={onClick && ((e) => onClick(e, note))}
-                            key={`noteRect_${note["xml:id"]}`}
                         />
 
                         <text
@@ -165,7 +166,7 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, evidence }:
                         >
                             {(velocity - refVel) !== 0 && `${(velocity - refVel).toFixed(0)}`}
                         </text>
-                    </>
+                    </Fragment>
                 )
             })}
 
