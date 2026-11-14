@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { convertMeiToMsm, performMsmToData } from 'espressivo';
-import { Alignment, type AlignedGrace, type AlignedNote } from '../../../src/fitting/alignment';
+import {
+  Alignment,
+  type AlignedGrace,
+  type AlignedNote,
+  type ScoreNote,
+} from '../../../src/fitting/alignment';
 import {
   Mpm,
   createMpm,
@@ -59,9 +64,28 @@ const grace = (
   ...(source !== undefined && { source }),
 });
 
-const alignment = (notes: AlignedNote[], graces: AlignedGrace[]): Alignment => {
+/** A principal the recording strikes only as the grace note tied into it. */
+const tiedPrincipal = (id: string, date: number, pitch: number, part = 1): ScoreNote => ({
+  'xml:id': id,
+  date,
+  part,
+  staff: String(part),
+  layer: '1',
+  pitchname: 'f',
+  octave: 3,
+  duration: 2160,
+  accidentals: 0,
+  'midi.pitch': pitch,
+});
+
+const alignment = (
+  notes: AlignedNote[],
+  graces: AlignedGrace[],
+  tiedPrincipals: ScoreNote[] = [],
+): Alignment => {
   const msm = new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
   msm.graces = graces;
+  msm.tiedPrincipals = tiedPrincipals;
   return msm;
 };
 
@@ -156,6 +180,7 @@ describe('a group tied into its principal', () => {
         grace('bb', 'gg', 'f3', 0, 46, 1650),
         grace('f', 'gg', 'f3', 1, 53, 1760, { tied: true }),
       ],
+      [tiedPrincipal('f3', 720, 53)],
     );
 
   test('drops the tied grace note from the pool and strikes the principal in its place', () => {
@@ -169,8 +194,17 @@ describe('a group tied into its principal', () => {
 
   test('is skipped when nothing recorded sounds on its date', () => {
     const mpm = createMpm();
-    const lonely = alignment([], msm().graces);
+    const lonely = alignment([], msm().graces, msm().tiedPrincipals);
     callTransform(new InsertGraceNotes({ scope: 'global' }), lonely, mpm);
+    expect(getInstructions(mpm, 'ornament', 'global')).toEqual([]);
+  });
+
+  // The renderer plays a figure in its principal's place, and a principal the rendered score
+  // does not hold is a figure it skips: no ornament is better than one nobody hears.
+  test('is skipped when the score it is rendered against will not hold its principal', () => {
+    const mpm = createMpm();
+    const unstruck = alignment(msm().allNotes, msm().graces);
+    callTransform(new InsertGraceNotes({ scope: 'global' }), unstruck, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toEqual([]);
   });
 });
@@ -239,6 +273,27 @@ describe('the published transcription', () => {
     );
   });
 
+  // The roll never strikes these as themselves, so no `<when>` names them: the grace note tied
+  // into each is struck early and held in its place.
+  test('keeps the five principals a grace note is tied into, out of the notes and in the score', () => {
+    const msm = asMSM(mei, movement.msm, movement.graces);
+    const tied = msm.tiedPrincipals.map((note) => note['xml:id']);
+    expect(tied.sort()).toEqual(
+      ['n14pg584', 'n14pg584-rend2', 'nanro74', 'nanro74-rend2', 'nrjny5d'].sort(),
+    );
+    expect(msm.allNotes.filter((note) => tied.includes(note['xml:id']))).toEqual([]);
+    expect(msm.tiedPrincipals.find((note) => note['xml:id'] === 'nanro74')).toMatchObject({
+      date: 4320,
+      duration: 2160,
+      'midi.pitch': 53,
+      part: 2,
+    });
+    const score = msm.serializeScore() ?? '';
+    for (const id of tied) expect(score).toContain(`xml:id="${id}"`);
+  });
+
+  // Rendered against the alignment's own score, as the app renders it, and not against the raw
+  // conversion, which holds every note of the MEI and so had the principals all along.
   test('plays bar 3’s B♭–F as the roll does: the F struck 108 ms after the B♭ and held', () => {
     const msm = asMSM(mei, movement.msm, movement.graces);
     callTransform(new MakeChoice({ prefer: 'c9050e75-97a8-4862-9533-0f4b1439802b' }), msm, createMpm());
@@ -246,7 +301,7 @@ describe('the published transcription', () => {
     callTransform(new InsertGraceNotes({ scope: 'global' }), msm, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toHaveLength(8);
 
-    const played = performMsmToData({ msm: movement.msm, mpm: exportMPM(mpm) })
+    const played = performMsmToData({ msm: msm.serializeScore() ?? '', mpm: exportMPM(mpm) })
       .parts.flatMap((part) => part.notes)
       .filter((n) => n.ornamentRef === 'grace_pxnvdff');
     expect(played.map((n) => [n.pitch, n.ornamentSource])).toEqual([

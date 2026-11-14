@@ -690,9 +690,15 @@ export const App = ({ mode = 'edit' }: AppProps) => {
      * nothing and a ranged preview falls back to the piece whole.
      *
      * Read off the notes, so it follows `MakeChoice`: an id the chain discarded is not reported.
+     * The tied principals too, which that score holds and a grace figure sounds.
      */
     const dateByNoteId = useMemo(
-        () => new Map(alignment?.allNotes.map((note) => [note['xml:id'], note.date]) ?? []),
+        () =>
+            new Map(
+                [...(alignment?.allNotes ?? []), ...(alignment?.tiedPrincipals ?? [])].map(
+                    (note) => [note['xml:id'], note.date],
+                ),
+            ),
         [alignment],
     );
 

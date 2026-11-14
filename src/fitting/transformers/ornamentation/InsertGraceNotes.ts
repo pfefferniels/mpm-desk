@@ -53,7 +53,8 @@ const mean = (values: readonly number[]): number =>
  *   took out of it (`AlignedNote.spread`) — and the grace notes come before it.
  * - **Tied**: the last grace note is tied into the principal, which is then struck as that note
  *   and held. The tied grace note's onset is the principal's, and the score has no second one;
- *   the date's onset is read off the other notes the chord has there.
+ *   the date's onset is read off the other notes the chord has there. The principal has no row
+ *   of its own and is in the rendered score as one of `Alignment.tiedPrincipals`.
  *
  * ## Why the frame stays in milliseconds
  *
@@ -72,8 +73,9 @@ const mean = (values: readonly number[]): number =>
  * (`noteoff.shift="monophonic"`); the spacing between three or more onsets is fitted as
  * `@intensity`. The figure takes the principal's velocity: no dynamics gradient is fitted.
  *
- * A group is skipped, with a reason, while its readings are still side by side, and when nothing
- * the chain can place sounds on its principal's date.
+ * A group is skipped, with a reason, while its readings are still side by side, when the
+ * recording strikes its principal neither on its own nor through a tied grace note, and when
+ * nothing the chain can place sounds on its principal's date.
  */
 export class InsertGraceNotes extends AbstractTransformer<InsertGraceNotesOptions> {
   readonly name = 'InsertGraceNotes';
@@ -132,6 +134,18 @@ export class InsertGraceNotes extends AbstractTransformer<InsertGraceNotesOption
         continue;
       }
       const principal = principals[0];
+
+      // The renderer plays the figure in its principal's place, so the principal has to be in
+      // the score the MPM is rendered against: timed, or struck as the grace note tied into it.
+      if (
+        principal === undefined &&
+        !msm.tiedPrincipals.some((note) => note['xml:id'] === principalId)
+      ) {
+        console.warn(
+          `InsertGraceNotes: ${group} leads to ${principalId}, which the recording does not strike`,
+        );
+        continue;
+      }
 
       // Where the chain puts the principal's date.
       const atDate = msm.in(this.options.scope).notesAtDate(date);

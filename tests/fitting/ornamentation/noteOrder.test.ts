@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { performMsmToData } from 'espressivo';
-import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
+import { Alignment, type AlignedNote, type ScoreNote } from '../../../src/fitting/alignment';
 import {
   Mpm,
   createMpm,
@@ -50,6 +50,20 @@ const note = (
     'milliseconds.date.end': onset + 1000,
     velocity,
   }) as AlignedNote;
+
+/** A principal the recording strikes only as the grace note tied into it: a score note, no row. */
+const principal = (id: string, pitch: number, date = 0): ScoreNote => ({
+  'xml:id': id,
+  date,
+  part: 1,
+  staff: '1',
+  layer: '1',
+  pitchname: 'c',
+  octave: 3,
+  accidentals: 0,
+  duration: 0.25 * 4 * 720,
+  'midi.pitch': pitch,
+});
 
 const chord = (notes: AlignedNote[]) =>
   new Alignment(notes, [{ date: 0, numerator: 4, denominator: 4 }]);
@@ -104,6 +118,16 @@ describe('noteOrderOf', () => {
     expect(noteOrderOf([note('a', 60, 0, 40), note('b', 60, 10, 45), note('c', 67, 20, 50)])).toBe(
       '#a #b #c',
     );
+  });
+
+  // A keyword takes every note at the date, and the score holds one more there than the chord.
+  test('a roll that climbs is named note by note where a tied principal shares its date', () => {
+    expect(
+      noteOrderOf(
+        [note('a', 60, 0, 40), note('b', 64, 10, 45), note('c', 67, 20, 50)],
+        [principal('p', 48)],
+      ),
+    ).toBe('#a #b #c');
   });
 });
 
@@ -231,5 +255,55 @@ describe('the performed ramp follows the roll', () => {
     // Which is the whole point: the highest note is not the loudest, because it is not the last
     // one struck. Sorted by pitch it would have been.
     expect(performed.get('b')).toBeLessThan(at([...performed.values()], 3, 'velocity'));
+  });
+});
+
+/**
+ * The score the MPM is rendered against holds one more note at some dates than the chord there:
+ * a principal a grace note is tied into, which the roll struck with its grace figure, often a beat
+ * ahead (`Alignment.tiedPrincipals`). The spread never saw it, and the roll must not take it.
+ */
+describe('a tied principal on the date of a rolled chord', () => {
+  const rolled = () => {
+    const msm = chord([note('a', 60, 1000, 40), note('b', 64, 1100, 45), note('c', 67, 1200, 50)]);
+    msm.tiedPrincipals = [principal('p', 48)];
+    return msm;
+  };
+
+  const onsets = (msm: Alignment, mpm: string) =>
+    new Map(
+      performMsmToData({ msm: msm.serializeScore() ?? '', mpm }, {})
+        .parts.flatMap((part) => part.notes)
+        .map((n) => [n.id, n.milliseconds.date]),
+    );
+
+  test('is left out of the roll, which names the notes it measured', () => {
+    const msm = rolled();
+    const mpm = createMpm();
+    callTransform(gradient(), msm, mpm);
+    callTransform(spread(), msm, mpm);
+    callTransform(
+      new StylizeOrnamentation({
+        tickTolerance: 10,
+        gradientTolerance: 0.1,
+        intensityTolerance: 0.3,
+      }),
+      msm,
+      mpm,
+    );
+    expect(orderOf(mpm)).toBe('#a #b #c');
+
+    const xml = exportMPM(mpm);
+    const without = msm.clone();
+    without.tiedPrincipals = [];
+    const played = onsets(msm, xml);
+    expect(played.has('p')).toBe(true);
+    for (const id of ['a', 'b', 'c']) expect(played.get(id)).toBe(onsets(without, xml).get(id));
+
+    // What the keyword would have done: the principal, lowest, rolled first, and the chord a step
+    // late from its first note on.
+    const keyword = xml.replace('note.order="#a #b #c"', 'note.order="ascending pitch"');
+    expect(keyword).not.toBe(xml);
+    expect(onsets(msm, keyword).get('a')).toBeGreaterThan(played.get('a') ?? Infinity);
   });
 });

@@ -80,6 +80,21 @@ describe('Alignment.serialize performance data', () => {
     expect(xml).not.toContain('milliseconds.date');
     expect(xml).not.toContain('velocity');
   });
+
+  // A principal a grace note is tied into has no row, its strike being the grace note's, but the
+  // figure written on it is rendered in its place, so the score has to hold it — in its own part,
+  // which may be one no row is in.
+  test('the score holds the tied principals, with nothing of the recording on them', () => {
+    const msm = new Alignment([performed()]);
+    msm.tiedPrincipals = [{ ...note('n2', 2, 720), staff: '2', layer: '1' }];
+
+    expect(noteIds(msm.serializeScore()!)).toEqual(['n1', 'n2']);
+    expect(partNumbers(msm.serializeScore()!)).toEqual(['1', '2']);
+
+    const performedXml = msm.serialize()!;
+    expect(noteIds(performedXml)).toEqual(['n1', 'n2']);
+    expect(performedXml.match(/velocity=/g)).toHaveLength(1);
+  });
 });
 
 describe('Alignment.serialize pedals', () => {

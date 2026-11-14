@@ -18,7 +18,7 @@ import { buildChain } from './chain';
 import { validate } from './transformers/Order';
 import { createMpm, exportMPM } from './instructions/index';
 import { clearResidualCache, deriveResidual, residualStats } from './residual';
-import type { AlignedGrace, AlignedNote, AlignedPedal, Alignment } from './alignment';
+import type { AlignedGrace, AlignedNote, AlignedPedal, Alignment, ScoreNote } from './alignment';
 import type { DatedTimeSignature } from './timeSignature';
 import type { Call, WorkFile } from '../model/Work';
 
@@ -42,6 +42,8 @@ export interface Ground {
     notes: AlignedNote[];
     pedals: AlignedPedal[];
     graces: AlignedGrace[];
+    /** Not the recording's, but the score the MPM is rendered against needs them; see `Alignment`. */
+    tiedPrincipals: ScoreNote[];
     /** Needed to rebuild an `Alignment`; the accentuation and tempo desks read the metre off it. */
     timeSignatures: DatedTimeSignature[];
 }
@@ -157,6 +159,7 @@ export function runFit(work: WorkFile, alignment: Alignment): FitResult {
             notes: alignment.allNotes,
             pedals: alignment.pedals,
             graces: alignment.graces,
+            tiedPrincipals: alignment.tiedPrincipals,
             timeSignatures: alignment.timeSignatures,
         },
         outcomes,
