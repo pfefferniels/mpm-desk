@@ -223,3 +223,25 @@ describe('an ornament and its definition do not come apart (#28)', () => {
     expect(only(defs, 'ornamentDef').getDynamicsGradient()!.transitionTo).toBe(0);
   });
 });
+
+describe('the definition it writes', () => {
+  test('states its frame in MPM v3 notation, each value with its unit', () => {
+    const mpm = createMpm();
+    for (const date of [0, 1440]) {
+      insertOrnament(
+        mpm,
+        { id: `roll_${date}`, date, nameRef: 'neutralArpeggio', scale: 25 },
+        { frameStart: -40, frameLength: 120, frameDomain: FrameDomain.Milliseconds },
+      );
+    }
+
+    run(mpm);
+
+    const def = only(getDefinitions(mpm, 'ornamentDef', 'global'), 'ornamentDef');
+    const spread = def.getXml()!.getChildElements('temporalSpread').get(0);
+    expect(spread.getAttributeValue('frame.offset')).toBe('-40ms');
+    expect(spread.getAttributeValue('frameLength')).toBe('120ms');
+    expect(spread.getAttributeValue('frame.start')).toBeNull();
+    expect(spread.getAttributeValue('time.unit')).toBeNull();
+  });
+});

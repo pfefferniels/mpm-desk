@@ -23,7 +23,7 @@ import { elementAt, zipWith } from 'espressivo';
 
 export interface StylizeOrnamentationOptions extends TransformationOptions {
   /**
-   * The epsilon for both `frame.start` and `frameLength` of the `<temporalSpread>`, in the
+   * The epsilon for both `frame.offset` and `frameLength` of the `<temporalSpread>`, in the
    * frame's own unit. The name says ticks and a saved chain holds it under that name, but
    * `InsertTemporalSpread` measures its frames off the recording, so for every frame this
    * clusters the unit is milliseconds.
@@ -354,11 +354,11 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
    * `defineAndName` refuses to write a definition for; it asks here rather than deciding again.
    *
    * The other three have a reading when absent, and stating it says what silence would have
-   * said: MPM reads a missing `@time.unit` as ticks, a missing `@noteoff.shift` as false and a
-   * missing `@intensity` as 1. `false` is also what `generateClusters` gives the shift, coding
-   * absent and `false` onto one coordinate, so within a cluster the two are indistinguishable
-   * and the def has to pick the one dbscan saw. Naming all three costs the document nothing,
-   * since espressivo omits each attribute again when it holds the default.
+   * said: a draft without a unit is in ticks, a missing `@noteoff.shift` is false and a missing
+   * `@intensity` is 1. `false` is also what `generateClusters` gives the shift, coding absent and
+   * `false` onto one coordinate, so within a cluster the two are indistinguishable and the def
+   * has to pick the one dbscan saw. Naming the shift and the intensity costs the document
+   * nothing, since espressivo omits each attribute again when it holds the default.
    */
   private temporalSpreadOf(
     draft: Pick<
@@ -402,10 +402,10 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
       def.setDynamicsGradientValues(gradient.transitionFrom, gradient.transitionTo);
     }
     if (spread) {
-      def.setTemporalSpreadValues(
-        spread.frameStart,
-        spread.frameLength,
-        spread.frameDomain,
+      const unit = spread.frameDomain === FrameDomain.Milliseconds ? 'milliseconds' : 'ticks';
+      def.setTemporalSpreadFrame(
+        { value: spread.frameStart, domain: unit },
+        { value: spread.frameLength, domain: unit },
         spread.intensity,
         spread.noteOffShift,
       );

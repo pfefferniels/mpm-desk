@@ -128,7 +128,7 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
 
         // An ornament fitted by `InsertDynamicsGradient` carries a velocity ramp and no
         // frame at all. There is nothing physical on it to translate, and translating the
-        // absence wrote a `NaN` frame plus a `time.unit` claiming it had been converted —
+        // absence wrote a `NaN` frame plus a unit claiming it had been converted —
         // which is what turned every gradient-only ornament into one that
         // `StylizeOrnamentation` would go on to discard.
         if (draft.frameStart === undefined || draft.frameLength === undefined) return [];
@@ -151,8 +151,8 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
         const frameEndTicks = this.msToTicks(frameEndMs, segments);
 
         // Leave the ornament in milliseconds rather than stamp an unusable frame on it.
-        // Milliseconds are a legal `time.unit`, so an untranslated ornament still
-        // performs; a `NaN` one does not.
+        // A millisecond frame is legal MPM, so an untranslated ornament still performs;
+        // a `NaN` one does not.
         if (frameStartTicks === undefined || frameEndTicks === undefined) continue;
 
         setOrnamentDraft(ornament.element, {

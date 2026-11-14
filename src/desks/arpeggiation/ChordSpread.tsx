@@ -4,8 +4,9 @@ import { asMIDI } from "../../utils/utils";
 import { onsetSeconds } from "../noteTiming";
 import type { ArpeggioPlacement } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
 import { rowId, type AlignedNote } from "../../fitting/alignment";
-import { FrameDomain, type TemporalSpread } from "espressivo";
+import type { TemporalSpread } from "espressivo";
 import { EVIDENCE_COLOUR } from "../evidence";
+import { frameIn } from "./spreadFrame";
 
 interface ChordSpreadProps {
     notes: AlignedNote[];
@@ -34,9 +35,10 @@ export const ChordSpread = ({ notes, onClick, spread, placement, evidence = fals
     const lastOnset = onsetSeconds(notes[notes.length - 1]);
     let frameLength = lastOnset - firstOnset;
 
-    if (spread && spread.frameDomain === FrameDomain.Milliseconds) {
-        firstOnset = (firstOnset - spread.frameStart) / 1000;
-        frameLength = spread.getFrameLength() / 1000;
+    const msFrame = spread && frameIn(spread, 'milliseconds');
+    if (msFrame) {
+        firstOnset -= msFrame.start / 1000;
+        frameLength = msFrame.length / 1000;
     }
 
     let placedLine = 0

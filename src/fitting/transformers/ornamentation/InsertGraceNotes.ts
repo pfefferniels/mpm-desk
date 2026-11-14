@@ -1,4 +1,4 @@
-import { FrameDomain, NoteOffShift, OrnamentNote } from 'espressivo';
+import { NoteOffShift, OrnamentNote } from 'espressivo';
 import {
   Mpm,
   OrnamentDef,
@@ -181,10 +181,9 @@ export class InsertGraceNotes extends AbstractTransformer<InsertGraceNotesOption
       const def = built.value;
       const intensity =
         length > 0 ? determineIntensity(onsets.map((onset) => (onset - start) / length)) : 1;
-      def.setTemporalSpreadValues(
-        start - reference,
-        length,
-        FrameDomain.Milliseconds,
+      def.setTemporalSpreadFrame(
+        { value: start - reference, domain: 'milliseconds' },
+        { value: length, domain: 'milliseconds' },
         intensity,
         NoteOffShift.Monophonic,
       );

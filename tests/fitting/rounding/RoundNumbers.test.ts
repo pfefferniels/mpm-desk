@@ -85,6 +85,15 @@ describe('RoundNumbers', () => {
     expect(overPrecise(once).filter(({ key }) => !NOT_MPM.includes(key))).toEqual([]);
   });
 
+  test('rounds a time value and keeps its unit', () => {
+    const lengths = pairs(once)
+      .filter(({ key }) => key === 'temporalSpread@frameLength')
+      .map(({ value }) => value);
+    expect(pairs(source).map(({ value }) => value)).toContain('49.666666666666664ticks');
+    expect(lengths).toContain('49.6667ticks');
+    expect(lengths.filter((value) => !/^\d+(\.\d{1,4})?ticks$/.test(value))).toEqual([]);
+  });
+
   /**
    * The same check over the document the *current* chain exports.
    *

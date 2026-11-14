@@ -68,13 +68,12 @@ export interface AccentuationTruth {
 interface OrnamentDefSpec {
   name: string;
   /**
-   * The roll. `frame.start` and `frameLength` are in `time.unit`, and the pool is spread
-   * across the frame in `note.order`.
+   * The roll, in MPM v3 notation: `frame.offset` and `frameLength` each carry their unit
+   * (`-250ms`), and the pool is spread across the frame in `note.order`.
    */
   temporalSpread?: {
-    'frame.start': number;
-    frameLength: number;
-    'time.unit'?: 'milliseconds' | 'ticks';
+    'frame.offset': string;
+    frameLength: string;
     'noteoff.shift'?: 'true' | 'false' | 'monophonic';
     intensity?: number;
   };
@@ -277,9 +276,8 @@ export const truthMpm = (truth: Truth, notes: ScoreNote[] = []): string => {
                 { name: def.name },
                 (def.temporalSpread
                   ? element('temporalSpread', {
-                      'frame.start': def.temporalSpread['frame.start'],
+                      'frame.offset': def.temporalSpread['frame.offset'],
                       frameLength: def.temporalSpread.frameLength,
-                      'time.unit': def.temporalSpread['time.unit'] ?? 'milliseconds',
                       'noteoff.shift': def.temporalSpread['noteoff.shift'] ?? 'false',
                       intensity: def.temporalSpread.intensity ?? 1,
                     })
