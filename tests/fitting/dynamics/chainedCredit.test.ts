@@ -35,7 +35,7 @@ const msm = () =>
   );
 
 const fit = (from: number, to: number) =>
-  new InsertDynamicsInstructions({ scope: 'global', from, to, phantomVelocities: new Map() });
+  new InsertDynamicsInstructions({ scope: 'global', from, to, guides: new Map() });
 
 test('chained fits: the second is credited with the closer it fills in, and leads with it', () => {
   const alignment = msm();

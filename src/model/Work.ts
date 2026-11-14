@@ -67,12 +67,12 @@ export interface WorkFile extends Work {
 
 // The envelopes are why these are not `JSON.parse`/`JSON.stringify` at the call site. A
 // transformer's options are not only JSON data: `InsertArticulation` takes a `Set` of aspects
-// and `InsertDynamicsInstructions` a `Map` of phantom velocities, and both must survive the
+// and `InsertDynamicsInstructions` a `Map` of guides, and both must survive the
 // round trip.
 //
 // Getting it wrong is silent in one direction and loud in the other. A reviver without a
 // matching replacer turns all 87 envelopes in the shipped file into `{}`, which has no `.get`,
-// so the first phantom velocity read throws somewhere else entirely. A replacer without a
+// so the first guide read throws somewhere else entirely. A replacer without a
 // reviver writes envelopes nothing ever opens.
 
 /** `Map` and `Set` survive the round trip; nothing else needs to. */
@@ -103,6 +103,26 @@ interface LegacyWorkFile extends WorkFile {
 }
 
 /**
+ * The guides of an `InsertDynamicsInstructions` call under the name a file saved before
+ * November 2026 gives them, `phantomVelocities`, renamed in place, so that the option keeps its
+ * position and the next save differs from the old file by the name alone. A call that already
+ * names its guides keeps those.
+ */
+function renameGuides(call: Call): void {
+    if (call.name !== 'InsertDynamicsInstructions' || !('phantomVelocities' in call.options)) return;
+    if ('guides' in call.options) {
+        delete call.options['phantomVelocities'];
+        return;
+    }
+    call.options = Object.fromEntries(
+        Object.entries(call.options).map(([key, value]) => [
+            key === 'phantomVelocities' ? 'guides' : key,
+            value,
+        ]),
+    );
+}
+
+/**
  * Read a work file, reviving the `Map` and `Set` options a chain needs in order to run.
  *
  * Deliberately *not* validating beyond the shape: a file naming a transformer this build does
@@ -111,12 +131,15 @@ interface LegacyWorkFile extends WorkFile {
  *
  * The claims an older file grouped its calls under are dropped on the way in, so that the next
  * save writes a file without them. Nothing reads them any more, and a field carried through
- * unread is one nobody can edit.
+ * unread is one nobody can edit. Its guides are read under the name they have now.
  */
 export function parseWorkFile(json: string): WorkFile {
     const work = JSON.parse(json, reviver) as LegacyWorkFile;
     delete work.segments;
-    for (const call of work.provenance) delete call.segment;
+    for (const call of work.provenance) {
+        delete call.segment;
+        renameGuides(call);
+    }
     return work;
 }
 

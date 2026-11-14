@@ -11,7 +11,7 @@ import { initialHistory, workHistoryReducer, workReducer } from './workReducer';
 const curve = (id: string, guides: [number, number][], scope: unknown = 'global'): Call => ({
     id,
     name: 'InsertDynamicsInstructions',
-    options: { scope, from: 0, to: 2880, phantomVelocities: new Map(guides) },
+    options: { scope, from: 0, to: 2880, guides: new Map(guides) },
 });
 
 const expand = (id: string, options: Record<string, unknown> = {}): Call => ({
@@ -32,7 +32,7 @@ const work = (provenance: Call[]): WorkFile => ({ name: '', mei: '', mpm: '', pr
 
 const guidesOf = (state: WorkFile, id: string) => {
     const call = state.provenance.find((c) => c.id === id);
-    return [...(call?.options.phantomVelocities as Map<number, number>)];
+    return [...(call?.options.guides as Map<number, number>)];
 };
 
 describe('adding an expansion of velocity', () => {

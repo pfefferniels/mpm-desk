@@ -66,7 +66,7 @@ const run = (msm: Alignment, mpm: Mpm) =>
       scope: 'global',
       from: 0,
       to: msm.lastDate(),
-      phantomVelocities: new Map(),
+      guides: new Map(),
     }),
     msm,
     mpm,
@@ -124,12 +124,12 @@ test('the fitting window is not written into the document', () => {
 // stronger than asserting the middle note lies between the outer two.
 
 /**
- * A phantom velocity is what the caller says the curve should pass through at a date, and it
- * stands in for the chord's own mean whether or not it happens to be `0`. `phantomVelocity ||
- * velocity` read a phantom of 0 as no phantom at all — and a dynamics fading to silence is
+ * A guide is what the caller says the curve should pass through at a date, and it
+ * stands in for the chord's own mean whether or not it happens to be `0`. `guide ||
+ * velocity` read a guide of 0 as no guide at all — and a dynamics fading to silence is
  * precisely the case a caller reaches for one (issue #46).
  */
-test('a phantom velocity of 0 is used, not read as an absent one', () => {
+test('a guide of 0 is used, not read as an absent one', () => {
   const msm = msmFixture();
   const mpm = createMpm();
 
@@ -138,7 +138,7 @@ test('a phantom velocity of 0 is used, not read as an absent one', () => {
       scope: 'global',
       from: 0,
       to: msm.lastDate(),
-      phantomVelocities: new Map([[msm.lastDate(), 0]]),
+      guides: new Map([[msm.lastDate(), 0]]),
     }),
     msm,
     mpm,
@@ -148,11 +148,11 @@ test('a phantom velocity of 0 is used, not read as an absent one', () => {
 });
 
 /**
- * A phantom is not tied to a chord. Over a rest or inside a held note there is no recorded
+ * A guide is not tied to a chord. Over a rest or inside a held note there is no recorded
  * velocity for it to stand in for, and it is a point of the fit all the same — one the curve can
  * depart from, as here, or arrive at.
  */
-test('a phantom at a date no chord sounds at is a point of its own', () => {
+test('a guide at a date no chord sounds at is a point of its own', () => {
   const msm = msmFixture();
   const mpm = createMpm();
 
@@ -162,19 +162,19 @@ test('a phantom at a date no chord sounds at is a point of its own', () => {
       scope: 'global',
       from: 360,
       to: msm.lastDate(),
-      phantomVelocities: new Map([[360, 10]]),
+      guides: new Map([[360, 10]]),
     }),
     msm,
     mpm,
   );
 
   const fitted = getInstructions(mpm, 'dynamics', 'global').filter((d) => d.date === 360);
-  expect(at(fitted, 0, 'the phantom-anchored curve').volume).toBe(10);
-  expect(at(fitted, 0, 'the phantom-anchored curve').transitionTo).toBe(100);
+  expect(at(fitted, 0, 'the guide-anchored curve').volume).toBe(10);
+  expect(at(fitted, 0, 'the guide-anchored curve').transitionTo).toBe(100);
 });
 
 /**
- * `0 / 0` is not a velocity. A date with neither a phantom nor a note carrying a `velocity` has
+ * `0 / 0` is not a velocity. A date with neither a guide nor a note carrying a `velocity` has
  * nothing to contribute, and a point whose velocity is NaN is not a point.
  */
 test('a chord with no measured velocity contributes no point rather than a NaN one', () => {

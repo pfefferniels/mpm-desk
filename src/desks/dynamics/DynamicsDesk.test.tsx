@@ -152,8 +152,8 @@ describe('in the viewer', () => {
         const { addTransformer } = mount({ editable: false });
 
         expect(screen.queryByRole('button', { name: 'Insert' })).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Phantom' })).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Clear Phantoms' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Guide' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Clear Guides' })).toBeNull();
 
         drag(0, 1440);
 

@@ -3,33 +3,33 @@ import { clamp } from '../../fitting/utils';
 import type { DynamicsAnchor } from './anchors';
 
 /**
- * The note values a phantom velocity may be pinned to, as fractions of a whole note.
+ * The note values a guide may be pinned to, as fractions of a whole note.
  *
- * A note value the user picks, rather than one read off the score's metre: where a phantom belongs
+ * A note value the user picks, rather than one read off the score's metre: where a guide belongs
  * is a reading of the passage, and a curve is often drawn against a subdivision the signature does
  * not name.
  */
-export const PHANTOM_GRIDS = [0.5, 0.25, 0.125, 0.0625] as const;
+export const GUIDE_GRIDS = [0.5, 0.25, 0.125, 0.0625] as const;
 
-export type PhantomGrid = (typeof PHANTOM_GRIDS)[number];
+export type GuideGrid = (typeof GUIDE_GRIDS)[number];
 
-export const DEFAULT_PHANTOM_GRID: PhantomGrid = 0.25;
+export const DEFAULT_GUIDE_GRID: GuideGrid = 0.25;
 
 /** The grid's spacing in ticks. */
-export const gridTicks = (grid: PhantomGrid): number => beatLengthInTicks(grid);
+export const gridTicks = (grid: GuideGrid): number => beatLengthInTicks(grid);
 
-export const gridLabel = (grid: PhantomGrid): string => `1/${String(1 / grid)}`;
+export const gridLabel = (grid: GuideGrid): string => `1/${String(1 / grid)}`;
 
 /**
- * Where a click in the plot pencils a phantom in, or nothing where none may go.
+ * Where a click in the plot pencils a guide in, or nothing where none may go.
  *
  * The date snaps to the nearest grid line counted from tick 0, which is where the score's own
  * dates are counted from, so an anacrusis needs no origin of its own. Off either end of the score
  * there is nothing for a curve to be fitted over, and a click there places nothing.
  */
-export const snapPhantom = (
+export const snapGuide = (
     at: { date: number; velocity: number },
-    grid: PhantomGrid,
+    grid: GuideGrid,
     end: number,
 ): DynamicsAnchor | undefined => {
     const ticks = gridTicks(grid);
@@ -39,7 +39,7 @@ export const snapPhantom = (
 };
 
 /** Every grid line up to `end`, for drawing. */
-export const gridDates = (grid: PhantomGrid, end: number): number[] => {
+export const gridDates = (grid: GuideGrid, end: number): number[] => {
     const ticks = gridTicks(grid);
     if (end < 0) return [];
     return Array.from({ length: Math.floor(end / ticks) + 1 }, (_, line) => line * ticks);

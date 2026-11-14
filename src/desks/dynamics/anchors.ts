@@ -3,9 +3,9 @@ import type { DynamicsSegment } from './segments';
 /**
  * A date a dynamics curve can depart from or arrive at, and the velocity it holds there.
  *
- * Two things are anchors: a chord onset, where the velocity is the recording's, and a phantom,
+ * Two things are anchors: a chord onset, where the velocity is the recording's, and a guide,
  * where it is the one pencilled in. The insert gesture does not tell them apart — it hands
- * `InsertDynamicsInstructions` two dates, and the transformer reads a phantom in place of the
+ * `InsertDynamicsInstructions` two dates, and the transformer reads a guide in place of the
  * chord's mean at every date it covers, chord or no chord.
  */
 export interface DynamicsAnchor {
@@ -19,13 +19,13 @@ const meanOf = (velocities: number[]) =>
 /**
  * Every anchor in the plot, in date order.
  *
- * A phantom replaces the chord at its own date rather than joining it, which is what pencilling
+ * A guide replaces the chord at its own date rather than joining it, which is what pencilling
  * one in over a dot means. A chord anchor takes the mean of the dots plotted at its date; a chord
  * struck at one velocity — nearly every one — has a single dot and so its own velocity.
  */
 export const anchorsOf = (
     segments: readonly DynamicsSegment[],
-    phantoms: ReadonlyMap<number, number>,
+    guides: ReadonlyMap<number, number>,
 ): DynamicsAnchor[] => {
     const plotted = segments.reduce<Map<number, number[]>>((acc, segment) => {
         const here = acc.get(segment.date.start);
@@ -39,7 +39,7 @@ export const anchorsOf = (
             date,
             { date, velocity: meanOf(velocities) },
         ]),
-        ...[...phantoms].map(([date, velocity]): [number, DynamicsAnchor] => [
+        ...[...guides].map(([date, velocity]): [number, DynamicsAnchor] => [
             date,
             { date, velocity },
         ]),

@@ -130,7 +130,7 @@ describe('the articulation fitter recovers its own ratios', () => {
         scope: 'global',
         from: 0,
         to: 7 * QUARTER,
-        phantomVelocities: new Map(),
+        guides: new Map(),
       }),
       ...performed.allNotes.map(
         (note) =>

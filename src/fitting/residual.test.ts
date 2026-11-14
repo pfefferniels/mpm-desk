@@ -95,7 +95,7 @@ describe('deriveResidual caching', () => {
             scope: 'global',
             from: 0,
             to: 16 * BEAT,
-            phantomVelocities: new Map(),
+            guides: new Map(),
         }).run(msm, mpm);
 
         deriveResidual(msm, mpm, { without: ['accentuationPattern'] });
