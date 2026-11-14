@@ -48,9 +48,11 @@ interface RenderOptions {
     editable?: boolean;
     /** The calls selected, and what the run reported for them. */
     selected?: { ids: string[]; outcomes: CallOutcome[] };
+    /** The score the desk plots, the shipped transcription on one reading unless given. */
+    score?: Alignment;
 }
 
-const renderDesk = (part: Scope, { editable = true, selected }: RenderOptions = {}) => {
+const renderDesk = (part: Scope, { editable = true, selected, score = msm }: RenderOptions = {}) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
 
@@ -61,7 +63,7 @@ const renderDesk = (part: Scope, { editable = true, selected }: RenderOptions = 
             <ZoomContext
                 value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
             >
-                <NotesProvider notes={msm.allNotes}>
+                <NotesProvider notes={score.allNotes}>
                     <ScrollSyncProvider
                         symbolicZoom={0.1}
                         physicalZoom={20}
@@ -79,9 +81,9 @@ const renderDesk = (part: Scope, { editable = true, selected }: RenderOptions = 
                             <DeskToolbarProvider target={bar}>
                                 <DynamicsGradientDesk
                                     part={part}
-                                    msm={msm}
+                                    msm={score}
                                     mpm={mpm}
-                                    residual={deriveResidual(msm, mpm)}
+                                    residual={deriveResidual(score, mpm)}
                                     performanceXml=""
                                     secondary={{}}
                                     setSecondary={vi.fn()}
@@ -129,6 +131,44 @@ describe('what the dynamics gradient desk plots', () => {
         expect(inScope('global')).toEqual({ chords: 215, hull: 214 });
         expect(inScope(0)).toEqual({ chords: 183, hull: 182 });
         expect(inScope(1)).toEqual({ chords: 132, hull: 131 });
+    });
+
+    /**
+     * The axis ran from 30 to 70 whatever the chords were. The shipped transcription is recorded
+     * between 35 and 62, but the corrections in WM 225 take its softest notes down to 8, and the
+     * hull ran on below the end of the axis.
+     */
+    it('runs its axis past every chord, the softest a correction left included', () => {
+        const [, chord] = [...msm.in('global').chords()].find(([, notes]) => notes.length > 1)!;
+        const softened = chord[0]!;
+        const score = new Alignment(
+            msm.allNotes.map((note) => (note === softened ? { ...note, velocity: 8 } : note)),
+            msm.timeSignatures,
+        );
+        const desk = renderDesk('global', { score });
+
+        // The scale's column is laid over the scroller the plot is in, just before it.
+        const plot = document.querySelector('svg polygon')!.closest('svg')!;
+        const scale = plot.parentElement!.previousElementSibling!;
+        const axis = scale.querySelector('line')!;
+        const top = Number(axis.getAttribute('y1'));
+        const bottom = Number(axis.getAttribute('y2'));
+
+        const drawn = [
+            ...[...plot.querySelectorAll('polygon')].flatMap((hull) =>
+                hull.getAttribute('points')!.split(' ').map((corner) => Number(corner.split(',')[1])),
+            ),
+            ...[...plot.querySelectorAll('line')].flatMap((line) => [
+                Number(line.getAttribute('y1')),
+                Number(line.getAttribute('y2')),
+            ]),
+        ];
+        expect(Math.min(...drawn)).toBeGreaterThanOrEqual(top);
+        expect(Math.max(...drawn)).toBeLessThanOrEqual(bottom);
+
+        const labels = [...scale.querySelectorAll('text')].map((label) => Number(label.textContent));
+        expect(Math.min(...labels)).toBeLessThanOrEqual(8);
+        desk.dispose();
     });
 });
 
