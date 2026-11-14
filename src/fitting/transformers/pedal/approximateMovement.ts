@@ -11,7 +11,15 @@ export interface FittedMovement {
   readonly protraction?: number;
 }
 
-const STRAIGHT: TransitionShape = { curvature: 0.5, protraction: 0 };
+/**
+ * Where the search starts: the bend a `<movement>` takes when it states none (espressivo's default
+ * curvature of 0.4, no protraction), rather than the fit's own default of 0.5.
+ *
+ * The search stops at the first shape within tolerance, so a line it explains from the start is
+ * written with the start. From here that is the bend a ramp typed without one already had: a line
+ * drawn along such a ramp traces back to it, rather than to a bend of 0.5 lying just as close.
+ */
+const MOVEMENT_DEFAULT: TransitionShape = { curvature: 0.4, protraction: 0 };
 const MAX_ITERATIONS = 5000;
 /** What counts as explained: two hundredths of the stroke per vertex, summed over the traversal. */
 const ERROR_PER_VERTEX = 0.02;
@@ -45,7 +53,7 @@ const bend = (traversal: readonly TickVertex[]): TransitionShape => {
     { startDate: first.date, endDate: last.date, from: first.position, to: last.position },
     samples,
     {
-      initial: STRAIGHT,
+      initial: MOVEMENT_DEFAULT,
       // Seeded from the samples, not from a clock, so the same line fits the same way twice.
       random: seededRandom(hashSeed(JSON.stringify(samples))),
       maxIterations: MAX_ITERATIONS,
