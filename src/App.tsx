@@ -63,8 +63,21 @@ import { callAddress, callAt, missedAddress } from './model/callAddress';
 import { publishedUrl } from './model/published';
 import { EditingContext } from './hooks/Editing';
 import { ViewerAddress } from './components/ViewerAddress';
+import { ViewHistory, type View } from './components/ViewHistory';
 import { RevealCall } from './components/RevealCall';
 import { documentSlug, downloadAsFile } from './utils/utils';
+
+/** A `history.state` that `ViewHistory` wrote, rather than none or what another page left. */
+const isView = (state: unknown): state is View => {
+    if (typeof state !== 'object' || state === null) return false;
+    const { desk, scope, calls } = state as Partial<Record<keyof View, unknown>>;
+    return (
+        typeof desk === 'string' &&
+        isScope(scope) &&
+        Array.isArray(calls) &&
+        calls.every((id) => typeof id === 'string')
+    );
+};
 
 /** Where the viewer opens, and goes back to: the desk most of the reconstruction was made on. */
 const VIEWER_DESK = 'tempo';
@@ -607,33 +620,69 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const saveWork = useCallback(() => void handleSave(), [handleSave]);
 
     const callsRef = useLatest(work.provenance);
+    const selectedDeskRef = useLatest(selectedDesk);
 
-    /** Switch to the desk that made a call, put the scope on it, and name it in the hash. */
+    /**
+     * Switch to the desk that made a call, put the scope on it, and name it in the hash.
+     *
+     * A new history entry wherever that takes the reader somewhere else, so that Back returns to
+     * where they came from: another call, or another desk. The hash alone does not say so, since
+     * in the viewer it already names the call selected, and the markup desk is where a selected
+     * call's line is clicked. `ViewHistory` records the view into each entry.
+     */
     const focusCall = useCallback(
         (id: string) => {
             const calls = callsRef.current;
             const call = calls.find((entry) => entry.id === id);
             if (!call) return;
 
-            openCall(call);
-
             const address = callAddress(
                 call.id,
                 calls.map((entry) => entry.id),
             );
-            if (window.location.hash.slice(1) !== address)
-                window.history.pushState(null, '', '#' + address);
+            const here = selectedDeskRef.current;
+            const moves =
+                window.location.hash.slice(1) !== address ||
+                (deskOfCall(call.name, editable) ?? here) !== here;
+
+            openCall(call);
+            if (moves) window.history.pushState(null, '', '#' + address);
         },
-        [callsRef, openCall],
+        [callsRef, selectedDeskRef, openCall, editable],
     );
 
+    /**
+     * Back and Forward: put back the desk, scope and selection the entry was left on, where
+     * `ViewHistory` recorded them. An entry that holds none is the hash's to answer, below: one
+     * an address was typed into, or one left while the piece played.
+     *
+     * The calls are those the document still holds, and one call is revealed as an opened one
+     * is. The desk is put back only where the registry still has it; a desk the mode does not
+     * offer is taken off below as any other is.
+     */
+    const onPopState = useEffectEvent(() => {
+        const state: unknown = window.history.state;
+        if (!isView(state)) return;
+
+        if (correspondingDesks.some((entry) => (entry.displayName ?? entry.aspect) === state.desk))
+            setSelectedDesk(state.desk);
+        setScope(state.scope);
+        const calls = state.calls.filter((id) => work.provenance.some((call) => call.id === id));
+        setActiveCallIds(new Set(calls));
+        setOpened(calls.length === 1 ? { id: calls[0] } : null);
+    });
+
     const onHashChange = useEffectEvent(() => {
+        // An entry that holds a view is reached by Back or Forward, which also fire `popstate`,
+        // and that has put the view back. A new entry, an address typed or followed, holds none.
+        if (isView(window.history.state)) return;
+
         const hash = window.location.hash.slice(1);
         if (!hash) {
             if (activeCallIds.size > 0) {
                 setActiveCallIds(new Set());
                 window.history.replaceState(
-                    null,
+                    window.history.state,
                     '',
                     window.location.pathname + window.location.search,
                 );
@@ -653,8 +702,10 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     });
 
     useEffect(() => {
+        window.addEventListener('popstate', onPopState);
         window.addEventListener('hashchange', onHashChange);
         return () => {
+            window.removeEventListener('popstate', onPopState);
             window.removeEventListener('hashchange', onHashChange);
         };
     }, []);
@@ -891,6 +942,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                                         />
                                         <PinchZoomHandler />
                                         {!editable && <ViewerAddress />}
+                                        <ViewHistory desk={selectedDesk} scope={scope} />
                                     </ScrollSyncProvider>
                                 </CallSelectionProvider>
                             </PlaybackProvider>

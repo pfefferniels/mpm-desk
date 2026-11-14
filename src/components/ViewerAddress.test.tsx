@@ -81,6 +81,17 @@ describe('the viewer’s address', () => {
         expect(window.history.length).toBe(before);
     });
 
+    it('keeps the state of the entry it rewrites', () => {
+        // The view Back returns to (`ViewHistory`); rewriting the address must not drop it.
+        const view = { desk: 'markup', scope: 'global', calls: [calls[0].id] };
+        window.history.replaceState(view, '', '/');
+        render(<Viewer />);
+
+        act(() => select(new Set([calls[0].id])));
+        expect(window.location.hash).toBe('#2aac2b1a');
+        expect(window.history.state).toEqual(view);
+    });
+
     it('names nothing where nothing, or several, are selected', () => {
         render(<Viewer />);
         act(() => select(new Set([calls[0].id])));
