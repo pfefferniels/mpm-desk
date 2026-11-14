@@ -17,6 +17,7 @@ import { oneCallPerInstruction } from '../../test/oneCallPerInstruction';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { WorkDocumentProvider } from '../../hooks/WorkDocument';
 import { initialHistory } from '../../model/workReducer';
+import { EditingContext } from '../../hooks/Editing';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { parseMPM } from '../../fitting/instructions/index';
 import { MarkupDesk } from './MarkupDesk';
@@ -68,7 +69,7 @@ const Harness = ({ children, initial = [], focusCall }: HarnessProps) => {
     );
 };
 
-const mount = (initial?: readonly string[]) => {
+const mount = (initial?: readonly string[], { editable = true }: { editable?: boolean } = {}) => {
     const focusCall = vi.fn();
     // The app bar's second row, standing in for `EditorAppBar`'s. A sibling of the desk and not a
     // child of it, which is where it really is — `DeskToolbar` renders nothing without a target,
@@ -77,28 +78,30 @@ const mount = (initial?: readonly string[]) => {
     document.body.appendChild(toolbar);
 
     const view = render(
-        <Harness focusCall={focusCall} {...(initial !== undefined && { initial })}>
-            <WorkDocumentProvider
-                history={initialHistory({
-                    name: 'Träumerei',
-                    mei: '',
-                    mpm: '',
-                    provenance: [...calls],
-                })}
-                dispatch={() => {}}
-            >
-                <DeskToolbarProvider target={toolbar}>
-                    <MarkupDesk
-                        msm={alignment}
-                        mpm={mpm}
-                        residual={{} as Residual}
-                        secondary={{}}
-                        setSecondary={() => {}}
-                        performanceXml={performanceMpm}
-                    />
-                </DeskToolbarProvider>
-            </WorkDocumentProvider>
-        </Harness>,
+        <EditingContext value={editable}>
+            <Harness focusCall={focusCall} {...(initial !== undefined && { initial })}>
+                <WorkDocumentProvider
+                    history={initialHistory({
+                        name: 'Träumerei',
+                        mei: '',
+                        mpm: '',
+                        provenance: [...calls],
+                    })}
+                    dispatch={() => {}}
+                >
+                    <DeskToolbarProvider target={toolbar}>
+                        <MarkupDesk
+                            msm={alignment}
+                            mpm={mpm}
+                            residual={{} as Residual}
+                            secondary={{}}
+                            setSecondary={() => {}}
+                            performanceXml={performanceMpm}
+                        />
+                    </DeskToolbarProvider>
+                </WorkDocumentProvider>
+            </Harness>
+        </EditingContext>,
     );
 
     return {
@@ -228,5 +231,19 @@ describe('MarkupDesk', () => {
         expect(bar.getByRole('button', { name: 'Download MIDI' })).toBeInTheDocument();
         expect(bar.queryByRole('button', { name: /Download MPM/ })).toBeNull();
         expect(bar.queryByRole('button', { name: /Clipboard/ })).toBeNull();
+    });
+
+    it('says where the markup is to be had: the archive in the editor, welte225.org in the viewer', () => {
+        // The tooltip stands as the wrapper's `title` while it is closed (`ToolbarButton`).
+        const editor = mount();
+        expect(editor.bar.getByTitle(/the archive Save writes/)).toBeInTheDocument();
+        editor.unmount();
+
+        // The viewer has no Save to point at.
+        const viewer = mount(undefined, { editable: false });
+        expect(
+            viewer.bar.getByTitle(/published at https:\/\/welte225\.org\/mpm\/performance\.mpm\./),
+        ).toBeInTheDocument();
+        expect(viewer.bar.queryByTitle(/Save/)).toBeNull();
     });
 });
