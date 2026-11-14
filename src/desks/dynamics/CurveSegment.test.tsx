@@ -6,6 +6,7 @@ import {
     volumeAtDate,
 } from '../../fitting/transformers/dynamics/Approximation'
 import type { DynamicsWithEndDate } from '../../fitting/transformers/dynamics/InsertDynamics'
+import type { VelocityAxis } from '../velocityAxis'
 
 /**
  * The desk has to draw the curve the renderer sounds.
@@ -24,6 +25,15 @@ const ramp: DynamicsWithEndDate = {
     transitionTo: 127,
 }
 
+/** One unit a step, velocity 127 along the top, so a volume reads straight back off its y. */
+const axis: VelocityAxis = {
+    min: 0,
+    max: 127,
+    perStep: 1,
+    y: velocity => 127 - velocity,
+    velocityAt: y => 127 - y,
+}
+
 /** The volumes the drawn `d` attribute encodes, by date — the baseline corners dropped. */
 const drawnVolumes = (instruction: DynamicsWithEndDate): Map<number, number> => {
     const { container } = render(
@@ -31,7 +41,7 @@ const drawnVolumes = (instruction: DynamicsWithEndDate): Map<number, number> => 
             <CurveSegment
                 instruction={instruction}
                 stretchX={1}
-                stretchY={1}
+                axis={axis}
                 active={false}
                 onClick={() => { }}
             />
@@ -91,7 +101,7 @@ describe('CurveSegment', () => {
                     <CurveSegment
                         instruction={long}
                         stretchX={stretchX}
-                        stretchY={1}
+                        axis={axis}
                         active={false}
                         onClick={() => { }}
                     />

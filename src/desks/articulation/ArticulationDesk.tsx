@@ -22,6 +22,7 @@ import { ToolbarButton } from "../../components/toolbar/ToolbarButton"
 import { ToolStatus } from "../../components/toolbar/ToolStatus"
 import { Add, Clear } from "@mui/icons-material"
 import { ArticulationOverlay } from "./ArticulationOverlay"
+import { barThickness } from "./barThickness"
 
 interface ArticulatedNoteProps extends SVGProps<SVGRectElement> {
     note: AlignedNote
@@ -53,9 +54,11 @@ const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected
     // release.
     const isDuration = placed?.tickDuration ?? 0
     const shouldDuration = note.duration
-    // Recorded velocity minus rendered, in MIDI units. It is a bar thickness here and not a
-    // measurement, so `undefined` and a genuine zero collapse to the same minimum below.
+    // Recorded velocity minus rendered, in MIDI units. The bar is as thick as it is far from zero,
+    // whichever way; the readout on hover says which way.
     const velocityResidual = placed?.velocity
+    const thickness = barThickness(velocityResidual) * (hovered ? 2 : 1)
+    const velocityOff = velocityResidual === undefined ? undefined : Math.round(velocityResidual)
 
     const handleMouseOver = () => {
         setHovered(true)
@@ -79,9 +82,9 @@ const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected
             <rect
                 data-date={note.date}
                 x={isOnset * stretchX}
-                y={(max - note["midi.pitch"]) * stretchY - (((velocityResidual || 1) + 2) * (hovered ? 2 : 1)) / 2}
+                y={(max - note["midi.pitch"]) * stretchY - thickness / 2}
                 width={Math.max(1, ((isOnset + isDuration) * stretchX) - (isOnset * stretchX))}
-                height={((velocityResidual || 1) + 2) * (hovered ? 2 : 1)}
+                height={thickness}
                 rx={2}
                 ry={2}
                 onMouseOver={handleMouseOver}
@@ -122,6 +125,7 @@ const ArticulatedNote = ({ note, residual, stretchX, stretchY, onClick, selected
                     fill="black"
                 >
                     {note.date}
+                    {velocityOff !== undefined && ` · velocity ${velocityOff > 0 ? '+' : ''}${velocityOff}`}
                 </text>
             )}
         </g>

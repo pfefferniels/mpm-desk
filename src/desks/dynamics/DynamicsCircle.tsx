@@ -37,6 +37,10 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
     const [hovered, setHovered] = useState(false);
 
     const y = screenY(segment.velocity) + yOffset;
+    // The readout goes above the dot, unless that is off the top of the plot. A velocity plot
+    // shows no more than the range its velocities span, so its loudest dots sit just under the
+    // edge, and a readout there would be cut off by it.
+    const readoutY = y > 40 ? y - 30 : y + 20;
 
     return (
         <>
@@ -58,7 +62,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                         strokeWidth={1} />
                     <text
                         x={segment.date.start * stretchX}
-                        y={y - 30}
+                        y={readoutY}
                         textAnchor='start'
                         fill='black'
                         fontSize={10}
@@ -67,7 +71,7 @@ export const DynamicsCircle = ({ segment, datePlayed, stretchX, screenY, handleP
                     </text>
                     <text
                         x={segment.date.start * stretchX}
-                        y={y - 20}
+                        y={readoutY + 10}
                         textAnchor='start'
                         fill='black'
                         fontSize={10}

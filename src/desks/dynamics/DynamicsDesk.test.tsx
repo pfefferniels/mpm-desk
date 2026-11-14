@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import type { CallOutcome } from '../../fitting/fit';
-import { createMpm } from '../../fitting/instructions/index';
+import { createMpm, requireMap, type Mpm } from '../../fitting/instructions/index';
 import { InsertDynamics } from '../../fitting/transformers/dynamics/InsertDynamics';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { EditingContext } from '../../hooks/Editing';
@@ -63,15 +63,21 @@ interface MountOptions {
     /** What the last fit reported per call, and which calls are selected. */
     outcomes?: CallOutcome[];
     active?: Set<string>;
+    mpm?: Mpm;
+    /** The velocities of the four chords, a quarter apart from date 0. */
+    velocities?: [number, number, number, number];
 }
 
-const mount = ({ editable = true, outcomes = [], active = new Set() }: MountOptions = {}) => {
-    const msm = new Alignment([
-        note('a', 0, 64),
-        note('b', 720, 74),
-        note('c', 1440, 54),
-        note('d', 2160, 68),
-    ]);
+const mount = ({
+    editable = true,
+    outcomes = [],
+    active = new Set(),
+    mpm = createMpm(),
+    velocities = [64, 74, 54, 68],
+}: MountOptions = {}) => {
+    const msm = new Alignment(
+        (['a', 'b', 'c', 'd'] as const).map((id, i) => note(id, i * 720, velocities[i]!)),
+    );
     const addTransformer = vi.fn();
 
     // The app bar's second row. A desk under a null target renders no toolbar at all, so without
@@ -102,7 +108,7 @@ const mount = ({ editable = true, outcomes = [], active = new Set() }: MountOpti
                                 <DynamicsDesk
                                     part='global'
                                     msm={msm}
-                                    mpm={createMpm()}
+                                    mpm={mpm}
                                     residual={null}
                                     performanceXml=''
                                     secondary={{}}
@@ -162,6 +168,25 @@ describe('in the viewer', () => {
     });
 });
 
+describe('the curves', () => {
+    it('draws one for each <dynamics> something follows, each known to React by its own key', () => {
+        const mpm = createMpm();
+        const map = requireMap(mpm, 'dynamics', 'global');
+        map.addDynamics({ id: 'd1', date: 0, volume: 64, transitionTo: 54 });
+        map.addDynamics({ id: 'd2', date: 1440, volume: 54, transitionTo: 68 });
+        map.addDynamics({ id: 'd3', date: 2160, volume: 68 });
+
+        const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            mount({ mpm });
+            expect(document.querySelectorAll('g.curveSegment')).toHaveLength(2);
+            expect(error.mock.calls.flat().join(' ')).not.toMatch(/unique "key"/);
+        } finally {
+            error.mockRestore();
+        }
+    });
+});
+
 describe('what a selected curve was fitted to', () => {
     it('marks the chords over its range, and no others', () => {
         mount({
@@ -176,5 +201,57 @@ describe('what a selected curve was fitted to', () => {
         expect(dotAt(1440)).toHaveAttribute('data-evidence');
         expect(dotAt(0)).not.toHaveAttribute('data-evidence');
         expect(dotAt(2160)).not.toHaveAttribute('data-evidence');
+    });
+});
+
+/** The velocities the scale labels, and where it puts each one. */
+const ticks = () =>
+    new Map(
+        [...document.querySelectorAll('svg text')]
+            .filter((label) => /^\d+$/.test(label.textContent))
+            .map((label) => [Number(label.textContent), Number(label.getAttribute('y'))]),
+    );
+
+describe('what the plot shows', () => {
+    /**
+     * WM 225 was recorded between 35 and 62, and `Expand` took its softest notes down to 8. The
+     * plot drew velocity 127 at its head and 20 at its foot whatever it held, and 59 of its 430
+     * dots went below the foot.
+     */
+    it('draws every chord inside the plot, the softest and the loudest', () => {
+        mount({ editable: false, velocities: [8, 35, 62, 120] });
+
+        const plot = dotAt(0).closest('svg')!;
+        const height = Number(plot.getAttribute('height'));
+        for (const dot of plot.querySelectorAll('circle')) {
+            expect(Number(dot.getAttribute('cy'))).toBeGreaterThan(0);
+            expect(Number(dot.getAttribute('cy'))).toBeLessThan(height);
+        }
+
+        // And the scale labels what is drawn, rather than a stretch chosen in advance.
+        const labelled = [...ticks().keys()];
+        expect(Math.min(...labelled)).toBeLessThanOrEqual(8);
+        expect(Math.max(...labelled)).toBeGreaterThanOrEqual(120);
+    });
+});
+
+describe('pencilling in a guide', () => {
+    it('puts it at the velocity under the pointer, as the scale reads it, and ↑ raises it a step', () => {
+        mount();
+        fireEvent.click(screen.getByRole('button', { name: 'Guide' }));
+
+        const at = ticks();
+        const plot = dotAt(0).closest('svg')!;
+        fireEvent.click(plot, { clientX: 1440 * STRETCH_X, clientY: at.get(60)! });
+
+        const guide = () => {
+            const marks = [...plot.querySelectorAll('text')].filter((text) => text.textContent === 'x');
+            expect(marks).toHaveLength(1);
+            return Number(marks[0]!.getAttribute('y'));
+        };
+        expect(guide()).toBeCloseTo(at.get(60)!);
+
+        fireEvent.keyDown(window, { key: 'ArrowUp' });
+        expect(guide()).toBeCloseTo(at.get(60)! - (at.get(60)! - at.get(65)!) / 5);
     });
 });

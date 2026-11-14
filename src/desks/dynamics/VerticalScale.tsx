@@ -1,30 +1,24 @@
-/**
- * The velocity axis for the dynamics plot.
- *
- * It draws in the plot's own coordinates — y = (127 - velocity) * stretchY — so the desk can put
- * it in a gutter beside the chart and the ticks still line up with the curves.
- *
- * Two things keep it inside that gutter. Everything but the axis line is drawn to the *left* of
- * x = 0, so a viewBox ending at 0 puts the axis flush against the chart and nothing spills over
- * it. And `height` is the plot's height: the axis stops there instead of running off the bottom,
- * and a tick outside the plot is not drawn at all — the old scale ran from velocity 10, which at
- * the desk's stretch is some 30px below the last row it could label.
- */
-export const VerticalScale = ({
-    min, max, step, height, stretchY = 1,
-}: {
-    min: number;
-    max: number;
-    step: number;
-    /** The height of the plot this labels, in pixels. */
-    height: number;
-    stretchY?: number;
-}) => {
-    const y = (velocity: number) => (127 - velocity) * stretchY;
+import { VELOCITY_TICK, type VelocityAxis } from '../velocityAxis';
 
+/**
+ * The velocity axis for the dynamics plot and the corrections desk's velocity plot.
+ *
+ * It draws in the plot's own coordinates, through the same {@link VelocityAxis} the plot draws
+ * its dots with, so the desk can put it in a gutter beside the chart and the ticks still line up
+ * with the curves.
+ *
+ * Everything but the axis line is drawn to the *left* of x = 0, so a viewBox ending at 0 puts the
+ * axis flush against the chart and nothing spills over it. The axis runs the whole range the plot
+ * shows and labels every tick in it. It ran from 10 to 80 whatever the plot held, and the notes of
+ * WM 225 that the corrections took below 20 were drawn under the last tick and off the chart.
+ */
+export const VerticalScale = ({ axis, step = VELOCITY_TICK }: {
+    axis: VelocityAxis;
+    step?: number;
+}) => {
     const ticks = [];
-    for (let val = min; val <= max; val += step) {
-        if (y(val) >= 0 && y(val) <= height) ticks.push(val);
+    for (let val = Math.ceil(axis.min / step) * step; val <= axis.max; val += step) {
+        ticks.push(val);
     }
 
     const tickWidth = 10;
@@ -34,15 +28,15 @@ export const VerticalScale = ({
         <>
             <line
                 x1={0}
-                y1={Math.min(y(min), height)}
+                y1={axis.y(axis.min)}
                 x2={0}
-                y2={Math.max(y(max), 0)}
+                y2={axis.y(axis.max)}
                 stroke="black"
                 strokeWidth={1.5}
             />
 
             {ticks.map((val) => {
-                const tickY = y(val);
+                const tickY = axis.y(val);
                 return (
                     <g key={val}>
                         <line x1={-tickWidth} y1={tickY} x2={0} y2={tickY} stroke="black" />

@@ -195,6 +195,23 @@ const dotAt = (date: number) => {
     return dot;
 };
 
+/** The velocities the velocity plot's scale labels, and where it puts each one. */
+const ticks = () =>
+    new Map(
+        [...document.querySelectorAll('svg text')]
+            .filter((label) => /^\d+$/.test(label.textContent))
+            .map((label) => [Number(label.textContent), Number(label.getAttribute('y'))]),
+    );
+
+/**
+ * How far up the velocity plot `steps` velocity steps reach, read off its scale as a reader
+ * would. The plot shows the range its velocities span, so a step is no fixed number of units.
+ */
+const stepsUp = (steps: number) => {
+    const at = ticks();
+    return (steps * (at.get(60)! - at.get(70)!)) / 10;
+};
+
 /**
  * Press a dot, which is where both plots take their selection from.
  *
@@ -289,6 +306,45 @@ describe('the velocity plot', () => {
         const ghosts = document.querySelectorAll('circle[fill="none"]');
         expect(ghosts).toHaveLength(1);
     });
+
+    /**
+     * WM 225 was recorded between 35 and 62, and corrected down to 8. The plot drew velocity 127
+     * at its head and 20 at its foot whatever it held, and 59 of its 430 dots went below the foot.
+     */
+    it('draws every velocity inside the plot, however far a correction took it', () => {
+        mount([
+            {
+                id: 'c1',
+                name: 'Modify',
+                options: { scope: 'global', aspect: 'velocity', change: 56, noteIDs: ['a'] },
+            },
+        ]);
+
+        const plot = dotAt(0).closest('svg')!;
+        const height = Number(plot.getAttribute('height'));
+        // The two dots, and the ghost of the one the correction raised from 8.
+        const ys = [...plot.querySelectorAll('circle')].map((circle) => Number(circle.getAttribute('cy')));
+        expect(ys).toHaveLength(3);
+        for (const y of ys) {
+            expect(y).toBeGreaterThan(0);
+            expect(y).toBeLessThan(height);
+        }
+
+        // And the scale labels what is drawn, rather than a stretch chosen in advance.
+        const labelled = [...ticks().keys()];
+        expect(Math.min(...labelled)).toBeLessThanOrEqual(8);
+        expect(Math.max(...labelled)).toBeGreaterThanOrEqual(80);
+    });
+
+    it('stops a dragged dot at the end of the scale', () => {
+        mount();
+
+        const top = Math.max(...ticks().keys());
+        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: -10_000 });
+
+        // The dot at 64 goes as far as the plot reaches, and no further out of sight.
+        expect(screen.getByRole('button', { name: `Apply +${String(top - 64)} to 1 note` })).toBeEnabled();
+    });
 });
 
 describe('the timing roll', () => {
@@ -373,7 +429,7 @@ describe('the toolbar', () => {
     it('drops the selection and the correction drawn on it on Escape', () => {
         mount();
 
-        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 70 });
+        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 100 - stepsUp(10) });
         expect(screen.getByRole('button', { name: 'Apply +10 to 1 note' })).toBeInTheDocument();
 
         act(() => {
@@ -399,8 +455,8 @@ describe('what a gesture turns into', () => {
     it('a velocity drag becomes a Modify on the notes that were selected', () => {
         const { addTransformer } = mount();
 
-        // Thirty user units up, at three units per velocity step.
-        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 70 });
+        // Ten velocity steps up, as far as the scale puts 70 above 60.
+        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 100 - stepsUp(10) });
 
         clickToolbarButton('Apply +10 to 1 note');
 
@@ -456,7 +512,7 @@ describe('what a gesture turns into', () => {
         pressDot(720, { shiftKey: true });
         expect(screen.getByRole('button', { name: 'Apply to ticks 0–720' })).toBeInTheDocument();
 
-        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 109 });
+        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 100 + stepsUp(3) });
         clickToolbarButton('Apply -3 to ticks 0–720');
 
         expect(sentOptions(addTransformer)).toEqual({
@@ -471,7 +527,7 @@ describe('what a gesture turns into', () => {
     it('forgets the selection once the correction is sent, and keeps drawing it until the fit answers', () => {
         const { addTransformer } = mount();
 
-        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 70 });
+        drag(dotAt(0), { clientX: 0, clientY: 100 }, { clientX: 0, clientY: 100 - stepsUp(10) });
         clickToolbarButton('Apply +10 to 1 note');
 
         expect(addTransformer).toHaveBeenCalledTimes(1);

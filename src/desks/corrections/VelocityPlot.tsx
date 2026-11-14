@@ -14,6 +14,7 @@ import { extractDynamicsSegments } from '../dynamics/segments';
 import { COMMITTED_GHOST, DeltaGhost, PENDING_GHOST } from './DeltaGhost';
 import type { Clicked, SelectionModifiers } from './useEventSelection';
 import { EVIDENCE_COLOUR } from '../evidence';
+import { velocityAxis } from '../velocityAxis';
 
 interface VelocityPlotProps {
     msm: Alignment;
@@ -39,7 +40,6 @@ interface VelocityPlotProps {
     evidence?: ReadonlySet<string>;
 }
 
-const STRETCH_Y = 3;
 const MARGIN = 20;
 const CHART_HEIGHT = 300 + MARGIN;
 /** Wide enough for the tick, its gap and a three-digit velocity at font size 8. */
@@ -49,8 +49,6 @@ const SCALE_WIDTH = 34;
  * it — an outermost <svg> clips to its viewport, and half the stroke would go missing.
  */
 const AXIS_BLEED = 1;
-
-const screenY = (velocity: number) => (127 - velocity) * STRETCH_Y;
 
 /**
  * The recording's velocities, one dot per chord, and nothing drawn over them.
@@ -86,6 +84,28 @@ export const VelocityPlot = ({
 
     const segments = useMemo(() => extractDynamicsSegments(msm, part), [msm, part]);
 
+    /**
+     * The velocities the plot shows: those of the dots, and of the ghosts at what the roll scan
+     * read before the chain corrected it — the range the dynamics desk reads off the same two,
+     * so a dot sits at the same height whichever desk is showing it.
+     *
+     * Not the drag. The range moving under the pointer would move the scale a drag is measured
+     * on, so a drag stays inside it instead (see `handleMouseMove`), and the range catches up
+     * once the fit has the corrected velocity in `msm`.
+     */
+    const axis = useMemo(
+        () =>
+            velocityAxis(
+                segments.flatMap((segment) => {
+                    const committed = segment.noteID ? ghosts.get(segment.noteID) : undefined;
+                    return committed ? [segment.velocity, segment.velocity - committed] : [segment.velocity];
+                }),
+                CHART_HEIGHT,
+            ),
+        [segments, ghosts],
+    );
+    const screenY = axis.y;
+
     /** `date:velocity` of every dot a corrected note is drawn as. */
     const evidenced = useMemo(() => {
         const dots = new Set<string>();
@@ -120,13 +140,15 @@ export const VelocityPlot = ({
         const pt = svgPoint(e.currentTarget, e.clientX, e.clientY);
         if (!pt) return;
 
-        let delta = Math.round((dragStartY - pt.y) / STRETCH_Y);
-        // No selected dot may leave the scale. Clamped over the whole selection rather than per
-        // dot, so a group keeps its internal differences instead of flattening against the ends.
+        let delta = Math.round((dragStartY - pt.y) / axis.perStep);
+        // No selected dot may leave the scale, which ends at 0 and 127 or sooner. Clamped over the
+        // whole selection rather than per dot, so a group keeps its internal differences instead
+        // of flattening against the ends, and rounded inwards, so a corrected velocity that is
+        // not a whole number still moves by whole steps.
         for (const segment of segments) {
             if (!segment.noteID || !selected.has(segment.noteID)) continue;
-            if (segment.velocity + delta > 127) delta = 127 - segment.velocity;
-            if (segment.velocity + delta < 0) delta = -segment.velocity;
+            if (segment.velocity + delta > axis.max) delta = Math.floor(axis.max - segment.velocity);
+            if (segment.velocity + delta < axis.min) delta = Math.ceil(axis.min - segment.velocity);
         }
         onDrag(delta);
     };
@@ -161,7 +183,7 @@ export const VelocityPlot = ({
                     x1={x}
                     y1={screenY(segment.velocity)}
                     x2={x}
-                    y2={screenY(segment.velocity) - preview * STRETCH_Y}
+                    y2={screenY(segment.velocity + preview)}
                     color={PENDING_GHOST}
                     opacity={0.7}
                 />,
@@ -176,7 +198,7 @@ export const VelocityPlot = ({
                     key={`evidence_${segment.date.start}_${i}`}
                     data-evidence={segment.date.start}
                     cx={x}
-                    cy={screenY(segment.velocity) + (displaced ? -preview * STRETCH_Y : 0)}
+                    cy={screenY(segment.velocity + (displaced ? preview : 0))}
                     r={6}
                     fill="none"
                     stroke={EVIDENCE_COLOUR}
@@ -216,7 +238,7 @@ export const VelocityPlot = ({
                     if (!pt) return;
                     setDragStartY(pt.y);
                 } : undefined}
-                yOffset={displaced ? -preview * STRETCH_Y : 0}
+                yOffset={displaced ? -preview * axis.perStep : 0}
             />,
         );
     }
@@ -224,8 +246,9 @@ export const VelocityPlot = ({
     return (
         // The scale in a column of its own beside the scroller, as on the dynamics desk: the
         // chart starts where the scale ends, so nothing can be drawn behind it and a dot scrolls
-        // past the axis rather than under it. The two plots share `STRETCH_Y`, so a dot sits at
-        // the same height whichever desk is showing it.
+        // past the axis rather than under it. The two plots share their height and read their
+        // range off the same velocities, so a dot sits at the same height whichever desk is
+        // showing it.
         <div style={{ display: 'flex', alignItems: 'flex-start' }}>
             <svg
                 style={{ flex: '0 0 auto' }}
@@ -233,13 +256,7 @@ export const VelocityPlot = ({
                 height={CHART_HEIGHT}
                 viewBox={`${String(-SCALE_WIDTH + AXIS_BLEED)} 0 ${String(SCALE_WIDTH)} ${String(CHART_HEIGHT)}`}
             >
-                <VerticalScale
-                    min={10}
-                    max={80}
-                    step={5}
-                    height={CHART_HEIGHT}
-                    stretchY={STRETCH_Y}
-                />
+                <VerticalScale axis={axis} />
             </svg>
 
             <div

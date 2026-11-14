@@ -19,27 +19,43 @@ import { isCallOf } from "../../fitting/calls"
 import { SilentOrnaments } from "../SilentOrnaments"
 import { useEditable } from "../../hooks/Editing"
 import { EVIDENCE_COLOUR } from "../evidence"
+import { velocityAxis, type VelocityAxis } from "../velocityAxis"
 
-const VelocityScale = ({ getY }: { getY: (velocity: number) => number }) => {
+/** Labelled every ten steps, which at this desk's font size is as close as the labels go. */
+const SCALE_STEP = 10
+
+/**
+ * The velocity axis, over the whole range the plot shows.
+ *
+ * It labelled 30 to 70 whatever the plot held, while the corrections in WM 225 take its softest
+ * notes down to 8, and the hull ran on below the last label. The range is read off what is drawn
+ * instead (`../velocityAxis.ts`), so the axis runs past every chord.
+ */
+const VelocityScale = ({ axis, height }: { axis: VelocityAxis, height: number }) => {
+    const ticks = []
+    for (let v = Math.ceil(axis.min / SCALE_STEP) * SCALE_STEP; v <= axis.max; v += SCALE_STEP) {
+        ticks.push(v)
+    }
+
     return (
         <g>
             <rect
                 x={0}
-                y={getY(70)}
+                y={0}
                 width={30}
-                height={getY(0)}
+                height={height}
                 fill="white"
             />
             <line
                 x1={0}
-                y1={getY(70)}
+                y1={axis.y(axis.max)}
                 x2={0}
-                y2={getY(30)}
+                y2={axis.y(axis.min)}
                 stroke="black"
                 strokeWidth={1.5}
             />
-            {[30, 40, 50, 60, 70].map(v => {
-                const y = getY(v);
+            {ticks.map(v => {
+                const y = axis.y(v);
                 return (
                     <g key={`scale_${v}`}>
                         <line x1={0} y1={y} x2={10} y2={y} stroke="black" strokeWidth={1} />
@@ -225,10 +241,8 @@ type GradientInstructionProps = {
     onClick: () => void
 }
 
-const GradientInstruction = ({ notes, ornament, getY, active, onClick }: GradientInstructionProps) => {
-    const [hovered, setHovered] = useState(false)
-    const stretchX = usePhysicalZoom()
-
+/** The velocities a written ramp is drawn between, and the chord's standard on it. */
+const rampSpan = (notes: AlignedNote[], ornament: Instruction<'ornament'>) => {
     // The ramp's two ends are not `<ornament>` attributes and never were: MPM keeps them on the
     // `<dynamicsGradient>` of the def the ornament comes to name. `InsertDynamicsGradient` parks
     // them on the element until `StylizeOrnamentation` moves them into a real def, and that
@@ -241,10 +255,20 @@ const GradientInstruction = ({ notes, ornament, getY, active, onClick }: Gradien
 
     // Post-transformation, all notes share the same "standard" velocity
     const standard = notes[0].velocity
-    const avgOnset = notes.reduce((sum, n) => sum + onsetSeconds(n), 0) / notes.length
 
-    const lowVel = standard + Math.min(from, to) * scale
-    const highVel = standard + Math.max(from, to) * scale
+    return {
+        standard,
+        lowVel: standard + Math.min(from, to) * scale,
+        highVel: standard + Math.max(from, to) * scale,
+    }
+}
+
+const GradientInstruction = ({ notes, ornament, getY, active, onClick }: GradientInstructionProps) => {
+    const [hovered, setHovered] = useState(false)
+    const stretchX = usePhysicalZoom()
+
+    const { standard, lowVel, highVel } = rampSpan(notes, ornament)
+    const avgOnset = notes.reduce((sum, n) => sum + onsetSeconds(n), 0) / notes.length
 
     const x = avgOnset * stretchX
 
@@ -337,10 +361,6 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
         }))
     }
 
-    const getY = (velocity: number): number => {
-        return height - (velocity / 100) * height
-    }
-
     const getMPMGradient = (date: number): Instruction<'ornament'> | undefined => {
         const instruction = getInstructions(mpm, 'ornament', part)
             .find(i => i.date === date);
@@ -353,6 +373,20 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
             return instruction
         }
     }
+
+    // Every velocity the plot draws: the notes of each chord, which the hull, the handles and the
+    // evidence are drawn through, and both ends of each written ramp, which a large `@scale` can
+    // take past the chord's own.
+    const axis = velocityAxis([
+        ...scoped.notes().map(note => note.velocity),
+        ...Array.from(scoped.chords()).flatMap(([date, notes]) => {
+            const gradient = getMPMGradient(date)
+            if (!gradient) return []
+            const { lowVel, highVel } = rampSpan(notes, gradient)
+            return [lowVel, highVel]
+        }),
+    ], height)
+    const getY = axis.y
 
     return (
         <div>
@@ -419,7 +453,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
 
             <div style={{ overflow: 'scroll', position: 'relative', paddingBottom: 320 }}>
                 <svg height={height} width={100} style={{ position: 'absolute', top: 0, left: 0 }}>
-                    <VelocityScale getY={getY} />
+                    <VelocityScale axis={axis} height={height} />
                 </svg>
                 <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
                     <svg width={physicalEnd * stretchX} height={height}>

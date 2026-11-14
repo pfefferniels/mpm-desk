@@ -197,6 +197,36 @@ describe('what the articulation desk plots', () => {
 });
 
 /**
+ * A bar was drawn `residual + 2` thick, and the residual is recorded minus rendered velocity: every
+ * note more than two steps softer than the MPM renders it got a negative height, which the browser
+ * refuses to draw. On WM 225, 23 notes were missing from the desk.
+ */
+describe('how thick a note is drawn', () => {
+    it('draws every note, as thick as its velocity is far from the rendered one, either way', () => {
+        // One level for the whole piece, which the transcription's notes, recorded from 35 to 62,
+        // fall on both sides of.
+        const mpm = createMpm();
+        requireMap(mpm, 'dynamics', 'global').addDynamics({ date: 0, volume: 50, id: 'd1' });
+        const residual = deriveResidual(msm, mpm)!;
+        const off = msm.allNotes.map((note) => residual.of(note)!.velocity!);
+        // The notes that went missing are there to be drawn.
+        expect(off.filter((velocity) => velocity < -2).length).toBeGreaterThan(100);
+
+        const desk = renderDesk('global', mpm);
+        const heights = [...desk.bars()].map((rect) => Number(rect.getAttribute('height')));
+        desk.dispose();
+
+        const ascending = (values: number[]) => [...values].sort((a, b) => a - b);
+        expect(heights).toHaveLength(450);
+        expect(Math.min(...heights)).toBeGreaterThan(0);
+        // Ten steps too soft is as thick as ten too loud, and a note on the mark is not lost.
+        expect(ascending(heights)).toEqual(
+            ascending(off.map((velocity) => Math.max(Math.abs(velocity), 1) + 2)),
+        );
+    });
+});
+
+/**
  * Three of the four aspects are measured against the recorded duration on the tick grid, and only
  * a `<tempo>` puts it there. Offered without one they write an `<articulationDef>` stating
  * nothing at all.
