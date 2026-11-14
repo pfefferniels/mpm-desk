@@ -24,9 +24,10 @@ import { elementAt, zipWith } from 'espressivo';
 export interface StylizeOrnamentationOptions extends TransformationOptions {
   /**
    * The epsilon for both `frame.offset` and `frameLength` of the `<temporalSpread>`, in the
-   * frame's own unit. The name says ticks and a saved chain holds it under that name, but
-   * `InsertTemporalSpread` measures its frames off the recording, so for every frame this
-   * clusters the unit is milliseconds.
+   * frame's own unit, which in a chain is ticks. `InsertTemporalSpread` measures its frames off
+   * the recording in milliseconds, but `TranslatePhysicalTimeToTicks` runs in every chain before
+   * this and puts each frame a tempo covers into ticks; only one no tempo covers is still in
+   * milliseconds here.
    */
   tickTolerance: number;
 
@@ -75,6 +76,13 @@ interface StyleGroup {
 
 /** What the Styles desk plots: a point per framed ornament, and the styles they make. */
 export interface OrnamentStyles {
+  /**
+   * The units the points' frames are in, each once, for the desk to label its axes with: ticks
+   * for a frame the hinge translated, milliseconds for one it could not place on a tempo. The
+   * clustering measures the numbers as they stand, so where both appear they share one plane.
+   */
+  units: readonly FrameDomain[];
+
   /**
    * One point per ornament, in the four dimensions the clustering measures, labelled by the
    * definition it lands in. A label of -1 is an ornament that ends up with a definition to
@@ -197,6 +205,8 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
         label: labels.get(ornament) ?? -1,
       })),
       definitions: definitions.length,
+      // A draft without a unit is in ticks, as `temporalSpreadOf` reads it.
+      units: [...new Set(ornaments.map(({ draft }) => draft.frameDomain ?? FrameDomain.Ticks))],
     };
   }
 

@@ -46,6 +46,15 @@ export interface ViewProps {
     mpm: Mpm;
 
     /**
+     * The performance as it stood just before this desk's own call ran, for a desk that plots
+     * what that call is handed — the two style desks, see `plotsInput` in `DeskSwitch.tsx`.
+     *
+     * Null where the chain holds no such call yet, the finished document then being the same
+     * thing. Left out for every other desk.
+     */
+    found?: Mpm | null;
+
+    /**
      * What the MPM does not yet explain, with this desk's own dimension held out.
      *
      * Derived once per fit and shared, because deriving one renders the whole document: deriving

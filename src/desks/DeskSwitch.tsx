@@ -144,6 +144,22 @@ interface DeskEntry {
     holdOut?: readonly InstructionType[];
 
     /**
+     * The desk plots what its own call is handed rather than what it leaves, and is given the
+     * document as it stood just before that call ran, as `found`, beside the finished one.
+     *
+     * For the two style desks, whose call moves what the fitters measured into shared definitions
+     * and takes it off the instructions — `StylizeOrnamentation` clears every ornament's draft,
+     * `StylizeArticulation` repoints each articulation at its cluster's mean and drops the largest
+     * cluster's instructions for a `defaultArticulation`. Plotted over the finished document, the
+     * reconstruction's 97 fitted spreads drew as no ornament at all.
+     *
+     * A hold-out of a call, where {@link holdOut} is one of instruction types, and declared here
+     * for the same reason: a desk left to remember it draws an empty plot that reads as nothing to
+     * draw.
+     */
+    plotsInput?: true;
+
+    /**
      * The instruction types this desk writes **into whichever scope the picker is on**, where a
      * part may not hold its own map beside a global one.
      *
@@ -576,8 +592,8 @@ export const correspondingDesks: DeskEntry[] = [
         group: 'timing',
         help: {
             summary:
-                'One point per fitted ornament, frame start against frame length, coloured by the ' +
-                'definition the clustering would put it in.',
+                'One point per fitted ornament, frame offset against frame length as the fitters ' +
+                'measured them, coloured by the definition the clustering puts it in.',
             actions: [
                 {
                     gesture: 'Drag a tolerance',
@@ -586,6 +602,7 @@ export const correspondingDesks: DeskEntry[] = [
                 },
             ],
         },
+        plotsInput: true,
     },
     {
         transformerName: 'InsertTempo',
@@ -808,9 +825,10 @@ export const correspondingDesks: DeskEntry[] = [
         group: 'dynamics',
         help: {
             summary:
-                'One point per articulation in scope, relative duration against relative volume, ' +
-                'coloured by cluster. Both axes are ratios against the notated value, so 1 is a ' +
-                'place on each.',
+                'One point per articulation in scope, relative duration against relative volume ' +
+                'as it renders, coloured by cluster. Both axes are ratios against the notated ' +
+                'value, so 1 is a place on each; an absolute duration is none, and is counted ' +
+                'rather than drawn.',
             actions: [
                 {
                     gesture: 'Drag a tolerance',
@@ -819,6 +837,7 @@ export const correspondingDesks: DeskEntry[] = [
                 },
             ],
         },
+        plotsInput: true,
     },
     // Pedalling
     {
@@ -866,3 +885,13 @@ export const correspondingDesks: DeskEntry[] = [
         },
     },
 ];
+
+/**
+ * The transformers whose input some desk plots, for every fit to keep — see `plotsInput`.
+ *
+ * All of them on every fit rather than the open desk's alone: asking for another one when the desk
+ * changes would cost a fold of seconds per switch, where keeping each costs a serialization.
+ */
+export const PLOTTED_INPUTS: readonly string[] = correspondingDesks.flatMap(
+    ({ plotsInput, transformerName }) => (plotsInput && transformerName ? [transformerName] : []),
+);

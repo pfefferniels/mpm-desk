@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { StylizeOrnamentation } from "../../fitting/transformers/ornamentation/StylizeOrnamentation";
+import { FrameDomain } from "espressivo";
 import { Stack, Box, Typography, Slider } from "@mui/material";
 import { Plot } from "./Plot";
 import { axisOver } from "./axis";
@@ -22,10 +23,12 @@ interface ToleranceProps {
     min: number
     max: number
     step: number
+    /** Held where it is, at the tolerance a call already stylized with. */
+    disabled?: boolean
     onChange: (value: number) => void
 }
 
-const Tolerance = ({ label, note, unit, value, min, max, step, onChange }: ToleranceProps) => (
+const Tolerance = ({ label, note, unit, value, min, max, step, disabled, onChange }: ToleranceProps) => (
     <Box>
         <Stack direction='row' justifyContent='space-between' alignItems='baseline'>
             <Typography variant='body2'>{label}</Typography>
@@ -40,6 +43,7 @@ const Tolerance = ({ label, note, unit, value, min, max, step, onChange }: Toler
             step={step}
             min={min}
             max={max}
+            disabled={disabled}
         />
         <Typography variant='caption' color='text.secondary' sx={{ display: 'block' }}>{note}</Typography>
     </Box>
@@ -49,15 +53,36 @@ const Tolerance = ({ label, note, unit, value, min, max, step, onChange }: Toler
 const DEFAULT_TOLERANCES = { tickTolerance: 10, intensityTolerance: 0.2, gradientTolerance: 0.2 }
 
 /**
+ * The unit the frames are in, as the axes and the frame tolerance state it.
+ *
+ * Read off the ornaments rather than assumed. The fitters measure in milliseconds, but the hinge
+ * puts every frame a tempo covers into ticks before the style call clusters it, so a chain's
+ * frames are ticks. The axes said milliseconds, which they were before the hinge ran in every
+ * chain.
+ */
+const unitOf = (units: readonly FrameDomain[]): string =>
+    units.length === 1 && units[0] === FrameDomain.Milliseconds
+        ? 'ms'
+        : units.length > 1 ? 'ticks or ms' : 'ticks'
+
+/**
  * The fitted ornaments of a scope as the clustering places them, and the tolerances that decide
  * which share a definition.
  *
- * In the viewer the plot is the clustering the reconstruction made: at the tolerances of its own
- * `StylizeOrnamentation` call, with the sliders and both buttons gone and the tolerances stated
- * instead. Where it made none, at the defaults, and it says so. The count of silent ornaments
- * stays in the bar, being a fact about the chain rather than a control.
+ * Drawn from the document as the chain's `StylizeOrnamentation` call found it (`found`), where
+ * there is one. The call moves every frame into an `<ornamentDef>` and clears it off the
+ * ornament, so the finished document has no ornament left to place: the reconstruction's 97
+ * spreads drew as an empty plot. Before the call, and in the editor until Stylize, the two are
+ * the same document.
+ *
+ * Where there is a call the tolerances are its own, in either mode, so the colours are the
+ * definitions it wrote rather than what the sliders would make. In the editor the sliders hold at
+ * those values until Remove Style frees them; in the viewer they and both buttons are gone and the
+ * tolerances are stated instead. With no call the viewer clusters at the defaults, and says so.
+ * The count of silent ornaments stays in the bar, being a fact about the chain rather than a
+ * control, and is counted on the finished document, which is the one that sounds.
  */
-export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
+export const OrnamentationStyles = ({ mpm, found, addTransformer, part }: ScopedTransformerViewProps<StylizeOrnamentation>) => {
     const { calls, removeCall } = useCallSelection()
     const editable = useEditable()
 
@@ -71,9 +96,11 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
     const [draftTick, setTickTolerance] = useState(DEFAULT_TOLERANCES.tickTolerance)
     const [draftIntensity, setIntensityTolerance] = useState(DEFAULT_TOLERANCES.intensityTolerance)
     const [draftGradient, setGradientTolerance] = useState(DEFAULT_TOLERANCES.gradientTolerance)
-    const { tickTolerance, intensityTolerance, gradientTolerance } = editable
-        ? { tickTolerance: draftTick, intensityTolerance: draftIntensity, gradientTolerance: draftGradient }
-        : { ...DEFAULT_TOLERANCES, ...existingTransformer?.options }
+    const { tickTolerance, intensityTolerance, gradientTolerance } = existingTransformer
+        ? { ...DEFAULT_TOLERANCES, ...existingTransformer.options }
+        : editable
+            ? { tickTolerance: draftTick, intensityTolerance: draftIntensity, gradientTolerance: draftGradient }
+            : DEFAULT_TOLERANCES
 
     const transformOrnaments = () => {
         addTransformer(new StylizeOrnamentation({
@@ -85,14 +112,16 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
 
     // Memoised because it walks every ornament in the scope and clusters them twice, and a
     // slider drag repaints this desk on every frame.
+    const plotted = found ?? mpm
     const styles = useMemo(
         () => new StylizeOrnamentation({
             tickTolerance,
             intensityTolerance,
             gradientTolerance
-        }).stylesOf(mpm, part),
-        [mpm, part, tickTolerance, intensityTolerance, gradientTolerance]
+        }).stylesOf(plotted, part),
+        [plotted, part, tickTolerance, intensityTolerance, gradientTolerance]
     )
+    const unit = unitOf(styles.units)
 
     return (
         <div>
@@ -149,19 +178,29 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
             */}
             <Stack direction='row' spacing={4} alignItems='flex-start' sx={{ p: 2 }}>
                 <Box>
+                    {/*
+                        Two sentences, one per mode. Fitting is the editor's remedy and no answer to
+                        a reader of the viewer, who can do nothing about it; there the plot is empty
+                        because the reconstruction made no spread here, and the scope is all that
+                        is theirs to change. Spreads rather than frames in the viewer's version: a
+                        grace note's ornament carries a frame too, in the definition its fitter
+                        wrote directly, and is no candidate for a style.
+                    */}
                     {styles.points.length === 0
                         ? (
                             <Typography color='text.secondary' sx={{ width: 560, py: 4 }}>
-                                No ornament here carries a frame. Fit temporal spreads first, or
-                                look in another scope — this plot shows the scope the bar is set to.
+                                {editable
+                                    ? 'No ornament here carries a frame. Fit temporal spreads first, or look in another scope'
+                                    : 'The reconstruction fits no temporal spread in this scope, so it has no ornament here to cluster. Look in another'}
+                                {' — this plot shows the scope the bar is set to.'}
                             </Typography>
                         )
                         : (
                             <>
                                 <Plot
                                     points={styles.points}
-                                    x={axisOver('frame.offset (ms)', styles.points, 0)}
-                                    y={axisOver('frameLength (ms)', styles.points, 1)}
+                                    x={axisOver(`frame.offset (${unit})`, styles.points, 0)}
+                                    y={axisOver(`frameLength (${unit})`, styles.points, 1)}
                                     width={560}
                                     height={320}
                                     // Intensity is the third dimension the clustering measures, so
@@ -171,8 +210,9 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                                     radiusOf={point => 3 + Math.min(point.value[2] ?? 1, 3) * 2}
                                 />
                                 <Typography variant='caption' color='text.secondary' sx={{ display: 'block', width: 560 }}>
-                                    One point per ornament. Colour: the definition it lands in,
-                                    grey for one it would hold alone. Size: intensity.
+                                    One point per ornament, where the fitters measured it.
+                                    Colour: the definition it lands in, grey for one it holds
+                                    alone. Size: intensity.
                                 </Typography>
                             </>
                         )}
@@ -182,7 +222,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                     {!editable && (
                         <Typography variant='body2' color='text.secondary'>
                             {existingTransformer
-                                ? `Clustered as the reconstruction stylized its ornaments: frame within ${tickTolerance} ms, intensity within ${intensityTolerance}, gradient within ${gradientTolerance}.`
+                                ? `Clustered as the reconstruction stylized its ornaments: frame within ${tickTolerance} ${unit}, intensity within ${intensityTolerance}, gradient within ${gradientTolerance}.`
                                 : 'The reconstruction does not stylize its ornaments. The colours are what the default tolerances would make of them.'}
                         </Typography>
                     )}
@@ -190,9 +230,10 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                         <Tolerance
                             label='Frame'
                             note='frame.offset and frameLength'
-                            unit='ms'
+                            unit={unit}
                             value={tickTolerance}
                             onChange={setTickTolerance}
+                            disabled={existingTransformer !== undefined}
                             step={1}
                             min={1}
                             max={200}
@@ -202,6 +243,7 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                             note='temporalSpread intensity'
                             value={intensityTolerance}
                             onChange={setIntensityTolerance}
+                            disabled={existingTransformer !== undefined}
                             step={0.05}
                             min={0}
                             max={2}
@@ -211,10 +253,17 @@ export const OrnamentationStyles = ({ mpm, addTransformer, part }: ScopedTransfo
                             note='dynamicsGradient ends, within a frame cluster'
                             value={gradientTolerance}
                             onChange={setGradientTolerance}
+                            disabled={existingTransformer !== undefined}
                             step={0.05}
                             min={0}
                             max={2}
                         />
+                        {existingTransformer && (
+                            <Typography variant='body2' color='text.secondary'>
+                                Held at the tolerances Stylize Ornaments was called with, which
+                                are what wrote these definitions. Remove Style to try others.
+                            </Typography>
+                        )}
                     </>}
                     <Typography variant='body2' color='text.secondary'>
                         {`${styles.points.length} ornaments → ${styles.definitions} definitions`}

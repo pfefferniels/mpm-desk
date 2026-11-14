@@ -23,7 +23,7 @@
  * the registry exists to provide. That the field is there is the assertion.
  */
 import { describe, it, expect } from 'vitest';
-import { correspondingDesks, type DocumentFacts } from './DeskSwitch';
+import { correspondingDesks, PLOTTED_INPUTS, type DocumentFacts } from './DeskSwitch';
 import { TRANSFORMER_ALIASES } from './transformerAliases';
 import { getTransformerOrder, isRegistered } from '../fitting/transformers/TransformerRegistry';
 
@@ -159,6 +159,28 @@ describe('the desk registry', () => {
                     ),
                 ),
             ).toEqual([]);
+        });
+    });
+
+    describe('a desk that plots what its call is handed', () => {
+        it('claims the call, whose input every fit then keeps', () => {
+            // The fit keeps a document by transformer name, and `App` hands the desk the one kept
+            // under its own `transformerName`: a desk declaring `plotsInput` without a name would
+            // be handed nothing, and plot the finished document it declared it could not use.
+            const plotting = correspondingDesks.filter((entry) => entry.plotsInput);
+            for (const entry of plotting)
+                expect(
+                    entry.transformerName,
+                    `the ${entry.aspect} desk plots its call's input and claims no call`,
+                ).toBeDefined();
+            expect(PLOTTED_INPUTS).toEqual(plotting.map((entry) => entry.transformerName));
+        });
+
+        it('is each style desk, whose call takes away what it clustered', () => {
+            expect([...PLOTTED_INPUTS].sort()).toEqual([
+                'StylizeArticulation',
+                'StylizeOrnamentation',
+            ]);
         });
     });
 

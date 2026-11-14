@@ -17,7 +17,7 @@ import { convertMeiToMsm } from 'espressivo';
 // name. The fitting worker imports it on its own side for the same reason.
 import './fitting/transformers/Order';
 
-import { correspondingDesks, type DocumentFacts } from './desks/DeskSwitch';
+import { correspondingDesks, PLOTTED_INPUTS, type DocumentFacts } from './desks/DeskSwitch';
 import { lockedScopes, NO_SCOPE_LOCK } from './desks/scopeLock';
 import { TRANSFORMER_ALIASES } from './desks/transformerAliases';
 import type { SecondaryData } from './desks/TransformerViewProps';
@@ -169,10 +169,11 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     /**
-     * The desk currently open, and the hold-out its residual must be derived with.
+     * The desk currently open, the hold-out its residual must be derived with, and whether it is
+     * handed the document as its own call found it.
      *
-     * The hold-out is a correctness requirement rather than a preference — see `DeskSwitch.tsx`.
-     * Reading it here, from the registry, is what saves each desk from having to remember its own.
+     * Both are correctness requirements rather than preferences — see `DeskSwitch.tsx`. Reading
+     * them here, from the registry, is what saves each desk from having to remember its own.
      */
     const deskEntry = useMemo(
         () =>
@@ -182,10 +183,12 @@ export const App = ({ mode = 'edit' }: AppProps) => {
         [selectedDesk],
     );
 
-    const { result, mpm, alignment, residual, pending, problems, error } = useEditorFit({
+    const { result, mpm, found, alignment, residual, pending, problems, error } = useEditorFit({
         work,
         pristine,
         holdOut: deskEntry?.holdOut,
+        keep: PLOTTED_INPUTS,
+        input: deskEntry?.plotsInput ? deskEntry.transformerName : undefined,
     });
 
     /**
@@ -739,6 +742,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const deskProps = {
         msm: alignment,
         mpm,
+        found,
         residual,
         performanceXml: result.mpm,
         secondary,

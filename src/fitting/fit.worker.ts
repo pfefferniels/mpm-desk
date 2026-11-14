@@ -55,6 +55,8 @@ export interface FitMessage {
     type: 'fit';
     requestId: number;
     work: WorkFile;
+    /** Whose input to keep as well as the result, see `FitOptions.before`. */
+    before?: readonly string[];
 }
 
 export type FitRequest = LoadMessage | FitMessage;
@@ -95,7 +97,7 @@ self.onmessage = (event: MessageEvent<FitRequest>) => {
 
         if (message.type === 'fit') {
             if (!pristine) throw new Error('fit requested before the alignment was loaded');
-            const result = runFit(message.work, pristine.deepClone());
+            const result = runFit(message.work, pristine.deepClone(), { before: message.before });
             post({ type: 'fitted', requestId: message.requestId, result });
         }
     } catch (error) {

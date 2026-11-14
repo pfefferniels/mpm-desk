@@ -245,3 +245,30 @@ describe('the definition it writes', () => {
     expect(spread.getAttributeValue('time.unit')).toBeNull();
   });
 });
+
+describe('the styles it previews', () => {
+  /**
+   * The Styles desk labels its axes and its frame tolerance from this. It said milliseconds for
+   * frames the hinge had put into ticks, which is every frame of a chain a tempo covers.
+   */
+  test('say which unit the frames are in, each once', () => {
+    const mpm = createMpm();
+    const frames = [
+      { date: 0, frameDomain: FrameDomain.Ticks },
+      { date: 720, frameDomain: FrameDomain.Ticks },
+      { date: 1440, frameDomain: FrameDomain.Milliseconds },
+    ];
+    for (const { date, frameDomain } of frames) {
+      insertOrnament(
+        mpm,
+        { id: `roll_${date}`, date, nameRef: 'neutralArpeggio', scale: 25 },
+        { frameStart: -40, frameLength: 120, frameDomain },
+      );
+    }
+
+    const styles = new StylizeOrnamentation().stylesOf(mpm, 'global');
+
+    expect(styles.points).toHaveLength(3);
+    expect([...styles.units].sort()).toEqual([FrameDomain.Milliseconds, FrameDomain.Ticks]);
+  });
+});
