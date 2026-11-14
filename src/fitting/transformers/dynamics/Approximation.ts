@@ -3,7 +3,7 @@ import { fitTransitionCurve, innerControlPointsXPositions, transitionValueAt } f
 import type { TransitionShape } from 'espressivo';
 import type { Normalized } from 'espressivo';
 import { v4 } from 'uuid';
-import type { DynamicsWithEndDate } from './InsertDynamicsInstructions';
+import type { DynamicsWithEndDate } from './InsertDynamics';
 import { hashSeed, seededRandom } from '../../random';
 import { head, isNonEmpty, last } from 'espressivo';
 

@@ -6,7 +6,7 @@ import {
   exportMPM,
   getInstructions,
 } from '../../../src/fitting/instructions/index';
-import { InsertDynamicsInstructions } from '../../../src/fitting/transformers/index';
+import { InsertDynamics } from '../../../src/fitting/transformers/index';
 import { deriveResidual } from '../../../src/fitting/residual';
 import { at } from '../../support/at';
 
@@ -53,7 +53,7 @@ const msmFixture = () =>
   );
 
 /** Call the protected `transform` method for testing */
-const callTransform = (transformer: InsertDynamicsInstructions, msm: Alignment, mpm: Mpm) => {
+const callTransform = (transformer: InsertDynamics, msm: Alignment, mpm: Mpm) => {
   interface Transformable {
     transform(msm: Alignment, mpm: Mpm): void;
   }
@@ -62,7 +62,7 @@ const callTransform = (transformer: InsertDynamicsInstructions, msm: Alignment, 
 
 const run = (msm: Alignment, mpm: Mpm) =>
   callTransform(
-    new InsertDynamicsInstructions({
+    new InsertDynamics({
       scope: 'global',
       from: 0,
       to: msm.lastDate(),
@@ -134,7 +134,7 @@ test('a guide of 0 is used, not read as an absent one', () => {
   const mpm = createMpm();
 
   callTransform(
-    new InsertDynamicsInstructions({
+    new InsertDynamics({
       scope: 'global',
       from: 0,
       to: msm.lastDate(),
@@ -158,7 +158,7 @@ test('a guide at a date no chord sounds at is a point of its own', () => {
 
   // 360 is halfway through the fixture's first quarter: no chord, and the note is still held.
   callTransform(
-    new InsertDynamicsInstructions({
+    new InsertDynamics({
       scope: 'global',
       from: 360,
       to: msm.lastDate(),

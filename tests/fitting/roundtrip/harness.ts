@@ -8,7 +8,7 @@ import {
   InsertTempo,
   TranslatePhysicalTimeToTicks,
 } from '../../../src/fitting/transformers/tempo/index';
-import { InsertDynamicsInstructions } from '../../../src/fitting/transformers/dynamics/index';
+import { InsertDynamics } from '../../../src/fitting/transformers/dynamics/index';
 import { InsertRubato } from '../../../src/fitting/transformers/rubato/InsertRubato';
 import {
   InsertTemporalSpread,
@@ -271,7 +271,7 @@ const chainFor = (spec: Case, msm: Alignment): Transformer[] => {
     );
     for (const window of windows) {
       transformers.push(
-        new InsertDynamicsInstructions({
+        new InsertDynamics({
           scope: 'global',
           from: window.from,
           to: window.to,

@@ -67,8 +67,7 @@ export interface WorkFile extends Work {
 
 // The envelopes are why these are not `JSON.parse`/`JSON.stringify` at the call site. A
 // transformer's options are not only JSON data: `InsertArticulation` takes a `Set` of aspects
-// and `InsertDynamicsInstructions` a `Map` of guides, and both must survive the
-// round trip.
+// and `InsertDynamics` a `Map` of guides, and both must survive the round trip.
 //
 // Getting it wrong is silent in one direction and loud in the other. A reviver without a
 // matching replacer turns all 87 envelopes in the shipped file into `{}`, which has no `.get`,
@@ -103,13 +102,24 @@ interface LegacyWorkFile extends WorkFile {
 }
 
 /**
- * The guides of an `InsertDynamicsInstructions` call under the name a file saved before
- * November 2026 gives them, `phantomVelocities`, renamed in place, so that the option keeps its
- * position and the next save differs from the old file by the name alone. A call that already
- * names its guides keeps those.
+ * Transformers renamed since a file could have been saved: the name a call was saved under, and
+ * the one it goes by now. `InsertDynamics` was `InsertDynamicsInstructions` until November 2026.
+ *
+ * A `Map` rather than an object literal, so that a call named after an `Object.prototype` member
+ * cannot read back an inherited function as its new name.
+ */
+const RENAMED: ReadonlyMap<string, string> = new Map([['InsertDynamicsInstructions', 'InsertDynamics']]);
+
+/**
+ * The guides of an `InsertDynamics` call under the name a file saved before November 2026 gives
+ * them, `phantomVelocities`, renamed in place, so that the option keeps its position and the next
+ * save differs from the old file by the names alone. A call that already names its guides keeps
+ * those.
+ *
+ * Asks for the call by its current name, so the call has to be renamed first.
  */
 function renameGuides(call: Call): void {
-    if (call.name !== 'InsertDynamicsInstructions' || !('phantomVelocities' in call.options)) return;
+    if (call.name !== 'InsertDynamics' || !('phantomVelocities' in call.options)) return;
     if ('guides' in call.options) {
         delete call.options['phantomVelocities'];
         return;
@@ -131,13 +141,16 @@ function renameGuides(call: Call): void {
  *
  * The claims an older file grouped its calls under are dropped on the way in, so that the next
  * save writes a file without them. Nothing reads them any more, and a field carried through
- * unread is one nobody can edit. Its guides are read under the name they have now.
+ * unread is one nobody can edit. A call saved under a transformer's former name is renamed, for
+ * the same reason: past this point every transformer has one name, and the next save writes it.
+ * Its guides are read under the name they have now.
  */
 export function parseWorkFile(json: string): WorkFile {
     const work = JSON.parse(json, reviver) as LegacyWorkFile;
     delete work.segments;
     for (const call of work.provenance) {
         delete call.segment;
+        call.name = RENAMED.get(call.name) ?? call.name;
         renameGuides(call);
     }
     return work;

@@ -126,7 +126,7 @@ describe('filling in at a date', () => {
   test('a value already there wins even when it is 0', () => {
     // "Already has a value" and "already has a truthy value" are different rules, and only
     // the first is the one this mechanism needs. A volume of 0 is not an exotic value here:
-    // it is what `InsertDynamicsInstructions.closeTransition` writes to end a diminuendo al
+    // it is what `InsertDynamics.closeTransition` writes to end a diminuendo al
     // niente, so under the truthy rule the next segment's fit silently replaced the point
     // the previous one had been fitted to reach (issue #46).
     const mpm = createMpm();

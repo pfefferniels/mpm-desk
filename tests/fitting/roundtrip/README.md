@@ -73,7 +73,7 @@ is the regression this directory exists to catch.
 
 The bounds carry roughly 25–50% headroom over the measured value, and every one of them was
 re-recorded when the suite moved out of espressivo — the chain changed underneath them, so the
-figures inherited from there were no longer measurements. `InsertDynamicsInstructions` is the one
+figures inherited from there were no longer measurements. `InsertDynamics` is the one
 fitter left that anneals, and `src/fitting/random.ts` seeds it, so the numbers are stable run to
 run: the headroom is for platforms whose floating point sends a chaotic search down a different
 path, not for drift.

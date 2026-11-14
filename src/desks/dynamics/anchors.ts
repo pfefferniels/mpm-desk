@@ -5,7 +5,7 @@ import type { DynamicsSegment } from './segments';
  *
  * Two things are anchors: a chord onset, where the velocity is the recording's, and a guide,
  * where it is the one pencilled in. The insert gesture does not tell them apart — it hands
- * `InsertDynamicsInstructions` two dates, and the transformer reads a guide in place of the
+ * `InsertDynamics` two dates, and the transformer reads a guide in place of the
  * chord's mean at every date it covers, chord or no chord.
  */
 export interface DynamicsAnchor {

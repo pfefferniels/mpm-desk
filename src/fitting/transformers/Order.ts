@@ -2,7 +2,7 @@ import { InsertMetricalAccentuation, MergeMetricalAccentuations } from './accent
 import { InsertArticulation, MakeDefaultArticulation } from './articulation/index';
 import { StylizeArticulation } from './articulation/StylizeArticulation';
 import { MakeChoice } from './choice/MakeChoice';
-import { InsertDynamicsInstructions } from './dynamics/index';
+import { InsertDynamics } from './dynamics/index';
 import { InsertMetadata } from './metadata/index';
 import { Modify } from './modification/Modify';
 import { Expand } from './modification/Expand';
@@ -108,7 +108,7 @@ const REGISTERED = [
   StylizeOrnamentation,
   InsertRubato,
   CombineAdjacentRubatos,
-  InsertDynamicsInstructions,
+  InsertDynamics,
   InsertMetricalAccentuation,
   MergeMetricalAccentuations,
   InsertArticulation,

@@ -4,7 +4,7 @@ import { clearResidualCache, deriveResidual, residualStats } from './residual';
 import { createMpm, getInstructions } from './instructions/index';
 import { InsertTempo } from './transformers/tempo/InsertTempo';
 import { InsertMetricalAccentuation } from './transformers/accentuation/InsertMetricalAccentuation';
-import { InsertDynamicsInstructions } from './transformers/dynamics/InsertDynamicsInstructions';
+import { InsertDynamics } from './transformers/dynamics/InsertDynamics';
 import { PULSES_PER_QUARTER } from './ppq';
 
 /**
@@ -91,7 +91,7 @@ describe('deriveResidual caching', () => {
             msm,
             mpm,
         );
-        new InsertDynamicsInstructions({
+        new InsertDynamics({
             scope: 'global',
             from: 0,
             to: 16 * BEAT,

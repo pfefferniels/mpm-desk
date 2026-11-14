@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { Alignment } from '../../src/fitting/alignment';
 import { createMpm, exportMPM, getInstructions } from '../../src/fitting/instructions/index';
-import { InsertDynamicsInstructions } from '../../src/fitting/transformers/dynamics/InsertDynamicsInstructions';
+import { InsertDynamics } from '../../src/fitting/transformers/dynamics/InsertDynamics';
 import type { Transformer } from '../../src/fitting/transformers/Transformer';
 import { at } from '../support/at';
 
@@ -57,7 +57,7 @@ const buildMsm = () => {
  * be exact rather than up to a renaming.
  */
 const chain = (): Transformer[] => [
-  new InsertDynamicsInstructions({
+  new InsertDynamics({
     scope: 'global',
     from: 0,
     to: 16 * BEAT,

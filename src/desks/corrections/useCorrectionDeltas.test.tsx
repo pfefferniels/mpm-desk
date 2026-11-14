@@ -116,7 +116,7 @@ describe('what does not count', () => {
     });
 
     it('another call entirely', () => {
-        const result = deltas([call({ scope: 'global', from: 0, to: 720 }, 'InsertDynamicsInstructions')]);
+        const result = deltas([call({ scope: 'global', from: 0, to: 720 }, 'InsertDynamics')]);
 
         expect(result.size).toBe(0);
     });

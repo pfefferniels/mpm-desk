@@ -4,7 +4,7 @@ import { usePiano } from "../../performance/piano";
 import { useNotes } from "../../hooks/NotesProvider";
 import { asMIDI } from "../../utils/utils";
 import { ScopedTransformerViewProps } from "../TransformerViewProps";
-import { DynamicsWithEndDate, InsertDynamicsInstructions } from "../../fitting/transformers/dynamics/InsertDynamicsInstructions";
+import { DynamicsWithEndDate, InsertDynamics } from "../../fitting/transformers/dynamics/InsertDynamics";
 import { AlignedNote } from "../../fitting/alignment";
 import { getInstructions } from "../../fitting/instructions/index";
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
@@ -65,7 +65,7 @@ const MIN_GRID_SPACING = 4;
  * click, and a curve still selects the call that wrote it.
  */
 export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransformerViewProps<
-    InsertDynamicsInstructions
+    InsertDynamics
 >) => {
     const { activeElements, activeEvidence, setActiveElement } = useCallSelection();
     const editable = useEditable()
@@ -117,7 +117,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
         const withEndDate: DynamicsWithEndDate[] = []
         for (let i = 0; i < dynamics.length; i++) {
             // Where the curve stops is the next `<dynamics>`, and nothing else. There is no
-            // `@endDate` attribute in MPM to prefer instead: `InsertDynamicsInstructions` takes
+            // `@endDate` attribute in MPM to prefer instead: `InsertDynamics` takes
             // the fitted end back off before writing, so nothing carries one into the document.
             // A curve nothing follows has no span to draw, and is skipped.
             const endDate = dynamics[i + 1]?.date
@@ -451,7 +451,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
                         onMouseUp={inserting ? () => {
                             if (dragFrom && dragTo) {
                                 setPendingInsert({ from: dragFrom.date, to: dragTo.date })
-                                addTransformer(new InsertDynamicsInstructions({
+                                addTransformer(new InsertDynamics({
                                     from: dragFrom.date,
                                     to: dragTo.date,
                                     guides,

@@ -5,7 +5,7 @@ import {
     computeInnerControlPointsXPositions,
     volumeAtDate,
 } from '../../fitting/transformers/dynamics/Approximation'
-import type { DynamicsWithEndDate } from '../../fitting/transformers/dynamics/InsertDynamicsInstructions'
+import type { DynamicsWithEndDate } from '../../fitting/transformers/dynamics/InsertDynamics'
 
 /**
  * The desk has to draw the curve the renderer sounds.

@@ -10,7 +10,7 @@
 import { expect, test } from 'vitest';
 import { Alignment } from '../../../src/fitting/alignment';
 import { createMpm } from '../../../src/fitting/instructions/index';
-import { InsertDynamicsInstructions } from '../../../src/fitting/transformers/index';
+import { InsertDynamics } from '../../../src/fitting/transformers/index';
 
 const note = (position: number, velocity: number) => ({
   'xml:id': `n_${position}`,
@@ -35,7 +35,7 @@ const msm = () =>
   );
 
 const fit = (from: number, to: number) =>
-  new InsertDynamicsInstructions({ scope: 'global', from, to, guides: new Map() });
+  new InsertDynamics({ scope: 'global', from, to, guides: new Map() });
 
 test('chained fits: the second is credited with the closer it fills in, and leads with it', () => {
   const alignment = msm();

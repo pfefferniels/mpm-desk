@@ -88,7 +88,7 @@ describe('the work file', () => {
       ...work,
       provenance: [
         {
-          ...call('InsertDynamicsInstructions', {}),
+          ...call('InsertDynamics', {}),
           options: {
             from: 0,
             to: 2880,
@@ -116,7 +116,7 @@ describe('the work file', () => {
   test('keeps the guides of a call that names both', () => {
     const both = JSON.stringify(
       file([
-        call('InsertDynamicsInstructions', {
+        call('InsertDynamics', {
           guides: { dataType: 'Map', value: [[720, 35]] },
           phantomVelocities: { dataType: 'Map', value: [[720, 99]] },
         }),
@@ -136,6 +136,35 @@ describe('the work file', () => {
   });
 
   /**
+   * `InsertDynamics` was saved as `InsertDynamicsInstructions` until November 2026, and a call
+   * saved under that name saved its guides as `phantomVelocities` too. It is renamed on the way
+   * in, so the chain can build it and the desk that made it can open it, and its guides are read
+   * as guides. Its id and the order of its options are left alone.
+   */
+  test('renames a call saved under the name its transformer had before', () => {
+    const older = JSON.stringify(
+      file([
+        call('InsertDynamicsInstructions', {
+          scope: 'global',
+          from: 0,
+          to: 960,
+          phantomVelocities: { dataType: 'Map', value: [[480, 64]] },
+        }),
+      ]),
+    );
+    const read = parseWorkFile(older);
+
+    expect(at(read.provenance, 0, 'call')).toEqual({
+      id: 'call-InsertDynamicsInstructions',
+      name: 'InsertDynamics',
+      options: { scope: 'global', from: 0, to: 960, guides: new Map([[480, 64]]) },
+    });
+    expect(Object.keys(at(read.provenance, 0, 'call').options)).toEqual(['scope', 'from', 'to', 'guides']);
+    expect(buildChain(read.provenance).unknown).toEqual([]);
+    expect(serializeWorkFile(read)).not.toContain('"name": "InsertDynamicsInstructions"');
+  });
+
+  /**
    * The `Map` and `Set` envelopes, which are the whole reason these are not `JSON.parse` and
    * `JSON.stringify` at the call site.
    *
@@ -147,7 +176,7 @@ describe('the work file', () => {
     const written = serializeWorkFile(
       file([
         call('InsertArticulation', { aspects: new Set(['relativeDuration', 'relativeVelocity']) }),
-        call('InsertDynamicsInstructions', { guides: new Map([['n1', 64]]) }),
+        call('InsertDynamics', { guides: new Map([['n1', 64]]) }),
       ]),
     );
 

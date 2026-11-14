@@ -396,7 +396,7 @@ describe('buildWorkArchive', () => {
                         },
                         {
                             id: 'b',
-                            name: 'InsertDynamicsInstructions',
+                            name: 'InsertDynamics',
                             options: { guides: new Map([[720, 64]]) },
                         },
                     ],

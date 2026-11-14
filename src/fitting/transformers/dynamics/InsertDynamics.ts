@@ -21,22 +21,22 @@ import { type Range } from '../range';
  * A fitted `<dynamics>` plus the window it was fitted over.
  *
  * `endDate` is not an MPM attribute and is not in `AddDynamicsOptions`; it travels with the fit
- * only as far as {@link InsertDynamicsInstructions.transform}, which takes it back off before the
+ * only as far as {@link InsertDynamics.transform}, which takes it back off before the
  * record reaches the document.
  */
 export type DynamicsWithEndDate = AddDynamicsOptions & WithEndDate;
 
-export interface InsertDynamicsInstructionsOptions extends ScopedTransformationOptions {
+export interface InsertDynamicsOptions extends ScopedTransformationOptions {
   from: number;
   to: number;
   guides: Map<number, number>;
 }
 
-export class InsertDynamicsInstructions extends AbstractTransformer<InsertDynamicsInstructionsOptions> {
-  readonly name = 'InsertDynamicsInstructions';
+export class InsertDynamics extends AbstractTransformer<InsertDynamicsOptions> {
+  readonly name = 'InsertDynamics';
   requires = [];
 
-  constructor(options?: InsertDynamicsInstructionsOptions) {
+  constructor(options?: InsertDynamicsOptions) {
     super(
       options || {
         scope: 'global',

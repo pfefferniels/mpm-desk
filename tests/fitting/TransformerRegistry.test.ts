@@ -64,7 +64,7 @@ describe('TransformerRegistry', () => {
         'StylizeOrnamentation',
         'InsertRubato',
         'CombineAdjacentRubatos',
-        'InsertDynamicsInstructions',
+        'InsertDynamics',
         'InsertMetricalAccentuation',
         'MergeMetricalAccentuations',
         'InsertArticulation',

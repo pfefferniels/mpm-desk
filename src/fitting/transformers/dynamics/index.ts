@@ -1,2 +1,2 @@
-export * from './InsertDynamicsInstructions';
+export * from './InsertDynamics';
 export * from './Approximation';

@@ -11,7 +11,7 @@ import {
   InsertTempo,
   TranslatePhysicalTimeToTicks,
 } from '../../../src/fitting/transformers/tempo/index';
-import { InsertDynamicsInstructions } from '../../../src/fitting/transformers/dynamics/index';
+import { InsertDynamics } from '../../../src/fitting/transformers/dynamics/index';
 import { InsertArticulation } from '../../../src/fitting/transformers/articulation/InsertArticulation';
 import { at, only } from '../../support/at';
 import { buildScore, QUARTER } from './score';
@@ -126,7 +126,7 @@ describe('the articulation fitter recovers its own ratios', () => {
         beatLength: 0.25,
       }),
       new TranslatePhysicalTimeToTicks({ translatePhysicalModifiers: true }),
-      new InsertDynamicsInstructions({
+      new InsertDynamics({
         scope: 'global',
         from: 0,
         to: 7 * QUARTER,

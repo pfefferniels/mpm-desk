@@ -7,7 +7,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import type { CallOutcome } from '../../fitting/fit';
 import { createMpm } from '../../fitting/instructions/index';
-import { InsertDynamicsInstructions } from '../../fitting/transformers/dynamics/InsertDynamicsInstructions';
+import { InsertDynamics } from '../../fitting/transformers/dynamics/InsertDynamics';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { EditingContext } from '../../hooks/Editing';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
@@ -141,8 +141,8 @@ describe('drawing a curve', () => {
 
         drag(0, 1440);
 
-        const sent = addTransformer.mock.calls[0]![0] as InsertDynamicsInstructions;
-        expect(sent).toBeInstanceOf(InsertDynamicsInstructions);
+        const sent = addTransformer.mock.calls[0]![0] as InsertDynamics;
+        expect(sent).toBeInstanceOf(InsertDynamics);
         expect(sent.options).toMatchObject({ from: 0, to: 1440, scope: 'global' });
     });
 });
