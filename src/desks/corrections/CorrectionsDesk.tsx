@@ -19,6 +19,7 @@ import { TimingRoll, type TimingAspect, type TimingPreview } from './TimingRoll'
 import { ExpandDialog } from './ExpandDialog';
 import { useEditable } from '../../hooks/Editing';
 import { useCallSelection } from '../../hooks/CallSelection';
+import type { Call } from '../../model/Work';
 
 /** Which plot is in front, and so which of the recording's properties is being corrected. */
 type Plot = 'velocity' | 'timing';
@@ -31,6 +32,16 @@ type Pending =
     | { call: 'Modify'; options: ModifyOptions }
     | { call: 'CorrectPedal'; draft: LineDraft }
     | { call: 'Expand'; id: string };
+
+/**
+ * The plot a correction is drawn on: a press's line and a shift in time on the roll, a velocity on
+ * the velocity plot. None for a call this desk did not make.
+ */
+const plotOf = ({ name, options }: Call): Plot | undefined => {
+    if (name === 'CorrectPedal') return 'timing';
+    if (name !== 'Modify' && name !== 'Expand') return undefined;
+    return options.aspect === 'velocity' ? 'velocity' : 'timing';
+};
 
 const signed = (change: number) => `${change > 0 ? '+' : ''}${String(change)}`;
 
@@ -101,8 +112,19 @@ export const CorrectionsDesk = ({
     addTransformer,
 }: ScopedTransformerViewProps<Modify | CorrectPedal | Expand>) => {
     const editable = useEditable();
-    const { activeEvidence } = useCallSelection();
-    const [plot, setPlot] = useState<Plot>('velocity');
+    const { activeEvidence, activeCallIds, calls } = useCallSelection();
+
+    // In front, the plot the selected correction is drawn on, so that a link to a press's line
+    // opens on the line. Taken when the selection changes rather than held to it, so the reader can
+    // still switch plots with a call selected; compared by the ids, not by the set that holds them.
+    const selectedPlot = calls.filter((call) => activeCallIds.has(call.id)).map(plotOf).find(Boolean);
+    const selectedCalls = [...activeCallIds].sort().join(' ');
+    const [plot, setPlot] = useState<Plot>(selectedPlot ?? 'velocity');
+    const [lastSelectedCalls, setLastSelectedCalls] = useState(selectedCalls);
+    if (lastSelectedCalls !== selectedCalls) {
+        setLastSelectedCalls(selectedCalls);
+        if (selectedPlot) setPlot(selectedPlot);
+    }
     const [draft, setDraft] = useState<Draft>();
     const [pending, setPending] = useState<Pending>();
     const [expanding, setExpanding] = useState(false);

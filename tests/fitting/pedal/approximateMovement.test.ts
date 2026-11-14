@@ -105,6 +105,26 @@ describe('what a line comes to', () => {
     ]);
   });
 
+  test('a line drawn along a ramp of the default bend is fitted with that bend', () => {
+    // Down over 200 ms and up over 300 ms, each sampled at its quarters along the bend a
+    // `<movement>` takes when it states none, to the hundredth the desk writes. A bend of 0.5
+    // passes as close, and is where the search used to start.
+    const [x1, x2] = innerControlPointsXPositions(0.4, 0);
+    const along = (from: number, to: number, startMs: number, endMs: number) => (ms: number) => ({
+      ms,
+      position: Math.round(transitionValueAt(x1, x2, startMs, endMs, from, to, ms) * 100) / 100,
+    });
+    const ramps: Travel = [
+      ...[0, 50, 100, 150, 200].map(along(0, 1, 0, 200)),
+      ...[1000, 1075, 1150, 1225, 1300].map(along(1, 0, 1000, 1300)),
+    ];
+    const movements = approximateMovements(onGrid(ramps, TICKS_PER_MS));
+
+    expect(kinds(movements)).toEqual(['transition', 'constant', 'transition', 'constant']);
+    expect(movements[0]).toMatchObject({ curvature: 0.4, protraction: 0 });
+    expect(movements[2]).toMatchObject({ curvature: 0.4, protraction: 0 });
+  });
+
   test('fits the same line the same way twice', () => {
     const line = onGrid(MODELLED_PRESS, TICKS_PER_MS);
 
