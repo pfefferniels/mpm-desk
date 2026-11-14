@@ -281,7 +281,7 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
 
         circles.push(
             <DynamicsCircle
-                key={`velocity_segment_${segment.date}_${i}`}
+                key={`velocity_segment_${segment.date.start}_${i}`}
                 segment={segment}
                 datePlayed={datePlayed}
                 stretchX={stretchX}
@@ -302,9 +302,11 @@ export const DynamicsDesk = ({ part, msm, mpm, addTransformer }: ScopedTransform
     // curve and the call that wrote it is guarded. Every `<dynamics>` the chain writes carries
     // one — `auditInstructions` reports an unnamed instruction as a bug — but a document from
     // elsewhere need not, and such a curve simply cannot be selected.
+    // Keyed by date where there is no id to key by: no two `<dynamics>` of one map share a date.
     const curves = instructions.map(i => {
         return (
             <CurveSegment
+                key={i.id ?? `dynamics_${i.date}`}
                 active={i.id !== undefined && activeElements.includes(i.id)}
                 instruction={i}
                 stretchX={stretchX}

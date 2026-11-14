@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import type { CallOutcome } from '../../fitting/fit';
-import { createMpm } from '../../fitting/instructions/index';
+import { createMpm, requireMap, type Mpm } from '../../fitting/instructions/index';
 import { InsertDynamicsInstructions } from '../../fitting/transformers/dynamics/InsertDynamicsInstructions';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { EditingContext } from '../../hooks/Editing';
@@ -63,9 +63,10 @@ interface MountOptions {
     /** What the last fit reported per call, and which calls are selected. */
     outcomes?: CallOutcome[];
     active?: Set<string>;
+    mpm?: Mpm;
 }
 
-const mount = ({ editable = true, outcomes = [], active = new Set() }: MountOptions = {}) => {
+const mount = ({ editable = true, outcomes = [], active = new Set(), mpm = createMpm() }: MountOptions = {}) => {
     const msm = new Alignment([
         note('a', 0, 64),
         note('b', 720, 74),
@@ -102,7 +103,7 @@ const mount = ({ editable = true, outcomes = [], active = new Set() }: MountOpti
                                 <DynamicsDesk
                                     part='global'
                                     msm={msm}
-                                    mpm={createMpm()}
+                                    mpm={mpm}
                                     residual={null}
                                     performanceXml=''
                                     secondary={{}}
@@ -159,6 +160,25 @@ describe('in the viewer', () => {
 
         expect(addTransformer).not.toHaveBeenCalled();
         expect(dotAt(0)).not.toHaveStyle({ cursor: 'crosshair' });
+    });
+});
+
+describe('the curves', () => {
+    it('draws one for each <dynamics> something follows, each known to React by its own key', () => {
+        const mpm = createMpm();
+        const map = requireMap(mpm, 'dynamics', 'global');
+        map.addDynamics({ id: 'd1', date: 0, volume: 64, transitionTo: 54 });
+        map.addDynamics({ id: 'd2', date: 1440, volume: 54, transitionTo: 68 });
+        map.addDynamics({ id: 'd3', date: 2160, volume: 68 });
+
+        const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            mount({ mpm });
+            expect(document.querySelectorAll('g.curveSegment')).toHaveLength(2);
+            expect(error.mock.calls.flat().join(' ')).not.toMatch(/unique "key"/);
+        } finally {
+            error.mockRestore();
+        }
     });
 });
 
