@@ -101,19 +101,27 @@ export interface Rendered {
  */
 const CACHE_LIMIT = 16;
 const renderCache = new Map<string, Rendered>();
-let cacheSource = '';
+
+/**
+ * The documents every cached rendering was made from. Any other pair drops the cache wholesale.
+ *
+ * The documents themselves, compared whole, where this used to keep only their lengths. In the
+ * editor they change with every edit, and an edit that keeps the length — a curve redrawn, one
+ * number replaced by another as wide — then played the document from before it. Comparing is
+ * cheap where it is frequent: the same string handed back again is equal at the pointer, and two
+ * of different lengths differ at once. Only an edit that kept the length is read through, and
+ * that is a memcmp, far below a render.
+ */
+let cacheSource: { msm: string; mpm: string } | null = null;
 
 const quantize = (scalar: number) => Math.round(scalar * 100) / 100;
 
 export const renderCached = (request: RenderRequest): Rendered => {
     const { msm, mpm, exaggerate, sketchiness } = request;
 
-    // Keyed on what the render depends on, never on the documents themselves — they are megabytes
-    // and they only change when a different work is loaded, which drops the cache wholesale.
-    const source = `${msm.length}:${mpm.length}`;
-    if (source !== cacheSource) {
+    if (msm !== cacheSource?.msm || mpm !== cacheSource.mpm) {
         renderCache.clear();
-        cacheSource = source;
+        cacheSource = { msm, mpm };
     }
 
     const scalar = quantize(effectiveScalar(exaggerate, sketchiness));
