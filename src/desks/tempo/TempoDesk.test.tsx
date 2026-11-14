@@ -506,7 +506,7 @@ describe('the desk in the viewer', () => {
         global.addTempo({ date: 0, bpm: 60, beatLength: 0.25, id: 'g0' });
         global.addTempo({ date: 720, bpm: 60, beatLength: 0.25, id: 'g1' });
         const inherited = renderDesk(1, {}, mpm, viewer);
-        const lines = document.querySelectorAll('g.tempoLine polyline');
+        const lines = document.querySelectorAll('g.tempoLine polyline:not(.tempoLineHit)');
         expect(lines).toHaveLength(2);
         // The second begins where part two plays nothing. It is placed by that part's own onsets,
         // half way from its first chord at 0 s to its second at 1 s, rather than piled at zero.
