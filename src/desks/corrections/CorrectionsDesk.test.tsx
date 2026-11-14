@@ -822,6 +822,29 @@ describe('what a selected call corrected', () => {
         expect(element('polyline[data-line="p1"]')).not.toHaveAttribute('data-evidence');
     });
 
+    it('opens on the roll for a press’s line, which only the roll draws', () => {
+        const line: Call = {
+            id: 'correction',
+            name: 'CorrectPedal',
+            options: { pedal: 'p2', travel: [{ ms: 0, position: 1 }, { ms: 2000, position: 0 }] },
+        };
+        mount([line], selecting(['p2']));
+
+        expect(screen.getByRole('button', { name: 'Timing' })).toHaveAttribute('aria-pressed', 'true');
+        expect(element('polyline[data-line="p2"]')).toHaveAttribute('data-evidence');
+    });
+
+    it('opens on the velocity plot for a velocity', () => {
+        const softer: Call = {
+            id: 'correction',
+            name: 'Modify',
+            options: { scope: 'global', aspect: 'velocity', change: -6, noteIDs: ['b'] },
+        };
+        mount([softer], selecting(['b']));
+
+        expect(screen.getByRole('button', { name: 'Velocity' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
     it('marks nothing while nothing is selected', () => {
         mount();
         showRoll();
