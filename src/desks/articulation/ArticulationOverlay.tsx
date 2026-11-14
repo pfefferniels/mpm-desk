@@ -5,6 +5,7 @@ import type { ArticulationModifiers } from "../../fitting/transformers/articulat
 import type { Residual } from "../../fitting/residual"
 import type { ArticulationDef } from "espressivo"
 import { convexHull } from "../../utils/convexHull"
+import { barThickness } from "./barThickness"
 
 interface ArticulationOverlayProps {
     instruction: Instruction<'articulation'>
@@ -58,10 +59,10 @@ export const ArticulationOverlay = ({ instruction, def, notes, residual, stretch
         const placed = residual.of(note)
         const onset = note.date
         // The same two decisions the note itself is drawn from, so the hull wraps what is on
-        // screen: an unplaceable note has a zero-length recorded span, and the bar thickness
-        // collapses an undefined velocity residual to the same minimum a zero one gets.
+        // screen: an unplaceable note has a zero-length recorded span, and the bar is as thick as
+        // `barThickness` makes it.
         const duration = placed?.tickDuration ?? 0
-        const noteHeight = (placed?.velocity || 1) + 2
+        const noteHeight = barThickness(placed?.velocity)
 
         const x = onset * stretchX
         const w = Math.max(1, (onset + duration) * stretchX - x)
