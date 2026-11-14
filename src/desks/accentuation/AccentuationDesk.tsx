@@ -6,7 +6,7 @@ import { asMIDI } from "../../utils/utils";
 import { Scope, ScopedTransformerViewProps } from "../TransformerViewProps";
 import { InsertMetricalAccentuation } from "../../fitting/transformers/accentuation/InsertMetricalAccentuation";
 import { MergeMetricalAccentuations } from "../../fitting/transformers/accentuation/MergeMetricalAccentuations";
-import { getDefinition, getInstructions, Instruction } from "../../fitting/instructions/index";
+import { getDefinition, performedInstructions, Instruction } from "../../fitting/instructions/index";
 import { Alignment, AlignedNote } from "../../fitting/alignment";
 import { bars as barsOf } from "../../fitting/timeSignature";
 import { PULSES_PER_WHOLE } from "../../fitting/ppq";
@@ -162,7 +162,7 @@ export const AccentuationDesk = ({ part, msm, mpm, residual, addTransformer }: S
         return () => document.removeEventListener('keydown', cancelOnEscape)
     }, [candidate, dialogOpen, clearCandidate])
 
-    const patterns = useMemo(() => getInstructions(mpm, 'accentuationPattern', part)
+    const patterns = useMemo(() => performedInstructions(mpm, 'accentuationPattern', part)
         .map(i => {
             const def = getDefinition(mpm, 'accentuationPatternDef', i.accentuationPatternDefName)
             if (!def) return null

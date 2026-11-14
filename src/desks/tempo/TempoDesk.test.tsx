@@ -440,6 +440,32 @@ describe('the desk in the viewer', () => {
         dispose();
     });
 
+    it('draws a part the tempo it performs: the global one, where it has none of its own', () => {
+        // Every map of the published reconstruction is global, and the viewer lets the reader
+        // onto a part to read one hand alone. Drawn off that part's own map, the skyline would
+        // carry no curve at all.
+        const mpm = createMpm();
+        const global = requireMap(mpm, 'tempo', 'global');
+        global.addTempo({ date: 0, bpm: 60, beatLength: 0.25, id: 'g0' });
+        global.addTempo({ date: 720, bpm: 60, beatLength: 0.25, id: 'g1' });
+        const inherited = renderDesk(1, {}, mpm, viewer);
+        const lines = document.querySelectorAll('g.tempoLine polyline');
+        expect(lines).toHaveLength(2);
+        // The second begins where part two plays nothing. It is placed by that part's own onsets,
+        // half way from its first chord at 0 s to its second at 1 s, rather than piled at zero.
+        const startX = Number(lines[1].getAttribute('points')?.split(',')[0]);
+        expect(startX).toBeCloseTo(0.5 * 20);
+        inherited.dispose();
+
+        // A part that has a map of its own performs that alone, so the global curve goes.
+        const own = requireMap(mpm, 'tempo', 0);
+        own.addTempo({ date: 0, bpm: 90, beatLength: 0.25, id: 'p0' });
+        own.addTempo({ date: 1440, bpm: 100, beatLength: 0.25, id: 'p1' });
+        const shadowed = renderDesk(0, {}, mpm, viewer);
+        expect(document.querySelectorAll('g.tempoLine')).toHaveLength(2);
+        shadowed.dispose();
+    });
+
     it('neither selects, combines nor splits a box, and writes nothing back', () => {
         const { storedBoxes, addTransformer, dispose } = renderDesk(0, {}, createMpm(), viewer);
         const boxes = document.querySelectorAll('polygon.box:not([data-derived])');

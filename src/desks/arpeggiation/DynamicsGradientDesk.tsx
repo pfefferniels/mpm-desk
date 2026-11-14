@@ -1,6 +1,6 @@
 import { gradientThrough, InsertDynamicsGradient, rampVelocities } from "../../fitting/transformers/ornamentation/InsertDynamicsGradient"
 import type { AlignedNote, ScopedScore } from "../../fitting/alignment"
-import { getInstructions, ornamentDraftOf, type Instruction, type Mpm } from "../../fitting/instructions/index"
+import { performedInstructions, ornamentDraftOf, type Instruction, type Mpm } from "../../fitting/instructions/index"
 import { onsetSeconds, releaseSeconds } from "../noteTiming"
 import type { ScopedTransformerViewProps } from "../TransformerViewProps"
 import { useRef, useState, type MouseEvent } from "react"
@@ -342,7 +342,7 @@ export const DynamicsGradientDesk = ({ msm, mpm, part, addTransformer }: ScopedT
     }
 
     const getMPMGradient = (date: number): Instruction<'ornament'> | undefined => {
-        const instruction = getInstructions(mpm, 'ornament', part)
+        const instruction = performedInstructions(mpm, 'ornament', part)
             .find(i => i.date === date);
         if (!instruction) return
 

@@ -310,6 +310,12 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
           if (startTime === undefined) {
             startTime = silentOnsets.get(t.date)
           }
+          // A part with no tempo map of its own performs the global one, whose tempos begin
+          // wherever any part plays: often where this one is silent. Placed by this part's own
+          // onsets rather than at zero, where every such curve would pile up at the start.
+          if (startTime === undefined) {
+            startTime = tickToSeconds(t.date)
+          }
 
           // `@xml:id` is optional on an instruction. One without an id cannot be traced back to
           // the call that wrote it, so it draws but neither lights up nor selects.

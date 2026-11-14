@@ -6,7 +6,7 @@ import { MouseEventHandler, SVGProps, useState } from "react"
 import { asMIDI } from "../../utils/utils"
 import { ArticulationProperty, InsertArticulation, MakeDefaultArticulation } from "../../fitting/transformers/articulation/index"
 import { rowId, type AlignedNote } from "../../fitting/alignment"
-import { getInstructions, getDefinition } from "../../fitting/instructions/index"
+import { performedInstructions, getDefinition } from "../../fitting/instructions/index"
 import type { Residual } from "../../fitting/residual"
 import type { ArticulationDef } from "espressivo"
 import { v4 } from "uuid"
@@ -176,7 +176,7 @@ export const ArticulationDesk = ({ msm, mpm, residual, part, addTransformer }: S
     // handled. Below the hooks, so the desk keeps calling the same ones either way.
     if (!residual) return null
 
-    const artics = getInstructions(mpm, 'articulation', part)
+    const artics = performedInstructions(mpm, 'articulation', part)
 
     const articulatedNotes = []
     for (const [, notes] of msm.in(part).chords()) {

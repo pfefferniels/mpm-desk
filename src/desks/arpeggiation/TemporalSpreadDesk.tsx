@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { type ArpeggioPlacement, InsertTemporalSpread } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
-import { getDefinition, getInstructions, type Instruction } from "../../fitting/instructions/index";
+import { getDefinition, performedInstructions, type Instruction } from "../../fitting/instructions/index";
 import type { TemporalSpread } from "espressivo";
 import { frameIn } from "./spreadFrame";
 import { onsetSeconds, releaseSeconds } from "../noteTiming";
@@ -86,7 +86,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     // scope, and stored they lagged a render behind — the first paint after a refit still drew
     // the previous fit's spreads.
     const temporalSpreads = useMemo(
-        () => getInstructions(mpm, 'ornament', part)
+        () => performedInstructions(mpm, 'ornament', part)
             .map(ornament => {
                 const def = getDefinition(mpm, 'ornamentDef', ornament.nameRef)
                 return {

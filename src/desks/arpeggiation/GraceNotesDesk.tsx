@@ -4,7 +4,7 @@ import { Add, DeleteOutline } from "@mui/icons-material";
 import type { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { InsertGraceNotes } from "../../fitting/transformers/ornamentation/InsertGraceNotes";
 import type { AlignedGrace } from "../../fitting/alignment";
-import { getInstructions } from "../../fitting/instructions/index";
+import { performedInstructions } from "../../fitting/instructions/index";
 import { DeskToolbar } from "../../components/DeskToolbar";
 import { ToolGroup } from "../../components/toolbar/ToolGroup";
 import { ToolbarButton } from "../../components/toolbar/ToolbarButton";
@@ -84,7 +84,7 @@ export const GraceNotesDesk = ({ msm, mpm, part, addTransformer }: ScopedTransfo
     /** The figure each group was written as, by group, where it has been. */
     const written = useMemo(() => {
         const byPrincipal = new Map<string, string>()
-        for (const ornament of getInstructions(mpm, 'ornament', part)) {
+        for (const ornament of performedInstructions(mpm, 'ornament', part)) {
             const noteid = ornament.element.getAttributeValue('noteid')
             if (noteid !== null && ornament.id !== undefined) byPrincipal.set(noteid.replace(/^#/, ''), ornament.id)
         }

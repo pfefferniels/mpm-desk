@@ -22,6 +22,7 @@ import {
   ornamentDraftOf,
   OrnamentDef,
   parseMPM,
+  performedInstructions,
   removeDefinition,
   removeInstruction,
   requireMap,
@@ -353,6 +354,32 @@ describe('scopes', () => {
     requireMap(mpm, 'tempo', 0).addTempo(tempo(720, 90));
 
     expect(getInstructions(mpm, 'tempo').map((t) => t.date)).toEqual([0, 720]);
+  });
+
+  test('a part performs the global map where it has none of its own', () => {
+    const mpm = createMpm();
+    requireMap(mpm, 'tempo', 'global').addTempo(tempo(0, 60));
+    // Part 1 exists, with a map of another type; part 2 has no `<part>` at all.
+    requireMap(mpm, 'dynamics', 0);
+
+    for (const part of [0, 1]) {
+      const [inherited] = performedInstructions(mpm, 'tempo', part);
+      expect(inherited.bpm).toBe(60);
+      // Where it is written, not where it is read from: the call that wrote it is a global one.
+      expect(inherited.scope).toBe('global');
+    }
+    expect(getInstructions(mpm, 'tempo', 0)).toEqual([]);
+  });
+
+  test('a part with a map of its own performs that alone, even an empty one', () => {
+    const mpm = createMpm();
+    requireMap(mpm, 'tempo', 'global').addTempo(tempo(0, 60));
+    requireMap(mpm, 'tempo', 0).addTempo(tempo(720, 90));
+    requireMap(mpm, 'tempo', 1);
+
+    expect(performedInstructions(mpm, 'tempo', 0).map((t) => t.date)).toEqual([720]);
+    expect(performedInstructions(mpm, 'tempo', 1)).toEqual([]);
+    expect(performedInstructions(mpm, 'tempo', 'global').map((t) => t.date)).toEqual([0]);
   });
 });
 

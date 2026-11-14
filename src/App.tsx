@@ -676,10 +676,16 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     /**
      * Which scopes the open desk may not write into, and why — see `scopeLock.ts` for the rule and
      * `writes` in `DeskSwitch.tsx` for what each desk puts under it.
+     *
+     * The editor's only. The lock guards a write, and the viewer makes none: there a part is a
+     * place to read one hand alone, and every map of the published reconstruction is global, so
+     * locking the parts would leave nothing but the whole to read. A desk on a part draws what
+     * that part performs, its own map or the global one (`performedInstructions`).
      */
     const scopeLock = useMemo(
-        () => (mpm ? lockedScopes(mpm, deskEntry?.writes ?? [], parts) : NO_SCOPE_LOCK),
-        [mpm, deskEntry, parts],
+        () =>
+            editable && mpm ? lockedScopes(mpm, deskEntry?.writes ?? [], parts) : NO_SCOPE_LOCK,
+        [editable, mpm, deskEntry, parts],
     );
 
     /**
@@ -722,7 +728,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     // And a scope the picker greys out must not be the one the desk is writing into. Greying an
     // option guards the move onto it and nothing else, so a lock coming into force while the
     // picker is already there needs applying here. `holding[0]` is where the map that locked it
-    // is.
+    // is. Never in the viewer, which locks nothing.
     if (scopeLock.locked.has(scope)) {
         setScope(scopeLock.holding[0] ?? 'global');
     }

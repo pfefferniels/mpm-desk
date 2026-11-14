@@ -20,6 +20,11 @@
  *
  * Which types a desk writes is `writes` in `DeskSwitch.tsx`; a desk that declares none locks
  * nothing.
+ *
+ * The lock is a guard on writing, so only the editor asks for one. The viewer writes nothing and
+ * offers every scope, and a desk on a part draws what the rule above makes that part perform:
+ * `performedInstructions` reads the global map wherever the part has none of its own. In the
+ * editor the two reads agree on every scope the lock leaves open.
  */
 import { getInstructions } from '../fitting/instructions/index';
 import type { InstructionType, Mpm, Scope } from '../fitting/instructions/index';
