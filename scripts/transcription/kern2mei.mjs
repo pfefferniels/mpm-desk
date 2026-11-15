@@ -13,13 +13,35 @@ const dist = (file) => pathToFileURL(resolve(packageDir, 'dist', file)).href;
 const { default: createVerovioModule } = await import(dist('verovio-module-hum.mjs'));
 const { VerovioToolkit } = await import(dist('verovio.mjs'));
 
+/**
+ * The kern without the encoders' notes to themselves.
+ *
+ * A line such as `!LO:TX:b:t=P:note position:problem` says that something in the print is
+ * engraved oddly. The importer draws it as a red warning sign under the staff, which is right
+ * for whoever proofreads the encoding and wrong in a score that is to be read. The token is
+ * emptied and the line left standing: every id in the MEI is a line and a field number, and a
+ * line taken out would rename every note after it.
+ */
+const withoutProofreadingNotes = (kern) =>
+    kern
+        .split('\n')
+        .map((line) =>
+            line.startsWith('!') && !line.startsWith('!!')
+                ? line
+                      .split('\t')
+                      .map((token) => (/^!LO:TX:.*:problem$/.test(token) ? '!' : token))
+                      .join('\t')
+                : line,
+        )
+        .join('\n');
+
 const module = await createVerovioModule();
 for (const file of readdirSync(kernDir).filter((name) => name.endsWith('.krn'))) {
     const out = join(meiDir, file.replace(/\.krn$/, '.mei'));
     if (existsSync(out)) continue;
 
     const toolkit = new VerovioToolkit(module);
-    if (!toolkit.loadData(readFileSync(join(kernDir, file), 'utf-8'))) {
+    if (!toolkit.loadData(withoutProofreadingNotes(readFileSync(join(kernDir, file), 'utf-8')))) {
         console.log(`${file}: could not be read`);
         continue;
     }
