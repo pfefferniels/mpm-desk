@@ -19,7 +19,7 @@ import { ornamentSignsOf } from '../../mei/ornamentSigns';
 import { parseRecordings } from '../../mei/parseRecordings';
 import type { PlayablePedal } from '../../performance/buildMidiFile';
 import { asSpans } from '../../performance/midiSpans';
-import type { ScoreNote } from '../../score/scoreNotes';
+import { heldTiesOf, type ScoreNote } from '../../score/scoreNotes';
 import { Score } from '../../verovio/Score';
 import { DEFAULT_PERFORMANCE_SCALE, performedOptions } from '../../verovio/toolkit';
 import { EXTRA_COLOUR } from '../../verovio/extraNotes';
@@ -98,6 +98,26 @@ const signatureOf = (mei: string): string =>
         .map((found) => found[0])
         .sort()
         .join('|');
+
+/**
+ * The coloured note a click fell on, where it did not fall on the note's ink.
+ *
+ * A half note's head is a ring, and a click in the middle of it lands on the staff behind it.
+ * So this asks the boxes and not the paths: the note whose head the point is in, give or take
+ * what a hand misses by.
+ */
+const markedAt = (root: Element, x: number, y: number): Element | null => {
+    const REACH = 3;
+    for (const element of root.querySelectorAll('[data-divergence]')) {
+        const box = element.querySelector('.notehead')?.getBoundingClientRect();
+        // Nothing drawn, or nothing laid out: no box to be in
+        if (!box || box.width === 0 || box.height === 0) continue;
+        if (x >= box.left - REACH && x <= box.right + REACH && y >= box.top - REACH && y <= box.bottom + REACH) {
+            return element;
+        }
+    }
+    return null;
+};
 
 /** How many notes were added, left out and changed, which is what the legend counts. */
 const countsOf = (divergences: readonly Divergence[], outcomes: ReadonlyMap<string, Outcome>) => {
@@ -318,6 +338,9 @@ export const AlignmentDesk = () => {
         [divergences, alignment, outcomes],
     );
 
+    // The ties of what is on the page: one the performer did not hold is no longer among them
+    const ties = useMemo(() => (shown ? heldTiesOf(shown) : undefined), [shown]);
+
     const painting = useMemo(
         () =>
             paintingOf({
@@ -327,8 +350,9 @@ export const AlignmentDesk = () => {
                 minConfidence: 0,
                 hidden: run?.hidden ?? new Set(),
                 outcomes,
+                ties,
             }),
-        [alignment, divergences, run, outcomes],
+        [alignment, divergences, run, outcomes, ties],
     );
 
     const paint = useCallback(
@@ -625,7 +649,9 @@ export const AlignmentDesk = () => {
      * where one was left out — so the click that asks about one is the click on it.
      */
     const onScoreClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-        const element = (event.target as Element).closest('[data-divergence]');
+        const element =
+            (event.target as Element).closest('[data-divergence]') ??
+            markedAt(event.currentTarget, event.clientX, event.clientY);
         const id = element?.getAttribute('data-divergence');
 
         // The card lets clicks through to the music beneath it, so a click on ordinary

@@ -20,6 +20,16 @@ const readTies = (meiDoc: Document) => {
     return { tieInto, tiedOn };
 };
 
+/**
+ * The ties a score holds, as it is read: from the note each starts on to the note it runs into.
+ *
+ * A note a tie runs into is not struck, so no recording has a note for it and no alignment a
+ * match. Whoever draws an alignment needs this to say of such a note what is true of it, that
+ * it sounded with the note it is tied to.
+ */
+export const heldTiesOf = (mei: string): Map<string, string> =>
+    readTies(new DOMParser().parseFromString(mei, "application/xml")).tiedOn;
+
 /** Whether verovio reads this element at all: no ancestor of it is a reading that was passed over. */
 const isRead = (element: Element): boolean => {
     for (let child = element, parent = element.parentElement; parent; child = parent, parent = parent.parentElement) {

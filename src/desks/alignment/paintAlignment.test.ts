@@ -150,4 +150,28 @@ describe('what the score is coloured by', () => {
         expect(painting.unplayed.size).toBe(0);
         expect(painting.added.size).toBe(0);
     });
+    it('calls a note a tie runs into played, with the note it is tied to', () => {
+        // n2 and n3 are not struck: no recording has a note for them, so no match names them
+        const painting = paint({
+            matches: [match('n1'), match('n1-rend2'), match('n5')],
+            ties: new Map([
+                ['n1', 'n2'],
+                ['n2', 'n3'],
+            ]),
+        });
+
+        expect([...painting.matched].sort()).toEqual(['n1', 'n1-rend2', 'n2', 'n2-rend2', 'n3', 'n3-rend2', 'n5']);
+    });
+
+    it('calls it unplayed where the note it is tied to was not played, and asks about it with that one', () => {
+        const painting = paint({
+            deletions: [{ scoreId: 'n1', confidence: 0.5 }] as Parameters<typeof paintingOf>[0]['deletions'],
+            divergences: [missing(['n1'], 'omitted-note')],
+            ties: new Map([['n1', 'n2']]),
+        });
+
+        expect(painting.matched.has('n2')).toBe(false);
+        expect([...painting.unplayed]).toEqual(['n1', 'n2']);
+        expect(painting.divergenceOf.get('n2')).toBe('missing-n1');
+    });
 });

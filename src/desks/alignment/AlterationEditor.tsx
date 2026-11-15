@@ -1,4 +1,12 @@
-import { Box, IconButton, Popover, ToggleButton, ToggleButtonGroup, Tooltip } from "@mui/material";
+import {
+    Box,
+    IconButton,
+    Popover,
+    ToggleButton,
+    ToggleButtonGroup,
+    Tooltip,
+    type PopoverActions,
+} from "@mui/material";
 import {
     Add,
     ChevronLeft,
@@ -8,7 +16,7 @@ import {
     RestartAlt,
     SwapVert,
 } from "@mui/icons-material";
-import type { ReactElement } from "react";
+import { useCallback, useRef, type ReactElement } from "react";
 import type { Divergence } from "../../alignment/divergences";
 import { choiceHeading, choiceLabel, labelOf, timestamp } from "../../alignment/readings";
 import { pitchName } from "../../performance/pitch";
@@ -136,6 +144,19 @@ export const AlterationEditor = ({
     onReset,
     onClose,
 }: AlterationEditorProps) => {
+    // The card is placed when it opens, which is before its bar has been engraved, and the bar
+    // is most of its height. So it is placed again whenever its size changes: a card opened low
+    // on the page would otherwise grow past the window's edge and take its buttons with it.
+    const position = useRef<PopoverActions>(null);
+    const watching = useRef<ResizeObserver | undefined>(undefined);
+    const watch = useCallback((paper: HTMLDivElement | null) => {
+        watching.current?.disconnect();
+        watching.current = undefined;
+        if (!paper || typeof ResizeObserver === "undefined") return;
+        watching.current = new ResizeObserver(() => position.current?.updatePosition());
+        watching.current.observe(paper);
+    }, []);
+
     if (!divergence || !anchor) return null;
 
     const current = writtenAs(outcome);
@@ -173,6 +194,7 @@ export const AlterationEditor = ({
     return (
         <Popover
             open
+            action={position}
             anchorEl={anchor as HTMLElement}
             onClose={onClose}
             anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
@@ -185,6 +207,7 @@ export const AlterationEditor = ({
             sx={{ pointerEvents: "none" }}
             slotProps={{
                 paper: {
+                    ref: watch,
                     sx: { p: 1.5, minWidth: "17rem", maxWidth: "44rem", pointerEvents: "auto" },
                     onKeyDown: (event: React.KeyboardEvent) => {
                         if (event.key === "ArrowLeft") move(earlier);

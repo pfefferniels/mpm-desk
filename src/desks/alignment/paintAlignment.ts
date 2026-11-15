@@ -68,6 +68,8 @@ interface PaintingInput {
     hidden: ReadonlySet<string>;
     /** What the transcriber wrote for each divergence; without it nothing counts as written. */
     outcomes?: ReadonlyMap<string, Outcome>;
+    /** The ties the score holds: the note each starts on, and the note it runs into. */
+    ties?: ReadonlyMap<string, string>;
 }
 
 export const paintingOf = ({
@@ -77,6 +79,7 @@ export const paintingOf = ({
     minConfidence,
     hidden,
     outcomes,
+    ties,
 }: PaintingInput): Painting => {
     // A written note played as another note is not unplayed: it sounded, and the score shows it
     // in its own colour rather than as one of the notes the recording never reached.
@@ -152,6 +155,34 @@ export const paintingOf = ({
     for (const divergence of divergences) {
         if (divergence.kind !== 'missing') continue;
         for (const id of divergence.scoreIds) divergenceOf.set(id, divergence.id);
+    }
+
+    // A note a tie runs into is not struck, so nothing was played for it and nothing matched
+    // to it. What is true of the note it is tied to is true of it: it sounded with that one, or
+    // went unplayed with it. Left as verovio drew it, it would be the one black note on the
+    // page. A pass of a repeat verovio unfolded names its notes after the ones they came from.
+    const along = (start: string, each: (id: string) => void) => {
+        const pass = /-rend\d+$/.exec(start)?.[0] ?? '';
+        const seen = new Set<string>();
+        let from = pass ? start.slice(0, -pass.length) : start;
+        for (let into = ties?.get(from); into && !seen.has(into); into = ties?.get(from)) {
+            seen.add(into);
+            const id = `${into}${pass}`;
+            // Something of its own is already known about it
+            if (added.has(id) || replaced.has(id) || matched.has(id) || unplayed.has(id)) return;
+            each(id);
+            from = into;
+        }
+    };
+    for (const start of [...matched]) along(start, (id) => matched.add(id));
+    for (const start of [...unplayed]) {
+        along(start, (id) => {
+            unplayed.add(id);
+            if (kept.has(start)) kept.add(id);
+            if (outside.has(start)) outside.add(id);
+            const divergence = divergenceOf.get(start);
+            if (divergence) divergenceOf.set(id, divergence);
+        });
     }
 
     return { matched, unplayed, outside, replaced, added, kept, divergenceOf };
