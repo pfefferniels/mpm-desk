@@ -41,6 +41,7 @@ import { marksOf } from './marks';
 import { readScore, runAlignment, type AlignmentRun, type Status } from './runAlignment';
 import { useRecordingPlayback } from './useRecordingPlayback';
 import { momentOf } from './momentOf';
+import { sameDocument } from '../../mei/sameDocument';
 
 /**
  * The score as it was played.
@@ -92,13 +93,6 @@ import { momentOf } from './momentOf';
 const EMPTY_RESOLUTIONS: ReadonlyMap<string, Resolution> = new Map();
 const EMPTY_OUTCOMES: ReadonlyMap<string, Outcome> = new Map();
 const EMPTY_EDITS: ReadonlyMap<string, NoteEdit> = new Map();
-
-/** What a transcription is, as far as telling two apart goes: the notes it wrote and took out. */
-const signatureOf = (mei: string): string =>
-    [...mei.matchAll(/<app[^>]*type="transcription"[^>]*>|xml:id="played-[^"]*"|type="transcribed"/g)]
-        .map((found) => found[0])
-        .sort()
-        .join('|');
 
 /**
  * The coloured note a click fell on, where it did not fall on the note's ink.
@@ -686,14 +680,16 @@ export const AlignmentDesk = () => {
     /**
      * Whether the page shows something the document does not hold yet.
      *
-     * Asked of the notes rather than of the text: the same transcription serialises with its
-     * attributes in another order after a round trip, and writing for that would be writing
-     * nothing, at the price of a fit.
+     * Asked of what the two say rather than of their text: the same transcription serialises
+     * with its attributes in another order after a round trip, and writing for that would be
+     * writing nothing, at the price of a fit. But asked of everything they say. A note put on
+     * the other staff, or moved along its bar, is the same notes in another place, and a
+     * question that only counts the notes would leave it on the page and out of the document.
      */
     const unwritten = useMemo(() => {
         if (run) return true;
         if (!mei || !transcription?.written) return false;
-        return signatureOf(transcription.written) !== signatureOf(mei);
+        return !sameDocument(transcription.written, mei);
     }, [run, mei, transcription]);
 
     /**
@@ -745,11 +741,18 @@ export const AlignmentDesk = () => {
      * is written once, where it came to rest. And only once the reader has done something. A
      * document made by an earlier build, or by other hands, may hold readings this
      * transcriber would write differently; opening it to look must not rewrite it.
+     *
+     * One change is written once. What the reader did is spent by the writing of it, so a
+     * document that comes back saying something else - undone, or changed on another desk -
+     * is not written over again by a change made before that.
      */
     const busy = status !== undefined;
     useEffect(() => {
-        if (!touched || !unwritten || busy) return;
-        const timer = setTimeout(write, AUTOSAVE_MS);
+        if (!touched || busy) return;
+        const timer = setTimeout(() => {
+            if (unwritten) write();
+            setTouched(false);
+        }, AUTOSAVE_MS);
         return () => {
             clearTimeout(timer);
         };
