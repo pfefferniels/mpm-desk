@@ -36,10 +36,11 @@ interface PlaybackOptions {
     notes: readonly PlayableNote[];
     pedals?: readonly PlayablePedal[];
     /**
-     * Where the note with this id is drawn. The default looks for the `data-id`
+     * Where the note with this id is drawn: every place, when it is on screen more than once.
+     * The first is the one the page is scrolled to. The default looks for the `data-id`
      * verovio gives every note it renders.
      */
-    elementFor?: (id: string) => Element | null | undefined;
+    elementsFor?: (id: string) => readonly Element[];
 }
 
 export interface Playback {
@@ -57,6 +58,11 @@ export interface Playback {
      */
     pending: boolean;
     play: () => void;
+    /**
+     * Sound one stretch of the performance and leave the range as it is: for hearing a single
+     * place, which is a question about that place and not a change of what the transport plays.
+     */
+    playStretch: (fromMs: number, toMs: number) => void;
     stop: () => void;
     /**
      * Whether the piano is ready, still fetching its samples, or has failed. `undefined` until
@@ -82,7 +88,7 @@ function clearHighlights() {
     }
 }
 
-export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOptions): Playback {
+export function useRecordingPlayback({ notes, pedals, elementsFor }: PlaybackOptions): Playback {
     const piano = usePiano();
     const [playing, setPlaying] = useState(false);
     /**
@@ -127,16 +133,18 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         if (event.type !== "meta" || event.subtype !== "text" || !("text" in event)) return;
 
         const id = (event as AnyEvent & { text: string }).text;
-        const element = elementFor ? elementFor(id) : byDataId(id);
-        if (!element) return;
+        const drawn = byDataId(id);
+        const elements = elementsFor ? elementsFor(id) : drawn ? [drawn] : [];
+        if (elements.length === 0) return;
 
-        element.classList.add(PLAYING_CLASS);
-        element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-        setTimeout(() => element.classList.remove(PLAYING_CLASS), HIGHLIGHT_MS);
+        for (const element of elements) element.classList.add(PLAYING_CLASS);
+        elements[0].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        setTimeout(() => {
+            for (const element of elements) element.classList.remove(PLAYING_CLASS);
+        }, HIGHLIGHT_MS);
     };
 
-    const play = () => {
-        const [fromMs, toMs] = range;
+    const playStretch = (fromMs: number, toMs: number) => {
         const playable = notes.filter(
             (note) => note.onsetMs >= fromMs && note.onsetMs <= toMs
         );
@@ -170,6 +178,10 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         setWaiting(true);
     };
 
+    const play = () => {
+        playStretch(range[0], range[1]);
+    };
+
     // Leaving the page, or loading another performance, has to silence this one,
     // and drop a press still waiting to start. Through `latest`, because an
     // effect keyed on `stop` would stop the sound as fast as it started.
@@ -186,6 +198,7 @@ export function useRecordingPlayback({ notes, pedals, elementFor }: PlaybackOpti
         playing,
         pending: waiting,
         play,
+        playStretch,
         stop,
         status: piano.status,
     };

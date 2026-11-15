@@ -92,8 +92,14 @@ describe('the alignment desk, over differences nobody has written yet', () => {
         expect(bar.textContent).toContain('0 changed');
     });
 
-    it('offers to write it, because the document does not hold it yet', () => {
-        expect(button('Write into score')?.disabled).toBe(false);
+    it('has nothing to press to keep it, and leaves a document it was only looked at in alone', async () => {
+        expect(button('Write into score')).toBeUndefined();
+        expect(bar.querySelector('input[aria-label="Decided by"]')).toBeNull();
+        // Nobody has done anything yet: opening a score to look does not rewrite it
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 900));
+        });
+        expect(setMei).not.toHaveBeenCalled();
     });
 
     it('opens the bar on the note, drawn the ordinary way and coloured as the page is', async () => {
@@ -123,6 +129,12 @@ describe('the alignment desk, over differences nobody has written yet', () => {
             expect(card?.querySelector(`button[aria-label="${name}"]`), name).not.toBeNull();
         }
         expect(card?.querySelector('p')).toBeNull();
+    });
+
+    it('offers to hear the place, before anything else there is to do with it', () => {
+        const tools = [...document.querySelectorAll('.MuiPopover-paper .MuiIconButton-root')];
+        expect(tools[0]?.getAttribute('aria-label')).toBe('Hear it');
+        expect(tools[0]).toBeEnabled();
     });
 
     const lastRecorded = () =>
@@ -160,11 +172,12 @@ describe('the alignment desk, over differences nobody has written yet', () => {
         expect([...lastRecorded()!.resolutions.values()].map((entry) => entry.action)).toEqual(['write-graces']);
     });
 
-    it('writes the transcription into the document, readings and all', async () => {
-        await click(button('Write into score'));
+    it('writes the transcription into the document by itself once the reader has changed something', async () => {
+        // The changes above were the doing; the writing follows a moment after the last of them
+        await settle(() => setMei.mock.calls.length > 0);
 
-        expect(setMei).toHaveBeenCalledTimes(1);
-        const written = setMei.mock.calls[0][0] as string;
+        expect(setMei).toHaveBeenCalled();
+        const written = setMei.mock.calls.at(-1)![0] as string;
         expect(written).toContain('type="transcription"');
         expect(written).toContain(`xml:id="${writtenIdOf(octave)}"`);
         // The note left out is in the source reading and a rest stands in the played one
@@ -172,7 +185,7 @@ describe('the alignment desk, over differences nobody has written yet', () => {
     });
 
     it('says on the call for this recording which readings it wrote', () => {
-        const written = setMei.mock.calls[0][0] as string;
+        const written = setMei.mock.calls.at(-1)![0] as string;
         const said = dispatch.mock.calls
             .map(([action]) => action as { type: string; readings?: string[] })
             .filter((action) => action.type === 'set-alignment')

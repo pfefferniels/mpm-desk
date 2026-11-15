@@ -13,8 +13,10 @@ import {
     ChevronRight,
     InfoOutlined,
     Link,
+    PlayArrow,
     Remove,
     RestartAlt,
+    Stop,
     SwapVert,
 } from "@mui/icons-material";
 import { useCallback, useRef, useState, type ReactElement } from "react";
@@ -43,6 +45,9 @@ interface AlterationEditorProps {
      * written ones nothing played, for a written note the played ones nothing was written for.
      */
     counterparts?: readonly string[];
+    /** Sound the recording at this place, or stop it; and whether it is sounding now */
+    onHear?: () => void;
+    hearing?: boolean;
     onChoose: (divergence: Divergence, notation: Notation, sign?: SignKind) => void;
     onEdit: (noteId: string, edit: NoteEdit) => void;
     /** Hand it back to the transcriber */
@@ -168,6 +173,8 @@ export const AlterationEditor = ({
     noteId,
     changed,
     counterparts,
+    onHear,
+    hearing,
     onChoose,
     onEdit,
     onReset,
@@ -330,6 +337,16 @@ export const AlterationEditor = ({
             )}
 
             <Box sx={{ mt: 0.75, display: "flex", alignItems: "center", gap: 0.25 }}>
+                {/* First, because it comes first: how it is to be written is a question about
+                    how it sounded */}
+                {onHear && (
+                    <>
+                        <Tool name={hearing ? "Stop" : "Hear it"} active={hearing} onClick={onHear}>
+                            {hearing ? <Stop fontSize="small" /> : <PlayArrow fontSize="small" />}
+                        </Tool>
+                        <Box sx={{ width: 12 }} />
+                    </>
+                )}
                 {movable && (
                     <>
                         <Tool name="Earlier" disabled={earlier === undefined} onClick={() => move(earlier)}>

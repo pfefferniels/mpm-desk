@@ -24,7 +24,7 @@ interface ScoreDocumentValue {
      * document it reads is the desk's to state.
      *
      * It costs a fit — a new MEI is a new `Alignment`, and the worker reloads — so the desk writes
-     * once, when the reader commits, rather than on every decision.
+     * a moment after the reader's last change rather than on every one of them.
      */
     setMei: (mei: string) => void;
     /**

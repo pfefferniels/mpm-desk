@@ -33,7 +33,6 @@ import { APP_BAR_HEIGHT } from '../../components/toolbar/EditorAppBar';
 import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
-import { ToolField } from '../../components/toolbar/ToolField';
 import { AlterationEditor } from './AlterationEditor';
 import { Legend } from './Legend';
 import { PlaybackBar } from './PlaybackBar';
@@ -41,6 +40,7 @@ import { REPLACED_COLOUR, alignmentStyles, paintAlignment, paintingOf } from './
 import { marksOf } from './marks';
 import { readScore, runAlignment, type AlignmentRun, type Status } from './runAlignment';
 import { useRecordingPlayback } from './useRecordingPlayback';
+import { momentOf } from './momentOf';
 
 /**
  * The score as it was played.
@@ -120,6 +120,13 @@ const markedAt = (root: Element, x: number, y: number): Element | null => {
     return null;
 };
 
+/** How much of the recording is sounded around an alteration when the reader asks to hear it. */
+const HEAR_BEFORE_MS = 1500;
+const HEAR_AFTER_MS = 2500;
+
+/** How long after the reader's last change the page is written into the document. */
+const AUTOSAVE_MS = 600;
+
 /**
  * The size the score opens at, as verovio's `scale`: a percentage of the engraving's own size.
  *
@@ -190,7 +197,7 @@ const countsOf = (divergences: readonly Divergence[], outcomes: ReadonlyMap<stri
 export const AlignmentDesk = () => {
     const { mei, setMei } = useScoreDocument();
     const { performances, openPerformance } = usePerformances();
-    const { alignments, setAlignment } = useWorkDocument();
+    const { alignments, setAlignment, metadata } = useWorkDocument();
     const midiInput = useRef<HTMLInputElement>(null);
 
     /** The take under review. The first there is, until somebody picks another. */
@@ -199,6 +206,8 @@ export const AlignmentDesk = () => {
 
     /** This session's run, until it is written. Absent means: show what the document holds. */
     const [run, setRun] = useState<AlignmentRun>();
+    /** Whether the reader has done anything here yet: aligned, or changed how something is written. */
+    const [touched, setTouched] = useState(false);
     const [status, setStatus] = useState<Status>();
     const [error, setError] = useState<string>();
     /** The two files do not look like the same music; the reader may insist. */
@@ -251,7 +260,9 @@ export const AlignmentDesk = () => {
 
     const resolutions = recorded?.resolutions ?? EMPTY_RESOLUTIONS;
     const edits = recorded?.edits ?? EMPTY_EDITS;
-    const resp = recorded?.resp ?? '';
+    // Who answers for the readings: the editor of the reconstruction. Asked once, where the
+    // work is named, and not again on every desk that writes something
+    const resp = metadata.author.trim();
 
     useEffect(() => {
         if (!source) return;
@@ -337,7 +348,7 @@ export const AlignmentDesk = () => {
     /**
      * The transcription, twice over.
      *
-     * `written` is the document: what Write puts into the score. `shown` is the same with the
+     * `written` is the document: what goes into the score. `shown` is the same with the
      * notes the performer left out still standing, in red, because a note that has been taken
      * out cannot be seen to have been taken out. The page shows more than the document holds,
      * and what it shows beyond it is exactly the red.
@@ -588,16 +599,26 @@ export const AlignmentDesk = () => {
      * The ids in the stream are the *performed* notes' own, because the performance is what is
      * playing. A note that is on the page lights there; one that is not lights the cross drawn
      * where it was played, which is the only mark on the page that is it.
+     *
+     * A note that also stands in the bar of an open alteration lights there as well: that bar
+     * is what the reader is looking at while the place is heard, and it lies over the page.
      */
-    const elementFor = useCallback(
+    const elementsFor = useCallback(
         (performanceId: string) => {
-            if (!root) return null;
+            if (!root) return [];
             const escaped = (id: string) =>
                 typeof CSS?.escape === 'function' ? CSS.escape(id) : id;
             const noteId = pageNoteOf.get(performanceId);
-            return noteId
-                ? root.querySelector(`[data-id="${escaped(noteId)}"]`)
-                : root.querySelector(`[data-perf-id="${escaped(performanceId)}"]`);
+            if (!noteId) {
+                const cross = root.querySelector(`[data-perf-id="${escaped(performanceId)}"]`);
+                return cross ? [cross] : [];
+            }
+            const drawn = `[data-id="${escaped(noteId)}"]`;
+            const onPage = root.querySelector(drawn);
+            return [
+                ...(onPage ? [onPage] : []),
+                ...document.querySelectorAll(`.alignment-bar ${drawn}`),
+            ];
         },
         [root, pageNoteOf],
     );
@@ -605,7 +626,7 @@ export const AlignmentDesk = () => {
     const playback = useRecordingPlayback({
         notes: alignment?.spans ?? [],
         pedals,
-        elementFor,
+        elementsFor,
     });
 
     const align = useCallback(
@@ -643,9 +664,10 @@ export const AlignmentDesk = () => {
                     minConfidence: 0,
                     resolutions: before?.resolutions ?? EMPTY_RESOLUTIONS,
                     edits: before?.edits ?? EMPTY_EDITS,
-                    resp: before?.resp ?? '',
+                    resp,
                     certainty: before?.certainty ?? 'medium',
                 });
+                setTouched(true);
             } catch (reason: unknown) {
                 if (reason instanceof MismatchedPairError) {
                     // Not a failure the reader can do nothing about: it is a judgement, and they
@@ -658,15 +680,15 @@ export const AlignmentDesk = () => {
                 setStatus(undefined);
             }
         },
-        [source, performance, take, alignments, setAlignment],
+        [source, performance, take, alignments, setAlignment, resp],
     );
 
     /**
      * Whether the page shows something the document does not hold yet.
      *
      * Asked of the notes rather than of the text: the same transcription serialises with its
-     * attributes in another order after a round trip, and a button that lit up for that would
-     * offer to save nothing.
+     * attributes in another order after a round trip, and writing for that would be writing
+     * nothing, at the price of a fit.
      */
     const unwritten = useMemo(() => {
         if (run) return true;
@@ -692,10 +714,10 @@ export const AlignmentDesk = () => {
             minConfidence: 0,
             resolutions: EMPTY_RESOLUTIONS,
             edits: EMPTY_EDITS,
-            resp: '',
+            resp,
             certainty: 'medium',
         };
-    }, [recorded, take, performance]);
+    }, [recorded, take, performance, resp]);
 
     /**
      * Put what is on the page into the document, and say on the take's call what was written.
@@ -708,14 +730,35 @@ export const AlignmentDesk = () => {
         const next = transcription?.written ?? aligned?.mei;
         if (!next) return;
         setMei(next);
-        if (record) setAlignment(record, transcription?.readings ?? []);
+        if (record) setAlignment({ ...record, resp }, transcription?.readings ?? []);
         setRun(undefined);
-        setNotices([]);
-    }, [transcription, aligned, setMei, record, setAlignment]);
+    }, [transcription, aligned, setMei, record, setAlignment, resp]);
+
+    /**
+     * The document follows the page, a moment after the reader has done something.
+     *
+     * There is no button for it. A page that shows what the document does not hold is a state
+     * with one use, forgetting to leave it, and what is on the page is always the whole of
+     * what the reader meant.
+     *
+     * A moment after, because a new score is a new fit: a note moved four places in a second
+     * is written once, where it came to rest. And only once the reader has done something. A
+     * document made by an earlier build, or by other hands, may hold readings this
+     * transcriber would write differently; opening it to look must not rewrite it.
+     */
+    const busy = status !== undefined;
+    useEffect(() => {
+        if (!touched || !unwritten || busy) return;
+        const timer = setTimeout(write, AUTOSAVE_MS);
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [touched, unwritten, busy, write]);
 
     const choose = useCallback(
         (divergence: Divergence, notation: Notation, sign?: SignKind) => {
             if (!record) return;
+            setTouched(true);
             setAlignment({
                 ...record,
                 resolutions: new Map([
@@ -740,6 +783,7 @@ export const AlignmentDesk = () => {
     const edit = useCallback(
         (noteId: string, change: NoteEdit) => {
             if (!record) return;
+            setTouched(true);
             setSelectedNote(noteId);
             setAlignment({
                 ...record,
@@ -753,6 +797,7 @@ export const AlignmentDesk = () => {
     const reset = useCallback(
         (divergence: Divergence) => {
             if (!record) return;
+            setTouched(true);
             const kept = new Map(record.resolutions);
             kept.delete(divergence.id);
             const untouched = new Map(record.edits);
@@ -835,6 +880,22 @@ export const AlignmentDesk = () => {
     const open = divergences.find((divergence) => divergence.id === selected);
 
     /**
+     * Hear the place the open alteration is at: a second and a half before it, and long
+     * enough after for what follows to answer. Pressed while it sounds, it stops.
+     */
+    const hear = useCallback(() => {
+        if (playback.playing || playback.pending) {
+            playback.stop();
+            return;
+        }
+        if (!open || !alignment) return;
+
+        const at = momentOf(open, alignment.matches, alignment.spans, scoreNotes);
+        if (at === undefined) return;
+        playback.playStretch(Math.max(0, at - HEAR_BEFORE_MS), at + HEAR_AFTER_MS);
+    }, [open, alignment, scoreNotes, playback]);
+
+    /**
      * The notes in the open alteration's bar that it could be the same note as.
      *
      * A played note with nothing written for it and a written note nothing played, in one bar,
@@ -857,19 +918,11 @@ export const AlignmentDesk = () => {
             return [];
         });
     }, [open, divergences, outcomes]);
-    const busy = status !== undefined;
-
     const alignTooltip = !performance
         ? 'Open a MIDI recording of this score first'
         : busy
           ? 'The model is running'
           : `Put ${performance.name} note against note with this score, and write what was played differently into it`;
-
-    const writeTooltip = !shown
-        ? 'Nothing to write yet'
-        : !unwritten
-          ? 'The score already holds what is shown'
-          : 'Write what is shown into the score, as readings beside the source';
 
     if (!mei) return null;
 
@@ -954,26 +1007,6 @@ export const AlignmentDesk = () => {
                             step(1);
                         }}
                     />
-                </ToolGroup>
-
-                <ToolGroup>
-                    <ToolField
-                        label="Decided by"
-                        width={96}
-                        value={resp}
-                        onChange={(value) => {
-                            if (record) setAlignment({ ...record, resp: value });
-                        }}
-                    />
-                    <ToolbarButton
-                        primary
-                        label="Write into score"
-                        tooltip={writeTooltip}
-                        disabled={!unwritten || !shown || busy}
-                        onClick={write}
-                    >
-                        Write into score
-                    </ToolbarButton>
                 </ToolGroup>
 
                 <ToolGroup label="Zoom">
@@ -1141,6 +1174,8 @@ export const AlignmentDesk = () => {
                         ))
                 }
                 counterparts={counterparts}
+                hearing={playback.playing || playback.pending}
+                onHear={hear}
                 onChoose={choose}
                 onEdit={edit}
                 onReset={reset}

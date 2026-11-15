@@ -80,7 +80,13 @@ and for a sign the reader picks which. There is no way of leaving a played note 
 of keeping a note that was not played: the score as it was played has what was played in it
 and nothing else.
 
-A recording added on the alignment desk is aligned at once.
+A recording added on the alignment desk is aligned at once, and whatever a reader then changes
+goes into the score by itself, a moment after: there is nothing to press to keep it. The
+readings are attributed to the editor named in the work's metadata.
+
+How a place is to be written is a question about how it sounded, so each one can be heard where
+it is decided: the bar that opens on a note plays the recording from a second and a half before
+the place to two and a half after it, and what sounds lights up in that bar.
 
 Placing an added note is rhythm transcription, with the hard half given: the matched notes on
 either side say what the tempo was, and the bars around say what note values the passage moves
@@ -106,7 +112,7 @@ check it by:
     resolutions       what was decided about each difference, where the reader decided:
                       notes, grace notes, or a sign and which
     edits             each note the reader moved, lengthened or put on the other staff
-    resp, certainty   who decided, and how sure
+    resp, certainty   who decided (the work's editor), and how sure
     elements          the xml:ids of the readings it wrote into transcription.mei
 
 Only decisions are recorded. A difference with no entry was written the way the transcriber
