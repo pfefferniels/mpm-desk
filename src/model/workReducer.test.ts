@@ -629,6 +629,24 @@ describe('the alignment', () => {
         expect(alignmentsOf({ ...base(), provenance: [odd] })[0].resolutions.size).toBe(0);
     });
 
+    it('reads which sign the reader picked, and only a sign there is', () => {
+        const signed: Call = {
+            id: 'al',
+            name: 'AlignSource',
+            options: {
+                source: 'take-1',
+                resolutions: [
+                    ['added-750ms-73', { reading: 'ornamentation', action: 'add-sign', sign: 'turn' }],
+                    ['added-900ms-60', { reading: 'ornamentation', action: 'add-sign', sign: 'flourish' }],
+                ],
+            },
+        };
+        const read = alignmentsOf({ ...base(), provenance: [signed] })[0].resolutions;
+
+        expect(read.get('added-750ms-73')).toEqual({ reading: 'ornamentation', action: 'add-sign', sign: 'turn' });
+        expect(read.get('added-900ms-60')).toEqual({ reading: 'ornamentation', action: 'add-sign' });
+    });
+
     it('writes back through the call that names the same take', () => {
         const next = workReducer(aligned(), {
             type: 'set-alignment',

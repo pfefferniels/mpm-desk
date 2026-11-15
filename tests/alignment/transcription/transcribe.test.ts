@@ -227,6 +227,43 @@ describe('what a reader may ask for instead', () => {
     expect(standing(result.mei).get('n7')?.onset).toBe(6)
   })
 
+  describe('before a beamed note', () => {
+    // Bar 1 with its first two quarters as four beamed eighths: c5 d5 | e5 f5
+    const beamed =
+      '<beam xml:id="bm1"><note xml:id="n1" pname="c" oct="5" dur="8"/><note xml:id="n1b" pname="d" oct="5" dur="8"/></beam>' +
+      '<beam xml:id="bm2"><note xml:id="n2" pname="e" oct="5" dur="8"/><note xml:id="n2b" pname="f" oct="5" dur="8"/></beam>' +
+      '<chord xml:id="ch" dur="2"><note xml:id="n3" pname="e" oct="5"/><note xml:id="n4" pname="g" oct="5"/></chord>'
+    const played = { ...PLAYED, n1b: { ms: 250, pitch: 74 }, n2: { ms: 500, pitch: 76 }, n2b: { ms: 750, pitch: 77 } }
+    const graceBefore = (anchor: string, ms: number) => {
+      const leaning = span('x1', ms, 71)
+      const result = transcribe({
+        mei: aligned(scoreMei(beamed), { played, extra: [leaning] }),
+        source: SOURCE,
+        divergences: [added('a', [leaning], 'ornamentation', anchor)],
+        spans: [leaning],
+        choices: new Map([['a', 'grace']]),
+      })
+      return { result, grace: performance(parse(result.mei), writtenIdOf(leaning)) }
+    }
+
+    it('stands in front of the beam its note opens, so that it is not beamed to it', () => {
+      const { result, grace } = graceBefore('n2', 460)
+
+      expect(result.outcomes.get('a')?.written).toBe('grace')
+      expect(grace?.closest('beam')).toBeNull()
+      // Directly in front of the beam, and so still directly in front of its note
+      expect(grace?.closest('app')?.nextElementSibling?.getAttribute('xml:id')).toBe('bm2')
+      expect(untranscribed(result.mei)).not.toContain('grace=')
+    })
+
+    it('stays where it is in the middle of a beam, which leaves it out as it stands', () => {
+      const { grace } = graceBefore('n2b', 710)
+
+      expect(grace?.closest('beam')?.getAttribute('xml:id')).toBe('bm2')
+      expect(grace?.closest('app')?.nextElementSibling?.getAttribute('xml:id')).toBe('n2b')
+    })
+  })
+
   it('writes measured notes when told to, whatever the timing says', () => {
     const result = ask('measured')
     expect(result.outcomes.get('a')?.written).toBe('measured')
@@ -242,6 +279,28 @@ describe('what a reader may ask for instead', () => {
     expect(doc.querySelector(`[*|id="${writtenIdOf(lean)}"]`)).toBeNull()
     // Still a played note with no written one, which is what an ornament's notes are
     expect(doc.querySelectorAll('when[type="insertion"]')).toHaveLength(1)
+  })
+
+  it('writes the sign the reader picked, whatever the figure looks like', () => {
+    const picked = (sign: 'trill' | 'mordent-upper' | 'mordent-lower' | 'turn') =>
+      transcribe({
+        mei: aligned(scoreMei(), { extra: [lean] }),
+        source: SOURCE,
+        divergences: [added('a', [lean], 'ornamentation', 'n7')],
+        spans: [lean],
+        choices: new Map([['a', 'sign']]),
+        signs: new Map([['a', sign]]),
+      })
+
+    const turn = picked('turn')
+    expect(turn.outcomes.get('a')?.sign).toBe('turn')
+    expect(parse(turn.mei).querySelector('rdg[source="performance"] > turn')?.getAttribute('startid')).toBe('#n7')
+
+    const mordent = parse(picked('mordent-lower').mei).querySelector('rdg[source="performance"] > mordent')
+    expect(mordent?.getAttribute('form')).toBe('lower')
+
+    // Unpicked, it is read off the figure, and the outcome says which it came to
+    expect(ask('sign').outcomes.get('a')?.sign).toBe('mordent-upper')
   })
 
   it('does not leave a played note out of the score, whatever an older file asked for', () => {

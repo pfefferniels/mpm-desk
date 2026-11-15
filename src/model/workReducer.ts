@@ -24,6 +24,7 @@ import type {
 } from '../fitting/transformers/voices/ProcessVoices';
 import type { Action, Resolution } from '../alignment/readings';
 import type { NoteEdit } from '../alignment/transcription';
+import { isSignKind } from '../alignment/transcription/figure';
 import { isRecordedModelId, type RecordedModelId } from '../alignment/mlign/models';
 import { followExpansions, movesGuides } from './guides';
 
@@ -282,7 +283,16 @@ const readResolutions = (value: unknown): ReadonlyMap<string, Resolution> => {
             const held = resolution as Record<string, unknown>;
             if (typeof held['reading'] !== 'string') return [];
             if (typeof held['action'] !== 'string') return [];
-            return [[id, { reading: held['reading'], action: held['action'] as Action }]];
+            return [
+                [
+                    id,
+                    {
+                        reading: held['reading'],
+                        action: held['action'] as Action,
+                        ...(isSignKind(held['sign']) && { sign: held['sign'] }),
+                    },
+                ],
+            ];
         }),
     );
 };

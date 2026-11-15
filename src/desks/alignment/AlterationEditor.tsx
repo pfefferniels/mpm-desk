@@ -20,7 +20,7 @@ import { useCallback, useRef, type ReactElement } from "react";
 import type { Divergence } from "../../alignment/divergences";
 import { choiceHeading, choiceLabel, labelOf, timestamp } from "../../alignment/readings";
 import { pitchName } from "../../performance/pitch";
-import type { Notation, NoteEdit, Outcome, WrittenNoteInfo } from "../../alignment/transcription";
+import { SIGN_KINDS, type Notation, type NoteEdit, type Outcome, type SignKind, type WrittenNoteInfo } from "../../alignment/transcription";
 import { BarPreview } from "./BarPreview";
 
 interface AlterationEditorProps {
@@ -37,7 +37,7 @@ interface AlterationEditorProps {
     noteId?: string;
     /** Whether the reader has changed anything here */
     changed: boolean;
-    onChoose: (divergence: Divergence, notation: Notation) => void;
+    onChoose: (divergence: Divergence, notation: Notation, sign?: SignKind) => void;
     onEdit: (noteId: string, edit: NoteEdit) => void;
     /** Hand it back to the transcriber */
     onReset: (divergence: Divergence) => void;
@@ -62,6 +62,17 @@ const writtenAs = (outcome: Outcome | undefined): Notation => {
         default:
             return "none";
     }
+};
+
+/**
+ * The signs a figure may be written as, each as it is drawn: the glyph of the music font the
+ * score is engraved in, and its name for whoever cannot see it.
+ */
+const SIGNS: Record<SignKind, { glyph: string; name: string }> = {
+    trill: { glyph: "\uE566", name: "Trill" },
+    "mordent-upper": { glyph: "\uE56C", name: "Upper mordent" },
+    "mordent-lower": { glyph: "\uE56D", name: "Lower mordent" },
+    turn: { glyph: "\uE567", name: "Turn" },
 };
 
 /**
@@ -245,6 +256,35 @@ export const AlterationEditor = ({
                         >
                             {choiceLabel(divergence, choice)}
                         </ToggleButton>
+                    ))}
+                </ToggleButtonGroup>
+            )}
+
+            {/* Which sign, once it is to be a sign. The transcriber's guess is the one pressed
+                in, and a reader who knows the figure presses another. */}
+            {current === "sign" && (
+                <ToggleButtonGroup
+                    exclusive
+                    fullWidth
+                    size="small"
+                    color="primary"
+                    aria-label="Sign"
+                    value={outcome?.sign ?? null}
+                    onChange={(_, chosen: SignKind | null) => {
+                        if (chosen !== null) onChoose(divergence, "sign", chosen);
+                    }}
+                    sx={{ mt: 0.5 }}
+                >
+                    {SIGN_KINDS.map((kind) => (
+                        <Tooltip key={kind} title={SIGNS[kind].name}>
+                            <ToggleButton
+                                value={kind}
+                                aria-label={SIGNS[kind].name}
+                                sx={{ py: 0, fontFamily: "'Bravura Text'", fontSize: "1.25rem", lineHeight: 1.6 }}
+                            >
+                                {SIGNS[kind].glyph}
+                            </ToggleButton>
+                        </Tooltip>
                     ))}
                 </ToggleButtonGroup>
             )}

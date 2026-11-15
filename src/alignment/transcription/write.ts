@@ -200,7 +200,8 @@ export function applyEdits(
         if (edit.graces.length > 0) {
             const { app, performance } = appFor(edit.graces.flat(), "ornamentation");
             for (const moment of edit.graces) performance.appendChild(graceFor(moment));
-            parent.insertBefore(app, element);
+            const before = outsideItsBeam(element);
+            before.parentElement?.insertBefore(app, before);
         }
 
         const removed = new Set(edit.remove);
@@ -408,6 +409,29 @@ export function readingsOf(doc: Document): string[] {
         const id = app.getAttribute("xml:id");
         return id ? [id] : [];
     });
+}
+
+/**
+ * What a grace note is written in front of, so that it is not beamed to the note it leans on.
+ *
+ * A grace note goes directly before its note. Where that note opens a beam, directly before it
+ * is the first place inside the beam, and a beam takes in whatever it begins with: the grace
+ * note would hang from the beam of the notes it ornaments. So it goes in front of the beam, the
+ * outermost one the note opens, through any tuplet on the way. In the middle of a beam it stays
+ * where it is: a grace note between beamed notes is left out of their beam as it stands.
+ */
+function outsideItsBeam(element: Element): Element {
+    let before = element;
+    let at = element;
+    for (
+        let parent = at.parentElement;
+        parent && (parent.localName === "beam" || parent.localName === "tuplet") && parent.firstElementChild === at;
+        parent = at.parentElement
+    ) {
+        at = parent;
+        if (parent.localName === "beam") before = parent;
+    }
+    return before;
 }
 
 /** Write a note value onto an element. */

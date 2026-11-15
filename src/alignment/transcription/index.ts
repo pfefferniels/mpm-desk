@@ -20,7 +20,7 @@
 
 import type { NoteSpan } from "../../performance/midiSpans";
 import type { Divergence } from "../divergences";
-import { signFor } from "./figure";
+import { kindOf, SIGN_KINDS, signFor, signOf, type SignKind } from "./figure";
 import { UNITS, levelOf } from "./grid";
 import { chooseStaff, chooseValue, joinable, valuesAt } from "./place";
 import { quantise, type Played, type QuantiseSettings } from "./quantise";
@@ -119,6 +119,8 @@ export interface Outcome {
     notes: WrittenNoteInfo[];
     /** The bar it is in, counted from zero, where it is in one */
     measure?: number;
+    /** Which sign, where it was written as one */
+    sign?: SignKind;
 }
 
 interface TranscribeInput {
@@ -131,6 +133,8 @@ interface TranscribeInput {
     spans: readonly NoteSpan[];
     /** What the reader has asked for, by divergence id; anything absent is `auto` */
     choices?: ReadonlyMap<string, Notation>;
+    /** Which sign the reader picked, for a divergence written as one; absent, it is read off the figure */
+    signs?: ReadonlyMap<string, SignKind>;
     /** What the reader has changed about single notes, by the id the note is written under */
     edits?: ReadonlyMap<string, NoteEdit>;
     /** Who answers for the readings */
@@ -326,10 +330,12 @@ export function transcribe(input: TranscribeInput): Transcribed {
         if (asked === "sign") {
             const anchor = divergence.anchorId ? model.notes.get(divergence.anchorId) : undefined;
             if (anchor) {
-                const sign = signFor(divergence.pitches, anchor.pitch);
+                const picked = input.signs?.get(divergence.id);
+                const sign = picked ? signOf(picked) : signFor(divergence.pitches, anchor.pitch);
                 edits.signs.push({ anchor, sign, group: divergence.id, confidence: 1 });
                 outcomes.set(divergence.id, {
                     written: "sign",
+                    sign: kindOf(sign),
                     because: `Written as a ${sign.name} on the note it decorates. The ${String(divergence.perfIds.length)} notes played stay in the recording as how it was played.`,
                     offers,
                     noteIds: [],
@@ -1111,3 +1117,4 @@ function cssEscape(value: string): string {
     return typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(value) : value.replace(/"/g, '\\"');
 }
 
+export { SIGN_KINDS, type SignKind };

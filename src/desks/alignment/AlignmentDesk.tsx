@@ -14,6 +14,7 @@ import {
     type Notation,
     type NoteEdit,
     type Outcome,
+    type SignKind,
 } from '../../alignment/transcription';
 import { ornamentSignsOf } from '../../mei/ornamentSigns';
 import { parseRecordings } from '../../mei/parseRecordings';
@@ -344,9 +345,11 @@ export const AlignmentDesk = () => {
         if (!aligned?.mei || !take || !alignment || divergences.length === 0) return undefined;
 
         const choices = new Map<string, Notation>();
+        const signs = new Map<string, SignKind>();
         for (const divergence of divergences) {
-            const action = resolutions.get(divergence.id)?.action;
-            if (action) choices.set(divergence.id, notationOf(action));
+            const resolution = resolutions.get(divergence.id);
+            if (resolution?.action) choices.set(divergence.id, notationOf(resolution.action));
+            if (resolution?.sign) signs.set(divergence.id, resolution.sign);
         }
         const standing = new Map(choices);
         for (const divergence of divergences) {
@@ -360,6 +363,7 @@ export const AlignmentDesk = () => {
                 divergences,
                 spans: alignment.spans,
                 edits,
+                signs,
                 resp: resp || undefined,
             };
             const written = transcribe({ ...input, choices });
@@ -710,7 +714,7 @@ export const AlignmentDesk = () => {
     }, [transcription, aligned, setMei, record, setAlignment]);
 
     const choose = useCallback(
-        (divergence: Divergence, notation: Notation) => {
+        (divergence: Divergence, notation: Notation, sign?: SignKind) => {
             if (!record) return;
             setAlignment({
                 ...record,
@@ -718,7 +722,13 @@ export const AlignmentDesk = () => {
                     ...record.resolutions,
                     [
                         divergence.id,
-                        { reading: divergence.reading, action: actionFor(divergence, notation) },
+                        {
+                            reading: divergence.reading,
+                            action: actionFor(divergence, notation),
+                            // Which sign, where the reader said which: without it the
+                            // transcriber reads the sign off the figure
+                            ...(notation === 'sign' && sign && { sign }),
+                        },
                     ],
                 ]),
             });

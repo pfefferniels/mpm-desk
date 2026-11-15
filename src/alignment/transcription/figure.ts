@@ -28,3 +28,25 @@ export function signFor(pitches: readonly number[], anchorPitch: number): Figure
     if (upper === 1) return { name: "mordent", form: "upper" };
     return { name: "trill" };
 }
+
+/**
+ * The signs a reader may pick between, by the name the decision is kept under.
+ *
+ * What {@link signFor} reads off a figure is a guess at which of these it is, and a reader who
+ * knows the figure knows better: a turn played with a slip in it is still a turn.
+ */
+export const SIGN_KINDS = ["trill", "mordent-upper", "mordent-lower", "turn"] as const;
+export type SignKind = (typeof SIGN_KINDS)[number];
+
+export const isSignKind = (value: unknown): value is SignKind =>
+    typeof value === "string" && (SIGN_KINDS as readonly string[]).includes(value);
+
+export const signOf = (kind: SignKind): FigureSign =>
+    kind === "mordent-upper"
+        ? { name: "mordent", form: "upper" }
+        : kind === "mordent-lower"
+          ? { name: "mordent", form: "lower" }
+          : { name: kind };
+
+export const kindOf = (sign: FigureSign): SignKind =>
+    sign.name === "mordent" ? `mordent-${sign.form}` : sign.name;

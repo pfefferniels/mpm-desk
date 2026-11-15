@@ -18,7 +18,7 @@ import type {
     MissingReading,
     ReplacedReading,
 } from "./divergences";
-import type { Notation } from "./transcription";
+import type { Notation, SignKind } from "./transcription";
 
 /**
  * What the reader wants done about a divergence, where they have said.
@@ -48,6 +48,8 @@ export type Action =
 export interface Resolution {
     reading: string;
     action: Action;
+    /** Which ornament sign, where the reader picked one for `add-sign`; absent, the transcriber reads it off the figure */
+    sign?: SignKind;
 }
 
 /**
