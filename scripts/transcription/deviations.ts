@@ -16,7 +16,7 @@ import { read } from 'midifile-ts';
 import { applyAlignment } from '../../src/alignment/applyAlignment';
 import { divergencesOf } from '../../src/alignment/divergences';
 import { hasRepeatSigns, toMatches, unshowableScoreIds, type AlignResult } from '../../src/alignment/mlign';
-import { transcribe, type Notation } from '../../src/alignment/transcription';
+import { transcribe } from '../../src/alignment/transcription';
 import { readScore } from '../../src/alignment/transcription/scoreModel';
 import { ornamentSignsOf } from '../../src/mei/ornamentSigns';
 import type { NoteSpan } from '../../src/performance/midiSpans';
@@ -43,8 +43,7 @@ const aligned = applyAlignment(mei, midi, toMatches(cached.result.matches).filte
 
 const written = transcribe({ mei: aligned, source, divergences, spans: cached.spans });
 // As the desk shows it: the notes that were left out still standing, to be drawn in red
-const standing = new Map<string, Notation>(divergences.filter((d) => d.kind === 'missing').map((d) => [d.id, 'none']));
-const shown = transcribe({ mei: aligned, source, divergences, spans: cached.spans, choices: standing });
+const shown = transcribe({ mei: aligned, source, divergences, spans: cached.spans, omissionsStand: true });
 
 mkdirSync(join(dir, 'out'), { recursive: true });
 writeFileSync(join(dir, 'out', `${roll}.mei`), written.mei);

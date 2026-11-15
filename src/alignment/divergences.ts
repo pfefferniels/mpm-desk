@@ -191,6 +191,13 @@ interface DivergenceOptions {
      * went differently.
      */
     replacementSemitones?: number;
+    /**
+     * How close to where a written note was due, and how close to its pitch, a played note
+     * the model calls that note's ornament has to be to read as the note itself: see
+     * `pairReplaced`. Tight on both counts, because it overrules the model.
+     */
+    sameNoteMs?: number;
+    sameNoteSemitones?: number;
 }
 
 const DEFAULTS = {
@@ -203,6 +210,8 @@ const DEFAULTS = {
     attributionShare: 0.5,
     replacementMs: 200,
     replacementSemitones: 12,
+    sameNoteMs: 100,
+    sameNoteSemitones: 2,
 };
 
 interface DivergenceInput {
@@ -566,17 +575,9 @@ function pairReplacements(
         cost: number;
     }[] = [];
 
-    // A played note the model has already accounted for is not a loose half
-    // looking for a partner. Falling at the moment a written note was due is a
-    // coincidence; being named as that note's ornament is an answer, and the
-    // reader can still overrule it at the note itself.
     const singles = played
         .map((group, index) => ({ group, index }))
-        .filter(
-            (entry) =>
-                entry.group.entries.length === 1 &&
-                !accepted.has(entry.group.entries[0].span.id)
-        );
+        .filter((entry) => entry.group.entries.length === 1);
 
     unplayed.forEach((group, unplayedIndex) => {
         if (group.entries.length !== 1) return;
@@ -589,6 +590,22 @@ function pairReplacements(
             const span = candidate.entries[0].span;
             const lateMs = span.onsetMs - due;
             const semitones = span.pitch - written.pitch;
+
+            // A played note the model has already accounted for is not a loose half
+            // looking for a partner. Falling at the moment a written note was due is a
+            // coincidence; being named as a note's ornament is an answer, and the
+            // reader can still overrule it at the note itself.
+            //
+            // With one exception. The note it is said to ornament may be this very one,
+            // which nothing played: there is then no note there to ornament. Struck when
+            // that note was due and a step from it, it is that note, played at another
+            // pitch — an accidental the edition lacks, a slip of the finger.
+            const named = accepted.get(span.id);
+            if (named) {
+                if (named.scoreId !== written.note) continue;
+                if (Math.abs(lateMs) > settings.sameNoteMs) continue;
+                if (Math.abs(semitones) > settings.sameNoteSemitones) continue;
+            }
 
             if (Math.abs(lateMs) > settings.replacementMs) continue;
             if (Math.abs(semitones) > settings.replacementSemitones) continue;

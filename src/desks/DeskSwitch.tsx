@@ -368,9 +368,10 @@ export const correspondingDesks: DeskEntry[] = [
         editOnly: true,
         help: {
             summary:
-                'The score as it was played. Align puts the recording note against note with ' +
-                'the score and writes what was played differently into it: added notes green, ' +
-                'notes left out red, changed notes violet. Write into score keeps it.',
+                'The score as it was played. A recording added here is put note against note ' +
+                'with the score at once, and what was played differently is written into it: ' +
+                'added notes green, notes left out red, changed notes violet. Write into score ' +
+                'keeps it.',
             actions: [
                 {
                     gesture: 'Click a coloured note',

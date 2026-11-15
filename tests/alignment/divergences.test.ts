@@ -588,6 +588,36 @@ describe('what the model says a played note ornaments', () => {
     expect(missingOnes(all)).toHaveLength(1)
   })
 
+  it('does pair it where it is struck when that very note was due, a step away: the note itself', () => {
+    // The model says x1 ornaments `quiet`, and `quiet` is what nothing played. Forty
+    // milliseconds from where it was due and a semitone off, there is no ornament and no
+    // omission: there is one note, played at another pitch
+    const all = build({
+      scoreNotes: [scoreNote('n1', 0, 60), scoreNote('quiet', 2, 64), scoreNote('n2', 4, 67)],
+      spans: [span('p1', 0, 60), span('p2', 2000, 67), span('x1', 1040, 65)],
+      insertions: ['x1'],
+      deletions: ['quiet'],
+      ornamentOf: { x1: 'quiet' },
+    })
+
+    expect(replacedOnes(all)).toHaveLength(1)
+    expect(replacedOnes(all)[0]).toMatchObject({ scoreId: 'quiet', perfId: 'x1' })
+    expect(addedOnes(all)).toHaveLength(0)
+    expect(missingOnes(all)).toHaveLength(0)
+  })
+
+  it('does not where it is said to ornament another note than the one that went unplayed', () => {
+    const all = build({
+      scoreNotes: [scoreNote('n1', 0, 60), scoreNote('quiet', 2, 64), scoreNote('n2', 4, 67)],
+      spans: [span('p1', 0, 60), span('p2', 2000, 67), span('x1', 1040, 65)],
+      insertions: ['x1'],
+      deletions: ['quiet'],
+      ornamentOf: { x1: 'n2' },
+    })
+
+    expect(replacedOnes(all)).toHaveLength(0)
+  })
+
   it('still pairs one where the model said nothing about the played note', () => {
     const all = build({
       scoreNotes: [scoreNote('n1', 0, 60), scoreNote('quiet', 2, 64), scoreNote('n2', 4, 67)],

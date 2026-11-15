@@ -26,7 +26,7 @@ import { DEFAULT_PERFORMANCE_SCALE, performedOptions, unitsPerSecond } from '../
 import { EXTRA_COLOUR } from '../../verovio/extraNotes';
 import { OMITTED_COLOUR } from '../../verovio/omissionMarks';
 import { useScoreDocument } from '../../hooks/ScoreDocument';
-import { usePerformances } from '../../hooks/Performances';
+import { usePerformances, type Performance } from '../../hooks/Performances';
 import { useWorkDocument } from '../../hooks/WorkDocument';
 import type { WorkAlignment } from '../../model/workReducer';
 import { APP_BAR_HEIGHT } from '../../components/toolbar/EditorAppBar';
@@ -177,7 +177,8 @@ const countsOf = (divergences: readonly Divergence[], outcomes: ReadonlyMap<stri
         const outcome = outcomes.get(divergence.id);
         if (!outcome) continue;
         counts.total++;
-        if (divergence.kind === 'added') counts.added += outcome.noteIds.length;
+        if (divergence.kind === 'added' && outcome.written === 'variant') counts.changed++;
+        else if (divergence.kind === 'added') counts.added += outcome.noteIds.length;
         else if (divergence.kind === 'missing' && outcome.written === 'omitted') {
             counts.omitted += divergence.scoreIds.length;
         } else if (divergence.kind === 'replaced' && outcome.written === 'variant') counts.changed++;
@@ -351,11 +352,6 @@ export const AlignmentDesk = () => {
             if (resolution?.action) choices.set(divergence.id, notationOf(resolution.action));
             if (resolution?.sign) signs.set(divergence.id, resolution.sign);
         }
-        const standing = new Map(choices);
-        for (const divergence of divergences) {
-            if (divergence.kind === 'missing') standing.set(divergence.id, 'none');
-        }
-
         try {
             const input = {
                 mei: aligned.mei,
@@ -367,7 +363,7 @@ export const AlignmentDesk = () => {
                 resp: resp || undefined,
             };
             const written = transcribe({ ...input, choices });
-            const shown = transcribe({ ...input, choices: standing });
+            const shown = transcribe({ ...input, choices, omissionsStand: true });
             return {
                 written: written.mei,
                 shown: shown.mei,
@@ -613,8 +609,11 @@ export const AlignmentDesk = () => {
     });
 
     const align = useCallback(
-        async (allowMismatch = false) => {
-            if (!source || !performance || !take) return;
+        async (allowMismatch = false, of?: Performance) => {
+            // The take on the desk, or one just opened that the desk has not turned to yet
+            const target = of ?? performance;
+            const name = of?.source ?? take;
+            if (!source || !target || !name) return;
 
             setError(undefined);
             setMismatch(undefined);
@@ -624,7 +623,7 @@ export const AlignmentDesk = () => {
             try {
                 const fresh = await runAlignment({
                     mei: source,
-                    midi: performance.midi,
+                    midi: target.midi,
                     model: DEFAULT_MODEL,
                     allowMismatch,
                     onStatus: setStatus,
@@ -636,15 +635,16 @@ export const AlignmentDesk = () => {
 
                 // The settings the run was made with, recorded as soon as it has been made: a
                 // decision taken about it in the next minute has to have somewhere to go.
+                const before = alignments.find((entry) => entry.source === name);
                 setAlignment({
-                    source: take,
-                    midi: performance.name,
+                    source: name,
+                    midi: target.name,
                     model: DEFAULT_MODEL,
                     minConfidence: 0,
-                    resolutions,
-                    edits,
-                    resp,
-                    certainty: recorded?.certainty ?? 'medium',
+                    resolutions: before?.resolutions ?? EMPTY_RESOLUTIONS,
+                    edits: before?.edits ?? EMPTY_EDITS,
+                    resp: before?.resp ?? '',
+                    certainty: before?.certainty ?? 'medium',
                 });
             } catch (reason: unknown) {
                 if (reason instanceof MismatchedPairError) {
@@ -658,7 +658,7 @@ export const AlignmentDesk = () => {
                 setStatus(undefined);
             }
         },
-        [source, performance, take, resolutions, edits, resp, recorded, setAlignment],
+        [source, performance, take, alignments, setAlignment],
     );
 
     /**
@@ -756,7 +756,12 @@ export const AlignmentDesk = () => {
             const kept = new Map(record.resolutions);
             kept.delete(divergence.id);
             const untouched = new Map(record.edits);
-            for (const note of outcomes.get(divergence.id)?.notes ?? []) untouched.delete(note.id);
+            // By the note written and by the key played: a played note matched to a written
+            // one is kept under the key, and written under the note it stands for
+            for (const note of outcomes.get(divergence.id)?.notes ?? []) {
+                untouched.delete(note.id);
+                untouched.delete(note.played);
+            }
             setAlignment({ ...record, resolutions: kept, edits: untouched });
         },
         [record, outcomes, setAlignment],
@@ -828,6 +833,30 @@ export const AlignmentDesk = () => {
 
     const counts = useMemo(() => countsOf(divergences, outcomes), [divergences, outcomes]);
     const open = divergences.find((divergence) => divergence.id === selected);
+
+    /**
+     * The notes in the open alteration's bar that it could be the same note as.
+     *
+     * A played note with nothing written for it and a written note nothing played, in one bar,
+     * may be one note the aligner did not pair: struck late, or at another pitch. Which, only
+     * a reader can say, and these are what they can say it of.
+     */
+    const counterparts = useMemo(() => {
+        const bar = open ? outcomes.get(open.id)?.measure : undefined;
+        if (!open || bar === undefined) return [];
+        return divergences.flatMap((other) => {
+            const outcome = outcomes.get(other.id);
+            if (outcome?.measure !== bar) return [];
+            if (open.kind === 'added' && other.kind === 'missing' && outcome.written === 'omitted') {
+                return other.scoreIds;
+            }
+            if (open.kind === 'missing' && other.kind === 'added') {
+                // Notes written for a key, not written notes a key turned out to be
+                return outcome.notes.filter((note) => note.id === note.played).map((note) => note.id);
+            }
+            return [];
+        });
+    }, [open, divergences, outcomes]);
     const busy = status !== undefined;
 
     const alignTooltip = !performance
@@ -1066,9 +1095,9 @@ export const AlignmentDesk = () => {
                         <Stack spacing={1} sx={{ p: 4, maxWidth: '34rem' }}>
                             <Typography variant="h6">Nothing aligned yet</Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Add a recording and press Align. What was played differently is
-                                written into the score: added notes green, left out red, changed
-                                violet.
+                                Add a recording. It is aligned with the score at once, and
+                                what was played differently is written into it: added notes
+                                green, left out red, changed violet.
                             </Typography>
                         </Stack>
                     )}
@@ -1084,8 +1113,16 @@ export const AlignmentDesk = () => {
                 style={{ display: 'none' }}
                 onChange={(event) => {
                     const file = event.target.files?.[0];
-                    if (file) openPerformance(file);
                     event.target.value = '';
+                    if (!file) return;
+                    // A recording is added to this desk to be aligned, and so it is, at once:
+                    // there is nothing else to do with it here, and a button to press first
+                    // would only be a thing to find
+                    void Promise.resolve(openPerformance(file)).then((opened) => {
+                        if (!opened) return;
+                        setPicked(opened.source);
+                        return align(false, opened);
+                    });
                 }}
             />
 
@@ -1099,8 +1136,11 @@ export const AlignmentDesk = () => {
                 changed={
                     selected !== undefined &&
                     (resolutions.has(selected) ||
-                        (outcomes.get(selected)?.notes ?? []).some((note) => edits.has(note.id)))
+                        (outcomes.get(selected)?.notes ?? []).some(
+                            (note) => edits.has(note.id) || edits.has(note.played),
+                        ))
                 }
+                counterparts={counterparts}
                 onChoose={choose}
                 onEdit={edit}
                 onReset={reset}

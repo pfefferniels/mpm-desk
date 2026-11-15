@@ -40,8 +40,11 @@ interface PerformancesValue {
      *
      * The reading is `App`'s rather than the desk's because minting a `@source` needs to know
      * every take already in hand, and this is what holds them.
+     *
+     * Answers with the take it took on, or with nothing where the file was refused, so that
+     * whoever asked can go on with it: the alignment desk aligns it at once.
      */
-    openPerformance: (file: File) => void;
+    openPerformance: (file: File) => Promise<Performance | undefined>;
 }
 
 const PerformancesContext = createContext<PerformancesValue | null>(null);

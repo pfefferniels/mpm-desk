@@ -12,11 +12,12 @@ import {
     ChevronLeft,
     ChevronRight,
     InfoOutlined,
+    Link,
     Remove,
     RestartAlt,
     SwapVert,
 } from "@mui/icons-material";
-import { useCallback, useRef, type ReactElement } from "react";
+import { useCallback, useRef, useState, type ReactElement } from "react";
 import type { Divergence } from "../../alignment/divergences";
 import { choiceHeading, choiceLabel, labelOf, timestamp } from "../../alignment/readings";
 import { pitchName } from "../../performance/pitch";
@@ -37,6 +38,11 @@ interface AlterationEditorProps {
     noteId?: string;
     /** Whether the reader has changed anything here */
     changed: boolean;
+    /**
+     * The notes in this bar that this one could be the same note as: for a played note the
+     * written ones nothing played, for a written note the played ones nothing was written for.
+     */
+    counterparts?: readonly string[];
     onChoose: (divergence: Divergence, notation: Notation, sign?: SignKind) => void;
     onEdit: (noteId: string, edit: NoteEdit) => void;
     /** Hand it back to the transcriber */
@@ -115,17 +121,28 @@ const accountOf = (divergence: Divergence, outcome: Outcome | undefined): string
 const Tool = ({
     name,
     disabled,
+    active,
     onClick,
     children,
 }: {
     name: string;
     disabled?: boolean;
+    /** Pressed in: the tool is one that stays on until its question is answered */
+    active?: boolean;
     onClick: () => void;
     children: ReactElement;
 }) => (
     <Tooltip title={name}>
         <span>
-            <IconButton size="small" aria-label={name} disabled={disabled} onClick={onClick}>
+            <IconButton
+                size="small"
+                aria-label={name}
+                aria-pressed={active}
+                color={active ? "primary" : "default"}
+                disabled={disabled}
+                onClick={onClick}
+                sx={active ? { bgcolor: "action.selected" } : undefined}
+            >
                 {children}
             </IconButton>
         </span>
@@ -150,6 +167,7 @@ export const AlterationEditor = ({
     paint,
     noteId,
     changed,
+    counterparts,
     onChoose,
     onEdit,
     onReset,
@@ -168,7 +186,12 @@ export const AlterationEditor = ({
         watching.current.observe(paper);
     }, []);
 
+    // Which alteration is being matched to another note, if one is: kept by its id, so that
+    // turning to the next alteration leaves the matching behind
+    const [matchingFor, setMatchingFor] = useState<string>();
+
     if (!divergence || !anchor) return null;
+    const matching = matchingFor === divergence.id && (counterparts?.length ?? 0) > 0;
 
     const current = writtenAs(outcome);
     const choices = choicesFor(divergence, outcome);
@@ -232,7 +255,24 @@ export const AlterationEditor = ({
             }}
         >
             {mei && outcome?.measure !== undefined && (
-                <BarPreview mei={mei} measure={outcome.measure} paint={paint} />
+                <BarPreview
+                    mei={mei}
+                    measure={outcome.measure}
+                    paint={paint}
+                    pickable={matching ? counterparts : undefined}
+                    onPick={(picked) => {
+                        setMatchingFor(undefined);
+                        // The key that was played, and the written note it is: whichever of
+                        // the two the card was opened on, the other is the one picked
+                        if (divergence.kind === "added") {
+                            const played = movable?.played ?? outcome.notes[0]?.played;
+                            if (played) onEdit(played, { is: picked });
+                        } else if (divergence.kind === "missing") {
+                            const written = noteId && divergence.scoreIds.includes(noteId) ? noteId : divergence.scoreIds[0];
+                            onEdit(picked, { is: written });
+                        }
+                    }}
+                />
             )}
 
             {choices.length > 1 && (
@@ -314,6 +354,24 @@ export const AlterationEditor = ({
                             }}
                         >
                             <SwapVert fontSize="small" />
+                        </Tool>
+                    </>
+                )}
+                {(counterparts?.length ?? 0) > 0 && (
+                    <>
+                        {movable && <Box sx={{ width: 12 }} />}
+                        <Tool
+                            name={
+                                divergence.kind === "added"
+                                    ? "It is a written note: click which"
+                                    : "It was played: click which note"
+                            }
+                            active={matching}
+                            onClick={() => {
+                                setMatchingFor(matching ? undefined : divergence.id);
+                            }}
+                        >
+                            <Link fontSize="small" />
                         </Tool>
                     </>
                 )}

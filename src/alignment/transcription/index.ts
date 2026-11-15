@@ -80,6 +80,12 @@ export interface NoteEdit {
     staff?: string;
     /** How long it is written, in grid units, one of its `values` */
     units?: number;
+    /**
+     * The written note this played note is, by its id, where a reader said so: the two are one
+     * note, whatever the aligner made of them. At the written pitch it is that note and nothing
+     * differs; at another pitch it is written in that note's place.
+     */
+    is?: string;
 }
 
 /** One played note as it stands in the score, and what a reader may do to it. */
@@ -135,6 +141,11 @@ interface TranscribeInput {
     choices?: ReadonlyMap<string, Notation>;
     /** Which sign the reader picked, for a divergence written as one; absent, it is read off the figure */
     signs?: ReadonlyMap<string, SignKind>;
+    /**
+     * Leave the notes that were not played standing. For drawing, not for the document: the
+     * page shows them in red, which it could not if they had been taken out.
+     */
+    omissionsStand?: boolean;
     /** What the reader has changed about single notes, by the id the note is written under */
     edits?: ReadonlyMap<string, NoteEdit>;
     /** Who answers for the readings */
@@ -272,6 +283,9 @@ export function transcribe(input: TranscribeInput): Transcribed {
         tie?: Element;
     }[] = [];
     const taken = new Set<string>();
+    /** Played notes a reader said are a written note, played at another pitch. */
+    const stoodIn: { span: NoteSpan; divergence: Extract<Divergence, { kind: "added" }>; note: WrittenNote }[] = [];
+    const standIns: { span: NoteSpan; id: string }[] = [];
 
     /**
      * The written note a played note is, where it is one.
@@ -349,6 +363,16 @@ export function transcribe(input: TranscribeInput): Transcribed {
         for (const id of divergence.perfIds) {
             const span = spanById.get(id);
             if (!span) continue;
+
+            // A reader may have said which written note this is. Then it is that note
+            const said = input.edits?.get(writtenIdOf(span))?.is;
+            const named = said ? model.notes.get(said) : undefined;
+            if (named && !named.event.grace && !taken.has(named.id)) {
+                taken.add(named.id);
+                if (named.pitch === span.pitch) found.push({ span, divergence, note: named });
+                else stoodIn.push({ span, divergence, note: named });
+                continue;
+            }
 
             // Before it is treated as a new note: it may be a note the score has. The written
             // note itself, which the aligner did not pair; or the second note of a tie, which
@@ -610,6 +634,30 @@ export function transcribe(input: TranscribeInput): Transcribed {
         });
     }
 
+    // And the ones a reader said are a written note at another pitch: the played note is
+    // written in that note's place, as a note played otherwise is
+    for (const { span, divergence, note } of stoodIn) {
+        const staff = note.event.layer.staff;
+        const played = newNote(span, divergence.id, "substitution", 1, staff, note.event.onset);
+        editOf(note.event).replace.set(note, played);
+        standIns.push({ span, id: played.id });
+        fate(divergence.id, {
+            kind: "variant",
+            confidence: 1,
+            where: `${nameOf(played)} written in place of the ${note.pname.toUpperCase()}${String(note.oct)} of the source`,
+        });
+        inform(divergence.id, {
+            id: played.id,
+            played: played.id,
+            onset: note.event.onset,
+            measure: staff.measure.index,
+            staff: staff.n,
+            staves: [staff.n],
+            grace: false,
+            places: [],
+        });
+    }
+
     for (const [group, list] of fates) {
         const divergence = input.divergences.find((candidate) => candidate.id === group);
         if (!divergence || divergence.kind !== "added") continue;
@@ -649,19 +697,21 @@ export function transcribe(input: TranscribeInput): Transcribed {
 
     for (const divergence of input.divergences) {
         if (divergence.kind !== "missing") continue;
-        const offers: Notation[] = ["auto", "none"];
-        const asked = choice(divergence.id);
+        // What was not played is not in the score as it was played, as what was played is in
+        // it: an omission cannot be asked to stay, and a choice of that in an older work file
+        // reads as no choice
+        const offers: Notation[] = ["auto"];
 
         const notes = divergence.scoreIds.flatMap((id) => {
             const note = model.notes.get(id);
             return note ? [note] : [];
         });
-        // A note that stays as written is still in a bar, and whoever asked for it to stay is
-        // looking at that bar: without it the card they asked in would lose its music
         const bar = notes[0]?.event.layer.staff.measure.index;
 
-        if (asked === "none") {
-            outcomes.set(divergence.id, { ...none("Left as written, as asked.", offers), measure: bar });
+        // For the page and not for the document: a note that has been taken out cannot be
+        // seen to have been taken out, so the page is drawn with these still standing
+        if (input.omissionsStand) {
+            outcomes.set(divergence.id, { ...none("Left standing, to be seen.", offers), measure: bar });
             continue;
         }
         if (divergence.reading === "outside") {
@@ -674,7 +724,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
             continue;
         }
 
-        if (asked === "auto" && isCut(notes, map)) {
+        if (isCut(notes, map)) {
             outcomes.set(
                 divergence.id,
                 none(
@@ -708,14 +758,14 @@ export function transcribe(input: TranscribeInput): Transcribed {
                           Math.abs(other.event.onset - note.event.onset) < 1e-6 &&
                           whens.matched.has(other.id),
                   );
-            if (twin && asked === "auto") {
+            if (twin) {
                 doubled++;
                 continue;
             }
 
             // Not struck because the note before it was never let go: the same pitch, written
             // up to this note, and still held when this one was due. That is a tie.
-            const before = asked === "auto" ? heldInto(note) : undefined;
+            const before = heldInto(note);
             if (before) {
                 held++;
                 edits.ties.push({ from: before, to: note, group: divergence.id });
@@ -833,10 +883,10 @@ export function transcribe(input: TranscribeInput): Transcribed {
         when.removeAttribute("type");
         mark(doc, when, "insertion");
     }
-    for (const { span, note } of found) {
+    for (const { span, id } of [...found.map(({ span, note }) => ({ span, id: note.id })), ...standIns]) {
         const when = whens.insertions.get(whenKey(span.onsetMs, span.pitch));
         if (!when) continue;
-        when.setAttribute("data", `#${note.id}`);
+        when.setAttribute("data", `#${id}`);
         when.removeAttribute("type");
         mark(doc, when, "insertion");
     }
@@ -901,7 +951,7 @@ const none = (because: string, offers: Notation[]): Outcome => ({
  * a note the score already writes.
  */
 interface Fate {
-    kind: "measured" | "grace" | "unplaced" | "written";
+    kind: "measured" | "grace" | "unplaced" | "written" | "variant";
     confidence: number;
     where?: string;
     because?: string;
@@ -910,7 +960,18 @@ interface Fate {
 function summarise(all: Fate[], offers: Notation[]): Outcome {
     // The written notes among them: played as written, and so no difference at all
     const same = all.length - all.filter((entry) => entry.kind !== "written").length;
-    const list = all.filter((entry) => entry.kind !== "written");
+    // And the ones that are a written note at another pitch, on a reader's word
+    const others = all.filter((entry) => entry.kind === "variant");
+    const list = all.filter((entry) => entry.kind !== "written" && entry.kind !== "variant");
+    if (list.length === 0 && others.length > 0) {
+        return {
+            written: "variant",
+            because: `The played ${others.map((entry) => entry.where ?? "").join("; ")}: one note, the reader says, played otherwise.`,
+            offers: ["auto"],
+            noteIds: [],
+            notes: [],
+        };
+    }
     if (list.length === 0) {
         return {
             written: "as-written",

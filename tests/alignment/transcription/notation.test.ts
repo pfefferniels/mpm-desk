@@ -197,7 +197,6 @@ describe('a reader\'s choice, and the action the work file keeps for it', () => 
     for (const notation of ['measured', 'grace', 'sign'] as const) {
       expect(notationOf(actionFor(octave, notation))).toBe(notation)
     }
-    expect(notationOf(actionFor(gone, 'none'))).toBe('none')
     expect(notationOf(actionFor(other, 'as-written'))).toBe('as-written')
   })
 
@@ -207,7 +206,7 @@ describe('a reader\'s choice, and the action the work file keeps for it', () => 
   })
 
   it('names an answer by what it means for that kind of difference', () => {
-    expect(choiceLabel(gone, 'none')).toBe('Kept')
+    // A note that was not played is taken out, and nothing else is on offer
     expect(choiceLabel(gone, 'auto')).toBe('Taken out')
     expect(choiceLabel(octave, 'grace')).toBe('Grace')
     expect(choiceLabel(octave, 'measured')).toBe('Notes')

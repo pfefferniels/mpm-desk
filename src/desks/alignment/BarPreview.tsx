@@ -18,6 +18,12 @@ interface BarPreviewProps {
     measure: number;
     /** Colours the notes, exactly as the desk's score is coloured. Must be a stable identity. */
     paint: (root: HTMLElement) => void;
+    /**
+     * The notes of the bar that may be picked, by id, while something is being matched to one of
+     * them. They are ringed, and a click on one answers with it.
+     */
+    pickable?: readonly string[];
+    onPick?: (id: string) => void;
 }
 
 /**
@@ -41,7 +47,7 @@ const OPTIONS = {
     pageMarginBottom: 30,
 };
 
-export const BarPreview = ({ mei, measure, paint }: BarPreviewProps) => {
+export const BarPreview = ({ mei, measure, paint, pickable, onPick }: BarPreviewProps) => {
     const container = useRef<HTMLDivElement>(null);
     const [drawn, setDrawn] = useState<{ key: string; svg: string } | null>(null);
     const key = `${String(mei.length)}|${String(measure)}`;
@@ -77,13 +83,44 @@ export const BarPreview = ({ mei, measure, paint }: BarPreviewProps) => {
     const html = useMemo(() => ({ __html: drawn?.svg ?? '' }), [drawn]);
 
     useLayoutEffect(() => {
-        if (container.current && drawn) paint(container.current);
-    }, [drawn, paint]);
+        const root = container.current;
+        if (!root || !drawn) return;
+        paint(root);
+        for (const ringed of root.querySelectorAll('.alignment-pickable')) {
+            ringed.classList.remove('alignment-pickable');
+        }
+        for (const id of pickable ?? []) {
+            const escaped = typeof CSS?.escape === 'function' ? CSS.escape(id) : id;
+            root.querySelector(`[data-id="${escaped}"]`)?.classList.add('alignment-pickable');
+        }
+    }, [drawn, paint, pickable]);
+
+    /** The pickable note a click fell on: on its ink, or inside its head, which may be a ring. */
+    const pick = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (!onPick || !pickable?.length) return;
+        const on = (event.target as Element).closest('.alignment-pickable');
+        const hit =
+            on ??
+            [...event.currentTarget.querySelectorAll('.alignment-pickable')].find((note) => {
+                const box = note.querySelector('.notehead')?.getBoundingClientRect();
+                if (!box || box.width === 0) return false;
+                const reach = 4;
+                return (
+                    event.clientX >= box.left - reach &&
+                    event.clientX <= box.right + reach &&
+                    event.clientY >= box.top - reach &&
+                    event.clientY <= box.bottom + reach
+                );
+            });
+        const id = hit?.getAttribute('data-id');
+        if (id) onPick(id);
+    };
 
     return (
         <div
             ref={container}
             className="alignment-score alignment-bar"
+            onClick={pick}
             style={{
                 minHeight: 150,
                 overflowX: 'auto',

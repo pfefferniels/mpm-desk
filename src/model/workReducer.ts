@@ -313,6 +313,7 @@ const readEdits = (value: unknown): ReadonlyMap<string, NoteEdit> => {
                 ...(typeof held['onset'] === 'number' ? { onset: held['onset'] } : {}),
                 ...(typeof held['staff'] === 'string' ? { staff: held['staff'] } : {}),
                 ...(typeof held['units'] === 'number' ? { units: held['units'] } : {}),
+                ...(typeof held['is'] === 'string' && held['is'] ? { is: held['is'] } : {}),
             };
             return Object.keys(read).length > 0 ? [[id, read]] : [];
         }),

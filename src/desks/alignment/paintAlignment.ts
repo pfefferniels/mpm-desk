@@ -104,7 +104,11 @@ export const paintingOf = ({
     for (const divergence of divergences) {
         const outcome = outcomes?.get(divergence.id);
         if (!outcome) continue;
-        if (divergence.kind === 'added') {
+        if (divergence.kind === 'added' && outcome.written === 'variant') {
+            // A played note a reader matched to a written one of another pitch: one note
+            // played otherwise, and drawn as one
+            for (const id of outcome.noteIds) replaced.set(id, divergence.id);
+        } else if (divergence.kind === 'added') {
             for (const id of outcome.noteIds) added.set(id, divergence.id);
         } else if (divergence.kind === 'missing' && outcome.written !== 'omitted') {
             for (const id of divergence.scoreIds) kept.add(id);
@@ -299,6 +303,17 @@ export const alignmentStyles = (extra: string, omitted: string) => {
         // dynamics, slurs and words are true of the bar and nothing to do with that.
         '.alignment-bar .pedal, .alignment-bar .dir, .alignment-bar .dynam, .alignment-bar .hairpin, .alignment-bar .tempo, .alignment-bar .slur, .alignment-bar .harm, .alignment-bar .fing, .alignment-bar .label, .alignment-bar .labelAbbr':
             { display: 'none' },
+        // A note that may be picked while another is being matched to it: ringed and breathing,
+        // so that the eye finds what the click is for
+        '.alignment-bar .alignment-pickable': {
+            cursor: 'pointer',
+            filter: `drop-shadow(0 0 2px ${SELECTED_COLOUR}) drop-shadow(0 0 5px ${SELECTED_COLOUR})`,
+            animation: 'alignment-pick 1.1s ease-in-out infinite',
+        },
+        '@keyframes alignment-pick': {
+            '0%, 100%': { opacity: 1 },
+            '50%': { opacity: 0.45 },
+        },
         // The note the editor's hands are on, ringed rather than recoloured: its colour is what
         // says what it is
         '.alignment-bar .alignment-editing': {

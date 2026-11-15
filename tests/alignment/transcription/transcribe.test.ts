@@ -439,18 +439,89 @@ describe('a written note that was not played', () => {
     expect(result.mei).not.toContain('type="transcription"')
   })
 
-  it('stays in the score when the reader says so', () => {
+  it('cannot be asked to stay: a choice of that in an older work file is no choice', () => {
     const base = aligned(scoreMei(), { unplayed: ['n6'] })
-    const result = transcribe({
+    const asked = transcribe({
       mei: base,
       source: SOURCE,
       divergences: [missing('m', ['n6'])],
       spans: [],
       choices: new Map([['m', 'none']]),
     })
-    expect(canonical(result.mei)).toBe(canonical(base))
-    // And still says which bar it is in: the card that asked for it to stay shows that bar
-    expect(result.outcomes.get('m')?.measure).toBe(1)
+    const unasked = transcribe({ mei: base, source: SOURCE, divergences: [missing('m', ['n6'])], spans: [] })
+
+    expect(asked.outcomes.get('m')?.written).toBe('omitted')
+    expect(asked.outcomes.get('m')?.offers).toEqual(['auto'])
+    expect(canonical(asked.mei)).toBe(canonical(unasked.mei))
+  })
+
+  it('is left standing for the page to draw, and still says which bar it is in', () => {
+    const base = aligned(scoreMei(), { unplayed: ['n6'] })
+    const drawn = transcribe({
+      mei: base,
+      source: SOURCE,
+      divergences: [missing('m', ['n6'])],
+      spans: [],
+      omissionsStand: true,
+    })
+
+    expect(canonical(drawn.mei)).toBe(canonical(base))
+    expect(drawn.outcomes.get('m')?.measure).toBe(1)
+  })
+})
+
+describe('a played note a reader says is a written note', () => {
+  // n6, the e5 of bar 2, was due at 2500 ms and nothing played it. Something was struck 300 ms
+  // later, further off than the transcriber will take for the same note on its own account
+  const base = (pitch: number) => {
+    const late = span('x1', 2800, pitch)
+    return {
+      late,
+      input: {
+        mei: aligned(scoreMei(), { extra: [late], unplayed: ['n6'] }),
+        source: SOURCE,
+        divergences: [added('a', [late]), missing('m', ['n6'])],
+        spans: [late],
+      },
+    }
+  }
+
+  it('is two differences until somebody says otherwise', () => {
+    const { input } = base(76)
+    const result = transcribe(input)
+
+    expect(result.outcomes.get('a')?.written).toBe('measured')
+    expect(result.outcomes.get('m')?.written).toBe('omitted')
+  })
+
+  it('at the written pitch is that note: nothing is written and nothing taken out', () => {
+    const { late, input } = base(76)
+    const result = transcribe({ ...input, edits: new Map([[writtenIdOf(late), { is: 'n6' }]]) })
+    const doc = parse(result.mei)
+
+    expect(result.mei).not.toContain('type="transcription"')
+    expect(result.outcomes.get('a')?.written).toBe('as-written')
+    expect(result.outcomes.get('m')?.written).toBe('none')
+    // The recording says so too: the key that was struck is that note's
+    expect(doc.querySelector('when[data="#n6"][absolute="2800ms"]')).not.toBeNull()
+    expect(canonical(untranscribed(result.mei))).toBe(canonical(input.mei))
+  })
+
+  it('at another pitch is written in that note\'s place, as one note played otherwise', () => {
+    const { late, input } = base(77)
+    const result = transcribe({ ...input, edits: new Map([[writtenIdOf(late), { is: 'n6' }]]) })
+    const doc = parse(result.mei)
+    const played = doc.querySelector(`rdg[source="performance"] > note[*|id="${writtenIdOf(late)}"]`)
+
+    expect(result.outcomes.get('a')?.written).toBe('variant')
+    expect(result.outcomes.get('a')?.noteIds).toEqual([writtenIdOf(late)])
+    expect(result.outcomes.get('m')?.written).toBe('none')
+    // In the place of the written note: its reading holds the note, the performance's the key
+    expect(played?.getAttribute('pname')).toBe('f')
+    expect(played?.closest('app')?.querySelector('rdg[source="original"] > note[*|id="n6"]')).not.toBeNull()
+    expect(standing(result.mei).get(writtenIdOf(late))?.onset).toBe(5)
+    expect(doc.querySelector(`when[data="#${writtenIdOf(late)}"]`)).not.toBeNull()
+    expect(canonical(untranscribed(result.mei))).toBe(canonical(input.mei))
   })
 })
 
@@ -733,13 +804,13 @@ describe('taking a transcription out again', () => {
       source: SOURCE,
       divergences,
       spans,
-      choices: new Map<string, Notation>([['a2', 'grace'], ['m1', 'none']]),
+      choices: new Map<string, Notation>([['a2', 'grace']]),
     })
     const doc = parse(changed.mei)
 
     expect(doc.querySelector(`[*|id="${writtenIdOf(extras[2])}"]`)?.getAttribute('grace')).toBe('unacc')
-    expect(doc.querySelector('rdg[source="original"] > note[*|id="n6"]')).toBeNull()
-    expect(doc.querySelector('note[*|id="n6"]')).not.toBeNull()
+    // The note that was not played is taken out as before: that was never a thing to change
+    expect(doc.querySelector('rdg[source="original"] > note[*|id="n6"]')).not.toBeNull()
     // And what was not changed is still there
     expect(doc.querySelector(`[*|id="${writtenIdOf(extras[0])}"]`)).not.toBeNull()
   })

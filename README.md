@@ -75,9 +75,12 @@ what they do not agree with. Clicking a note opens its bar in ordinary notation,
 can be written as something else, grace notes or an ornament sign, moved along the bar, made
 longer or shorter, or put on the other staff.
 
-What was played is in the score, one way or another: as notes, as grace notes, or as a sign.
-There is no way of leaving a played note out. The one thing a reader can keep as written is a
-note the performer did *not* play.
+What was played is in the score, one way or another: as notes, as grace notes, or as a sign,
+and for a sign the reader picks which. There is no way of leaving a played note out, and none
+of keeping a note that was not played: the score as it was played has what was played in it
+and nothing else.
+
+A recording added on the alignment desk is aligned at once.
 
 Placing an added note is rhythm transcription, with the hard half given: the matched notes on
 either side say what the tempo was, and the bars around say what note values the passage moves
@@ -101,7 +104,7 @@ check it by:
     source, midi      which <recording>, made from which file
     model             the aligner that put the two against each other
     resolutions       what was decided about each difference, where the reader decided:
-                      notes, grace notes, a sign, or a written note kept
+                      notes, grace notes, or a sign and which
     edits             each note the reader moved, lengthened or put on the other staff
     resp, certainty   who decided, and how sure
     elements          the xml:ids of the readings it wrote into transcription.mei

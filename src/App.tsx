@@ -441,6 +441,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
         async (file: File) => {
             const performance = await readPerformance(file);
             if (performance) addPerformance(performance);
+            return performance ?? undefined;
         },
         [readPerformance, addPerformance],
     );
@@ -750,7 +751,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const { tickToSeconds, secondsToTick } = useTimeMapping(alignment);
 
     const performancesValue = useMemo(
-        () => ({ performances, openPerformance: (file: File) => void handleOpenMidi(file) }),
+        () => ({ performances, openPerformance: handleOpenMidi }),
         [performances, handleOpenMidi],
     );
 
