@@ -17,6 +17,8 @@ interface PressBoxProps {
     stretchX: number
     /** A selected call was fitted to this press — see `EVIDENCE_COLOUR`. */
     evidence?: boolean
+    /** Being guided on the pedal desk, and drawn as a press under the pointer is. */
+    picked?: boolean
     /** What a click on the press does. Absent in the viewer, where the press is no target. */
     onPick?: (pedal: AlignedPedal) => void
 }
@@ -25,10 +27,11 @@ interface PressBoxProps {
  * One recorded press, drawn as the line it recorded: at rest along the top of its row, a full
  * stroke down at the bottom, held between vertices the way a controller value is.
  *
- * A click writes the whole line as movements, so the press is one target. The line itself takes
- * no pointer events; the box it encloses does. Without `onPick` it is drawn and nothing more.
+ * A click picks the press, to write its line as movements or to guide it, so the press is one
+ * target. The line itself takes no pointer events; the box it encloses does. Without `onPick` it is
+ * drawn and nothing more.
  */
-export const PressBox = ({ pedal, line, y, stretchX, evidence = false, onPick }: PressBoxProps) => {
+export const PressBox = ({ pedal, line, y, stretchX, evidence = false, picked = false, onPick }: PressBoxProps) => {
     const [hovered, setHovered] = useState(false)
 
     const lane = { type: pedal.type, rest: y, pressed: y + ROW_HEIGHT }
@@ -47,8 +50,8 @@ export const PressBox = ({ pedal, line, y, stretchX, evidence = false, onPick }:
                 data-line={id}
                 points={stepLine(placed, y)}
                 fill='none'
-                stroke={hovered ? PICKED : evidence ? EVIDENCE_COLOUR : PRESS}
-                strokeWidth={hovered || evidence ? 2 : 1.5}
+                stroke={hovered || picked ? PICKED : evidence ? EVIDENCE_COLOUR : PRESS}
+                strokeWidth={hovered || picked || evidence ? 2 : 1.5}
                 pointerEvents='none'
             />
             <rect
@@ -66,7 +69,7 @@ export const PressBox = ({ pedal, line, y, stretchX, evidence = false, onPick }:
                 onMouseLeave={onPick ? () => setHovered(false) : undefined}
                 onClick={onPick ? () => onPick(pedal) : undefined}
             >
-                <title>{`${onPick ? 'write ' : ''}${pedal.type} @${String(Math.round(from))}`}</title>
+                <title>{`${onPick ? 'pick ' : ''}${pedal.type} @${String(Math.round(from))}`}</title>
             </rect>
         </g>
     )

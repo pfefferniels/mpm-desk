@@ -5,7 +5,10 @@ import type { Normalized } from "espressivo"
 import { areaPath, sampleTransition } from "../transitionSamples"
 
 interface MovementSegmentProps extends SVGProps<SVGPathElement> {
-    instruction: Instruction<'movement'> & { endDate: number }
+    /** What of a `<movement>` the curve is drawn from, and where the next one takes over. */
+    instruction: Pick<Instruction<'movement'>, 'id' | 'date' | 'position' | 'transitionTo' | 'curvature' | 'protraction'> & {
+        endDate: number
+    }
     stretchX: number
     stretchY: number
 }

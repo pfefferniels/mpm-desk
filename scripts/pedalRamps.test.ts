@@ -1,120 +1,80 @@
 /**
- * The migration of the published pedal ramps (`pedalRamps.ts`), run on the published reconstruction.
- *
- * It holds before welte225.org has migrated and after: on a work file with ramps it measures what
- * the migration makes of them, on one without, that the file is left as it is. Once the published
- * file has moved, this and the script can go, as `migrateWork` did.
+ * The migration of pedal ramps to guided presses (`pedalRamps.ts`), on a work file of two presses
+ * and the performance its ramps wrote. Once welte225.org has migrated, this and the script can go,
+ * as `migrateWork` did.
  */
 import { describe, expect, test } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { convertMeiToMsm } from 'espressivo';
 import { migratePedalRamps } from './pedalRamps';
-import { runFit } from '../src/fitting/fit';
-import { asMSM } from '../src/fitting/asMSM';
-import { parseWorkFile, type WorkFile } from '../src/model/Work';
-import { publishedPath } from '../src/test/published';
+import { parseWorkFile, serializeWorkFile, type Call, type WorkFile } from '../src/model/Work';
 
-const mei = readFileSync(publishedPath('mei'), 'utf-8');
-const published = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
-const { work: migrated, presses } = migratePedalRamps(published, mei);
+const ramp = (id: string, pedal: string, direction: 'down' | 'up', depth = 1): Call => ({
+    id,
+    name: 'InsertPedal',
+    options: { pedal, start: -100, duration: 200, depth, direction },
+    elements: direction === 'down' ? [`${pedal}_start`, `${pedal}_moveDown`] : [`${pedal}_moveUp`, `${pedal}_end`],
+    range: { from: 0, to: 0 },
+});
 
-const performed = (work: WorkFile): string => {
-    const movement = convertMeiToMsm(mei)[0];
-    // The chain is noisy about MSM parts it cannot match; that is a property of the fixture.
-    const say = console.log;
-    console.log = () => undefined;
-    try {
-        return runFit(work, asMSM(mei, movement.msm, movement.graces)).mpm;
-    } finally {
-        console.log = say;
-    }
-};
-const before = performed(published);
-const after = migrated === published ? before : performed(migrated);
+const work = (): WorkFile => ({
+    name: 'two presses',
+    mei: '',
+    mpm: '',
+    provenance: [
+        { id: 'tempo', name: 'InsertTempo', options: { bpm: 60 } },
+        ramp('down0', 'sustain-0', 'down'),
+        ramp('down1', 'soft-720', 'down', 0.5),
+        ramp('up0', 'sustain-0', 'up'),
+        ramp('up1', 'soft-720', 'up', 0.5),
+        { id: 'dynamics', name: 'InsertDynamics', options: { guides: new Map([[0, 40]]) } },
+    ],
+    secondary: {},
+} as unknown as WorkFile);
 
-interface Movement {
-    date: number;
-    position: number;
-    transitionTo?: number;
-    curvature: number;
-    protraction: number;
-}
+/** What the ramps wrote: soft-720's ramp down starts before the score, as WM 225's soft press did. */
+const performance = `<mpm><movementMap>
+<movement date="-100" position="0" transition.to="0.5" controller="soft" xml:id="soft-720_start" />
+<movement date="-0.4" position="0" transition.to="1" controller="sustain" xml:id="sustain-0_start" />
+<movement date="100" position="0.5" controller="soft" xml:id="soft-720_moveDown" />
+<movement date="199.6" position="1" controller="sustain" xml:id="sustain-0_moveDown" />
+<movement date="620.25" position="1" transition.to="0" controller="sustain" xml:id="sustain-0_moveUp" />
+<movement date="820.25" position="0" controller="sustain" xml:id="sustain-0_end" />
+<movement date="1340" position="0.5" transition.to="0" controller="soft" xml:id="soft-720_moveUp" />
+<movement date="1540" position="0" controller="soft" xml:id="soft-720_end" />
+</movementMap></mpm>`;
 
-const attribute = (tag: string, name: string): string | undefined =>
-    new RegExp(` ${name.replace('.', '\\.')}="([^"]*)"`).exec(tag)?.[1];
+describe('pedal ramps, migrated', () => {
+    const { work: migrated, presses } = migratePedalRamps(work(), performance);
 
-/**
- * A document's movements as they sound, by controller and in order: without one dated before the
- * score, which the renderer skips, and without a constant restating where the pedal already is,
- * unless it ends a transition. A bend left unstated is the one a `<movement>` takes by default.
- */
-const sounded = (mpm: string): Map<string, Movement[]> => {
-    const byController = new Map<string, Movement[]>();
-    const tags = [...mpm.matchAll(/<movement [^>]*>/g)].map(([tag]) => tag);
-    for (const tag of tags) {
-        const transitionTo = attribute(tag, 'transition.to');
-        const movement: Movement = {
-            date: Number(attribute(tag, 'date')),
-            position: Number(attribute(tag, 'position')),
-            ...(transitionTo !== undefined && { transitionTo: Number(transitionTo) }),
-            curvature: Number(attribute(tag, 'curvature') ?? 0.4),
-            protraction: Number(attribute(tag, 'protraction') ?? 0),
-        };
-        if (movement.date < 0) continue;
-        const controller = attribute(tag, 'controller') ?? '';
-        byController.set(controller, [...(byController.get(controller) ?? []), movement]);
-    }
-    for (const [controller, movements] of byController) {
-        let held = 0;
-        let moving = false;
-        byController.set(
-            controller,
-            movements
-                .sort((a, b) => a.date - b.date)
-                .filter((movement) => {
-                    const kept = movement.transitionTo !== undefined || moving || movement.position !== held;
-                    held = movement.transitionTo ?? movement.position;
-                    moving = movement.transitionTo !== undefined;
-                    return kept;
-                }),
-        );
-    }
-    return byController;
-};
-
-describe('the published ramps, migrated', () => {
-    test('leave no ramp behind', () => {
-        const ramps = migrated.provenance.filter((call) => call.name === 'InsertPedal' && 'direction' in call.options);
-        expect(ramps).toEqual([]);
-        expect(presses.every((press) => press.travel.length >= 2)).toBe(true);
+    test('make one call of each press, through the four points its ramps ran between', () => {
+        expect(presses).toEqual([
+            { pedal: 'sustain-0', guides: new Map([[-0.4, 0], [199.6, 1], [620.25, 1], [820.25, 0]]) },
+            { pedal: 'soft-720', guides: new Map([[-100, 0], [100, 0.5], [1340, 0.5], [1540, 0]]) },
+        ]);
     });
 
-    test('keep every call id, so that a link to a ramp still opens a call about its press', () => {
-        const ids = new Set(migrated.provenance.map((call) => call.id));
-        expect(published.provenance.filter((call) => !ids.has(call.id))).toEqual([]);
+    test('keep the ramp down’s id and place, and leave every other call as it was', () => {
+        expect(migrated.provenance.map((call) => [call.id, call.name])).toEqual([
+            ['tempo', 'InsertTempo'],
+            ['down0', 'InsertPedal'],
+            ['down1', 'InsertPedal'],
+            ['dynamics', 'InsertDynamics'],
+        ]);
+        expect(migrated.provenance[1].options).toEqual({ pedal: 'sustain-0', guides: presses[0].guides });
+        expect(migrated.provenance[0]).toEqual(work().provenance[0]);
+        expect(migrated.provenance[3]).toEqual(work().provenance[5]);
     });
 
-    test('change no instruction but the movements', () => {
-        const withoutMovements = (mpm: string) => mpm.replace(/<movementMap[\s\S]*?<\/movementMap>/g, '');
-        expect(withoutMovements(after)).toBe(withoutMovements(before));
+    test('save their guides as a work file carries a Map, and read them back', () => {
+        const again = parseWorkFile(serializeWorkFile(migrated));
+
+        expect(again.provenance[1].options).toEqual({ pedal: 'sustain-0', guides: presses[0].guides });
     });
 
-    test('move the pedals as the ramps did, to the millisecond the record is kept in', () => {
-        const was = sounded(before);
-        const is = sounded(after);
-        expect([...is.keys()].sort()).toEqual([...was.keys()].sort());
-        for (const [controller, movements] of was) {
-            const now = is.get(controller) ?? [];
-            const undated = (movement: Movement): Omit<Movement, 'date'> => {
-                const { date, ...rest } = movement;
-                void date;
-                return rest;
-            };
-            expect(now.map(undated)).toEqual(movements.map(undated));
-            // Under three ticks: one press releases where a tempo boundary re-anchors the grid, and
-            // the closest millisecond to its ramp's end lands 2.74 ticks after it.
-            const late = now.map((movement, i) => Math.abs(movement.date - movements[i].date));
-            expect(Math.max(0, ...late)).toBeLessThan(3);
-        }
+    test('leave a work file without ramps alone', () => {
+        expect(migratePedalRamps(migrated, performance)).toEqual({ work: migrated, presses: [] });
+    });
+
+    test('refuse a ramp whose movements the performance has not got', () => {
+        expect(() => migratePedalRamps(work(), '<mpm/>')).toThrow('down0 wrote sustain-0_start');
     });
 });

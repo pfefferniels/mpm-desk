@@ -6,7 +6,7 @@ import { TranslatePhysicalTimeToTicks } from '../tempo/index';
 import { deriveResidual, type Residual } from '../../residual';
 import { filterMap } from 'espressivo';
 import type { TickVertex } from '../tempo/tickTimes';
-import { approximateMovements, movementIds, type FittedMovement } from './approximateMovement';
+import { approximateMovements, guidedMovements, movementIds, type FittedMovement } from './approximateMovement';
 import { type Range, rangeOfPress } from '../range';
 
 /**
@@ -38,9 +38,21 @@ export interface PedalRampOptions extends FitPedalOptions {
   depth?: number;
 }
 
-export type InsertPedalOptions = FitPedalOptions | PedalRampOptions;
+/**
+ * The press's curve stated rather than read: the points it is to pass through, by score date in
+ * ticks, at a position in [0..1]. The record's line is not read where a call states guides.
+ *
+ * A `Map`, as `InsertDynamics`'s guides are, which the work file carries across as one.
+ */
+export interface GuidedPedalOptions extends TransformationOptions {
+  pedal: string;
+  guides: Map<number, number>;
+}
+
+export type InsertPedalOptions = FitPedalOptions | PedalRampOptions | GuidedPedalOptions;
 
 const isRamp = (options: InsertPedalOptions): options is PedalRampOptions => 'direction' in options;
+const isGuided = (options: InsertPedalOptions): options is GuidedPedalOptions => 'guides' in options;
 
 /** A press the residual could place on the score grid, line and all. */
 interface PlacedPress {
@@ -63,14 +75,13 @@ const placedPresses = (
   });
 
 /**
- * Write a press's line as the movements the fit makes of it.
+ * Write a press's movements, as the fit made them of its line or its guides.
  *
  * A movement's `xml:id` names what it does to the pedal, so the markup reads `_down`, `_held`,
  * `_up`, `_rest` rather than a count.
  */
-const writeLine = (map: MovementMap, press: PlacedPress, line: readonly TickVertex[]) => {
-  const fitted = approximateMovements(line);
-  const ids = movementIds(press.pedal['xml:id'], fitted);
+const writeMovements = (map: MovementMap, pedal: AlignedPedal, fitted: readonly FittedMovement[]) => {
+  const ids = movementIds(pedal['xml:id'], fitted);
   fitted.forEach((movement: FittedMovement, i) => {
     map.addMovement({
       id: ids[i],
@@ -79,7 +90,7 @@ const writeLine = (map: MovementMap, press: PlacedPress, line: readonly TickVert
       ...(movement.transitionTo !== undefined && { transitionTo: normalized(movement.transitionTo) }),
       ...(movement.curvature !== undefined && { curvature: movement.curvature }),
       ...(movement.protraction !== undefined && { protraction: movement.protraction }),
-      controller: press.pedal.type,
+      controller: pedal.type,
     });
   });
 };
@@ -125,14 +136,25 @@ const writeRamp = (map: MovementMap, press: PlacedPress, options: PedalRampOptio
   }
 };
 
+/** A call's guides as the fit takes them: points of the curve, in the order of the score. */
+const guidesOf = ({ guides }: GuidedPedalOptions) =>
+  [...guides].map(([date, position]) => ({ date, position }));
+
 /**
- * The pedalling, as `<movement>` elements fitted to the line each press recorded.
+ * The pedalling, as `<movement>` elements fitted to each press.
  *
- * The line is the record (`AlignedPedal.travel`, since `1dec582`), corrected where the roll got
- * it wrong on the corrections desk, and placed on the score grid by the residual. What is fitted
- * is only the bend of each traversal: where a press starts, how deep it goes, where it holds and
- * where it lifts are all read off the line. A press without a line is a switch, and is written
- * as the two constants a switch is.
+ * Fitted to what the press recorded, where the call names no more than the press: the line is the
+ * record (`AlignedPedal.travel`, since `1dec582`), corrected where the roll got it wrong on the
+ * corrections desk, and placed on the score grid by the residual. What is fitted is only the bend
+ * of each traversal: where a press starts, how deep it goes, where it holds and where it lifts are
+ * all read off the line. A press without a line is a switch, and is written as the two constants a
+ * switch is.
+ *
+ * Fitted to its guides, where the call states them: the points on the score the curve is to pass
+ * through, as `InsertDynamics` passes through its own (`guidedMovements`). That is how a press's
+ * shape is said where the record has none to give, as a roll's switch has not: an editor's reading
+ * of how the pedal moved, and so the pedal desk's, not a correction of the roll. Guides are dated
+ * on the score, so they need no residual, and may lie before the recorded onset.
  *
  * A call stating `direction` is one written before the line existed, and keeps the ramp it asked
  * for.
@@ -145,31 +167,51 @@ export class InsertPedal extends AbstractTransformer<InsertPedalOptions> {
     super(options ?? {});
   }
 
-  /** The press it writes, or every press the residual can place when it names none. */
+  /**
+   * From its first guide to its last; otherwise the press it writes, or every press the residual
+   * can place when it names none.
+   */
   range(msm: Alignment, residual?: Residual): Range | undefined {
     const options = this.options;
+    if (isGuided(options)) {
+      const dates = [...options.guides.keys()];
+      return dates.length === 0 ? undefined : { from: Math.min(...dates), to: Math.max(...dates) };
+    }
     return rangeOfPress(options.pedal, msm, residual, isRamp(options) ? options : undefined);
   }
 
-  /** The recorded press whose line it writes, or every press where it names none. */
+  /** The recorded press it writes, or every press where it names none. */
   override evidence(msm: Alignment): string[] {
     const { pedal } = this.options;
     return idsOf(msm.pedals.filter((p) => pedal === undefined || p['xml:id'] === pedal));
   }
 
   protected transform(msm: Alignment, mpm: Mpm): void {
+    const map = requireMap(mpm, 'movement', 'global');
+    const options = this.options;
+
+    if (isGuided(options)) {
+      // The press is what the movements are named after and which pedal they move; where the
+      // guides fall is the call's own.
+      const pedal = msm.pedals.find((p) => p['xml:id'] === options.pedal);
+      if (!pedal) {
+        console.error(`InsertPedal: no press ${options.pedal} to guide`);
+        return;
+      }
+      writeMovements(map, pedal, guidedMovements(guidesOf(options)));
+      return;
+    }
+
     // Where each pedal fell on the score grid, under the MPM as it stands. `movement` is held
     // out for the same reason every other fitter holds its own dimension out, though it changes
     // nothing here: a movementMap moves controllers, not the pedal marks this reads. The tick
     // figures for pedals carry no rubato compensation — the warp is taken off notes only, which
     // `removeRubatoDistortion` records as a standing @todo.
     const residual = deriveResidual(msm, mpm, { without: ['movement'] });
-    const map = requireMap(mpm, 'movement', 'global');
-    const options = this.options;
 
     for (const press of placedPresses(msm, residual, options.pedal)) {
       if (isRamp(options)) writeRamp(map, press, options);
-      else if (press.tickTravel) writeLine(map, press, press.tickTravel);
+      else if (press.tickTravel) writeMovements(map, press.pedal, approximateMovements(press.tickTravel));
     }
   }
 }

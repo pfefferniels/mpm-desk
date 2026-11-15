@@ -175,6 +175,50 @@ describe('a press written from its line', () => {
   });
 });
 
+describe('a press guided through the points it is to pass', () => {
+  /** Down over 200 ticks from 100 before the press, held, and up over 300 from 1440: four guides. */
+  const guided = (pedal = 'ped0'): InsertPedalOptions => ({
+    pedal,
+    guides: new Map([
+      [-100, 0],
+      [100, 0.8],
+      [1440, 0.8],
+      [1740, 0],
+    ]),
+  });
+
+  test('is a ramp each way along the default bend, held between, wherever the record has the press', () => {
+    const movements = movementsOf(fitPedals(switches(), guided()));
+
+    expect(movements.map((m) => m.id)).toEqual(['ped0_down', 'ped0_held', 'ped0_up', 'ped0_rest']);
+    expect(movements.map((m) => [m.date, m.position, m.transitionTo])).toEqual([
+      [-100, 0, 0.8],
+      [100, 0.8, undefined],
+      [1440, 0.8, 0],
+      [1740, 0, undefined],
+    ]);
+    // Stated nowhere: a movement between two guides takes the bend a `<movement>` has by default.
+    expect(movements.every((m) => m.curvature === undefined && m.protraction === undefined)).toBe(true);
+  });
+
+  test('spans its guides, and was fitted to the press it names', () => {
+    const call = new InsertPedal(guided('ped1'));
+
+    expect(call.range(switches())).toEqual({ from: -100, to: 1740 });
+    expect(call.evidence(switches())).toEqual(['ped1']);
+  });
+
+  test('is structurally sound, and renders as a sustain stream that holds at its depth', () => {
+    const score = switches();
+    const mpm = fitPedals(score, guided());
+    assertWellFormed(exportMPM(mpm), 'the guided pedal MPM');
+
+    const values = sustainStream(score.serialize()!, exportMPM(mpm))!.points.map((point) => point.value);
+    expect(Math.max(...values)).toBeCloseTo(0.8 * 127, 0);
+    expect(values.at(-1)).toBe(0);
+  });
+});
+
 describe('the shortcut, kept for calls already written', () => {
   const ramp = (depth = SUSTAIN_DEPTH): InsertPedalOptions => ({
     start: 0,

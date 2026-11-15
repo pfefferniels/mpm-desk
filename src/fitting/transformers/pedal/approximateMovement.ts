@@ -44,8 +44,14 @@ const traversalEnd = (line: readonly TickVertex[], start: number): number => {
   return broken === -1 ? line.length - 1 : broken - 1;
 };
 
-/** The bend that passes closest through a traversal's vertices, its ends taken from the record. */
-const bend = (traversal: readonly TickVertex[]): TransitionShape => {
+/** A point the pedal is to pass through: where in the score, and how far down. */
+interface Guide {
+  readonly date: number;
+  readonly position: number;
+}
+
+/** The bend that passes closest through a traversal's points, its ends taken as they are. */
+const bend = (traversal: readonly Guide[]): TransitionShape => {
   const first = traversal[0];
   const last = traversal[traversal.length - 1];
   const samples = traversal.map(({ date, position }) => ({ date, value: position }));
@@ -95,6 +101,58 @@ export const approximateMovements = (line: readonly TickVertex[]): FittedMovemen
       continue;
     }
     if (!restates(line[at])) movements.push({ date: line[at].date, position: line[at].position });
+    at += 1;
+  }
+  return movements;
+};
+
+/** The last index of the run of guides moving one way from `start`, `start` itself where none does. */
+const runEnd = (guides: readonly Guide[], start: number): number => {
+  const next = guides[start + 1];
+  if (!next) return start;
+  const direction = Math.sign(next.position - guides[start].position);
+  if (direction === 0) return start;
+  let end = start + 1;
+  while (end + 1 < guides.length && Math.sign(guides[end + 1].position - guides[end].position) === direction) end++;
+  return end;
+};
+
+/**
+ * The movements a curve through guides comes to.
+ *
+ * Guides are points the curve passes through, not a record: where a line holds each position until
+ * its next vertex, so that two vertices are a switch, two guides at different positions are a
+ * movement between them, along the bend a `<movement>` takes when it states none. Guides between
+ * them that keep moving the same way bend it, fitted as a line's traversal is, from that bend. Two
+ * at one position are a hold. So four guides, leaving rest, arriving, leaving and back at rest, are
+ * a press with a ramp each way.
+ *
+ * Only a bend that was fitted is stated: a movement between two guides takes the default, as a
+ * ramp typed without one did.
+ */
+export const guidedMovements = (guides: readonly Guide[]): FittedMovement[] => {
+  const sorted = guides.toSorted((a, b) => a.date - b.date);
+  const movements: FittedMovement[] = [];
+  const restates = (guide: Guide) => {
+    const last = movements.at(-1);
+    return last !== undefined && last.transitionTo === undefined && last.position === guide.position;
+  };
+
+  let at = 0;
+  while (at < sorted.length) {
+    const end = runEnd(sorted, at);
+    if (end > at) {
+      const run = sorted.slice(at, end + 1);
+      movements.push({
+        date: sorted[at].date,
+        position: sorted[at].position,
+        transitionTo: sorted[end].position,
+        ...(run.length > 2 && bend(run)),
+      });
+      at = end;
+      continue;
+    }
+    if (!restates(sorted[at])) movements.push({ date: sorted[at].date, position: sorted[at].position });
     at += 1;
   }
   return movements;

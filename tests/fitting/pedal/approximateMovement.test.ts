@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { innerControlPointsXPositions, transitionValueAt } from 'espressivo';
 import {
   approximateMovements,
+  guidedMovements,
   movementIds,
   type FittedMovement,
 } from '../../../src/fitting/transformers/pedal/approximateMovement';
@@ -129,6 +130,66 @@ describe('what a line comes to', () => {
     const line = onGrid(MODELLED_PRESS, TICKS_PER_MS);
 
     expect(approximateMovements(line)).toEqual(approximateMovements(line));
+  });
+});
+
+describe('what guides come to', () => {
+  test('four are a press: down, held, up and at rest, along the default bend', () => {
+    const movements = guidedMovements([
+      { date: 0, position: 0 },
+      { date: 200, position: 1 },
+      { date: 1000, position: 1 },
+      { date: 1300, position: 0 },
+    ]);
+
+    expect(movements).toEqual([
+      { date: 0, position: 0, transitionTo: 1 },
+      { date: 200, position: 1 },
+      { date: 1000, position: 1, transitionTo: 0 },
+      { date: 1300, position: 0 },
+    ]);
+    expect(movementIds('p', movements)).toEqual(['p_down', 'p_held', 'p_up', 'p_rest']);
+  });
+
+  test('two at different positions are a movement between them, not a switch', () => {
+    expect(guidedMovements([{ date: 0, position: 0 }, { date: 100, position: 0.6 }])).toEqual([
+      { date: 0, position: 0, transitionTo: 0.6 },
+      { date: 100, position: 0.6 },
+    ]);
+  });
+
+  test('down and straight up again is two movements, the second from where the first arrives', () => {
+    expect(guidedMovements([
+      { date: 0, position: 0 },
+      { date: 100, position: 1 },
+      { date: 200, position: 0 },
+    ])).toEqual([
+      { date: 0, position: 0, transitionTo: 1 },
+      { date: 100, position: 1, transitionTo: 0 },
+      { date: 200, position: 0 },
+    ]);
+  });
+
+  test('one between, off the default bend, bends the movement through it', () => {
+    const [down, arrived] = guidedMovements([
+      { date: 0, position: 0 },
+      { date: 50, position: 0.8 },
+      { date: 100, position: 1 },
+    ]);
+
+    expect(down).toMatchObject({ date: 0, position: 0, transitionTo: 1 });
+    expect(down.curvature).toBeDefined();
+    expect(Math.abs(fittedAt(down, arrived.date, 50) - 0.8)).toBeLessThan(0.06);
+  });
+
+  test('are read in the order of the score, whatever order they were set in', () => {
+    const inOrder = [
+      { date: 0, position: 0 },
+      { date: 100, position: 1 },
+      { date: 200, position: 0 },
+    ];
+
+    expect(guidedMovements(inOrder.toReversed())).toEqual(guidedMovements(inOrder));
   });
 });
 
