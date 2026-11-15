@@ -5,6 +5,7 @@
   ],
   "entry": [
     "scripts/*.ts",
+    "scripts/transcription/*.ts",
     "src/fitting/fit.worker.ts"
   ],
   "project": [

@@ -1,0 +1,45 @@
+# roll (SUPRA druid)	score (NIFC first edition)	title	performer
+#
+# Chopin on red Welte rolls, against the first editions the Fryderyk Chopin Institute encoded.
+# One edition per piece, the German one where there are several.
+#
+# Not here, and why:
+#   the ballades op. 23 and op. 47 and the polonaises op. 40/1 and op. 53 are past the aligner's
+#     own size limit (score notes x played notes), which is there for the browser's memory;
+#   nq087cp3030, catalogued as the mazurka op. 67/4, is not a performance of that score.
+#
+# vj076nk8220 and hp956bx4547 are scans that come out a tone and a semitone off the piece. They
+# are aligned transposed and used for the hold-out; `transcribe.ts` leaves them out, because it
+# writes the recording into the score from the MIDI file as it stands.
+gf160gq3516	009-1-KI-001	Nocturne op. 9/1	d'Albert
+nq628rc4181	009-1-KI-002	Nocturne op. 9/2	Adam-Benard
+vm423wb2944	015-1a-BH-002	Nocturne op. 15/2	Pugno
+tx963yw9164	015-1a-BH-002	Nocturne op. 15/2	Saint-Saens
+wz719qg6993	015-1a-BH-002	Nocturne op. 15/2	Busoni
+rp390kt0160	027-1-BH-002	Nocturne op. 27/2	Sauer
+vs167qc5364	027-1-BH-002	Nocturne op. 27/2	Hofmann
+rj799hj0968	037-1-BH-002	Nocturne op. 37/2	Carreno
+st828pc9818	037-1-BH-002	Nocturne op. 37/2	Carreno (2)
+gs556hk6631	048-1-BH-001	Nocturne op. 48/1	Carreno
+gg384dv5303	032-1-Sm-001	Nocturne op. 32/1	Gruenfeld
+nf274ng7905	055-1-BH-002	Nocturne op. 55/2	Krah
+gc795vb4435	028-1-BH-015	Prelude op. 28/15	Busoni
+wq296df7434	028-1-BH-016	Prelude op. 28/16	Pachmann
+jm300wy4714	028-1-BH-018	Prelude op. 28/18	Di Benici
+vj076nk8220	028-1-BH-020	Prelude op. 28/20	Pachmann
+fn111kx0654	028-1-BH-020	Prelude op. 28/20	Pachmann (2)
+kv601my2750	028-1-BH-017	Prelude op. 28/17	Esipova
+qv334zb6243	010-1b-Sm-003	Etude op. 10/3	Paderewski
+wg598sj1504	010-1b-Sm-005	Etude op. 10/5	Di Benici
+st755cm2486	010-1b-Sm-005	Etude op. 10/5	Schnabel
+mj416dn1432	010-1b-Sm-012	Etude op. 10/12	Galston
+hp956bx4547	025-1b-LE-009	Etude op. 25/9	Paderewski
+ft746ns5736	025-1b-LE-009	Etude op. 25/9	Paderewski (2)
+ch197br4742	025-1b-LE-009	Etude op. 25/9	Sauer
+vw531zy4220	025-1b-LE-011	Etude op. 25/11	Peppercorn
+cw078rn1143	064-1a-BH-001	Waltz op. 64/1	Pachmann
+nf733yv1324	064-1a-BH-002	Waltz op. 64/2	Dohnanyi
+jh069yf5255	064-1a-BH-002	Waltz op. 64/2	Wurmser
+vy018tw5237	042-1-BH	Waltz op. 42	Scharwenka
+kv921kh0629	069-1a-Sam-001	Waltz op. 69/1	Stavenhagen
+bj021jc9795	057-2-BH	Berceuse op. 57	Reisenauer
