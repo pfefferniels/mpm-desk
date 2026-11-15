@@ -144,8 +144,41 @@ export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[]
         const whens = noteId ? (whensByRefId.get(noteId) || []) : []
         if (whens.length === 0) continue
 
+        // Several records of one take on one note, each with the pitch that sounded, are that
+        // note played as an ornament (as-played-by). The score has one note there, so the
+        // fitting has one too: it begins where the figure begins, which is where the format
+        // says the written note falls, and it sounds until the figure ends. The notes in
+        // between are the ornament's and no row of their own.
+        const figures = new Map<string | undefined, Element[]>()
+        for (const when of whens) {
+            if (!when.querySelector('extData[type="pitch"]')) continue
+            const source = when.closest('recording')?.getAttribute('source') || undefined
+            const figure = figures.get(source)
+            if (figure) figure.push(when)
+            else figures.set(source, [when])
+        }
+
         for (const when of whens) {
             const source = when.closest('recording')?.getAttribute('source') || undefined
+
+            const figure = figures.get(source)
+            if (figure && figure.length > 1 && figure.includes(when)) {
+                if (when !== figure[0]) continue
+                const played = figure
+                    .map(performedOf)
+                    .filter((entry) => entry !== null)
+                    .sort((a, b) => a['milliseconds.date'] - b['milliseconds.date'])
+                if (played.length === 0) continue
+
+                msmNotes.push({
+                    ...scoreOf(note),
+                    'milliseconds.date': played[0]['milliseconds.date'],
+                    'milliseconds.date.end': Math.max(...played.map((entry) => entry['milliseconds.date.end'])),
+                    velocity: played[0].velocity,
+                    source
+                })
+                continue
+            }
 
             const absolute = when.getAttribute('absolute')?.replace('ms', '')
             const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')

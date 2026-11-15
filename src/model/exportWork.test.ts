@@ -352,6 +352,36 @@ describe('buildWorkArchive', () => {
         });
     });
 
+    it('writes the recording as the as-played-by format has it', async () => {
+        // As a review leaves it: a written note nothing was played for, a played note the score
+        // has no note for, and a mark on a record the transcriber pointed somewhere
+        const working = mei()
+            .replace(
+                '<when absolute="500ms" corresp="symbol_a2" data="#n2"/>',
+                '<when absolute="500ms" corresp="symbol_a2" data="#n2"><extData type="transcribed">insertion</extData></when>',
+            )
+            .replace(
+                '<when absolute="1000ms" corresp="symbol_a3" data="#n3"/>',
+                '<when data="#n3" type="deletion"/>' +
+                    '<when absolute="1200ms" corresp="symbol_a4" type="insertion"><extData type="pitch">65</extData></when>',
+            );
+        expect(working).toContain('type="deletion"');
+
+        const zip = await readBack(await buildWorkArchive(input({ mei: working })));
+        const saved = new DOMParser().parseFromString(
+            await entry(zip, 'transcription.mei'),
+            'application/xml',
+        );
+
+        // A record is a note that sounded. That n3 was not played is said by nothing pointing at it
+        expect(
+            [...saved.querySelectorAll('recording > when')].map(
+                (when) => `${when.getAttribute('type')} ${when.getAttribute('data')}`,
+            ),
+        ).toEqual(['match #n1', 'match #n2']);
+        expect(saved.querySelector('extData')).toBeNull();
+    });
+
     it('writes the MPM and the converted score through unchanged', async () => {
         const mpm = createMpm();
         const zip = await readBack(await buildWorkArchive(input({ mpm })));

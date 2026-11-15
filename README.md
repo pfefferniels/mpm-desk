@@ -133,6 +133,22 @@ A project is a zip of
     score.msm            the score that MPM is performed against
     recordings/*.mid     the takes
 
+`transcription.mei` is an [as-played-by](https://github.com/pfefferniels/as-played-by) document.
+In its `<recording>`s a `<when>` is a note that sounded or a pedal press and nothing else: it
+points at a written note and says when that note sounded. What the performer did differently is
+in the score, in the readings described above, and the recording points at the notes of the
+performance's reading. A written note no `<when>` points at was not played. Several on one note
+are that note played as an ornament, each with the pitch that sounded: a figure written as a
+sign, the score's own or one a reader chose, is saved that way.
+
+While a reader works, the recording also holds what the aligner could not pair, which is what
+lets `untranscribed` take a transcription out again. That working form does not leave the desk.
+`src/alignment/transcription/strictRecordings.ts` writes the format's on saving, and a saved
+document is read back into the working form from the score alone. Two things do not come back,
+because the format has no place for them: that a played note was recognised as a written one
+rather than matched by the aligner, and a played note the score had no bar for, such as one
+played on a repeat the engraving shows once.
+
 ## The published reconstruction
 
 The reconstruction of WM 225 is the first four of those files, unzipped into `mpm/` of the

@@ -17,6 +17,7 @@ import { exportMPM, type Mpm } from '../fitting/instructions/index';
 import { isCallOf } from '../fitting/calls';
 import type { MakeChoiceOptions } from '../fitting/transformers/choice/MakeChoice';
 import type { CallOutcome } from '../fitting/fit';
+import { strictRecordings } from '../alignment/transcription/strictRecordings';
 import { serializeWorkFile, type Call, type WorkFile } from './Work';
 import type { WorkMetadata } from './workReducer';
 import JSZip from 'jszip';
@@ -162,7 +163,8 @@ export interface WorkArchiveInput {
 /**
  * Build the archive Save writes, and Open reads back.
  *
- *   transcription.mei   the score, with the recording aligned into it
+ *   transcription.mei   the score, with the recording aligned into it, as the as-played-by
+ *                       format has it (`../alignment/transcription/strictRecordings`)
  *   work.json           the chain, and what each call wrote and where
  *   performance.mpm     the MPM this run produced
  *   score.msm           the MEI converted, so a reader need not convert
@@ -176,12 +178,16 @@ export interface WorkArchiveInput {
  * wrong file, so it returns a value and the caller passes that to `downloadAsFile`.
  */
 export const buildWorkArchive = async (input: WorkArchiveInput): Promise<Blob> => {
-    const newMEI = injectChoices(
-        input.mei,
-        input.msm,
-        input.calls
-            .filter(isCallOf('MakeChoice'))
-            .map((call) => call.options),
+    // What leaves the desk is an as-played-by document. The recording's working form, which
+    // also holds what the aligner could not pair, stays behind: by now that is in the score
+    const newMEI = strictRecordings(
+        injectChoices(
+            input.mei,
+            input.msm,
+            input.calls
+                .filter(isCallOf('MakeChoice'))
+                .map((call) => call.options),
+        ),
     );
 
     const work: WorkFile = {

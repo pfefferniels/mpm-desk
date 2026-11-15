@@ -199,6 +199,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
     const doc = new DOMParser().parseFromString(input.mei, "application/xml");
     revertWhens(doc, input.source);
     revertTranscription(doc);
+    restoreWhens(doc, input.source);
 
     const model = readScore(doc);
     const recording = doc.querySelector(`recording[source="${cssEscape(input.source)}"]`);
@@ -817,7 +818,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
 
     // ---- What was played at another pitch ----
 
-    const mended: { scoreId: string; newId?: string }[] = [];
+    const mended: { scoreId: string; newId?: string; span: NoteSpan }[] = [];
     for (const divergence of input.divergences) {
         if (divergence.kind !== "replaced") continue;
         const offers: Notation[] = ["auto", "as-written"];
@@ -831,7 +832,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
         }
 
         if (asked === "as-written" || divergence.reading === "unmatched-pair") {
-            mended.push({ scoreId: note.id });
+            mended.push({ scoreId: note.id, span });
             outcomes.set(divergence.id, {
                 written: "as-written",
                 because:
@@ -848,7 +849,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
 
         const played = newNote(span, divergence.id, "substitution", 1, note.event.layer.staff, note.event.onset);
         editOf(note.event).replace.set(note, played);
-        mended.push({ scoreId: note.id, newId: played.id });
+        mended.push({ scoreId: note.id, newId: played.id, span });
         outcomes.set(divergence.id, {
             written: "variant",
             because: `The played ${nameOf(played)} written in place of the ${note.pname.toUpperCase()}${String(note.oct)} of the source.`,
@@ -890,25 +891,51 @@ export function transcribe(input: TranscribeInput): Transcribed {
         when.removeAttribute("type");
         mark(doc, when, "insertion");
     }
-    for (const { scoreId, newId } of mended) {
+    for (const { scoreId, newId, span } of mended) {
         const when = whens.substitutions.get(scoreId);
-        if (!when) continue;
-        when.removeAttribute("type");
-        mark(doc, when, "substitution", scoreId);
-        if (newId) when.setAttribute("data", `#${newId}`);
+        if (when) {
+            when.removeAttribute("type");
+            mark(doc, when, "substitution", scoreId);
+            if (newId) when.setAttribute("data", `#${newId}`);
+            continue;
+        }
+        // A saved recording has the two halves apart, a played note with no written one and a
+        // written note nothing was played for. The played half is the one to point somewhere
+        const loose = whens.insertions.get(whenKey(span.onsetMs, span.pitch));
+        if (!loose) continue;
+        loose.setAttribute("data", `#${newId ?? scoreId}`);
+        loose.removeAttribute("type");
+        mark(doc, loose, "insertion");
     }
 
     return { mei: new XMLSerializer().serializeToString(doc), outcomes, readings: readingsOf(doc) };
 }
 
-/** The score with every transcribed reading taken out again and the recording as the aligner left it. */
+/**
+ * The score with every transcribed reading taken out again and the recording as the aligner left it.
+ *
+ * It reads a document in either of two states. One still in work carries a mark on every record
+ * the transcriber repointed, and those are put back by the mark. One that was saved carries none:
+ * `./strictRecordings` wrote its recordings as the as-played-by format has them, and what
+ * the aligner had found is read back off the score instead ({@link restoreWhens}).
+ */
 export function untranscribed(mei: string, source?: string): string {
-    if (!mei.includes(`type="transcription"`) && !mei.includes(`type="transcribed"`)) return mei;
+    if (
+        !mei.includes(`type="transcription"`) &&
+        !mei.includes(`type="transcribed"`) &&
+        !SAVED.test(mei)
+    ) {
+        return mei;
+    }
     const doc = new DOMParser().parseFromString(mei, "application/xml");
     revertWhens(doc, source);
     revertTranscription(doc);
+    restoreWhens(doc, source);
     return new XMLSerializer().serializeToString(doc);
 }
+
+/** What only a saved recording has: a sounded note typed as the match it is. */
+const SAVED = /type=["']match["']/;
 
 // ---------------------------------------------------------------------------------------------
 
@@ -1171,6 +1198,121 @@ function revertWhens(doc: Document, source?: string): void {
         }
         from?.remove();
         marker.remove();
+    }
+}
+
+/** The id the transcriber gives a note it writes for a played one, and the pitch in it. */
+const PLAYED_ID = /^played-\d+ms-(\d+)$/;
+
+/**
+ * Put a recording that was saved in the as-played-by format back into the working form.
+ *
+ * The format has no record of a played note without a written one, and none of a written note
+ * that was not played: both are in the score by then, as readings. So what the aligner had found
+ * is read back off the score, once {@link revertTranscription} has taken the readings out again.
+ *
+ *   A record pointing at a note the transcriber wrote was a played note with no written one. The
+ *   note is gone with its reading, and its id says at what pitch it was played.
+ *
+ *   A record pointing at the note a tie runs into was one too: the score holds that note and
+ *   the performer struck it.
+ *
+ *   Several records on one note are a figure on that note. One of them is the note itself, the
+ *   first that sounded at the written pitch, and the others were played around it. The first in
+ *   the document, because that is where the aligner's own match stands, and choosing another
+ *   would file a reader's decision about the figure under another name.
+ *
+ *   A written note no record points at was not played.
+ *
+ * Two things do not come back, and neither changes what is transcribed. A played note the
+ * transcriber recognised as a written one is that note's match, and no longer something to
+ * decide. And a played note the score had no place for at all was not saved.
+ *
+ * Only a saved recording is touched. It is known by its matches, which the format types as such
+ * and the working form does not.
+ */
+function restoreWhens(doc: Document, source?: string): void {
+    let written: ScoreModel["notes"] | undefined;
+    let tieEnds: Set<string> | undefined;
+
+    const dataOf = (when: Element, type: string): Element | undefined =>
+        [...when.children].find((child) => child.localName === "extData" && child.getAttribute("type") === type);
+    const give = (when: Element, type: string, value: string) => {
+        if (dataOf(when, type)) return;
+        const element = doc.createElementNS(MEI_NS, "extData");
+        element.setAttribute("type", type);
+        element.textContent = value;
+        when.appendChild(element);
+    };
+
+    for (const recording of doc.querySelectorAll("recording")) {
+        if (source !== undefined && recording.getAttribute("source") !== source) continue;
+        const matches = [...recording.children].filter(
+            (child) => child.localName === "when" && child.getAttribute("type") === "match",
+        );
+        if (matches.length === 0) continue;
+
+        written ??= readScore(doc).notes;
+        if (!tieEnds) {
+            tieEnds = new Set();
+            for (const tie of doc.querySelectorAll("tie")) {
+                const to = tie.getAttribute("endid")?.replace(/^#/, "");
+                if (to) tieEnds.add(to);
+            }
+        }
+
+        /** Back to a played note with no written one, as settled as a saved document is. */
+        const unwrite = (when: Element, pitch: number | undefined, anchor?: string) => {
+            when.removeAttribute("data");
+            when.setAttribute("type", "insertion");
+            if (pitch !== undefined) give(when, "pitch", String(pitch));
+            give(when, "confidence", "1.000");
+            if (anchor) {
+                give(when, "ornamentAnchor", `#${anchor}`);
+                give(when, "ornamentAnchorFrom", "model");
+            }
+        };
+
+        const byNote = new Map<string, Element[]>();
+        for (const when of matches) {
+            const id = when.getAttribute("data")?.replace(/^#/, "");
+            if (!id) continue;
+
+            const played = PLAYED_ID.exec(id);
+            if (played) unwrite(when, Number(played[1]));
+            else if (tieEnds.has(id)) unwrite(when, written.get(id)?.pitch);
+            else {
+                const together = byNote.get(id);
+                if (together) together.push(when);
+                else byNote.set(id, [when]);
+            }
+        }
+
+        for (const [id, together] of byNote) {
+            const sounds = written.get(id)?.pitch;
+            const own =
+                together.find((when) => Number(dataOf(when, "pitch")?.textContent ?? NaN) === sounds) ??
+                together[0];
+            for (const when of together) {
+                if (when !== own) {
+                    unwrite(when, undefined, id);
+                    continue;
+                }
+                when.removeAttribute("type");
+                dataOf(when, "pitch")?.remove();
+            }
+        }
+
+        for (const note of doc.querySelectorAll("body note")) {
+            const id = note.getAttribute("xml:id");
+            // The note a tie runs into is not struck, so nothing was left out where it has no record
+            if (!id || byNote.has(id) || tieEnds.has(id)) continue;
+            const when = doc.createElementNS(MEI_NS, "when");
+            when.setAttribute("data", `#${id}`);
+            when.setAttribute("type", "deletion");
+            give(when, "confidence", "1.000");
+            recording.appendChild(when);
+        }
     }
 }
 

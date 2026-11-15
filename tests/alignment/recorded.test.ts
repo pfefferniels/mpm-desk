@@ -5,12 +5,15 @@ import type { MidiFile } from 'midifile-ts'
 import { applyAlignment } from '../../src/alignment/applyAlignment'
 import { divergencesOf, type Divergence } from '../../src/alignment/divergences'
 import { recordedAlignment } from '../../src/alignment/recorded'
+import { transcribe, untranscribed } from '../../src/alignment/transcription'
 import { parseRecordings } from '../../src/mei/parseRecordings'
 import { ornamentSignsOf } from '../../src/mei/ornamentSigns'
+import { strictRecordings } from '../../src/alignment/transcription/strictRecordings'
 import { buildMidiFile } from '../../src/performance/buildMidiFile'
 import { asSpans, type NoteSpan } from '../../src/performance/midiSpans'
 import { getNotesFromMEI, type ScoreNote } from '../../src/score/scoreNotes'
 import { publishedPath } from '../../src/test/published'
+import { canonical } from './transcription/fixture'
 
 /**
  * The round trip a reopened project rests on.
@@ -90,6 +93,46 @@ describe('an alignment read back out of the recording it was written into', () =
     )
 
     expect(shapeOf(reopened)).toEqual(shapeOf(fresh))
+  })
+
+  it('finds them again in a document that was transcribed and saved', () => {
+    // As a run leaves it: every written note is either matched or was not played
+    const { matches, insertions } = asAligned()
+    const paired = new Set(matches.map((match) => match.scoreId))
+    const deletions = scoreNotes
+      .filter((note) => !paired.has(note.note))
+      .map((note) => ({ scoreId: note.note, confidence: 0.4 }))
+
+    const fresh = divergencesOf(
+      { matches, deletions, insertions, scoreNotes, spans, signs: ornamentSignsOf(mei) },
+      {},
+    )
+    const aligned = applyAlignment(
+      mei,
+      midi,
+      matches.map((m) => ({ score_id: m.scoreId, performance_id: m.performanceId })),
+      { source, divergences: fresh },
+    )
+    const worked = transcribe({ mei: aligned, source, divergences: fresh, spans })
+
+    // Saved, the recording is an as-played-by one: nothing in it but notes that sounded
+    const saved = strictRecordings(worked.mei)
+    expect(saved).not.toMatch(/type="(insertion|deletion|substitution|transcribed)"/)
+
+    const reopenedMei = untranscribed(saved)
+    const recording = parseRecordings(reopenedMei).recordings.find((r) => r.source === source)!
+    const back = recordedAlignment(recording)
+    const reopened = divergencesOf({ ...back, scoreNotes, signs: ornamentSignsOf(reopenedMei) }, {})
+
+    // Nothing new to decide: every difference still open was one before
+    const before = new Set(fresh.map((divergence) => divergence.id))
+    expect(reopened.filter((divergence) => !before.has(divergence.id)).map((divergence) => divergence.id)).toEqual([])
+    expect(reopened.length).toBeGreaterThan(0)
+
+    // And transcribed again it is the document that was saved
+    const again = transcribe({ mei: reopenedMei, source, divergences: reopened, spans: back.spans })
+    expect(again.readings).toEqual(worked.readings)
+    expect(canonical(strictRecordings(again.mei))).toBe(canonical(saved))
   })
 
   it('reads a match back as a match, and says nothing about how sure it was', () => {
