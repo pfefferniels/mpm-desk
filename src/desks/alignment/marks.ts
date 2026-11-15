@@ -1,5 +1,6 @@
 import type { Divergence } from '../../alignment/divergences';
 import { isOmittedPassage } from '../../alignment/readings';
+import { writtenIdOf, type Outcome } from '../../alignment/transcription';
 import type { NoteSpan } from '../../performance/midiSpans';
 import type { ExtraNote } from '../../verovio/extraNotes';
 import type { OmittedGroup } from '../../verovio/omissionMarks';
@@ -9,8 +10,12 @@ import type { OmittedGroup } from '../../verovio/omissionMarks';
  * played that the score does not write, and a bracket over a passage the recording goes past.
  *
  * Both carry the disagreement they belong to, so that clicking one asks about it — which is the
- * whole of the review's chrome. A resolved one is drawn differently rather than taken away: a
- * decision is not a reason to stop showing what it was about.
+ * whole of the review's chrome.
+ *
+ * A cross is what is left over. A played note the transcriber wrote into the score is a notehead
+ * like any other, engraved by verovio and coloured by `paintAlignment`, so a cross now means
+ * exactly one thing: this was played and the score does not show it. A written trill being
+ * trilled, a note outside the music, a figure the reader asked to be left out.
  */
 interface Marks {
     extraNotes: ExtraNote[];
@@ -20,13 +25,16 @@ interface Marks {
 export const marksOf = (
     divergences: readonly Divergence[],
     spans: readonly NoteSpan[],
-    resolved: ReadonlySet<string>,
+    outcomes: ReadonlyMap<string, Outcome>,
 ): Marks => {
     const byId = new Map(spans.map((span) => [span.id, span]));
 
     const cross = (divergence: Divergence, perfId: string): ExtraNote[] => {
         const span = byId.get(perfId);
         if (!span) return [];
+        // Written into the score: verovio has drawn it, and a cross on top would say twice
+        const key = writtenIdOf(span);
+        if (outcomes.get(divergence.id)?.notes.some((note) => note.played === key)) return [];
         return [
             {
                 id: span.id,
@@ -34,7 +42,7 @@ export const marksOf = (
                 onsetMs: span.onsetMs,
                 offsetMs: span.offsetMs,
                 pitch: span.pitch,
-                resolved: resolved.has(divergence.id),
+                resolved: true,
             },
         ];
     };
@@ -63,7 +71,7 @@ export const marksOf = (
     const omissions = divergences.filter(isOmittedPassage).map((divergence) => ({
         divergenceId: divergence.id,
         scoreIds: divergence.kind === 'missing' ? divergence.scoreIds : [],
-        resolved: resolved.has(divergence.id),
+        resolved: true,
     }));
 
     return { extraNotes, omissions };

@@ -9,7 +9,7 @@ import type { Call } from '../../src/model/Work';
 const calls: Call[] = [
     { id: 'a', name: 'Modify', options: { aspect: 'velocity', change: 3, from: 0, to: 720 } },
     { id: 'b', name: 'CorrectPedal', options: { pedal: 'pedal-1', remove: true } },
-    { id: 'c', name: 'Align', options: { source: 'take-1' } },
+    { id: 'c', name: 'AlignSource', options: { source: 'take-1' } },
 ];
 
 describe('isCallOf', () => {
@@ -24,8 +24,8 @@ describe('isCallOf', () => {
     });
 
     test('takes only a name the registry holds, under its current spelling', () => {
-        // @ts-expect-error `Align` is applied to the score, not registered.
-        isCallOf('Align');
+        // @ts-expect-error `AlignSource` is applied to the score, not registered.
+        isCallOf('AlignSource');
         // @ts-expect-error a misspelling is not a name the registry holds.
         isCallOf('TranslatePhyiscalTimeToTicks');
     });

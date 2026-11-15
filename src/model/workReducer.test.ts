@@ -544,7 +544,7 @@ describe('the alignment', () => {
 
     const align: Call = {
         id: 'al',
-        name: 'Align',
+        name: 'AlignSource',
         options: {
             source: 'take-1',
             midi: 'take-1.mid',
@@ -570,10 +570,42 @@ describe('the alignment', () => {
                 model: 'v3',
                 minConfidence: 0.25,
                 resolutions,
+                edits: new Map(),
                 resp: 'NP',
                 certainty: 'medium',
             },
         ]);
+    });
+
+    it('reads what was changed about single notes, and only what is of the kind it should be', () => {
+        const edited: Call = {
+            ...align,
+            options: {
+                ...align.options,
+                edits: new Map<string, unknown>([
+                    ['played-750ms-73', { onset: 1.5, staff: '2', units: 12, colour: 'red' }],
+                    ['played-900ms-60', { onset: 'soon' }],
+                ]),
+            },
+        };
+        const read = alignmentsOf({ ...base(), provenance: [edited] })[0].edits;
+
+        expect([...read]).toEqual([['played-750ms-73', { onset: 1.5, staff: '2', units: 12 }]]);
+    });
+
+    it('takes a note moved for a change, though nothing was decided about any divergence', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: {
+                ...alignmentsOf(work)[0],
+                edits: new Map([['played-750ms-73', { onset: 1.5 }]]),
+            },
+            newCallId: 'unused',
+        });
+
+        expect(next).not.toBe(work);
+        expect(alignmentsOf(next)[0].edits.get('played-750ms-73')).toEqual({ onset: 1.5 });
     });
 
     it('reads nothing out of a chain that has aligned nothing', () => {
@@ -581,14 +613,14 @@ describe('the alignment', () => {
     });
 
     it('drops a call that does not say which recording it is about', () => {
-        const nameless: Call = { id: 'al', name: 'Align', options: { midi: 'take-1.mid' } };
+        const nameless: Call = { id: 'al', name: 'AlignSource', options: { midi: 'take-1.mid' } };
         expect(alignmentsOf({ ...base(), provenance: [nameless] })).toEqual([]);
     });
 
     it('reads a resolution that says something else entirely as no resolution', () => {
         const odd: Call = {
             id: 'al',
-            name: 'Align',
+            name: 'AlignSource',
             options: {
                 source: 'take-1',
                 resolutions: [['missing-n7', { reading: 7 }], 'nonsense'],
@@ -610,8 +642,59 @@ describe('the alignment', () => {
             newCallId: 'unused',
         });
 
-        expect(next.provenance.filter(({ name }) => name === 'Align')).toHaveLength(1);
+        expect(next.provenance.filter(({ name }) => name === 'AlignSource')).toHaveLength(1);
         expect(alignmentsOf(next)[0].resolutions.size).toBe(2);
+    });
+
+    it('says on the call which readings it wrote, once they are written', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: alignmentsOf(work)[0],
+            readings: ['reading-played-750ms-73', 'reading-tie-n4'],
+            newCallId: 'unused',
+        });
+        const call = next.provenance.find(({ name }) => name === 'AlignSource');
+
+        expect(call?.elements).toEqual(['reading-played-750ms-73', 'reading-tie-n4']);
+        // And nothing that was on the call has moved, the option no desk knows of included
+        expect(call?.options).toMatchObject(align.options);
+        expect(call?.id).toBe('al');
+    });
+
+    it('keeps the readings it has when a decision is made that has not been written yet', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: { ...alignmentsOf(work)[0], resp: 'someone else' },
+            newCallId: 'unused',
+        });
+
+        expect(next.provenance.find(({ name }) => name === 'AlignSource')?.elements).toEqual(['recorded']);
+    });
+
+    it('names no readings where writing left none in the score', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: alignmentsOf(work)[0],
+            readings: [],
+            newCallId: 'unused',
+        });
+
+        expect(next.provenance.find(({ name }) => name === 'AlignSource')).not.toHaveProperty('elements');
+    });
+
+    it('changes nothing where the same readings are written again', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: alignmentsOf(work)[0],
+            readings: ['recorded'],
+            newCallId: 'unused',
+        });
+
+        expect(next).toBe(work);
     });
 
     it('opens a second call for a second take', () => {
@@ -623,6 +706,7 @@ describe('the alignment', () => {
                 model: 'v3',
                 minConfidence: 0,
                 resolutions: new Map(),
+                edits: new Map(),
                 resp: 'NP',
                 certainty: 'medium',
             },

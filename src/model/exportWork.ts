@@ -132,7 +132,7 @@ export const provenanceOf = (
 /** One performance the score was aligned against, as it was opened. */
 export interface ArchivedRecording {
     /**
-     * The file's own name, which is what an `Align` call records in `midi` — that is the link
+     * The file's own name, which is what an `AlignSource` call records in `midi` — that is the link
      * between a take in here and the decisions made about it.
      */
     name: string;

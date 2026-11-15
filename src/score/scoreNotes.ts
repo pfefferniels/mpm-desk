@@ -1,6 +1,6 @@
 import { loadVerovio } from "../verovio/toolkit";
 import { applyNotatedOnsets } from "./notatedOnsets";
-import { impliedAlterations } from "./accidentals";
+import { impliedAlterations, readableChildren } from "./accidentals";
 
 /** Every tie of the document, by the note it ends on and by the note it starts from */
 const readTies = (meiDoc: Document) => {
@@ -12,10 +12,31 @@ const readTies = (meiDoc: Document) => {
         const to = tie.getAttribute("endid")?.replace(/^#/, "");
 
         if (to) tieInto.set(to, tie);
-        if (from && to) tiedOn.set(from, to);
+        // A tie in a reading nobody plays holds nothing: the note it starts from is released
+        // when its own length is up
+        if (from && to && isRead(tie)) tiedOn.set(from, to);
     }
 
     return { tieInto, tiedOn };
+};
+
+/**
+ * The ties a score holds, as it is read: from the note each starts on to the note it runs into.
+ *
+ * A note a tie runs into is not struck, so no recording has a note for it and no alignment a
+ * match. Whoever draws an alignment needs this to say of such a note what is true of it, that
+ * it sounded with the note it is tied to.
+ */
+export const heldTiesOf = (mei: string): Map<string, string> =>
+    readTies(new DOMParser().parseFromString(mei, "application/xml")).tiedOn;
+
+/** Whether verovio reads this element at all: no ancestor of it is a reading that was passed over. */
+const isRead = (element: Element): boolean => {
+    for (let child = element, parent = element.parentElement; parent; child = parent, parent = parent.parentElement) {
+        if (parent.localName !== "app" && parent.localName !== "choice") continue;
+        if (!readableChildren(parent).includes(child)) return false;
+    }
+    return true;
 };
 
 /** The last note of the tie chain this note starts, i.e. the one released */

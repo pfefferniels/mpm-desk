@@ -352,8 +352,8 @@ export const correspondingDesks: DeskEntry[] = [
     // score and the recording have been put note against note, and the takes it writes are what
     // Base Text then chooses between.
     //
-    // No `transformerName`: the `Align` call it writes is one the chain does not run (see
-    // `chain.ts`), and the registry tests resolve every name here against the chain's. An `Align`
+    // No `transformerName`: the `AlignSource` call it writes is one the chain does not run (see
+    // `chain.ts`), and the registry tests resolve every name here against the chain's. An `AlignSource`
     // writes no instruction either, so the markup desk never offers one, and a link to one, which
     // only the editor's document can hold, selects it where the reader is.
     //
@@ -368,12 +368,17 @@ export const correspondingDesks: DeskEntry[] = [
         editOnly: true,
         help: {
             summary:
-                'Which sounding event realises which written note. Align runs the model and ' +
-                'leaves a draft; Apply writes it into the score.',
+                'The score as it was played. Align puts the recording note against note with ' +
+                'the score and writes what was played differently into it: added notes green, ' +
+                'notes left out red, changed notes violet. Write into score keeps it.',
             actions: [
                 {
-                    gesture: 'Click a disagreement mark',
-                    does: 'open its question: a cross, a bracket or a coloured notehead',
+                    gesture: 'Click a coloured note',
+                    does: 'open its bar, and write it another way: as notes, as grace notes or as an ornament sign',
+                },
+                {
+                    gesture: '← →, + −',
+                    does: 'move the note along the bar; make it longer or shorter',
                 },
                 { gesture: 'Click elsewhere in the score', does: 'close it' },
                 { gesture: 'Drag the range slider', does: 'narrow what the transport plays' },

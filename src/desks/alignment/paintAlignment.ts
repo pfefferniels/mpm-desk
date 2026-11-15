@@ -1,19 +1,22 @@
 import type { Divergence } from '../../alignment/divergences';
 import type { MatchedNote, DeletedNote } from '../../alignment/mlign';
+import type { Outcome } from '../../alignment/transcription';
 
 /**
  * What the score is coloured by, and why it is coloured that way round.
  *
  * A matched note is grey. It is the ordinary case and most of the page, and nothing about it needs
- * looking at — which is exactly what grey says. The colours that carry any weight are the
- * disagreements: red where the score has a note the recording never reached, green where the
- * recording has a note the score never wrote, violet where one was played as another.
+ * looking at — which is exactly what grey says. The colours that carry any weight are what the
+ * performer did differently, and there are three of them because there are three things a
+ * performer can do to a note: play one the score does not have (green), leave one out (red), or
+ * play it as another (violet). The green and violet notes are in the score, written there by the
+ * transcriber; the red ones are what the performance reading no longer has.
  */
 const MATCHED_COLOUR = '#6b7280';
 /** A note verovio could place nowhere: nothing is known about it, rather than something. */
 const UNALIGNED_COLOUR = '#c9ced6';
 /** A written note the recording played as something else: sounded, but not as written. */
-const REPLACED_COLOUR = '#7c3aed';
+export const REPLACED_COLOUR = '#7c3aed';
 /** Whichever disagreement the reader currently has open. */
 const SELECTED_COLOUR = '#1d4ed8';
 /** A note sounding, while the performance is being listened to. */
@@ -21,6 +24,7 @@ const PLAYING_COLOUR = '#f97316';
 
 const CLASSES = [
     'alignment-matched',
+    'alignment-added',
     'alignment-unplayed',
     'alignment-outside',
     'alignment-replaced',
@@ -41,8 +45,15 @@ interface Painting {
     unplayed: ReadonlySet<string>;
     /** Beyond where the recording reaches — not something the performer did. */
     outside: ReadonlySet<string>;
-    /** Written notes played as another note, each naming the disagreement it belongs to. */
+    /**
+     * Notes played as another note, each naming the disagreement it belongs to: the played note
+     * where the transcriber wrote it in, and the written one where it was left standing.
+     */
     replaced: ReadonlyMap<string, string>;
+    /** Played notes written into the score, each naming the disagreement it belongs to. */
+    added: ReadonlyMap<string, string>;
+    /** Written notes nothing answered to that are *not* taken out: a unison's twin, a cut. */
+    kept: ReadonlySet<string>;
     /** Every note a click can ask about, and what it would ask about. */
     divergenceOf: ReadonlyMap<string, string>;
 }
@@ -55,6 +66,10 @@ interface PaintingInput {
     minConfidence: number;
     /** Matches in a passage the engraving cannot show — a repeat written with signs. */
     hidden: ReadonlySet<string>;
+    /** What the transcriber wrote for each divergence; without it nothing counts as written. */
+    outcomes?: ReadonlyMap<string, Outcome>;
+    /** The ties the score holds: the note each starts on, and the note it runs into. */
+    ties?: ReadonlyMap<string, string>;
 }
 
 export const paintingOf = ({
@@ -63,20 +78,57 @@ export const paintingOf = ({
     divergences,
     minConfidence,
     hidden,
+    outcomes,
+    ties,
 }: PaintingInput): Painting => {
     // A written note played as another note is not unplayed: it sounded, and the score shows it
     // in its own colour rather than as one of the notes the recording never reached.
-    const replaced = new Map(
+    const written = new Map(
         divergences
             .filter((divergence) => divergence.kind === 'replaced')
             .map((divergence) => [divergence.scoreId, divergence.id]),
     );
+
+    // Where the played note was written in its place, that is the note on the page, under the
+    // id the transcriber gave it. A pair the aligner merely failed to make is no change at all.
+    const replaced = new Map<string, string>();
+    for (const divergence of divergences) {
+        if (divergence.kind !== 'replaced') continue;
+        const outcome = outcomes?.get(divergence.id);
+        if (outcome?.written === 'as-written') continue;
+        replaced.set(outcome?.noteIds[0] ?? divergence.scoreId, divergence.id);
+    }
+
+    const added = new Map<string, string>();
+    const kept = new Set<string>();
+    for (const divergence of divergences) {
+        const outcome = outcomes?.get(divergence.id);
+        if (!outcome) continue;
+        if (divergence.kind === 'added') {
+            for (const id of outcome.noteIds) added.set(id, divergence.id);
+        } else if (divergence.kind === 'missing' && outcome.written !== 'omitted') {
+            for (const id of divergence.scoreIds) kept.add(id);
+        }
+    }
 
     const matched = new Set(
         matches
             .filter((match) => match.confidence >= minConfidence && !hidden.has(match.scoreId))
             .map((match) => match.scoreId),
     );
+
+    // A written note a played note turned out to be was played: the aligner had only not paired
+    // the two, and it is drawn like any other note that sounded
+    const found = new Set(
+        divergences.flatMap((divergence) =>
+            divergence.kind === 'added'
+                ? (outcomes?.get(divergence.id)?.notes ?? []).map((note) => note.id)
+                : [],
+        ),
+    );
+    for (const id of found) {
+        if (!added.has(id)) matched.add(id);
+    }
 
     const unplayed = new Set(
         [
@@ -85,7 +137,7 @@ export const paintingOf = ({
             ...matches
                 .filter((match) => match.confidence < minConfidence)
                 .map((match) => match.scoreId),
-        ].filter((id) => !replaced.has(id)),
+        ].filter((id) => !written.has(id) && !found.has(id)),
     );
 
     const outside = new Set(
@@ -105,7 +157,35 @@ export const paintingOf = ({
         for (const id of divergence.scoreIds) divergenceOf.set(id, divergence.id);
     }
 
-    return { matched, unplayed, outside, replaced, divergenceOf };
+    // A note a tie runs into is not struck, so nothing was played for it and nothing matched
+    // to it. What is true of the note it is tied to is true of it: it sounded with that one, or
+    // went unplayed with it. Left as verovio drew it, it would be the one black note on the
+    // page. A pass of a repeat verovio unfolded names its notes after the ones they came from.
+    const along = (start: string, each: (id: string) => void) => {
+        const pass = /-rend\d+$/.exec(start)?.[0] ?? '';
+        const seen = new Set<string>();
+        let from = pass ? start.slice(0, -pass.length) : start;
+        for (let into = ties?.get(from); into && !seen.has(into); into = ties?.get(from)) {
+            seen.add(into);
+            const id = `${into}${pass}`;
+            // Something of its own is already known about it
+            if (added.has(id) || replaced.has(id) || matched.has(id) || unplayed.has(id)) return;
+            each(id);
+            from = into;
+        }
+    };
+    for (const start of [...matched]) along(start, (id) => matched.add(id));
+    for (const start of [...unplayed]) {
+        along(start, (id) => {
+            unplayed.add(id);
+            if (kept.has(start)) kept.add(id);
+            if (outside.has(start)) outside.add(id);
+            const divergence = divergenceOf.get(start);
+            if (divergence) divergenceOf.set(id, divergence);
+        });
+    }
+
+    return { matched, unplayed, outside, replaced, added, kept, divergenceOf };
 };
 
 const escaped = (id: string) => (typeof CSS?.escape === 'function' ? CSS.escape(id) : id);
@@ -137,7 +217,9 @@ export const paintAlignment = (
         if (!element) continue;
 
         element.classList.add(
-            painting.outside.has(id) ? 'alignment-outside' : 'alignment-unplayed',
+            painting.outside.has(id) || painting.kept.has(id)
+                ? 'alignment-outside'
+                : 'alignment-unplayed',
         );
         const divergence = painting.divergenceOf.get(id);
         if (divergence) {
@@ -151,6 +233,16 @@ export const paintAlignment = (
         if (!element) continue;
 
         element.classList.add('alignment-replaced');
+        element.setAttribute('data-divergence', divergence);
+        (element as SVGElement).style.cursor = 'pointer';
+    }
+
+    for (const [id, divergence] of painting.added) {
+        const element = find(id);
+        if (!element) continue;
+
+        element.classList.remove('alignment-matched');
+        element.classList.add('alignment-added');
         element.setAttribute('data-divergence', divergence);
         (element as SVGElement).style.cursor = 'pointer';
     }
@@ -173,6 +265,16 @@ export const alignmentStyles = (extra: string, omitted: string) => {
         stroke: `${colour} !important`,
     });
 
+    /**
+     * Ink that is not thinned by how softly the note was played.
+     *
+     * The performed layout draws a quiet note faint, which is right for the notes that were
+     * played as written and wrong for the ones this desk exists to show: an added note struck
+     * pianissimo would be a pale green smudge on a page of pale grey. What the performer did
+     * differently is drawn at full strength however it was played.
+     */
+    const marked = (colour: string) => ({ ...ink(colour), opacity: '1 !important' });
+
     // All of these have the same specificity, so their order is what decides a note that is more
     // than one of them: a judgement over what verovio could not place, what the reader has open
     // over the judgement, and what is sounding over everything, because that lasts half a second
@@ -183,15 +285,25 @@ export const alignmentStyles = (extra: string, omitted: string) => {
         '.alignment-score .alignment-matched, .alignment-score .alignment-matched *':
             ink(MATCHED_COLOUR),
         '.alignment-score .alignment-unplayed, .alignment-score .alignment-unplayed *':
-            ink(omitted),
+            marked(omitted),
         // Not something the performer did: the recording simply does not reach here
         '.alignment-score .alignment-outside, .alignment-score .alignment-outside *':
             ink(UNALIGNED_COLOUR),
         '.alignment-score .alignment-replaced, .alignment-score .alignment-replaced *':
-            ink(REPLACED_COLOUR),
+            marked(REPLACED_COLOUR),
+        '.alignment-score .alignment-added, .alignment-score .alignment-added *': marked(extra),
         '.alignment-score .alignment-selected, .alignment-score .alignment-selected *':
-            ink(SELECTED_COLOUR),
+            marked(SELECTED_COLOUR),
         '.alignment-score .note-playing, .alignment-score .note-playing *': ink(PLAYING_COLOUR),
+        // The bar in the editor is about where notes stand and what they are. Pedal marks,
+        // dynamics, slurs and words are true of the bar and nothing to do with that.
+        '.alignment-bar .pedal, .alignment-bar .dir, .alignment-bar .dynam, .alignment-bar .hairpin, .alignment-bar .tempo, .alignment-bar .slur, .alignment-bar .harm, .alignment-bar .fing, .alignment-bar .label, .alignment-bar .labelAbbr':
+            { display: 'none' },
+        // The note the editor's hands are on, ringed rather than recoloured: its colour is what
+        // says what it is
+        '.alignment-bar .alignment-editing': {
+            filter: `drop-shadow(0 0 3px ${SELECTED_COLOUR}) drop-shadow(0 0 1px ${SELECTED_COLOUR})`,
+        },
         '.alignment-score .performanceExtraNote': { color: extra },
     };
 };

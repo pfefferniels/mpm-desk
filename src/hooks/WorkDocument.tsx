@@ -54,8 +54,11 @@ interface WorkDocumentValue {
     removeCalls: (ids: readonly string[]) => void;
     setMetadata: (update: MetadataUpdate) => void;
     setVoices: (update: VoicesUpdate) => void;
-    /** Record what was decided about one take, on the `Align` call that names its `@source`. */
-    setAlignment: (alignment: WorkAlignment) => void;
+    /**
+     * Record what was decided about one take, on the `AlignSource` call that names its `@source`.
+     * `readings` are the readings just written into the score for it, where any were.
+     */
+    setAlignment: (alignment: WorkAlignment, readings?: readonly string[]) => void;
 
     undo: () => void;
     redo: () => void;
@@ -108,10 +111,15 @@ export const WorkDocumentProvider = ({
         [dispatch],
     );
 
-    /** Likewise, and used only for a take the document has no `Align` call for yet. */
+    /** Likewise, and used only for a take the document has no `AlignSource` call for yet. */
     const setAlignment = useCallback(
-        (alignment: WorkAlignment) => {
-            dispatch({ type: 'set-alignment', alignment, newCallId: crypto.randomUUID() });
+        (alignment: WorkAlignment, readings?: readonly string[]) => {
+            dispatch({
+                type: 'set-alignment',
+                alignment,
+                ...(readings !== undefined && { readings }),
+                newCallId: crypto.randomUUID(),
+            });
         },
         [dispatch],
     );

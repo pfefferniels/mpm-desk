@@ -338,7 +338,7 @@ describe('buildWorkArchive', () => {
 
         expect(Object.keys(zip.files)).toContain('recordings/take-1.mid');
         expect(await zip.file('recordings/take-1.mid')!.async('uint8array')).toEqual(bytes);
-        // The name is the link: it is what an `Align` call records in `midi`
+        // The name is the link: it is what an `AlignSource` call records in `midi`
         expect(zip.folder('recordings')).not.toBeNull();
     });
 

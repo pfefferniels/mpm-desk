@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { VerovioToolkit } from 'verovio/esm';
 import { loadVerovio, renderScore, type ScoreOptions } from './toolkit';
 import { clearExtenders, drawExtenders } from './extenders';
@@ -146,6 +146,18 @@ export const Score = ({
         // every render, so depending on it would repaint on renders that engraved nothing.
     }, [done, paint, extenders, extraNotes, omissions, tonic, optionsKey]);
 
+    /**
+     * The pages as React takes them, the same objects from one render to the next.
+     *
+     * React 19 sets `innerHTML` again whenever `dangerouslySetInnerHTML` is handed a *different
+     * object*, without looking at whether the string in it changed. An object literal in the JSX
+     * is a different object on every render, so every repaint of a desk, a note selected or a
+     * colour changed, threw the whole engraving away and parsed it again: slow on a long score,
+     * and worse, every element a click had just been made on was no longer in the document, so
+     * that a popover anchored to a note opened in the corner of the window instead.
+     */
+    const pages = useMemo(() => (done?.pages ?? []).map((page) => ({ __html: page })), [done]);
+
     if (error) {
         return <div style={{ padding: '1rem', color: '#b91c1c' }}>{error}</div>;
     }
@@ -162,8 +174,8 @@ export const Score = ({
                 if (id) onNoteClick(id, event);
             }}
         >
-            {(done?.pages ?? []).map((page, index) => (
-                <div key={index} dangerouslySetInnerHTML={{ __html: page }} />
+            {pages.map((page, index) => (
+                <div key={index} dangerouslySetInnerHTML={page} />
             ))}
         </div>
     );

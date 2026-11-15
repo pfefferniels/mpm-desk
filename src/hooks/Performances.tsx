@@ -18,11 +18,11 @@ export interface Performance {
      * The `<recording @source>` this take is written under.
      *
      * Minted where the file does not name one, and then the document's: the same string an
-     * `Align` call records, a `MakeChoice` selects by, and verovio lays out by.
+     * `AlignSource` call records, a `MakeChoice` selects by, and verovio lays out by.
      */
     source: string;
     /**
-     * The file's own name, which is what the archive stores it under and what an `Align` records.
+     * The file's own name, which is what the archive stores it under and what an `AlignSource` records.
      *
      * Two files of the same name are therefore one file to the archive. The picker refuses the
      * second rather than overwriting the first — see `App`.

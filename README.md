@@ -48,12 +48,71 @@ made the call, on the call's scope, with the call selected and scrolled to. The 
 address in step with the call selected, so the URL on screen cites what is on screen; that is
 where a call's identifier `https://welte225.org/mpm/<id>` sends a visitor.
 
-`/editor` is the editor. The alignment desk says which sounded event realises which written note;
-the others plot what the recording did in one dimension (tempo, rubato, dynamics, accentuation,
+`/editor` is the editor. The alignment desk says which sounded event realises which written note,
+and writes whatever was played differently into the score (see below); the others plot what the
+recording did in one dimension (tempo, rubato, dynamics, accentuation,
 articulation, arpeggiation, grace notes, pedalling) and turn a gesture on that plot into a
 transformer call. Furthermore there are desks for the document itself (title and author, which MEI
 voice goes into which part) and the markup desk, which shows the MPM as text. The same
 `#<call id>` opens a call once a project is open.
+
+## What was played differently
+
+A performer of 1905 does not play the text. Notes are added, octaves and inner voices and whole
+figures; notes are left out; notes are played at another pitch. The chain fits its instructions
+to the notes of the score, so a note the score does not have is a note nothing can be fitted to:
+whatever was played differently has to be in the score.
+
+Align therefore transcribes. Every note the performer added is given a place in the bar, a
+length, a name and a staff; every note left out is taken out; every note played at another pitch
+is written at the pitch played. A tie that was not held is taken away, and the note it ran into
+is struck; a note held over where the score strikes it again gets a tie. All of it goes into
+`<app>` readings, the source's in `<rdg source="original">` and the performance's in
+`<rdg source="performance">`, so that the source is still there and `untranscribed` gives it
+back. Nobody is asked first. A reader looks at the result, green for what was played and is not
+written, red for what is written and was not played, violet for what was changed, and corrects
+what they do not agree with. Clicking a note opens its bar in ordinary notation, where the note
+can be written as something else, grace notes or an ornament sign, moved along the bar, made
+longer or shorter, or put on the other staff.
+
+What was played is in the score, one way or another: as notes, as grace notes, or as a sign.
+There is no way of leaving a played note out. The one thing a reader can keep as written is a
+note the performer did *not* play.
+
+Placing an added note is rhythm transcription, with the hard half given: the matched notes on
+either side say what the tempo was, and the bars around say what note values the passage moves
+in. What is left is a small probabilistic model (`src/alignment/transcription/quantise.ts`,
+after Cemgil, Desain and Kappen 2000, Raphael 2002, and Nakamura, Yoshii and Sagayama 2017),
+solved exactly, one gap between two matched moments at a time.
+
+How well it does is measured on 32 Chopin rolls of the Stanford University Piano Roll Archive
+against the first editions encoded by the Fryderyk Chopin Institute; `scripts/transcription`
+says how, and what came out.
+
+One take's alterations are in the score at a time: `<rdg source="performance">` is one reading.
+
+### `AlignSource`
+
+Aligning is the first call of a reconstruction, and the work file says so: one `AlignSource`
+call per recording, ahead of everything that fits an instruction. It is the one call made on
+the score rather than on the performance, and what it holds is what a reader would want to
+check it by:
+
+    source, midi      which <recording>, made from which file
+    model             the aligner that put the two against each other
+    resolutions       what was decided about each difference, where the reader decided:
+                      notes, grace notes, a sign, or a written note kept
+    edits             each note the reader moved, lengthened or put on the other staff
+    resp, certainty   who decided, and how sure
+    elements          the xml:ids of the readings it wrote into transcription.mei
+
+Only decisions are recorded. A difference with no entry was written the way the transcriber
+writes it unasked, so the file reads as a list of the places where somebody thought otherwise.
+
+The chain does not run the call again. What it wrote is in the score, and the score is what
+the archive keeps: aligning afresh on every load would let a later model, or a later version of
+the transcriber, change a reconstruction nobody had touched. `untranscribed` takes the readings
+out, and Align puts them back with the decisions applied, which is how the desk itself works.
 
 ## Export
 
@@ -84,8 +143,10 @@ The tests read that checkout, expected beside this repository as `../welte225.or
 | `src/fitting/` | the transformer chain, run in a worker |
 | `src/model/` | the work file, the reducer over it, saving and loading |
 | `src/alignment/` | putting a recording note against note with the score |
+| `src/alignment/transcription/` | writing what was played differently into the score |
 | `src/verovio/` | the toolkit wrapper and the performed layout |
 | `scripts/` | one-shot tools, run with `vite-node` |
+| `scripts/transcription/` | the corpus the transcription is measured on, and the measuring |
 
 ## Disclosure
 
