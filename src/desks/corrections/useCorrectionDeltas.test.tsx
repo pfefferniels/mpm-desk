@@ -168,7 +168,7 @@ describe('an expansion', () => {
     const roll = { scope: 'global', aspect: 'velocity', points: [[35, 20], [54, 46]] };
 
     it('is undone back to what the roll recorded, the further the softer', () => {
-        const result = deltas([call(roll, 'Expand')], 'velocity', undefined, undefined, expanded());
+        const result = deltas([call(roll)], 'velocity', undefined, undefined, expanded());
 
         expect(result.get('a')).toBeCloseTo(-15, 9);
         expect(result.get('b')).toBeCloseTo(-8, 9);
@@ -176,7 +176,7 @@ describe('an expansion', () => {
 
     it('is undone after the corrections by hand, which ran after it', () => {
         const result = deltas(
-            [call(roll, 'Expand'), call({ scope: 'global', aspect: 'velocity', change: -6, noteIDs: ['c'] })],
+            [call(roll), call({ scope: 'global', aspect: 'velocity', change: -6, noteIDs: ['c'] })],
             'velocity',
             undefined,
             undefined,
@@ -188,13 +188,13 @@ describe('an expansion', () => {
     });
 
     it('reaches only what its selector names', () => {
-        const result = deltas([call({ ...roll, noteIDs: ['a'] }, 'Expand')], 'velocity', undefined, undefined, expanded());
+        const result = deltas([call({ ...roll, noteIDs: ['a'] })], 'velocity', undefined, undefined, expanded());
 
         expect([...result.keys()]).toEqual(['a']);
     });
 
     it('is left out while it is sent and not yet fitted', () => {
-        const sent = call(roll, 'Expand');
+        const sent = call(roll);
         const result = deltas([sent], 'velocity', undefined, sent.id, expanded());
 
         expect(result.size).toBe(0);
@@ -202,7 +202,7 @@ describe('an expansion', () => {
 
     it('leaves no ghost where its map has no way back', () => {
         const folded = { ...roll, points: [[35, 20], [45, 40], [54, 30]] };
-        const result = deltas([call(folded, 'Expand')], 'velocity', undefined, undefined, expanded());
+        const result = deltas([call(folded)], 'velocity', undefined, undefined, expanded());
 
         expect(result.size).toBe(0);
     });
@@ -215,7 +215,7 @@ describe('an expansion', () => {
             'milliseconds.date': 2880,
         }]);
         const result = deltas(
-            [call({ scope: 'global', aspect: 'onset', points: [[0, 0], [1000, 2000]] }, 'Expand')],
+            [call({ scope: 'global', aspect: 'onset', points: [[0, 0], [1000, 2000]] })],
             'onset',
             undefined,
             undefined,

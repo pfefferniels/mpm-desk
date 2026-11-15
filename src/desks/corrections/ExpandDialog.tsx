@@ -15,9 +15,9 @@ import {
 } from '@mui/material';
 import { Add, Remove } from '@mui/icons-material';
 import { expansion, type ExpansionPoint } from '../../fitting/expansion';
-import type { ExpandOptions } from '../../fitting/transformers/modification/Expand';
+import type { ModifyOptions } from '../../fitting/transformers/modification/Modify';
 
-type Aspect = ExpandOptions['aspect'];
+type Aspect = ModifyOptions['aspect'];
 
 const UNIT: Record<Aspect, string> = { velocity: 'velocity', onset: 'ms', duration: 'ms' };
 
@@ -51,7 +51,7 @@ interface ExpandDialogProps {
 }
 
 /**
- * The points of an `Expand`, typed in.
+ * The points of an expansion, typed in: the `Modify` that moves its events along a scale.
  *
  * Not a gesture on the plot, unlike everything else on this desk: an expansion is a statement
  * about a scale — this recorded value becomes that one — and two numbers say it more exactly than

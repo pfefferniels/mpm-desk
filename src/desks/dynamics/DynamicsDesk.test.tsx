@@ -209,7 +209,7 @@ const ticks = () =>
 
 describe('what the plot shows', () => {
     /**
-     * WM 225 was recorded between 35 and 62, and `Expand` took its softest notes down to 8. The
+     * WM 225 was recorded between 35 and 62, and `Modify` took its softest notes down to 8. The
      * plot drew velocity 127 at its head and 20 at its foot whatever it held, and 59 of its 430
      * dots went below the foot.
      */

@@ -1,5 +1,5 @@
 /**
- * The map an `Expand` draws through its points, and the way back.
+ * The map an expansion — a `Modify` that states `points` — draws through them, and the way back.
  *
  * Kept apart from the transformer, so that what reads an expansion without running one — the
  * desks drawing where an event was before it, the work file moving its guides with it — takes

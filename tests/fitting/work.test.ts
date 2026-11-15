@@ -192,6 +192,19 @@ describe('the work file', () => {
   });
 
   /**
+   * An expansion was saved as an `Expand` until November 2026, when that was a transformer beside
+   * `Modify`. It took the options a `Modify` now takes for one, so the name is all that changes.
+   */
+  test('renames an Expand call to Modify, with its points as they were', () => {
+    const options = { scope: 'global', aspect: 'velocity', points: [[35, 20], [54, 46]] };
+    const read = parseWorkFile(JSON.stringify(file([call('Expand', options)])));
+
+    expect(at(read.provenance, 0, 'call')).toEqual({ id: 'call-Expand', name: 'Modify', options });
+    expect(buildChain(read.provenance).unknown).toEqual([]);
+    expect(serializeWorkFile(read)).not.toContain('"name": "Expand"');
+  });
+
+  /**
    * The `Map` and `Set` envelopes, which are the whole reason these are not `JSON.parse` and
    * `JSON.stringify` at the call site.
    *

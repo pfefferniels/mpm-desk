@@ -2,7 +2,8 @@
  * The guides of the dynamics curve, moved with the expansions of velocity.
  *
  * A guide — one of the `guides` of `InsertDynamics` — is a value the curve has to
- * pass through, set on the plot of the velocities as the chain left them: after every `Expand`.
+ * pass through, set on the plot of the velocities as the chain left them: after every expansion,
+ * which is a `Modify` that states `points`.
  * So it is a value on the expanded scale, and when an expansion comes or goes, the scale changes
  * under it. Left where it was, a guide set beside the softest notes would end up far above or
  * below them. Moved with the scale, it stays beside them.
@@ -36,7 +37,7 @@ const isPoint = (point: unknown): point is ExpansionPoint =>
  * score this file does not hold, and so it moves no guide.
  */
 const velocityExpansion = (call: Call): VelocityExpansion | null => {
-    if (call.name !== 'Expand') return null;
+    if (call.name !== 'Modify') return null;
     const { aspect, points, noteIDs, pedalIDs, from, to, scope } = call.options;
     if (aspect !== 'velocity' || !Array.isArray(points) || !points.every(isPoint)) return null;
     if (noteIDs !== undefined || pedalIDs !== undefined) return null;

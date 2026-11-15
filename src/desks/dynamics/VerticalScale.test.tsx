@@ -29,7 +29,7 @@ describe('VerticalScale', () => {
     it('labels the whole range the plot shows, the softest note included', () => {
         const labels = [...draw().querySelectorAll('text')].map(t => Number(t.textContent))
 
-        // The old scale stopped at 25, where its 320px ran out, and the notes `Expand` took down
+        // The old scale stopped at 25, where its 320px ran out, and the notes `Modify` took down
         // to 8 were drawn beneath it.
         expect(Math.min(...labels)).toBeLessThanOrEqual(8)
         expect(Math.max(...labels)).toBeGreaterThanOrEqual(62)

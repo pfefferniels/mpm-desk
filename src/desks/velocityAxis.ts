@@ -6,7 +6,7 @@
  * three pixels a step down from 127 at the head of a 320 pixel chart, the third from 0 to 100 —
  * and labelled a stretch of it chosen just as far in advance. On WM 225 that put the head of the
  * chart over velocities the recording never reaches, and the floor above the softest notes it
- * has: `Expand` and `Modify` take some of them down to 8, so 59 of the 430 dots were drawn below
+ * has: `Modify` takes some of them down to 8, so 59 of the 430 dots were drawn below
  * the chart and never seen, and the gradient desk ran its line past the end of its axis.
  *
  * So the extent is read off what the plot draws, and the axis labels the whole of it.

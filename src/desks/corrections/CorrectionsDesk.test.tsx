@@ -12,9 +12,8 @@ import { ScoreDocumentProvider } from '../../hooks/ScoreDocument';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { createMpm } from '../../fitting/instructions/index';
 import { deriveResidual } from '../../fitting/residual';
-import { Modify } from '../../fitting/transformers/modification/Modify';
+import { Modify, isExpansion } from '../../fitting/transformers/modification/Modify';
 import { CorrectPedal } from '../../fitting/transformers/modification/CorrectPedal';
-import { Expand } from '../../fitting/transformers/modification/Expand';
 import type { Travel } from '../../performance/pedalTravel';
 import { CorrectionsDesk } from './CorrectionsDesk';
 import { defaultPress } from './lineDraft';
@@ -685,12 +684,12 @@ describe('what a gesture on the pedal line turns into', () => {
     });
 });
 
-describe('Expand', () => {
-    /** The one `Expand` the desk sent, unwrapped. */
+describe('an expansion', () => {
+    /** The one expansion the desk sent, unwrapped: a `Modify` that states points. */
     const sentExpansion = (addTransformer: ReturnType<typeof vi.fn>) => {
         expect(addTransformer).toHaveBeenCalledTimes(1);
         const sent: unknown = addTransformer.mock.calls[0]?.[0];
-        if (!(sent instanceof Expand)) throw new Error('not an expansion');
+        if (!(sent instanceof Modify) || !isExpansion(sent.options)) throw new Error('not an expansion');
         return sent.options;
     };
 

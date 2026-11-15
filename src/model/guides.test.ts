@@ -16,7 +16,7 @@ const curve = (id: string, guides: [number, number][], scope: unknown = 'global'
 
 const expand = (id: string, options: Record<string, unknown> = {}): Call => ({
     id,
-    name: 'Expand',
+    name: 'Modify',
     options: {
         scope: 'global',
         aspect: 'velocity',
@@ -87,6 +87,18 @@ describe('adding an expansion of velocity', () => {
     it('moves nothing when it is of another aspect', () => {
         const before = work([curve('d', [[720, 35]])]);
         const next = workReducer(before, { type: 'add-call', call: expand('e', { aspect: 'onset' }) });
+
+        expect(next.provenance[0]).toBe(before.provenance[0]);
+    });
+
+    it('moves nothing when the call is a shift, which leaves the scale as it was', () => {
+        const before = work([curve('d', [[720, 35]])]);
+        const shift: Call = {
+            id: 's',
+            name: 'Modify',
+            options: { scope: 'global', aspect: 'velocity', change: -6, from: 0, to: 1440 },
+        };
+        const next = workReducer(before, { type: 'add-call', call: shift });
 
         expect(next.provenance[0]).toBe(before.provenance[0]);
     });
