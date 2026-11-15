@@ -55,7 +55,7 @@ describe('PressBox', () => {
 
         expect(box.getAttribute('x')).toBe('1440')
         expect(box.getAttribute('width')).toBe('720')
-        expect(box.querySelector('title')?.textContent).toBe('write sustain @1440')
+        expect(box.querySelector('title')?.textContent).toBe('pick sustain @1440')
 
         fireEvent.click(box)
 
