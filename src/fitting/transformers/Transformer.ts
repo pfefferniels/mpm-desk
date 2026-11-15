@@ -57,6 +57,14 @@ export interface Transformer {
    * @param residual as for {@link range}, which the default reads.
    */
   evidence(msm: Alignment, residual?: Residual): string[];
+  /**
+   * Where this call stands among the calls of its own transformer: the lower runs first, and
+   * calls that stand alike keep the order `compareTransformers` gives them otherwise.
+   *
+   * The registry orders transformers, not calls. One whose calls do not commute among themselves
+   * says here which goes first, so that the order they were made in does not decide the result.
+   */
+  precedence(): number;
   readonly requires: TransformerConstructor[];
 }
 
@@ -121,6 +129,11 @@ export abstract class AbstractTransformer<
     this.created = [...fingerprints]
       .filter(([id, xml]) => before.get(id) !== xml && !disowned.has(id))
       .map(([id]) => id);
+  }
+
+  /** Alike, by default: most transformers' calls are about different places, and commute. */
+  precedence(): number {
+    return 0;
   }
 
   /**

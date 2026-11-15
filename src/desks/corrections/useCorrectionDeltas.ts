@@ -3,8 +3,12 @@ import type { AlignedNote, AlignedPedal, Alignment } from '../../fitting/alignme
 import { isCallOf } from '../../fitting/calls';
 import { expansion, inverseExpansion } from '../../fitting/expansion';
 import type { Scope } from '../../fitting/instructions/index';
-import type { ExpandOptions } from '../../fitting/transformers/modification/Expand';
-import type { ModifyOptions } from '../../fitting/transformers/modification/Modify';
+import {
+    isExpansion,
+    type ExpansionOptions,
+    type ModifyOptions,
+    type ShiftOptions,
+} from '../../fitting/transformers/modification/Modify';
 import { useCallSelection } from '../../hooks/CallSelection';
 import type { Call } from '../../model/Work';
 
@@ -20,8 +24,8 @@ const valueOf = (event: AlignedNote | AlignedPedal, aspect: Aspect): number =>
             ? event.velocity
             : NaN;
 
-/** The ids of this desk's events an expansion reaches, read as `Expand` reads its selector. */
-const reachOf = (options: ExpandOptions, msm: Alignment, part: Scope): ReadonlySet<string> => {
+/** The ids of this desk's events a correction reaches, read as `Modify` reads its selector. */
+const reachOf = (options: ModifyOptions, msm: Alignment, part: Scope): ReadonlySet<string> => {
     if ('noteIDs' in options && options.noteIDs) return new Set(options.noteIDs);
     if ('pedalIDs' in options && options.pedalIDs)
         return new Set(options.aspect === 'velocity' ? [] : options.pedalIDs);
@@ -35,29 +39,29 @@ const reachOf = (options: ExpandOptions, msm: Alignment, part: Scope): ReadonlyS
 };
 
 /**
- * Which events the chain has already corrected in one aspect, and by how much: by hand
- * (`Modify`) and by an expansion of the scale (`Expand`).
+ * Which events the chain has already corrected in one aspect, and by how much: by the shifts
+ * and the expansions of `Modify`.
  *
  * Read off the **calls**, not off the alignment: the alignment shows the corrected value and has
  * no memory of what it was before, so the only record that an event was touched is the call that
- * touched it. The options of a `Modify` are plain JSON, so its shift can be read straight off.
- * An `Expand` moves each event by an amount that depends on where it was, so its share is found
+ * touched it. The options of a `Modify` are plain JSON, so a shift can be read straight off.
+ * An expansion moves each event by an amount that depends on where it was, so its share is found
  * by running its map backwards from the value the alignment holds: first the shifts by hand are
  * taken off, since they ran after it, then each expansion undone, the last first. An expansion
  * whose map does not rise throughout has no way back, and the event keeps the ghost of its shifts
  * alone.
  *
- * An onset is mapped from the first note's onset, as `Expand` maps it, and that zero moves with
+ * An onset is mapped from the first note's onset, as `Modify` maps it, and that zero moves with
  * the expansion that reaches the first note; both are taken into account. The shifts of the first
  * note by hand are not, as they are not for `Modify` alone either.
  *
  * Keyed by `xml:id`, which serves notes and pedals alike — a `pedalIDs` call keys by the pedal's.
  *
- * @param pending a `Modify` that has just been sent and is not in `msm` yet. Its delta is
+ * @param pending a shift that has just been sent and is not in `msm` yet. Its delta is
  * **subtracted**: the desk that sent it is already drawing the event at its corrected value, so
  * counting the call as well would draw the ghost on the wrong side until the fit comes back.
  * Desks that only read the ghosts — the dynamics desk — pass nothing.
- * @param unfitted the id of an `Expand` that has just been sent and is not in `msm` yet. It is
+ * @param unfitted the id of an expansion that has just been sent and is not in `msm` yet. It is
  * left out until the fit answers: the alignment does not show it, so there is nothing to undo.
  */
 const correctionDeltas = (
@@ -65,7 +69,7 @@ const correctionDeltas = (
     msm: Alignment,
     part: Scope,
     aspect: Aspect,
-    pending?: ModifyOptions,
+    pending?: ShiftOptions,
     unfitted?: string,
 ): Map<string, number> => {
     const deltas = new Map<string, number>();
@@ -80,28 +84,20 @@ const correctionDeltas = (
         else deltas.set(id, next);
     };
 
-    const apply = (options: ModifyOptions, sign: 1 | -1) => {
+    const apply = (options: ShiftOptions, sign: 1 | -1) => {
         if (options.aspect !== aspect || !here(options.scope)) return;
-
-        const change = sign * options.change;
-        if ('noteIDs' in options) {
-            for (const id of options.noteIDs) add(id, change);
-        } else if ('pedalIDs' in options) {
-            for (const id of options.pedalIDs) add(id, change);
-        } else {
-            for (const note of msm.in(part).notesInRange(options.from, options.to))
-                add(note['xml:id'], change);
-        }
+        for (const id of reachOf(options, msm, part)) add(id, sign * options.change);
     };
 
-    for (const call of calls.filter(isCallOf('Modify'))) apply(call.options, 1);
+    // The shifts add up as they stand; the expansions of this aspect are kept, to be undone below.
+    const expansions: ExpansionOptions[] = [];
+    for (const { id, options } of calls.filter(isCallOf('Modify'))) {
+        if (!isExpansion(options)) apply(options, 1);
+        else if (id !== unfitted && options.aspect === aspect && here(options.scope))
+            expansions.push(options);
+    }
     if (pending) apply(pending, -1);
 
-    const expansions = calls
-        .filter(isCallOf('Expand'))
-        .filter((call) => call.id !== unfitted)
-        .map((call) => call.options)
-        .filter((options) => options.aspect === aspect && here(options.scope));
     if (expansions.length === 0) return deltas;
 
     const reach = expansions.map((options) => reachOf(options, msm, part));
@@ -160,7 +156,7 @@ export const useCorrectionDeltas = (
     msm: Alignment,
     part: Scope,
     aspect: Aspect,
-    pending?: ModifyOptions,
+    pending?: ShiftOptions,
     unfitted?: string,
 ): Map<string, number> => {
     const { calls } = useCallSelection();

@@ -35,7 +35,7 @@ const zeroShiftMs = (recorded: Alignment, fitted: Alignment): number => {
  * the readings showed one of them, with nothing to say that it had been chosen or over what.
  *
  * The recorded values rather than the corrected ones, too. The choice runs before every
- * correction, so these are what it chose between, and a velocity `Expand` had stretched on the
+ * correction, so these are what it chose between, and a velocity an expansion had stretched on the
  * kept reading alone would read as a difference the takes never had.
  *
  * Moved, though, by what the chain moved every event by. The other desks, the scroll they share

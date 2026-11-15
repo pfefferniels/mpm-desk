@@ -5,7 +5,6 @@ import { MakeChoice } from './choice/MakeChoice';
 import { InsertDynamics } from './dynamics/index';
 import { InsertMetadata } from './metadata/index';
 import { Modify } from './modification/Modify';
-import { Expand } from './modification/Expand';
 import { CorrectPedal } from './modification/CorrectPedal';
 import {
   InsertTemporalSpread,
@@ -32,7 +31,7 @@ import {
 // Register the transformers, in reduction order — which is the order a chain runs in, whatever
 // order its calls were written.
 //
-// Twenty-two of them. What is registered is decided by whether anything in the editor can reach
+// Twenty-one of them. What is registered is decided by whether anything in the editor can reach
 // it, rather than by how often a transformer is used.
 //
 // Not registered: `InsertAsynchrony`, `CompressOrnamentation` and `ApproximateLogarithmicTempo`
@@ -64,10 +63,9 @@ const REGISTERED = [
   // After the choice, so a press it adds is not a reading for the choice to discard; before
   // `Modify`, so a displacement can reach a press it added and a release it redrew.
   CorrectPedal,
-  // After `CorrectPedal`, so a stretch of the recording's time reaches a press it added; before
-  // `Modify`, so a correction by hand is made on the scale the expansion has opened rather than
-  // being stretched along with it.
-  Expand,
+  // After `CorrectPedal`, so a stretch of the recording's time reaches a press it added. Among
+  // themselves its calls run scale first, then shift (`Modify.precedence`), so a correction by
+  // hand is made on the scale that has been opened rather than being stretched along with it.
   Modify,
   // The gradient before the spread, because the spread destroys what the gradient reads.
   // `InsertDynamicsGradient` sorts a chord by `milliseconds.date` to find which way its ramp runs, and
@@ -145,6 +143,10 @@ export const compareTransformers = (a: Transformer, b: Transformer): number => {
   const bIndex = rank(b.name);
 
   if (aIndex === bIndex) {
+    // First what the transformer says of its own calls, then where they are in the score.
+    const precedence = a.precedence() - b.precedence();
+    if (precedence !== 0) return precedence;
+
     if (
       'from' in a.options &&
       'from' in b.options &&

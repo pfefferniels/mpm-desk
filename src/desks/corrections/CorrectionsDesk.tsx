@@ -3,9 +3,14 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { Check, Clear, UnfoldMore } from '@mui/icons-material';
 import type { ScopedTransformerViewProps } from '../TransformerViewProps';
-import { Modify, type ModifyOptions } from '../../fitting/transformers/modification/Modify';
+import {
+    Modify,
+    type ExpansionOptions,
+    type ModifyOptions,
+    type ModifySelector,
+    type ShiftOptions,
+} from '../../fitting/transformers/modification/Modify';
 import { CorrectPedal } from '../../fitting/transformers/modification/CorrectPedal';
-import { Expand, type ExpandOptions } from '../../fitting/transformers/modification/Expand';
 import { sameTravel } from '../../performance/pedalTravel';
 import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
@@ -27,11 +32,14 @@ type Plot = 'velocity' | 'timing';
 /** A shift of the selected events in one aspect, or one press's line as drafted. */
 type Draft = { aspect: ModifyOptions['aspect']; change: number } | LineDraft;
 
+/** A shift as this desk makes one: of what was selected, since a drag needs something to hold. */
+type SelectedShift = ShiftOptions & ModifySelector;
+
 /** The call sent and not yet answered by a fit. */
 type Pending =
-    | { call: 'Modify'; options: ModifyOptions }
-    | { call: 'CorrectPedal'; draft: LineDraft }
-    | { call: 'Expand'; id: string };
+    | { call: 'shift'; options: SelectedShift }
+    | { call: 'line'; draft: LineDraft }
+    | { call: 'expansion'; id: string };
 
 /**
  * The plot a correction is drawn on: a press's line and a shift in time on the roll, a velocity on
@@ -39,7 +47,7 @@ type Pending =
  */
 const plotOf = ({ name, options }: Call): Plot | undefined => {
     if (name === 'CorrectPedal') return 'timing';
-    if (name !== 'Modify' && name !== 'Expand') return undefined;
+    if (name !== 'Modify') return undefined;
     return options.aspect === 'velocity' ? 'velocity' : 'timing';
 };
 
@@ -82,7 +90,7 @@ const lineTooltip = ({ change, before }: LineDraft): string =>
  * One click model over two plots. What was clicked becomes the call's selector — a list of note
  * ids, a stretch of the tick grid, a list of pedal ids — and where it was grabbed becomes the
  * aspect: a dot on the velocity plot can only be dragged up and down, and on the roll the body of
- * an event is its attack while its right edge is its release. So the two questions a `Modify`
+ * an event is its attack while its right edge is its release. So the two questions a shift
  * asks are answered by two different parts of the same gesture, and neither needs a control.
  *
  * A pedal's line is the third kind of grab: a handle on it, a flat run of it, or the lane it is
@@ -91,13 +99,14 @@ const lineTooltip = ({ change, before }: LineDraft): string =>
  * A drag is a *draft*: nothing is sent until Apply, and until then the displaced events and the
  * blue ghost behind them are the whole of the preview.
  *
- * ## Expand, typed rather than dragged
+ * ## An expansion, typed rather than dragged
  *
- * The one call here that is not a gesture. An `Expand` maps a range of recorded values onto
- * another — the roll's softest velocity to a softer one, its loudest to somewhat less — so it is
- * stated as points in a dialog. It takes the selection as its selector, as a `Modify` would, and
- * with nothing selected it is about every event of the part: the case it is made for, a claim
- * about the scale the whole roll was recorded on.
+ * The one call here that is not a gesture. A `Modify` moves its events by a constant, which is
+ * the drag, or along a scale: an expansion maps a range of recorded values onto another — the
+ * roll's softest velocity to a softer one, its loudest to somewhat less — so it is stated as
+ * points in a dialog. It takes the selection as its selector, as a shift does, and with nothing
+ * selected it is about every event of the part: the case it is made for, a claim about the scale
+ * the whole roll was recorded on.
  *
  * ## In the viewer
  *
@@ -110,7 +119,7 @@ export const CorrectionsDesk = ({
     part,
     msm,
     addTransformer,
-}: ScopedTransformerViewProps<Modify | CorrectPedal | Expand>) => {
+}: ScopedTransformerViewProps<Modify | CorrectPedal>) => {
     const editable = useEditable();
     const { activeEvidence, activeCallIds, calls } = useCallSelection();
 
@@ -146,17 +155,17 @@ export const CorrectionsDesk = ({
         setLastFit({ msm, part });
     }
 
-    const pendingModify = pending?.call === 'Modify' ? pending.options : undefined;
-    const unfitted = pending?.call === 'Expand' ? pending.id : undefined;
+    const pendingModify = pending?.call === 'shift' ? pending.options : undefined;
+    const unfitted = pending?.call === 'expansion' ? pending.id : undefined;
     const velocityGhosts = useCorrectionDeltas(msm, part, 'velocity', pendingModify, unfitted);
     const onsetGhosts = useCorrectionDeltas(msm, part, 'onset', pendingModify, unfitted);
     const durationGhosts = useCorrectionDeltas(msm, part, 'duration', pendingModify, unfitted);
     const lineGhosts = useLineGhosts(msm, onsetGhosts);
 
     const preview: Draft | undefined = pending
-        ? pending.call === 'Modify'
+        ? pending.call === 'shift'
             ? pending.options
-            : pending.call === 'CorrectPedal'
+            : pending.call === 'line'
               ? pending.draft
               : undefined
         : draft;
@@ -209,14 +218,14 @@ export const CorrectionsDesk = ({
     const commit = () => {
         if (line) {
             addTransformer(new CorrectPedal(line.change));
-            setPending({ call: 'CorrectPedal', draft: line });
+            setPending({ call: 'line', draft: line });
             setDraft(undefined);
             clear();
             return;
         }
         if (!selection || !shift || shift.change === 0) return;
 
-        const options: ModifyOptions = {
+        const options: SelectedShift = {
             ...selection,
             scope: part,
             aspect: shift.aspect,
@@ -224,22 +233,22 @@ export const CorrectionsDesk = ({
         };
 
         addTransformer(new Modify(options));
-        setPending({ call: 'Modify', options });
+        setPending({ call: 'shift', options });
         setDraft(undefined);
         clear();
     };
 
     // An expansion reaches the selection, or every event of the part. On the velocity plot that
     // is the notes alone; on the roll the pedals too, where the desk is on the whole piece rather
-    // than on one part — as `Expand` itself has it.
-    const expandAspects: readonly ExpandOptions['aspect'][] =
+    // than on one part — as `Modify` itself has it.
+    const expandAspects: readonly ModifyOptions['aspect'][] =
         plot === 'velocity' ? ['velocity'] : ['onset', 'duration'];
     const pedalsOnly = selection !== undefined && 'pedalIDs' in selection;
     const expandAbout =
         scopeLabel ?? (plot === 'timing' && part === 'global' ? 'every note and pedal' : 'every note');
 
     /** The lowest and highest value the expansion would reach, to open the dialog on. */
-    const recorded = (aspect: ExpandOptions['aspect']): [number, number] => {
+    const recorded = (aspect: ModifyOptions['aspect']): [number, number] => {
         const ids = selection ? coveredBy(selection, msm, part) : undefined;
         const reached = (id: string) => !ids || ids.has(id);
         const notes = msm.in(part).notes().filter((n) => reached(n['xml:id']));
@@ -264,12 +273,12 @@ export const CorrectionsDesk = ({
         return [low, high > low ? high : low + 1];
     };
 
-    const expand = (aspect: ExpandOptions['aspect'], points: ExpandOptions['points']) => {
-        const call = new Expand({ ...(selection ?? {}), scope: part, aspect, points });
+    const expand = (aspect: ModifyOptions['aspect'], points: ExpansionOptions['points']) => {
+        const call = new Modify({ ...(selection ?? {}), scope: part, aspect, points });
         addTransformer(call);
         // Not drawn ahead of the fit, unlike a shift: where each event lands depends on the map.
         // So the call is only held out of the ghosts until the fit shows what it did.
-        setPending({ call: 'Expand', id: call.id });
+        setPending({ call: 'expansion', id: call.id });
         setExpanding(false);
         setDraft(undefined);
         clear();

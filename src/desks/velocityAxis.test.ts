@@ -3,8 +3,8 @@ import { VELOCITY_TICK, velocityAxis } from './velocityAxis';
 
 /**
  * A velocity plot shows what it draws. The dynamics and corrections desks drew velocity 127 at
- * the head of a 320 pixel chart and 20 at its foot, and the notes of WM 225 that `Expand` and
- * `Modify` took below that, 59 dots of 430, were drawn off the chart.
+ * the head of a 320 pixel chart and 20 at its foot, and the notes of WM 225 that `Modify` took
+ * below that, 59 dots of 430, were drawn off the chart.
  */
 
 const height = 320;
