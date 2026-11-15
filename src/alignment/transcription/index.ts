@@ -646,8 +646,16 @@ export function transcribe(input: TranscribeInput): Transcribed {
         const offers: Notation[] = ["auto", "none"];
         const asked = choice(divergence.id);
 
+        const notes = divergence.scoreIds.flatMap((id) => {
+            const note = model.notes.get(id);
+            return note ? [note] : [];
+        });
+        // A note that stays as written is still in a bar, and whoever asked for it to stay is
+        // looking at that bar: without it the card they asked in would lose its music
+        const bar = notes[0]?.event.layer.staff.measure.index;
+
         if (asked === "none") {
-            outcomes.set(divergence.id, none("Left as written, as asked.", offers));
+            outcomes.set(divergence.id, { ...none("Left as written, as asked.", offers), measure: bar });
             continue;
         }
         if (divergence.reading === "outside") {
@@ -655,10 +663,6 @@ export function transcribe(input: TranscribeInput): Transcribed {
             continue;
         }
 
-        const notes = divergence.scoreIds.flatMap((id) => {
-            const note = model.notes.get(id);
-            return note ? [note] : [];
-        });
         if (notes.length === 0) {
             outcomes.set(divergence.id, none("The notes are not in this reading of the score.", offers));
             continue;

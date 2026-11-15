@@ -122,18 +122,35 @@ const markedAt = (root: Element, x: number, y: number): Element | null => {
 /**
  * The size the score opens at, as verovio's `scale`: a percentage of the engraving's own size.
  *
- * Well under the 70 the other score views use. Those show a few bars at a time; this one is read
+ * Under the 70 the other score views use. Those show a few bars at a time; this one is read
  * across a whole performance for the handful of notes that are coloured, and at 70 two systems
- * filled the window.
+ * filled the window. Not far under: at 40 the notes were too small to be read without leaning in.
  */
-const DEFAULT_ZOOM = 40;
+const DEFAULT_ZOOM = 55;
+
+/** Room left between the end of a system and whatever stands to its right, in pixels. */
+const RIGHT_MARGIN = 24;
 
 /**
- * What a system needs beside its music, in pixels at a given zoom: the page's margins, and the
- * clef, key and time signature before the first note. Measured on the engraving, where it comes
- * to four times the zoom, and given a little room over that.
+ * How much of the score's width the list of aspects stands in front of.
+ *
+ * The list floats over the desk's top right corner. A system drawn the full width of the window
+ * would run under it, so the music stops short of it; with the list folded away there is
+ * next to nothing to stop short of, and the music takes the width back.
  */
-const besideTheMusic = (zoom: number) => 8 + 4.2 * zoom;
+const coveredOf = (root: Element): number => {
+    const card = document.querySelector('[data-aspect-select]');
+    if (!card) return 0;
+    const over = root.getBoundingClientRect().right - card.getBoundingClientRect().left;
+    return Math.max(0, Math.ceil(over));
+};
+
+/**
+ * What a system needs before its music, in pixels at a given zoom: the page's margin, the clef
+ * and the key. Measured on the engraving. A first system with a time signature and a label
+ * needs more, which is found out when it has been engraved (see `paintScore`).
+ */
+const besideTheMusic = (zoom: number) => 8 + 3.2 * zoom;
 
 /**
  * How many seconds of the recording one system holds, so that it is as wide as the window.
@@ -142,10 +159,15 @@ const besideTheMusic = (zoom: number) => 8 + 4.2 * zoom;
  * at every zoom, a small score would fill half the window's width and a large one would run off
  * it; so the length follows the width there is and the zoom the score is drawn at.
  */
-const secondsAcross = (width: number, zoom: number): number => {
-    const perSecond = (unitsPerSecond({ performanceScale: DEFAULT_PERFORMANCE_SCALE }) * zoom) / 1000;
-    return Math.min(120, Math.max(4, Math.floor((width - besideTheMusic(zoom)) / perSecond)));
-};
+const secondsAcross = (width: number, zoom: number): number =>
+    Math.min(120, Math.max(SHORTEST_SYSTEM, Math.floor((width - besideTheMusic(zoom)) / pixelsPerSecond(zoom))));
+
+/** How wide a second of the recording is drawn at a zoom, in pixels. */
+const pixelsPerSecond = (zoom: number): number =>
+    (unitsPerSecond({ performanceScale: DEFAULT_PERFORMANCE_SCALE }) * zoom) / 1000;
+
+/** No system is asked to hold less than this many seconds, however narrow the window. */
+const SHORTEST_SYSTEM = 4;
 
 /** How many notes were added, left out and changed, which is what the legend counts. */
 const countsOf = (divergences: readonly Divergence[], outcomes: ReadonlyMap<string, Outcome>) => {
@@ -432,13 +454,16 @@ export const AlignmentDesk = () => {
             // length; the ones after it when the window has come to rest
             pending = setTimeout(
                 () => {
-                    setWidth(root.clientWidth);
+                    setWidth(root.clientWidth - coveredOf(root) - RIGHT_MARGIN);
                 },
                 known ? 200 : 0,
             );
             known = true;
         });
         observer.observe(root);
+        // The list of aspects too: folded away or opened, it changes the room there is
+        const card = document.querySelector('[data-aspect-select]');
+        if (card) observer.observe(card);
         return () => {
             clearTimeout(pending);
             observer.disconnect();
@@ -462,7 +487,57 @@ export const AlignmentDesk = () => {
         };
     }, []);
 
-    const seconds = width > 0 ? secondsAcross(width, zoom) : undefined;
+    /**
+     * Seconds taken off every system, because the engraving came out wider than it was asked to.
+     *
+     * A system is broken at a note, not at a moment: asked for twelve seconds, it runs on to the
+     * next thing struck, and in slow music that is a second or two further on. How far cannot
+     * be known before the score is engraved, so it is looked at afterwards and, where a system
+     * has run over, engraved once more a little shorter. Kept with the width and zoom it was
+     * found for, so that another window starts from what it asks for.
+     */
+    const [trimmed, setTrimmed] = useState({ fit: '', seconds: 0 });
+    const fit = `${String(width)}:${String(zoom)}:${take ?? ''}`;
+    const trim = trimmed.fit === fit ? trimmed.seconds : 0;
+    const seconds = width > 0 ? Math.max(SHORTEST_SYSTEM, secondsAcross(width, zoom) - trim) : undefined;
+
+    // The engraving last looked at, by its first system. The page is painted again whenever a
+    // note is selected or this very answer changes, and the score on it is then still the one
+    // already judged: judged twice, it would be found too wide twice and shortened twice.
+    const judged = useRef<Element | null>(null);
+
+    const paintScore = useCallback(
+        (element: HTMLElement) => {
+            paint(element);
+            if (!root || seconds === undefined || seconds <= SHORTEST_SYSTEM) return;
+
+            const first = element.querySelector('g.system');
+            if (!first || first === judged.current) return;
+            judged.current = first;
+
+            // Where each system ends, from the left edge of the score
+            const origin = root.getBoundingClientRect().left - root.scrollLeft;
+            const ends = [...element.querySelectorAll('g.system')].map(
+                (system) => system.getBoundingClientRect().right - origin,
+            );
+            if (ends.length === 0) return;
+            const byLength = [...ends].sort((a, b) => a - b);
+
+            // The first system is to end where it was asked to, being the one the list of
+            // aspects stands beside, and so are four in five of all of them. Not every one: a
+            // chord held for eight seconds makes its system eight seconds longer whatever is
+            // asked, and shortening all the others for its sake would leave a page of
+            // fragments. That one only has to stay inside the window, so that the page does
+            // not scroll sideways.
+            const most = byLength[Math.max(0, Math.ceil(byLength.length * 0.8) - 1)];
+            const widest = byLength[byLength.length - 1];
+            const over = Math.max(0, ends[0] - width, most - width, widest - root.clientWidth);
+            if (over > 1) {
+                setTrimmed({ fit, seconds: trim + Math.ceil(over / pixelsPerSecond(zoom)) });
+            }
+        },
+        [paint, root, seconds, width, zoom, fit, trim],
+    );
     const options = useMemo(
         () => ({
             ...performedOptions,
@@ -968,7 +1043,7 @@ export const AlignmentDesk = () => {
                             className="alignment-score"
                             mei={shown}
                             options={options}
-                            paint={paint}
+                            paint={paintScore}
                             extenders
                             extraNotes={marks.extraNotes}
                             omissions={marks.omissions}

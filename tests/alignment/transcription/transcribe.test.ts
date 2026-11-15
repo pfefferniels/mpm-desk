@@ -390,6 +390,8 @@ describe('a written note that was not played', () => {
       choices: new Map([['m', 'none']]),
     })
     expect(canonical(result.mei)).toBe(canonical(base))
+    // And still says which bar it is in: the card that asked for it to stay shows that bar
+    expect(result.outcomes.get('m')?.measure).toBe(1)
   })
 })
 

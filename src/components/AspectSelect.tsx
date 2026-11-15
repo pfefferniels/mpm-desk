@@ -144,6 +144,9 @@ export const AspectSelect: React.FC<AspectSelectProps> = ({
     return (
         <Card
             elevation={0}
+            // Named, so that a desk whose drawing runs the width of the window can tell how
+            // much of that width this card stands in front of
+            data-aspect-select
             sx={{
                 // Against the desk area rather than the page: `App` wraps the desk in a
                 // positioned box, which is what this resolves against. Without one, `top: 0`
