@@ -218,12 +218,19 @@ export function transcribe(input: TranscribeInput): Transcribed {
         const asked = choice(divergence.id);
         const offers = offersFor(divergence);
 
+        // A figure that stays out of the score still has a bar: the one its note is in
+        const bar = divergence.anchorId
+            ? model.notes.get(divergence.anchorId)?.event.layer.staff.measure.index
+            : undefined;
         if (asked === "none") {
-            outcomes.set(divergence.id, none("Left in the recording, as asked.", offers));
+            outcomes.set(divergence.id, { ...none("Left in the recording, as asked.", offers), measure: bar });
             continue;
         }
         if (asked === "auto" && NOT_THE_TEXT.has(divergence.reading)) {
-            outcomes.set(divergence.id, none(WHY_NOT[divergence.reading] ?? "Not part of the text.", offers));
+            outcomes.set(divergence.id, {
+                ...none(WHY_NOT[divergence.reading] ?? "Not part of the text.", offers),
+                measure: bar,
+            });
             continue;
         }
         if (asked === "sign") {

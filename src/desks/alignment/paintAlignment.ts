@@ -253,7 +253,7 @@ export const alignmentStyles = (extra: string, omitted: string) => {
         '.alignment-score .note-playing, .alignment-score .note-playing *': ink(PLAYING_COLOUR),
         // The bar in the editor is about where notes stand and what they are. Pedal marks,
         // dynamics, slurs and words are true of the bar and nothing to do with that.
-        '.alignment-bar .pedal, .alignment-bar .dir, .alignment-bar .dynam, .alignment-bar .hairpin, .alignment-bar .tempo, .alignment-bar .slur, .alignment-bar .harm, .alignment-bar .fing':
+        '.alignment-bar .pedal, .alignment-bar .dir, .alignment-bar .dynam, .alignment-bar .hairpin, .alignment-bar .tempo, .alignment-bar .slur, .alignment-bar .harm, .alignment-bar .fing, .alignment-bar .label, .alignment-bar .labelAbbr':
             { display: 'none' },
         // The note the editor's hands are on, ringed rather than recoloured: its colour is what
         // says what it is
