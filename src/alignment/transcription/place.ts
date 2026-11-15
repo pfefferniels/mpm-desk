@@ -161,6 +161,17 @@ export function chooseValue(
     return values.find((value) => value.units <= limit + 1e-9) ?? values[values.length - 1];
 }
 
+/**
+ * The values a note of its own can be given at a place, longest first: what a reader steps
+ * through to make it longer or shorter.
+ */
+export function valuesAt(startUnits: number, measure: MeasureModel): NoteValue[] {
+    const measureUnits = Math.round(measure.duration * UNITS);
+    const triplet = !isCompound(measure.meter) && isTripletPosition(startUnits);
+    const limit = (triplet ? cellOf(startUnits, measureUnits).to : measureUnits) - startUnits;
+    return (triplet ? TRIPLET : PLAIN).filter((value) => value.units <= limit + 1e-9);
+}
+
 /** One thing in a layer being written: a note or chord at a place, for a length. */
 export interface LayerItem<T> {
     start: number;

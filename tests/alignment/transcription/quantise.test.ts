@@ -115,7 +115,7 @@ describe('placing a played note', () => {
 
   it('writes a grace note when asked to, and says whether one was possible', () => {
     const lean = played(2950, 76)
-    const [asked] = quantise(model, mapOf(), [lean], { force: () => 'grace' })
+    const [asked] = quantise(model, mapOf(), [lean], { force: () => ({ kind: 'grace' }) })
     const [free] = place([lean])
 
     expect(asked.placement.kind).toBe('grace')

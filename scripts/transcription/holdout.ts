@@ -22,7 +22,7 @@ import './node';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { UNITS, levelOf } from '../../src/alignment/transcription/grid';
-import { chooseStaff, chooseValue } from '../../src/alignment/transcription/place';
+import { chooseStaff, chooseValue, valuesAt } from '../../src/alignment/transcription/place';
 import { spell } from '../../src/alignment/transcription/spell';
 import {
     QUANTISE_DEFAULTS,
@@ -173,11 +173,13 @@ for (const { pair, cached, model } of loaded) {
                     notation.valueAsked++;
                     const value = chooseValue(Math.round(start), gap, measure);
 
-                    // What the obvious rule would have written: the value nearest the time the
-                    // key was down
-                    const nearest = [144, 96, 72, 48, 36, 24, 18, 12, 9, 6, 3].reduce((best, units) =>
-                        Math.abs(Math.log(units / Math.max(held, 1))) < Math.abs(Math.log(best / Math.max(held, 1))) ? units : best,
-                    );
+                    // What the obvious rule would have written: of the values the place
+                    // allows, the one nearest the time the key was down
+                    const nearest = valuesAt(Math.round(start), measure)
+                        .map((allowed) => allowed.units)
+                        .reduce((best, units) =>
+                            Math.abs(Math.log(units / Math.max(held, 1))) < Math.abs(Math.log(best / Math.max(held, 1))) ? units : best,
+                        );
                     if (Math.abs(nearest - truth) < 1e-6) notation.held++;
                     if (Math.abs(value.units - truth) < 1e-6) notation.value++;
                     if (value.units <= truth * 2 + 1e-6 && value.units >= truth / 2 - 1e-6) notation.valueNear++;

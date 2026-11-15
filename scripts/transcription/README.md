@@ -92,11 +92,11 @@ scans that come out transposed are left out here):
 | written notes of the source that moved, or changed pitch | **0** of 49,617 |
 | notes the transcriber says it wrote that are not in the score at the pitch played | **0** of 2,760 |
 | taking the readings out gives back the document that went in | 30 of 30 |
-| written-in notes the aligner pairs with the very key that was played, when run again | 2,618 of 2,760 (**94.9%**) |
+| written-in notes the aligner pairs with the very key that was played, when run again | 2,616 of 2,760 (**94.8%**) |
 
 The last is the model that found the differences being asked whether they are gone. Played notes
-with no written note fall from 3,847 to 1,151, and written notes with no played one from 3,589 to
-1,477.
+with no written note fall from 3,847 to 1,155, and written notes with no played one from 3,589 to
+1,481.
 
 What stays is what should. 999 groups of "unplayed" notes are a unison written in two voices and
 played as the one key it is; 146 groups of "added" notes are a trill or a turn the score writes

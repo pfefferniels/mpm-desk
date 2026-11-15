@@ -209,7 +209,7 @@ describe('a reader\'s choice, and the action the work file keeps for it', () => 
   it('names the same answer by what it means for that kind of difference', () => {
     expect(choiceLabel(octave, 'none')).toBe('Leave out')
     expect(choiceLabel(gone, 'none')).toBe('Kept')
-    expect(choiceLabel(other, 'none')).toBe('Written note')
-    expect(choiceLabel(octave, 'grace')).toBe('Grace notes')
+    expect(choiceLabel(other, 'none')).toBe('Written')
+    expect(choiceLabel(octave, 'grace')).toBe('Grace')
   })
 })

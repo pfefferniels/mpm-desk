@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { transcribe, untranscribed, writtenIdOf, type Notation } from '../../../src/alignment/transcription'
+import { transcribe, untranscribed, writtenIdOf, type Notation, type NoteEdit } from '../../../src/alignment/transcription'
 import { readScore } from '../../../src/alignment/transcription/scoreModel'
 import { getNotesFromMEI } from '../../../src/score/scoreNotes'
 import { SOURCE, added, aligned, canonical, missing, parse, replaced, scoreMei, span } from './fixture'
@@ -248,6 +248,68 @@ describe('what a reader may ask for instead', () => {
 
   it('says what else it could be written as', () => {
     expect(ask('auto').outcomes.get('a')?.offers).toEqual(['auto', 'measured', 'grace', 'sign', 'none'])
+  })
+})
+
+describe('a note a reader has moved by hand', () => {
+  const passing = span('x1', 750, 73, 250)
+  const base = aligned(scoreMei(), { extra: [passing] })
+  const id = writtenIdOf(passing)
+  const withEdit = (edit: NoteEdit) =>
+    transcribe({
+      mei: base,
+      source: SOURCE,
+      divergences: [added('a', [passing])],
+      spans: [passing],
+      edits: new Map([[id, edit]]),
+    })
+  const untouched = transcribe({ mei: base, source: SOURCE, divergences: [added('a', [passing])], spans: [passing] })
+  const info = untouched.outcomes.get('a')!.notes[0]
+
+  it('says of every written note where it could go, how long it could be and on which staff', () => {
+    expect(info).toMatchObject({ id, onset: 1.5, measure: 0, staff: '1', staves: ['1', '2'], grace: false, units: 12 })
+    // From the written note before it to the one after, and the grid between, in order
+    expect(info.places[0]).toBe(1)
+    expect(info.places[info.places.length - 1]).toBe(2)
+    expect(info.places).toContain(1.5)
+    expect(info.places).toEqual([...info.places].sort((a, b) => a - b))
+    expect(info.values).toContain(12)
+    expect(info.values).toEqual([...info.values!].sort((a, b) => b - a))
+  })
+
+  it('is written where it was put, whatever the timing says', () => {
+    const result = withEdit({ onset: 1.25 })
+    expect(standing(result.mei).get(id)?.onset).toBe(1.25)
+    // And the bar is as long as it was
+    expect(standing(result.mei).get('n5')?.onset).toBe(4)
+    expect(result.outcomes.get('a')?.notes[0].onset).toBe(1.25)
+  })
+
+  it('joins the written note it was moved onto', () => {
+    const result = withEdit({ onset: 2 })
+    expect(performance(parse(result.mei), id)?.closest('chord')?.getAttribute('xml:id')).toBe('ch')
+  })
+
+  it('is as long as it was made', () => {
+    const result = withEdit({ units: 6 })
+    expect(performance(parse(result.mei), id)?.getAttribute('dur')).toBe('16')
+    expect(result.outcomes.get('a')?.notes[0].units).toBe(6)
+  })
+
+  it('goes on the staff it was given', () => {
+    const result = withEdit({ staff: '2' })
+    expect(performance(parse(result.mei), id)?.closest('staff')?.getAttribute('n')).toBe('2')
+  })
+
+  it('keeps to the transcriber where it was asked for something that cannot be', () => {
+    // A place outside the two notes it was played between, a length no note value has
+    for (const edit of [{ onset: 3.5 }, { units: 5 }, { staff: '7' }]) {
+      expect(canonical(withEdit(edit).mei), JSON.stringify(edit)).toBe(canonical(untouched.mei))
+    }
+  })
+
+  it('comes out again with everything else', () => {
+    expect(canonical(untranscribed(withEdit({ onset: 1.25, units: 6, staff: '2' }).mei))).toBe(canonical(base))
   })
 })
 

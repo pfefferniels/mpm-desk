@@ -69,8 +69,9 @@ is written at the pitch played. All of it goes into `<app>` readings, the source
 `<rdg source="original">` and the performance's in `<rdg source="performance">`, so that the
 source is still there and `untranscribed` gives it back. Nobody is asked first. A reader looks at
 the result, green for what was added, red for what was left out, violet for what was changed,
-and corrects what they do not agree with: this figure is grace notes, that one a trill sign, this
-one should not be in the score at all.
+and corrects what they do not agree with. Clicking a note opens its bar in ordinary notation,
+where the note can be written as something else, grace notes or a trill sign or nothing at all,
+moved along the bar, made longer or shorter, or put on the other staff.
 
 Placing an added note is rhythm transcription, with the hard half given: the matched notes on
 either side say what the tempo was, and the bars around say what note values the passage moves

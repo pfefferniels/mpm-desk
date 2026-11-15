@@ -88,16 +88,14 @@ export const actionFor = (divergence: Divergence, notation: Notation): Action =>
  */
 export const choiceLabel = (divergence: Divergence, notation: Notation): string => {
     if (divergence.kind === "missing") return notation === "none" ? "Kept" : "Taken out";
-    if (divergence.kind === "replaced") return notation === "none" ? "Written note" : "Played note";
-    return notation === "measured"
-        ? "Notes"
-        : notation === "grace"
-          ? "Grace notes"
-          : notation === "sign"
-            ? "Ornament sign"
-            : notation === "none"
-              ? "Leave out"
-              : "Notes";
+    if (divergence.kind === "replaced") return notation === "none" ? "Written" : "Played";
+    return notation === "grace"
+        ? "Grace"
+        : notation === "sign"
+          ? "Sign"
+          : notation === "none"
+            ? "Leave out"
+            : "Notes";
 };
 
 /** What the row of choices is headed, which for a note left out is not a way of writing it. */

@@ -374,7 +374,11 @@ export const correspondingDesks: DeskEntry[] = [
             actions: [
                 {
                     gesture: 'Click a coloured note',
-                    does: 'see how it was written, and have it written another way: as notes, as grace notes, as an ornament sign, or not at all',
+                    does: 'open its bar, and write it another way: as notes, as grace notes, as an ornament sign, or not at all',
+                },
+                {
+                    gesture: '← →, + −',
+                    does: 'move the note along the bar; make it longer or shorter',
                 },
                 { gesture: 'Click elsewhere in the score', does: 'close it' },
                 { gesture: 'Drag the range slider', does: 'narrow what the transport plays' },

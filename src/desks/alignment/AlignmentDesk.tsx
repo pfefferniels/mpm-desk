@@ -12,6 +12,7 @@ import {
     untranscribed,
     writtenIdOf,
     type Notation,
+    type NoteEdit,
     type Outcome,
 } from '../../alignment/transcription';
 import { ornamentSignsOf } from '../../mei/ornamentSigns';
@@ -32,7 +33,7 @@ import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
 import { ToolField } from '../../components/toolbar/ToolField';
-import { DivergencePopover } from './DivergencePopover';
+import { AlterationEditor } from './AlterationEditor';
 import { Legend } from './Legend';
 import { PlaybackBar } from './PlaybackBar';
 import { REPLACED_COLOUR, alignmentStyles, paintAlignment, paintingOf } from './paintAlignment';
@@ -89,6 +90,7 @@ import { useRecordingPlayback } from './useRecordingPlayback';
 
 const EMPTY_RESOLUTIONS: ReadonlyMap<string, Resolution> = new Map();
 const EMPTY_OUTCOMES: ReadonlyMap<string, Outcome> = new Map();
+const EMPTY_EDITS: ReadonlyMap<string, NoteEdit> = new Map();
 
 /** What a transcription is, as far as telling two apart goes: the notes it wrote and took out. */
 const signatureOf = (mei: string): string =>
@@ -136,6 +138,8 @@ export const AlignmentDesk = () => {
 
     /** The alteration the reader has opened, and the mark they opened it on. */
     const [selected, setSelected] = useState<string>();
+    /** The written-in note of it they clicked, which is the one the editor's hands are on. */
+    const [selectedNote, setSelectedNote] = useState<string>();
     const [anchor, setAnchor] = useState<Element>();
     const [root, setRoot] = useState<HTMLDivElement | null>(null);
 
@@ -174,6 +178,7 @@ export const AlignmentDesk = () => {
     const recorded = alignments.find((entry) => entry.source === take);
 
     const resolutions = recorded?.resolutions ?? EMPTY_RESOLUTIONS;
+    const edits = recorded?.edits ?? EMPTY_EDITS;
     const resp = recorded?.resp ?? '';
 
     useEffect(() => {
@@ -284,6 +289,7 @@ export const AlignmentDesk = () => {
                 source: take,
                 divergences,
                 spans: alignment.spans,
+                edits,
                 resp: resp || undefined,
             };
             const written = transcribe({ ...input, choices });
@@ -296,7 +302,7 @@ export const AlignmentDesk = () => {
                 }`,
             };
         }
-    }, [aligned, take, alignment, divergences, resolutions, resp]);
+    }, [aligned, take, alignment, divergences, resolutions, edits, resp]);
 
     const outcomes = transcription?.outcomes ?? EMPTY_OUTCOMES;
     const shown = transcription?.shown ?? aligned?.mei;
@@ -328,11 +334,32 @@ export const AlignmentDesk = () => {
             // no longer be in the document. The card belongs to the alteration, not to a node:
             // it moves to whichever mark stands for it now.
             if (!selected) return;
-            const escaped = typeof CSS?.escape === 'function' ? CSS.escape(selected) : selected;
-            const mark = element.querySelector(`[data-divergence="${escaped}"]:not([data-omitted])`);
+            const escape = (id: string) => (typeof CSS?.escape === 'function' ? CSS.escape(id) : id);
+            const mark =
+                (selectedNote && element.querySelector(`[data-id="${escape(selectedNote)}"]`)) ||
+                element.querySelector(`[data-divergence="${escape(selected)}"]:not([data-omitted])`);
             setAnchor((current) => (current?.isConnected ? current : mark ?? undefined));
         },
-        [painting, selected],
+        [painting, selected, selectedNote],
+    );
+
+    /**
+     * The bar in the editor, coloured as the page is, with the note in hand ringed.
+     *
+     * Not turned blue as the selection on the page is: in the bar the colour is what says what
+     * the note is, and the bar holds nothing but the notes being asked about.
+     */
+    const paintBar = useCallback(
+        (element: HTMLElement) => {
+            paintAlignment(element, painting, undefined);
+            for (const ringed of element.querySelectorAll('.alignment-editing')) {
+                ringed.classList.remove('alignment-editing');
+            }
+            if (!selectedNote) return;
+            const escaped = typeof CSS?.escape === 'function' ? CSS.escape(selectedNote) : selectedNote;
+            element.querySelector(`[data-id="${escaped}"]`)?.classList.add('alignment-editing');
+        },
+        [painting, selectedNote],
     );
 
     const options = useMemo(
@@ -420,6 +447,7 @@ export const AlignmentDesk = () => {
                 setRun(fresh);
                 setScoreNotes(fresh.scoreNotes);
                 setNotices(fresh.notices);
+                setSelectedNote(undefined);
 
                 // The settings the run was made with, recorded as soon as it has been made: a
                 // decision taken about it in the next minute has to have somewhere to go.
@@ -429,6 +457,7 @@ export const AlignmentDesk = () => {
                     model: DEFAULT_MODEL,
                     minConfidence: 0,
                     resolutions,
+                    edits,
                     resp,
                     certainty: recorded?.certainty ?? 'medium',
                 });
@@ -444,7 +473,7 @@ export const AlignmentDesk = () => {
                 setStatus(undefined);
             }
         },
-        [source, performance, take, resolutions, resp, recorded, setAlignment],
+        [source, performance, take, resolutions, edits, resp, recorded, setAlignment],
     );
 
     /**
@@ -486,6 +515,7 @@ export const AlignmentDesk = () => {
             model: DEFAULT_MODEL,
             minConfidence: 0,
             resolutions: EMPTY_RESOLUTIONS,
+            edits: EMPTY_EDITS,
             resp: '',
             certainty: 'medium',
         };
@@ -508,14 +538,30 @@ export const AlignmentDesk = () => {
         [record, setAlignment],
     );
 
+    /** Change one thing about one written-in note: where it stands, how long, on which staff. */
+    const edit = useCallback(
+        (noteId: string, change: NoteEdit) => {
+            if (!record) return;
+            setSelectedNote(noteId);
+            setAlignment({
+                ...record,
+                edits: new Map([...record.edits, [noteId, { ...record.edits.get(noteId), ...change }]]),
+            });
+        },
+        [record, setAlignment],
+    );
+
+    /** Hand a divergence back to the transcriber: what was decided about it, and every note moved. */
     const reset = useCallback(
         (divergence: Divergence) => {
             if (!record) return;
             const kept = new Map(record.resolutions);
             kept.delete(divergence.id);
-            setAlignment({ ...record, resolutions: kept });
+            const untouched = new Map(record.edits);
+            for (const note of outcomes.get(divergence.id)?.notes ?? []) untouched.delete(note.id);
+            setAlignment({ ...record, resolutions: kept, edits: untouched });
         },
-        [record, setAlignment],
+        [record, outcomes, setAlignment],
     );
 
     /**
@@ -550,6 +596,7 @@ export const AlignmentDesk = () => {
 
             next.element.scrollIntoView({ block: 'center', inline: 'center' });
             setSelected(next.id);
+            setSelectedNote(next.element.getAttribute('data-id') ?? undefined);
             setAnchor(next.element);
         },
         [onPage, selected],
@@ -569,16 +616,18 @@ export const AlignmentDesk = () => {
         // notation is what closes it
         if (!id || !element) {
             setSelected(undefined);
+            setSelectedNote(undefined);
             setAnchor(undefined);
             return;
         }
         setSelected(id);
+        // A notehead carries the id of its note; a cross is no note of the score
+        setSelectedNote(element.getAttribute('data-id') ?? undefined);
         setAnchor(element);
     }, []);
 
     const counts = useMemo(() => countsOf(divergences, outcomes), [divergences, outcomes]);
     const open = divergences.find((divergence) => divergence.id === selected);
-    const round = selected ? onPage() : [];
     const busy = status !== undefined;
 
     const alignTooltip = !performance
@@ -752,7 +801,13 @@ export const AlignmentDesk = () => {
                 )}
 
                 {notices.map((notice) => (
-                    <Alert severity="warning" key={notice}>
+                    <Alert
+                        severity="warning"
+                        key={notice}
+                        onClose={() => {
+                            setNotices((all) => all.filter((entry) => entry !== notice));
+                        }}
+                    >
                         {notice}
                     </Alert>
                 ))}
@@ -766,11 +821,7 @@ export const AlignmentDesk = () => {
                         <PlaybackBar playback={playback} />
                         {counts.total > 0 && (
                             <Typography variant="body2" color="text.secondary">
-                                {unwritten
-                                    ? 'This is the score as it was played. '
-                                    : 'The score holds this performance. '}
-                                Click a coloured note to see how it was written, or to write it
-                                another way.
+                                Click a coloured note to change how it is written.
                             </Typography>
                         )}
                     </Box>
@@ -803,15 +854,9 @@ export const AlignmentDesk = () => {
                         <Stack spacing={1} sx={{ p: 4, maxWidth: '34rem' }}>
                             <Typography variant="h6">Nothing aligned yet</Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Add a MIDI performance of this score and press Align. The two are
-                                put note against note, and whatever was played differently is
-                                written into the score at once, beside what the source has.
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Then look: notes the performer added are green, notes left out
-                                red, notes changed violet. Click one to see how it was written, or
-                                to have it written another way. Nothing reaches the document until
-                                you press Write into score.
+                                Add a recording and press Align. What was played differently is
+                                written into the score: added notes green, left out red, changed
+                                violet.
                             </Typography>
                         </Stack>
                     )}
@@ -832,27 +877,26 @@ export const AlignmentDesk = () => {
                 }}
             />
 
-            <DivergencePopover
+            <AlterationEditor
                 divergence={open}
                 outcome={selected ? outcomes.get(selected) : undefined}
                 anchor={anchor}
-                decided={selected ? resolutions.has(selected) : false}
+                mei={shown}
+                paint={paintBar}
+                noteId={selectedNote}
+                changed={
+                    selected !== undefined &&
+                    (resolutions.has(selected) ||
+                        (outcomes.get(selected)?.notes ?? []).some((note) => edits.has(note.id)))
+                }
                 onChoose={choose}
+                onEdit={edit}
                 onReset={reset}
                 onClose={() => {
                     setSelected(undefined);
+                    setSelectedNote(undefined);
                     setAnchor(undefined);
                 }}
-                onStep={step}
-                position={round.findIndex((entry) => entry.id === selected) + 1}
-                total={round.length}
-                colour={
-                    open?.kind === 'missing'
-                        ? OMITTED_COLOUR
-                        : open?.kind === 'replaced'
-                          ? REPLACED_COLOUR
-                          : EXTRA_COLOUR
-                }
             />
         </>
     );

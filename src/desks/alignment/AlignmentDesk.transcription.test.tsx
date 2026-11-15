@@ -96,32 +96,68 @@ describe('the alignment desk, over differences nobody has written yet', () => {
         expect(button('Write into score')?.disabled).toBe(false);
     });
 
-    it('says on the note how it was written, and offers the other ways', async () => {
+    it('opens the bar on the note, drawn the ordinary way and coloured as the page is', async () => {
         await click(desk.querySelector('.alignment-added'));
+        await settle(() => document.querySelector('.MuiPopover-paper .alignment-bar svg') !== null);
 
+        const bar = document.querySelector('.MuiPopover-paper .alignment-bar');
+        expect(bar?.querySelectorAll('.alignment-added')).toHaveLength(1);
+        // The note in hand is ringed, not recoloured: green is what says it was added
+        expect(bar?.querySelector('.alignment-editing')?.getAttribute('data-id')).toBe(writtenIdOf(octave));
+        // One bar and no more
+        expect(bar?.querySelector('[data-id="n1"]')).not.toBeNull();
+        expect(bar?.querySelector('[data-id="n5"]')).toBeNull();
+    });
+
+    it('says nothing in words: the ways of writing it, and the hands to move it', () => {
         const card = document.querySelector('.MuiPopover-paper');
-        expect(card?.textContent).toContain('in bar 1 on beat 1');
-        expect(card?.textContent).toContain('with what is written there');
+        const kinds = card?.querySelector('[aria-label="Written as"]');
 
-        const written = card?.querySelector('[aria-label="Written as"]');
-        expect([...written!.querySelectorAll('button')].map((entry) => entry.textContent)).toEqual([
+        expect([...kinds!.querySelectorAll('button')].map((entry) => entry.textContent)).toEqual([
             'Notes',
-            'Grace notes',
+            'Grace',
             'Leave out',
         ]);
-        expect(written?.querySelector('[aria-pressed="true"]')?.textContent).toBe('Notes');
+        expect(kinds?.querySelector('[aria-pressed="true"]')?.textContent).toBe('Notes');
+        for (const name of ['Earlier', 'Later', 'Shorter', 'Longer', 'Other staff']) {
+            expect(card?.querySelector(`button[aria-label="${name}"]`), name).not.toBeNull();
+        }
+        expect(card?.querySelector('p')).toBeNull();
+    });
+
+    const lastRecorded = () =>
+        dispatch.mock.calls
+            .map(
+                ([action]) =>
+                    action as {
+                        type: string;
+                        alignment?: {
+                            resolutions: Map<string, { action: string }>;
+                            edits: Map<string, { onset?: number; staff?: string }>;
+                        };
+                    },
+            )
+            .filter((action) => action.type === 'set-alignment')
+            .at(-1)?.alignment;
+
+    it('moves the note along the bar, and records where to', async () => {
+        // On the downbeat with the bass, so there is nowhere earlier and somewhere later
+        expect(document.querySelector<HTMLButtonElement>('button[aria-label="Earlier"]')?.disabled).toBe(true);
+        await click(document.querySelector('button[aria-label="Later"]'));
+
+        const moved = lastRecorded()?.edits.get(writtenIdOf(octave));
+        expect(moved?.onset).toBeGreaterThan(0);
+        expect(moved?.onset).toBeLessThan(2);
+    });
+
+    it('puts it on the other staff', async () => {
+        await click(document.querySelector('button[aria-label="Other staff"]'));
+        expect(lastRecorded()?.edits.get(writtenIdOf(octave))?.staff).toBe('1');
     });
 
     it('records a change of mind as the one decision the reader made', async () => {
         await click(button('Leave out'));
-
-        const recorded = dispatch.mock.calls
-            .map(([action]) => action as { type: string; alignment?: { resolutions: Map<string, { action: string }> } })
-            .filter((action) => action.type === 'set-alignment')
-            .at(-1);
-
-        expect(recorded).toBeDefined();
-        expect([...recorded!.alignment!.resolutions.values()].map((entry) => entry.action)).toEqual(['record']);
+        expect([...lastRecorded()!.resolutions.values()].map((entry) => entry.action)).toEqual(['record']);
     });
 
     it('writes the transcription into the document, readings and all', async () => {

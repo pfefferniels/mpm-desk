@@ -23,6 +23,7 @@ import type {
     VoiceSelection,
 } from '../fitting/transformers/voices/ProcessVoices';
 import type { Action, Resolution } from '../alignment/readings';
+import type { NoteEdit } from '../alignment/transcription';
 import { isRecordedModelId, type RecordedModelId } from '../alignment/mlign/models';
 import { followExpansions, movesGuides } from './guides';
 
@@ -245,6 +246,12 @@ export interface WorkAlignment {
      * the notes they cover so they can be read back against a fresh grouping; see `divergenceId`.
      */
     resolutions: ReadonlyMap<string, Resolution>;
+    /**
+     * What the reader changed about single notes the transcriber wrote: where one stands in its
+     * bar, on which staff, how long. By the id the note is written under, which names the key
+     * that was played and so stays the same however often the score is transcribed again.
+     */
+    edits: ReadonlyMap<string, NoteEdit>;
     /** Who decided, and how sure. Written into every `<when>` the decisions reach. */
     resp: string;
     certainty: string;
@@ -271,6 +278,28 @@ const readResolutions = (value: unknown): ReadonlyMap<string, Resolution> => {
     );
 };
 
+const readEdits = (value: unknown): ReadonlyMap<string, NoteEdit> => {
+    const entries: unknown[] =
+        value instanceof Map ? [...value.entries()] : Array.isArray(value) ? value : [];
+
+    return new Map(
+        entries.flatMap((entry: unknown) => {
+            if (!Array.isArray(entry) || entry.length !== 2) return [];
+            const [id, edit] = entry as [unknown, unknown];
+            if (typeof id !== 'string' || typeof edit !== 'object' || edit === null) return [];
+
+            // Only what is of the kind it should be; a file may hold anything
+            const held = edit as Record<string, unknown>;
+            const read: NoteEdit = {
+                ...(typeof held['onset'] === 'number' ? { onset: held['onset'] } : {}),
+                ...(typeof held['staff'] === 'string' ? { staff: held['staff'] } : {}),
+                ...(typeof held['units'] === 'number' ? { units: held['units'] } : {}),
+            };
+            return Object.keys(read).length > 0 ? [[id, read]] : [];
+        }),
+    );
+};
+
 const readAlignment = (options: Call['options']): WorkAlignment | null => {
     const source = options['source'];
     if (typeof source !== 'string' || !source) return null;
@@ -284,6 +313,7 @@ const readAlignment = (options: Call['options']): WorkAlignment | null => {
         minConfidence:
             typeof options['minConfidence'] === 'number' ? options['minConfidence'] : 0,
         resolutions: readResolutions(options['resolutions']),
+        edits: readEdits(options['edits']),
         resp: typeof options['resp'] === 'string' ? options['resp'] : '',
         certainty: typeof options['certainty'] === 'string' ? options['certainty'] : 'unknown',
     };
@@ -437,15 +467,15 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
                 (entry) => entry.name === 'Align' && entry.options['source'] === alignment.source,
             );
 
-            // Compared by serializing, as `set-voices` is. `resolutions` is a `Map` of plain
-            // records, which `JSON.stringify` renders as `{}`, so it is unwrapped first.
-            const flattened = { ...alignment, resolutions: [...alignment.resolutions] };
+            // Compared by serializing, as `set-voices` is. `resolutions` and `edits` are `Map`s of
+            // plain records, which `JSON.stringify` renders as `{}`, so they are unwrapped first.
+            const flat = (entry: WorkAlignment) => ({
+                ...entry,
+                resolutions: [...entry.resolutions],
+                edits: [...entry.edits],
+            });
             const before = existing ? readAlignment(existing.options) : null;
-            if (
-                before &&
-                JSON.stringify(flattened) ===
-                    JSON.stringify({ ...before, resolutions: [...before.resolutions] })
-            ) {
+            if (before && JSON.stringify(flat(alignment)) === JSON.stringify(flat(before))) {
                 return state;
             }
 

@@ -251,6 +251,15 @@ export const alignmentStyles = (extra: string, omitted: string) => {
         '.alignment-score .alignment-selected, .alignment-score .alignment-selected *':
             marked(SELECTED_COLOUR),
         '.alignment-score .note-playing, .alignment-score .note-playing *': ink(PLAYING_COLOUR),
+        // The bar in the editor is about where notes stand and what they are. Pedal marks,
+        // dynamics, slurs and words are true of the bar and nothing to do with that.
+        '.alignment-bar .pedal, .alignment-bar .dir, .alignment-bar .dynam, .alignment-bar .hairpin, .alignment-bar .tempo, .alignment-bar .slur, .alignment-bar .harm, .alignment-bar .fing':
+            { display: 'none' },
+        // The note the editor's hands are on, ringed rather than recoloured: its colour is what
+        // says what it is
+        '.alignment-bar .alignment-editing': {
+            filter: `drop-shadow(0 0 3px ${SELECTED_COLOUR}) drop-shadow(0 0 1px ${SELECTED_COLOUR})`,
+        },
         '.alignment-score .performanceExtraNote': { color: extra },
     };
 };

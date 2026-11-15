@@ -570,10 +570,42 @@ describe('the alignment', () => {
                 model: 'v3',
                 minConfidence: 0.25,
                 resolutions,
+                edits: new Map(),
                 resp: 'NP',
                 certainty: 'medium',
             },
         ]);
+    });
+
+    it('reads what was changed about single notes, and only what is of the kind it should be', () => {
+        const edited: Call = {
+            ...align,
+            options: {
+                ...align.options,
+                edits: new Map<string, unknown>([
+                    ['played-750ms-73', { onset: 1.5, staff: '2', units: 12, colour: 'red' }],
+                    ['played-900ms-60', { onset: 'soon' }],
+                ]),
+            },
+        };
+        const read = alignmentsOf({ ...base(), provenance: [edited] })[0].edits;
+
+        expect([...read]).toEqual([['played-750ms-73', { onset: 1.5, staff: '2', units: 12 }]]);
+    });
+
+    it('takes a note moved for a change, though nothing was decided about any divergence', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: {
+                ...alignmentsOf(work)[0],
+                edits: new Map([['played-750ms-73', { onset: 1.5 }]]),
+            },
+            newCallId: 'unused',
+        });
+
+        expect(next).not.toBe(work);
+        expect(alignmentsOf(next)[0].edits.get('played-750ms-73')).toEqual({ onset: 1.5 });
     });
 
     it('reads nothing out of a chain that has aligned nothing', () => {
@@ -623,6 +655,7 @@ describe('the alignment', () => {
                 model: 'v3',
                 minConfidence: 0,
                 resolutions: new Map(),
+                edits: new Map(),
                 resp: 'NP',
                 certainty: 'medium',
             },

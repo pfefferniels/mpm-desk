@@ -22,7 +22,7 @@ import type { NoteSpan } from "../../performance/midiSpans";
 import type { Divergence } from "../divergences";
 import { signFor } from "./figure";
 import { UNITS, levelOf } from "./grid";
-import { chooseStaff, chooseValue, joinable } from "./place";
+import { chooseStaff, chooseValue, joinable, valuesAt } from "./place";
 import { quantise, type Played, type QuantiseSettings } from "./quantise";
 import {
     beatLength,
@@ -63,6 +63,40 @@ export type Notation =
     /** Not at all: the recording keeps it and the score does not show it */
     | "none";
 
+/**
+ * What a reader has changed about one written-in note, by hand.
+ *
+ * Each is the thing itself and not a step from where the transcriber put it, so that it means
+ * the same after the model has been improved and puts the note somewhere else of its own accord.
+ */
+export interface NoteEdit {
+    /** Where it is written: quarter notes from the start of the piece, one of its `places` */
+    onset?: number;
+    /** The staff it is written on, by `@n` */
+    staff?: string;
+    /** How long it is written, in grid units, one of its `values` */
+    units?: number;
+}
+
+/** One played note as it stands in the score, and what a reader may do to it. */
+export interface WrittenNoteInfo {
+    id: string;
+    /** Quarter notes from the start of the piece */
+    onset: number;
+    /** The bar it is in, counted from zero */
+    measure: number;
+    staff: string;
+    /** The staves it could be on */
+    staves: string[];
+    grace: boolean;
+    /** Every place it could be moved to, in score order */
+    places: number[];
+    /** Its length in grid units, where it has one of its own: a note in a chord has the chord's */
+    units?: number;
+    /** The lengths it could be given, longest first */
+    values?: number[];
+}
+
 /** What became of one divergence. */
 export interface Outcome {
     written: "measured" | "grace" | "mixed" | "sign" | "omitted" | "variant" | "as-written" | "none";
@@ -74,6 +108,10 @@ export interface Outcome {
     offers: Notation[];
     /** The ids of the notes written for it */
     noteIds: string[];
+    /** Those notes, each with what a reader may change about it */
+    notes: WrittenNoteInfo[];
+    /** The bar it is in, counted from zero, where it is in one */
+    measure?: number;
 }
 
 interface TranscribeInput {
@@ -86,6 +124,8 @@ interface TranscribeInput {
     spans: readonly NoteSpan[];
     /** What the reader has asked for, by divergence id; anything absent is `auto` */
     choices?: ReadonlyMap<string, Notation>;
+    /** What the reader has changed about single notes, by the id the note is written under */
+    edits?: ReadonlyMap<string, NoteEdit>;
     /** Who answers for the readings */
     resp?: string;
     settings?: Partial<QuantiseSettings>;
@@ -196,6 +236,8 @@ export function transcribe(input: TranscribeInput): Transcribed {
                     because: `Written as a ${sign.name} on the note it decorates. The ${String(divergence.perfIds.length)} notes played stay in the recording as how it was played.`,
                     offers,
                     noteIds: [],
+                    notes: [],
+                    measure: anchor.event.layer.staff.measure.index,
                 });
                 continue;
             }
@@ -210,10 +252,26 @@ export function transcribe(input: TranscribeInput): Transcribed {
         }
     }
 
+    const editOfSpan = (span: { onsetMs: number; pitch: number }) => input.edits?.get(writtenIdOf(span));
     const quantised = quantise(model, map, played, {
         settings: input.settings,
-        force: (cluster) => forced.get(cluster.notes[0].id),
+        force: (cluster) => {
+            const kind = forced.get(cluster.notes[0].id);
+            // Notes struck together are one moment, so moving one of them moves the moment
+            const onset = cluster.notes.map((note) => editOfSpan(note)?.onset).find((at) => at !== undefined);
+            return kind || onset !== undefined ? { kind, onset } : undefined;
+        },
     });
+
+    /** What each divergence's notes are in the score, for a reader to act on. */
+    const infos = new Map<string, WrittenNoteInfo[]>();
+    const places = new Map<WrittenNoteInfo, OwnPlace>();
+    const inform = (group: string, info: WrittenNoteInfo): WrittenNoteInfo => {
+        const list = infos.get(group);
+        if (list) list.push(info);
+        else infos.set(group, [info]);
+        return info;
+    };
 
     // Per divergence, what each of its notes came to
     const fates = new Map<string, { kind: "measured" | "grace" | "unplaced"; confidence: number; where?: string; because?: string }[]>();
@@ -247,7 +305,17 @@ export function transcribe(input: TranscribeInput): Transcribed {
         editOf(event).graces.push(
             grace.moment.map(({ span, divergence, confidence }) => {
                 fate(divergence.id, { kind: "grace", confidence, where: describe(model, anchor.onset) });
-                return newNote(span, divergence.id, divergence.reading, confidence, event.layer.staff, anchor.onset);
+                const note = newNote(span, divergence.id, divergence.reading, confidence, event.layer.staff, anchor.onset);
+                inform(divergence.id, {
+                    id: note.id,
+                    onset: anchor.onset,
+                    measure: event.layer.staff.measure.index,
+                    staff: event.layer.staff.n,
+                    staves: [event.layer.staff.n],
+                    grace: true,
+                    places: [],
+                });
+                return note;
             }),
         );
     };
@@ -289,9 +357,23 @@ export function transcribe(input: TranscribeInput): Transcribed {
         let leaned = false;
         for (const member of members) {
             const { span, divergence, confidence } = member;
-            const staff = chooseStaff(measure, onset, span.pitch) ?? measure.staves[0];
+            const asked = editOfSpan(span);
+            const staff =
+                measure.staves.find((candidate) => candidate.n === asked?.staff) ??
+                chooseStaff(measure, onset, span.pitch) ??
+                measure.staves[0];
             if (!staff) continue;
             const where = describe(model, onset);
+            const about = (note: NewNote, on: StaffModel): WrittenNoteInfo =>
+                inform(divergence.id, {
+                    id: note.id,
+                    onset,
+                    measure: measure.index,
+                    staff: on.n,
+                    staves: measure.staves.map((candidate) => candidate.n),
+                    grace: false,
+                    places: entry.places,
+                });
 
             const event =
                 joinable(staff, onset, span.pitch) ??
@@ -301,7 +383,9 @@ export function transcribe(input: TranscribeInput): Transcribed {
 
             if (event) {
                 const edit = editOf(event);
-                edit.add.push(newNote(span, divergence.id, divergence.reading, confidence, event.layer.staff, onset));
+                const joined = newNote(span, divergence.id, divergence.reading, confidence, event.layer.staff, onset);
+                edit.add.push(joined);
+                about(joined, event.layer.staff);
                 if (!leaned) {
                     edit.graces.push(...graceNotes(leaning, event.layer.staff, onset));
                     leaned = true;
@@ -322,13 +406,15 @@ export function transcribe(input: TranscribeInput): Transcribed {
                 staves.set(staff, addition);
                 edits.staves.push(addition);
             }
+            const own = newNote(span, divergence.id, divergence.reading, confidence, staff, onset);
             const place: OwnPlace = {
                 start,
                 // Settled below, once every note of the bar has its place
                 value: chooseValue(start, Infinity, measure),
-                notes: [newNote(span, divergence.id, divergence.reading, confidence, staff, onset)],
+                notes: [own],
                 graces: leaned ? [] : graceNotes(leaning, staff, onset),
             };
+            places.set(about(own, staff), place);
             leaned = true;
             addition.places.push(place);
             fate(divergence.id, { kind: "measured", confidence, where: `${where}, in a voice of its own` });
@@ -338,7 +424,17 @@ export function transcribe(input: TranscribeInput): Transcribed {
             return graces.map((grace) =>
                 grace.moment.map(({ span, divergence, confidence }) => {
                     fate(divergence.id, { kind: "grace", confidence, where: describe(model, at) });
-                    return newNote(span, divergence.id, divergence.reading, confidence, staff, at);
+                    const note = newNote(span, divergence.id, divergence.reading, confidence, staff, at);
+                    inform(divergence.id, {
+                        id: note.id,
+                        onset: at,
+                        measure: staff.measure.index,
+                        staff: staff.n,
+                        staves: [staff.n],
+                        grace: true,
+                        places: [],
+                    });
+                    return note;
                 }),
             );
         }
@@ -364,10 +460,23 @@ export function transcribe(input: TranscribeInput): Transcribed {
         }
     }
 
+    // And as long as a reader has said, where they have
+    for (const [info, place] of places) {
+        const measure = model.measures[info.measure];
+        const values = valuesAt(place.start, measure);
+        const asked = values.find((value) => value.units === input.edits?.get(info.id)?.units);
+        if (asked) place.value = asked;
+        info.units = place.value.units;
+        info.values = values.map((value) => value.units);
+    }
+
     for (const [group, list] of fates) {
         const divergence = input.divergences.find((candidate) => candidate.id === group);
         if (!divergence || divergence.kind !== "added") continue;
-        outcomes.set(group, summarise(list, offersFor(divergence)));
+        const outcome = summarise(list, offersFor(divergence));
+        outcome.notes = infos.get(group) ?? [];
+        outcome.measure = outcome.notes[0]?.measure;
+        outcomes.set(group, outcome);
     }
 
     // ---- What is written and was not played ----
@@ -455,8 +564,11 @@ export function transcribe(input: TranscribeInput): Transcribed {
                           (doubled > 0 ? `; ${String(doubled)} more are unisons the other voice played.` : "."),
                       offers,
                       noteIds: [],
+                      notes: [],
                   },
         );
+        const kept = outcomes.get(divergence.id);
+        if (kept) kept.measure = notes[0].event.layer.staff.measure.index;
     }
 
     // ---- What was played at another pitch ----
@@ -489,6 +601,8 @@ export function transcribe(input: TranscribeInput): Transcribed {
                         : "Counted as the written note, as asked.",
                 offers,
                 noteIds: [],
+                notes: [],
+                measure: note.event.layer.staff.measure.index,
             });
             continue;
         }
@@ -501,6 +615,8 @@ export function transcribe(input: TranscribeInput): Transcribed {
             because: `The played ${nameOf(played)} written in place of the ${note.pname.toUpperCase()}${String(note.oct)} of the source.`,
             offers,
             noteIds: [played.id],
+            notes: [],
+            measure: note.event.layer.staff.measure.index,
         });
     }
 
@@ -577,6 +693,7 @@ const none = (because: string, offers: Notation[]): Outcome => ({
     because,
     offers,
     noteIds: [],
+    notes: [],
 });
 
 function summarise(
@@ -614,6 +731,7 @@ function summarise(
         confidence,
         offers,
         noteIds: [],
+        notes: [],
     };
 }
 

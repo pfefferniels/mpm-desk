@@ -61,13 +61,24 @@ interface Quantised {
     measured?: { onset: number; level: Level; coincides: boolean };
     /** Whether a grace note is a reading the timing allows at all */
     graceable: boolean;
+    /**
+     * Every place it could have been written at, in score order: the two written moments it
+     * was played between and the grid between them. What a reader moves it along.
+     */
+    places: number[];
 }
 
 interface QuantiseOptions {
     /** Written events to read the score without, for holding notes out of it. */
     hidden?: ReadonlySet<ScoreEvent>;
-    /** Which notation the reader has asked for, by cluster; absent lets the model decide. */
-    force?: (cluster: Cluster) => "measured" | "grace" | undefined;
+    /**
+     * What the reader has asked for, by cluster; absent lets the model decide.
+     *
+     * A `kind` says which notation and leaves the place to the model. An `onset` says the place
+     * outright, one of the cluster's own {@link Quantised.places}: the note is put there and
+     * the notes around it are placed as though it were not theirs to argue with.
+     */
+    force?: (cluster: Cluster) => { kind?: "measured" | "grace"; onset?: number } | undefined;
     settings?: Partial<QuantiseSettings>;
 }
 
@@ -234,6 +245,7 @@ const unplaced = (cluster: Cluster, because: string): Quantised => ({
     placement: { kind: "unplaced", because },
     confidence: 1,
     graceable: false,
+    places: [],
 });
 
 /** The anchor whose own notes a moment falls among, if it falls among any. */
@@ -397,6 +409,35 @@ function solveGap(
         return timingCost(ms - expected, scale);
     };
 
+    const places = candidates.map((candidate) => candidate.onset);
+
+    // What a reader has put somewhere is there. It is taken out of the question before the
+    // others are asked it, so that one note moved by hand cannot make the rest unplaceable.
+    const pinned = new Map<Cluster, Candidate>();
+    for (const cluster of clusters) {
+        const asked = force?.(cluster);
+        if (asked?.onset === undefined || asked.kind === "grace") continue;
+        const at = candidates.find((candidate) => Math.abs(candidate.onset - (asked.onset ?? NaN)) < 1e-6);
+        if (at) pinned.set(cluster, at);
+    }
+    const everything = clusters;
+    clusters = clusters.filter((cluster) => !pinned.has(cluster));
+
+    const settled: Quantised[] = [...pinned].map(([cluster, candidate]) => ({
+        cluster,
+        placement: {
+            kind: "measured",
+            onset: candidate.onset,
+            level: candidate.level,
+            coincides: candidate.anchor !== undefined,
+        },
+        confidence: 1,
+        measured: { onset: candidate.onset, level: candidate.level, coincides: candidate.anchor !== undefined },
+        graceable: true,
+        places,
+    }));
+    if (clusters.length === 0) return settled;
+
     // A grace note is quicker than anything the bars around it write. Where the left hand runs
     // in sixteenths a tenth of a second apart, a note a tenth of a second before the next is
     // one of them; in a nocturne's quavers the same tenth of a second is an acciaccatura.
@@ -411,7 +452,7 @@ function solveGap(
     const graceShare = -Math.log(settings.graceShare);
 
     const costs = clusters.map((cluster) => {
-        const forced = force?.(cluster);
+        const forced = force?.(cluster)?.kind;
         const row = candidates.map((candidate) =>
             forced === "grace" ? Infinity : measuredShare + candidate.prior + fit(candidate, cluster),
         );
@@ -479,7 +520,7 @@ function solveGap(
         state = back[k][state];
     }
 
-    return clusters.map((cluster, k) => {
+    const solved: Quantised[] = clusters.map((cluster, k) => {
         const row = costs[k];
         const chosen = states[k];
         const finite = row.filter((cost) => Number.isFinite(cost));
@@ -510,8 +551,13 @@ function solveGap(
                       coincides: candidates[chosen].anchor !== undefined,
                   };
 
-        return { cluster, placement, confidence, measured, graceable };
+        return { cluster, placement, confidence, measured, graceable, places };
     });
+
+    // In the order they were played, the pinned ones among the rest
+    return everything.map(
+        (cluster) => solved.find((entry) => entry.cluster === cluster) ?? settled.find((entry) => entry.cluster === cluster)!,
+    );
 }
 
 /** When the note of an anchor nearest a pitch was struck: the same hand's, as near as can be told. */
