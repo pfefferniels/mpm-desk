@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, GlobalStyles, Slider, Stack, Typography } from '@mui/material';
 import { NavigateBefore, NavigateNext } from '@mui/icons-material';
 import { applyAlignment } from '../../alignment/applyAlignment';
@@ -21,7 +21,7 @@ import type { PlayablePedal } from '../../performance/buildMidiFile';
 import { asSpans } from '../../performance/midiSpans';
 import { heldTiesOf, type ScoreNote } from '../../score/scoreNotes';
 import { Score } from '../../verovio/Score';
-import { DEFAULT_PERFORMANCE_SCALE, performedOptions } from '../../verovio/toolkit';
+import { DEFAULT_PERFORMANCE_SCALE, performedOptions, unitsPerSecond } from '../../verovio/toolkit';
 import { EXTRA_COLOUR } from '../../verovio/extraNotes';
 import { OMITTED_COLOUR } from '../../verovio/omissionMarks';
 import { useScoreDocument } from '../../hooks/ScoreDocument';
@@ -119,6 +119,34 @@ const markedAt = (root: Element, x: number, y: number): Element | null => {
     return null;
 };
 
+/**
+ * The size the score opens at, as verovio's `scale`: a percentage of the engraving's own size.
+ *
+ * Well under the 70 the other score views use. Those show a few bars at a time; this one is read
+ * across a whole performance for the handful of notes that are coloured, and at 70 two systems
+ * filled the window.
+ */
+const DEFAULT_ZOOM = 40;
+
+/**
+ * What a system needs beside its music, in pixels at a given zoom: the page's margins, and the
+ * clef, key and time signature before the first note. Measured on the engraving, where it comes
+ * to four times the zoom, and given a little room over that.
+ */
+const besideTheMusic = (zoom: number) => 8 + 4.2 * zoom;
+
+/**
+ * How many seconds of the recording one system holds, so that it is as wide as the window.
+ *
+ * The performed layout breaks its systems by time, at a length it is told. Told the same length
+ * at every zoom, a small score would fill half the window's width and a large one would run off
+ * it; so the length follows the width there is and the zoom the score is drawn at.
+ */
+const secondsAcross = (width: number, zoom: number): number => {
+    const perSecond = (unitsPerSecond({ performanceScale: DEFAULT_PERFORMANCE_SCALE }) * zoom) / 1000;
+    return Math.min(120, Math.max(4, Math.floor((width - besideTheMusic(zoom)) / perSecond)));
+};
+
 /** How many notes were added, left out and changed, which is what the legend counts. */
 const countsOf = (divergences: readonly Divergence[], outcomes: ReadonlyMap<string, Outcome>) => {
     const counts = { added: 0, omitted: 0, changed: 0, total: 0 };
@@ -143,7 +171,7 @@ export const AlignmentDesk = () => {
 
     /** The take under review. The first there is, until somebody picks another. */
     const [picked, setPicked] = useState<string>();
-    const [scale, setScale] = useState(DEFAULT_PERFORMANCE_SCALE);
+    const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
     /** This session's run, until it is written. Absent means: show what the document holds. */
     const [run, setRun] = useState<AlignmentRun>();
@@ -391,13 +419,58 @@ export const AlignmentDesk = () => {
         [painting, selectedNote],
     );
 
+    // The width the score has to be drawn into. Followed with a delay: engraving a whole
+    // performance takes a moment, and a window being dragged wider asks for it sixty times
+    const [width, setWidth] = useState(0);
+    useEffect(() => {
+        if (!root || typeof ResizeObserver === 'undefined') return;
+        let pending: ReturnType<typeof setTimeout> | undefined;
+        let known = false;
+        const observer = new ResizeObserver(() => {
+            clearTimeout(pending);
+            // The first answer at once, so that the score is engraved once and at the right
+            // length; the ones after it when the window has come to rest
+            pending = setTimeout(
+                () => {
+                    setWidth(root.clientWidth);
+                },
+                known ? 200 : 0,
+            );
+            known = true;
+        });
+        observer.observe(root);
+        return () => {
+            clearTimeout(pending);
+            observer.disconnect();
+        };
+    }, [root]);
+
+    // Where the desk begins under the bar, measured: the bar is as tall as its rows and its
+    // rule, and wraps to more rows in a narrow window, so a constant is right only sometimes,
+    // and wrong by a pixel is a scrollbar down the whole page
+    const frame = useRef<HTMLDivElement>(null);
+    const [top, setTop] = useState(APP_BAR_HEIGHT);
+    useLayoutEffect(() => {
+        const measure = () => {
+            const element = frame.current;
+            if (element) setTop(Math.ceil(element.getBoundingClientRect().top + window.scrollY));
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => {
+            window.removeEventListener('resize', measure);
+        };
+    }, []);
+
+    const seconds = width > 0 ? secondsAcross(width, zoom) : undefined;
     const options = useMemo(
         () => ({
             ...performedOptions,
-            performanceScale: scale,
+            scale: zoom,
+            ...(seconds !== undefined && { performanceSystemDuration: seconds }),
             performanceRecording: take ?? '',
         }),
-        [scale, take],
+        [zoom, seconds, take],
     );
 
     const pedals = useMemo<PlayablePedal[]>(() => {
@@ -793,18 +866,29 @@ export const AlignmentDesk = () => {
                     <Slider
                         aria-label="Zoom"
                         sx={{ width: '5rem', mx: 1 }}
-                        min={4}
-                        max={64}
-                        step={2}
-                        value={scale}
+                        min={20}
+                        max={100}
+                        step={5}
+                        value={zoom}
                         onChange={(_, value) => {
-                            setScale(value as number);
+                            setZoom(value as number);
                         }}
                     />
                 </ToolGroup>
             </DeskToolbar>
 
-            <Stack spacing={1} sx={{ p: 1 }}>
+            {/* As tall as the window under the bar, and the score takes what the notices above
+                it leave: the music runs to the bottom edge however much is said over it. */}
+            <Stack
+                ref={frame}
+                spacing={1}
+                sx={{
+                    p: 1,
+                    pb: 0,
+                    boxSizing: 'border-box',
+                    height: `calc(100dvh - ${String(top)}px)`,
+                }}
+            >
                 {status && (
                     <Box sx={{ maxWidth: '32rem' }}>
                         <Typography variant="body2" color="text.secondary">
@@ -875,7 +959,8 @@ export const AlignmentDesk = () => {
                     sx={{
                         overflow: 'auto',
                         bgcolor: '#ffffff',
-                        height: `calc(100vh - ${String(APP_BAR_HEIGHT)}px - 12rem)`,
+                        flex: '1 1 0',
+                        minHeight: 0,
                     }}
                 >
                     {shown && (alignment?.spans.length ?? 0) > 0 ? (
