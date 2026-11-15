@@ -1,6 +1,8 @@
+import { readScore } from "../alignment/transcription/scoreModel";
 import { NoteSpan } from "../performance/midiSpans";
 import { parseTravel, type Travel } from "../performance/pedalTravel";
 import { midiPitch } from "../performance/pitch";
+import { ALTERATION, impliedAlterations, ownAccidental } from "../score/accidentals";
 
 export interface PedalEvent {
     type: "sustain" | "soft";
@@ -53,15 +55,39 @@ export interface RecordingInfo {
     divergences: RecordedDivergence[];
 }
 
-/** The accidental of a note, whether written on it or on a child <accid> */
-function accidentalOf(noteEl: Element, ns: string): string | null {
-    const accid = noteEl.getAttribute("accid");
-    if (accid) return accid;
+/**
+ * What every written note sounds as, by `@xml:id`.
+ *
+ * A `<when>` says when a note sounded and points at the note; what it sounded *as* is the
+ * score's to say. And the score says it the way scores do: an e in three flats is an e flat
+ * with nothing written on it, a sharp holds to the end of its bar, a note under an ottava
+ * sounds an octave from where it stands. Reading the pitch off the note alone - its letter,
+ * its octave and the accidental it happens to carry - hears none of that, and a recording
+ * read back out of such a score is played in C major whatever key it was played in. Over
+ * thirty rolls of Chopin against the first editions that was every second matched note.
+ *
+ * So the pitch is the one the transcriber's reading of the score has, which reads key
+ * signature, bar and ottava, and agrees with what was played for every one of those notes.
+ * It reads one reading of an `<app>`. A note in the other is read for itself, with what key
+ * and bar imply for it.
+ */
+function soundingPitches(doc: Document, ns: string): Map<string, number> {
+    const pitches = new Map<string, number>();
+    for (const note of readScore(doc).notes.values()) pitches.set(note.id, note.pitch);
 
-    const accidEl = noteEl.getElementsByTagNameNS(ns, "accid")[0];
-    return accidEl
-        ? accidEl.getAttribute("accid.ges") ?? accidEl.getAttribute("accid")
-        : null;
+    const implied = impliedAlterations(doc);
+    for (const noteEl of doc.getElementsByTagNameNS(ns, "note")) {
+        const id = noteEl.getAttribute("xml:id");
+        if (!id || pitches.has(id)) continue;
+
+        const natural = midiPitch(noteEl.getAttribute("pname"), noteEl.getAttribute("oct"));
+        if (natural === undefined) continue;
+
+        const own = ownAccidental(noteEl);
+        const alter = own !== undefined ? (ALTERATION[own] ?? 0) : (implied.get(id) ?? 0);
+        pitches.set(id, natural + alter);
+    }
+    return pitches;
 }
 
 export function parseRecordings(mei: string): {
@@ -71,19 +97,7 @@ export function parseRecordings(mei: string): {
     const doc = new DOMParser().parseFromString(mei, "application/xml");
     const ns = "http://www.music-encoding.org/ns/mei";
 
-    // Build pitch map from score <note> elements
-    const pitchMap = new Map<string, number>();
-    for (const noteEl of doc.getElementsByTagNameNS(ns, "note")) {
-        const id = noteEl.getAttribute("xml:id");
-        if (!id) continue;
-
-        const pitch = midiPitch(
-            noteEl.getAttribute("pname"),
-            noteEl.getAttribute("oct"),
-            accidentalOf(noteEl, ns)
-        );
-        if (pitch !== undefined) pitchMap.set(id, pitch);
-    }
+    const pitchMap = soundingPitches(doc, ns);
 
     // Parse recordings
     const recordings: RecordingInfo[] = [];
