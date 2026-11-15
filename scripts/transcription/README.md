@@ -77,6 +77,18 @@ called several times as many measured notes grace notes too. So measured is what
 fewer than one measured note in a hundred is taken for a grace note, and grace notes are what a
 reader asks for afterwards, by a click.
 
+### What does one performance change?
+
+```sh
+npx vite-node scripts/transcription/deviations.ts ../corpus <roll>
+```
+
+Writes `out/<roll>.deviations.html`: every bar the performer played differently, the score's
+bar above and the played one below, coloured as the alignment desk colours them. It is the
+quickest way to read a transcription, and the way the tie rules were found: against Schumann's
+text of *Träumerei* (made from the DCML corpus by `dcml2mei.ts`), Alfred Grünfeld's Welte roll
+differs in six ties he does not hold and in nothing else.
+
 ### Does the score then explain the recording?
 
 ```sh
@@ -129,14 +141,19 @@ levels comes from.
 
 ## What it does not do
 
-- **Tie.** An added note is one note value, cut at the barline and at the end of a triplet.
+- **Tie an added note.** An added note is one note value, cut at the barline and at the end of
+  a triplet. Ties the score has are another matter: one that was not held is taken away and one
+  that was played where none is written is put in, as readings of the `<tie>` alone.
+- **Ties written as `@tie`.** Only a `<tie>` element can be given a reading. A score that writes
+  its ties as attributes on the notes has a re-struck note written in as a new note.
 - **Tuplets other than triplets.** A note between the notes of a quintuplet is written on the
   nearest place a duple or triple grid has.
-- **Past the last matched note.** A note added after the final chord has no tempo to be read
-  against and stays in the recording.
-- **Repeats and cuts.** A note played on a repeat the engraving shows once has no bar to go into.
-  A passage the recording passes over without taking its time is left as written, since a cut
-  is a statement about bars and not about each note in them.
+- **Leave a played note out.** What was played is written, as notes, grace notes or a sign. A
+  note struck before the first matched note or after the last is read against the score's own
+  ends. Two things stay out because the score has nowhere for them: the notes of an ornament
+  the score already writes as a sign, and a note played on a repeat the engraving shows once.
+- **Cuts.** A passage the recording passes over without taking its time is left as written,
+  since a cut is a statement about bars and not about each note in them.
 - **Two takes.** `<rdg source="performance">` is one reading. Transcribing a second recording of
   a score takes the first one's readings out; the first keeps its matching.
 - **Courtesy accidentals in the source's own reading.** Where a new accidental would have changed

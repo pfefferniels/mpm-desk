@@ -165,6 +165,33 @@ describe('the work file', () => {
   });
 
   /**
+   * `AlignSource` was saved as `Align`. What it holds is what was decided about a recording, so
+   * a file that loses it on the way in loses the decisions: it is renamed, with everything on it.
+   */
+  test('renames an Align call to AlignSource, keeping what was decided on it', () => {
+    const older = JSON.stringify(
+      file([
+        call('Align', {
+          source: 'take-1',
+          midi: 'take-1.mid',
+          resolutions: {
+            dataType: 'Map',
+            value: [['added-750ms-73', { reading: 'ornamentation', action: 'write-graces' }]],
+          },
+        }),
+      ]),
+    );
+    const read = parseWorkFile(older);
+
+    expect(at(read.provenance, 0, 'call').name).toBe('AlignSource');
+    expect(at(read.provenance, 0, 'call').options['resolutions']).toEqual(
+      new Map([['added-750ms-73', { reading: 'ornamentation', action: 'write-graces' }]]),
+    );
+    expect(buildChain(read.provenance).unknown).toEqual([]);
+    expect(serializeWorkFile(read)).not.toContain('"name": "Align"');
+  });
+
+  /**
    * The `Map` and `Set` envelopes, which are the whole reason these are not `JSON.parse` and
    * `JSON.stringify` at the call site.
    *
@@ -324,15 +351,15 @@ describe('the chain built from it', () => {
   /**
    * The call the document holds and the chain does not run.
    *
-   * `Align` says which sounding event realises which written note, and that is applied to the MEI
+   * `AlignSource` says which sounding event realises which written note, and that is applied to the MEI
    * — before it is converted — rather than to the `Alignment` the fold runs over. So there is
    * nothing left for it to do here, and the two wrong answers are both worth ruling out: running
    * it would need a transformer whose body is empty, and *not knowing about it* would report it
    * as a name this build cannot run, which is the report that is supposed to mean something.
    */
-  test('leaves an Align to the document: neither run, nor reported as unknown', () => {
+  test('leaves an AlignSource to the document: neither run, nor reported as unknown', () => {
     const { transformers, unknown } = buildChain([
-      call('Align', { source: 'take-1', midi: 'take-1.mid' }),
+      call('AlignSource', { source: 'take-1', midi: 'take-1.mid' }),
       rubato(),
     ]);
 

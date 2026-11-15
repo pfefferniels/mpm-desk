@@ -51,17 +51,26 @@ const INJECTED = new Set(['TranslatePhysicalTimeToTicks', 'RoundNumbers']);
 /**
  * Calls the chain does not run, because what they decided is already in the document it runs over.
  *
- * `Align` says which sounding event realises which written note. That decision is written into the
- * MEI — by `applyAlignment`, before the MEI is converted — so by the time there is an `Alignment`
- * to fold over, there is nothing left for a `transform` to do. Registering a transformer whose
- * body is empty would be a worse way of saying that: it would claim a rank in the reduction order
- * it has no use for, and would have to be excluded from `validate`'s reckoning anyway.
+ * `AlignSource` is the first call of a reconstruction and the only one made on the score: it
+ * puts a recording against the source note by note, and writes what was played differently
+ * into the score as readings. Its options are the record of that: which recording, which model,
+ * what the reader decided about each difference and about each note written for one, and who
+ * decided. Its `elements` name the readings it wrote, as every other call's name the
+ * instructions it wrote.
  *
- * Named here rather than dropped silently, because the alternative is worse in both directions: an
- * `Align` call this did not know about would be reported as a transformer this build does not
- * have, which is exactly the report that is supposed to mean something.
+ * What it decided is in the MEI — the `<recording>` by `applyAlignment`, the readings by
+ * `transcribe`, before the MEI is converted — so by the time there is an `Alignment` to fold
+ * over, there is nothing left for a `transform` to do. Registering a transformer whose body is
+ * empty would be a worse way of saying that: it would claim a rank in the reduction order it has
+ * no use for, and would have to be excluded from `validate`'s reckoning anyway. And running it
+ * again from the source on every load would let a later model or a later transcriber change a
+ * reconstruction nobody had touched.
+ *
+ * Named here rather than dropped silently, because the alternative is worse in both directions:
+ * an `AlignSource` call this did not know about would be reported as a transformer this build
+ * does not have, which is exactly the report that is supposed to mean something.
  */
-const APPLIED_TO_THE_SCORE = new Set(['Align']);
+const APPLIED_TO_THE_SCORE = new Set(['AlignSource']);
 
 /** Whether the chain leaves this call to the document rather than running it. */
 export const isDocumentCall = (name: string): boolean => APPLIED_TO_THE_SCORE.has(name);

@@ -102,13 +102,17 @@ interface LegacyWorkFile extends WorkFile {
 }
 
 /**
- * Transformers renamed since a file could have been saved: the name a call was saved under, and
- * the one it goes by now. `InsertDynamics` was `InsertDynamicsInstructions` until November 2026.
+ * Calls renamed since a file could have been saved: the name a call was saved under, and the one
+ * it goes by now. `InsertDynamics` was `InsertDynamicsInstructions` until November 2026, and
+ * `AlignSource` was `Align`.
  *
  * A `Map` rather than an object literal, so that a call named after an `Object.prototype` member
  * cannot read back an inherited function as its new name.
  */
-const RENAMED: ReadonlyMap<string, string> = new Map([['InsertDynamicsInstructions', 'InsertDynamics']]);
+const RENAMED: ReadonlyMap<string, string> = new Map([
+    ['InsertDynamicsInstructions', 'InsertDynamics'],
+    ['Align', 'AlignSource'],
+]);
 
 /**
  * The guides of an `InsertDynamics` call under the name a file saved before November 2026 gives

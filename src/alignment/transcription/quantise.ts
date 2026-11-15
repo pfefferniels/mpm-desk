@@ -202,8 +202,8 @@ export function quantise(
     const byGap = new Map<number, Cluster[]>();
     const results = new Map<Cluster, Quantised>();
     for (const cluster of clusters) {
-        const gap = intervalAt(map, cluster.ms);
         const reach = reachOf(map, cluster.ms, settings.chordMs);
+        const gap = intervalAt(map, cluster.ms);
 
         if (gap < 0 && reach === undefined) {
             results.set(cluster, unplaced(cluster, "Played before the first note the score accounts for."));

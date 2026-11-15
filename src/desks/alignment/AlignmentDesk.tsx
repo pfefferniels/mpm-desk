@@ -71,7 +71,7 @@ import { useRecordingPlayback } from './useRecordingPlayback';
  * what `asMSM` reads to build the alignment the chain folds over. So this desk rewrites the MEI,
  * the one desk that does, and `ScoreDocument` says why.
  *
- * What the *reader* decides goes into the work file, on an `Align` call per take, and only
+ * What the *reader* decides goes into the work file, on an `AlignSource` call per take, and only
  * where they decided something: a divergence nobody has touched has no entry and is written
  * however the transcriber reads it.
  *
@@ -94,7 +94,7 @@ const EMPTY_EDITS: ReadonlyMap<string, NoteEdit> = new Map();
 
 /** What a transcription is, as far as telling two apart goes: the notes it wrote and took out. */
 const signatureOf = (mei: string): string =>
-    [...mei.matchAll(/<app[^>]*type="transcription"|xml:id="played-[^"]*"|type="transcribed"/g)]
+    [...mei.matchAll(/<app[^>]*type="transcription"[^>]*>|xml:id="played-[^"]*"|type="transcribed"/g)]
         .map((found) => found[0])
         .sort()
         .join('|');
@@ -156,7 +156,7 @@ export const AlignmentDesk = () => {
      *
      * Three sources of one answer, and the third is the one that must not be left out: the MEI is
      * where an alignment *lives*, so a score that arrives already aligned — by an earlier session,
-     * by another tool, by the file somebody was sent — holds takes that no `Align` call and no
+     * by another tool, by the file somebody was sent — holds takes that no `AlignSource` call and no
      * open MIDI file mentions. Reading only the other two showed such a document as having nothing
      * to look at.
      */
@@ -294,7 +294,12 @@ export const AlignmentDesk = () => {
             };
             const written = transcribe({ ...input, choices });
             const shown = transcribe({ ...input, choices: standing });
-            return { written: written.mei, shown: shown.mei, outcomes: written.outcomes };
+            return {
+                written: written.mei,
+                shown: shown.mei,
+                outcomes: written.outcomes,
+                readings: written.readings,
+            };
         } catch (reason: unknown) {
             return {
                 failed: `The differences could not be written into the score. ${
@@ -393,10 +398,14 @@ export const AlignmentDesk = () => {
      */
     const pageNoteOf = useMemo(() => {
         const notes = new Map((alignment?.matches ?? []).map((m) => [m.performanceId, m.scoreId]));
-        const writtenIds = new Set([...outcomes.values()].flatMap((outcome) => outcome.noteIds));
+        const inScore = new Map(
+            [...outcomes.values()].flatMap((outcome) =>
+                outcome.notes.map((note) => [note.played, note.id] as const),
+            ),
+        );
         for (const span of alignment?.spans ?? []) {
-            const id = writtenIdOf(span);
-            if (writtenIds.has(id)) notes.set(span.id, id);
+            const id = inScore.get(writtenIdOf(span));
+            if (id) notes.set(span.id, id);
         }
         return notes;
     }, [alignment, outcomes]);
@@ -489,21 +498,12 @@ export const AlignmentDesk = () => {
         return signatureOf(transcription.written) !== signatureOf(mei);
     }, [run, mei, transcription]);
 
-    /** Put what is on the page into the document. */
-    const write = useCallback(() => {
-        const next = transcription?.written ?? aligned?.mei;
-        if (!next) return;
-        setMei(next);
-        setRun(undefined);
-        setNotices([]);
-    }, [transcription, aligned, setMei]);
-
     /**
      * The record the reader's decisions go on: the one the work file has for this take, or a new
      * one where it has none.
      *
      * A score can arrive aligned, by another tool or from a file somebody was sent, and then
-     * there is a `<recording>` and no `Align` call. A reader of that document can still change
+     * there is a `<recording>` and no `AlignSource` call. A reader of that document can still change
      * their mind about a note, and the first time they do is when the record is made.
      */
     const record = useMemo((): WorkAlignment | undefined => {
@@ -520,6 +520,22 @@ export const AlignmentDesk = () => {
             certainty: 'medium',
         };
     }, [recorded, take, performance]);
+
+    /**
+     * Put what is on the page into the document, and say on the take's call what was written.
+     *
+     * The score gets the readings; the `AlignSource` call gets their names. A published
+     * reconstruction then says, without anything being run, which readings of its score came
+     * of aligning it with this recording, beside what was decided on the way.
+     */
+    const write = useCallback(() => {
+        const next = transcription?.written ?? aligned?.mei;
+        if (!next) return;
+        setMei(next);
+        if (record) setAlignment(record, transcription?.readings ?? []);
+        setRun(undefined);
+        setNotices([]);
+    }, [transcription, aligned, setMei, record, setAlignment]);
 
     const choose = useCallback(
         (divergence: Divergence, notation: Notation) => {

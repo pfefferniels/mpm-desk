@@ -65,13 +65,19 @@ whatever was played differently has to be in the score.
 
 Align therefore transcribes. Every note the performer added is given a place in the bar, a
 length, a name and a staff; every note left out is taken out; every note played at another pitch
-is written at the pitch played. All of it goes into `<app>` readings, the source's in
-`<rdg source="original">` and the performance's in `<rdg source="performance">`, so that the
-source is still there and `untranscribed` gives it back. Nobody is asked first. A reader looks at
-the result, green for what was added, red for what was left out, violet for what was changed,
-and corrects what they do not agree with. Clicking a note opens its bar in ordinary notation,
-where the note can be written as something else, grace notes or a trill sign or nothing at all,
-moved along the bar, made longer or shorter, or put on the other staff.
+is written at the pitch played. A tie that was not held is taken away, and the note it ran into
+is struck; a note held over where the score strikes it again gets a tie. All of it goes into
+`<app>` readings, the source's in `<rdg source="original">` and the performance's in
+`<rdg source="performance">`, so that the source is still there and `untranscribed` gives it
+back. Nobody is asked first. A reader looks at the result, green for what was played and is not
+written, red for what is written and was not played, violet for what was changed, and corrects
+what they do not agree with. Clicking a note opens its bar in ordinary notation, where the note
+can be written as something else, grace notes or an ornament sign, moved along the bar, made
+longer or shorter, or put on the other staff.
+
+What was played is in the score, one way or another: as notes, as grace notes, or as a sign.
+There is no way of leaving a played note out. The one thing a reader can keep as written is a
+note the performer did *not* play.
 
 Placing an added note is rhythm transcription, with the hard half given: the matched notes on
 either side say what the tempo was, and the bars around say what note values the passage moves
@@ -84,6 +90,29 @@ against the first editions encoded by the Fryderyk Chopin Institute; `scripts/tr
 says how, and what came out.
 
 One take's alterations are in the score at a time: `<rdg source="performance">` is one reading.
+
+### `AlignSource`
+
+Aligning is the first call of a reconstruction, and the work file says so: one `AlignSource`
+call per recording, ahead of everything that fits an instruction. It is the one call made on
+the score rather than on the performance, and what it holds is what a reader would want to
+check it by:
+
+    source, midi      which <recording>, made from which file
+    model             the aligner that put the two against each other
+    resolutions       what was decided about each difference, where the reader decided:
+                      notes, grace notes, a sign, or a written note kept
+    edits             each note the reader moved, lengthened or put on the other staff
+    resp, certainty   who decided, and how sure
+    elements          the xml:ids of the readings it wrote into transcription.mei
+
+Only decisions are recorded. A difference with no entry was written the way the transcriber
+writes it unasked, so the file reads as a list of the places where somebody thought otherwise.
+
+The chain does not run the call again. What it wrote is in the score, and the score is what
+the archive keeps: aligning afresh on every load would let a later model, or a later version of
+the transcriber, change a reconstruction nobody had touched. `untranscribed` takes the readings
+out, and Align puts them back with the decisions applied, which is how the desk itself works.
 
 ## Export
 

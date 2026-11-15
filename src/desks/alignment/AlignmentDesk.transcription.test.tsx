@@ -113,10 +113,10 @@ describe('the alignment desk, over differences nobody has written yet', () => {
         const card = document.querySelector('.MuiPopover-paper');
         const kinds = card?.querySelector('[aria-label="Written as"]');
 
+        // Three ways of being in the score at most, and none of not being in it
         expect([...kinds!.querySelectorAll('button')].map((entry) => entry.textContent)).toEqual([
             'Notes',
             'Grace',
-            'Leave out',
         ]);
         expect(kinds?.querySelector('[aria-pressed="true"]')?.textContent).toBe('Notes');
         for (const name of ['Earlier', 'Later', 'Shorter', 'Longer', 'Other staff']) {
@@ -156,8 +156,8 @@ describe('the alignment desk, over differences nobody has written yet', () => {
     });
 
     it('records a change of mind as the one decision the reader made', async () => {
-        await click(button('Leave out'));
-        expect([...lastRecorded()!.resolutions.values()].map((entry) => entry.action)).toEqual(['record']);
+        await click(button('Grace'));
+        expect([...lastRecorded()!.resolutions.values()].map((entry) => entry.action)).toEqual(['write-graces']);
     });
 
     it('writes the transcription into the document, readings and all', async () => {
@@ -169,5 +169,18 @@ describe('the alignment desk, over differences nobody has written yet', () => {
         expect(written).toContain(`xml:id="${writtenIdOf(octave)}"`);
         // The note left out is in the source reading and a rest stands in the played one
         expect(written).toMatch(/<rdg source="original"><note xml:id="n6"/);
+    });
+
+    it('says on the call for this recording which readings it wrote', () => {
+        const written = setMei.mock.calls[0][0] as string;
+        const said = dispatch.mock.calls
+            .map(([action]) => action as { type: string; readings?: string[] })
+            .filter((action) => action.type === 'set-alignment')
+            .at(-1)?.readings;
+
+        expect(said?.length).toBeGreaterThan(0);
+        // Each is the name of a reading that is in the score, and there is no other
+        const inScore = [...written.matchAll(/<app type="transcription" xml:id="([^"]+)"/g)].map((found) => found[1]);
+        expect([...(said ?? [])].sort()).toEqual([...inScore].sort());
     });
 });

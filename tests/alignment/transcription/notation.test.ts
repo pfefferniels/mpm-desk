@@ -194,7 +194,7 @@ describe('a reader\'s choice, and the action the work file keeps for it', () => 
   })
 
   it('goes there and back for every correction a reader can make', () => {
-    for (const notation of ['measured', 'grace', 'sign', 'none'] as const) {
+    for (const notation of ['measured', 'grace', 'sign'] as const) {
       expect(notationOf(actionFor(octave, notation))).toBe(notation)
     }
     expect(notationOf(actionFor(gone, 'none'))).toBe('none')
@@ -206,10 +206,10 @@ describe('a reader\'s choice, and the action the work file keeps for it', () => 
     expect(notationOf('ignore')).toBe('none')
   })
 
-  it('names the same answer by what it means for that kind of difference', () => {
-    expect(choiceLabel(octave, 'none')).toBe('Leave out')
+  it('names an answer by what it means for that kind of difference', () => {
     expect(choiceLabel(gone, 'none')).toBe('Kept')
-    expect(choiceLabel(other, 'none')).toBe('Written')
+    expect(choiceLabel(gone, 'auto')).toBe('Taken out')
     expect(choiceLabel(octave, 'grace')).toBe('Grace')
+    expect(choiceLabel(octave, 'measured')).toBe('Notes')
   })
 })

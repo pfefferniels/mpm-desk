@@ -114,6 +114,19 @@ export const paintingOf = ({
             .map((match) => match.scoreId),
     );
 
+    // A written note a played note turned out to be was played: the aligner had only not paired
+    // the two, and it is drawn like any other note that sounded
+    const found = new Set(
+        divergences.flatMap((divergence) =>
+            divergence.kind === 'added'
+                ? (outcomes?.get(divergence.id)?.notes ?? []).map((note) => note.id)
+                : [],
+        ),
+    );
+    for (const id of found) {
+        if (!added.has(id)) matched.add(id);
+    }
+
     const unplayed = new Set(
         [
             ...deletions.map((deletion) => deletion.scoreId),
@@ -121,7 +134,7 @@ export const paintingOf = ({
             ...matches
                 .filter((match) => match.confidence < minConfidence)
                 .map((match) => match.scoreId),
-        ].filter((id) => !written.has(id)),
+        ].filter((id) => !written.has(id) && !found.has(id)),
     );
 
     const outside = new Set(

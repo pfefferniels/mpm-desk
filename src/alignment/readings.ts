@@ -82,20 +82,14 @@ export const actionFor = (divergence: Divergence, notation: Notation): Action =>
 /**
  * What each way of writing a divergence is called, on the button that asks for it.
  *
- * By kind, because the same answer means different things: leaving an added note out of the
- * score and keeping a note the performer left out are both "do not change the text", and
- * neither is helped by being called that.
+ * By kind. A note that was played has three ways of being in the score and no way of not being
+ * in it; a written note that was not played is taken out or, where the reader knows better than
+ * the alignment, kept.
  */
 export const choiceLabel = (divergence: Divergence, notation: Notation): string => {
     if (divergence.kind === "missing") return notation === "none" ? "Kept" : "Taken out";
-    if (divergence.kind === "replaced") return notation === "none" ? "Written" : "Played";
-    return notation === "grace"
-        ? "Grace"
-        : notation === "sign"
-          ? "Sign"
-          : notation === "none"
-            ? "Leave out"
-            : "Notes";
+    if (divergence.kind === "replaced") return "Played";
+    return notation === "grace" ? "Grace" : notation === "sign" ? "Sign" : "Notes";
 };
 
 /** What the row of choices is headed, which for a note left out is not a way of writing it. */

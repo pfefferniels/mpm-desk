@@ -787,7 +787,7 @@ describe('how sure the attribution head has to be', () => {
 
 /**
  * The names a reader's decisions are filed under, which outlive the run that produced them: an
- * `Align` call in the work file holds a resolution per divergence id, and reads it back against a
+ * `AlignSource` call in the work file holds a resolution per divergence id, and reads it back against a
  * grouping made fresh. A counter would move every later name by one whenever a disagreement
  * appeared earlier, quietly re-pointing the decisions filed under them.
  */

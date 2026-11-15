@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { transcribe, untranscribed, writtenIdOf, type Notation, type NoteEdit } from '../../../src/alignment/transcription'
 import { readScore } from '../../../src/alignment/transcription/scoreModel'
 import { getNotesFromMEI } from '../../../src/score/scoreNotes'
-import { SOURCE, added, aligned, canonical, missing, parse, replaced, scoreMei, span } from './fixture'
+import { PLAYED, SOURCE, added, aligned, canonical, missing, parse, replaced, scoreMei, span } from './fixture'
 
 /** Where every written note of a document stands and what it sounds as, by id. */
 const standing = (mei: string) => {
@@ -183,17 +183,23 @@ describe('a played note the score does not write', () => {
     expect(canonical(result.mei)).toBe(canonical(base))
   })
 
-  it('stays out of the score where it was played before the music begins', () => {
-    const stray = span('x1', -4000, 60)
+  it('is written at the nearest end of the score where it was played outside it', () => {
+    // Before the first note and after the last: there is no tempo out there, and a note that
+    // was played is in the score all the same
+    const early = span('x1', -4000, 60)
+    const late = span('x2', 9000, 36)
     const result = transcribe({
-      mei: aligned(scoreMei(), { extra: [stray] }),
+      mei: aligned(scoreMei(), { extra: [early, late] }),
       source: SOURCE,
-      divergences: [added('a', [stray])],
-      spans: [stray],
+      divergences: [added('a', [early], 'outside'), added('b', [late], 'outside')],
+      spans: [early, late],
     })
+    const after = standing(result.mei)
 
-    expect(result.outcomes.get('a')?.written).toBe('none')
-    expect(result.mei).not.toContain('type="transcription"')
+    expect(result.outcomes.get('a')?.written).toBe('measured')
+    expect(after.get(writtenIdOf(early))?.onset).toBe(0)
+    expect(after.get(writtenIdOf(late))?.onset).toBeGreaterThanOrEqual(6)
+    expect(after.get(writtenIdOf(late))?.onset).toBeLessThan(8)
   })
 })
 
@@ -238,16 +244,15 @@ describe('what a reader may ask for instead', () => {
     expect(doc.querySelectorAll('when[type="insertion"]')).toHaveLength(1)
   })
 
-  it('writes nothing when told to leave it out', () => {
-    const base = aligned(scoreMei(), { extra: [lean] })
-    const result = ask('none')
-
-    expect(result.outcomes.get('a')?.written).toBe('none')
-    expect(canonical(result.mei)).toBe(canonical(base))
+  it('does not leave a played note out of the score, whatever an older file asked for', () => {
+    // `none` is what a decision to "record only" reads as. It is no longer a way of writing
+    // a note that was played, so it is read as no decision at all
+    expect(canonical(ask('none').mei)).toBe(canonical(ask('auto').mei))
+    expect(ask('none').outcomes.get('a')?.written).not.toBe('none')
   })
 
-  it('says what else it could be written as', () => {
-    expect(ask('auto').outcomes.get('a')?.offers).toEqual(['auto', 'measured', 'grace', 'sign', 'none'])
+  it('offers the ways a played note can be written, and leaving it out is not one', () => {
+    expect(ask('auto').outcomes.get('a')?.offers).toEqual(['auto', 'measured', 'grace', 'sign'])
   })
 })
 
@@ -385,6 +390,133 @@ describe('a written note that was not played', () => {
       choices: new Map([['m', 'none']]),
     })
     expect(canonical(result.mei)).toBe(canonical(base))
+  })
+})
+
+describe('a tie', () => {
+  // The second c5 tied to the first: one note of two quarters, as the score has it
+  const tied = scoreMei().replace(
+    '<note xml:id="n2" pname="d" oct="5" dur="4"/>',
+    '<note xml:id="n2" pname="c" oct="5" dur="4"/>',
+  ).replace('</measure>', '<tie xml:id="t1" startid="#n1" endid="#n2"/></measure>')
+  // The aligner sees one note there, so the second key going down has no written note
+  const { n2: _tiedInto, ...struckOnce } = PLAYED
+  void _tiedInto
+  const again = span('x1', 510, 72)
+
+  const result = transcribe({
+    mei: aligned(tied, { played: struckOnce, extra: [again] }),
+    source: SOURCE,
+    divergences: [added('a', [again])],
+    spans: [again],
+  })
+  const doc = parse(result.mei)
+
+  it('that was not held is taken out, and no note is written: the note is there already', () => {
+    expect(result.outcomes.get('a')?.written).toBe('measured')
+    expect(result.outcomes.get('a')?.because).toMatch(/struck again/)
+    expect(doc.querySelector('app[type="transcription"] > rdg[source="original"] > tie[*|id="t1"]')).not.toBeNull()
+    expect(doc.querySelector('app[type="transcription"] > rdg[source="performance"]')?.children).toHaveLength(0)
+    expect(doc.querySelector(`[*|id="${writtenIdOf(again)}"]`)).toBeNull()
+    expect(doc.querySelectorAll('note')).toHaveLength(parse(tied).querySelectorAll('note').length)
+  })
+
+  it('names the reading by the line it takes away, the same every time', () => {
+    expect(result.readings).toEqual(['reading-t1'])
+    expect(doc.querySelector('app[type="transcription"]')?.getAttribute('xml:id')).toBe('reading-t1')
+    const second = transcribe({
+      mei: result.mei,
+      source: SOURCE,
+      divergences: [added('a', [again])],
+      spans: [again],
+    })
+    expect(second.readings).toEqual(result.readings)
+  })
+
+  it('leaves the recording pointing at the note the tie ran into', () => {
+    const when = doc.querySelector('when[data="#n2"]')
+    expect(when?.getAttribute('absolute')).toBe('510ms')
+    expect(when?.getAttribute('type')).toBeNull()
+    expect(result.outcomes.get('a')?.noteIds).toEqual(['n2'])
+    expect(result.outcomes.get('a')?.notes[0]).toMatchObject({ id: 'n2', played: writtenIdOf(again) })
+  })
+
+  it('makes two sounding notes of what was one, for verovio as for the chain', async () => {
+    const before = await getNotesFromMEI(aligned(tied, { played: struckOnce }), { collapseUnisons: false })
+    const after = await getNotesFromMEI(result.mei, { collapseUnisons: false })
+
+    expect(before.find((note) => note.note === 'n2')).toBeUndefined()
+    expect(before.find((note) => note.note === 'n1')?.duration).toBe(2)
+    expect(after.find((note) => note.note === 'n2')).toMatchObject({ onset: 1, pitch: 72, duration: 1 })
+    expect(after.find((note) => note.note === 'n1')?.duration).toBe(1)
+  })
+
+  it('comes back with the reading', () => {
+    expect(canonical(untranscribed(result.mei))).toBe(canonical(aligned(tied, { played: struckOnce, extra: [again] })))
+  })
+
+  it('is written where a note was held on instead of struck again', () => {
+    // Two c5 in a row, and the first key still down when the second was due
+    const repeated = scoreMei().replace(
+      '<note xml:id="n2" pname="d" oct="5" dur="4"/>',
+      '<note xml:id="n2" pname="c" oct="5" dur="4"/>',
+    )
+    const heldDoc = parse(aligned(repeated, { unplayed: ['n2'] }))
+    // n1 held for 900 ms: through the half second at which n2 was due
+    heldDoc.querySelector('when[data="#n1"] extData[type="duration"]')!.textContent = '900ms'
+    const out = transcribe({
+      mei: new XMLSerializer().serializeToString(heldDoc),
+      source: SOURCE,
+      divergences: [missing('m', ['n2'])],
+      spans: [],
+    })
+    const written = parse(out.mei)
+
+    expect(out.outcomes.get('m')?.because).toMatch(/tied/)
+    expect(written.querySelector('rdg[source="performance"] > tie[startid="#n1"][endid="#n2"]')).not.toBeNull()
+    // The note stands: it sounds, as the end of the one before it
+    expect(written.querySelector('rdg[source="original"] > note[*|id="n2"]')).toBeNull()
+    expect(written.querySelector('rest')).toBeNull()
+  })
+
+  it('is not written where the note before was let go: that is a note left out', () => {
+    const repeated = scoreMei().replace(
+      '<note xml:id="n2" pname="d" oct="5" dur="4"/>',
+      '<note xml:id="n2" pname="c" oct="5" dur="4"/>',
+    )
+    const heldDoc = parse(aligned(repeated, { unplayed: ['n2'] }))
+    heldDoc.querySelector('when[data="#n1"] extData[type="duration"]')!.textContent = '200ms'
+    const out = transcribe({
+      mei: new XMLSerializer().serializeToString(heldDoc),
+      source: SOURCE,
+      divergences: [missing('m', ['n2'])],
+      spans: [],
+    })
+
+    expect(parse(out.mei).querySelector('rdg[source="performance"] > rest')).not.toBeNull()
+    expect(parse(out.mei).querySelector('rdg[source="performance"] > tie')).toBeNull()
+  })
+})
+
+describe('a written note the aligner did not pair with the key that played it', () => {
+  it('is that note: nothing is written and nothing taken out', () => {
+    const same = span('x1', 2510, 76)
+    const base = aligned(scoreMei(), { unplayed: ['n6'], extra: [same] })
+    const result = transcribe({
+      mei: base,
+      source: SOURCE,
+      divergences: [missing('m', ['n6']), added('a', [same])],
+      spans: [same],
+    })
+    const doc = parse(result.mei)
+
+    expect(doc.querySelector('app')).toBeNull()
+    expect(doc.querySelector('when[data="#n6"][absolute="2510ms"]')).not.toBeNull()
+    expect(result.outcomes.get('m')?.written).toBe('none')
+    // No difference, so nothing to colour: the played note is known by the note it is
+    expect(result.outcomes.get('a')?.written).toBe('as-written')
+    expect(result.outcomes.get('a')?.noteIds).toEqual([])
+    expect(result.outcomes.get('a')?.notes.map((note) => note.id)).toEqual(['n6'])
   })
 })
 
@@ -540,11 +672,11 @@ describe('taking a transcription out again', () => {
       source: SOURCE,
       divergences,
       spans,
-      choices: new Map<string, Notation>([['a1', 'none'], ['m1', 'none']]),
+      choices: new Map<string, Notation>([['a2', 'grace'], ['m1', 'none']]),
     })
     const doc = parse(changed.mei)
 
-    expect(doc.querySelector(`[*|id="${writtenIdOf(extras[1])}"]`)).toBeNull()
+    expect(doc.querySelector(`[*|id="${writtenIdOf(extras[2])}"]`)?.getAttribute('grace')).toBe('unacc')
     expect(doc.querySelector('rdg[source="original"] > note[*|id="n6"]')).toBeNull()
     expect(doc.querySelector('note[*|id="n6"]')).not.toBeNull()
     // And what was not changed is still there

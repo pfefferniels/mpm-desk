@@ -427,7 +427,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const addPerformance = useCallback((performance: Performance) => {
         setPerformances((current) => {
             // By file name, because that is what the archive stores it under: a second take of
-            // the same name would replace the first in the zip and leave its `Align` call naming
+            // the same name would replace the first in the zip and leave its `AlignSource` call naming
             // a file that holds somebody else's playing.
             if (current.some((held) => held.name === performance.name)) {
                 setMessage({ text: `${performance.name} is already open.`, severity: 'error' });

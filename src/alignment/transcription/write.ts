@@ -16,6 +16,8 @@
  *   a note on its own not played       an `<app>` around it, holding a rest of its length
  *   a grace note                       an `<app>` before the note it leans on
  *   a note at a place of its own       a new `<layer>` in the staff, inside an `<app>`
+ *   a tied note struck again           an `<app>` around the `<tie>`, its performance reading empty
+ *   a note held instead of struck      an `<app>` in the measure, holding a `<tie>`
  *
  * Only a note added to a *single* written note needs that note in both readings, because one
  * note and another make a `<chord>`, and a chord is a different element from a note.
@@ -87,10 +89,26 @@ export interface SignEdit {
     confidence: number;
 }
 
+/** A tie the score writes and the performer did not hold: the second note was struck. */
+export interface UntieEdit {
+    tie: Element;
+    group: string;
+    confidence: number;
+}
+
+/** A tie the score does not write: a note held on into the next of its pitch, not struck again. */
+export interface TieEdit {
+    from: WrittenNote;
+    to: WrittenNote;
+    group: string;
+}
+
 export interface Edits {
     events: EventEdit[];
     staves: StaffAddition[];
     signs: SignEdit[];
+    unties: UntieEdit[];
+    ties: TieEdit[];
 }
 
 interface Attribution {
@@ -334,7 +352,62 @@ export function applyEdits(
         measure.appendChild(app);
     }
 
+    // A tie is a line between two notes and not a note, so a tie that was not held and a tie
+    // that was not written are both a reading of the line alone. The notes stand as they are.
+    for (const edit of edits.unties) {
+        const parent = edit.tie.parentElement;
+        if (!parent) continue;
+        const { app, original } = appFor([{ reason: "struck-again", confidence: edit.confidence }], "struck-again");
+        parent.insertBefore(app, edit.tie);
+        original.appendChild(edit.tie);
+    }
+    for (const edit of edits.ties) {
+        const measure = edit.from.event.layer.staff.measure.element;
+        const { app, performance } = appFor([{ reason: "held", confidence: 1 }], "held");
+        const tie = doc.createElementNS(MEI_NS, "tie");
+        tie.setAttribute("startid", `#${edit.from.id}`);
+        tie.setAttribute("endid", `#${edit.to.id}`);
+        performance.appendChild(tie);
+        measure.appendChild(app);
+    }
+
+    nameReadings(doc);
     return written;
+}
+
+/**
+ * Give every reading a name, said by what it holds: the first note written into it, or else the
+ * first note of the source it changes, or else the line it draws or takes away.
+ *
+ * By what it holds and not by a count, so that transcribing the same differences again names
+ * the same readings, and a decision recorded against one still finds it.
+ */
+function nameReadings(doc: Document): void {
+    const taken = new Set<string>();
+    const idOf = (element: Element) => element.getAttribute("xml:id") ?? undefined;
+
+    for (const app of doc.querySelectorAll(`app[type~="${TRANSCRIPTION}"]`)) {
+        const inside = [...app.querySelectorAll("*")];
+        const line = inside.find((element) => element.hasAttribute("startid"));
+        const about =
+            inside.map(idOf).find((id) => id?.startsWith("played-")) ??
+            inside.map(idOf).find((id) => id !== undefined) ??
+            (line ? `${line.localName}-${(line.getAttribute("startid") ?? "").replace(/^#/, "")}` : undefined) ??
+            "empty";
+
+        let id = `reading-${about}`;
+        for (let count = 2; taken.has(id); count++) id = `reading-${about}-${String(count)}`;
+        taken.add(id);
+        app.setAttribute("xml:id", id);
+    }
+}
+
+/** The names of the readings a transcription wrote into a score, in the order they stand. */
+export function readingsOf(doc: Document): string[] {
+    return [...doc.querySelectorAll(`app[type~="${TRANSCRIPTION}"]`)].flatMap((app) => {
+        const id = app.getAttribute("xml:id");
+        return id ? [id] : [];
+    });
 }
 
 /** Write a note value onto an element. */

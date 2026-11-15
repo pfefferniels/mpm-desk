@@ -33,7 +33,8 @@ export const marksOf = (
         const span = byId.get(perfId);
         if (!span) return [];
         // Written into the score: verovio has drawn it, and a cross on top would say twice
-        if (outcomes.get(divergence.id)?.noteIds.includes(writtenIdOf(span))) return [];
+        const key = writtenIdOf(span);
+        if (outcomes.get(divergence.id)?.notes.some((note) => note.played === key)) return [];
         return [
             {
                 id: span.id,

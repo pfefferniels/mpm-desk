@@ -137,7 +137,7 @@ export const useEditorFit = ({
      * A refit on every stroke of a drawn curve would cost three seconds and produce byte for byte
      * the same document.
      *
-     * So are the calls the chain does not run. An `Align` records what a reader decided about the
+     * So are the calls the chain does not run. An `AlignSource` records what a reader decided about the
      * score and the recording disagreeing, and that decision reaches the fit through the MEI it
      * was written into — which arrives here as a new `pristine` and reloads the worker. Left in,
      * every one of forty divergences settled in a review would cost a three-second fold and

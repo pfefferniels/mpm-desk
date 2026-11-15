@@ -41,6 +41,12 @@ const median = (values: number[]): number => {
  */
 export function buildTimeMap(
     pairs: Iterable<{ onset: number; ms: number; pitch: number }>,
+    /**
+     * Where the score begins and ends, in quarter notes. Given, the map is carried on at the
+     * pace of its first and last stretches to those two places, so that a note played before
+     * the first matched moment or after the last has somewhere to be read against.
+     */
+    extent?: { from: number; to: number },
 ): TimeMap {
     const byOnset = new Map<number, { ms: number; pitch: number }[]>();
     for (const pair of pairs) {
@@ -65,7 +71,42 @@ export function buildTimeMap(
         })
         .sort((a, b) => a.onset - b.onset);
 
-    return { anchors: longestForward(all) };
+    const anchors = longestForward(all);
+    if (!extent || anchors.length < 2) return { anchors };
+
+    // A moment with no note of its own: nothing can be struck with it, only before or after
+    const map = { anchors };
+    const first = anchors[0];
+    const last = anchors[anchors.length - 1];
+    const carried: Anchor[] = [...anchors];
+    if (extent.from < first.onset - 1e-6) {
+        const ms = first.ms - (first.onset - extent.from) * localPace(map, 0);
+        carried.unshift({ onset: extent.from, ms, first: ms, last: ms, notes: [] });
+    }
+    if (extent.to > last.onset + 1e-6) {
+        const ms = last.ms + (extent.to - last.onset) * localPace(map, anchors.length - 2);
+        carried.push({ onset: extent.to, ms, first: ms, last: ms, notes: [] });
+    }
+    return { anchors: carried };
+}
+
+/** When the recording was at a place in the score, read between the anchors around it. */
+export function msAt(map: TimeMap, onset: number): number | undefined {
+    const { anchors } = map;
+    if (anchors.length === 0 || onset < anchors[0].onset - 1e-9 || onset > anchors[anchors.length - 1].onset + 1e-9) {
+        return undefined;
+    }
+    let low = 0;
+    let high = anchors.length - 1;
+    while (low < high - 1) {
+        const mid = (low + high) >> 1;
+        if (anchors[mid].onset <= onset) low = mid;
+        else high = mid;
+    }
+    const before = anchors[low];
+    const after = anchors[high];
+    if (after.onset - before.onset < 1e-9) return before.ms;
+    return before.ms + ((onset - before.onset) / (after.onset - before.onset)) * (after.ms - before.ms);
 }
 
 /** The longest subsequence strictly increasing in played time, by patience sorting. */

@@ -544,7 +544,7 @@ describe('the alignment', () => {
 
     const align: Call = {
         id: 'al',
-        name: 'Align',
+        name: 'AlignSource',
         options: {
             source: 'take-1',
             midi: 'take-1.mid',
@@ -613,14 +613,14 @@ describe('the alignment', () => {
     });
 
     it('drops a call that does not say which recording it is about', () => {
-        const nameless: Call = { id: 'al', name: 'Align', options: { midi: 'take-1.mid' } };
+        const nameless: Call = { id: 'al', name: 'AlignSource', options: { midi: 'take-1.mid' } };
         expect(alignmentsOf({ ...base(), provenance: [nameless] })).toEqual([]);
     });
 
     it('reads a resolution that says something else entirely as no resolution', () => {
         const odd: Call = {
             id: 'al',
-            name: 'Align',
+            name: 'AlignSource',
             options: {
                 source: 'take-1',
                 resolutions: [['missing-n7', { reading: 7 }], 'nonsense'],
@@ -642,8 +642,59 @@ describe('the alignment', () => {
             newCallId: 'unused',
         });
 
-        expect(next.provenance.filter(({ name }) => name === 'Align')).toHaveLength(1);
+        expect(next.provenance.filter(({ name }) => name === 'AlignSource')).toHaveLength(1);
         expect(alignmentsOf(next)[0].resolutions.size).toBe(2);
+    });
+
+    it('says on the call which readings it wrote, once they are written', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: alignmentsOf(work)[0],
+            readings: ['reading-played-750ms-73', 'reading-tie-n4'],
+            newCallId: 'unused',
+        });
+        const call = next.provenance.find(({ name }) => name === 'AlignSource');
+
+        expect(call?.elements).toEqual(['reading-played-750ms-73', 'reading-tie-n4']);
+        // And nothing that was on the call has moved, the option no desk knows of included
+        expect(call?.options).toMatchObject(align.options);
+        expect(call?.id).toBe('al');
+    });
+
+    it('keeps the readings it has when a decision is made that has not been written yet', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: { ...alignmentsOf(work)[0], resp: 'someone else' },
+            newCallId: 'unused',
+        });
+
+        expect(next.provenance.find(({ name }) => name === 'AlignSource')?.elements).toEqual(['recorded']);
+    });
+
+    it('names no readings where writing left none in the score', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: alignmentsOf(work)[0],
+            readings: [],
+            newCallId: 'unused',
+        });
+
+        expect(next.provenance.find(({ name }) => name === 'AlignSource')).not.toHaveProperty('elements');
+    });
+
+    it('changes nothing where the same readings are written again', () => {
+        const work = aligned();
+        const next = workReducer(work, {
+            type: 'set-alignment',
+            alignment: alignmentsOf(work)[0],
+            readings: ['recorded'],
+            newCallId: 'unused',
+        });
+
+        expect(next).toBe(work);
     });
 
     it('opens a second call for a second take', () => {

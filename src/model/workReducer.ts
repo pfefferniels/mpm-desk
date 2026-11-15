@@ -78,12 +78,21 @@ export type WorkAction =
      */
     | { type: 'set-voices'; update: VoicesUpdate; newCallId: string }
     /**
-     * What was decided about one take, on the one `Align` call that names its `@source`.
+     * What was decided about one take, on the one `AlignSource` call that names its `@source`.
      *
      * A whole value rather than an updater: the desk holds the review it is conducting, so it
      * always knows the alignment it means. `newCallId` arrives in the action, as above.
+     *
+     * `readings` says what the call wrote, where the desk has just written it: the `xml:id`s of
+     * the readings now in the score, which go on the call as its `elements`. Absent, the call
+     * keeps the ones it has, since a decision that has not been written yet has written nothing.
      */
-    | { type: 'set-alignment'; alignment: WorkAlignment; newCallId: string };
+    | {
+          type: 'set-alignment';
+          alignment: WorkAlignment;
+          readings?: readonly string[];
+          newCallId: string;
+      };
 
 /** Shared so that a bag that was never there and a bag emptied to `{}` compare as one thing. */
 const NO_SECONDARY: Secondary = {};
@@ -322,12 +331,16 @@ const readAlignment = (options: Call['options']): WorkAlignment | null => {
 /**
  * Every take the document says was aligned, in the order the calls were made.
  *
+ * One `AlignSource` call per take. It is the record of the one step of a reconstruction that is
+ * made on the score: what was aligned with what, what the reader then decided, and (as the
+ * call's `elements`) which readings of the score came of it.
+ *
  * A call naming no `@source` is dropped rather than repaired: it cannot say which `<recording>` it
  * is about, so there is nothing it can be read as.
  */
 export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
     work.provenance
-        .filter((call) => call.name === 'Align')
+        .filter((call) => call.name === 'AlignSource')
         .map((call) => readAlignment(call.options))
         .filter((alignment): alignment is WorkAlignment => alignment !== null);
 
@@ -335,7 +348,7 @@ export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
  * Does this call say anything about the performance?
  *
  * These three do not. `InsertMetadata` writes `<metadata>` and no instruction. `ProcessVoices`
- * says which MEI voice goes into which MSM part, a statement about the score's encoding. `Align`
+ * says which MEI voice goes into which MSM part, a statement about the score's encoding. `AlignSource`
  * says which sounding event realises which written note, which a reconstruction reads before it
  * has said anything. `Modify`, `CorrectPedal` and `MakeChoice` are not exceptions: reshaping
  * the performance is still a statement about it.
@@ -345,7 +358,7 @@ export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
  * `elements` is recorded by a run, so a call made a moment ago has none, and this has to answer
  * before the fit comes back.
  */
-const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices', 'Align']);
+const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices', 'AlignSource']);
 
 export const describesPerformance = (call: Call): boolean => !WRITES_NO_INSTRUCTION.has(call.name);
 
@@ -464,7 +477,7 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
             // The call for *this* take. A document may hold several, so the name is what picks
             // one out — the same string that picks out the `<recording>` it is about.
             const existing = state.provenance.find(
-                (entry) => entry.name === 'Align' && entry.options['source'] === alignment.source,
+                (entry) => entry.name === 'AlignSource' && entry.options['source'] === alignment.source,
             );
 
             // Compared by serializing, as `set-voices` is. `resolutions` and `edits` are `Map`s of
@@ -475,16 +488,30 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
                 edits: [...entry.edits],
             });
             const before = existing ? readAlignment(existing.options) : null;
-            if (before && JSON.stringify(flat(alignment)) === JSON.stringify(flat(before))) {
+            const readings = action.readings ?? existing?.elements ?? [];
+            if (
+                before &&
+                JSON.stringify(flat(alignment)) === JSON.stringify(flat(before)) &&
+                JSON.stringify(readings) === JSON.stringify(existing?.elements ?? [])
+            ) {
                 return state;
             }
 
             // Spread first, so an option with no UI survives being edited through one — the rule
             // the two cases above keep.
             const options: Call['options'] = { ...existing?.options, ...alignment };
-            const call: Call = existing
-                ? { ...existing, options }
-                : { id: action.newCallId, name: 'Align', options };
+            const { elements: _recorded, ...rest } = existing ?? {
+                id: action.newCallId,
+                name: 'AlignSource',
+            };
+            void _recorded;
+            // What it wrote, where it wrote anything: a call that changed nothing in the score
+            // names no readings, as a call that wrote no instruction names none
+            const call: Call = {
+                ...rest,
+                options,
+                ...(readings.length > 0 && { elements: [...readings] }),
+            };
 
             return {
                 ...state,

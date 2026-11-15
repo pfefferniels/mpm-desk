@@ -352,8 +352,8 @@ export const correspondingDesks: DeskEntry[] = [
     // score and the recording have been put note against note, and the takes it writes are what
     // Base Text then chooses between.
     //
-    // No `transformerName`: the `Align` call it writes is one the chain does not run (see
-    // `chain.ts`), and the registry tests resolve every name here against the chain's. An `Align`
+    // No `transformerName`: the `AlignSource` call it writes is one the chain does not run (see
+    // `chain.ts`), and the registry tests resolve every name here against the chain's. An `AlignSource`
     // writes no instruction either, so the markup desk never offers one, and a link to one, which
     // only the editor's document can hold, selects it where the reader is.
     //
@@ -374,7 +374,7 @@ export const correspondingDesks: DeskEntry[] = [
             actions: [
                 {
                     gesture: 'Click a coloured note',
-                    does: 'open its bar, and write it another way: as notes, as grace notes, as an ornament sign, or not at all',
+                    does: 'open its bar, and write it another way: as notes, as grace notes or as an ornament sign',
                 },
                 {
                     gesture: '← →, + −',
