@@ -132,11 +132,14 @@ for (const pair of readManifest(dir)) {
     const lostExamples: string[] = [];
     const writtenIds = new Map<string, NoteSpan>();
     for (const outcome of result.outcomes.values()) {
+        // A note written for a key is named after the key. A written note that a key turned
+        // out to be, a tied note struck again, keeps its own name: the key is on its record
+        const keyOf = new Map(outcome.notes.map((note) => [note.id, note.played]));
         for (const id of outcome.noteIds) {
             writtenNotes++;
             const inModel = now.notes.get(id);
             const sounding = afterById.get(id);
-            const span = spanByKey.get(id.replace(/x+$/, ''));
+            const span = spanByKey.get((keyOf.get(id) ?? id).replace(/x+$/, ''));
             if (span) writtenIds.set(id, span);
             if (!inModel || !sounding || !span || inModel.pitch !== span.pitch || sounding.pitch !== span.pitch) {
                 lost++;
