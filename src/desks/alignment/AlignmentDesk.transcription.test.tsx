@@ -131,6 +131,24 @@ describe('the alignment desk, over differences nobody has written yet', () => {
         expect(card?.querySelector('p')).toBeNull();
     });
 
+    it('names a tool in words that cannot take a click meant for what they cover', async () => {
+        // Near the bottom of the window the words go above the button, over Notes and Grace
+        const shorter = document.querySelector('.MuiPopover-paper button[aria-label="Shorter"]');
+        await act(async () => {
+            shorter!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        });
+        await settle(() => document.querySelector('[role="tooltip"]') !== null);
+
+        const words = document.querySelector('[role="tooltip"]');
+        expect(words?.textContent).toBe('Shorter');
+        expect(words?.classList.contains('MuiTooltip-popperInteractive')).toBe(false);
+
+        await act(async () => {
+            shorter!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+        });
+        await settle(() => document.querySelector('[role="tooltip"]') === null);
+    });
+
     it('offers to hear the place, before anything else there is to do with it', () => {
         const tools = [...document.querySelectorAll('.MuiPopover-paper .MuiIconButton-root')];
         expect(tools[0]?.getAttribute('aria-label')).toBe('Hear it');

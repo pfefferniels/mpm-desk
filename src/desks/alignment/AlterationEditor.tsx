@@ -122,7 +122,13 @@ const accountOf = (divergence: Divergence, outcome: Outcome | undefined): string
     return `${labelOf(divergence)}. ${what}. ${outcome?.because ?? divergence.because}`;
 };
 
-/** One small button, which says what it does only when asked. */
+/**
+ * One small button, which says what it does only when asked.
+ *
+ * What it says is not something to press. Where there is no room under the button the words
+ * go above it, which is over the choice of how the note is written, and words that could be
+ * clicked took the click that was meant for the choice.
+ */
 const Tool = ({
     name,
     disabled,
@@ -137,7 +143,7 @@ const Tool = ({
     onClick: () => void;
     children: ReactElement;
 }) => (
-    <Tooltip title={name}>
+    <Tooltip title={name} disableInteractive>
         <span>
             <IconButton
                 size="small"
@@ -323,7 +329,7 @@ export const AlterationEditor = ({
                     sx={{ mt: 0.5 }}
                 >
                     {SIGN_KINDS.map((kind) => (
-                        <Tooltip key={kind} title={SIGNS[kind].name}>
+                        <Tooltip key={kind} title={SIGNS[kind].name} disableInteractive>
                             <ToggleButton
                                 value={kind}
                                 aria-label={SIGNS[kind].name}
@@ -403,7 +409,7 @@ export const AlterationEditor = ({
                         <RestartAlt fontSize="small" />
                     </Tool>
                 )}
-                <Tooltip title={accountOf(divergence, outcome)}>
+                <Tooltip title={accountOf(divergence, outcome)} disableInteractive>
                     <InfoOutlined
                         fontSize="small"
                         aria-label="What this is"
