@@ -104,11 +104,11 @@ scans that come out transposed are left out here):
 | written notes of the source that moved, or changed pitch | **0** of 49,617 |
 | notes the transcriber says it wrote that are not in the score at the pitch played | **0** of 2,791 |
 | taking the readings out gives back the document that went in | 30 of 30 |
-| written-in notes the aligner pairs with the very key that was played, when run again | 2,639 of 2,791 (**94.6%**) |
+| written-in notes the aligner pairs with the very key that was played, when run again | 2,645 of 2,791 (**94.8%**) |
 
 The last is the model that found the differences being asked whether they are gone. Played notes
-with no written note fall from 3,847 to 1,129, and written notes with no played one from 3,589 to
-1,511.
+with no written note fall from 3,847 to 1,125, and written notes with no played one from 3,589 to
+1,507.
 
 What stays is what should. 999 groups of "unplayed" notes are a unison written in two voices and
 played as the one key it is; 144 groups of "added" notes are a trill or a turn the score writes
@@ -136,14 +136,26 @@ McAdams (*JNMR* 40/1, 2011) tell ornaments from errors, Peter et al. (*TISMIR* 6
 them as insertions.
 
 Every number in the model is measured on this corpus or taken from one of the above:
-`holdout.ts key=a,b,c` sweeps a setting, and `levels.ts` is where the generic prior over metrical
-levels comes from.
+`holdout.ts key=a,b,c` sweeps a setting, `levels.ts` is where the generic prior over metrical
+levels comes from, and `legato.ts` where the line between a legato and a note held against
+another comes from: of 32,945 notes followed by another in their voice, half are let go before
+that one is struck and nine in ten within 120 ms of it, while of 3,270 notes another voice of
+the staff is struck against, half are still down by then.
 
 ## What it does not do
 
 - **Tie an added note.** An added note is one note value, cut at the barline and at the end of
   a triplet. Ties the score has are another matter: one that was not held is taken away and one
-  that was played where none is written is put in, as readings of the `<tie>` alone.
+  that was played where none is written is put in, as readings of the `<tie>` alone. The written
+  note an added one was played during is another matter too: it ends where the added note
+  begins, and is tied where that length is no one note value.
+- **A voice for every added note.** A note played between two written ones goes into a voice
+  its staff already has: into the silence of one where there is silence, and otherwise after
+  the note it was played during, which is written as ending where the new one begins. A voice
+  of its own is for a note that was played against something: the key of the note before it
+  still down a legato's length after it was struck, which is two voices whatever the score
+  has. And for a note no written voice can take, one played across a quintuplet or a
+  tremolo, or on a triplet that would not close inside the note.
 - **Ties written as `@tie`.** Only a `<tie>` element can be given a reading. A score that writes
   its ties as attributes on the notes has a re-struck note written in as a new note.
 - **Tuplets other than triplets.** A note between the notes of a quintuplet is written on the

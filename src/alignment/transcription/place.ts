@@ -1,10 +1,10 @@
 /**
- * Which staff a played note is written on and how long it is written.
+ * Which staff a played note is written on, in which voice, and how long it is written.
  *
- * Both are small questions once the onset is settled, and both are answered from the score
- * around the note rather than from a model of piano writing: the staff is the one whose notes
- * the new note lies among, and the length is the plain note value nearest to how long the key
- * was held.
+ * All small questions once the onset is settled, and all answered from the score around the
+ * note rather than from a model of piano writing: the staff is the one whose notes the new note
+ * lies among, the voice is one the staff already has, and the length is the note value that
+ * reaches to the next note of that voice.
  */
 
 import { UNITS } from "./grid";
@@ -170,6 +170,281 @@ export function valuesAt(startUnits: number, measure: MeasureModel): NoteValue[]
     const triplet = !isCompound(measure.meter) && isTripletPosition(startUnits);
     const limit = (triplet ? cellOf(startUnits, measureUnits).to : measureUnits) - startUnits;
     return (triplet ? TRIPLET : PLAIN).filter((value) => value.units <= limit + 1e-9);
+}
+
+/**
+ * The stretch of a bar one written event takes up, in grid units from the barline: the time a
+ * played note is written into when it was struck while that event was sounding, or was silent.
+ */
+interface HostSpan {
+    from: number;
+    to: number;
+    /** Whether the event stands inside a triplet bracket, where every value is written a third longer */
+    triplet: boolean;
+}
+
+const isWhole = (units: number): boolean => Math.abs(units - Math.round(units)) < 1e-6;
+
+/**
+ * The time an event takes up, where a note can be written into it.
+ *
+ * Not every event can be cut in two. One that stands off the grid, inside a quintuplet or a
+ * tremolo, has no place for a second note that the grid could name, and one the page draws at
+ * another value than it sounds for has no value of its own to shorten.
+ */
+export function hostSpan(event: ScoreEvent): HostSpan | undefined {
+    if (event.grace || event.duration <= 0) return undefined;
+    const measure = event.layer.staff.measure;
+    const from = (event.onset - measure.onset) * UNITS;
+    const to = from + event.duration * UNITS;
+    if (!isWhole(from) || !isWhole(to)) return undefined;
+
+    const element = event.element;
+    if (element.localName === "multiRest") return undefined;
+    if (element.hasAttribute("dur.ges") || element.querySelector("note[dur\\.ges]")) return undefined;
+
+    let triplet = false;
+    for (
+        let parent = element.parentElement;
+        parent && parent !== event.layer.element;
+        parent = parent.parentElement
+    ) {
+        if (parent.localName === "fTrem" || parent.localName === "bTrem") return undefined;
+        if (parent.localName !== "tuplet") continue;
+        // One bracket of three in the time of two, and no other
+        if (triplet) return undefined;
+        if ((parent.getAttribute("num") ?? "3") !== "3" || (parent.getAttribute("numbase") ?? "2") !== "2") {
+            return undefined;
+        }
+        triplet = true;
+    }
+    if (triplet && (Math.round(from) % 2 !== 0 || Math.round(to) % 2 !== 0)) return undefined;
+
+    return { from: Math.round(from), to: Math.round(to), triplet };
+}
+
+/**
+ * The written event a note of its own is written into: what the voice was doing at that moment.
+ *
+ * A played note that no written note starts with was struck while every voice of its staff was
+ * in the middle of something, a note or a silence. It is written into one of those voices and
+ * not into a new one. A voice that was silent there has room for it as it stands, so silence
+ * comes first, since nothing written has to change for it. Otherwise it belongs to the voice
+ * whose note lies nearest, and that note ends where the new one begins, which is what one voice
+ * playing two notes after each other looks like.
+ *
+ * Unless the performer had not let go of it. A note still held down while another is struck is
+ * two voices, whatever the score has, and writing the first as ended would contradict the
+ * recording. Then there is no event to write the note into, and none either where the nearest
+ * note cannot be cut in two: it is not handed on to a voice further off that it has nothing to
+ * do with.
+ */
+export function hostFor(
+    staff: StaffModel,
+    onset: number,
+    pitch: number,
+    /** Whether a sounding event had been let go by then; taken to have been where nobody says */
+    letGo: (event: ScoreEvent) => boolean = () => true,
+): ScoreEvent | undefined {
+    let silent: ScoreEvent | undefined;
+    let silentDistance = Infinity;
+    let sounding: ScoreEvent | undefined;
+    let soundingDistance = Infinity;
+
+    for (const layer of staff.layers) {
+        let nearest = Infinity;
+        for (const event of layer.events) {
+            for (const note of event.notes) nearest = Math.min(nearest, Math.abs(note.pitch - pitch));
+        }
+
+        for (const event of layer.events) {
+            if (event.grace) continue;
+            const quiet = event.kind === "rest" || event.kind === "space";
+            if (!quiet && event.notes.length === 0) continue;
+            // A sounding event the note starts with is one it joins, as a chord: not this
+            const begun = quiet ? event.onset <= onset + 1e-6 : event.onset < onset - 1e-6;
+            if (!begun || event.onset + event.duration <= onset + 1e-6) continue;
+
+            if (quiet) {
+                if (hostSpan(event) && (!silent || nearest < silentDistance)) {
+                    silent = event;
+                    silentDistance = nearest;
+                }
+                continue;
+            }
+            let distance = Infinity;
+            for (const note of event.notes) distance = Math.min(distance, Math.abs(note.pitch - pitch));
+            if (distance < soundingDistance) {
+                sounding = event;
+                soundingDistance = distance;
+            }
+        }
+    }
+
+    if (silent) return silent;
+    return sounding && hostSpan(sounding) && letGo(sounding) ? sounding : undefined;
+}
+
+/**
+ * The lengths a moment written into an event can be given, longest first.
+ *
+ * It reaches no further than the next moment written into the same event, or the end of that
+ * event, or `until` where the caller knows of something sooner. Where any of the moments stands
+ * on a triplet position, the quarter it is in is written as a triplet, and everything in that
+ * quarter is counted in triplet values and stays inside it.
+ */
+export function valuesInside(
+    host: HostSpan,
+    /** Where each moment written into the event starts, in order */
+    starts: readonly number[],
+    index: number,
+    measure: MeasureModel,
+    until = Infinity,
+): NoteValue[] {
+    const start = starts[index];
+    const measureUnits = Math.round(measure.duration * UNITS);
+    const cells = tripletCells(host, starts, measure);
+    if (!cells) return [];
+
+    const cell = cellOf(start, measureUnits);
+    const triplet = host.triplet || cells.has(cell.from);
+    if (triplet ? start % 2 !== 0 : start % 3 !== 0) return [];
+
+    let end = Math.min(starts[index + 1] ?? host.to, host.to, until);
+    if (triplet && !host.triplet) end = Math.min(end, cell.to);
+    // A plain value stops at the bracket of the next triplet
+    for (const from of cells) if (!triplet && from > start) end = Math.min(end, from);
+
+    return (triplet ? TRIPLET : PLAIN).filter((value) => value.units <= end - start + 1e-9);
+}
+
+/**
+ * The quarters of an event that have to be written as triplets, by where each begins; undefined
+ * where one of them does not lie wholly inside the event, which cannot then be written.
+ */
+function tripletCells(host: HostSpan, starts: readonly number[], measure: MeasureModel): Set<number> | undefined {
+    const cells = new Set<number>();
+    if (host.triplet) return cells;
+    const measureUnits = Math.round(measure.duration * UNITS);
+
+    for (const start of starts) {
+        if (!isTripletPosition(start)) continue;
+        if (isCompound(measure.meter)) return undefined;
+        const cell = cellOf(start, measureUnits);
+        if (cell.from < host.from || cell.to > host.to) return undefined;
+        cells.add(cell.from);
+    }
+    return cells;
+}
+
+/** One stretch of an event rewritten around the notes played during it. */
+export type HostPiece<T> =
+    /** The event itself for this long: one piece where its new length is a note value, tied pieces where not */
+    | { kind: "host"; value: NoteValue }
+    /** Nothing: what is left after a note that does not reach the next one */
+    | { kind: "gap"; value: NoteValue }
+    | { kind: "item"; value: NoteValue; item: LayerItem<T> }
+    | { kind: "tuplet"; pieces: HostPiece<T>[] };
+
+/**
+ * Write an event again with the moments played during it: the event up to the first of them,
+ * then each moment for its length, so that together they take exactly the time the event took.
+ *
+ * Undefined where it cannot be done, and the caller has to find the notes another place.
+ */
+export function splitHost<T>(
+    host: HostSpan,
+    items: readonly LayerItem<T>[],
+    measure: MeasureModel,
+): HostPiece<T>[] | undefined {
+    const sorted = [...items].sort((a, b) => a.start - b.start);
+    if (sorted.length === 0) return undefined;
+    const measureUnits = Math.round(measure.duration * UNITS);
+    const cells = tripletCells(host, sorted.map((item) => item.start), measure);
+    if (!cells) return undefined;
+    const inTriplet = (units: number): boolean => host.triplet || cells.has(cellOf(units, measureUnits).from);
+
+    interface Atom { from: number; triplet: boolean; piece: HostPiece<T> }
+    const atoms: Atom[] = [];
+
+    /** A stretch of the event or of nothing, in as few values as write it. */
+    const fill = (from: number, to: number, kind: "host" | "gap"): boolean => {
+        let at = from;
+        while (at < to - 1e-9) {
+            const triplet = inTriplet(at);
+            let stop = to;
+            if (!host.triplet) {
+                // As far as the time stays of one kind: to the end of this triplet, or the start of the next
+                if (triplet) stop = Math.min(to, cellOf(at, measureUnits).to);
+                else for (const cell of cells) if (cell > at) stop = Math.min(stop, cell);
+            }
+            if (triplet ? at % 2 !== 0 || stop % 2 !== 0 : at % 3 !== 0 || stop % 3 !== 0) return false;
+
+            // The event is counted on from where it began, and what is left over is counted
+            // back from where the next thing begins, so that either lines up with the beat
+            const values: NoteValue[] = [];
+            let left = stop - at;
+            while (left > 1e-9) {
+                const value = (triplet ? TRIPLET : PLAIN).find((candidate) => candidate.units <= left + 1e-9);
+                if (!value) return false;
+                values.push(value);
+                left -= value.units;
+            }
+            if (kind === "gap") values.reverse();
+
+            let cursor = at;
+            for (const value of values) {
+                atoms.push({ from: cursor, triplet, piece: { kind, value: triplet ? tripletValue(value) : value } });
+                cursor += value.units;
+            }
+            at = stop;
+        }
+        return true;
+    };
+
+    let at = host.from;
+    let lead: "host" | "gap" = "host";
+    for (const item of sorted) {
+        const end = item.start + item.value.units;
+        if (item.start < at - 1e-9 || end > host.to + 1e-9) return undefined;
+        if (item.start > at + 1e-9 && !fill(at, item.start, lead)) return undefined;
+
+        const triplet = inTriplet(item.start);
+        if (triplet) {
+            // Counted in triplet values and closed inside its quarter
+            if (item.start % 2 !== 0 || !TRIPLET.some((value) => value.units === item.value.units)) return undefined;
+            if (!host.triplet && end > cellOf(item.start, measureUnits).to + 1e-9) return undefined;
+        } else {
+            if (item.start % 3 !== 0 || item.value.units % 3 !== 0) return undefined;
+            for (const cell of cells) if (cell > item.start && end > cell + 1e-9) return undefined;
+        }
+        atoms.push({
+            from: item.start,
+            triplet,
+            piece: { kind: "item", value: triplet ? tripletValue(item.value) : item.value, item },
+        });
+        at = end;
+        lead = "gap";
+    }
+    if (at < host.to - 1e-9 && !fill(at, host.to, "gap")) return undefined;
+
+    // A bracket over each quarter that is a triplet; inside a bracket the score has, none
+    const pieces: HostPiece<T>[] = [];
+    let bracket: { cell: number; pieces: HostPiece<T>[] } | undefined;
+    for (const atom of atoms) {
+        if (host.triplet || !atom.triplet) {
+            bracket = undefined;
+            pieces.push(atom.piece);
+            continue;
+        }
+        const cell = cellOf(atom.from, measureUnits).from;
+        if (!bracket || bracket.cell !== cell) {
+            bracket = { cell, pieces: [] };
+            pieces.push({ kind: "tuplet", pieces: bracket.pieces });
+        }
+        bracket.pieces.push(atom.piece);
+    }
+    return pieces;
 }
 
 /** One thing in a layer being written: a note or chord at a place, for a length. */

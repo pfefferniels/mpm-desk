@@ -9,9 +9,9 @@
  * trill sign, this one should not be in the score at all.
  *
  * The reading of an added note is a small exercise in rhythm transcription, and `./quantise`
- * says how it is done and after whom. The rest is notation: which staff (`./place`), what the
- * pitch is called (`./spell`), and how the answer is written without disturbing a single note
- * that was already there (`./write`).
+ * says how it is done and after whom. The rest is notation: which staff and which of its voices
+ * (`./place`), what the pitch is called (`./spell`), and how the answer is written without
+ * moving a single note that was already there (`./write`).
  *
  * The transcription is a function of the source score, the alignment and the reader's choices,
  * and of nothing else. So a change of mind is not a patch: the document is taken back to its
@@ -22,7 +22,7 @@ import type { NoteSpan } from "../../performance/midiSpans";
 import type { Divergence } from "../divergences";
 import { kindOf, SIGN_KINDS, signFor, signOf, type SignKind } from "./figure";
 import { UNITS, levelOf } from "./grid";
-import { chooseStaff, chooseValue, joinable, valuesAt } from "./place";
+import { chooseStaff, chooseValue, hostFor, hostSpan, joinable, splitHost, valuesAt, valuesInside } from "./place";
 import { quantise, type Played, type QuantiseSettings } from "./quantise";
 import {
     beatLength,
@@ -180,6 +180,18 @@ const SAME_NOTE_REACH = 0.35;
 /** How long before a note is due the note before it may be let go and still count as held into it. */
 const HELD_MS = 120;
 
+/**
+ * How long after a note is struck the key of the note before it may still be down, and the two
+ * be one voice all the same: a legato. Longer than that and the first was being held while the
+ * second was played, which is two voices.
+ *
+ * Measured by `scripts/transcription/legato.ts`. Of the notes of the corpus that another note
+ * follows in their voice, half are let go before that note is struck and nine in ten within
+ * this of it; of the notes another voice of their staff is struck against, half are still down
+ * by then.
+ */
+const LEGATO_MS = 120;
+
 /** Where the score ends, in quarter notes. */
 const scoreEnd = (model: ScoreModel): number => {
     const last = model.measures[model.measures.length - 1];
@@ -230,7 +242,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
     const editOf = (event: ScoreEvent): EventEdit => {
         let edit = events.get(event);
         if (!edit) {
-            edit = { event, add: [], remove: [], replace: new Map(), graces: [] };
+            edit = { event, add: [], remove: [], replace: new Map(), graces: [], inside: [] };
             events.set(event, edit);
             edits.events.push(edit);
         }
@@ -421,6 +433,19 @@ export function transcribe(input: TranscribeInput): Transcribed {
         else fates.set(group, [entry]);
     };
 
+    /** Notes at a place of their own, waiting to be told which voice they are written in. */
+    const pending: {
+        staff: StaffModel;
+        onset: number;
+        /** When it was struck */
+        ms: number;
+        pitch: number;
+        place: OwnPlace;
+        info: WrittenNoteInfo;
+        entry: Fate;
+        where: string;
+    }[] = [];
+
     /** Grace moments waiting for the thing they lean on, with the written moment that would end the wait. */
     let waiting: { moment: { span: NoteSpan; divergence: Extract<Divergence, { kind: "added" }>; confidence: number }[]; before: number }[] = [];
 
@@ -542,12 +567,6 @@ export function transcribe(input: TranscribeInput): Transcribed {
             }
 
             const start = Math.round((onset - measure.onset) * UNITS);
-            let addition = staves.get(staff);
-            if (!addition) {
-                addition = { staff, places: [] };
-                staves.set(staff, addition);
-                edits.staves.push(addition);
-            }
             const own = newNote(span, divergence.id, divergence.reading, confidence, staff, onset);
             const place: OwnPlace = {
                 start,
@@ -556,10 +575,11 @@ export function transcribe(input: TranscribeInput): Transcribed {
                 notes: [own],
                 graces: leaned ? [] : graceNotes(leaning, staff, onset),
             };
-            places.set(about(own, staff), place);
             leaned = true;
-            addition.places.push(place);
-            fate(divergence.id, { kind: "measured", confidence, where: `${where}, in a voice of its own` });
+            // Which voice, and so how it is said, is settled with the length
+            const said: Fate = { kind: "measured", confidence, where };
+            fate(divergence.id, said);
+            pending.push({ staff, onset, ms: span.onsetMs, pitch: span.pitch, place, info: about(own, staff), entry: said, where });
         }
 
         function graceNotes(graces: typeof waiting, staff: StaffModel, at: number): NewNote[][] {
@@ -584,8 +604,134 @@ export function transcribe(input: TranscribeInput): Transcribed {
     }
     waiting.forEach(leanOnWritten);
 
-    // How long each note of its own is written: up to the next thing in its hand, which may be
-    // a written note or another one just placed
+    // ---- Which voice a note of its own is written in ----
+
+    // A note of its own was struck while its staff was in the middle of something, and is
+    // written into that: the voice that was silent there, or the note that was sounding, which
+    // then ends where the new one begins. One voice plays one thing after another, and a second
+    // voice for every added note would say the performer had played in two. Where they did,
+    // the first note still held down under the second, a second voice is what it gets.
+    const hosted = new Map<ScoreEvent, typeof pending>();
+    const voiceless: typeof pending = [];
+    for (const entry of pending) {
+        const host = hostFor(entry.staff, entry.onset, entry.pitch, (event) =>
+            event.notes.every((note) => {
+                const released = whens.released.get(note.id);
+                return released === undefined || released <= entry.ms + LEGATO_MS;
+            }),
+        );
+        if (!host) {
+            voiceless.push(entry);
+            continue;
+        }
+        const group = hosted.get(host);
+        if (group) group.push(entry);
+        else hosted.set(host, [entry]);
+    }
+
+    /** Everything struck on a staff, written or just placed, in grid units from the barline. */
+    const struckOn = (staff: StaffModel): number[] => {
+        const measure = staff.measure;
+        const onsets = new Set<number>();
+        for (const entry of pending) if (entry.staff === staff) onsets.add(entry.place.start);
+        for (const layer of staff.layers) {
+            for (const event of layer.events) {
+                if (!event.grace && event.notes.length > 0) {
+                    onsets.add(Math.round((event.onset - measure.onset) * UNITS * 1e6) / 1e6);
+                }
+            }
+        }
+        return [...onsets].sort((a, b) => a - b);
+    };
+
+    for (const [host, group] of hosted) {
+        const span = hostSpan(host);
+        const measure = host.layer.staff.measure;
+        const silent = host.notes.length === 0;
+        if (!span) {
+            voiceless.push(...group);
+            continue;
+        }
+
+        // Moments struck together are one chord of one length
+        interface Moment { place: OwnPlace; members: typeof pending; values: number[] }
+        const moments: Moment[] = [];
+        for (const entry of [...group].sort((a, b) => a.place.start - b.place.start)) {
+            const last = moments[moments.length - 1];
+            if (last && last.place.start === entry.place.start) {
+                last.place.notes.push(...entry.place.notes);
+                last.place.graces.push(...entry.place.graces);
+                last.members.push(entry);
+            } else {
+                moments.push({
+                    place: { ...entry.place, notes: [...entry.place.notes], graces: [...entry.place.graces] },
+                    members: [entry],
+                    values: [],
+                });
+            }
+        }
+
+        // How long each is written: to the next note of its voice, which in a voice that was
+        // sounding is where that voice goes on. A voice that was silent goes on being silent,
+        // and there the note is as long as it is to the next thing in its hand
+        const struck = silent ? struckOn(host.layer.staff) : [];
+        const settle = (list: Moment[]): boolean => {
+            const starts = list.map((moment) => moment.place.start);
+            for (const [index, moment] of list.entries()) {
+                const until = struck.find((onset) => onset > moment.place.start + 1e-6);
+                const values = valuesInside(span, starts, index, measure, until);
+                if (values.length === 0) return false;
+                // And as long as a reader has said, where they have
+                const asked = moment.members
+                    .map((member) => input.edits?.get(member.info.id)?.units)
+                    .find((units) => units !== undefined);
+                moment.place.value = values.find((value) => value.units === asked) ?? values[0];
+                moment.values = values.map((value) => value.units);
+            }
+            const items = list.map(({ place }) => ({ start: place.start, value: place.value, payload: place }));
+            return splitHost(span, items, measure) !== undefined;
+        };
+
+        // One at a time, so that a moment the event has no place for, a triplet that would not
+        // close inside it, takes none of the others with it into a voice of its own
+        const taken: Moment[] = [];
+        for (const moment of moments) {
+            if (settle([...taken, moment])) taken.push(moment);
+            else voiceless.push(...moment.members);
+        }
+        // Once more for the ones that stay, whose lengths the last one tried may have changed
+        if (taken.length === 0) continue;
+        if (!settle(taken)) {
+            voiceless.push(...taken.flatMap((moment) => moment.members));
+            continue;
+        }
+
+        editOf(host).inside.push(...taken.map((moment) => moment.place));
+        for (const moment of taken) {
+            for (const member of moment.members) {
+                member.info.units = moment.place.value.units;
+                member.info.values = moment.values;
+                member.entry.where = silent
+                    ? `${member.where}, in a voice that was silent there`
+                    : `${member.where}, after the note it was played during, which ends there`;
+            }
+        }
+    }
+
+    for (const entry of voiceless) {
+        let addition = staves.get(entry.staff);
+        if (!addition) {
+            addition = { staff: entry.staff, places: [] };
+            staves.set(entry.staff, addition);
+            edits.staves.push(addition);
+        }
+        addition.places.push(entry.place);
+        places.set(entry.info, entry.place);
+        entry.entry.where = `${entry.where}, in a voice of its own`;
+    }
+
+    // How long each note in a voice of its own is written: up to the next thing in its hand,
+    // which may be a written note or another one just placed
     for (const addition of edits.staves) {
         const measure = addition.staff.measure;
         const onsets = new Set<number>(addition.places.map((place) => place.start));
@@ -877,7 +1023,10 @@ export function transcribe(input: TranscribeInput): Transcribed {
     for (const { divergence, note, tie } of found) {
         if (tie) outcomes.get(divergence.id)?.noteIds.push(note.id);
     }
-    for (const note of edits.events.flatMap((edit) => [...edit.add, ...edit.graces.flat()]).concat(edits.staves.flatMap((addition) => addition.places.flatMap((place) => [...place.notes, ...place.graces.flat()])))) {
+    const placed = (place: OwnPlace): NewNote[] => [...place.notes, ...place.graces.flat()];
+    for (const note of edits.events
+        .flatMap((edit) => [...edit.add, ...edit.graces.flat(), ...edit.inside.flatMap(placed)])
+        .concat(edits.staves.flatMap((addition) => addition.places.flatMap(placed)))) {
         const when = whens.insertions.get(whenKey(Number(/^played-(\d+)ms/.exec(note.id)?.[1] ?? NaN), note.pitch));
         if (!when) continue;
         when.setAttribute("data", `#${note.id}`);

@@ -15,22 +15,39 @@
  *   a note played at another pitch     an `<app>` around that note, holding the played one
  *   a note on its own not played       an `<app>` around it, holding a rest of its length
  *   a grace note                       an `<app>` before the note it leans on
- *   a note at a place of its own       a new `<layer>` in the staff, inside an `<app>`
+ *   a note at a place of its own       an `<app>` around what its voice was doing there: the
+ *                                      note it was played during, ending where the new one
+ *                                      begins, or the silence, with the new note in it
+ *   the same, where no voice takes it  a new `<layer>` in the staff, inside an `<app>`
  *   a tied note struck again           an `<app>` around the `<tie>`, its performance reading empty
  *   a note held instead of struck      an `<app>` in the measure, holding a `<tie>`
  *
- * Only a note added to a *single* written note needs that note in both readings, because one
- * note and another make a `<chord>`, and a chord is a different element from a note.
+ * Two things need a written note in both readings. A note added to a *single* written note,
+ * because one note and another make a `<chord>`, and a chord is a different element from a
+ * note. And a note a new one was played during, because one voice plays one thing at a time:
+ * the written note is as long in the performance reading as it took the performer to get to the
+ * next, one value where that is one and tied values where it is not, and the tie is a reading
+ * of its own in the measure, as every tie written here is.
  *
- * Every measure stays as long as it was. A new layer is padded with `<space>` to the barline,
- * a note taken out leaves a rest, and a triplet is closed inside its quarter, so that verovio
- * counts the other voices exactly as before.
+ * Every measure stays as long as it was. What is written into an event takes exactly that
+ * event's time, a new layer is padded with `<space>` to the barline, a note taken out leaves a
+ * rest, and a triplet is closed inside its quarter, so that verovio counts the other voices
+ * exactly as before.
  */
 
 import { ownAccidental } from "../../score/accidentals";
 import type { FigureSign } from "./figure";
 import { UNITS } from "./grid";
-import { fitsLayer, layOut, type LayerItem, type LayerPiece, type NoteValue } from "./place";
+import {
+    fitsLayer,
+    hostSpan,
+    layOut,
+    splitHost,
+    type HostPiece,
+    type LayerItem,
+    type LayerPiece,
+    type NoteValue,
+} from "./place";
 import type { MeasureModel, ScoreEvent, ScoreModel, StaffModel, WrittenNote } from "./scoreModel";
 import { accidentalOf, type Spelling } from "./spell";
 
@@ -66,6 +83,8 @@ export interface EventEdit {
     replace: Map<WrittenNote, NewNote>;
     /** Grace notes that lean on it, each inner list one moment, in the order they sounded */
     graces: NewNote[][];
+    /** Played moments written into its time: struck while it sounded, or while it was silent */
+    inside: OwnPlace[];
 }
 
 /** A played moment written at a place of its own. */
@@ -190,6 +209,171 @@ export function applyEdits(
         return element;
     };
 
+    /** The notes of an event's element, the one it is or the ones it holds. */
+    const notesOf = (element: Element): Element[] =>
+        element.localName === "note" ? [element] : [...element.querySelectorAll("note")];
+
+    /**
+     * An event as it was played, in one piece: what was not played gone from it, what was played
+     * otherwise changed, what joined it added. Undefined where nothing of it sounded.
+     *
+     * Only for an event that is written again whole, which one that a note was played during
+     * is. Everywhere else the changes are readings inside the event, so that nothing is said twice.
+     */
+    const asPlayed = (edit: EventEdit): Element | undefined => {
+        const { event } = edit;
+        if (event.notes.length === 0) return undefined;
+        const source = event.element;
+        const removed = new Set(edit.remove.filter((note) => !edit.replace.has(note)));
+
+        if (source.localName !== "chord") {
+            const only = event.notes[0];
+            const replacement = edit.replace.get(only);
+            const [first, ...others] = edit.add;
+            const unplayed = removed.has(only);
+            if (unplayed && !first) return undefined;
+
+            const kept = replacement
+                ? substituteFor(only, noteFor(replacement))
+                : unplayed
+                  ? substituteFor(only, noteFor(first))
+                  : (source.cloneNode(true) as Element);
+            const joining = unplayed && !replacement ? others : edit.add;
+            if (joining.length === 0) return kept;
+
+            const chord = doc.createElementNS(MEI_NS, "chord");
+            for (const attribute of EVENT_ATTRIBUTES) {
+                const value = kept.getAttribute(attribute);
+                if (value === null) continue;
+                chord.setAttribute(attribute, value);
+                kept.removeAttribute(attribute);
+            }
+            chord.appendChild(kept);
+            for (const note of joining) chord.appendChild(noteFor(note));
+            return chord;
+        }
+
+        const chord = source.cloneNode(true) as Element;
+        const written = notesOf(source);
+        const copies = notesOf(chord);
+        const copyOf = (note: WrittenNote): Element | undefined => copies[written.indexOf(note.element)];
+        for (const note of removed) copyOf(note)?.remove();
+        for (const [note, played] of edit.replace) {
+            const copy = copyOf(note);
+            copy?.parentNode?.replaceChild(substituteFor(note, noteFor(played)), copy);
+        }
+        for (const note of edit.add) chord.appendChild(noteFor(note));
+        return notesOf(chord).length > 0 ? chord : undefined;
+    };
+
+    /**
+     * A note held on from the piece of it before: the same notes under names of their own, with
+     * nothing on them that belongs to the moment a note is struck.
+     */
+    const heldOn = (played: Element, count: number): Element => {
+        const held = played.cloneNode(true) as Element;
+        for (const named of [held, ...held.querySelectorAll("*")]) {
+            const id = named.getAttribute("xml:id");
+            if (id) named.setAttribute("xml:id", `${id}-held${count > 1 ? String(count) : ""}`);
+        }
+        for (const note of notesOf(held)) {
+            // What it sounds as is said once, where it is struck
+            const accidental = writtenAccidental(note);
+            if (accidental !== undefined && !note.hasAttribute("accid.ges")) note.setAttribute("accid.ges", accidental);
+            note.removeAttribute("accid");
+            for (const child of [...note.children]) child.remove();
+        }
+        for (const child of [...held.children]) {
+            if (child.localName === "artic" || child.localName === "accid" || child.localName === "verse") child.remove();
+        }
+        for (const attribute of ["artic", "fermata", "ornam", "grace", "grace.time", "slur", "tie"]) {
+            held.removeAttribute(attribute);
+        }
+        return held;
+    };
+
+    /**
+     * Write an event again around the moments played during it.
+     *
+     * The source's event goes into the original reading as it stands. The performance reading has
+     * the event as it was played, as long as it took to get to the first of the moments, and then
+     * each moment for its length: together exactly the time the event took.
+     */
+    const writeInside = (edit: EventEdit): void => {
+        const { event } = edit;
+        const element = event.element;
+        const parent = element.parentElement;
+        const span = hostSpan(event);
+        if (!parent || !span) return;
+
+        const measure = event.layer.staff.measure;
+        const pieces = splitHost(
+            span,
+            edit.inside.map((place) => ({ start: place.start, value: place.value, payload: place })),
+            measure,
+        );
+        if (!pieces) return;
+
+        const played = asPlayed(edit);
+        // What the voice has where it has no note: a rest where the score draws its silence,
+        // and where it does not, or where a note was sounding, time that draws nothing
+        const silence = element.localName === "space" || element.localName === "mSpace" ? "space" : "rest";
+        const inserted = edit.inside.flatMap((place) => [...place.notes, ...place.graces.flat()]);
+        const { app, original, performance } = appFor(
+            [...inserted, ...edit.add, ...edit.replace.values()],
+            "added-note",
+        );
+        parent.insertBefore(app, element);
+        original.appendChild(element);
+
+        const chain: Element[] = [];
+        const build = (list: HostPiece<OwnPlace>[], into: Element) => {
+            for (const piece of list) {
+                if (piece.kind === "tuplet") {
+                    const tuplet = doc.createElementNS(MEI_NS, "tuplet");
+                    tuplet.setAttribute("num", "3");
+                    tuplet.setAttribute("numbase", "2");
+                    build(piece.pieces, tuplet);
+                    into.appendChild(tuplet);
+                } else if (piece.kind === "item") {
+                    const place = piece.item.payload;
+                    for (const moment of place.graces) into.appendChild(graceFor(moment));
+                    const notes = place.notes.map((note) => noteFor(note));
+                    const sounding = notes.length === 1 ? notes[0] : doc.createElementNS(MEI_NS, "chord");
+                    if (notes.length > 1) notes.forEach((note) => sounding.appendChild(note));
+                    into.appendChild(valued(sounding, piece.value));
+                } else if (piece.kind === "gap" || !played) {
+                    const quiet = doc.createElementNS(MEI_NS, played ? "space" : silence);
+                    into.appendChild(valued(quiet, piece.value));
+                } else {
+                    const held = chain.length === 0 ? played : heldOn(played, chain.length);
+                    chain.push(held);
+                    into.appendChild(resized(held, piece.value));
+                }
+            }
+        };
+        build(pieces, performance);
+
+        // Where its new length is no one note value it is tied values, and a tie is a line in
+        // the measure: a reading of its own, beside the one the notes are in
+        if (chain.length > 1) {
+            const { app: lines, performance: ties } = appFor(inserted, "added-note");
+            for (let index = 1; index < chain.length; index++) {
+                const before = notesOf(chain[index - 1]);
+                notesOf(chain[index]).forEach((note, at) => {
+                    const from = before[at]?.getAttribute("xml:id");
+                    const to = note.getAttribute("xml:id");
+                    if (!from || !to) return;
+                    const tie = doc.createElementNS(MEI_NS, "tie");
+                    tie.setAttribute("startid", `#${from}`);
+                    tie.setAttribute("endid", `#${to}`);
+                    ties.appendChild(tie);
+                });
+            }
+            measure.element.appendChild(lines);
+        }
+    };
+
     // The events first: what joins, leaves or changes inside the notation there is
     for (const edit of [...edits.events].sort((a, b) => a.event.onset - b.event.onset)) {
         const { event } = edit;
@@ -202,6 +386,11 @@ export function applyEdits(
             for (const moment of edit.graces) performance.appendChild(graceFor(moment));
             const before = outsideItsBeam(element);
             before.parentElement?.insertBefore(app, before);
+        }
+
+        if (edit.inside.length > 0) {
+            writeInside(edit);
+            continue;
         }
 
         const removed = new Set(edit.remove);
@@ -291,7 +480,7 @@ export function applyEdits(
         }
     }
 
-    // Then the places of their own, a layer at a time
+    // Then the places of their own that no voice of the staff could take, a layer at a time
     for (const addition of edits.staves) {
         const { staff } = addition;
         const measure = staff.measure;
@@ -441,6 +630,15 @@ function valued(element: Element, value: NoteValue): Element {
     return element;
 }
 
+/** Write a note value onto an event that had another, leaving nothing of the old one behind. */
+function resized(element: Element, value: NoteValue): Element {
+    for (const holder of [element, ...element.querySelectorAll("note")]) {
+        for (const attribute of ["dur", "dots", "dur.ges", "dots.ges", "dur.ppq"]) holder.removeAttribute(attribute);
+    }
+    for (const dot of [...element.querySelectorAll("dot")]) dot.remove();
+    return valued(element, value);
+}
+
 /** A rest as long as an event, by the event's own account of how long that is. */
 function restLike(doc: Document, event: Element): Element {
     const rest = doc.createElementNS(MEI_NS, "rest");
@@ -547,6 +745,13 @@ function planNotation(edits: Edits): Map<NewNote, NoteNotation> {
         edit.graces.flat().forEach((note, index) => arrivals.push({ note, staff, onset: edit.event.onset - 1e-6 * (edit.graces.flat().length - index), like }));
         for (const note of [...edit.add, ...edit.replace.values()]) arrivals.push({ note, staff, onset: edit.event.onset, like });
         for (const note of [...edit.remove, ...edit.replace.keys()]) gone.add(note);
+
+        const near = like ?? staff.layers.flatMap((layer) => layer.events).find((event) => event.notes.length > 0)?.notes[0];
+        for (const place of edit.inside) {
+            const onset = staff.measure.onset + place.start / UNITS;
+            place.graces.flat().forEach((note, index) => arrivals.push({ note, staff, onset: onset - 1e-6 * (place.graces.flat().length - index), like: near }));
+            for (const note of place.notes) arrivals.push({ note, staff, onset, like: near });
+        }
     }
     for (const addition of edits.staves) {
         const { staff } = addition;

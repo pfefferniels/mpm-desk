@@ -119,7 +119,8 @@ export const replaced = (id: string, scoreId: string, played: NoteSpan, written:
  * The score with a recording in it, as `applyAlignment` would have written one.
  *
  * Every written note is matched where `PLAYED` says, except the ones named as unplayed or as
- * played at another pitch; every extra span is an insertion.
+ * played at another pitch; every extra span is an insertion. Each key is down for `heldMs`,
+ * most of a quarter note unless said otherwise.
  */
 export const aligned = (
   mei: string,
@@ -128,6 +129,7 @@ export const aligned = (
     unplayed?: string[]
     substituted?: Record<string, NoteSpan>
     played?: Record<string, { ms: number; pitch: number }>
+    heldMs?: number
   } = {},
 ): string => {
   const doc = new DOMParser().parseFromString(mei, 'application/xml')
@@ -139,7 +141,7 @@ export const aligned = (
     if (options.unplayed?.includes(id)) insertDeletionWhen(doc, recording, id)
     else if (options.substituted?.[id]) {
       insertSubstitutionWhen(doc, recording, id, options.substituted[id], { writtenPitch: pitch })
-    } else insertWhen(doc, recording, span(`perf-${id}`, ms, pitch, 450), id)
+    } else insertWhen(doc, recording, span(`perf-${id}`, ms, pitch, options.heldMs ?? 450), id)
   }
   for (const extra of options.extra ?? []) insertInsertionWhen(doc, recording, extra)
 

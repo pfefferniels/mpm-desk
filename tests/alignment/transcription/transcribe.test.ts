@@ -55,8 +55,40 @@ describe('a played note the score does not write', () => {
     expect(doc.querySelectorAll('[*|id="ch"]')).toHaveLength(1)
   })
 
-  it('is given a place of its own between two written notes, in a new voice', () => {
-    // Halfway between the second quarter and the third, held to the third
+  it('is written into the voice it was played in, and the note before it ends where it begins', () => {
+    // Halfway between the second quarter and the third, held to the third, with the second
+    // quarter let go as it is struck
+    const passing = span('x1', 750, 73, 250)
+    const result = transcribe({
+      mei: aligned(scoreMei(), { extra: [passing], heldMs: 240 }),
+      source: SOURCE,
+      divergences: [added('a', [passing])],
+      spans: [passing],
+    })
+    const doc = parse(result.mei)
+    const written = performance(doc, writtenIdOf(passing))
+
+    expect(written?.getAttribute('dur')).toBe('8')
+    expect(written?.getAttribute('pname')).toBe('c')
+    expect(written?.getAttribute('accid')).toBe('s')
+    expect(written?.closest('staff')?.getAttribute('n')).toBe('1')
+    // In the voice the staff has: no second one was made for it
+    expect(written?.closest('layer')?.getAttribute('n')).toBe('1')
+    expect(doc.querySelectorAll('measure[n="1"] staff[n="1"] layer')).toHaveLength(1)
+
+    // The quarter it was played during is an eighth as played, and the quarter it was in the source
+    expect(performance(doc, 'n2')?.getAttribute('dur')).toBe('8')
+    expect(doc.querySelector('rdg[source="original"] > note[*|id="n2"]')?.getAttribute('dur')).toBe('4')
+    expect(doc.querySelector('tie')).toBeNull()
+
+    expect(standing(result.mei).get(writtenIdOf(passing))).toEqual({ onset: 1.5, pitch: 73 })
+    expect(standing(result.mei).get('n2')).toEqual({ onset: 1, pitch: 74 })
+    expect(result.outcomes.get('a')?.because).toContain('after the note it was played during')
+  })
+
+  it('is given a voice of its own where the note it was played during was still held down', () => {
+    // The same note, struck while the second quarter is down for another fifth of a second:
+    // two keys at once are two voices, and the quarter stays the quarter it was played as
     const passing = span('x1', 750, 73, 250)
     const result = transcribe({
       mei: aligned(scoreMei(), { extra: [passing] }),
@@ -68,33 +100,156 @@ describe('a played note the score does not write', () => {
     const written = performance(doc, writtenIdOf(passing))
 
     expect(written?.getAttribute('dur')).toBe('8')
-    expect(written?.getAttribute('pname')).toBe('c')
-    expect(written?.getAttribute('accid')).toBe('s')
     expect(written?.closest('layer')?.getAttribute('n')).toBe('2')
-    expect(written?.closest('staff')?.getAttribute('n')).toBe('1')
     expect(written?.closest('app')?.parentElement?.localName).toBe('staff')
-
+    expect(doc.querySelectorAll('[*|id="n2"]')).toHaveLength(1)
+    expect(doc.querySelector('[*|id="n2"]')?.getAttribute('dur')).toBe('4')
     expect(standing(result.mei).get(writtenIdOf(passing))).toEqual({ onset: 1.5, pitch: 73 })
+    expect(result.outcomes.get('a')?.because).toContain('in a voice of its own')
   })
 
-  it('puts added notes in one voice all through the piece, whatever each bar has', () => {
-    // A second voice in the second bar only: the added voice has to be the third in both
+  it('ties the note before it where its new length is no one note value', async () => {
+    // An eighth before the barline, under the whole note of the bass
+    const upbeat = span('x1', 3750, 43, 200)
+    const base = aligned(scoreMei(), { extra: [upbeat] })
+    const result = transcribe({ mei: base, source: SOURCE, divergences: [added('a', [upbeat])], spans: [upbeat] })
+    const doc = parse(result.mei)
+
+    // Seven eighths: a dotted half and an eighth, tied
+    expect(performance(doc, 'b3')?.getAttribute('dur')).toBe('2')
+    expect(performance(doc, 'b3')?.getAttribute('dots')).toBe('1')
+    expect(performance(doc, 'b3-held')?.getAttribute('dur')).toBe('8')
+    expect(doc.querySelector('rdg[source="performance"] > tie[startid="#b3"]')?.getAttribute('endid')).toBe('#b3-held')
+    expect(performance(doc, writtenIdOf(upbeat))?.getAttribute('dur')).toBe('8')
+
+    // One note for verovio as for the chain, as long as it took to get to the next
+    const notes = await getNotesFromMEI(result.mei, { collapseUnisons: false, notatedOnsets: true })
+    const byId = new Map(notes.map((entry) => [entry.note, entry]))
+    expect(byId.get('b3')).toMatchObject({ onset: 4, duration: 3.5 })
+    expect(byId.has('b3-held')).toBe(false)
+    expect(byId.get(writtenIdOf(upbeat))).toMatchObject({ onset: 7.5, pitch: 43, duration: 0.5 })
+
+    // And the tie goes with the reading
+    expect(canonical(untranscribed(result.mei))).toBe(canonical(base))
+  })
+
+  it('goes into a voice that was silent there, and no written note changes', () => {
+    const withRest = scoreMei(
+      '<note xml:id="n1" pname="c" oct="5" dur="4"/><rest xml:id="r" dur="4"/><chord xml:id="ch" dur="2"><note xml:id="n3" pname="e" oct="5"/><note xml:id="n4" pname="g" oct="5"/></chord>',
+    )
+    const passing = span('x1', 750, 73, 250)
+    const result = transcribe({
+      mei: aligned(withRest, { extra: [passing] }),
+      source: SOURCE,
+      divergences: [added('a', [passing])],
+      spans: [passing],
+    })
+    const doc = parse(result.mei)
+    const reading = performance(doc, writtenIdOf(passing))?.parentElement
+
+    // Half of the rest is still a rest, and the other half is the note
+    expect([...(reading?.children ?? [])].map((child) => `${child.localName} ${child.getAttribute('dur')}`)).toEqual(['rest 8', 'note 8'])
+    expect(doc.querySelector('rdg[source="original"] > rest[*|id="r"]')?.getAttribute('dur')).toBe('4')
+    expect(doc.querySelectorAll('app')).toHaveLength(1)
+    expect(result.outcomes.get('a')?.because).toContain('in a voice that was silent there')
+  })
+
+  it('takes the silence of a second voice before it cuts a note short', () => {
+    // A second voice in the second bar that has nothing in it
     const twoVoices = scoreMei().replace(
       '<note xml:id="n7" pname="d" oct="5" dur="2"/></layer>',
       '<note xml:id="n7" pname="d" oct="5" dur="2"/></layer><layer n="2"><space dur="1"/></layer>',
     )
-    const extras = [span('x1', 750, 73), span('x2', 2250, 81)]
+    const extra = span('x1', 2250, 81)
     const result = transcribe({
-      mei: aligned(twoVoices, { extra: extras }),
+      mei: aligned(twoVoices, { extra: [extra] }),
+      source: SOURCE,
+      divergences: [added('a', [extra])],
+      spans: [extra],
+    })
+    const doc = parse(result.mei)
+    const written = performance(doc, writtenIdOf(extra))
+
+    expect(written?.closest('layer')?.getAttribute('n')).toBe('2')
+    // As long as it is to the next thing in its hand, with time that draws nothing around it
+    expect(
+      [...(written?.parentElement?.children ?? [])].map(
+        (child) => `${child.localName} ${child.getAttribute('dur')}${'.'.repeat(Number(child.getAttribute('dots') ?? 0))}`,
+      ),
+    ).toEqual(['space 8', 'note 8', 'space 2.'])
+    expect(doc.querySelectorAll('[*|id="n5"]')).toHaveLength(1)
+    expect(standing(result.mei).get('n5')?.onset).toBe(4)
+  })
+
+  it('is written after the note it was played during as that note was played', () => {
+    // The bass note with its octave, and a note struck a sixteenth after the second quarter
+    const octave = span('x1', 5, 36)
+    const after = span('x2', 625, 50, 100)
+    const base = aligned(scoreMei(), { extra: [octave, after] })
+    const result = transcribe({
+      mei: base,
+      source: SOURCE,
+      divergences: [added('a', [octave], 'added-octave'), added('b', [after])],
+      spans: [octave, after],
+      settings: { noiseMs: 4, rubato: 0.01 },
+    })
+    const doc = parse(result.mei)
+
+    // Five sixteenths of the two notes together, then the new one to the end of the half
+    const chord = performance(doc, 'b1')?.parentElement
+    expect(chord?.localName).toBe('chord')
+    expect(chord?.getAttribute('dur')).toBe('4')
+    expect(chord?.querySelector(`[*|id="${writtenIdOf(octave)}"]`)).not.toBeNull()
+    expect(performance(doc, 'b1-held')?.parentElement?.getAttribute('dur')).toBe('16')
+    expect(doc.querySelectorAll('rdg[source="performance"] > tie')).toHaveLength(2)
+    expect(performance(doc, writtenIdOf(after))?.getAttribute('dur')).toBe('8')
+    expect(performance(doc, writtenIdOf(after))?.getAttribute('dots')).toBe('1')
+
+    // The source has the single half note, once
+    expect(doc.querySelector('rdg[source="original"] > note[*|id="b1"]')?.getAttribute('dur')).toBe('2')
+    expect(result.outcomes.get('a')?.noteIds).toEqual([writtenIdOf(octave)])
+    expect(result.outcomes.get('b')?.noteIds).toEqual([writtenIdOf(after)])
+    expect(parse(result.mei).querySelector(`when[data="#${writtenIdOf(after)}"]`)).not.toBeNull()
+    expect(canonical(untranscribed(result.mei))).toBe(canonical(base))
+  })
+
+  describe('where no voice the staff has can take it', () => {
+    // Five in the time of four: a note on the second quarter falls inside the second of them,
+    // which stands at no place the grid has and cannot be cut in two there
+    const five = (prefix: string, oct: number) =>
+      `<tuplet num="5" numbase="4">${['c', 'd', 'e', 'f', 'g'].map((pname, index) => `<note xml:id="${prefix}${index + 1}" pname="${pname}" oct="${oct}" dur="4"/>`).join('')}</tuplet>`
+    const quintuplets = scoreMei(five('q', 5)).replace(
+      /<note xml:id="n5".*?<\/layer>/,
+      `${five('r', 5)}</layer><layer n="2">${five('s', 4)}</layer>`,
+    )
+    const played: Record<string, { ms: number; pitch: number }> = { b1: PLAYED.b1, b2: PLAYED.b2, b3: PLAYED.b3 }
+    ;[72, 74, 76, 77, 79].forEach((pitch, index) => {
+      played[`q${index + 1}`] = { ms: index * 400, pitch }
+      played[`r${index + 1}`] = { ms: 2000 + index * 400, pitch }
+    })
+    const extras = [span('x1', 500, 73), span('x2', 2500, 81)]
+    const result = transcribe({
+      mei: aligned(quintuplets, { extra: extras, played }),
       source: SOURCE,
       divergences: extras.map((extra, index) => added(`a${index}`, [extra])),
       spans: extras,
     })
     const doc = parse(result.mei)
 
-    for (const extra of extras) {
-      expect(performance(doc, writtenIdOf(extra))?.closest('layer')?.getAttribute('n')).toBe('3')
-    }
+    it('is given a voice of its own, and every written note stands as it stood', () => {
+      const written = performance(doc, writtenIdOf(extras[0]))
+      expect(written?.closest('app')?.parentElement?.localName).toBe('staff')
+      expect(standing(result.mei).get(writtenIdOf(extras[0]))).toEqual({ onset: 1, pitch: 73 })
+      expect(doc.querySelectorAll('[*|id="q2"]')).toHaveLength(1)
+      expect(result.outcomes.get('a0')?.because).toContain('in a voice of its own')
+    })
+
+    it('is in the same voice all through the piece, whatever each bar has', () => {
+      // Two voices in the second bar only: the added voice has to be the third in both
+      for (const extra of extras) {
+        expect(performance(doc, writtenIdOf(extra))?.closest('layer')?.getAttribute('n')).toBe('3')
+      }
+    })
   })
 
   it('leaves every written note exactly where it stood', () => {
@@ -136,7 +291,7 @@ describe('a played note the score does not write', () => {
     // A third of the way from the second quarter to the third
     const triplet = span('x1', 667, 77, 160)
     const result = transcribe({
-      mei: aligned(scoreMei(), { extra: [triplet] }),
+      mei: aligned(scoreMei(), { extra: [triplet], heldMs: 150 }),
       source: SOURCE,
       divergences: [added('a', [triplet])],
       spans: [triplet],
@@ -149,6 +304,9 @@ describe('a played note the score does not write', () => {
 
     expect(bracket?.getAttribute('num')).toBe('3')
     expect(bracket?.getAttribute('numbase')).toBe('2')
+    // With the quarter it was played during, as the triplet eighth that is left of it
+    expect(performance(doc, 'n2')?.closest('tuplet')).toBe(bracket)
+    expect(performance(doc, 'n2')?.getAttribute('dur')).toBe('8')
     expect(standing(result.mei).get(writtenIdOf(triplet))?.onset).toBeCloseTo(1 + 1 / 3, 6)
     // The bar is still four quarters long
     expect(standing(result.mei).get('n5')?.onset).toBe(4)
@@ -317,7 +475,7 @@ describe('what a reader may ask for instead', () => {
 
 describe('a note a reader has moved by hand', () => {
   const passing = span('x1', 750, 73, 250)
-  const base = aligned(scoreMei(), { extra: [passing] })
+  const base = aligned(scoreMei(), { extra: [passing], heldMs: 240 })
   const id = writtenIdOf(passing)
   const withEdit = (edit: NoteEdit) =>
     transcribe({
@@ -356,8 +514,13 @@ describe('a note a reader has moved by hand', () => {
 
   it('is as long as it was made', () => {
     const result = withEdit({ units: 6 })
-    expect(performance(parse(result.mei), id)?.getAttribute('dur')).toBe('16')
+    const written = performance(parse(result.mei), id)
+    expect(written?.getAttribute('dur')).toBe('16')
     expect(result.outcomes.get('a')?.notes[0].units).toBe(6)
+    // What it leaves of its time draws nothing: nobody stopped
+    expect(written?.nextElementSibling?.localName).toBe('space')
+    expect(written?.nextElementSibling?.getAttribute('dur')).toBe('16')
+    expect(standing(result.mei).get('n3')?.onset).toBe(2)
   })
 
   it('goes on the staff it was given', () => {
