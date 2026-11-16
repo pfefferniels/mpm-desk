@@ -13,13 +13,19 @@ import {
   exportMPM,
   getDefinition,
   getInstructions,
+  ornamentDraftOf,
+  silentOrnaments,
 } from '../../../src/fitting/instructions/index';
 import {
   InsertGraceNotes,
   InsertTemporalSpread,
   MakeChoice,
+  StylizeOrnamentation,
 } from '../../../src/fitting/transformers/index';
 import { asMSM } from '../../../src/fitting/asMSM';
+import { runFit } from '../../../src/fitting/fit';
+import { parseWorkFile } from '../../../src/model/Work';
+import { partNamesOf } from '../../../src/model/workReducer';
 import { publishedPath } from '../../../src/test/published';
 import { at, only } from '../../support/at';
 
@@ -97,7 +103,10 @@ const callTransform = (transformer: { name: string }, msm: Alignment, mpm: Mpm) 
   (transformer as unknown as Transformable).transform(msm, mpm);
 };
 
-/** The figure written for a principal: its ornament, and the frame its definition holds. */
+/**
+ * The figure written for a principal: its ornament, and the frame measured for it, which is
+ * parked on the element as a draft until the chain has stylized it.
+ */
 const figure = (mpm: Mpm, principal: string) => {
   const ornament = only(
     getInstructions(mpm, 'ornament', 'global').filter(
@@ -105,18 +114,18 @@ const figure = (mpm: Mpm, principal: string) => {
     ),
     'grace ornament',
   );
-  const spread = getDefinition(mpm, 'ornamentDef', ornament.nameRef)?.getTemporalSpread();
+  const draft = ornamentDraftOf(ornament.element);
   return {
     ornament,
     pool: ornament.element
       .getChildElements()
       .toArray()
       .map((n) => [n.getAttributeValue('id', 'http://www.w3.org/XML/1998/namespace'), n.getAttributeValue('midi.pitch')]),
-    frame: spread && {
-      start: spread.getFrame().offset.value,
-      length: spread.getFrame().length.value,
-      domain: spread.getFrame().length.domain,
-      shift: spread.noteOffShift,
+    frame: {
+      start: draft.frameStart,
+      length: draft.frameLength,
+      domain: draft.frameDomain,
+      shift: draft.noteOffShift,
     },
   };
 };
@@ -142,6 +151,26 @@ describe('an untied group', () => {
     ]);
     // In milliseconds, from the principal's date: the first grace 300 ms ahead, the principal on it.
     expect(frame).toMatchObject({ start: -300, length: 300, domain: 'milliseconds', shift: 'monophonic' });
+  });
+
+  // As an arpeggio's is: the frame is a draft for the hinge to put into ticks and
+  // `StylizeOrnamentation` to give a definition, and until then the figure names none.
+  test('leaves its frame as a draft, and sounds once the chain has stylized it', () => {
+    const mpm = createMpm();
+    callTransform(new InsertGraceNotes({ scope: 'global' }), msm(), mpm);
+    expect(getDefinition(mpm, 'ornamentDef', figure(mpm, 'p').ornament.nameRef)).toBeNull();
+    expect(silentOrnaments(mpm).map((o) => o.id)).toEqual(['grace_gg']);
+
+    callTransform(new StylizeOrnamentation(), msm(), mpm);
+    const { ornament } = figure(mpm, 'p');
+    expect(silentOrnaments(mpm)).toEqual([]);
+    expect(ornamentDraftOf(ornament.element)).toEqual({});
+    const spread = getDefinition(mpm, 'ornamentDef', ornament.nameRef)?.getTemporalSpread();
+    expect(spread?.getFrame()).toEqual({
+      offset: { value: -300, domain: 'milliseconds' },
+      length: { value: 300, domain: 'milliseconds' },
+    });
+    expect(spread?.noteOffShift).toBe('monophonic');
   });
 
   test('keeps the stagger an arpeggio fit took out of its principal', () => {
@@ -300,6 +329,8 @@ describe('the published transcription', () => {
     const mpm = createMpm();
     callTransform(new InsertGraceNotes({ scope: 'global' }), msm, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toHaveLength(8);
+    // No tempo here for the hinge to convert along, so the frames are defined as measured.
+    callTransform(new StylizeOrnamentation(), msm, mpm);
 
     const played = performMsmToData({ msm: msm.serializeScore() ?? '', mpm: exportMPM(mpm) })
       .parts.flatMap((part) => part.notes)
@@ -310,5 +341,31 @@ describe('the published transcription', () => {
     ]);
     const [bb, f] = played;
     expect((f?.milliseconds.date ?? 0) - (bb?.milliseconds.date ?? 0)).toBeCloseTo(108, 6);
+  });
+
+  // The chain as published, tempo map and all, where the frame is in ticks. Bar 18 is the figure
+  // that kept grace notes in milliseconds for a while: its C leads the F of `ritard.`, the F is
+  // on a `<tempo>`, and the tempo before it does not land on the note that ends it. Measured
+  // back from the recorded boundary, as the hinge once did, the 632 ms came out as 838.
+  test('plays bar 18’s C as far ahead of its F as the roll does, through the tempo map', () => {
+    const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
+    const result = runFit(work, asMSM(mei, movement.msm, movement.graces));
+    const fitted = new Alignment(result.ground.notes, result.ground.timeSignatures);
+    fitted.tiedPrincipals = result.ground.tiedPrincipals;
+
+    const frame = new DOMParser()
+      .parseFromString(result.mpm, 'application/xml')
+      .querySelector('ornamentDef[name="def_global_grace_y1eaaloe"] temporalSpread');
+    expect(frame?.getAttribute('frame.offset')).toMatch(/ticks$/);
+    expect(frame?.getAttribute('frameLength')).toMatch(/ticks$/);
+
+    const [c, f] = performMsmToData({
+      msm: fitted.serializeScore(partNamesOf(work)) ?? '',
+      mpm: result.mpm,
+    })
+      .parts.flatMap((part) => part.notes)
+      .filter((n) => n.ornamentRef === 'grace_y1eaaloe');
+    // Within the fourth decimal of a tick the document keeps.
+    expect((f?.milliseconds.date ?? 0) - (c?.milliseconds.date ?? 0)).toBeCloseTo(632, 0);
   });
 });

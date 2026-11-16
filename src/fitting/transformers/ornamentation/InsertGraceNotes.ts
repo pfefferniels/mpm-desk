@@ -1,11 +1,10 @@
-import { NoteOffShift, OrnamentNote } from 'espressivo';
+import { FrameDomain, NoteOffShift, OrnamentNote } from 'espressivo';
 import {
   Mpm,
-  OrnamentDef,
-  ensureDefaultStyle,
   getInstructions,
-  insertDefinition,
+  requireElement,
   requireMap,
+  setOrnamentDraft,
 } from '../../instructions/index';
 import type { AlignedGrace, Alignment } from '../../alignment';
 import { AbstractTransformer, type ScopedTransformationOptions } from '../Transformer';
@@ -56,18 +55,26 @@ const mean = (values: readonly number[]): number =>
  *   the date's onset is read off the other notes the chord has there. The principal has no row
  *   of its own and is in the rendered score as one of `Alignment.tiedPrincipals`.
  *
- * ## Why the frame stays in milliseconds
+ * ## What becomes of the frame
  *
- * Each group gets a definition of its own, written here, with its frame in milliseconds — not a
- * draft for `TranslatePhysicalTimeToTicks` and `StylizeOrnamentation`, as an arpeggio's is. A grace
- * note's lead is a gesture of the hand, measured in time, and it reaches back from its principal
- * across the beat before, often across a barline. The hinge converts a frame through the tempo
- * map as the recording anchors it, while the renderer plays it back through the tempo model; the
- * two agree within a segment and part where a frame crosses a boundary the model does not meet
- * exactly. WM 225's bar 18 is the case: the C before the F of `ritard.` leads by 632 ms on the
- * roll, and came out 839 ms ahead in ticks. In milliseconds it is 632 again, and the frame reads
- * as what was measured. One definition per group, because a definition is a frame, and two grace
- * figures share one only by accident.
+ * What an arpeggio's does. The frame is measured here, in milliseconds, and parked on the
+ * `<ornament>` as a draft (`ornamentDraft.ts`); `TranslatePhysicalTimeToTicks` puts it into ticks
+ * and `StylizeOrnamentation` gives the figure a definition, its own or one it shares with every
+ * ornament framed alike. Until that has run the figure names no definition and is silent, as an
+ * unstylized arpeggio is.
+ *
+ * It did not always go that way. A grace note's lead reaches back from its principal across the
+ * beat before, often across a barline and so across a `<tempo>`, and the hinge used to convert a
+ * frame along the tempo map as the recording anchors it, which is not where the renderer plays
+ * it back: WM 225's bar 18, the C before the F of `ritard.`, leads by 632 ms on the roll and came
+ * out 838 ms ahead. So each group was given a definition of its own here, in milliseconds. The
+ * hinge now measures a figure along the tempo map as the renderer walks it, and the lead comes
+ * back as measured.
+ *
+ * What ticks cost is the `<rubato>`. In milliseconds a figure was added after everything else
+ * had run; in ticks its notes are notes of the score where the frame puts them, and a rubato
+ * fitted later to the notes around them moves them with the rest. On WM 225 that is 4 ms on one
+ * figure and 13 ms on the principal of another, and nothing on the other six.
  *
  * Each grace note gives way to the next and the principal sounds to its own end
  * (`noteoff.shift="monophonic"`); the spacing between three or more onsets is fitted as
@@ -185,34 +192,34 @@ export class InsertGraceNotes extends AbstractTransformer<InsertGraceNotesOption
         `#${principalId}`,
       ].join(' ');
 
-      const id = ornamentIdFor(group, mpm);
-      // Named after its ornament, as `StylizeOrnamentation` names a definition it makes for one.
-      const built = OrnamentDef.createOrnamentDef(`def_${String(this.options.scope)}_${id}`);
-      if (!built.ok) {
-        console.warn(`InsertGraceNotes: no definition can be named after ${id}`);
-        continue;
-      }
-      const def = built.value;
       const intensity =
         length > 0 ? determineIntensity(onsets.map((onset) => (onset - start) / length)) : 1;
-      def.setTemporalSpreadFrame(
-        { value: start - reference, domain: 'milliseconds' },
-        { value: length, domain: 'milliseconds' },
-        intensity,
-        NoteOffShift.Monophonic,
-      );
-      insertDefinition(mpm, 'ornamentDef', def, this.options.scope);
-      ensureDefaultStyle(mpm, 'ornament', this.options.scope);
 
-      map.addOrnamentV3({
-        id,
-        date,
-        nameRef: def.getName(),
-        noteid: `#${principalId}`,
-        noteOrder: order,
-        notes: pool.map(
-          (row) => new OrnamentNote(row['xml:id'], { kind: 'midi', value: row['midi.pitch'] }),
-        ),
+      // Written in two goes, as `InsertTemporalSpread` writes an arpeggio: what MPM lets an
+      // `<ornament>` say, then the `<temporalSpread>` fields that have no place on one, parked on
+      // the element for the hinge to translate and `StylizeOrnamentation` to collect. Not through
+      // `fillInAt`: the figure is an element of its own, beside whatever roll its date has.
+      const element = requireElement(
+        map,
+        map.addOrnamentV3({
+          id: ornamentIdFor(group, mpm),
+          date,
+          // The name no definition carries, which both arpeggio fitters leave too.
+          nameRef: 'neutralArpeggio',
+          noteid: `#${principalId}`,
+          noteOrder: order,
+          notes: pool.map(
+            (row) => new OrnamentNote(row['xml:id'], { kind: 'midi', value: row['midi.pitch'] }),
+          ),
+        }),
+        'ornament',
+      );
+      setOrnamentDraft(element, {
+        noteOffShift: NoteOffShift.Monophonic,
+        frameStart: start - reference,
+        frameLength: length,
+        frameDomain: FrameDomain.Milliseconds,
+        intensity: intensity === 1 ? undefined : intensity,
       });
     }
   }

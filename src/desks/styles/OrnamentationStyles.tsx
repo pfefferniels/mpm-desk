@@ -13,6 +13,7 @@ import { useCallSelection } from "../../hooks/CallSelection";
 import { useEditable } from "../../hooks/Editing";
 import { isCallOf } from "../../fitting/calls";
 import { SilentOrnaments } from "../SilentOrnaments";
+import { GRACE_COLOUR } from "../arpeggiation/graceFigures";
 
 interface ToleranceProps {
     label: string
@@ -182,9 +183,8 @@ export const OrnamentationStyles = ({ mpm, found, addTransformer, part }: Scoped
                         Two sentences, one per mode. Fitting is the editor's remedy and no answer to
                         a reader of the viewer, who can do nothing about it; there the plot is empty
                         because the reconstruction made no spread here, and the scope is all that
-                        is theirs to change. Spreads rather than frames in the viewer's version: a
-                        grace note's ornament carries a frame too, in the definition its fitter
-                        wrote directly, and is no candidate for a style.
+                        is theirs to change. A spread is a roll's or a grace figure's alike: both
+                        are fitted on the Temporal Spread desk and both are clustered here.
                     */}
                     {styles.points.length === 0
                         ? (
@@ -208,11 +208,17 @@ export const OrnamentationStyles = ({ mpm, found, addTransformer, part }: Scoped
                                     // the fit answers up to 5, and a point that size swallows its
                                     // neighbours.
                                     radiusOf={point => 3 + Math.min(point.value[2] ?? 1, 3) * 2}
+                                    // A figure is clustered on its frame like any roll, so the
+                                    // fill is the definition's either way and the ring says
+                                    // which kind of ornament the point is.
+                                    ringOf={point => styles.figures.has(point.index) ? GRACE_COLOUR : undefined}
                                 />
                                 <Typography variant='caption' color='text.secondary' sx={{ display: 'block', width: 560 }}>
                                     One point per ornament, where the fitters measured it.
                                     Colour: the definition it lands in, grey for one it holds
-                                    alone. Size: intensity.
+                                    alone. Size: intensity. Ringed in{' '}
+                                    <Box component='span' sx={{ color: GRACE_COLOUR, fontWeight: 600 }}>this colour</Box>
+                                    : a grace figure.
                                 </Typography>
                             </>
                         )}

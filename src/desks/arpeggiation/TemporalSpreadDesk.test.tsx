@@ -1,14 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { Alignment, type AlignedNote } from '../../fitting/alignment';
+import { Alignment, type AlignedGrace, type AlignedNote } from '../../fitting/alignment';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { EditingContext } from '../../hooks/Editing';
 import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { ZoomContext } from '../../hooks/ZoomProvider';
-import { createMpm, type Scope } from '../../fitting/instructions/index';
+import { NoteOffShift, OrnamentNote } from 'espressivo';
+import {
+    createMpm,
+    ensureDefaultStyle,
+    insertDefinition,
+    type Mpm,
+    OrnamentDef,
+    requireMap,
+    type Scope,
+} from '../../fitting/instructions/index';
 import { InsertTemporalSpread } from '../../fitting/transformers/ornamentation/InsertTemporalSpread';
+import { InsertGraceNotes } from '../../fitting/transformers/ornamentation/InsertGraceNotes';
+import { GRACE_COLOUR } from './graceFigures';
 import type { Residual } from '../../fitting/residual';
 import { TemporalSpreadDesk } from './TemporalSpreadDesk';
 
@@ -17,7 +28,8 @@ import { TemporalSpreadDesk } from './TemporalSpreadDesk';
  *
  * Answered here rather than loaded: Tone 14's ESM imports its own files without an extension,
  * which Vite resolves in the browser and Node, resolving an externalised dependency itself, does
- * not. No written spread is rendered in this file anyway — it is the import that needs an answer.
+ * not. The one written spread this file draws is never auditioned — it is the import that needs
+ * an answer.
  */
 vi.mock('tone', () => ({
     NoiseSynth: class {
@@ -68,6 +80,38 @@ const alignment = () =>
         note('g', 1440, 2120, 47, 2),
     ]);
 
+/** A grace note of `group`, leading to `principal` and struck `lead` ms before `ms`. */
+const grace = (
+    id: string,
+    group: string,
+    principal: string,
+    date: number,
+    ms: number,
+    part = 1,
+): AlignedGrace => ({
+    'xml:id': id,
+    group,
+    principal,
+    tied: false,
+    part,
+    date,
+    slot: 0,
+    'midi.pitch': 67,
+    velocity: 50,
+    'milliseconds.date': ms,
+    'milliseconds.date.end': ms + 80,
+});
+
+/** The same score with a grace note before `d`, in part 1, and one before `f`, in part 2. */
+const withGraces = () => {
+    const msm = alignment();
+    msm.graces = [
+        grace('g1', 'gg', 'd', 720, 820),
+        grace('g2', 'hh', 'f', 1440, 1700, 2),
+    ];
+    return msm;
+};
+
 const residual = (): Residual => ({
     of: (note) => ({
         note,
@@ -86,10 +130,16 @@ interface MountOptions {
     editable?: boolean;
     /** The calls selected, and what the run reported for them. */
     selected?: { ids: string[]; outcomes: CallOutcome[] };
+    /** The document the chain has written so far; an empty one by default. */
+    mpm?: Mpm;
+    /** The score and its recording; `alignment()` by default. */
+    msm?: Alignment;
 }
 
-const mount = (part: Scope = 'global', { editable = true, selected }: MountOptions = {}) => {
-    const msm = alignment();
+const mount = (
+    part: Scope = 'global',
+    { editable = true, selected, mpm = createMpm(), msm = alignment() }: MountOptions = {},
+) => {
     const addTransformer = vi.fn();
 
     // The app bar's second row, standing in for `EditorAppBar`'s. A desk under a null target
@@ -124,7 +174,7 @@ const mount = (part: Scope = 'global', { editable = true, selected }: MountOptio
                             <TemporalSpreadDesk
                                 part={part}
                                 msm={msm}
-                                mpm={createMpm()}
+                                mpm={mpm}
                                 residual={residual()}
                                 performanceXml=''
                                 secondary={{}}
@@ -144,6 +194,10 @@ const mount = (part: Scope = 'global', { editable = true, selected }: MountOptio
         chords: () => document.querySelectorAll('g.chord'),
         /** One line per note of them, plus the placement line every chord carries. */
         lines: () => document.querySelectorAll('g.chord line'),
+        /** One group per spread the document holds here, a roll's or a grace figure's. */
+        written: () => document.querySelectorAll('g.temporalSpreadInstruction'),
+        /** One group per grace figure plotted. */
+        figures: () => document.querySelectorAll<SVGGElement>('g.graceFigure'),
         dispose: () => {
             unmount();
             bar.remove();
@@ -189,6 +243,149 @@ describe('what the desk plots', () => {
         expect(inScope('global')).toEqual({ chords: 3, notes: 7 });
         expect(inScope(0)).toEqual({ chords: 2, notes: 4 });
         expect(inScope(1)).toEqual({ chords: 2, notes: 3 });
+    });
+});
+
+describe('the spreads it draws as written', () => {
+    /** A definition holding one frame in ticks, as a stylized ornament's does. */
+    const framed = (mpm: Mpm, name: string, offset: number, length: number) => {
+        const built = OrnamentDef.createOrnamentDef(name);
+        if (!built.ok) throw new Error(`no definition can be named ${name}`);
+        built.value.setTemporalSpreadFrame(
+            { value: offset, domain: 'ticks' },
+            { value: length, domain: 'ticks' },
+            1,
+            NoteOffShift.Monophonic,
+        );
+        insertDefinition(mpm, 'ornamentDef', built.value, 'global');
+    };
+
+    /** The chord at tick 720 with its roll written, and the grace figure before its `d`. */
+    const stylized = () => {
+        const mpm = createMpm();
+        framed(mpm, 'roll', -60, 120);
+        framed(mpm, 'figure', -300, 300);
+        ensureDefaultStyle(mpm, 'ornament', 'global');
+        const map = requireMap(mpm, 'ornament', 'global');
+        map.addOrnamentV3({ id: 'ornament_720', date: 720, nameRef: 'roll', noteOrder: 'ascending pitch' });
+        map.addOrnamentV3({
+            id: 'grace_gg',
+            date: 720,
+            nameRef: 'figure',
+            noteid: '#d',
+            noteOrder: '#g1 #d',
+            notes: [new OrnamentNote('g1', { kind: 'midi', value: 67 })],
+        });
+        return mpm;
+    };
+
+    const fillOf = (group: Element | null) => group?.querySelector('rect')?.getAttribute('fill');
+
+    // Both are ornaments with a frame in ticks once the chain has stylized them, and both are
+    // drawn. What says which is which is the colour.
+    it('is a roll in grey and a grace figure in its own colour', () => {
+        const desk = mount('global', { mpm: stylized(), msm: withGraces() });
+
+        expect(desk.written()).toHaveLength(2);
+        expect(fillOf(document.querySelector('[data-ornament="ornament_720"]'))).toBe('gray');
+        expect(fillOf(document.querySelector('[data-ornament="grace_gg"]'))).toBe(GRACE_COLOUR);
+        desk.dispose();
+    });
+
+    // The figure names one note of the chord and is no roll of it: taken for one, the chord
+    // would read as written and lose the line that says where an insert would place it.
+    it('does not take a figure on one of its notes for the roll of a chord', () => {
+        const mpm = createMpm();
+        framed(mpm, 'figure', -300, 300);
+        ensureDefaultStyle(mpm, 'ornament', 'global');
+        requireMap(mpm, 'ornament', 'global').addOrnamentV3({
+            id: 'grace_gg',
+            date: 720,
+            nameRef: 'figure',
+            noteid: '#d',
+            noteOrder: '#g1 #d',
+            notes: [new OrnamentNote('g1', { kind: 'midi', value: 67 })],
+        });
+        const desk = mount('global', { mpm, msm: withGraces() });
+
+        act(() => {
+            fireEvent.click(document.querySelector('g.chord[data-date="720"] rect') as Element);
+        });
+        // Between `c` at 1000 ms and `d` at 1120, where the default placement estimates the beat.
+        const placed = document.querySelector('g.chord[data-date="720"] line[stroke="red"]');
+        expect(Number(placed?.getAttribute('x1'))).toBeCloseTo(21.2, 6);
+        desk.dispose();
+    });
+});
+
+describe('the grace figures it plots', () => {
+    it('draws the figures of the scope, from the first grace note to the strike of the principal', () => {
+        const inScope = (part: Scope) => {
+            const desk = mount(part, { msm: withGraces() });
+            const groups = [...desk.figures()].map((figure) => figure.dataset.group);
+            desk.dispose();
+            return groups;
+        };
+
+        expect(inScope('global')).toEqual(['gg', 'hh']);
+        expect(inScope(0)).toEqual(['gg']);
+        expect(inScope(1)).toEqual(['hh']);
+
+        // `g1` at 820 ms and `d` at 1120, at 20 px a second.
+        const desk = mount('global', { msm: withGraces() });
+        const frame = desk.figures()[0]?.querySelector('rect');
+        expect(Number(frame?.getAttribute('x'))).toBeCloseTo(16.4, 6);
+        expect(Number(frame?.getAttribute('width'))).toBeCloseTo(6, 6);
+        expect(frame?.getAttribute('fill')).toBe(GRACE_COLOUR);
+        desk.dispose();
+    });
+
+    it('writes the selected figure as a grace notes call, with no dialog to pass', () => {
+        const { addTransformer, figures, dispose } = mount(1, { msm: withGraces() });
+
+        act(() => {
+            fireEvent.click(figures()[0]?.querySelector('rect') as Element);
+        });
+        expect(figures()[0]?.dataset.selected).toBe('true');
+        act(() => {
+            screen.getByRole('button', { name: 'Insert' }).click();
+        });
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(addTransformer).toHaveBeenCalledTimes(1);
+        const sent = addTransformer.mock.calls[0][0] as InsertGraceNotes;
+        expect(sent).toBeInstanceOf(InsertGraceNotes);
+        expect(sent.options).toEqual({ scope: 1, group: 'hh' });
+        dispose();
+    });
+
+    // One selection between the two, so that Insert never has to say which it means.
+    it('lets go of the figure when a chord is chosen', () => {
+        const { figures, dispose } = mount('global', { msm: withGraces() });
+
+        act(() => {
+            fireEvent.click(figures()[0]?.querySelector('rect') as Element);
+        });
+        act(() => {
+            fireEvent.click(document.querySelector('g.chord[data-date="720"] rect') as Element);
+        });
+        expect(figures()[0]?.dataset.selected).toBeUndefined();
+        act(() => {
+            screen.getByRole('button', { name: 'Insert' }).click();
+        });
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        dispose();
+    });
+
+    it('is only read in the viewer', () => {
+        const { figures, dispose } = mount('global', { msm: withGraces(), editable: false });
+
+        expect(figures()).toHaveLength(2);
+        act(() => {
+            fireEvent.click(figures()[0]?.querySelector('rect') as Element);
+        });
+        expect(figures()[0]?.dataset.selected).toBeUndefined();
+        dispose();
     });
 });
 

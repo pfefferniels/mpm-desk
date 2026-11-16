@@ -17,8 +17,6 @@ import {
 import { Alignment } from '../../alignment';
 import { AbstractTransformer, type TransformationOptions } from '../Transformer';
 import { dbscan, type IPoint } from '../../dbscan';
-import { InsertDynamicsGradient } from './InsertDynamicsGradient';
-import { InsertTemporalSpread } from './InsertTemporalSpread';
 import { elementAt, zipWith } from 'espressivo';
 
 export interface StylizeOrnamentationOptions extends TransformationOptions {
@@ -92,6 +90,12 @@ export interface OrnamentStyles {
 
   /** How many `<ornamentDef>`s these tolerances call for, the solitary ones included. */
   definitions: number;
+
+  /**
+   * Which of the points are grace figures, by `IPoint.index`: the ornaments that name a
+   * principal. Clustered with the rolls, on the frame alone, and told apart only for the eye.
+   */
+  figures: ReadonlySet<number>;
 }
 
 /** The five values a `<temporalSpread>` is built from, with every absence already resolved. */
@@ -169,7 +173,16 @@ const byLabel = (
 
 export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentationOptions> {
   readonly name = 'StylizeOrnamentation';
-  requires = [InsertDynamicsGradient, InsertTemporalSpread];
+
+  /**
+   * Nothing, though three fitters feed it: `InsertDynamicsGradient`, `InsertTemporalSpread` and
+   * `InsertGraceNotes` each park a draft for this to collect. `requires` asks for *every* name it
+   * lists, and this named the first two, so a chain could not stylize its rolls without also
+   * fitting a gradient, nor its grace figures without both. Any one of them is enough, and with
+   * none of them there is nothing here to define and nothing to get wrong. Where each belongs
+   * relative to this is the registry's to say (`Order.ts`), which `requires` never decided.
+   */
+  requires = [];
 
   /**
    * All three tolerances are read, and read with `??`. Hardcoding any of them discards the
@@ -217,6 +230,11 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
         label: labels.get(ornament) ?? -1,
       })),
       definitions: definitions.length,
+      figures: new Set(
+        ornaments.flatMap(({ instruction }, index) =>
+          instruction.noteid === undefined ? [] : [index],
+        ),
+      ),
       // A draft without a unit is in ticks, as `temporalSpreadOf` reads it.
       units: [...new Set(ornaments.map(({ draft }) => draft.frameDomain ?? FrameDomain.Ticks))],
     };

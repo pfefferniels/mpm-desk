@@ -6,12 +6,12 @@ import { ToolStatus } from '../components/toolbar/ToolStatus';
  * How many ornaments here the renderer will pass over, in the bar of every desk that can put one
  * there.
  *
- * Fitting an arpeggio and stylizing it are two steps on two desks, and only the second makes a
- * sound. Both fitters leave their ornaments naming `neutralArpeggio` with the measured values
- * parked on the element, and `StylizeOrnamentation` turns those into `<ornamentDef>`s an ornament
- * can reach. Between the two the desk draws a fit that changes nothing, the markup shows an
- * `<ornament>` per chord, and the performance sounds as it did. This says so, in the amber the
- * bar uses for work still outstanding.
+ * Fitting an arpeggio or a grace figure and stylizing it are two steps on two desks, and only the
+ * second makes a sound. The fitters leave their ornaments naming `neutralArpeggio` with the
+ * measured values parked on the element, and `StylizeOrnamentation` turns those into
+ * `<ornamentDef>`s an ornament can reach. Between the two the desk draws a fit that changes
+ * nothing, the markup shows an `<ornament>` per chord, and the performance sounds as it did. This
+ * says so, in the amber the bar uses for work still outstanding.
  *
  * The count is `silentOrnaments`, the renderer's own reckoning rather than "has Stylize been
  * clicked": an ornament the run skipped for an unusable frame keeps showing, which is the case

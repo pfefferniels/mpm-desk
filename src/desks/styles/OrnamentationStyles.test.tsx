@@ -20,6 +20,8 @@ import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { EditingContext } from '../../hooks/Editing';
 import type { Call } from '../../model/Work';
 import { OrnamentationStyles } from './OrnamentationStyles';
+import { OrnamentNote } from 'espressivo';
+import { GRACE_COLOUR } from '../arpeggiation/graceFigures';
 
 interface DeskOptions {
     /** False for the viewer. */
@@ -150,6 +152,36 @@ describe('the plot', () => {
 
         expect(points()).toBe(3);
         expect(screen.getByText('3 ornaments → 2 definitions')).toBeInTheDocument();
+    });
+
+    // A grace figure is clustered on its frame with the rolls, and may share a definition with
+    // one. The ring is what says which kind of ornament a point is; the fill stays the cluster's.
+    it('rings a grace figure in its own colour, among the rolls it is clustered with', () => {
+        const mpm = fitted();
+        const map = requireMap(mpm, 'ornament', 'global');
+        const element = map.getElement(
+            map.addOrnamentV3({
+                id: 'grace_gg',
+                date: 2160,
+                nameRef: 'neutralArpeggio',
+                noteid: '#p',
+                noteOrder: '#g #p',
+                notes: [new OrnamentNote('g', { kind: 'midi', value: 67 })],
+            }),
+        );
+        if (!element) throw new Error('the ornament was not written');
+        setOrnamentDraft(element, { frameStart: -90, frameLength: 90, frameDomain: FrameDomain.Ticks });
+
+        const { points } = renderDesk({ mpm });
+
+        expect(points()).toBe(4);
+        // With the two rolls framed alike: three ornaments in one definition, one alone.
+        expect(screen.getByText('4 ornaments → 2 definitions')).toBeInTheDocument();
+        const ringed = [...document.querySelectorAll('circle')].filter(
+            (circle) => circle.getAttribute('stroke') === GRACE_COLOUR,
+        );
+        expect(ringed).toHaveLength(1);
+        expect(screen.getByText(/a grace figure/)).toBeInTheDocument();
     });
 
     it('sends the editor to fit spreads where the scope holds none', () => {

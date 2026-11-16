@@ -53,14 +53,19 @@ const determineSortDirection = (arr: number[]) => {
  * that it names *these* notes and no others, where a keyword takes every note at the date — the
  * right side of that trade for a fit that only measured the notes it could see an onset for.
  *
- * Which is also why a keyword is only written where the chord *is* every note at the date. The
- * score the MPM is rendered against holds the principals grace notes are tied into
- * (`Alignment.tiedPrincipals`), which have no onset of their own and so are in no chord. A
- * keyword would take one into the roll as one more slot, and every note after it would be struck
- * a step late; it sounds with its grace figure instead, often a beat ahead.
+ * Which is also why a keyword is only written where the chord *is* everything the keyword
+ * would take, and there are two ways it is not:
  *
- * @param unseen what else the score has at the chord's date, as `ScopedScore.tiedPrincipalsAt`
- * gives it. Any at all, and the list is written.
+ * - The score the MPM is rendered against holds the principals grace notes are tied into
+ *   (`Alignment.tiedPrincipals`), which have no onset of their own and so are in no chord. A
+ *   keyword would take one into the roll as one more slot, and every note after it would be
+ *   struck a step late; it sounds with its grace figure instead, often a beat ahead.
+ * - The renderer answers a date a part has nothing at with that part's next note
+ *   (`ScopedScore.straysAt`), so a keyword over the whole score takes in a note that is not at
+ *   the date at all.
+ *
+ * @param unseen what else a keyword would take: `ScopedScore.tiedPrincipalsAt` and
+ * `ScopedScore.straysAt`. Any at all, and the list is written.
  */
 export const noteOrderOf = (
   sortedByOnset: readonly AlignedNote[],

@@ -3,7 +3,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@m
 import { Add, DeleteOutline } from "@mui/icons-material";
 import type { ScopedTransformerViewProps } from "../TransformerViewProps";
 import { InsertGraceNotes } from "../../fitting/transformers/ornamentation/InsertGraceNotes";
-import type { AlignedGrace } from "../../fitting/alignment";
 import { performedInstructions } from "../../fitting/instructions/index";
 import { DeskToolbar } from "../../components/DeskToolbar";
 import { ToolGroup } from "../../components/toolbar/ToolGroup";
@@ -14,44 +13,13 @@ import { useEditable } from "../../hooks/Editing";
 import { EVIDENCE_COLOUR } from "../evidence";
 import { isCallOf } from "../../fitting/calls";
 import { SilentOrnaments } from "../SilentOrnaments";
+import { graceFiguresOf, leadOf } from "./graceFigures";
 
 const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 
 /** A MIDI pitch as a note name with its octave, C4 being 60. */
 const nameOf = (pitch: number): string =>
     `${NAMES[((Math.round(pitch) % 12) + 12) % 12] ?? '?'}${String(Math.floor(Math.round(pitch) / 12) - 1)}`;
-
-/** One grace group as the recording timed it, read off the alignment the chain left. */
-interface GroupRow {
-    group: string;
-    date: number;
-    principal: string;
-    /** The group's grace notes and its principal, by `xml:id`: what evidence names. */
-    ids: string[];
-    tied: boolean;
-    pitches: string;
-    /** From the first grace note to the principal's strike, in ms; null without a strike to measure to. */
-    lead: number | null;
-    readings: number;
-}
-
-const rowsOf = (graces: readonly AlignedGrace[], principalOnset: (id: string) => number | undefined): GroupRow[] =>
-    [...Map.groupBy(graces, (grace) => grace.group)].map(([group, rows]) => {
-        const sorted = [...rows].sort((a, b) => a.slot - b.slot || a['milliseconds.date'] - b['milliseconds.date']);
-        const first = sorted[0];
-        const tied = sorted.find((row) => row.tied);
-        const strike = tied?.['milliseconds.date'] ?? principalOnset(first?.principal ?? '');
-        return {
-            group,
-            date: first?.date ?? 0,
-            principal: first?.principal ?? '',
-            ids: [...rows.map((row) => row['xml:id']), first?.principal ?? ''],
-            tied: tied !== undefined,
-            pitches: sorted.map((row) => nameOf(row['midi.pitch'])).join(' '),
-            lead: first && strike !== undefined ? strike - first['milliseconds.date'] : null,
-            readings: new Set(rows.map((row) => row.source ?? '')).size,
-        };
-    }).sort((a, b) => a.date - b.date);
 
 /**
  * The score's grace notes, one row per group, with how far ahead of its principal the recording
@@ -71,15 +39,14 @@ export const GraceNotesDesk = ({ msm, mpm, part, addTransformer }: ScopedTransfo
         .filter(isCallOf('InsertGraceNotes'))
         .find((call) => call.options.scope === part && call.options.group === undefined)
 
-    const rows = useMemo(() => {
-        const inScope = msm.graces.filter((grace) => part === 'global' || grace.part - 1 === part)
-        // Where the principal sounded: an arpeggio fit has collapsed its chord, and remembers by how much.
-        const onsetOf = (id: string) => {
-            const note = msm.allNotes.find((candidate) => candidate['xml:id'] === id)
-            return note === undefined ? undefined : note['milliseconds.date'] + (note.spread ?? 0)
-        }
-        return rowsOf(inScope, onsetOf)
-    }, [msm, part])
+    const rows = useMemo(
+        () => graceFiguresOf(msm, part).map((figure) => ({
+            ...figure,
+            pitches: figure.graces.map((grace) => nameOf(grace['midi.pitch'])).join(' '),
+            lead: leadOf(figure),
+        })),
+        [msm, part],
+    )
 
     /** The figure each group was written as, by group, where it has been. */
     const written = useMemo(() => {

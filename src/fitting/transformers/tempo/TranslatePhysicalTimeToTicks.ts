@@ -1,4 +1,4 @@
-import { FrameDomain } from 'espressivo';
+import { type Element, FrameDomain } from 'espressivo';
 import {
   getInstructions,
   Mpm,
@@ -9,7 +9,13 @@ import {
 import { Alignment } from '../../alignment';
 import { AbstractTransformer, type TransformationOptions } from '../Transformer';
 import { dateAtMilliseconds, millisecondsAt } from './tempoCalculations';
-import { placeTempos, type PlacedTempo, segmentAtMs } from './placedTempos';
+import {
+  dateAtRenderedMs,
+  placeTempos,
+  type PlacedTempo,
+  renderedMsAt,
+  segmentTiming,
+} from './placedTempos';
 
 export interface TranslatePhysicalTimeToTicksOptions extends TransformationOptions {
   /**
@@ -27,11 +33,126 @@ export interface TranslatePhysicalTimeToTicksOptions extends TransformationOptio
   translatePedalling?: boolean;
 }
 
+/** A frame in ticks, from the ornament's date. */
+interface TickFrame {
+  start: number;
+  length: number;
+}
+
+/**
+ * Whether the renderer plays this ornament by writing notes of its own, rather than by moving
+ * the ones the score has at its date.
+ *
+ * espressivo's own gate (`generatesNotes` in its `ornamentInstantiation.ts`, which it does not
+ * export), read off the same three marks: a pool of `<note>` children, a `@repetitions`, or the
+ * grouping syntax in `@note.order`. A grace figure with a pool is one; an arpeggio is not, and
+ * neither is the figure of a single grace note tied into its principal, which has no pool and
+ * moves the principal alone.
+ */
+const generatesNotes = (element: Element): boolean =>
+  element
+    .getChildElements()
+    .toArray()
+    .some((child) => child.getLocalName() === 'note') ||
+  element.getAttributeValue('repetitions') !== null ||
+  /[[\]|]/.test(element.getAttributeValue('note.order') ?? '');
+
+/**
+ * The frame of an ornament over notes the score already has, which is what an arpeggio is.
+ *
+ * The renderer moves each note by its share of the frame and leaves it where it is in the score,
+ * so every note of the chord is timed by the one `<tempo>` that times the chord's date
+ * ({@link segmentTiming}: on a boundary, the earlier one), continued past either end of its span
+ * where the frame reaches that far. The whole frame is therefore measured under that one
+ * instruction, and it is exact wherever the renderer evaluates the instruction as
+ * `millisecondsAt` does: inside its span, and past either end of a constant one. Measured under
+ * the instruction that *starts* on the date instead, the roll on tick 5760 of WM 225, 107 ms
+ * wide and all of it after the beat, played 153 ms wide.
+ *
+ * Two places are left where the two are not the same arithmetic:
+ *
+ * - **Past the end of a transition**, which is the after-beat half of a roll on a boundary. The
+ *   renderer lets the curve run on and `millisecondsAt` holds the tempo it arrived at. Over the
+ *   length of a roll that is a fraction of a bpm.
+ * - **Before the start of a transition** the chord lies inside. The renderer has no answer
+ *   there: `tempoAt` takes a power of a negative number, which is `NaN` for every exponent but
+ *   a whole one, and the note is sounded at `NaN`. No tick frame can be played, so such a frame
+ *   is left in milliseconds, which the renderer adds after the tempo map has run.
+ */
+const chordFrame = (
+  segments: PlacedTempo[],
+  date: number,
+  frameStart: number,
+  frameLength: number,
+): TickFrame | undefined => {
+  const segment = segmentTiming(segments, date);
+  if (!segment) return undefined;
+
+  const at = millisecondsAt(date, segment.resolved);
+  const start = dateAtMilliseconds(at + frameStart, segment.resolved);
+  const end = dateAtMilliseconds(at + frameStart + frameLength, segment.resolved);
+  // `dateAtMilliseconds` answers `NaN` for a time it was not given, and a `NaN` frame is the
+  // shape issue #26 was reported as.
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return undefined;
+
+  if (
+    segment.resolved.kind !== 'constant' &&
+    date > segment.tempo.date &&
+    start < segment.tempo.date
+  ) {
+    return undefined;
+  }
+
+  return { start: start - date, length: end - start };
+};
+
+/**
+ * The frame of an ornament that writes its own notes, which is what a grace figure is.
+ *
+ * The renderer lays those notes out on the tick grid and each is then a note of the score where
+ * it lies, timed by the `<tempo>` that has that tick. A figure reaching back across a boundary
+ * is under the earlier instruction on the far side of it and the later one on the near side, so
+ * the frame is measured along the tempo map as a whole ({@link renderedMsAt},
+ * {@link dateAtRenderedMs}).
+ */
+const figureFrame = (
+  segments: PlacedTempo[],
+  date: number,
+  frameStart: number,
+  frameLength: number,
+): TickFrame | undefined => {
+  const at = renderedMsAt(segments, date);
+  if (at === undefined) return undefined;
+
+  const start = dateAtRenderedMs(segments, at + frameStart);
+  const end = dateAtRenderedMs(segments, at + frameStart + frameLength);
+  if (start === undefined || end === undefined) return undefined;
+
+  return { start: start - date, length: end - start };
+};
+
 /**
  * Converts the physical parts of the MPM into the tick domain.
  *
  * What it converts is an `<ornament>` frame written in milliseconds, which has to become ticks in
  * the document itself — an edit to the MPM rather than a note about the score.
+ *
+ * ## A frame is a distance, and the renderer is what measures it
+ *
+ * A fitter measures a frame off the recording as so many milliseconds before and after the
+ * ornament's date. Written in ticks, it is played back by a renderer that moves each note by
+ * those ticks and then times it with the tempo map alone. So the ticks that mean "632 ms before
+ * the date" are the ones the *tempo map* puts 632 ms before it, and the recording has no further
+ * say: the conversion runs on the map's own timeline (`PlacedTempo.renderedStartMs`), not on the
+ * one `placeTempos` anchors on the recording at every boundary.
+ *
+ * It used to run on the anchored one, and the two part wherever a tempo does not land on the
+ * note that ends it. A frame was measured back from the *recorded* boundary into a curve whose
+ * own end is somewhere else, and came out wrong by the whole of that difference: on WM 225 the
+ * grace note before bar 18's `ritard.` leads by 632 ms on the roll and played 838 ms ahead.
+ *
+ * Which tempo times a moved note depends on how the renderer plays the ornament, so there are
+ * two conversions ({@link chordFrame}, {@link figureFrame}) and {@link generatesNotes} chooses.
  *
  * It writes no `tickDate` or `tickDuration` onto the notes: where a recorded onset falls on the
  * score grid is derived on demand by `deriveResidual`, so populating it here would serve nobody
@@ -61,45 +182,6 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
 
   protected transform(msm: Alignment, mpm: Mpm): void {
     if (this.options.translatePhysicalModifiers) this.translatePhysicalMPMModifiers(mpm, msm);
-  }
-
-  /**
-   * Where a millisecond time falls on the tick grid.
-   *
-   * The tempo segments cover the piece, and the times asked about do not have to: an ornament's
-   * frame reaches backwards from its anchor, so a roll on the first beat asks about a negative
-   * time, and a roll near the last one can ask about a time past the final note. Both fall out
-   * of the loop and answer `undefined`; a caller that subtracts that writes `NaN` into the
-   * frame and marks the ornament converted. A roll that begins before its beat is what an
-   * arpeggio *is*, so that is every piece-initial ornament.
-   *
-   * There is no extrapolation here for either end, and not because extrapolating is wrong: it
-   * would be a third and fourth hand-copy of a rule `segmentAtMs` and `dateAtMilliseconds`
-   * state once. A first-segment copy measures from `ms` where the cursor starts at `startMs`,
-   * and a last-segment copy reads `@transition.to` straight off the record — which is not the
-   * tempo the span arrives at when `@meanTempoAt` resolves the transition away. Both ends come
-   * out of the same two functions the note walk uses, so an ornament and the notes it ornaments
-   * cannot be placed by different arithmetic.
-   */
-  private msToTicks(ms: number, segments: PlacedTempo[]): number | undefined {
-    const segment = segmentAtMs(segments, ms);
-    if (!segment) return undefined;
-    const ticks = dateAtMilliseconds(ms - segment.startMs, segment.resolved);
-    // `dateAtMilliseconds` answers `NaN` for a time it was not given — the caller subtracts
-    // this to build a frame, and a `NaN` frame is the shape issue #26 was reported as.
-    return Number.isFinite(ticks) ? ticks : undefined;
-  }
-
-  private ticksToMs(ticks: number, segments: PlacedTempo[]) {
-    for (const { tempo, resolved, startMs } of segments) {
-      // The tick window is the instruction's own span, and for the last segment that ends
-      // at the end of the score rather than running open — so this is deliberately not
-      // `coversDate`, which lets the last segment take everything after the score ends.
-      if (ticks >= tempo.date && ticks < tempo.endDate) {
-        return startMs + millisecondsAt(ticks, resolved);
-      }
-    }
-    return undefined;
   }
 
   /**
@@ -139,25 +221,29 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
       if (pending.length === 0) continue;
 
       const segments = placeTempos(msm, mpm, scope);
+      const begins = segments[0]?.tempo.date;
 
       for (const { ornament, frameStart, frameLength } of pending) {
-        const ornamentMs = this.ticksToMs(ornament.date, segments);
-        if (ornamentMs === undefined) continue;
+        // Before the tempo map begins there is no `<tempo>` to measure under: the renderer times
+        // those notes at MPM's default, which is no tempo of this document. The frame stays as
+        // it was measured, in milliseconds, and plays as that.
+        if (begins === undefined || ornament.date < begins) continue;
 
-        const frameStartMs = ornamentMs + frameStart;
-        const frameEndMs = frameStartMs + frameLength;
-
-        const frameStartTicks = this.msToTicks(frameStartMs, segments);
-        const frameEndTicks = this.msToTicks(frameEndMs, segments);
+        const frame = (generatesNotes(ornament.element) ? figureFrame : chordFrame)(
+          segments,
+          ornament.date,
+          frameStart,
+          frameLength,
+        );
 
         // Leave the ornament in milliseconds rather than stamp an unusable frame on it.
         // A millisecond frame is legal MPM, so an untranslated ornament still performs;
         // a `NaN` one does not.
-        if (frameStartTicks === undefined || frameEndTicks === undefined) continue;
+        if (frame === undefined) continue;
 
         setOrnamentDraft(ornament.element, {
-          frameStart: frameStartTicks - ornament.date,
-          frameLength: frameEndTicks - frameStartTicks,
+          frameStart: frame.start,
+          frameLength: frame.length,
           frameDomain: FrameDomain.Ticks,
         });
       }

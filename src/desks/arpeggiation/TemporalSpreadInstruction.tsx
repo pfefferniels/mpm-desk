@@ -25,6 +25,8 @@ interface TemporalSpreadInstructionProps {
     onClick: () => void;
     beatLength: number;
     refBPM?: number;
+    /** What the frame is filled with while it is not selected. A written spread's grey by default. */
+    colour?: string;
 }
 
 let clickSynth: NoiseSynth | null = null;
@@ -53,6 +55,7 @@ export const TemporalSpreadInstruction = ({
     onClick,
     beatLength,
     refBPM = 120,
+    colour = "gray",
 }: TemporalSpreadInstructionProps) => {
     const [hovered, setHovered] = useState(false);
     const { play, stop } = usePiano();
@@ -113,13 +116,13 @@ export const TemporalSpreadInstruction = ({
     if (width <= 0) return null;
 
     return (
-        <g className="temporalSpreadInstruction">
+        <g className="temporalSpreadInstruction" data-ornament={ornament.id}>
             <rect
                 x={xStart}
                 y={0}
                 width={width}
                 height={height}
-                fill={active ? "blue" : "gray"}
+                fill={active ? "blue" : colour}
                 fillOpacity={hovered ? 0.5 : 0.2}
                 onMouseEnter={() => {
                     setHovered(true);

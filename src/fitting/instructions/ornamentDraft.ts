@@ -12,7 +12,8 @@
  * `InsertTemporalSpread` the spread half at the same date, and {@link fillInAt} makes the two one
  * `<ornament>`. A side table keyed by element would not survive the document being serialized
  * between them, nor whatever `TranslatePhysicalTimeToTicks` does in between, which is to rewrite
- * two of these fields.
+ * two of these fields. `InsertGraceNotes` parks the spread half of a grace figure the same way,
+ * on an `<ornament>` of the figure's own.
  *
  * `StylizeOrnamentation` ends their life, moving them into a real `<ornamentDef>` and calling
  * {@link clearOrnamentDraft}. A finished document carries none, so one surviving into a saved
