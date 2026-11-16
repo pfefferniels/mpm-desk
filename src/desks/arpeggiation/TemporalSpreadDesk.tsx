@@ -6,6 +6,9 @@ import type { TemporalSpread } from "espressivo";
 import { frameIn } from "./spreadFrame";
 import { onsetSeconds, releaseSeconds } from "../noteTiming";
 import { ChordSpread } from "./ChordSpread";
+import { GraceSpread } from "./GraceSpread";
+import { GRACE_COLOUR, graceFiguresOf, soundingNotesOf } from "./graceFigures";
+import { InsertGraceNotes } from "../../fitting/transformers/ornamentation/InsertGraceNotes";
 import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
 import { DeskToolbar } from "../../components/DeskToolbar";
 import { ToolGroup } from "../../components/toolbar/ToolGroup";
@@ -25,14 +28,21 @@ import { SilentOrnaments } from "../SilentOrnaments";
 import { useEditable } from "../../hooks/Editing";
 
 /**
- * How each chord was rolled, in the recording's own milliseconds, with the spreads written for it.
+ * How each chord was rolled and each grace figure played, in the recording's own milliseconds,
+ * with the spreads written for them.
  *
- * In the viewer the plot is only read: a chord sounds as the pointer passes and says how long it
- * took, a written spread selects the call that wrote it, and the chord that call was fitted to is
- * marked. What inserts or removes a spread, and the count of spreads still waiting for a style,
- * is the editor's.
+ * Both are ornaments that spread notes over a frame, fitted here, put into ticks by the chain and
+ * given a definition on the Styles desk, so both are on this desk: a chord's roll in red, a grace
+ * figure in `GRACE_COLOUR`, from its first grace note to the strike of its principal. Insert
+ * writes whichever is selected, a chord as an `InsertTemporalSpread` and a figure as an
+ * `InsertGraceNotes`, and the strip below draws what has been written for either.
+ *
+ * In the viewer the plot is only read: a chord or a figure sounds as the pointer passes and says
+ * how long it took, a written spread selects the call that wrote it, and what that call was fitted
+ * to is marked. What inserts or removes a spread, and the count of spreads still waiting for a
+ * style, is the editor's.
  */
-export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
+export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread | InsertGraceNotes>) => {
     const editable = useEditable()
 
     /**
@@ -43,6 +53,13 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
 
     // these are being defined in the drawer
     const [currentDate, setCurrentDate] = useState<number>()
+
+    /**
+     * The grace figure Insert would write, by its group. One selection between the two: choosing
+     * a figure lets go of the chord and the other way round, so that the bar's one Insert never
+     * has to say which of them it means.
+     */
+    const [currentGroup, setCurrentGroup] = useState<string>()
     const [placement, setPlacement] = useState<ArpeggioPlacement>('estimate');
 
     /**
@@ -86,13 +103,12 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     // scope, and stored they lagged a render behind — the first paint after a refit still drew
     // the previous fit's spreads.
     //
-    // Only the ornaments over a chord. One that names a principal is a grace figure: it has a
-    // frame too, in ticks like a roll's once the chain has stylized it, but it is laid out from
-    // that one note and not over the chord at its date, and the Grace Notes desk is where it is
-    // read. Drawn here it would be taken for the roll of whatever chord its principal is in.
+    // Rolls and grace figures alike: every ornament whose definition spreads notes over a frame.
+    // What tells them apart is the principal a figure names (`@noteid`), which is how each is
+    // matched to what it was fitted to below, a roll to the chord at its date and a figure to
+    // the group that leads to its principal.
     const temporalSpreads = useMemo(
         () => performedInstructions(mpm, 'ornament', part)
-            .filter(ornament => ornament.noteid === undefined)
             .map(ornament => {
                 const def = getDefinition(mpm, 'ornamentDef', ornament.nameRef)
                 return {
@@ -134,10 +150,35 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     const height = 250;
     const instructionHeight = 40;
 
-    const tickBasedSpreads = temporalSpreads.flatMap(s => {
-        const frame = frameIn(s.def, 'ticks');
-        return frame ? [{ ...s, frame }] : [];
-    });
+    // Longest first, so that where two frames overlap the shorter is drawn on top and both stay
+    // within reach of the pointer: a figure's lead and the roll of the chord it leads into.
+    const tickBasedSpreads = temporalSpreads
+        .flatMap(s => {
+            const frame = frameIn(s.def, 'ticks');
+            return frame ? [{ ...s, frame }] : [];
+        })
+        .sort((a, b) => b.frame.length - a.frame.length);
+
+    // The grace groups of the scope, with the notes each sounded: scoped as the chords are, and
+    // for their reason.
+    const figures = useMemo(
+        () => graceFiguresOf(msm, part)
+            // One reading and a strike to measure to, or there is no frame to draw yet.
+            .filter(figure => figure.readings === 1 && figure.strike !== undefined)
+            .map(figure => ({
+                ...figure,
+                notes: soundingNotesOf(
+                    figure,
+                    msm.allNotes.find(note => note['xml:id'] === figure.principal),
+                ),
+            })),
+        [msm, part],
+    );
+    const figureOf = (noteid: string | undefined) =>
+        noteid === undefined ? undefined : figures.find(figure => `#${figure.principal}` === noteid);
+    const writtenFigure = (principal: string) =>
+        temporalSpreads.find(s => s.noteid === `#${principal}`)
+    const selectedFigure = figures.find(figure => figure.group === currentGroup)
 
     // Scoped, and it has to be: this is both what the plot draws and what a written spread is
     // measured over below, and `InsertTemporalSpread` frames the chord as `in(scope).chords()`. Left
@@ -150,7 +191,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
         if (!chordNotes.length) continue
 
         const date = chordNotes[0].date
-        const existingSpread = temporalSpreads.find(s => s.date === date)
+        // The roll written for the chord, and not a figure on one of its notes.
+        const existingSpread = temporalSpreads.find(s => s.date === date && s.noteid === undefined)
 
         chords.push((
             <ChordSpread
@@ -159,7 +201,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                 stretch={stretchX}
                 height={height}
                 spread={existingSpread?.def}
-                onClick={editable ? () => setCurrentDate(date) : undefined}
+                onClick={editable ? () => { setCurrentDate(date); setCurrentGroup(undefined) } : undefined}
                 evidence={chordNotes.some(note => activeEvidence.has(note['xml:id']))}
                 // `!== undefined`, not truthiness — tick 0 is a real chord, and the first
                 // chord of the piece is exactly the one at it.
@@ -193,16 +235,32 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                                 primary
                                 icon={<Add />}
                                 label='Insert'
-                                tooltip={currentDate === undefined
-                                    ? 'Select a chord in the plot below to spread it'
-                                    : 'Insert a temporal spread on the selected chord'}
-                                disabled={currentDate === undefined}
-                                onClick={() => setInsert('chord')}
+                                tooltip={selectedFigure !== undefined
+                                    ? writtenFigure(selectedFigure.principal)
+                                        ? 'The selected grace figure is already written'
+                                        : 'Write the selected grace figure as an ornament on its principal'
+                                    : currentDate === undefined
+                                        ? 'Select a chord or a grace figure in the plot below to spread it'
+                                        : 'Insert a temporal spread on the selected chord'}
+                                disabled={selectedFigure !== undefined
+                                    ? writtenFigure(selectedFigure.principal) !== undefined
+                                    : currentDate === undefined}
+                                onClick={() => {
+                                    // A figure has nothing to ask: it is placed by its principal
+                                    // and written as it was played, so there is no dialog for it.
+                                    if (selectedFigure !== undefined) {
+                                        addTransformer(new InsertGraceNotes({ scope: part, group: selectedFigure.group }))
+                                        setCurrentGroup(undefined)
+                                    }
+                                    else setInsert('chord')
+                                }}
                             >
                                 Insert
                             </ToolbarButton>
-                            <ToolStatus width={88}>
-                                {currentDate === undefined ? 'no chord' : `tick ${currentDate}`}
+                            <ToolStatus width={120}>
+                                {selectedFigure !== undefined
+                                    ? selectedFigure.group
+                                    : currentDate === undefined ? 'no chord' : `tick ${currentDate}`}
                             </ToolStatus>
                         </ToolGroup>
                         <ToolGroup label='Default'>
@@ -266,6 +324,23 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                 </svg>
                 <div ref={scrollContainerRef} style={{ overflow: 'scroll' }}>
                     <svg width={Math.max(...msm.allNotes.map(releaseSeconds)) * stretchX} height={height + instructionHeight + 30}>
+                        {/* Under the chords, which have to stay within reach inside a figure's lead. */}
+                        <g>
+                            {figures.map(figure => (
+                                <GraceSpread
+                                    key={`graceFigure_${figure.group}`}
+                                    figure={figure}
+                                    notes={figure.notes}
+                                    stretch={stretchX}
+                                    height={height}
+                                    selected={figure.group === currentGroup}
+                                    onClick={editable
+                                        ? () => { setCurrentGroup(figure.group); setCurrentDate(undefined) }
+                                        : undefined}
+                                    evidence={figure.ids.some(id => activeEvidence.has(id))}
+                                />
+                            ))}
+                        </g>
                         <g>
                             {chords}
                         </g>
@@ -282,7 +357,12 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                                         ornament={ornament}
                                         spread={ornament.def}
                                         frame={ornament.frame}
-                                        notes={chordsByDate.get(ornament.date) ?? []}
+                                        // What the ornament orders: the chord at its date, or
+                                        // the figure that leads to the principal it names.
+                                        notes={ornament.noteid === undefined
+                                            ? chordsByDate.get(ornament.date) ?? []
+                                            : figureOf(ornament.noteid)?.notes ?? []}
+                                        colour={ornament.noteid === undefined ? undefined : GRACE_COLOUR}
                                         tickToSeconds={tickToSeconds}
                                         stretch={stretchX}
                                         height={instructionHeight}

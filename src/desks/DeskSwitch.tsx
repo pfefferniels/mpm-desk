@@ -504,11 +504,20 @@ export const correspondingDesks: DeskEntry[] = [
         group: 'timing',
         help: {
             summary:
-                "Each chord's measured onset spread as a block, over the local tempo " +
-                'variance, with the spreads already written in a strip below.',
+                "Each chord's measured onset spread as a block, and each grace figure from " +
+                'its first grace note to its principal in a colour of its own, over the local ' +
+                'tempo variance, with the spreads already written in a strip below.',
             actions: [
-                { gesture: 'Hover a chord', does: 'sound it, and read its frame in ms' },
+                {
+                    gesture: 'Hover a chord or a grace figure',
+                    does: 'sound it, and read its frame in ms',
+                },
                 { gesture: 'Click a chord', does: 'select it for Insert', edits: true },
+                {
+                    gesture: 'Click a grace figure',
+                    does: 'select it for Insert, which writes it on its principal',
+                    edits: true,
+                },
                 {
                     gesture: 'Insert Default',
                     does: "spread every chord in the scope whose roll is longer than the dialog's "
@@ -517,7 +526,7 @@ export const correspondingDesks: DeskEntry[] = [
                 },
                 {
                     gesture: 'Hover a written spread',
-                    does: 'audition the roll as that ornament specifies it',
+                    does: 'audition the roll or the figure as that ornament specifies it',
                 },
                 { gesture: 'Click a written spread', does: 'select the call that wrote it' },
                 { gesture: 'Backspace', does: 'remove the selected call', edits: true },

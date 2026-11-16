@@ -15,7 +15,14 @@ import {
   requireMap,
   setOrnamentDraft,
 } from '../../../src/fitting/instructions/index';
-import { StylizeOrnamentation } from '../../../src/fitting/transformers/index';
+import {
+  InsertDynamicsGradient,
+  InsertGraceNotes,
+  InsertTemporalSpread,
+  StylizeOrnamentation,
+  TranslatePhysicalTimeToTicks,
+} from '../../../src/fitting/transformers/index';
+import { validate } from '../../../src/fitting/transformers/Order';
 import { at, only } from '../../support/at';
 
 /**
@@ -291,5 +298,22 @@ describe('the styles it previews', () => {
 
     expect(styles.points).toHaveLength(3);
     expect([...styles.units].sort()).toEqual([FrameDomain.Milliseconds, FrameDomain.Ticks]);
+  });
+});
+
+/**
+ * Three fitters park a draft for this to collect, and any one of them is enough to stylize. It
+ * used to `require` two of them by name, which asks for both: a chain could not stylize its
+ * rolls without also fitting a gradient, and one with grace notes alone not at all.
+ */
+describe('what a chain needs before it can stylize', () => {
+  test.each([
+    ['rolls', () => new InsertTemporalSpread()],
+    ['gradients', () => new InsertDynamicsGradient()],
+    ['grace figures', () => new InsertGraceNotes()],
+  ])('%s alone will do', (_, fitter) => {
+    expect(
+      validate([fitter(), new TranslatePhysicalTimeToTicks(), new StylizeOrnamentation()]),
+    ).toEqual([]);
   });
 });

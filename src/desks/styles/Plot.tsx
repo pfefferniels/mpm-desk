@@ -11,6 +11,11 @@ interface PlotProps {
     height: number
     /** How big to draw one point, in px. A plot with nothing to say by size leaves this out. */
     radiusOf?: (point: IPoint) => number
+    /**
+     * A colour to ring one point in, where it is of a kind worth telling apart. The fill is the
+     * cluster's and stays so; a point this answers nothing for keeps the thin black outline.
+     */
+    ringOf?: (point: IPoint) => string | undefined
 }
 
 /** Room for the tick labels and the two arrowheads, outside the drawing area. */
@@ -81,7 +86,7 @@ const ticksOver = ({ min, max }: Axis): { value: number, label: string }[] => {
  * shown and nothing about pixels per unit. Both ends of a range carry: the ornamentation plot
  * measures milliseconds of roll, and most of its frame starts are negative.
  */
-export const Plot = ({ points, x, y, width, height, radiusOf }: PlotProps) => {
+export const Plot = ({ points, x, y, width, height, radiusOf, ringOf }: PlotProps) => {
     // Stripped, because `useId` answers in guillemets and the marker and clip are reached by
     // fragment reference. What is left still differs between two plots on one page.
     const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
@@ -128,6 +133,7 @@ export const Plot = ({ points, x, y, width, height, radiusOf }: PlotProps) => {
                     // keeps its slot in the list so that the labels stay aligned with it.
                     const [atX, atY] = point.value
                     if (atX === undefined || atY === undefined) return null
+                    const ring = ringOf?.(point)
 
                     return (
                         <circle
@@ -137,8 +143,8 @@ export const Plot = ({ points, x, y, width, height, radiusOf }: PlotProps) => {
                             r={radiusOf ? radiusOf(point) : 4}
                             fill={colorOf(point.label)}
                             fillOpacity={0.5}
-                            stroke="black"
-                            strokeWidth={0.5}
+                            stroke={ring ?? "black"}
+                            strokeWidth={ring ? 2.5 : 0.5}
                         />
                     )
                 })}
