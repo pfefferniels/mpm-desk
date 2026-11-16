@@ -66,11 +66,18 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Named by the attempt, on both sides. An artifact belongs to the run and not to the
+      # attempt, so a re-run uploads a second one under the same name, and `deploy-pages` refuses
+      # to choose between two. That is every re-run after a deploy that got as far as uploading:
+      # Pages answered one with a 502, and the retry it asked for could not go through.
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+          name: github-pages-${{ github.run_attempt }}
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
