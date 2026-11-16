@@ -238,6 +238,38 @@ export class ScopedScore {
     return this.score.tiedPrincipals.filter((note) => this.covers(note) && note.date === date);
   }
 
+  /**
+   * The notes a renderer takes into a roll at `date` that are not at that date at all.
+   *
+   * `@note.order`'s two keywords mean "every note at this date", and espressivo collects those
+   * part by part with `GenericMap.getAllElementsAt`, which answers a date a part does not carry
+   * with that part's *next* entry (meico's own reading, kept for parity). So a roll written over
+   * the whole score, on a date one hand has nothing at, takes that hand's next note in as one
+   * more slot: the roll is spaced over a note too many, and the note taken is struck by as much
+   * as a beat early. On WM 225 the two-note roll on tick 63360, 199 ms wide, sounded 99 ms wide,
+   * and the left hand's C sharp on the next eighth 236 ms ahead of its place.
+   *
+   * Only the whole score has other parts to take from. A part's own roll is on a date the part
+   * has, so this is empty for every scope but `global`.
+   */
+  public straysAt(date: number): ScoreNote[] {
+    if (this.scope !== 'global') return [];
+
+    const rendered: ScoreNote[] = [...this.score.allNotes, ...this.score.tiedPrincipals];
+    const byPart = Map.groupBy(rendered, (note) => note.part);
+    const strays: ScoreNote[] = [];
+    for (const notes of byPart.values()) {
+      if (notes.some((note) => note.date === date)) continue;
+      const next = notes.reduce<ScoreNote | undefined>(
+        (first, note) =>
+          note.date > date && (first === undefined || note.date < first.date) ? note : first,
+        undefined,
+      );
+      if (next) strays.push(next);
+    }
+    return strays;
+  }
+
   /** The notes of this scope between two score dates, both ends included. */
   public notesInRange(from: number, to: number): AlignedNote[] {
     return this.score.allNotes.filter(

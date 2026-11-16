@@ -115,7 +115,10 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
 
       // Which notes the roll visits, and in what order. Shared with `InsertDynamicsGradient`,
       // which measures its ramp along the same sequence and writes the same attribute.
-      const noteOrder = noteOrderOf(sortedByOnset, score.tiedPrincipalsAt(date));
+      const noteOrder = noteOrderOf(sortedByOnset, [
+        ...score.tiedPrincipalsAt(date),
+        ...score.straysAt(date),
+      ]);
 
       // the arpeggio's duration is the time distance between first and last onset, in ms
       const duration = lastNote['milliseconds.date'] - firstNote['milliseconds.date'];

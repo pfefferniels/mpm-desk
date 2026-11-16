@@ -243,14 +243,18 @@ export class InsertDynamicsGradient extends AbstractTransformer<InsertDynamicsGr
         mpm,
         options.date,
         chord,
-        score.tiedPrincipalsAt(options.date),
+        [...score.tiedPrincipalsAt(options.date), ...score.straysAt(options.date)],
         () => options.gradient,
       );
     } else {
       for (const [date, chord] of chords) {
         if (chord.length === 1) continue;
-        this.applyGradient(mpm, date, chord, score.tiedPrincipalsAt(date), (direction) =>
-          options[direction],
+        this.applyGradient(
+          mpm,
+          date,
+          chord,
+          [...score.tiedPrincipalsAt(date), ...score.straysAt(date)],
+          (direction) => options[direction],
         );
       }
     }

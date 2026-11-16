@@ -307,3 +307,79 @@ describe('a tied principal on the date of a rolled chord', () => {
     expect(onsets(msm, keyword).get('a')).toBeGreaterThan(played.get('a') ?? Infinity);
   });
 });
+
+/**
+ * The other note a keyword takes that the chord does not hold, and this one is not even on the
+ * date. espressivo answers a date a part has nothing at with that part's next note, so a roll
+ * over the whole score, on a date one hand rests at, takes that hand's next note in: the roll is
+ * spaced over a slot too many, and the note taken is struck where the roll puts it.
+ */
+describe('a hand with nothing on the date of a chord rolled in the other', () => {
+  // The right hand rolls two notes on the first beat; the left comes in a quarter later, lower.
+  const hands = () =>
+    chord([
+      note('a', 64, 1000, 40),
+      note('b', 67, 1100, 50),
+      { ...note('next', 48, 1500, 45, 720), part: 2 },
+    ]);
+
+  const stylize = () =>
+    new StylizeOrnamentation({ tickTolerance: 10, gradientTolerance: 0.1, intensityTolerance: 0.3 });
+
+  const onsets = (msm: Alignment, mpm: string) =>
+    new Map(
+      performMsmToData({ msm: msm.serializeScore() ?? '', mpm }, {})
+        .parts.flatMap((part) => part.notes)
+        .map((n) => [n.id, n.milliseconds.date]),
+    );
+
+  test('the whole score has the other hand\'s next note to take, and one hand alone has none', () => {
+    const msm = hands();
+    expect(msm.in('global').straysAt(0).map((n) => n['xml:id'])).toEqual(['next']);
+    // Where both hands have a note there is nothing to take.
+    expect(msm.in('global').straysAt(720)).toEqual([]);
+    expect(msm.in(0).straysAt(0)).toEqual([]);
+  });
+
+  test('the roll names its two notes, and the other hand\'s note stays where it is', () => {
+    const msm = hands();
+    const mpm = createMpm();
+    callTransform(gradient(), msm, mpm);
+    callTransform(spread(), msm, mpm);
+    callTransform(stylize(), msm, mpm);
+    expect(orderOf(mpm)).toBe('#a #b');
+
+    const xml = exportMPM(mpm);
+    const bare = onsets(msm, exportMPM(createMpm()));
+    const played = onsets(msm, xml);
+    expect(played.get('next')).toBe(bare.get('next'));
+
+    // What the keyword would have done: the left hand's note, lowest, rolled first, ahead of
+    // where the score has it, and the chord's own two notes spaced as the last two of three.
+    const keyword = xml.replace('note.order="#a #b"', 'note.order="ascending pitch"');
+    expect(keyword).not.toBe(xml);
+    const taken = onsets(msm, keyword);
+    expect(taken.get('next')).toBeLessThan(bare.get('next') ?? -Infinity);
+    expect((taken.get('b') ?? 0) - (taken.get('a') ?? 0)).toBeLessThan(
+      (played.get('b') ?? 0) - (played.get('a') ?? 0),
+    );
+  });
+
+  // A part's own roll is on a date the part has, so the keyword is safe there and is kept: it is
+  // what a reader can see the roll in.
+  test('a roll written for one hand keeps its keyword', () => {
+    const msm = hands();
+    const mpm = createMpm();
+    callTransform(
+      new InsertTemporalSpread({
+        scope: 0,
+        placement: 'estimate',
+        durationThreshold: 0,
+        noteOffShiftTolerance: 500,
+      }),
+      msm,
+      mpm,
+    );
+    expect(only(getInstructions(mpm, 'ornament', 0), 'ornament').noteOrder).toBe('ascending pitch');
+  });
+});
