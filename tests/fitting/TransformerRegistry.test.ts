@@ -59,10 +59,10 @@ describe('TransformerRegistry', () => {
         'InsertTemporalSpread',
         'InsertGraceNotes',
         'InsertTempo',
-        'TranslatePhysicalTimeToTicks',
-        'StylizeOrnamentation',
         'InsertRubato',
         'CombineAdjacentRubatos',
+        'TranslatePhysicalTimeToTicks',
+        'StylizeOrnamentation',
         'InsertDynamics',
         'InsertMetricalAccentuation',
         'MergeMetricalAccentuations',
@@ -76,7 +76,7 @@ describe('TransformerRegistry', () => {
     });
 
     /**
-     * The three ordering facts the chain is actually built on, read off that list.
+     * The ordering facts the chain is actually built on, read off that list.
      *
      * Written as relations rather than indices so they survive a fitter being inserted between
      * them, which the exact list above deliberately does not.
@@ -92,8 +92,18 @@ describe('TransformerRegistry', () => {
       // A grace figure is measured from the onset the spread collapsed its principal's chord onto.
       expect(order.indexOf('InsertTemporalSpread')).toBeLessThan(order.indexOf('InsertGraceNotes'));
       expect(order.indexOf('InsertGraceNotes')).toBeLessThan(order.indexOf('InsertTempo'));
-      // Everything that works in ticks comes after that conversion.
-      for (const name of ['InsertRubato', 'InsertArticulation', 'InsertPedal'])
+      // A rubato warps the grid an ornament's notes are written on, so it has to be in the
+      // document before a frame is converted into ticks on that grid.
+      for (const name of ['InsertRubato', 'CombineAdjacentRubatos'])
+        expect(order.indexOf(name)).toBeLessThan(order.indexOf('TranslatePhysicalTimeToTicks'));
+      // The frames are clustered in ticks, and an ornament has to have its definition before the
+      // dynamics are fitted to what its ramp leaves unexplained.
+      expect(order.indexOf('TranslatePhysicalTimeToTicks')).toBeLessThan(
+        order.indexOf('StylizeOrnamentation'),
+      );
+      expect(order.indexOf('StylizeOrnamentation')).toBeLessThan(order.indexOf('InsertDynamics'));
+      // What still names the conversion in `requires` comes after it.
+      for (const name of ['InsertArticulation', 'MakeDefaultArticulation', 'InsertPedal'])
         expect(order.indexOf('TranslatePhysicalTimeToTicks')).toBeLessThan(order.indexOf(name));
     });
 
@@ -165,13 +175,13 @@ describe('TransformerRegistry', () => {
       // a `RoundNumbers`, because how precisely the document states a number is not a per-fit
       // decision. They sort around what is left rather than staying where they were put.
       expect(chain.map((t) => t.name)).toEqual([
-        'TranslatePhysicalTimeToTicks',
         'InsertRubato',
+        'TranslatePhysicalTimeToTicks',
         'InsertMetadata',
         'RoundNumbers',
       ]);
-      expect(at(chain, 1, 'transformer').id).toBe(transformer.id);
-      expect(at(chain, 1, 'transformer').options).toEqual(transformer.options);
+      expect(at(chain, 0, 'transformer').id).toBe(transformer.id);
+      expect(at(chain, 0, 'transformer').options).toEqual(transformer.options);
     });
   });
 

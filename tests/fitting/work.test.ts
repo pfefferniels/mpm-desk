@@ -261,13 +261,13 @@ describe('the chain built from it', () => {
     // are not where they were put.
     expect(transformers.map((t) => t.name)).toEqual([
       'MakeChoice',
-      'TranslatePhysicalTimeToTicks',
       'InsertRubato',
+      'TranslatePhysicalTimeToTicks',
       'InsertMetadata',
       'RoundNumbers',
     ]);
-    expect(at(transformers, 2, 'transformer').id).toBe('call-InsertRubato');
-    expect(at(transformers, 2, 'transformer').options).toEqual({
+    expect(at(transformers, 1, 'transformer').id).toBe('call-InsertRubato');
+    expect(at(transformers, 1, 'transformer').options).toEqual({
       scope: 'global',
       date: 0,
       length: 2880,
@@ -311,8 +311,8 @@ describe('the chain built from it', () => {
     // back named rather than quietly missing from the result.
     expect(unknown.map((c) => c.name)).toEqual(['InsertAsynchrony', 'InventASonata']);
     expect(transformers.map((t) => t.name)).toEqual([
-      'TranslatePhysicalTimeToTicks',
       'InsertRubato',
+      'TranslatePhysicalTimeToTicks',
       'InsertMetadata',
       'RoundNumbers',
     ]);
@@ -332,23 +332,26 @@ describe('the chain built from it', () => {
 
     expect(unknown).toEqual([]);
     expect(transformers.map((t) => t.name)).toEqual([
-      'TranslatePhysicalTimeToTicks',
       'InsertRubato',
+      'TranslatePhysicalTimeToTicks',
       'InsertMetadata',
       'RoundNumbers',
     ]);
     // Rebuilt, not reused — the same thing the metadata call proves above: it is not in the
     // document at all.
-    expect(at(transformers, 0, 'transformer').id).not.toBe(`call-${name}`);
-    expect(at(transformers, 0, 'transformer').options).toEqual({
+    expect(at(transformers, 1, 'transformer').id).not.toBe(`call-${name}`);
+    expect(at(transformers, 1, 'transformer').options).toEqual({
       translatePhysicalModifiers: true,
     });
   });
 
   /**
-   * Four transformers name `TranslatePhysicalTimeToTicks` in `requires`, and a chain missing it
+   * Three transformers name `TranslatePhysicalTimeToTicks` in `requires`, and a chain missing it
    * does not fit worse: `runFit` throws and nothing renders. Injection is what closes that, so
    * the assertion is that a chain naming none of it validates clean.
+   *
+   * `InsertRubato` is in the chain as the fourth that used to: it runs before the conversion now,
+   * which has to see the rubato, and so must validate without it having run.
    */
   test('a chain that never mentions it still satisfies what requires it', () => {
     const { transformers } = buildChain([
@@ -378,8 +381,8 @@ describe('the chain built from it', () => {
 
     expect(unknown).toEqual([]);
     expect(transformers.map((t) => t.name)).toEqual([
-      'TranslatePhysicalTimeToTicks',
       'InsertRubato',
+      'TranslatePhysicalTimeToTicks',
       'InsertMetadata',
       'RoundNumbers',
     ]);

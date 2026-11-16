@@ -3,11 +3,13 @@ import {
   getInstructions,
   Mpm,
   ornamentDraftOf,
+  type Scope,
   scopesOf,
   setOrnamentDraft,
 } from '../../instructions/index';
 import { Alignment } from '../../alignment';
 import { AbstractTransformer, type TransformationOptions } from '../Transformer';
+import { type RubatoWarp, rubatoWarpOf } from '../rubato/rubatoMath';
 import { dateAtMilliseconds, millisecondsAt } from './tempoCalculations';
 import {
   dateAtRenderedMs,
@@ -58,12 +60,28 @@ const generatesNotes = (element: Element): boolean =>
   /[[\]|]/.test(element.getAttributeValue('note.order') ?? '');
 
 /**
+ * The part a figure's principal is in, as a scope, or nothing where the score has no such note.
+ * In the notes the recording struck, or among the principals it struck only as the grace note
+ * tied into them (`Alignment.tiedPrincipals`).
+ */
+const partOf = (msm: Alignment, noteid: string | undefined): Scope | undefined => {
+  if (noteid === undefined) return undefined;
+  const id = noteid.replace(/^#/, '');
+  const principal =
+    msm.allNotes.find((note) => note['xml:id'] === id) ??
+    msm.tiedPrincipals.find((note) => note['xml:id'] === id);
+  return principal === undefined ? undefined : principal.part - 1;
+};
+
+/**
  * The frame of an ornament over notes the score already has, which is what an arpeggio is.
  *
  * The renderer moves each note by its share of the frame and leaves it where it is in the score,
  * so every note of the chord is timed by the one `<tempo>` that times the chord's date
  * ({@link segmentTiming}: on a boundary, the earlier one), continued past either end of its span
- * where the frame reaches that far. The whole frame is therefore measured under that one
+ * where the frame reaches that far. It adds the frame *after* the rubato has moved the chord, so
+ * the frame is counted from where the rubato puts the date and is not warped itself. The whole
+ * frame is therefore measured under that one
  * instruction, and it is exact wherever the renderer evaluates the instruction as
  * `millisecondsAt` does: inside its span, and past either end of a constant one. Measured under
  * the instruction that *starts* on the date instead, the roll on tick 5760 of WM 225, 107 ms
@@ -76,11 +94,14 @@ const generatesNotes = (element: Element): boolean =>
  *   length of a roll that is a fraction of a bpm.
  * - **Before the start of a transition** the chord lies inside. The renderer has no answer
  *   there: `tempoAt` takes a power of a negative number, which is `NaN` for every exponent but
- *   a whole one, and the note is sounded at `NaN`. No tick frame can be played, so such a frame
- *   is left in milliseconds, which the renderer adds after the tempo map has run.
+ *   a whole one, and the note comes out at its tick number read as milliseconds; under a whole
+ *   exponent the quadrature's sign turns over and it comes out at half the distance or so. No
+ *   tick frame can be played, so such a frame is left in milliseconds, which the renderer adds
+ *   after the tempo map has run.
  */
 const chordFrame = (
   segments: PlacedTempo[],
+  warp: RubatoWarp,
   date: number,
   frameStart: number,
   frameLength: number,
@@ -88,7 +109,9 @@ const chordFrame = (
   const segment = segmentTiming(segments, date);
   if (!segment) return undefined;
 
-  const at = millisecondsAt(date, segment.resolved);
+  // Where the rubato puts the chord, which is where the renderer counts the frame from.
+  const sounding = warp.performed(date);
+  const at = millisecondsAt(sounding, segment.resolved);
   const start = dateAtMilliseconds(at + frameStart, segment.resolved);
   const end = dateAtMilliseconds(at + frameStart + frameLength, segment.resolved);
   // `dateAtMilliseconds` answers `NaN` for a time it was not given, and a `NaN` frame is the
@@ -103,7 +126,7 @@ const chordFrame = (
     return undefined;
   }
 
-  return { start: start - date, length: end - start };
+  return { start: start - sounding, length: end - start };
 };
 
 /**
@@ -113,22 +136,48 @@ const chordFrame = (
  * it lies, timed by the `<tempo>` that has that tick. A figure reaching back across a boundary
  * is under the earlier instruction on the far side of it and the later one on the near side, so
  * the frame is measured along the tempo map as a whole ({@link renderedMsAt},
- * {@link dateAtRenderedMs}).
+ * {@link dateAtRenderedMs}), from where the rubato puts the figure's date.
+ *
+ * What the rubato then does to the figure depends on which map the ornament is in, because that
+ * decides when the renderer writes the notes:
+ *
+ * - **In the global map** they are written before any part is performed, so each is in the
+ *   score when the rubato runs and is warped by it on its own. The frame has to name the dates
+ *   the warp *takes to* the ticks wanted, which is the warp read backwards
+ *   ({@link RubatoWarp.written}). Left out, a figure under a `<rubato>` was off by whatever the
+ *   rubato did to it: 13 ms on one principal of WM 225.
+ * - **In a part's map** they are written after the rubato has run, laid out from the
+ *   principal's date and then moved as far as the rubato moved the principal. The frame is
+ *   then counted from where the principal sounds, as a chord's is.
+ *
+ * Both ends of the frame are placed exactly. A figure of more than two notes spaces the ones
+ * between by its `@intensity` along the frame as written, so under a tempo or a rubato that
+ * bends within the frame they fall a little off the same spacing in time.
+ *
+ * @param singly whether each note is warped on its own, which is the global map's case
  */
 const figureFrame = (
   segments: PlacedTempo[],
+  warp: RubatoWarp,
+  singly: boolean,
   date: number,
   frameStart: number,
   frameLength: number,
 ): TickFrame | undefined => {
-  const at = renderedMsAt(segments, date);
+  const sounding = warp.performed(date);
+  const at = renderedMsAt(segments, sounding);
   if (at === undefined) return undefined;
 
   const start = dateAtRenderedMs(segments, at + frameStart);
   const end = dateAtRenderedMs(segments, at + frameStart + frameLength);
   if (start === undefined || end === undefined) return undefined;
 
-  return { start: start - date, length: end - start };
+  if (!singly) return { start: start - sounding, length: end - start };
+
+  const first = warp.written(start);
+  const last = warp.written(end);
+  if (!Number.isFinite(first) || !Number.isFinite(last)) return undefined;
+  return { start: first - date, length: last - first };
 };
 
 /**
@@ -153,6 +202,10 @@ const figureFrame = (
  *
  * Which tempo times a moved note depends on how the renderer plays the ornament, so there are
  * two conversions ({@link chordFrame}, {@link figureFrame}) and {@link generatesNotes} chooses.
+ *
+ * A `<rubato>` moves notes on the same grid, and what it does to an ornament's notes depends on
+ * the ornament too; each conversion says how. That is why this runs after the rubato fitters
+ * (`Order.ts`): the warp has to be in the document to be allowed for.
  *
  * It writes no `tickDate` or `tickDuration` onto the notes: where a recorded onset falls on the
  * score grid is derived on demand by `deriveResidual`, so populating it here would serve nobody
@@ -229,12 +282,18 @@ export class TranslatePhysicalTimeToTicks extends AbstractTransformer<TranslateP
         // it was measured, in milliseconds, and plays as that.
         if (begins === undefined || ornament.date < begins) continue;
 
-        const frame = (generatesNotes(ornament.element) ? figureFrame : chordFrame)(
-          segments,
-          ornament.date,
-          frameStart,
-          frameLength,
-        );
+        // A figure's notes are its principal's part's, and are warped by the rubato that part
+        // performs; a chord's are the scope's own.
+        const frame = generatesNotes(ornament.element)
+          ? figureFrame(
+              segments,
+              rubatoWarpOf(mpm, partOf(msm, ornament.noteid) ?? scope),
+              scope === 'global',
+              ornament.date,
+              frameStart,
+              frameLength,
+            )
+          : chordFrame(segments, rubatoWarpOf(mpm, scope), ornament.date, frameStart, frameLength);
 
         // Leave the ornament in milliseconds rather than stamp an unusable frame on it.
         // A millisecond frame is legal MPM, so an untranslated ornament still performs;

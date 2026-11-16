@@ -20,7 +20,7 @@ import {
   rubatoAt,
   type Rubato as ResolvedRubato,
 } from 'espressivo';
-import { instructionsEffectiveAtDate, Mpm, type Scope } from '../../instructions/index';
+import { instructionsEffectiveAtDate, mapOf, Mpm, type Scope } from '../../instructions/index';
 import { Alignment } from '../../alignment';
 import type { TickTimes } from '../tempo/tickTimes';
 
@@ -127,6 +127,56 @@ const unwarpLocal = (rd: ResolvedRubato, local: number): number => {
   if (!Number.isNaN(unwarped)) return unwarped - rd.startDate;
   if (Number.isNaN(local)) return NaN;
   return local < rd.lateStart * rd.frameLength ? 0 : rd.frameLength;
+};
+
+/**
+ * The rubato of a document as one scope performs it: a warp of the tick grid, read both ways.
+ *
+ * What `removeRubatoDistortion` does to the positions of recorded notes, for a caller with a
+ * position of its own to ask about: `TranslatePhysicalTimeToTicks`, which has to say where a
+ * note is to be *written* for the rubato to put it where it was played.
+ */
+export interface RubatoWarp {
+  /** Where the rubato puts a note written on `date`. A date no rubato covers stays put. */
+  performed(date: number): number;
+
+  /**
+   * The date a note has to be written on for the rubato to put it at `performed`.
+   *
+   * A frame with a `lateStart` or an `earlyEnd` leaves a stretch at its edge that it puts no
+   * note in. Asked for a position there, this answers the end of the frame it fell past, which
+   * is {@link unwarpLocal}'s clamp and as near as the rubato lets a note come.
+   */
+  written(performed: number): number;
+}
+
+/**
+ * The warp {@link scope} performs.
+ *
+ * A part performs its own `<rubatoMap>` where it has one and the global one where it has none,
+ * which is the renderer's rule and `performedInstructions`'. Which `<rubato>` covers a date is
+ * `instructionsEffectiveAtDate`'s to say: the last one at or before it, for its first frame
+ * only unless it loops. The same instruction covers a position and the date it came from, a
+ * frame being warped onto itself, so both directions ask the one question.
+ */
+export const rubatoWarpOf = (mpm: Mpm, scope: Scope): RubatoWarp => {
+  const performing = scope !== 'global' && mapOf(mpm, 'rubato', scope) === null ? 'global' : scope;
+  const covering = (date: number) =>
+    instructionsEffectiveAtDate(mpm, date, 'rubato', performing)[0];
+
+  return {
+    performed: (date) => {
+      const rubato = covering(date);
+      return rubato ? calculateRubatoOnDate(date, rubato) : date;
+    },
+    written: (performed) => {
+      const rubato = covering(performed);
+      const resolved = rubato && resolve(rubato);
+      if (!resolved) return performed;
+      const local = (performed - resolved.startDate) % resolved.frameLength;
+      return performed - local + unwarpLocal(resolved, local);
+    },
+  };
 };
 
 /**

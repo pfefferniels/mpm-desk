@@ -29,7 +29,7 @@ import type { Call } from '../model/Work';
  * - **With what** has one shape. Its only meaningful option is `translatePhysicalModifiers`,
  *   always `true`, and `translatePedalling` is unimplemented. It takes no scope, walking
  *   `scopesOf` itself, so there is one per chain and never one per part.
- * - **Whether** cannot be answered "no" without breaking the document. Four transformers name it
+ * - **Whether** cannot be answered "no" without breaking the document. Three transformers name it
  *   in `requires`, so a chain that forgot it does not fit worse: `validate` reports and `runFit`
  *   throws.
  *
