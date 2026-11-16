@@ -71,10 +71,10 @@ const mean = (values: readonly number[]): number =>
  * hinge now measures a figure along the tempo map as the renderer walks it, and the lead comes
  * back as measured.
  *
- * What ticks cost is the `<rubato>`. In milliseconds a figure was added after everything else
- * had run; in ticks its notes are notes of the score where the frame puts them, and a rubato
- * fitted later to the notes around them moves them with the rest. On WM 225 that is 4 ms on one
- * figure and 13 ms on the principal of another, and nothing on the other six.
+ * In ticks a figure's notes are notes of the score where the frame puts them, so a `<rubato>`
+ * over that stretch moves them with the rest. The hinge allows for that too, which is why it
+ * runs after the rubato fitters: it writes the frame so that the warp lands each end of the
+ * figure where it was played.
  *
  * Each grace note gives way to the next and the principal sounds to its own end
  * (`noteoff.shift="monophonic"`); the spacing between three or more onsets is fitted as

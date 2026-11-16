@@ -5,6 +5,7 @@ import {
   type InstructionOptions,
   Mpm,
   type OrnamentDraft,
+  type Scope,
   createMpm,
   exportMPM,
   fillInAt,
@@ -199,8 +200,14 @@ describe('a frame in ticks plays back as it was measured in milliseconds', () =>
   };
 
   /** One `<ornament>` with a frame in milliseconds parked on it, as the fitters leave one. */
-  const park = (mpm: Mpm, options: InstructionOptions<'ornament'>, start: number, length: number) => {
-    const map = requireMap(mpm, 'ornament', 'global');
+  const park = (
+    mpm: Mpm,
+    options: InstructionOptions<'ornament'>,
+    start: number,
+    length: number,
+    scope: Scope = 'global',
+  ) => {
+    const map = requireMap(mpm, 'ornament', scope);
     setOrnamentDraft(
       fillInAt(map, options, {
         localName: 'ornament',
@@ -218,10 +225,10 @@ describe('a frame in ticks plays back as it was measured in milliseconds', () =>
   };
 
   /** The chain from the hinge on, and where the renderer then sounds each note, by id. */
-  const perform = (msm: Alignment, mpm: Mpm) => {
+  const perform = (msm: Alignment, mpm: Mpm, scope: Scope = 'global') => {
     callTransform(new TranslatePhysicalTimeToTicks(), msm, mpm);
     const drafts = new Map(
-      getInstructions(mpm, 'ornament', 'global').map((o) => [o.id, ornamentDraftOf(o.element)]),
+      getInstructions(mpm, 'ornament', scope).map((o) => [o.id, ornamentDraftOf(o.element)]),
     );
     (new StylizeOrnamentation() as unknown as { transform(msm: Alignment, mpm: Mpm): void }).transform(
       msm,
@@ -330,9 +337,10 @@ describe('a frame in ticks plays back as it was measured in milliseconds', () =>
   });
 
   // The renderer has no time for a note that an ornament moves to before the start of the
-  // transition its chord lies in: it takes a power of a negative number there, and the note is
-  // sounded at NaN. A frame that would ask for that is left in milliseconds, which are added
-  // after the tempo map has run.
+  // transition its chord lies in: it takes a power of a negative number there, and the note
+  // comes out where no frame put it, at its tick number read as milliseconds where the curve
+  // bends. A frame that would ask for that is left in milliseconds, which are added after the
+  // tempo map has run.
   test('a roll that begins before the transition its chord lies in stays in milliseconds', () => {
     const msm = new Alignment(
       [
@@ -356,5 +364,97 @@ describe('a frame in ticks plays back as it was measured in milliseconds', () =>
       frameDomain: FrameDomain.Milliseconds,
     });
     expect(at('b') - at('low')).toBeCloseTo(400, 3);
+  });
+
+  /**
+   * A `<rubato>` warps the grid the ticks are counted on, and what it does to an ornament's notes
+   * depends on the ornament, so each case renders one under a rubato of two quarters that rushes
+   * (intensity 0.6) and asks for the times the frame said.
+   */
+  describe('under a rubato', () => {
+    const rush = { id: 'rush', frameLength: 2 * QUARTER, intensity: 0.6, loop: false };
+
+    const figure = (): InstructionOptions<'ornament'> => ({
+      id: 'figure',
+      date: 2.5 * QUARTER,
+      nameRef: 'neutralArpeggio',
+      noteid: '#p',
+      noteOrder: '#g #p',
+      notes: [new OrnamentNote('g', { kind: 'midi', value: 74 })],
+    });
+
+    const score = () =>
+      new Alignment(
+        [
+          recorded('a', 0, 0),
+          recorded('b', QUARTER, 1000),
+          recorded('x', 2 * QUARTER, 2000),
+          recorded('p', 2.5 * QUARTER, 2350, 72),
+          recorded('d', 4 * QUARTER, 3400),
+        ],
+        [{ date: 0, numerator: 4, denominator: 4 }],
+      );
+
+    // In the global map a figure's notes are in the score before the rubato runs, and each is
+    // warped by it on its own. So the grace note is written where the warp takes it to 300 ms
+    // before the principal, which is nearer the principal than 300 ms of ticks: the rubato
+    // rushes, and would carry a note written that far back further still.
+    test('a grace figure in the global map is written where the warp lands it', () => {
+      const mpm = twoTempi();
+      requireMap(mpm, 'rubato', 'global').addRubato({ ...rush, date: 2 * QUARTER });
+      park(mpm, figure(), -300, 300);
+
+      const { drafts, at } = perform(score(), mpm);
+
+      // 300 ms of the quick tempo is 308.6 ticks, which is what the frame was without the rubato.
+      expect(drafts.get('figure')?.frameStart).toBeGreaterThan(-300);
+      expect(
+        (drafts.get('figure')?.frameStart ?? NaN) + (drafts.get('figure')?.frameLength ?? NaN),
+      ).toBeCloseTo(0, 6);
+      expect(at('p') - at('g')).toBeCloseTo(300, 3);
+    });
+
+    // In a part's map the notes are written after the rubato has run, laid out from the principal
+    // and moved as far as the rubato moved it. Nothing is warped on its own, so the frame is the
+    // 300 ms in ticks, counted from where the principal sounds.
+    test('a grace figure in a part\'s map moves with its principal', () => {
+      const mpm = createMpm();
+      requireMap(mpm, 'tempo', 0).addTempo({ id: 'quick', date: 0, bpm: QUICK, beatLength: 0.25 });
+      requireMap(mpm, 'rubato', 0).addRubato({ ...rush, date: 2 * QUARTER });
+      park(mpm, figure(), -300, 300, 0);
+
+      const { drafts, at } = perform(score(), mpm, 0);
+
+      expect(drafts.get('figure')?.frameStart).toBeCloseTo((-300 * 720) / 700, 6);
+      expect(drafts.get('figure')?.frameLength).toBeCloseTo((300 * 720) / 700, 6);
+      expect(at('p') - at('g')).toBeCloseTo(300, 3);
+    });
+
+    // A roll is added after the rubato has moved its chord, so it is counted from where the chord
+    // sounds. Under a tempo that is easing off, that is a slower place than the chord's date in
+    // the score, and the same milliseconds are fewer ticks there.
+    test('a roll is counted from where the rubato puts its chord', () => {
+      const msm = new Alignment(
+        [
+          recorded('a', 0, 0),
+          recorded('low', QUARTER, 1000, 48),
+          recorded('top', QUARTER, 1000, 72),
+          recorded('held', QUARTER, 1000, 60),
+          recorded('d', 2 * QUARTER, 2000),
+          recorded('e', 4 * QUARTER, 3400),
+        ],
+        [{ date: 0, numerator: 4, denominator: 4 }],
+      );
+      const mpm = twoTempi({ transitionTo: 40, meanTempoAt: 0.4 });
+      requireMap(mpm, 'rubato', 'global').addRubato({ ...rush, date: 0 });
+      // Two of the chord's three notes are rolled; the third stays on the date and says where
+      // the renderer has it.
+      park(mpm, { id: 'roll', date: QUARTER, nameRef: 'neutralArpeggio', noteOrder: '#low #top' }, -100, 200);
+
+      const { at } = perform(msm, mpm);
+
+      expect(at('low') - at('held')).toBeCloseTo(-100, 3);
+      expect(at('top') - at('held')).toBeCloseTo(100, 3);
+    });
   });
 });

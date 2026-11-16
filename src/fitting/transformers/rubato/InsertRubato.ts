@@ -9,7 +9,6 @@ import {
 } from '../Transformer';
 import { clamp } from '../../utils';
 import { PULSES_PER_QUARTER } from '../../ppq';
-import { TranslatePhysicalTimeToTicks } from '../tempo/index';
 import { determineIntensity } from '../ornamentation/index';
 import { deriveResidual, type Residual } from '../../residual';
 import { head, isNonEmpty, numberAt } from 'espressivo';
@@ -46,7 +45,14 @@ export interface InsertRubatoOptions extends ScopedTransformationOptions {
  */
 export class InsertRubato extends AbstractTransformer<InsertRubatoOptions> {
   readonly name = 'InsertRubato';
-  requires = [TranslatePhysicalTimeToTicks];
+
+  /**
+   * Nothing. It named `TranslatePhysicalTimeToTicks` while that ran before it, for the tick
+   * positions the hinge once wrote onto the notes. Those are derived on demand now
+   * (`deriveResidual`), from the tempo map and the recording, and the hinge runs *after* this:
+   * it converts the ornaments' frames, and has to see the rubato to do it (`Order.ts`).
+   */
+  requires = [];
 
   constructor(options?: InsertRubatoOptions) {
     super(

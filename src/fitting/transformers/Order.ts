@@ -86,16 +86,27 @@ const REGISTERED = [
   // principal (`AlignedNote.spread`). Before `InsertTempo`, like the spread, because it reads
   // onsets in the recording's own domain, and before the hinge, which turns its frame into ticks.
   InsertGraceNotes,
-  // Before `TranslatePhysicalTimeToTicks`, because `InsertTempo` calls `shiftToFirstOnset`, which
-  // rewrites `milliseconds.date` on every note — and the hinge below reads the physical domain in
-  // order to convert it. `requires` cannot carry this: it asserts that a name appears *earlier* in
-  // the chain, which is the opposite relation. See issue #31, the record of the same mistake made
-  // with another transformer.
+  // The last to rewrite the recording: `InsertTempo` calls `shiftToFirstOnset`, which moves
+  // `milliseconds.date` on every note. Every fitter above works in the recording's own domain,
+  // milliseconds, and several rewrite the recorded onsets as they go; from here on the question
+  // is where a recorded onset falls on the score grid, in ticks, which only a tempo map can
+  // answer and `deriveResidual` answers on demand. See issue #31 for what running a fitter on
+  // the wrong side of this costs.
   InsertTempo,
-  // THE HINGE. Before it the fitters work in the recording's own domain, milliseconds, and several
-  // of them rewrite the recorded onsets as they go. After it the question is where a recorded onset
-  // falls on the score grid, in ticks — which only a tempo map can answer. Everything below names it
-  // in `requires` for that reason.
+  // Before the hinge, and that is what moved them here. A `<rubato>` warps the tick grid, so it
+  // moves every note the grid holds, and the notes of a grace figure are among them: the hinge
+  // has to see the rubato to say which ticks a figure's notes are to be written at so that the
+  // warp lands them where they were played. Converted before the rubato was fitted, a figure
+  // came out off by what the rubato did to it afterwards, 13 ms on one principal of WM 225.
+  //
+  // Nothing here needs the hinge to have run: a rubato is fitted to where the *notes* fall on
+  // the grid, which the residual derives from the tempo map and the recording, and an ornament's
+  // frame is no part of that.
+  InsertRubato,
+  CombineAdjacentRubatos,
+  // THE HINGE: where the frames the ornament fitters measured in milliseconds become ticks. A
+  // frame is a distance the renderer measures, on the tick grid as the tempo map times it and
+  // the rubato warps it, so this comes after everything that does either.
   //
   // Registered, but no longer reachable from a desk: `buildChain` puts one in every chain, so this
   // entry is what gives the injected call its rank and what a `requires` naming it resolves
@@ -103,9 +114,10 @@ const REGISTERED = [
   // because they state which side of the hinge a fitter belongs on, which is worth stating whether
   // or not anything can now break it.
   TranslatePhysicalTimeToTicks,
+  // Straight after the hinge, on the frames it has just put into ticks, and before
+  // `InsertDynamics`: an ornament sounds only once it has a definition, and the dynamics are
+  // fitted to what the ramps of the ornaments leave unexplained.
   StylizeOrnamentation,
-  InsertRubato,
-  CombineAdjacentRubatos,
   InsertDynamics,
   InsertMetricalAccentuation,
   MergeMetricalAccentuations,

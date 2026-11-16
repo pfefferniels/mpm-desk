@@ -1,7 +1,9 @@
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
+import { createMpm, requireMap } from '../../../src/fitting/instructions/index';
 import {
   calculateRubatoOnDate,
   type RubatoFrame,
+  rubatoWarpOf,
 } from '../../../src/fitting/transformers/rubato/rubatoMath';
 
 /**
@@ -60,4 +62,76 @@ test('an absent @frameLength leaves the date alone rather than answering NaN', (
   // cast.
   const noFrame: RubatoFrame = { date: 0 };
   expect(calculateRubatoOnDate(360, noFrame)).toBe(360);
+});
+
+/**
+ * The warp read both ways, for a caller that has to say where a note is to be *written* for the
+ * rubato to put it where it was played: `TranslatePhysicalTimeToTicks`, placing the notes of a
+ * grace figure.
+ */
+describe('the warp a scope performs', () => {
+  /** One frame of a quarter that rushes, from tick 720, and nothing either side of it. */
+  const document = () => {
+    const mpm = createMpm();
+    requireMap(mpm, 'rubato', 'global').addRubato({
+      id: 'rush',
+      date: 720,
+      frameLength: 720,
+      intensity: 0.6,
+      loop: false,
+    });
+    return mpm;
+  };
+
+  test('takes a date where the renderer takes it, and leaves one no frame covers', () => {
+    const warp = rubatoWarpOf(document(), 'global');
+
+    expect(warp.performed(1080)).toBeCloseTo(720 + 720 * 0.5 ** 0.6, 9);
+    // Before the frame, and after it: the rubato does not loop.
+    expect(warp.performed(360)).toBe(360);
+    expect(warp.performed(1800)).toBe(1800);
+  });
+
+  test('says where a note is to be written to be put at a position', () => {
+    const warp = rubatoWarpOf(document(), 'global');
+
+    for (const date of [720, 800, 1080, 1400]) {
+      expect(warp.written(warp.performed(date))).toBeCloseTo(date, 9);
+    }
+    expect(warp.written(360)).toBe(360);
+    expect(warp.written(1800)).toBe(1800);
+  });
+
+  // A frame that starts late puts no note in its first stretch, so there is no date to write
+  // one on to have it there. The nearest the rubato allows is the start of the frame.
+  test('answers the end of the frame for a position the rubato puts no note at', () => {
+    const mpm = createMpm();
+    requireMap(mpm, 'rubato', 'global').addRubato({
+      id: 'late',
+      date: 720,
+      frameLength: 720,
+      intensity: 1,
+      lateStart: 0.25,
+      loop: false,
+    });
+    const warp = rubatoWarpOf(mpm, 'global');
+
+    expect(warp.performed(720)).toBeCloseTo(900, 9);
+    expect(warp.written(800)).toBe(720);
+  });
+
+  // The renderer's rule: a part's own map where it has one, the global one where it has none.
+  test('is a part\'s own rubato where it has one, and the global one where it has none', () => {
+    const mpm = document();
+    requireMap(mpm, 'rubato', 1).addRubato({
+      id: 'drag',
+      date: 720,
+      frameLength: 720,
+      intensity: 1.5,
+      loop: false,
+    });
+
+    expect(rubatoWarpOf(mpm, 0).performed(1080)).toBeCloseTo(720 + 720 * 0.5 ** 0.6, 9);
+    expect(rubatoWarpOf(mpm, 1).performed(1080)).toBeCloseTo(720 + 720 * 0.5 ** 1.5, 9);
+  });
 });
