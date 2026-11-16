@@ -99,6 +99,13 @@ describe('the score the app renders the published MPM against', () => {
   });
 
   // The roll struck each of these principals as the grace note tied into it, early, and held it.
+  //
+  // To the millisecond for four of the five, and within five for `nrjny5d`. A figure's frame is in
+  // ticks now, so its notes are notes of the score where the frame puts them, and a `<rubato>`
+  // over that stretch moves them as it moves any other: the one from tick 72720, fitted to the
+  // notes around the figure, takes this one 4.4 ms from where the roll has it. Rendered without
+  // the rubato map all five are exact. In milliseconds the figure was out of the rubato's reach,
+  // and of the tempo map's with it.
   test('strikes a principal a grace note is tied into where the roll struck that grace note', () => {
     const { played } = render();
     const take = at(sourcesOf(work.provenance), 0, 'the reading chosen');
@@ -123,7 +130,7 @@ describe('the score the app renders the published MPM against', () => {
           (onset(id) ?? NaN) - renderedChord - ((tied?.['milliseconds.date'] ?? NaN) - recordedChord),
         ),
         id,
-      ).toBeLessThan(1);
+      ).toBeLessThan(id === 'nrjny5d' ? 5 : 1);
     }
   });
 });

@@ -7,7 +7,16 @@ import type { CallOutcome } from '../../fitting/fit';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { ZoomContext } from '../../hooks/ZoomProvider';
-import { createMpm, type Scope } from '../../fitting/instructions/index';
+import { NoteOffShift, OrnamentNote } from 'espressivo';
+import {
+    createMpm,
+    ensureDefaultStyle,
+    insertDefinition,
+    type Mpm,
+    OrnamentDef,
+    requireMap,
+    type Scope,
+} from '../../fitting/instructions/index';
 import { InsertTemporalSpread } from '../../fitting/transformers/ornamentation/InsertTemporalSpread';
 import type { Residual } from '../../fitting/residual';
 import { TemporalSpreadDesk } from './TemporalSpreadDesk';
@@ -17,7 +26,8 @@ import { TemporalSpreadDesk } from './TemporalSpreadDesk';
  *
  * Answered here rather than loaded: Tone 14's ESM imports its own files without an extension,
  * which Vite resolves in the browser and Node, resolving an externalised dependency itself, does
- * not. No written spread is rendered in this file anyway — it is the import that needs an answer.
+ * not. The one written spread this file draws is never auditioned — it is the import that needs
+ * an answer.
  */
 vi.mock('tone', () => ({
     NoiseSynth: class {
@@ -86,9 +96,14 @@ interface MountOptions {
     editable?: boolean;
     /** The calls selected, and what the run reported for them. */
     selected?: { ids: string[]; outcomes: CallOutcome[] };
+    /** The document the chain has written so far; an empty one by default. */
+    mpm?: Mpm;
 }
 
-const mount = (part: Scope = 'global', { editable = true, selected }: MountOptions = {}) => {
+const mount = (
+    part: Scope = 'global',
+    { editable = true, selected, mpm = createMpm() }: MountOptions = {},
+) => {
     const msm = alignment();
     const addTransformer = vi.fn();
 
@@ -124,7 +139,7 @@ const mount = (part: Scope = 'global', { editable = true, selected }: MountOptio
                             <TemporalSpreadDesk
                                 part={part}
                                 msm={msm}
-                                mpm={createMpm()}
+                                mpm={mpm}
                                 residual={residual()}
                                 performanceXml=''
                                 secondary={{}}
@@ -144,6 +159,8 @@ const mount = (part: Scope = 'global', { editable = true, selected }: MountOptio
         chords: () => document.querySelectorAll('g.chord'),
         /** One line per note of them, plus the placement line every chord carries. */
         lines: () => document.querySelectorAll('g.chord line'),
+        /** One group per spread the document holds for a chord here. */
+        written: () => document.querySelectorAll('g.temporalSpreadInstruction'),
         dispose: () => {
             unmount();
             bar.remove();
@@ -189,6 +206,45 @@ describe('what the desk plots', () => {
         expect(inScope('global')).toEqual({ chords: 3, notes: 7 });
         expect(inScope(0)).toEqual({ chords: 2, notes: 4 });
         expect(inScope(1)).toEqual({ chords: 2, notes: 3 });
+    });
+});
+
+describe('the spreads it draws as written', () => {
+    /** A definition holding one frame in ticks, as a stylized ornament's does. */
+    const framed = (mpm: Mpm, name: string, offset: number, length: number) => {
+        const built = OrnamentDef.createOrnamentDef(name);
+        if (!built.ok) throw new Error(`no definition can be named ${name}`);
+        built.value.setTemporalSpreadFrame(
+            { value: offset, domain: 'ticks' },
+            { value: length, domain: 'ticks' },
+            1,
+            NoteOffShift.Monophonic,
+        );
+        insertDefinition(mpm, 'ornamentDef', built.value, 'global');
+    };
+
+    // Both have a frame in ticks once the chain has stylized them, and only one is a roll. The
+    // grace figure is laid out from its principal and read on the Grace Notes desk; taken for a
+    // spread here, it would be drawn and auditioned over the chord its principal happens to be in.
+    it('is the chord\'s roll, and not a grace figure on a note of it', () => {
+        const mpm = createMpm();
+        framed(mpm, 'roll', -60, 120);
+        framed(mpm, 'figure', -300, 300);
+        ensureDefaultStyle(mpm, 'ornament', 'global');
+        const map = requireMap(mpm, 'ornament', 'global');
+        map.addOrnamentV3({ id: 'ornament_720', date: 720, nameRef: 'roll', noteOrder: 'ascending pitch' });
+        map.addOrnamentV3({
+            id: 'grace_gg',
+            date: 720,
+            nameRef: 'figure',
+            noteid: '#d',
+            noteOrder: '#g1 #d',
+            notes: [new OrnamentNote('g1', { kind: 'midi', value: 67 })],
+        });
+
+        const desk = mount('global', { mpm });
+        expect(desk.written()).toHaveLength(1);
+        desk.dispose();
     });
 });
 

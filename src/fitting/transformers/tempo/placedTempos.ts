@@ -31,10 +31,31 @@
  * `measuredMs` are neither contiguous nor exhaustive, so an event in a gap gets no tick position
  * and one in an overlap takes its onset from one segment and its duration from the next. The
  * windows are a partition; {@link segmentAtMs} states that.
+ *
+ * ## Two timelines
+ *
+ * The two lengths add up to two timelines, and which one a caller wants depends on what it is
+ * holding:
+ *
+ * - **the recording's**, {@link PlacedTempo.startMs}, anchored at every boundary. A recorded
+ *   onset is a time on this one, so `tickTimes.ts` places notes and pedals here.
+ * - **the tempo map's own**, {@link PlacedTempo.renderedStartMs}: each segment begins where the
+ *   ones before it say they end. A renderer has no recording to anchor on, so this is where it
+ *   puts every tick. A *distance* the document states in ticks, such as an ornament's frame, is
+ *   played back on this one, and has to be measured on it ({@link renderedMsAt},
+ *   {@link dateAtRenderedMs}, {@link segmentTiming}).
+ *
+ * They are the same timeline while every segment's two lengths agree, and they part by the
+ * difference at each boundary where they do not.
  */
 import { getInstructions, Mpm, type Scope } from '../../instructions/index';
 import { Alignment, type AlignedNote } from '../../alignment';
-import { millisecondsAt, resolveSpan, type TempoWithEndDate } from './tempoCalculations';
+import {
+  dateAtMilliseconds,
+  millisecondsAt,
+  resolveSpan,
+  type TempoWithEndDate,
+} from './tempoCalculations';
 import type { Tempo as ResolvedTempo } from 'espressivo';
 import { elementAt, withNext } from 'espressivo';
 
@@ -61,6 +82,16 @@ export interface PlacedTempo {
 
   /** Where the segment begins on the recorded millisecond timeline. */
   readonly startMs: number;
+
+  /**
+   * Where the segment begins on the timeline the tempo map makes by itself: the sum of what
+   * every earlier `<tempo>` says it lasts, from zero at the first.
+   *
+   * {@link startMs} wherever each earlier segment's {@link measuredMs} is its
+   * {@link modelledMs}, and apart from it by what they differ wherever a boundary has an anchor
+   * the tempo before it does not land on.
+   */
+  readonly renderedStartMs: number;
 
   /** What the `<tempo>` says the segment lasts, in milliseconds. */
   readonly modelledMs: number;
@@ -101,6 +132,7 @@ export const placeTempos = (msm: Alignment, mpm: Mpm, scope: Scope): PlacedTempo
 
   const segments: PlacedTempo[] = [];
   let startMs = 0;
+  let renderedStartMs = 0;
 
   for (const [current, next] of withNext(tempos)) {
     const nextDate = next?.date;
@@ -113,9 +145,19 @@ export const placeTempos = (msm: Alignment, mpm: Mpm, scope: Scope): PlacedTempo
     const anchor = anchorByDate.get(endDate);
     const measuredMs = anchor ? anchor['milliseconds.date'] - startMs : modelledMs;
 
-    segments.push({ tempo, resolved, nextDate, startMs, modelledMs, anchor, measuredMs });
+    segments.push({
+      tempo,
+      resolved,
+      nextDate,
+      startMs,
+      renderedStartMs,
+      modelledMs,
+      anchor,
+      measuredMs,
+    });
 
     startMs += measuredMs;
+    renderedStartMs += modelledMs;
   }
 
   return segments;
@@ -167,4 +209,59 @@ export const segmentAtMs = (segments: PlacedTempo[], ms: number): PlacedTempo | 
     if (ms >= segment.startMs) return segment;
   }
   return segments[0];
+};
+
+/**
+ * The segment a renderer times a note on `date` under.
+ *
+ * Not {@link coversDate}'s answer on a boundary, and the difference is the renderer's.
+ * `TempoMap.renderTempoToMap` walks the notes beside the tempo map and gives an instruction every
+ * note up to and *including* the date the next one starts on, so a chord on a `<tempo>`'s own
+ * date is still timed by the one before it. For the chord's date that changes nothing, since the
+ * earlier span ends where the later begins. It decides every tick an ornament moves a note of
+ * that chord off its date: the note keeps its place in the score, so it keeps its instruction,
+ * and is timed by the earlier one on either side of the boundary.
+ *
+ * A date at or before the first `<tempo>` answers with the first. The renderer times those
+ * notes at MPM's default of 100 quarter-bpm instead, whatever the map says, and that fallback is
+ * not followed here: see the 'ornamentation: rolled chords' round-trip case, which is a roll on
+ * the first `<tempo>`'s own date. An ornament dated before the map begins is not asked about at
+ * all; `TranslatePhysicalTimeToTicks` leaves its frame in milliseconds.
+ */
+export const segmentTiming = (segments: PlacedTempo[], date: number): PlacedTempo | undefined =>
+  segments.find((segment) => segment.nextDate === undefined || date <= segment.nextDate);
+
+/**
+ * Where the tempo map by itself puts a tick, in milliseconds from its first `<tempo>`.
+ *
+ * What a renderer gives a note that *is* on that tick. Continuous across every boundary, and
+ * continued past both ends of the map at the tempo it has there, which is `millisecondsAt`'s
+ * own rule. `undefined` only where the scope has no `<tempo>`.
+ */
+export const renderedMsAt = (segments: PlacedTempo[], date: number): number | undefined => {
+  const segment = segmentTiming(segments, date);
+  if (!segment) return undefined;
+  const ms = segment.renderedStartMs + millisecondsAt(date, segment.resolved);
+  return Number.isFinite(ms) ? ms : undefined;
+};
+
+/**
+ * The tick the tempo map by itself puts at a millisecond time: the inverse of
+ * {@link renderedMsAt}, over the same unbounded domain.
+ *
+ * Searched from the end, as {@link segmentAtMs} is and for its reason: the first segment then
+ * takes every time before the map begins.
+ */
+export const dateAtRenderedMs = (segments: PlacedTempo[], ms: number): number | undefined => {
+  let segment = segments[0];
+  for (let i = segments.length - 1; i > 0; i--) {
+    const candidate = elementAt(segments, i, 'the placed tempo segments');
+    if (ms >= candidate.renderedStartMs) {
+      segment = candidate;
+      break;
+    }
+  }
+  if (!segment) return undefined;
+  const date = dateAtMilliseconds(ms - segment.renderedStartMs, segment.resolved);
+  return Number.isFinite(date) ? date : undefined;
 };

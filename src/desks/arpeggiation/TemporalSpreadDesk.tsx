@@ -85,8 +85,14 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     // Derived, not held in state behind an effect: these are a pure function of the MPM and the
     // scope, and stored they lagged a render behind — the first paint after a refit still drew
     // the previous fit's spreads.
+    //
+    // Only the ornaments over a chord. One that names a principal is a grace figure: it has a
+    // frame too, in ticks like a roll's once the chain has stylized it, but it is laid out from
+    // that one note and not over the chord at its date, and the Grace Notes desk is where it is
+    // read. Drawn here it would be taken for the roll of whatever chord its principal is in.
     const temporalSpreads = useMemo(
         () => performedInstructions(mpm, 'ornament', part)
+            .filter(ornament => ornament.noteid === undefined)
             .map(ornament => {
                 const def = getDefinition(mpm, 'ornamentDef', ornament.nameRef)
                 return {
