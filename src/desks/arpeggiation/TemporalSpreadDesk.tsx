@@ -35,7 +35,9 @@ import { useEditable } from "../../hooks/Editing";
  * given a definition on the Styles desk, so both are on this desk: a chord's roll in red, a grace
  * figure in `GRACE_COLOUR`, from its first grace note to the strike of its principal. Insert
  * writes whichever is selected, a chord as an `InsertTemporalSpread` and a figure as an
- * `InsertGraceNotes`, and the strip below draws what has been written for either.
+ * `InsertGraceNotes`, and the strip below draws what has been written for either. Each has a
+ * default of its own: every roll long enough, every grace figure. There is no desk for grace
+ * notes beside this one, so an `InsertGraceNotes` call opens here (`transformerAliases.ts`).
  *
  * In the viewer the plot is only read: a chord or a figure sounds as the pointer passes and says
  * how long it took, a written spread selects the call that wrote it, and what that call was fitted
@@ -85,6 +87,11 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     const defaultCall = calls
         .filter(isCallOf('InsertTemporalSpread'))
         .find(t => t.options.scope === part && !('date' in t.options))
+
+    // The call that writes every grace figure of the scope at once, which names no group.
+    const defaultFiguresCall = calls
+        .filter(isCallOf('InsertGraceNotes'))
+        .find(t => t.options.scope === part && t.options.group === undefined)
 
     const averageBPM = useMemo(() => {
         const notes = msm.allNotes
@@ -163,8 +170,9 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     // for their reason.
     const figures = useMemo(
         () => graceFiguresOf(msm, part)
-            // One reading and a strike to measure to, or there is no frame to draw yet.
-            .filter(figure => figure.readings === 1 && figure.strike !== undefined)
+            // One reading, or there is nothing single to draw yet. A figure without a strike to
+            // measure to is kept: it has no frame, and `GraceSpread` draws it as one that has not.
+            .filter(figure => figure.readings === 1)
             .map(figure => ({
                 ...figure,
                 notes: soundingNotesOf(
@@ -178,7 +186,8 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
         noteid === undefined ? undefined : figures.find(figure => `#${figure.principal}` === noteid);
     const writtenFigure = (principal: string) =>
         temporalSpreads.find(s => s.noteid === `#${principal}`)
-    const selectedFigure = figures.find(figure => figure.group === currentGroup)
+    const selectedFigure = figures.find(figure => figure.group === currentGroup && figure.strike !== undefined)
+    const hasFigures = figures.some(figure => figure.strike !== undefined)
 
     // Scoped, and it has to be: this is both what the plot draws and what a written spread is
     // measured over below, and `InsertTemporalSpread` frames the chord as `in(scope).chords()`. Left
@@ -287,6 +296,38 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                                 Remove Default
                             </ToolbarButton>
                         </ToolGroup>
+                        {/*
+                            A group of their own, beside the rolls' default and not folded into
+                            it: that one asks how long a roll has to be before it is written, and
+                            a grace figure has no such threshold. Every figure is written as it
+                            was played, so there is nothing to ask and no dialog.
+                        */}
+                        <ToolGroup label='Grace Notes'>
+                            <ToolbarButton
+                                icon={<Add />}
+                                label='Insert All'
+                                tooltip={defaultFiguresCall
+                                    ? 'This scope already writes all of its grace figures'
+                                    : hasFigures
+                                        ? 'Write every grace figure in this scope as an ornament on its principal'
+                                        : 'The recording times no grace figure in this scope'}
+                                disabled={defaultFiguresCall !== undefined || !hasFigures}
+                                onClick={() => addTransformer(new InsertGraceNotes({ scope: part }))}
+                            >
+                                Insert All
+                            </ToolbarButton>
+                            <ToolbarButton
+                                icon={<DeleteOutline />}
+                                label='Remove All'
+                                tooltip={defaultFiguresCall
+                                    ? 'Remove the call that writes every grace figure in this scope'
+                                    : 'This scope has no call that writes all of its grace figures'}
+                                disabled={!defaultFiguresCall}
+                                onClick={() => { if (defaultFiguresCall) removeCall(defaultFiguresCall.id) }}
+                            >
+                                Remove All
+                            </ToolbarButton>
+                        </ToolGroup>
                     </>
                 )}
                 {/*
@@ -326,20 +367,33 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                     <svg width={Math.max(...msm.allNotes.map(releaseSeconds)) * stretchX} height={height + instructionHeight + 30}>
                         {/* Under the chords, which have to stay within reach inside a figure's lead. */}
                         <g>
-                            {figures.map(figure => (
-                                <GraceSpread
-                                    key={`graceFigure_${figure.group}`}
-                                    figure={figure}
-                                    notes={figure.notes}
-                                    stretch={stretchX}
-                                    height={height}
-                                    selected={figure.group === currentGroup}
-                                    onClick={editable
-                                        ? () => { setCurrentGroup(figure.group); setCurrentDate(undefined) }
-                                        : undefined}
-                                    evidence={figure.ids.some(id => activeEvidence.has(id))}
-                                />
-                            ))}
+                            {figures.map(figure => {
+                                // What a click on the figure does, which is the same two things
+                                // a click on a chord and on its written spread do between them:
+                                // it chooses the figure for Insert, in the editor, and selects
+                                // the call that wrote it, where one has.
+                                const written = writtenFigure(figure.principal)?.id
+                                return (
+                                    <GraceSpread
+                                        key={`graceFigure_${figure.group}`}
+                                        figure={figure}
+                                        notes={figure.notes}
+                                        stretch={stretchX}
+                                        height={height}
+                                        selected={figure.group === currentGroup}
+                                        onClick={editable || written !== undefined
+                                            ? () => {
+                                                if (editable) {
+                                                    setCurrentGroup(figure.group)
+                                                    setCurrentDate(undefined)
+                                                }
+                                                if (written !== undefined) setActiveElement(written)
+                                            }
+                                            : undefined}
+                                        evidence={figure.ids.some(id => activeEvidence.has(id))}
+                                    />
+                                )
+                            })}
                         </g>
                         <g>
                             {chords}

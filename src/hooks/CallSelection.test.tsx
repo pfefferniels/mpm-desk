@@ -1,9 +1,10 @@
 /**
  * One call per element, when the fit credits several.
  *
- * The outcomes below are the three shapes the shipped work file holds: a chain of dynamics
- * curves sharing their joints, a tempo curve redrawn over its own date, and a style pass that
- * touches every ornament the per-chord calls placed.
+ * The outcomes below are the four shapes the shipped work file holds: a chain of dynamics
+ * curves sharing their joints, a tempo curve redrawn over its own date, a default that writes
+ * every grace figure at once, and a style pass that touches every ornament the calls before it
+ * wrote.
  */
 import { describe, expect, it } from 'vitest';
 import { useState, type ReactNode } from 'react';
@@ -18,8 +19,11 @@ const outcomes: CallOutcome[] = [
     { id: 'tempo redrawn', elements: ['tempo_0'], range: { from: 0, to: 2880 }, evidence: [] },
     { id: 'spread 720', elements: ['ornament_720'], range: { from: 720, to: null }, evidence: [] },
     { id: 'spread 1440', elements: ['ornament_1440'], range: { from: 1440, to: null }, evidence: [] },
-    // Leads with the first ornament, as a pass does, and lists one no placed call reports.
-    { id: 'style pass', elements: ['ornament_720', 'ornament_1440', 'ornament_2160'], range: null, evidence: [] },
+    // Names no place either: it writes every figure of its scope, wherever they are.
+    { id: 'grace default', elements: ['grace_a', 'grace_b'], range: null, evidence: ['g1', 'p1'] },
+    // Leads with the first ornament, as a pass does, lists one no other call reports, and
+    // touches the figures the default wrote.
+    { id: 'style pass', elements: ['ornament_720', 'ornament_1440', 'ornament_2160', 'grace_a', 'grace_b'], range: null, evidence: [] },
 ];
 
 /** The provider as the editor mounts it, with the selection held as state. */
@@ -67,6 +71,14 @@ describe('which call an element answers to', () => {
         expect(result.current.callForElement('ornament_2160')).toBe('style pass');
     });
 
+    // Neither names a place. The default reported the figure first, so it wrote it, and the
+    // pass that reports it afterwards only gave it a definition.
+    it('is the default that wrote it, not the pass that styled it afterwards', () => {
+        const { result } = mount();
+        expect(result.current.callForElement('grace_a')).toBe('grace default');
+        expect(result.current.callForElement('grace_b')).toBe('grace default');
+    });
+
     it('is nobody for an element no call reports', () => {
         const { result } = mount();
         expect(result.current.callForElement('dynamics_9999')).toBeUndefined();
@@ -91,6 +103,16 @@ describe('what a selected call lights', () => {
         });
         expect(result.current.activeCallIds).toEqual(new Set(['second curve']));
         expect(result.current.activeElements).toEqual(['dynamics_1440', 'dynamics_2880']);
+    });
+});
+
+describe('what a default lights', () => {
+    it('is what it wrote, which the pass over it does not take', () => {
+        expect(mount(new Set(['grace default'])).result.current.activeElements.sort()).toEqual([
+            'grace_a',
+            'grace_b',
+        ]);
+        expect(mount(new Set(['style pass'])).result.current.activeElements).toEqual(['ornament_2160']);
     });
 });
 

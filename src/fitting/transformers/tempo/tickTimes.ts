@@ -6,9 +6,10 @@
  * recorded release into `tickDuration` — the only domain `<rubato>` and `<articulation>` can
  * speak.
  *
- * Apart from any one transformer, because two callers need it and neither should import the
- * other: `TranslatePhysicalTimeToTicks`, which writes the values onto the score, and
- * `deriveResidual`, which computes them on a scratch copy.
+ * Apart from any one transformer, and computed on demand: `deriveResidual` asks for these
+ * whenever a fitter wants to know where the notes fall, and nothing writes them onto the score.
+ * `TranslatePhysicalTimeToTicks` once did, and its name still says so; what it converts now is
+ * the frames of the ornaments, which is a different job (see there).
  *
  * **The conversion is a function of the MPM *and* the recording, not of the MPM alone.** At every
  * tempo boundary the running millisecond cursor is re-anchored on the recorded onset of the note

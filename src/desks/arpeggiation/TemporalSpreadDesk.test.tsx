@@ -4,6 +4,7 @@ import { Alignment, type AlignedGrace, type AlignedNote } from '../../fitting/al
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { EditingContext } from '../../hooks/Editing';
 import type { CallOutcome } from '../../fitting/fit';
+import type { Call } from '../../model/Work';
 import { DeskToolbarProvider } from '../../components/DeskToolbar';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { ZoomContext } from '../../hooks/ZoomProvider';
@@ -134,12 +135,16 @@ interface MountOptions {
     mpm?: Mpm;
     /** The score and its recording; `alignment()` by default. */
     msm?: Alignment;
+    /** The calls of the chain; none by default. */
+    calls?: Call[];
 }
 
 const mount = (
     part: Scope = 'global',
-    { editable = true, selected, mpm = createMpm(), msm = alignment() }: MountOptions = {},
+    { editable = true, selected, mpm = createMpm(), msm = alignment(), calls = [] }: MountOptions = {},
 ) => {
+    const setActiveCallIds = vi.fn();
+    const onRemoveCalls = vi.fn();
     const addTransformer = vi.fn();
 
     // The app bar's second row, standing in for `EditorAppBar`'s. A desk under a null target
@@ -163,11 +168,11 @@ const mount = (
                     secondsToTick={(seconds) => seconds * 720}
                 >
                     <CallSelectionProvider
-                        calls={[]}
+                        calls={calls}
                         outcomes={selected?.outcomes ?? []}
                         activeCallIds={new Set(selected?.ids ?? [])}
-                        setActiveCallIds={vi.fn()}
-                        onRemoveCalls={vi.fn()}
+                        setActiveCallIds={setActiveCallIds}
+                        onRemoveCalls={onRemoveCalls}
                         focusCall={vi.fn()}
                     >
                         <DeskToolbarProvider target={bar}>
@@ -190,6 +195,8 @@ const mount = (
 
     return {
         addTransformer,
+        setActiveCallIds,
+        onRemoveCalls,
         /** One group per chord plotted. */
         chords: () => document.querySelectorAll('g.chord'),
         /** One line per note of them, plus the placement line every chord carries. */
@@ -292,6 +299,36 @@ describe('the spreads it draws as written', () => {
         desk.dispose();
     });
 
+    // In the viewer too, where nothing is chosen for an insert: the figure is where a reader
+    // looks, and the call that wrote it is what a click on anything written selects. The default
+    // that wrote it, and not the style pass that gave it a definition afterwards.
+    it('selects the call that wrote a figure from a click on the figure itself', () => {
+        const { figures, setActiveCallIds, dispose } = mount('global', {
+            mpm: stylized(),
+            msm: withGraces(),
+            editable: false,
+            selected: {
+                ids: [],
+                outcomes: [
+                    { id: 'all figures', elements: ['grace_gg'], range: null, evidence: [] },
+                    { id: 'style', elements: ['ornament_720', 'grace_gg'], range: null, evidence: [] },
+                ],
+            },
+        });
+
+        // `hh` is written by nothing, and a click on it does nothing here.
+        act(() => {
+            fireEvent.click(figures()[1]?.querySelector('rect') as Element);
+        });
+        expect(setActiveCallIds).not.toHaveBeenCalled();
+
+        act(() => {
+            fireEvent.click(figures()[0]?.querySelector('rect') as Element);
+        });
+        expect(setActiveCallIds).toHaveBeenCalledWith(new Set(['all figures']));
+        dispose();
+    });
+
     // The figure names one note of the chord and is no roll of it: taken for one, the chord
     // would read as written and lose the line that says where an insert would place it.
     it('does not take a figure on one of its notes for the roll of a chord', () => {
@@ -385,6 +422,92 @@ describe('the grace figures it plots', () => {
             fireEvent.click(figures()[0]?.querySelector('rect') as Element);
         });
         expect(figures()[0]?.dataset.selected).toBeUndefined();
+        dispose();
+    });
+
+    // What the table of the grace notes desk said in its columns, where the figure is.
+    it('names its grace notes and how long it took, under the pointer', () => {
+        const { figures, dispose } = mount('global', { msm: withGraces() });
+
+        expect(figures()[0]?.querySelector('text')).toBeNull();
+        act(() => {
+            fireEvent.mouseOver(figures()[0]?.querySelector('rect') as Element);
+        });
+        // `g1` is a G4, 300 ms before the `d` it leads to.
+        expect(figures()[0]?.querySelector('text')?.textContent).toBe('G4 · 300ms');
+        dispose();
+    });
+
+    // `InsertGraceNotes` skips such a group, having no strike to measure to. It is drawn all the
+    // same, and as what it is: there, and nothing to be done with it.
+    it('draws a figure whose principal the recording does not strike, and offers nothing for it', () => {
+        const msm = withGraces();
+        msm.graces = [...msm.graces, grace('g3', 'lost', 'nobody', 2160, 2500)];
+        const { figures, dispose } = mount('global', { msm });
+
+        const lost = [...figures()].find((figure) => figure.dataset.group === 'lost');
+        expect(lost?.hasAttribute('data-unstruck')).toBe(true);
+        expect(lost?.querySelector('rect')).toBeNull();
+        expect(lost?.querySelector('line')?.getAttribute('stroke-dasharray')).toBeTruthy();
+        expect(lost?.querySelector('title')?.textContent).toMatch(/does not strike/);
+        dispose();
+    });
+
+    it('marks the figures the selected call was fitted to, and no others, in either mode', () => {
+        for (const editable of [true, false]) {
+            const { figures, dispose } = mount('global', {
+                msm: withGraces(),
+                editable,
+                selected: {
+                    ids: ['grace call'],
+                    outcomes: [{ id: 'grace call', elements: [], range: null, evidence: ['g2', 'f'] }],
+                },
+            });
+            const marked = [...figures()].filter((figure) => figure.hasAttribute('data-evidence'));
+            expect(marked.map((figure) => figure.dataset.group)).toEqual(['hh']);
+            dispose();
+        }
+    });
+});
+
+describe('every grace figure at once', () => {
+    const all = (): Call => ({ id: 'all figures', name: 'InsertGraceNotes', options: { scope: 1 } });
+
+    it('is written by a call that names no group, with no dialog to pass', () => {
+        const { addTransformer, dispose } = mount(1, { msm: withGraces() });
+
+        act(() => {
+            screen.getByRole('button', { name: 'Insert All' }).click();
+        });
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        const sent = addTransformer.mock.calls[0][0] as InsertGraceNotes;
+        expect(sent).toBeInstanceOf(InsertGraceNotes);
+        expect(sent.options).toEqual({ scope: 1 });
+        dispose();
+    });
+
+    // Scoped as the rolls' default is, and for its reason: one such call per scope.
+    it('is offered once per scope, and taken back by Remove All', () => {
+        const { onRemoveCalls, dispose } = mount(1, { msm: withGraces(), calls: [all()] });
+
+        expect(screen.getByRole('button', { name: 'Insert All' })).toBeDisabled();
+        act(() => {
+            screen.getByRole('button', { name: 'Remove All' }).click();
+        });
+        expect(onRemoveCalls).toHaveBeenCalledWith(['all figures']);
+        dispose();
+
+        const other = mount(0, { msm: withGraces(), calls: [all()] });
+        expect(screen.getByRole('button', { name: 'Insert All' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Remove All' })).toBeDisabled();
+        other.dispose();
+    });
+
+    it('is not offered where the scope has no figure to write', () => {
+        const { dispose } = mount('global');
+
+        expect(screen.getByRole('button', { name: 'Insert All' })).toBeDisabled();
         dispose();
     });
 });

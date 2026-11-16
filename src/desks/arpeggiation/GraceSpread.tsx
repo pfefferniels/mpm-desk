@@ -4,13 +4,16 @@ import { asMIDI } from "../../utils/utils";
 import { onsetSeconds } from "../noteTiming";
 import { rowId, type AlignedNote } from "../../fitting/alignment";
 import { EVIDENCE_COLOUR } from "../evidence";
-import { GRACE_COLOUR, type GraceFigure } from "./graceFigures";
+import { describeFigure, GRACE_COLOUR, type GraceFigure } from "./graceFigures";
 
 interface GraceSpreadProps {
     figure: GraceFigure;
     /** The figure as the recording sounded it: `soundingNotesOf`, grace notes first. */
     notes: AlignedNote[];
-    /** Selects the figure for an insert. Absent in the viewer, where a figure is only heard. */
+    /**
+     * Selects the figure for an insert, and the call that wrote it where one has. Absent where a
+     * click would do neither: in the viewer, on a figure nothing has written.
+     */
     onClick?: () => void;
     /** The figure the bar's Insert would write. */
     selected?: boolean;
@@ -26,7 +29,12 @@ interface GraceSpreadProps {
  *
  * What `ChordSpread` is to a rolled chord, in the colour the desks keep for grace figures. Drawn
  * under the chords, since a figure reaches back over the beat before its principal and the chords
- * there have to stay within reach of the pointer.
+ * there have to stay within reach of the pointer. Under the pointer it says what it is: its grace
+ * notes by name, whether the last is tied into the principal, and how long it took.
+ *
+ * A figure whose principal the recording does not strike has no frame to draw and none to write:
+ * `InsertGraceNotes` skips it. Its grace notes are drawn all the same, dashed, so that it is
+ * seen to be there and why nothing can be done with it.
  */
 export const GraceSpread = ({ figure, notes, onClick, selected = false, evidence = false, stretch, height }: GraceSpreadProps) => {
     const { play, stop } = usePiano();
@@ -39,6 +47,25 @@ export const GraceSpread = ({ figure, notes, onClick, selected = false, evidence
     const firstOnset = onsetSeconds(first);
     const frameLength = onsetSeconds(last) - firstOnset;
     const outline = evidence ? EVIDENCE_COLOUR : selected ? GRACE_COLOUR : undefined;
+
+    if (figure.strike === undefined) {
+        return (
+            <g className='graceFigure' data-group={figure.group} data-unstruck=''>
+                <title>{`${describeFigure(figure)}: the recording does not strike the note these lead to`}</title>
+                {notes.map(note => (
+                    <line
+                        key={`graceNote_${rowId(note)}`}
+                        x1={onsetSeconds(note) * stretch}
+                        x2={onsetSeconds(note) * stretch}
+                        y1={0}
+                        y2={height}
+                        stroke={GRACE_COLOUR}
+                        strokeWidth={1.2}
+                        strokeDasharray='4 4' />
+                ))}
+            </g>
+        );
+    }
 
     return (
         <g
@@ -92,7 +119,7 @@ export const GraceSpread = ({ figure, notes, onClick, selected = false, evidence
                     fontWeight='bold'
                     pointerEvents='none'
                 >
-                    {(frameLength * 1000).toFixed(0)}ms
+                    {describeFigure(figure)} · {(frameLength * 1000).toFixed(0)}ms
                 </text>
             )}
         </g>
