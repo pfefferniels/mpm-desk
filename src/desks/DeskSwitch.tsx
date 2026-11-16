@@ -510,7 +510,7 @@ export const correspondingDesks: DeskEntry[] = [
             actions: [
                 {
                     gesture: 'Hover a chord or a grace figure',
-                    does: 'sound it, and read its frame in ms',
+                    does: 'sound it, and read its frame in ms; a figure also names its grace notes',
                 },
                 { gesture: 'Click a chord', does: 'select it for Insert', edits: true },
                 {
@@ -519,9 +519,18 @@ export const correspondingDesks: DeskEntry[] = [
                     edits: true,
                 },
                 {
+                    gesture: 'Click a grace figure that is written',
+                    does: 'select the call that wrote it',
+                },
+                {
                     gesture: 'Insert Default',
                     does: "spread every chord in the scope whose roll is longer than the dialog's "
                         + 'Duration Threshold, in ms',
+                    edits: true,
+                },
+                {
+                    gesture: 'Insert All',
+                    does: 'write every grace figure in the scope as an ornament on its principal',
                     edits: true,
                 },
                 {
@@ -571,34 +580,6 @@ export const correspondingDesks: DeskEntry[] = [
                 { gesture: 'Backspace', does: 'remove the selected call', edits: true },
             ],
         },
-        writes: ['ornament'],
-        unavailable: allOf(needsRecording, needsChoice),
-    },
-    {
-        transformerName: 'InsertGraceNotes',
-        desk: lazy(() =>
-            import('./arpeggiation/GraceNotesDesk').then((m) => ({
-                default: m.GraceNotesDesk,
-            })),
-        ),
-        displayName: 'Grace Notes',
-        aspect: 'arpeggiation',
-        group: 'timing',
-        help: {
-            summary:
-                "The score's grace notes, a row per group, with how far ahead of its principal " +
-                'the recording played each and the ornament it is written as.',
-            actions: [
-                { gesture: 'Click a row', does: 'select the group for Insert, and its call' },
-                {
-                    gesture: 'Insert Default',
-                    does: 'write every group in the scope as an ornament on its principal',
-                    edits: true,
-                },
-                { gesture: 'Backspace', does: 'remove the selected call', edits: true },
-            ],
-        },
-        // The same `<ornamentMap>` as the other arpeggiation desks, so the same lock.
         writes: ['ornament'],
         unavailable: allOf(needsRecording, needsChoice),
     },

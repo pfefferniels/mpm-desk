@@ -63,11 +63,18 @@ export const graceFiguresOf = (msm: Alignment, scope: Scope): GraceFigure[] => {
     .sort((a, b) => a.date - b.date);
 };
 
-/** From a figure's first grace note to its principal's strike, in ms; null with nothing to measure to. */
-export const leadOf = ({ graces, strike }: GraceFigure): number | null => {
-  const first = graces[0];
-  return first === undefined || strike === undefined ? null : strike - first['milliseconds.date'];
-};
+const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+
+/** A MIDI pitch as a note name with its octave, C4 being 60. */
+const nameOf = (pitch: number): string =>
+  `${NAMES[((Math.round(pitch) % 12) + 12) % 12] ?? '?'}${String(Math.floor(Math.round(pitch) / 12) - 1)}`;
+
+/**
+ * A figure in words: its grace notes by name in the order they were struck, and whether the last
+ * is tied into the principal, which is then that note held and has no strike of its own.
+ */
+export const describeFigure = ({ graces, tied }: GraceFigure): string =>
+  `${graces.map((grace) => nameOf(grace['midi.pitch'])).join(' ')}${tied ? ', tied in' : ''}`;
 
 /**
  * A grace note as a note a desk can sound.

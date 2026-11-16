@@ -70,20 +70,23 @@ const CallSelectionContext = createContext<CallSelectionValue | null>(null);
  * the second fills its own curve into. Taking the first credited lights both curves on a click on
  * either and leaves the second call unselectable from the plot.
  *
- * Three rules, each outranking the next, and the later call winning among equals since its run
- * is the one the document shows:
+ * Four rules, each outranking the next:
  *
  * - A call that names a place outranks one that names none. The placeless calls are the passes —
- *   a style over every ornament, a merge over every pattern — and a pass touches what a
- *   per-chord call placed.
+ *   a style over every ornament, a merge over every pattern — and the defaults, which write
+ *   every chord or figure of a scope at once. A pass touches what a per-chord call placed.
  * - A call that *leads* with the element outranks one that merely lists it. A gesture begins
  *   with the first element it reports, so the joint of a chain is the second curve's, and the
  *   first curve's closer only until then.
- * - Later wins. A curve redrawn over its own date reports the same id twice, and the earlier
- *   report is stale.
+ * - Among calls that name a place, later wins: its run is the one the document shows. A curve
+ *   redrawn over its own date reports the same id twice, and the earlier report is stale.
+ * - Among calls that name none, the *first* wins. An element cannot be touched before it is
+ *   written, so the first to report it wrote it, and whatever reports it afterwards is a pass
+ *   over it. The other way round, every grace figure a default wrote answered to the style
+ *   pass: a click on one selected the pass, and selecting the default lit nothing.
  *
  * Each layer below overrides the one before it, which is what a `Map` does with a later entry
- * for the same key.
+ * for the same key; the placeless calls go in last to first for that reason.
  */
 const ownersOf = (outcomes: readonly CallOutcome[]): ReadonlyMap<string, string> => {
     const claims = (
@@ -91,10 +94,11 @@ const ownersOf = (outcomes: readonly CallOutcome[]): ReadonlyMap<string, string>
         pick: (elements: readonly string[]) => readonly string[],
     ) => by.flatMap((outcome) => pick(outcome.elements).map((id) => [id, outcome.id] as const));
     const placed = outcomes.filter((outcome) => outcome.range !== null);
+    const placeless = outcomes.filter((outcome) => outcome.range === null).reverse();
     const all = (elements: readonly string[]) => elements;
     const lead = (elements: readonly string[]) => elements.slice(0, 1);
 
-    return new Map([...claims(outcomes, all), ...claims(placed, all), ...claims(placed, lead)]);
+    return new Map([...claims(placeless, all), ...claims(placed, all), ...claims(placed, lead)]);
 };
 
 export const useCallSelection = (): CallSelectionValue => {
