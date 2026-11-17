@@ -46,8 +46,8 @@ describe('TransformerRegistry', () => {
      * that control. See `Order.ts`.
      *
      * `RoundNumbers` is this repo's own and last: it restates what everything before it wrote.
-     * `InsertGraceNotes` is its own too: espressivo had no transformer for grace notes, which the
-     * MSM leaves out and MPM v3 can play.
+     * Grace notes, which the MSM leaves out and MPM v3 can play, have no transformer of their
+     * own: `InsertTemporalSpread` fits their lead beside the roll of a chord.
      */
     test('the reduction order is exactly the fitters this build has', () => {
       expect(getTransformerOrder()).toEqual([
@@ -57,7 +57,6 @@ describe('TransformerRegistry', () => {
         'Modify',
         'InsertDynamicsGradient',
         'InsertTemporalSpread',
-        'InsertGraceNotes',
         'InsertTempo',
         'InsertRubato',
         'CombineAdjacentRubatos',
@@ -89,9 +88,8 @@ describe('TransformerRegistry', () => {
       expect(order.indexOf('InsertTempo')).toBeLessThan(
         order.indexOf('TranslatePhysicalTimeToTicks'),
       );
-      // A grace figure is measured from the onset the spread collapsed its principal's chord onto.
-      expect(order.indexOf('InsertTemporalSpread')).toBeLessThan(order.indexOf('InsertGraceNotes'));
-      expect(order.indexOf('InsertGraceNotes')).toBeLessThan(order.indexOf('InsertTempo'));
+      // A roll and a grace figure's lead are measured on onsets in the recording's own domain.
+      expect(order.indexOf('InsertTemporalSpread')).toBeLessThan(order.indexOf('InsertTempo'));
       // A rubato warps the grid an ornament's notes are written on, so it has to be in the
       // document before a frame is converted into ticks on that grid.
       for (const name of ['InsertRubato', 'CombineAdjacentRubatos'])
@@ -126,7 +124,7 @@ describe('TransformerRegistry', () => {
         (value): value is new () => Transformer =>
           typeof value === 'function' && value.prototype instanceof AbstractTransformer,
       );
-      expect(exported.length).toBe(20);
+      expect(exported.length).toBe(19);
       for (const constructor of exported) {
         const name = new constructor().name;
         expect(isRegistered(name), `${name} is exported but not registered`).toBe(true);

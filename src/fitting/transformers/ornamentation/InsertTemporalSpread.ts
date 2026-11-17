@@ -8,8 +8,9 @@ import {
   setOrnamentDraft,
 } from '../../instructions/index';
 import { Alignment } from '../../alignment';
+import type { Residual } from '../../residual';
 import { isDefined } from '../../utils';
-import { elementAt, foldl, pairwise } from 'espressivo';
+import { elementAt, pairwise } from 'espressivo';
 import {
   AbstractTransformer,
   generateId,
@@ -17,56 +18,59 @@ import {
 } from '../Transformer';
 import { noteOrderOf } from './noteOrder';
 import { type Range, rangeAt } from '../range';
+import { determineIntensity } from './intensity';
+import { graceEvidence, spreadGraces } from './graceSpread';
+
+// Re-exported: the spacing fit is part of this module's public surface, and the rubato fit
+// imports it from here.
+export { determineIntensity } from './intensity';
 
 export type ArpeggioPlacement = 'on-beat' | 'before-beat' | 'estimate' | 'none';
 export type DatedArpeggioPlacement = Map<number, ArpeggioPlacement>;
 
-// onsets is a sorted array normalized to [0, 1]
-export const determineIntensity = (onsets: number[]): number => {
-  const n = onsets.length;
-  // intensity only makes sense for more than 2 notes
-  if (n <= 2) return 1;
-
-  // The error function we want to minimize.
-  const error = (intensity: number): number =>
-    foldl(onsets, 0, (sum, onset, i) => {
-      const diff = onset - Math.pow(i / (n - 1), intensity);
-      return sum + diff * diff;
-    });
-
-  // Search bounds. TODO: make these configurable.
-  let lower = 0.1,
-    upper = 5.0;
-  const tol = 1e-6;
-  const goldenRatio = (Math.sqrt(5) + 1) / 2;
-
-  let c = upper - (upper - lower) / goldenRatio;
-  let d = lower + (upper - lower) / goldenRatio;
-
-  // Continue refining the bounds until convergence.
-  while (upper - lower > tol) {
-    if (error(c) < error(d)) {
-      upper = d;
-    } else {
-      lower = c;
-    }
-    c = upper - (upper - lower) / goldenRatio;
-    d = lower + (upper - lower) / goldenRatio;
-  }
-
-  return (lower + upper) / 2;
-};
-
-export type InsertTemporalSpreadOptions = ScopedTransformationOptions & {
+/**
+ * The roll of a chord: of the one on a date, or of every chord of the scope rolled wider than a
+ * threshold, in ms.
+ */
+type ChordSpreadOptions = {
   placement: ArpeggioPlacement;
   noteOffShiftTolerance: number;
 } & ({ date: number } | { durationThreshold: number });
 
 /**
- * Interpolates arpeggiated chords as ornaments, inserts them as physical
- * values into the MPM and substracts accordingly from the recorded onsets, so
- * that after the transformation all notes of the chord will have the same
- * onset.
+ * The lead of a grace figure: of one group, by the `xml:id` of its `graceGrp` (or grace chord),
+ * or of every group the recording timed in the scope.
+ *
+ * Nothing else to say, where a roll has a placement to choose: a figure ends on the strike of the
+ * note it leads into, and is written as it was played.
+ */
+type GraceSpreadOptions = { group: string } | { graces: 'all' };
+
+export type InsertTemporalSpreadOptions = ScopedTransformationOptions &
+  (ChordSpreadOptions | GraceSpreadOptions);
+
+/**
+ * Whether these options spread grace figures and not the rolls of chords.
+ *
+ * Asked by the desk as well, which lists the calls of either kind apart.
+ */
+export const spreadsGraces = (
+  options: InsertTemporalSpreadOptions,
+): options is ScopedTransformationOptions & GraceSpreadOptions =>
+  'group' in options || 'graces' in options;
+
+/**
+ * Fits how an ornament's notes are spread in time, off the recorded onsets: the frame they fall
+ * in, measured from the beat, and the spacing within it. Written as a physical value into the
+ * MPM, which `TranslatePhysicalTimeToTicks` later puts into ticks.
+ *
+ * Two kinds of ornament, told apart by the options ({@link spreadsGraces}):
+ *
+ * - **The roll of a chord.** Interpolates the arpeggiated chord and subtracts accordingly from
+ *   the recorded onsets, so that after the transformation all notes of the chord have the same
+ *   onset.
+ * - **The lead of a grace figure** (`graceSpread.ts`). Its notes have no time in the score, so
+ *   the ornament brings them and names the note they lead into, and nothing is subtracted.
  */
 export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpreadOptions> {
   readonly name = 'InsertTemporalSpread';
@@ -83,20 +87,56 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
     );
   }
 
-  range(): Range | undefined {
+  /** The one group a call names, where it names one. */
+  private group(): string | undefined {
+    return 'group' in this.options ? this.options.group : undefined;
+  }
+
+  range(msm: Alignment): Range | undefined {
+    if (spreadsGraces(this.options)) {
+      const group = this.group();
+      const row = group === undefined ? undefined : msm.graces.find((g) => g.group === group);
+      return row === undefined ? undefined : rangeAt(row.date);
+    }
     return 'date' in this.options ? rangeAt(this.options.date) : undefined;
   }
 
+  /**
+   * A chord's roll is fitted to the notes at its date, which is the default. A grace figure is
+   * fitted to notes no date of the score holds, and names them.
+   */
+  override evidence(msm: Alignment, residual?: Residual): string[] {
+    return spreadsGraces(this.options)
+      ? graceEvidence(msm, this.options.scope, this.group())
+      : super.evidence(msm, residual);
+  }
+
+  /**
+   * The chords first, then the grace figures. A figure is measured from where its principal's
+   * date sounds, and a roll over that date moves it: the chord is collapsed onto one onset, and
+   * what was taken out of the principal is remembered on it (`AlignedNote.spread`). Measured
+   * before that, the figure would be framed against an onset the chain no longer has.
+   */
+  override precedence(): number {
+    return spreadsGraces(this.options) ? 1 : 0;
+  }
+
   protected transform(msm: Alignment, mpm: Mpm): void {
+    const spread = this.options;
+    if (spreadsGraces(spread)) {
+      spreadGraces(msm, mpm, spread.scope, this.group());
+      return;
+    }
+
     // Each ornament is written in two goes: what MPM lets an `<ornament>` say, and the
     // `<temporalSpread>` fields that have no place on one and are parked on its element for
     // `StylizeOrnamentation` to collect.
     const ornaments: { options: AddOrnamentOptions; draft: OrnamentDraft }[] = [];
 
-    const score = msm.in(this.options.scope);
+    const score = msm.in(spread.scope);
     const chords = score.chords();
     for (const [date, chordNotes] of chords) {
-      if ('date' in this.options && date !== this.options.date) {
+      if ('date' in spread && date !== spread.date) {
         // if a date is specified, only process that date
         continue;
       }
@@ -122,8 +162,8 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
 
       // the arpeggio's duration is the time distance between first and last onset, in ms
       const duration = lastNote['milliseconds.date'] - firstNote['milliseconds.date'];
-      if ('durationThreshold' in this.options) {
-        if (duration <= (this.options.durationThreshold || 0)) continue;
+      if ('durationThreshold' in spread) {
+        if (duration <= (spread.durationThreshold || 0)) continue;
       }
 
       // by default, no offset shifting is applied
@@ -161,7 +201,7 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
       const frameLength = duration;
       let frameStart: number, newOnset: number;
 
-      const placement = this.options.placement;
+      const placement = spread.placement;
 
       if (placement === 'none') {
         // leave everything as it is
@@ -218,7 +258,7 @@ export class InsertTemporalSpread extends AbstractTransformer<InsertTemporalSpre
 
     // `fillInAt`, not `addOrnamentV3`: `InsertDynamicsGradient` may already have written
     // the ornament at this date, and the two describe one element between them.
-    const map = requireMap(mpm, 'ornament', this.options.scope);
+    const map = requireMap(mpm, 'ornament', spread.scope);
     for (const { options, draft } of ornaments) {
       setOrnamentDraft(
         fillInAt(map, options, {

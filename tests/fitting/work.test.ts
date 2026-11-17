@@ -205,6 +205,33 @@ describe('the work file', () => {
   });
 
   /**
+   * The lead of a grace figure was saved as an `InsertGraceNotes` until November 2026, a
+   * transformer beside `InsertTemporalSpread`, which now fits it as it fits the roll of a chord.
+   * A call naming one group has the options a spread over that group takes. One naming none
+   * wrote every figure of its scope, which a spread has to say: without a date it would be the
+   * default over the chords.
+   */
+  test('renames an InsertGraceNotes call to InsertTemporalSpread, saying which figures it wrote', () => {
+    const read = parseWorkFile(
+      JSON.stringify(
+        file([
+          { ...call('InsertGraceNotes', { scope: 1, group: 'y1eaaloe' }), id: 'one' },
+          { ...call('InsertGraceNotes', { scope: 'global' }), id: 'all' },
+        ]),
+      ),
+    );
+
+    expect(read.provenance).toEqual([
+      { id: 'one', name: 'InsertTemporalSpread', options: { scope: 1, group: 'y1eaaloe' } },
+      { id: 'all', name: 'InsertTemporalSpread', options: { scope: 'global', graces: 'all' } },
+    ]);
+    expect(buildChain(read.provenance).unknown).toEqual([]);
+    expect(serializeWorkFile(read)).not.toContain('InsertGraceNotes');
+    // Read a second time it says the same: the name it now has is left as it is.
+    expect(parseWorkFile(serializeWorkFile(read)).provenance).toEqual(read.provenance);
+  });
+
+  /**
    * The `Map` and `Set` envelopes, which are the whole reason these are not `JSON.parse` and
    * `JSON.stringify` at the call site.
    *

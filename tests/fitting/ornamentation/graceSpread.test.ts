@@ -17,11 +17,11 @@ import {
   silentOrnaments,
 } from '../../../src/fitting/instructions/index';
 import {
-  InsertGraceNotes,
   InsertTemporalSpread,
   MakeChoice,
   StylizeOrnamentation,
 } from '../../../src/fitting/transformers/index';
+import { compareTransformers } from '../../../src/fitting/transformers/Order';
 import { asMSM } from '../../../src/fitting/asMSM';
 import { runFit } from '../../../src/fitting/fit';
 import { parseWorkFile } from '../../../src/model/Work';
@@ -140,7 +140,7 @@ describe('an untied group', () => {
 
   test('is one ornament on its principal, the grace notes its pool, the principal last', () => {
     const mpm = createMpm();
-    callTransform(new InsertGraceNotes({ scope: 'global' }), msm(), mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), msm(), mpm);
     const { ornament, pool, frame } = figure(mpm, 'p');
     expect(ornament.id).toBe('grace_gg');
     expect(ornament.date).toBe(720);
@@ -157,7 +157,7 @@ describe('an untied group', () => {
   // `StylizeOrnamentation` to give a definition, and until then the figure names none.
   test('leaves its frame as a draft, and sounds once the chain has stylized it', () => {
     const mpm = createMpm();
-    callTransform(new InsertGraceNotes({ scope: 'global' }), msm(), mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), msm(), mpm);
     expect(getDefinition(mpm, 'ornamentDef', figure(mpm, 'p').ornament.nameRef)).toBeNull();
     expect(silentOrnaments(mpm).map((o) => o.id)).toEqual(['grace_gg']);
 
@@ -193,8 +193,33 @@ describe('an untied group', () => {
     expect(rolled.getByID('p')?.['milliseconds.date']).toBe(1940);
     expect(rolled.getByID('p')?.spread).toBe(60);
 
-    callTransform(new InsertGraceNotes({ scope: 'global' }), rolled, mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), rolled, mpm);
     // From the collapsed onset: the grace 240 ms before it, the principal 60 ms after, as recorded.
+    expect(figure(mpm, 'p').frame).toMatchObject({ start: -240, length: 300 });
+  });
+
+  // One transformer fits both, so the registry no longer orders a figure after the rolls: the
+  // calls say it of themselves. Made the other way round, the figure is still measured from the
+  // onset the roll leaves its principal on, and not from one the chain goes on to move.
+  test('is spread after the rolls, whichever call was made first', () => {
+    const rolled = alignment(
+      [note('p', 720, 72, 2000), note('bass', 720, 48, 1880)],
+      [grace('g1', 'gg', 'p', 0, 74, 1700)],
+    );
+    const figureFirst = [
+      new InsertTemporalSpread({ scope: 'global', group: 'gg' }),
+      new InsertTemporalSpread({
+        scope: 'global',
+        placement: 'estimate',
+        date: 720,
+        noteOffShiftTolerance: 2,
+      }),
+    ];
+    const ordered = [...figureFirst].sort(compareTransformers);
+    expect(ordered).toEqual([figureFirst[1], figureFirst[0]]);
+
+    const mpm = createMpm();
+    for (const transformer of ordered) callTransform(transformer, rolled, mpm);
     expect(figure(mpm, 'p').frame).toMatchObject({ start: -240, length: 300 });
   });
 });
@@ -214,7 +239,7 @@ describe('a group tied into its principal', () => {
 
   test('drops the tied grace note from the pool and strikes the principal in its place', () => {
     const mpm = createMpm();
-    callTransform(new InsertGraceNotes({ scope: 'global' }), msm(), mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), msm(), mpm);
     const { ornament, pool, frame } = figure(mpm, 'f3');
     expect(ornament.noteOrder).toBe('#bb #f3');
     expect(pool).toEqual([['bb', '46']]);
@@ -224,7 +249,7 @@ describe('a group tied into its principal', () => {
   test('is skipped when nothing recorded sounds on its date', () => {
     const mpm = createMpm();
     const lonely = alignment([], msm().graces, msm().tiedPrincipals);
-    callTransform(new InsertGraceNotes({ scope: 'global' }), lonely, mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), lonely, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toEqual([]);
   });
 
@@ -233,7 +258,7 @@ describe('a group tied into its principal', () => {
   test('is skipped when the score it is rendered against will not hold its principal', () => {
     const mpm = createMpm();
     const unstruck = alignment(msm().allNotes, msm().graces);
-    callTransform(new InsertGraceNotes({ scope: 'global' }), unstruck, mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), unstruck, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toEqual([]);
   });
 });
@@ -248,18 +273,18 @@ describe('which groups a call writes', () => {
       ],
     );
 
-  test('every group in the scope by default, only the named one with `group`', () => {
+  test('every group in the scope where it asks for all, only the named one with `group`', () => {
     const all = createMpm();
-    callTransform(new InsertGraceNotes({ scope: 'global' }), msm(), all);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), msm(), all);
     expect(getInstructions(all, 'ornament', 'global').map((o) => o.id)).toEqual([
       'grace_one',
       'grace_two',
     ]);
 
     const one = createMpm();
-    callTransform(new InsertGraceNotes({ scope: 'global', group: 'two' }), msm(), one);
+    callTransform(new InsertTemporalSpread({ scope: 'global', group: 'two' }), msm(), one);
     expect(getInstructions(one, 'ornament', 'global').map((o) => o.id)).toEqual(['grace_two']);
-    expect(new InsertGraceNotes({ scope: 'global', group: 'two' }).range(msm())).toEqual({
+    expect(new InsertTemporalSpread({ scope: 'global', group: 'two' }).range(msm())).toEqual({
       from: 1440,
     });
   });
@@ -270,7 +295,7 @@ describe('which groups a call writes', () => {
       grace('a', 'one', 'p1', 0, 74, 1810, { source: 'y' }),
     ]);
     const mpm = createMpm();
-    callTransform(new InsertGraceNotes({ scope: 'global' }), unchosen, mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), unchosen, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toEqual([]);
 
     callTransform(new MakeChoice({ prefer: 'y' }), unchosen, mpm);
@@ -327,7 +352,7 @@ describe('the published transcription', () => {
     const msm = asMSM(mei, movement.msm, movement.graces);
     callTransform(new MakeChoice({ prefer: 'c9050e75-97a8-4862-9533-0f4b1439802b' }), msm, createMpm());
     const mpm = createMpm();
-    callTransform(new InsertGraceNotes({ scope: 'global' }), msm, mpm);
+    callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), msm, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toHaveLength(8);
     // No tempo here for the hinge to convert along, so the frames are defined as measured.
     callTransform(new StylizeOrnamentation(), msm, mpm);

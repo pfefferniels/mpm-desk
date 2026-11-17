@@ -106,7 +106,9 @@ interface LegacyWorkFile extends WorkFile {
  * it goes by now. `InsertDynamics` was `InsertDynamicsInstructions` until November 2026, and
  * `AlignSource` was `Align`. An expansion was an `Expand` until then as well, a transformer of
  * its own beside `Modify`, whose options are the ones a `Modify` now takes for one: the name is
- * all that changes.
+ * all that changes. The lead of a grace figure was an `InsertGraceNotes`, beside the
+ * `InsertTemporalSpread` that fits the roll of a chord and now fits both; its options carry over
+ * but for one case, which {@link nameEveryGrace} writes out.
  *
  * A `Map` rather than an object literal, so that a call named after an `Object.prototype` member
  * cannot read back an inherited function as its new name.
@@ -115,7 +117,26 @@ const RENAMED: ReadonlyMap<string, string> = new Map([
     ['InsertDynamicsInstructions', 'InsertDynamics'],
     ['Align', 'AlignSource'],
     ['Expand', 'Modify'],
+    ['InsertGraceNotes', 'InsertTemporalSpread'],
 ]);
+
+/**
+ * What an `InsertGraceNotes` call said by saying nothing: that it writes every grace figure of
+ * its scope. It named one group or none, and none meant all of them. Under the name it goes by
+ * now that cannot be left unsaid, a spread without a date being the default over the chords, so
+ * it is written out as `graces: 'all'`.
+ *
+ * Asks for the call by the name it was saved under, so it has to run before the call is renamed.
+ */
+function nameEveryGrace(call: Call): void {
+    if (call.name !== 'InsertGraceNotes') return;
+    if (typeof call.options['group'] === 'string') return;
+    // A `group` that is no name, a `null` say, means none as its absence does.
+    call.options = {
+        ...Object.fromEntries(Object.entries(call.options).filter(([key]) => key !== 'group')),
+        graces: 'all',
+    };
+}
 
 /**
  * The guides of an `InsertDynamics` call under the name a file saved before November 2026 gives
@@ -150,13 +171,15 @@ function renameGuides(call: Call): void {
  * save writes a file without them. Nothing reads them any more, and a field carried through
  * unread is one nobody can edit. A call saved under a transformer's former name is renamed, for
  * the same reason: past this point every transformer has one name, and the next save writes it.
- * Its guides are read under the name they have now.
+ * Its guides are read under the name they have now, and a call that wrote every grace figure
+ * says so.
  */
 export function parseWorkFile(json: string): WorkFile {
     const work = JSON.parse(json, reviver) as LegacyWorkFile;
     delete work.segments;
     for (const call of work.provenance) {
         delete call.segment;
+        nameEveryGrace(call);
         call.name = RENAMED.get(call.name) ?? call.name;
         renameGuides(call);
     }

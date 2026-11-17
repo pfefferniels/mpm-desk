@@ -9,7 +9,6 @@ import { CorrectPedal } from './modification/CorrectPedal';
 import {
   InsertTemporalSpread,
   InsertDynamicsGradient,
-  InsertGraceNotes,
   StylizeOrnamentation,
 } from './ornamentation/index';
 import { InsertPedal } from './pedal/InsertPedal';
@@ -80,12 +79,12 @@ const REGISTERED = [
   // `<ornament>` the spread wrote already has a scale, and the gradient's fitted one would be
   // dropped into it silently. Gradient first, and the question does not arise.
   InsertDynamicsGradient,
+  // The rolls of the chords and the leads of the grace figures, in that order among its own calls
+  // (`InsertTemporalSpread.precedence`): a figure replaces its principal, and is measured from the
+  // onset a roll collapsed the principal's chord onto, plus the stagger it took out of the
+  // principal (`AlignedNote.spread`). Before `InsertTempo`, because both read onsets in the
+  // recording's own domain, and before the hinge, which turns their frames into ticks.
   InsertTemporalSpread,
-  // After the spread, which it reads: a grace figure replaces its principal, and is measured from
-  // the onset the spread collapsed the principal's chord onto, plus the stagger it took out of the
-  // principal (`AlignedNote.spread`). Before `InsertTempo`, like the spread, because it reads
-  // onsets in the recording's own domain, and before the hinge, which turns its frame into ticks.
-  InsertGraceNotes,
   // The last to rewrite the recording: `InsertTempo` calls `shiftToFirstOnset`, which moves
   // `milliseconds.date` on every note. Every fitter above works in the recording's own domain,
   // milliseconds, and several rewrite the recorded onsets as they go; from here on the question

@@ -19,7 +19,6 @@ import {
     type Scope,
 } from '../../fitting/instructions/index';
 import { InsertTemporalSpread } from '../../fitting/transformers/ornamentation/InsertTemporalSpread';
-import { InsertGraceNotes } from '../../fitting/transformers/ornamentation/InsertGraceNotes';
 import { GRACE_COLOUR } from './graceFigures';
 import type { Residual } from '../../fitting/residual';
 import { TemporalSpreadDesk } from './TemporalSpreadDesk';
@@ -377,7 +376,7 @@ describe('the grace figures it plots', () => {
         desk.dispose();
     });
 
-    it('writes the selected figure as a grace notes call, with no dialog to pass', () => {
+    it('writes the selected figure as a spread over its group, with no dialog to pass', () => {
         const { addTransformer, figures, dispose } = mount(1, { msm: withGraces() });
 
         act(() => {
@@ -390,8 +389,8 @@ describe('the grace figures it plots', () => {
 
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(addTransformer).toHaveBeenCalledTimes(1);
-        const sent = addTransformer.mock.calls[0][0] as InsertGraceNotes;
-        expect(sent).toBeInstanceOf(InsertGraceNotes);
+        const sent = addTransformer.mock.calls[0][0] as InsertTemporalSpread;
+        expect(sent).toBeInstanceOf(InsertTemporalSpread);
         expect(sent.options).toEqual({ scope: 1, group: 'hh' });
         dispose();
     });
@@ -438,7 +437,7 @@ describe('the grace figures it plots', () => {
         dispose();
     });
 
-    // `InsertGraceNotes` skips such a group, having no strike to measure to. It is drawn all the
+    // `InsertTemporalSpread` skips such a group, having no strike to measure to. It is drawn all the
     // same, and as what it is: there, and nothing to be done with it.
     it('draws a figure whose principal the recording does not strike, and offers nothing for it', () => {
         const msm = withGraces();
@@ -471,9 +470,13 @@ describe('the grace figures it plots', () => {
 });
 
 describe('every grace figure at once', () => {
-    const all = (): Call => ({ id: 'all figures', name: 'InsertGraceNotes', options: { scope: 1 } });
+    const all = (): Call => ({
+        id: 'all figures',
+        name: 'InsertTemporalSpread',
+        options: { scope: 1, graces: 'all' },
+    });
 
-    it('is written by a call that names no group, with no dialog to pass', () => {
+    it('is written by a call that names them all, with no dialog to pass', () => {
         const { addTransformer, dispose } = mount(1, { msm: withGraces() });
 
         act(() => {
@@ -481,9 +484,9 @@ describe('every grace figure at once', () => {
         });
 
         expect(screen.queryByRole('dialog')).toBeNull();
-        const sent = addTransformer.mock.calls[0][0] as InsertGraceNotes;
-        expect(sent).toBeInstanceOf(InsertGraceNotes);
-        expect(sent.options).toEqual({ scope: 1 });
+        const sent = addTransformer.mock.calls[0][0] as InsertTemporalSpread;
+        expect(sent).toBeInstanceOf(InsertTemporalSpread);
+        expect(sent.options).toEqual({ scope: 1, graces: 'all' });
         dispose();
     });
 
@@ -502,6 +505,15 @@ describe('every grace figure at once', () => {
         expect(screen.getByRole('button', { name: 'Insert All' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Remove All' })).toBeDisabled();
         other.dispose();
+    });
+
+    // Neither names a date, and only one of the two is a default over the chords.
+    it('is not taken for the default of the rolls', () => {
+        const { dispose } = mount(1, { msm: withGraces(), calls: [all()] });
+
+        expect(screen.getByRole('button', { name: 'Insert Default' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Remove Default' })).toBeDisabled();
+        dispose();
     });
 
     it('is not offered where the scope has no figure to write', () => {
