@@ -33,7 +33,7 @@ interface GraceSpreadProps {
  * notes by name, whether the last is tied into the principal, and how long it took.
  *
  * A figure whose principal the recording does not strike has no frame to draw and none to write:
- * `InsertGraceNotes` skips it. Its grace notes are drawn all the same, dashed, so that it is
+ * `InsertTemporalSpread` skips it. Its grace notes are drawn all the same, dashed, so that it is
  * seen to be there and why nothing can be done with it.
  */
 export const GraceSpread = ({ figure, notes, onClick, selected = false, evidence = false, stretch, height }: GraceSpreadProps) => {

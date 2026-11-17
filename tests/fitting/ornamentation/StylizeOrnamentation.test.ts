@@ -17,7 +17,6 @@ import {
 } from '../../../src/fitting/instructions/index';
 import {
   InsertDynamicsGradient,
-  InsertGraceNotes,
   InsertTemporalSpread,
   StylizeOrnamentation,
   TranslatePhysicalTimeToTicks,
@@ -302,15 +301,16 @@ describe('the styles it previews', () => {
 });
 
 /**
- * Three fitters park a draft for this to collect, and any one of them is enough to stylize. It
- * used to `require` two of them by name, which asks for both: a chain could not stylize its
- * rolls without also fitting a gradient, and one with grace notes alone not at all.
+ * Two fitters park a draft for this to collect, one of them for a roll and for a grace figure,
+ * and any one of the three is enough to stylize. It used to `require` both fitters by name,
+ * which asks for both: a chain could not stylize its rolls, or its grace figures, without also
+ * fitting a gradient.
  */
 describe('what a chain needs before it can stylize', () => {
   test.each([
     ['rolls', () => new InsertTemporalSpread()],
     ['gradients', () => new InsertDynamicsGradient()],
-    ['grace figures', () => new InsertGraceNotes()],
+    ['grace figures', () => new InsertTemporalSpread({ scope: 'global', graces: 'all' })],
   ])('%s alone will do', (_, fitter) => {
     expect(
       validate([fitter(), new TranslatePhysicalTimeToTicks(), new StylizeOrnamentation()]),

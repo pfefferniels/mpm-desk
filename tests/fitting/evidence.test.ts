@@ -8,7 +8,6 @@ import { InsertTemporalSpread } from '../../src/fitting/transformers/ornamentati
 import { InsertPedal } from '../../src/fitting/transformers/pedal/InsertPedal';
 import { Modify } from '../../src/fitting/transformers/modification/Modify';
 import { MergeMetricalAccentuations } from '../../src/fitting/transformers/accentuation/MergeMetricalAccentuations';
-import { InsertGraceNotes } from '../../src/fitting/transformers/ornamentation/InsertGraceNotes';
 import type { AlignedGrace } from '../../src/fitting/alignment';
 
 /**
@@ -130,9 +129,9 @@ describe('what a call was fitted to', () => {
         msm.graces = [grace('g1', 'grp1', 'n1440'), grace('g2', 'grp2', 'n2160'), grace('g3', 'grp3', 'bass0', 2)];
 
         // One group: not the chord at the principal's date, which no grace note is part of.
-        expect(new InsertGraceNotes({ scope: 'global', group: 'grp1' }).evidence(msm).sort()).toEqual(['g1', 'n1440']);
-        // Every group of a part, where it names none.
-        expect(new InsertGraceNotes({ scope: 0 }).evidence(msm).sort()).toEqual(['g1', 'g2', 'n1440', 'n2160']);
+        expect(new InsertTemporalSpread({ scope: 'global', group: 'grp1' }).evidence(msm).sort()).toEqual(['g1', 'n1440']);
+        // Every group of a part, where it asks for them all.
+        expect(new InsertTemporalSpread({ scope: 0, graces: 'all' }).evidence(msm).sort()).toEqual(['g1', 'g2', 'n1440', 'n2160']);
     });
 
     test('a pass over the whole piece: nothing, being about no place in it', () => {

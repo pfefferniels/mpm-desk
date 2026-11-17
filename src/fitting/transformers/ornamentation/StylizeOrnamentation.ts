@@ -175,10 +175,10 @@ export class StylizeOrnamentation extends AbstractTransformer<StylizeOrnamentati
   readonly name = 'StylizeOrnamentation';
 
   /**
-   * Nothing, though three fitters feed it: `InsertDynamicsGradient`, `InsertTemporalSpread` and
-   * `InsertGraceNotes` each park a draft for this to collect. `requires` asks for *every* name it
-   * lists, and this named the first two, so a chain could not stylize its rolls without also
-   * fitting a gradient, nor its grace figures without both. Any one of them is enough, and with
+   * Nothing, though two fitters feed it: `InsertDynamicsGradient` and `InsertTemporalSpread`
+   * each park a draft for this to collect, the second for a chord's roll and for a grace figure.
+   * `requires` asks for *every* name it lists, and this named both, so a chain could not stylize
+   * its rolls or its grace figures without also fitting a gradient. Either one is enough, and with
    * none of them there is nothing here to define and nothing to get wrong. Where each belongs
    * relative to this is the registry's to say (`Order.ts`), which `requires` never decided.
    */

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ScopedTransformerViewProps } from "../TransformerViewProps";
-import { type ArpeggioPlacement, InsertTemporalSpread } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
+import { type ArpeggioPlacement, InsertTemporalSpread, spreadsGraces } from "../../fitting/transformers/ornamentation/InsertTemporalSpread";
 import { getDefinition, performedInstructions, type Instruction } from "../../fitting/instructions/index";
 import type { TemporalSpread } from "espressivo";
 import { frameIn } from "./spreadFrame";
@@ -8,7 +8,6 @@ import { onsetSeconds, releaseSeconds } from "../noteTiming";
 import { ChordSpread } from "./ChordSpread";
 import { GraceSpread } from "./GraceSpread";
 import { GRACE_COLOUR, graceFiguresOf, soundingNotesOf } from "./graceFigures";
-import { InsertGraceNotes } from "../../fitting/transformers/ornamentation/InsertGraceNotes";
 import { TextField, Select, MenuItem, Button, FormControl, InputLabel, Dialog, DialogContent, DialogActions, DialogTitle, Stack } from "@mui/material";
 import { DeskToolbar } from "../../components/DeskToolbar";
 import { ToolGroup } from "../../components/toolbar/ToolGroup";
@@ -34,17 +33,16 @@ import { useEditable } from "../../hooks/Editing";
  * Both are ornaments that spread notes over a frame, fitted here, put into ticks by the chain and
  * given a definition on the Styles desk, so both are on this desk: a chord's roll in red, a grace
  * figure in `GRACE_COLOUR`, from its first grace note to the strike of its principal. Insert
- * writes whichever is selected, a chord as an `InsertTemporalSpread` and a figure as an
- * `InsertGraceNotes`, and the strip below draws what has been written for either. Each has a
- * default of its own: every roll long enough, every grace figure. There is no desk for grace
- * notes beside this one, so an `InsertGraceNotes` call opens here (`transformerAliases.ts`).
+ * writes whichever is selected, as an `InsertTemporalSpread` either way: over a date for a chord,
+ * over a group for a figure. The strip below draws what has been written for either. Each has a
+ * default of its own: every roll long enough, every grace figure.
  *
  * In the viewer the plot is only read: a chord or a figure sounds as the pointer passes and says
  * how long it took, a written spread selects the call that wrote it, and what that call was fitted
  * to is marked. What inserts or removes a spread, and the count of spreads still waiting for a
  * style, is the editor's.
  */
-export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread | InsertGraceNotes>) => {
+export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTransformerViewProps<InsertTemporalSpread>) => {
     const editable = useEditable()
 
     /**
@@ -84,14 +82,16 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
     // by name alone reports part 1's default while part 2 is on screen. Under the old flip button
     // that showed up as "Remove Default" offered in a part that has none; under the split it would
     // be a permanently dead `Insert Default` in every part but the one holding the call.
-    const defaultCall = calls
-        .filter(isCallOf('InsertTemporalSpread'))
-        .find(t => t.options.scope === part && !('date' in t.options))
+    //
+    // Among the spreads over chords: a spread over grace figures names no date either, and is
+    // no default of the rolls.
+    const spreadCalls = calls.filter(isCallOf('InsertTemporalSpread'))
+    const defaultCall = spreadCalls
+        .find(t => t.options.scope === part && !spreadsGraces(t.options) && !('date' in t.options))
 
     // The call that writes every grace figure of the scope at once, which names no group.
-    const defaultFiguresCall = calls
-        .filter(isCallOf('InsertGraceNotes'))
-        .find(t => t.options.scope === part && t.options.group === undefined)
+    const defaultFiguresCall = spreadCalls
+        .find(t => t.options.scope === part && 'graces' in t.options)
 
     const averageBPM = useMemo(() => {
         const notes = msm.allNotes
@@ -258,7 +258,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                                     // A figure has nothing to ask: it is placed by its principal
                                     // and written as it was played, so there is no dialog for it.
                                     if (selectedFigure !== undefined) {
-                                        addTransformer(new InsertGraceNotes({ scope: part, group: selectedFigure.group }))
+                                        addTransformer(new InsertTemporalSpread({ scope: part, group: selectedFigure.group }))
                                         setCurrentGroup(undefined)
                                     }
                                     else setInsert('chord')
@@ -312,7 +312,7 @@ export const TemporalSpreadDesk = ({ msm, mpm, part, addTransformer }: ScopedTra
                                         ? 'Write every grace figure in this scope as an ornament on its principal'
                                         : 'The recording times no grace figure in this scope'}
                                 disabled={defaultFiguresCall !== undefined || !hasFigures}
-                                onClick={() => addTransformer(new InsertGraceNotes({ scope: part }))}
+                                onClick={() => addTransformer(new InsertTemporalSpread({ scope: part, graces: 'all' }))}
                             >
                                 Insert All
                             </ToolbarButton>

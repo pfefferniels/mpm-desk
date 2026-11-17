@@ -4,7 +4,7 @@
  * An ornament carries no performance data of its own. The roll and the ramp live on the
  * `<ornamentDef>` its `@name.ref` points at, so an ornament whose reference reaches no definition
  * is well-formed, plainly visible in the markup, and silent. That is the state the fitters leave
- * their ornaments in: `InsertTemporalSpread`, `InsertDynamicsGradient` and `InsertGraceNotes`
+ * their ornaments in: `InsertTemporalSpread` and `InsertDynamicsGradient`
  * write `@name.ref="neutralArpeggio"` and park the fitted values on the element as a draft (see
  * `ornamentDraft.ts`), and `StylizeOrnamentation` is what turns those into definitions and
  * repoints the ornaments at them. Until it has run, an arpeggiation desk shows a fit that changes

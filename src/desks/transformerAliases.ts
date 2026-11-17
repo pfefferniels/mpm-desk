@@ -3,9 +3,7 @@ import { correspondingDesks } from './DeskSwitch';
 /**
  * Calls another transformer's desk serves, by the name the call was saved under:
  * `TranslatePhysicalTimeToTicks`, which the chain makes for itself and the tempo desk answers for;
- * `CorrectPedal`, which the corrections desk makes beside `Modify`; `InsertGraceNotes`, which the
- * temporal spread desk makes beside `InsertTemporalSpread`, a grace figure being plotted and
- * written where the rolls are; and what a desk's
+ * `CorrectPedal`, which the corrections desk makes beside `Modify`; and what a desk's
  * buttons make beside the calls its gestures do, `CombineAdjacentRubatos` on the rubato desk,
  * `MergeMetricalAccentuations` on the accentuation desk and `MakeDefaultArticulation` on the
  * articulation desk.
@@ -19,7 +17,6 @@ import { correspondingDesks } from './DeskSwitch';
 export const TRANSFORMER_ALIASES: ReadonlyMap<string, string> = new Map([
     ['TranslatePhysicalTimeToTicks', 'InsertTempo'],
     ['CorrectPedal', 'Modify'],
-    ['InsertGraceNotes', 'InsertTemporalSpread'],
     ['CombineAdjacentRubatos', 'InsertRubato'],
     ['MergeMetricalAccentuations', 'InsertMetricalAccentuation'],
     ['MakeDefaultArticulation', 'InsertArticulation'],

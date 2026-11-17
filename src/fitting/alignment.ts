@@ -91,8 +91,8 @@ export type AlignedNote = {
      * How far, in ms, an arpeggio fit moved this onset when it collapsed the chord onto one
      * (recorded less collapsed), or absent where nothing did.
      *
-     * `InsertTemporalSpread` writes it as it takes the stagger out, so that a later fitter can
-     * still say where the note sounded. `InsertGraceNotes` needs it: a grace figure replaces its
+     * `InsertTemporalSpread` writes it as it takes the stagger out, so that a later fit can
+     * still say where the note sounded. Its own of a grace figure needs it: a figure replaces its
      * principal, and the renderer lays the figure out from the chord's onset, not from where the
      * arpeggio would have put the principal.
      */
@@ -313,7 +313,7 @@ export class Alignment {
    * sounds where its grace figure puts it, often a beat ahead, where the arpeggio and tempo fits
    * would take it for a chord note struck early.
    *
-   * It is a note of the score all the same, and the figure needs it there. `InsertGraceNotes`
+   * It is a note of the score all the same, and the figure needs it there. `InsertTemporalSpread`
    * writes the group as an ornament on it (`@noteid`), and the renderer plays an ornament by
    * replacing its principal with the figure; without the note there is nothing to replace, and
    * the whole figure, grace notes and held principal alike, is skipped. So the score half is kept
