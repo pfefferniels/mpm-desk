@@ -1,4 +1,5 @@
 import { MidiFile } from "midifile-ts";
+import { manifestationIdOf } from "./take";
 
 interface RecordingMetadata {
     applicationName?: string;
@@ -45,10 +46,12 @@ export const insertMetadata = (metadata: RecordingMetadata, meiDoc: Document) =>
         meiHeader.appendChild(manifestationList);
     }
 
-    let manifestation = manifestationList.querySelector(`manifestation[*|id="${metadata.source || 'unknown-source'}"]`);
+    // The take's own: the one its recording's `@source` points at (see ./take)
+    const id = manifestationIdOf(metadata.source || 'unknown-source');
+    let manifestation = manifestationList.querySelector(`manifestation[*|id="${id}"]`);
     if (!manifestation) {
         manifestation = meiDoc.createElementNS("http://www.music-encoding.org/ns/mei", "manifestation");
-        manifestation.setAttribute("xml:id", metadata.source || 'unknown-source');
+        manifestation.setAttribute("xml:id", id);
         manifestationList.appendChild(manifestation);
     }
 

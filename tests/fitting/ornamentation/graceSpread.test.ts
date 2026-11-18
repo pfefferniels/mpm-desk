@@ -350,7 +350,7 @@ describe('the published transcription', () => {
   // conversion, which holds every note of the MEI and so had the principals all along.
   test('plays bar 3’s B♭–F as the roll does: the F struck 108 ms after the B♭ and held', () => {
     const msm = asMSM(mei, movement.msm, movement.graces);
-    callTransform(new MakeChoice({ prefer: 'c9050e75-97a8-4862-9533-0f4b1439802b' }), msm, createMpm());
+    callTransform(new MakeChoice({ prefer: '#take-c9050e75-97a8-4862-9533-0f4b1439802b' }), msm, createMpm());
     const mpm = createMpm();
     callTransform(new InsertTemporalSpread({ scope: 'global', graces: 'all' }), msm, mpm);
     expect(getInstructions(mpm, 'ornament', 'global')).toHaveLength(8);

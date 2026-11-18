@@ -26,6 +26,7 @@ import { read, type MidiFile } from 'midifile-ts';
 import { NotesProvider } from './hooks/NotesProvider';
 import { PerformancesProvider, type Performance } from './hooks/Performances';
 import { parseMetadata } from './mei/insertMetadata';
+import { takeSource } from './mei/take';
 import { checkPerformance } from './alignment/mlign';
 import { ZoomContext } from './hooks/ZoomProvider';
 import { CallSelectionProvider } from './hooks/CallSelection';
@@ -397,9 +398,9 @@ export const App = ({ mode = 'edit' }: AppProps) => {
      * The bytes as well as the parse: the aligner works on the parse, the archive stores the
      * bytes, and `midifile-ts` reads a file without writing one back.
      *
-     * The `@source` is the file's stem unless the file names one itself, which a piano-roll scan
-     * does. Minted here rather than in the desk because it must be unique against the takes
-     * already in hand, which is what this holds.
+     * The `@source` is `#take-` and the file's stem, or the source the file names itself, which a
+     * piano-roll scan does (see `takeSource`). Minted here rather than in the desk because it must
+     * be unique against the takes already in hand, which is what this holds.
      */
     const readPerformance = useCallback(
         async (file: File): Promise<Performance | undefined> => {
@@ -419,7 +420,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
             }
 
             const stem = file.name.replace(/\.[^.]+$/, '');
-            return { source: parseMetadata(midi).source ?? stem, name: file.name, midi, bytes: new Uint8Array(buffer) };
+            return { source: takeSource(parseMetadata(midi).source ?? stem), name: file.name, midi, bytes: new Uint8Array(buffer) };
         },
         [],
     );
@@ -466,7 +467,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                 const name = entry.name.replace(/^recordings\//, '');
                 const midi = read(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
                 const stem = name.replace(/\.[^.]+$/, '');
-                addPerformance({ source: parseMetadata(midi).source ?? stem, name, midi, bytes });
+                addPerformance({ source: takeSource(parseMetadata(midi).source ?? stem), name, midi, bytes });
             }
         },
         [loadMei, loadWorkFromJson, addPerformance],

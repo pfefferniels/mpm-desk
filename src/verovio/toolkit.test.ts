@@ -16,7 +16,7 @@ import { defaultOptions, loadVerovio, renderScore, supportsOption } from './tool
 const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
 /** The `@source` of the recording the published `work.json`'s `MakeChoice` prefers. */
-const RECORDING = 'c9050e75-97a8-4862-9533-0f4b1439802b';
+const RECORDING = '#take-c9050e75-97a8-4862-9533-0f4b1439802b';
 
 let toolkit: VerovioToolkit;
 
