@@ -249,7 +249,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
         return edit;
     };
 
-    const newNote = (span: NoteSpan, group: string, reason: string, confidence: number, staff: StaffModel, onset: number): NewNote => {
+    const newNote = (span: NoteSpan, group: string, cause: string, confidence: number, staff: StaffModel, onset: number): NewNote => {
         // Two keys of one pitch cannot go down in the same millisecond, so this is one note
         const id = writtenIdOf(span);
         ids.add(id);
@@ -258,7 +258,7 @@ export function transcribe(input: TranscribeInput): Transcribed {
             pitch: span.pitch,
             spelling: spell(span.pitch, { key: staff.key, around: around(model, staff.measure, onset) }),
             group,
-            reason,
+            cause,
             confidence,
         };
     };

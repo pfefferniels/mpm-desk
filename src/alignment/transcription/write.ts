@@ -66,8 +66,8 @@ export interface NewNote {
     spelling: Spelling;
     /** The divergence it belongs to, which is what a reader's decision is filed under */
     group: string;
-    /** Why the performance has it: `added-octave`, `ornamentation`, `substitution`, … */
-    reason: string;
+    /** Why the performance has it, for `@cause`: `added-octave`, `ornamentation`, `substitution`, … */
+    cause: string;
     /** How sure the placement is, in [0, 1] */
     confidence: number;
 }
@@ -166,7 +166,7 @@ export function applyEdits(
     const notation = planNotation(edits);
 
     /** An `<app>` with both readings, the performance one attributed. */
-    const appFor = (notes: readonly { reason: string; confidence: number }[], fallback: string) => {
+    const appFor = (notes: readonly { cause: string; confidence: number }[], fallback: string) => {
         const app = doc.createElementNS(MEI_NS, "app");
         app.setAttribute("type", TRANSCRIPTION);
 
@@ -176,7 +176,7 @@ export function applyEdits(
 
         const performance = doc.createElementNS(MEI_NS, "rdg");
         performance.setAttribute("source", "performance");
-        performance.setAttribute("reason", notes[0]?.reason ?? fallback);
+        performance.setAttribute("cause", notes[0]?.cause ?? fallback);
         if (attribution.resp) performance.setAttribute("resp", attribution.resp);
         const least = notes.reduce((min, note) => Math.min(min, note.confidence), 1);
         performance.setAttribute("cert", certaintyOf(notes.length > 0 ? least : 1));
@@ -534,7 +534,7 @@ export function applyEdits(
 
     for (const edit of edits.signs) {
         const measure = edit.anchor.event.layer.staff.measure.element;
-        const { app, performance } = appFor([{ reason: "ornamentation", confidence: edit.confidence }], "ornamentation");
+        const { app, performance } = appFor([{ cause: "ornamentation", confidence: edit.confidence }], "ornamentation");
         const sign = doc.createElementNS(MEI_NS, edit.sign.name);
         sign.setAttribute("startid", `#${edit.anchor.id}`);
         if (edit.sign.name === "mordent") sign.setAttribute("form", edit.sign.form);
@@ -547,13 +547,13 @@ export function applyEdits(
     for (const edit of edits.unties) {
         const parent = edit.tie.parentElement;
         if (!parent) continue;
-        const { app, original } = appFor([{ reason: "struck-again", confidence: edit.confidence }], "struck-again");
+        const { app, original } = appFor([{ cause: "struck-again", confidence: edit.confidence }], "struck-again");
         parent.insertBefore(app, edit.tie);
         original.appendChild(edit.tie);
     }
     for (const edit of edits.ties) {
         const measure = edit.from.event.layer.staff.measure.element;
-        const { app, performance } = appFor([{ reason: "held", confidence: 1 }], "held");
+        const { app, performance } = appFor([{ cause: "held", confidence: 1 }], "held");
         const tie = doc.createElementNS(MEI_NS, "tie");
         tie.setAttribute("startid", `#${edit.from.id}`);
         tie.setAttribute("endid", `#${edit.to.id}`);
