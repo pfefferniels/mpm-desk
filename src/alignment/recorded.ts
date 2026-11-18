@@ -23,13 +23,14 @@ export interface RecordedAlignment {
 }
 
 /**
- * How sure the model was that a note it matched is that note.
+ * How sure the model was that a note it matched is that note, where nothing says.
  *
- * Not recorded: `insertWhen` writes the moment, the velocity and the lengths, and a plain match
- * carries no confidence. Nor is one needed — `divergencesOf` reads a match for its *timing* only,
- * to anchor the passage, and the one thing confidence decided (which matches were written at all)
- * was decided before this document was saved. Stating it as certainty rather than as zero is what
- * keeps a re-read alignment from looking like an unusually doubtful fresh one.
+ * The working form says: `insertWhen` writes the confidence beside the moment, and the page
+ * draws a doubtful match by the score (`src/desks/alignment/anchoredLayout`), which has to
+ * survive the desk writing a fresh run into the document a moment after it was made. A saved
+ * document does not say, and nothing else needs it to — `divergencesOf` reads a match for its
+ * *timing* only. Stating it as certainty rather than as zero is what keeps a re-read alignment
+ * from looking like an unusually doubtful fresh one.
  */
 const MATCHED = 1;
 
@@ -60,7 +61,7 @@ export const recordedAlignment = (recording: RecordingInfo): RecordedAlignment =
     const matches: MatchedNote[] = [...recording.noteSpans].map(([scoreId, span]) => ({
         scoreId,
         performanceId: span.id,
-        confidence: MATCHED,
+        confidence: recording.matchConfidence.get(scoreId) ?? MATCHED,
     }));
 
     const deletions: DeletedNote[] = [];

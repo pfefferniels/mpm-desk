@@ -393,7 +393,7 @@ export const AlignmentDesk = () => {
 
     /**
      * The matches the model doubted, and where the page draws them instead of where they were
-     * struck. Empty for an alignment read back from the document, which does not record how sure
+     * struck. Empty for an alignment read back from a saved file, which does not keep how sure
      * the model was of a match. See `./anchoredLayout`.
      */
     const moved = useMemo(() => {
@@ -1041,7 +1041,7 @@ export const AlignmentDesk = () => {
                         label="Unsure as written"
                         tooltip={
                             moved.size === 0
-                                ? 'The model was sure of every match, so every note is drawn where it was struck'
+                                ? 'Every note is drawn where it was struck: the model was sure of every match, or this alignment was read from a saved file, which does not keep how sure it was'
                                 : `Draw the ${String(moved.size)} match${moved.size === 1 ? '' : 'es'} the model was unsure of where the score puts them between the sure ones, rather than where they were struck`
                         }
                         disabled={moved.size === 0}

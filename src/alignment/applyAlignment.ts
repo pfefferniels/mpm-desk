@@ -90,7 +90,7 @@ export function applyAlignment(
             continue;
         }
 
-        insertWhen(meiDoc, recording, span, pair.score_id);
+        insertWhen(meiDoc, recording, span, pair.score_id, pair.confidence);
     }
 
     if (unknown.length > 0) {

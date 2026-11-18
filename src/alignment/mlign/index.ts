@@ -521,6 +521,7 @@ export function toMatches(
         .map((match) => ({
             score_id: match.scoreId,
             performance_id: match.performanceId,
+            confidence: match.confidence,
         }));
 }
 

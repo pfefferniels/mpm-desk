@@ -39,7 +39,14 @@ export const insertRecording = (newMEI: Document, source: string) => {
     return recording
 }
 
-export const insertWhen = (newMEI: Document, recording: Element, midiSpan: AnySpan, scoreNote: string) => {
+export const insertWhen = (
+    newMEI: Document,
+    recording: Element,
+    midiSpan: AnySpan,
+    scoreNote: string,
+    /** How sure the aligner was of the match, which only the working form carries */
+    confidence?: number
+) => {
     const when = newMEI.createElementNS('http://www.music-encoding.org/ns/mei', 'when');
     recording.appendChild(when);
 
@@ -70,6 +77,13 @@ export const insertWhen = (newMEI: Document, recording: Element, midiSpan: AnySp
     when.appendChild(durationMs);
     when.appendChild(onsetTicks);
     when.appendChild(durationTicks);
+
+    if (confidence !== undefined) {
+        const sure = newMEI.createElementNS('http://www.music-encoding.org/ns/mei', 'extData');
+        sure.setAttribute('type', 'confidence');
+        sure.textContent = confidence.toFixed(3);
+        when.appendChild(sure);
+    }
 };
 
 /** One <extData type="..."> child, which is how a <when> carries anything extra. */

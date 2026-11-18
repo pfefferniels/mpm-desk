@@ -48,12 +48,12 @@ const knownId = (): string => {
 }
 
 describe('the matches handed to applyAlignment', () => {
-  it('renames the fields and keeps the order', () => {
+  it('renames the fields, keeps the order and how sure the model was', () => {
     const pairs = toMatches([match('a', 0.9), match('b', 0.1)])
 
     expect(pairs).toEqual([
-      { score_id: 'a', performance_id: 'p-a' },
-      { score_id: 'b', performance_id: 'p-b' },
+      { score_id: 'a', performance_id: 'p-a', confidence: 0.9 },
+      { score_id: 'b', performance_id: 'p-b', confidence: 0.1 },
     ])
   })
 

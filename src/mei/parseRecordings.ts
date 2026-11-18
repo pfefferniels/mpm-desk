@@ -51,6 +51,11 @@ export interface RecordingInfo {
     source: string;
     label: string;
     noteSpans: Map<string, NoteSpan>;
+    /**
+     * How sure the aligner was of each match, by the written note, where the `<when>` says.
+     * Only the working form says: a saved document keeps the match and not the doubt.
+     */
+    matchConfidence: Map<string, number>;
     pedalEvents: PedalEvent[];
     divergences: RecordedDivergence[];
 }
@@ -109,6 +114,7 @@ export function parseRecordings(mei: string): {
         const label = `Recording ${ri + 1}`;
 
         const noteSpans = new Map<string, NoteSpan>();
+        const matchConfidence = new Map<string, number>();
         const pedalEvents: PedalEvent[] = [];
         const divergences: RecordedDivergence[] = [];
 
@@ -251,12 +257,13 @@ export function parseRecordings(mei: string): {
                     velocity,
                     channel: 0,
                 });
+                if (confidence !== undefined) matchConfidence.set(noteId, confidence);
             } else if (type === "sustain" || type === "soft") {
                 pedalEvents.push({ type, onsetMs, durationMs, ...(travel && { travel }) });
             }
         }
 
-        recordings.push({ source, label, noteSpans, pedalEvents, divergences });
+        recordings.push({ source, label, noteSpans, matchConfidence, pedalEvents, divergences });
     }
 
     return { recordings, pitchMap };
