@@ -32,8 +32,9 @@ import type { WorkAlignment } from '../../model/workReducer';
 import { APP_BAR_HEIGHT } from '../../components/toolbar/EditorAppBar';
 import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
-import { ToolbarButton } from '../../components/toolbar/ToolbarButton';
+import { ToolbarButton, ToolbarToggle } from '../../components/toolbar/ToolbarButton';
 import { AlterationEditor } from './AlterationEditor';
+import { anchoredLayout, anchoredOnsets } from './anchoredLayout';
 import { Legend } from './Legend';
 import { PlaybackBar } from './PlaybackBar';
 import { REPLACED_COLOUR, alignmentStyles, paintAlignment, paintingOf } from './paintAlignment';
@@ -197,6 +198,8 @@ export const AlignmentDesk = () => {
     /** The take under review. The first there is, until somebody picks another. */
     const [picked, setPicked] = useState<string>();
     const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+    /** Whether the matches the model doubted are drawn where the score puts them. */
+    const [anchored, setAnchored] = useState(true);
 
     /** This session's run, until it is written. Absent means: show what the document holds. */
     const [run, setRun] = useState<AlignmentRun>();
@@ -387,6 +390,27 @@ export const AlignmentDesk = () => {
     const outcomes = transcription?.outcomes ?? EMPTY_OUTCOMES;
     const shown = transcription?.shown ?? aligned?.mei;
     const failed = aligned?.failed ?? transcription?.failed;
+
+    /**
+     * The matches the model doubted, and where the page draws them instead of where they were
+     * struck. Empty for an alignment read back from the document, which does not record how sure
+     * the model was of a match. See `./anchoredLayout`.
+     */
+    const moved = useMemo(() => {
+        if (!alignment) return new Map<string, { struck: number; drawn: number }>();
+        const hidden = run?.hidden;
+        return anchoredOnsets(
+            hidden ? alignment.matches.filter((match) => !hidden.has(match.scoreId)) : alignment.matches,
+            new Map(scoreNotes.map((note) => [note.note, note.onset])),
+            new Map(alignment.spans.map((span) => [span.id, span.onsetMs])),
+        );
+    }, [alignment, run, scoreNotes]);
+
+    /** What the page is laid out from: the transcription, with the doubted matches moved. */
+    const laidOut = useMemo(
+        () => (shown && take && anchored ? anchoredLayout(shown, take, moved) : shown),
+        [shown, take, anchored, moved],
+    );
 
     const marks = useMemo(
         () => marksOf(divergences, alignment?.spans ?? [], outcomes),
@@ -1012,6 +1036,22 @@ export const AlignmentDesk = () => {
                     />
                 </ToolGroup>
 
+                <ToolGroup label="Layout">
+                    <ToolbarToggle
+                        label="Unsure as written"
+                        tooltip={
+                            moved.size === 0
+                                ? 'The model was sure of every match, so every note is drawn where it was struck'
+                                : `Draw the ${String(moved.size)} match${moved.size === 1 ? '' : 'es'} the model was unsure of where the score puts them between the sure ones, rather than where they were struck`
+                        }
+                        disabled={moved.size === 0}
+                        selected={anchored && moved.size > 0}
+                        onChange={setAnchored}
+                    >
+                        Unsure as written
+                    </ToolbarToggle>
+                </ToolGroup>
+
                 <ToolGroup label="Zoom">
                     <Slider
                         aria-label="Zoom"
@@ -1116,7 +1156,7 @@ export const AlignmentDesk = () => {
                     {shown && (alignment?.spans.length ?? 0) > 0 ? (
                         <Score
                             className="alignment-score"
-                            mei={shown}
+                            mei={laidOut ?? shown}
                             options={options}
                             paint={paintScore}
                             extenders
