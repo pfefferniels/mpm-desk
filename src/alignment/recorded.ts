@@ -20,6 +20,11 @@ export interface RecordedAlignment {
     insertions: InsertedNote[];
     /** Every note the recording sounded, matched or not, which the grouping measures against. */
     spans: NoteSpan[];
+    /**
+     * Whether the confidences are the aligner's. A saved document keeps the matches and not how
+     * sure the aligner was of them, and reads back as certain throughout.
+     */
+    confidenceKnown: boolean;
 }
 
 /**
@@ -92,5 +97,5 @@ export const recordedAlignment = (recording: RecordingInfo): RecordedAlignment =
         }
     }
 
-    return { matches, deletions, insertions, spans };
+    return { matches, deletions, insertions, spans, confidenceKnown: recording.matchConfidence.size > 0 };
 };

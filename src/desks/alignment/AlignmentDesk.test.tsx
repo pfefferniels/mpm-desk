@@ -15,8 +15,8 @@ import { AlignmentDesk } from './AlignmentDesk';
  *
  * The model is never run. What is checked is the half that works without it, which is the path a
  * *reopened* project takes: a `<recording>` already in the MEI comes back as something to review,
- * the score is drawn along the time it was played in, and the colours land on the right
- * noteheads.
+ * the score is drawn as it is written, or along the time it was played in when asked, and the
+ * colours land on the right noteheads.
  *
  * `alignScoreToPerformance` needs no stub. Nothing calls it here, and `src/alignment/mlign`
  * reaches the model runtime through a dynamic import, so importing the module fetches no weights
@@ -63,9 +63,15 @@ beforeAll(async () => {
 }, 180_000);
 
 describe('the alignment desk, over a recording the document already holds', () => {
-    it('draws the score along the time it was played in', () => {
+    it('draws the score as it is written', () => {
         expect(desk.querySelectorAll('.note').length).toBeGreaterThan(50);
-        expect(desk.querySelector('.performanceRuler')).not.toBeNull();
+        // No time axis, and no note placed by its time
+        expect(desk.querySelector('.performanceRuler')).toBeNull();
+        expect(desk.querySelector('[data-perf-onset]')).toBeNull();
+    });
+
+    it('draws a saved alignment in full, since it does not say how sure the model was', () => {
+        expect(desk.querySelector('[data-certainty]')).toBeNull();
     });
 
     it('colours the notes the recording answered to, with no model having run', () => {
@@ -84,4 +90,15 @@ describe('the alignment desk, over a recording the document already holds', () =
         expect(bar.textContent).toContain('Align');
         expect(bar.querySelector('button:disabled')).not.toBeNull();
     });
+
+    // Last, because it engraves the score a second time, and every test above looks at the first
+    it('draws the score along the time it was played in, once asked', async () => {
+        await act(async () => {
+            bar.querySelector<HTMLButtonElement>('button[aria-label="Performed"]')!.click();
+        });
+        await settle(() => desk.querySelector('.performanceRuler') !== null);
+
+        expect(desk.querySelector('.performanceRuler')).not.toBeNull();
+        expect(desk.querySelector('[data-perf-onset]')).not.toBeNull();
+    }, 180_000);
 });

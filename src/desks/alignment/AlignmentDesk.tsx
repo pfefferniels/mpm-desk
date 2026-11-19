@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, GlobalStyles, Slider, Stack, Typography } from '@mui/material';
+import { Alert, Box, GlobalStyles, Slider, Stack, Tooltip, Typography } from '@mui/material';
 import { NavigateBefore, NavigateNext } from '@mui/icons-material';
 import { applyAlignment } from '../../alignment/applyAlignment';
 import { divergencesOf, type Divergence } from '../../alignment/divergences';
@@ -34,7 +34,7 @@ import { DeskToolbar } from '../../components/DeskToolbar';
 import { ToolGroup } from '../../components/toolbar/ToolGroup';
 import { ToolbarButton, ToolbarToggle } from '../../components/toolbar/ToolbarButton';
 import { AlterationEditor } from './AlterationEditor';
-import { anchoredLayout, anchoredOnsets } from './anchoredLayout';
+import { anchorsOf, certaintyOf, paintCertainty } from './certainty';
 import { Legend } from './Legend';
 import { PlaybackBar } from './PlaybackBar';
 import { REPLACED_COLOUR, alignmentStyles, paintAlignment, paintingOf } from './paintAlignment';
@@ -210,8 +210,16 @@ export const AlignmentDesk = () => {
     const [picked, setPicked] = useState<string>();
     const [zoom, setZoom] = useState(DEFAULT_ZOOM);
     const [stretch, setStretch] = useState(DEFAULT_STRETCH);
-    /** Whether the matches the model doubted are drawn where the score puts them. */
-    const [anchored, setAnchored] = useState(true);
+    /**
+     * How the page is laid out: as the score is written, or along the recording.
+     *
+     * Written, by default. The bars keep the widths and the lines the breaks the notation gives
+     * them, so the page reads as a score; what was played that the score does not write is drawn
+     * among the notes it was played between. Along the recording, every note stands where it
+     * was struck, which says when, at the price of a page that is crowded wherever the playing
+     * is fast.
+     */
+    const [layout, setLayout] = useState<'notated' | 'performed'>('notated');
 
     /** This session's run, until it is written. Absent means: show what the document holds. */
     const [run, setRun] = useState<AlignmentRun>();
@@ -298,7 +306,7 @@ export const AlignmentDesk = () => {
     /** A fresh run stands in front of what the document holds, until it is written. */
     const alignment: RecordedAlignment | undefined = useMemo(() => {
         if (!run) return committed;
-        return { ...run.result, spans: run.spans };
+        return { ...run.result, spans: run.spans, confidenceKnown: true };
     }, [run, committed]);
 
     const signs = useMemo(() => (source ? ornamentSignsOf(source) : new Map()), [source]);
@@ -404,24 +412,12 @@ export const AlignmentDesk = () => {
     const failed = aligned?.failed ?? transcription?.failed;
 
     /**
-     * The matches the model doubted, and where the page draws them instead of where they were
-     * struck. Empty for an alignment read back from a saved file, which does not keep how sure
-     * the model was of a match. See `./anchoredLayout`.
+     * When the written notes the model was sure of were struck: on the notated page, the notes a
+     * played note with no written one is drawn between. See `./certainty`.
      */
-    const moved = useMemo(() => {
-        if (!alignment) return new Map<string, { struck: number; drawn: number }>();
-        const hidden = run?.hidden;
-        return anchoredOnsets(
-            hidden ? alignment.matches.filter((match) => !hidden.has(match.scoreId)) : alignment.matches,
-            new Map(scoreNotes.map((note) => [note.note, note.onset])),
-            new Map(alignment.spans.map((span) => [span.id, span.onsetMs])),
-        );
-    }, [alignment, run, scoreNotes]);
-
-    /** What the page is laid out from: the transcription, with the doubted matches moved. */
-    const laidOut = useMemo(
-        () => (shown && take && anchored ? anchoredLayout(shown, take, moved) : shown),
-        [shown, take, anchored, moved],
+    const moments = useMemo(
+        () => (alignment ? anchorsOf(alignment.matches, alignment.spans, run?.hidden) : undefined),
+        [alignment, run],
     );
 
     const marks = useMemo(
@@ -446,9 +442,22 @@ export const AlignmentDesk = () => {
         [alignment, divergences, run, outcomes, ties],
     );
 
+    /**
+     * How sure the model was of each note, which the notated page draws as how faint it is.
+     * Nothing, where the document does not say: a note nothing is known of is drawn in full.
+     */
+    const certainty = useMemo(
+        () =>
+            alignment?.confidenceKnown
+                ? certaintyOf({ ...alignment, divergences, outcomes, ties })
+                : undefined,
+        [alignment, divergences, outcomes, ties],
+    );
+
     const paint = useCallback(
         (element: HTMLElement) => {
             paintAlignment(element, painting, selected);
+            paintCertainty(element, layout === 'notated' ? certainty : undefined);
 
             // A cross is drawn afresh on every repaint, so the one the card was opened on may
             // no longer be in the document. The card belongs to the alteration, not to a node:
@@ -460,7 +469,7 @@ export const AlignmentDesk = () => {
                 element.querySelector(`[data-divergence="${escape(selected)}"]:not([data-omitted])`);
             setAnchor((current) => (current?.isConnected ? current : mark ?? undefined));
         },
-        [painting, selected, selectedNote],
+        [painting, selected, selectedNote, layout, certainty],
     );
 
     /**
@@ -550,6 +559,8 @@ export const AlignmentDesk = () => {
     const paintScore = useCallback(
         (element: HTMLElement) => {
             paint(element);
+            // The notated page breaks its own lines, at the width it was given
+            if (layout !== 'performed') return;
             if (!root || seconds === undefined || seconds <= SHORTEST_SYSTEM) return;
 
             const first = element.querySelector('g.system');
@@ -577,17 +588,29 @@ export const AlignmentDesk = () => {
                 setTrimmed({ fit, seconds: trim + Math.ceil(over / pixelsPerSecond(zoom, stretch)) });
             }
         },
-        [paint, root, seconds, width, zoom, stretch, fit, trim],
+        [paint, layout, root, seconds, width, zoom, stretch, fit, trim],
     );
     const options = useMemo(
-        () => ({
-            ...performedOptions,
-            scale: zoom,
-            performanceScale: DEFAULT_PERFORMANCE_SCALE * stretch,
-            ...(seconds !== undefined && { performanceSystemDuration: seconds }),
-            performanceRecording: take ?? '',
-        }),
-        [zoom, stretch, seconds, take],
+        () =>
+            layout === 'performed'
+                ? {
+                      ...performedOptions,
+                      scale: zoom,
+                      performanceScale: DEFAULT_PERFORMANCE_SCALE * stretch,
+                      ...(seconds !== undefined && { performanceSystemDuration: seconds }),
+                      performanceRecording: take ?? '',
+                  }
+                : {
+                      scale: zoom,
+                      // As wide as the window, which is what the lines are broken at. The page
+                      // is drawn at `scale` percent of its own width, so the width it is given
+                      // is the window's taken back by as much
+                      ...(width > 0 && { pageWidth: Math.round((width * 100) / zoom) }),
+                      // One page however long the piece: the window scrolls, and a page break
+                      // would be a gap in the music
+                      pageHeight: 60000,
+                  },
+        [layout, zoom, stretch, seconds, take, width],
     );
 
     const pedals = useMemo<PlayablePedal[]>(() => {
@@ -1051,17 +1074,18 @@ export const AlignmentDesk = () => {
 
                 <ToolGroup label="Layout">
                     <ToolbarToggle
-                        label="Unsure as written"
+                        label="Performed"
                         tooltip={
-                            moved.size === 0
-                                ? 'Every note is drawn where it was struck: the model was sure of every match, or this alignment was read from a saved file, which does not keep how sure it was'
-                                : `Draw the ${String(moved.size)} match${moved.size === 1 ? '' : 'es'} the model was unsure of where the score puts them between the sure ones, rather than where they were struck`
+                            layout === 'performed'
+                                ? 'Every note stands where it was struck. Press again for the score as it is written, with what was played that it does not write drawn among the notes it was played between'
+                                : 'Lay the score out along the recording, every note where it was struck, rather than as it is written'
                         }
-                        disabled={moved.size === 0}
-                        selected={anchored && moved.size > 0}
-                        onChange={setAnchored}
+                        selected={layout === 'performed'}
+                        onChange={(performed) => {
+                            setLayout(performed ? 'performed' : 'notated');
+                        }}
                     >
-                        Unsure as written
+                        Performed
                     </ToolbarToggle>
                 </ToolGroup>
 
@@ -1080,18 +1104,30 @@ export const AlignmentDesk = () => {
                 </ToolGroup>
 
                 <ToolGroup label="Width">
-                    <Slider
-                        aria-label="Width"
-                        getAriaValueText={(value) => `${String(value)} times as wide`}
-                        sx={{ width: '5rem', mx: 1 }}
-                        min={1}
-                        max={4}
-                        step={0.5}
-                        value={stretch}
-                        onChange={(_, value) => {
-                            setStretch(value as number);
-                        }}
-                    />
+                    <Tooltip
+                        describeChild
+                        title={
+                            layout === 'performed'
+                                ? 'How wide a second of the recording is drawn'
+                                : 'Only the performed layout has seconds to widen: the written one spaces its bars itself'
+                        }
+                    >
+                        <span style={{ display: 'inline-flex' }}>
+                            <Slider
+                                aria-label="Width"
+                                disabled={layout !== 'performed'}
+                                getAriaValueText={(value) => `${String(value)} times as wide`}
+                                sx={{ width: '5rem', mx: 1 }}
+                                min={1}
+                                max={4}
+                                step={0.5}
+                                value={stretch}
+                                onChange={(_, value) => {
+                                    setStretch(value as number);
+                                }}
+                            />
+                        </span>
+                    </Tooltip>
                 </ToolGroup>
             </DeskToolbar>
 
@@ -1184,10 +1220,11 @@ export const AlignmentDesk = () => {
                     {shown && (alignment?.spans.length ?? 0) > 0 ? (
                         <Score
                             className="alignment-score"
-                            mei={laidOut ?? shown}
+                            mei={shown}
                             options={options}
                             paint={paintScore}
-                            extenders
+                            extenders={layout === 'performed'}
+                            anchors={layout === 'notated' ? moments : undefined}
                             extraNotes={marks.extraNotes}
                             omissions={marks.omissions}
                             style={{ width: 'max-content' }}

@@ -11,34 +11,28 @@ import { PLAYED, SOURCE, scoreMei, span } from '../../../tests/alignment/transcr
 import { AlignmentDesk } from './AlignmentDesk';
 
 /**
- * A doubtful match drawn where the score puts it, on the desk itself.
+ * How sure the model was, drawn on the notated page as how faint a note is.
  *
  * The desk writes a fresh run into the document a moment after it was made and reads the alignment
  * back out of the document from then on. So the state worth testing is a document that holds a
- * run: if the doubt does not come back out of it, the page forgets it within a second of
- * aligning, which is what the first version of this did.
+ * run: if the doubt did not come back out of it, the page would forget it within a second of
+ * aligning, which is what an earlier version of this desk did.
  *
- * Bar 2's e5 was due at 2500 ms, half way between the f5 and the d5 either side of it, and the
- * model matched it, without being sure, to a key struck at 2800.
+ * Bar 2's e5 was matched without the model being sure of it.
  */
 const withRun = (confidences: boolean) => {
     const doc = new DOMParser().parseFromString(scoreMei(), 'application/xml');
     const recording = insertRecording(doc, SOURCE)!;
     for (const [id, { ms, pitch }] of Object.entries(PLAYED)) {
-        const doubtful = id === 'n6';
-        insertWhen(
-            doc,
-            recording,
-            span(`perf-${id}`, doubtful ? 2800 : ms, pitch, 450),
-            id,
-            confidences ? (doubtful ? 0.05 : 0.999) : undefined,
-        );
+        const confidence = id === 'n6' ? 0.05 : 0.999;
+        insertWhen(doc, recording, span(`perf-${id}`, ms, pitch, 450), id, confidences ? confidence : undefined);
     }
     return new XMLSerializer().serializeToString(doc);
 };
 
 let root: Root | undefined;
 let desk: HTMLElement;
+let toolbar: HTMLElement;
 
 afterEach(() => {
     act(() => root?.unmount());
@@ -47,7 +41,7 @@ afterEach(() => {
 
 const open = async (mei: string) => {
     desk = document.createElement('div');
-    const toolbar = document.createElement('div');
+    toolbar = document.createElement('div');
     document.body.append(desk, toolbar);
     root = createRoot(desk);
     await act(async () => {
@@ -73,41 +67,39 @@ const settle = async (until: () => boolean) => {
     }
 };
 
-const onsetOf = (id: string) =>
-    desk.querySelector(`.alignment-score [data-id="${id}"]`)?.getAttribute('data-perf-onset');
-const toggle = () => document.querySelector<HTMLButtonElement>('button[aria-label="Unsure as written"]');
+const inkOf = (id: string) =>
+    desk
+        .querySelector<SVGElement>(`.alignment-score [data-id="${id}"] .notehead`)
+        ?.style.getPropertyValue('opacity');
 
-describe('a doubtful match, in a document that holds the run', () => {
-    it('is drawn where it was due', async () => {
+describe('a document that holds a run', () => {
+    it('draws the note the model was unsure of faint, and the ones it was sure of in full', async () => {
         await open(withRun(true));
-        await settle(() => onsetOf('n6') === '2500');
+        await settle(() => inkOf('n6') === '0.24');
 
-        expect(onsetOf('n6')).toBe('2500');
-        expect(onsetOf('n5')).toBe('2000');
-        expect(toggle()?.disabled).toBe(false);
-        expect(toggle()?.getAttribute('aria-pressed')).toBe('true');
+        expect(inkOf('n6')).toBe('0.24');
+        expect(inkOf('n5')).toBe('1');
     }, 60_000);
 
-    it('is drawn where it was struck once the reader turns that off', async () => {
+    it('draws every note in full along the recording, where the ink says how softly it was played', async () => {
         await open(withRun(true));
-        await settle(() => onsetOf('n6') === '2500');
-        expect(onsetOf('n6')).toBe('2500');
+        await settle(() => inkOf('n6') === '0.24');
 
         await act(async () => {
-            toggle()!.click();
+            toolbar.querySelector<HTMLButtonElement>('button[aria-label="Performed"]')!.click();
         });
-        await settle(() => onsetOf('n6') === '2800');
+        await settle(() => desk.querySelector('.performanceRuler') !== null);
 
-        expect(onsetOf('n6')).toBe('2800');
+        expect(desk.querySelector('[data-certainty]')).toBeNull();
     }, 60_000);
 });
 
 describe('a document that does not say how sure the model was', () => {
-    it('is drawn as it was struck, and offers nothing to turn on', async () => {
+    it('draws every note in full', async () => {
         await open(withRun(false));
-        await settle(() => onsetOf('n6') !== undefined && onsetOf('n6') !== null && toggle() !== null);
+        await settle(() => desk.querySelector('.alignment-matched') !== null);
 
-        expect(onsetOf('n6')).toBe('2800');
-        expect(toggle()?.disabled).toBe(true);
+        expect(desk.querySelector('.alignment-matched')).not.toBeNull();
+        expect(desk.querySelector('[data-certainty]')).toBeNull();
     }, 60_000);
 });

@@ -13,6 +13,12 @@
  * through `unitsPerSecond`, and its `data-pname` and `data-oct` give a diatonic
  * step, so steps convert through half a staff space. Nothing has to be assumed
  * about where verovio put its origin.
+ *
+ * A score laid out the ordinary way has no time axis to measure along, only
+ * notes. There the caller says when the notes it is sure of were struck, and a
+ * played note is drawn between the two of them it fell between, as far along as
+ * it was in time: the notation keeps its own spacing, and the cross still says
+ * when it sounded, among the notes around it.
  */
 
 import { staffSpace, unitsPerSecond, type ScoreOptions } from "./toolkit";
@@ -43,6 +49,14 @@ interface ExtraNoteOptions {
     /** The key the extra notes are spelled in, so an F sharp is not drawn as a G flat */
     tonic?: string;
     colour?: string;
+    /**
+     * When each written note to measure from was struck, in milliseconds, by its id.
+     *
+     * Given, the score is taken to be laid out the ordinary way and these notes are the
+     * anchors a played note is placed between. Without it, the layout is the performed one
+     * and every note's time is read off the drawing.
+     */
+    struck?: ReadonlyMap<string, number>;
 }
 
 export function clearExtraNotes(root: Element): void {
@@ -63,14 +77,22 @@ interface Reference {
     staff: Element;
 }
 
-function referencesIn(system: Element): Reference[] {
-    const references: Reference[] = [];
+/**
+ * The notes of a system that say where a pitch stands on a staff. Every note does, whether or
+ * not its moment is known: the moment is the other question.
+ */
+type Pitched = Omit<Reference, "onsetMs"> & { onsetMs?: number };
+
+function referencesIn(system: Element, struck?: ReadonlyMap<string, number>): Pitched[] {
+    const references: Pitched[] = [];
 
     for (const note of system.querySelectorAll(".note")) {
-        const onset = note.getAttribute("data-perf-onset");
+        const onset = struck
+            ? struck.get(note.getAttribute("data-id") ?? "")
+            : note.getAttribute("data-perf-onset") ?? undefined;
         const pname = note.getAttribute("data-pname")?.toLowerCase();
         const oct = note.getAttribute("data-oct");
-        if (!onset || !pname || !oct || !(pname in STEPS)) continue;
+        if (!pname || !oct || !(pname in STEPS)) continue;
 
         const translate = note
             .querySelector(".notehead use")
@@ -84,7 +106,7 @@ function referencesIn(system: Element): Reference[] {
         references.push({
             x: Number(translate[1]),
             y: Number(translate[2]),
-            onsetMs: Number(onset),
+            ...(onset !== undefined && onset !== "" && { onsetMs: Number(onset) }),
             step: Number(oct) * 7 + STEPS[pname as keyof typeof STEPS],
             staff,
         });
@@ -118,9 +140,18 @@ export function drawExtraNotes(
     // written note of a system still has somewhere to go, and iterating systems
     // outermost would draw such a note twice.
     const systems = [...root.querySelectorAll(".system")]
-        .map((system) => referencesIn(system))
-        .filter((references) => references.length > 0)
-        .map((references) => ({ references, span: performedSpanOf(references) }));
+        .map((system) => {
+            const pitched = referencesIn(system, options?.struck);
+            const references = pitched.filter((note): note is Reference => note.onsetMs !== undefined);
+            return { pitched, references };
+        })
+        .filter(({ references }) => references.length > 0)
+        .map(({ pitched, references }) => ({
+            pitched,
+            references,
+            span: performedSpanOf(references),
+            xAt: options?.struck ? timelineOf(references, space) : undefined,
+        }));
 
     if (systems.length === 0) return;
 
@@ -131,12 +162,22 @@ export function drawExtraNotes(
         const system = systemFor(systems, note.onsetMs);
         if (!system) continue;
 
-        // Measure from the reference nearest in pitch on the staff that note
-        // would belong to, which keeps the extrapolation short
-        const reference = nearestReference(system.references, note.onsetMs, step);
+        let x: number;
+        let reference: Pitched | undefined;
+        if (system.xAt) {
+            // Where it goes along the system is a question of time, and the notes whose
+            // moments are known answer it. Where it goes up and down is a question of pitch,
+            // which any note near it answers, and the nearer the better: a clef can change
+            x = system.xAt(note.onsetMs);
+            reference = nearestPitched(system.pitched, x, step);
+        } else {
+            // Measure from the reference nearest in pitch on the staff that note
+            // would belong to, which keeps the extrapolation short
+            const timed = nearestReference(system.references, note.onsetMs, step);
+            reference = timed;
+            x = timed ? timed.x + ((note.onsetMs - timed.onsetMs) / 1000) * perSecond : NaN;
+        }
         if (!reference) continue;
-
-        const x = reference.x + ((note.onsetMs - reference.onsetMs) / 1000) * perSecond;
         const y = reference.y - (step - reference.step) * (space / 2);
 
         reference.staff.appendChild(
@@ -146,8 +187,66 @@ export function drawExtraNotes(
 }
 
 interface System {
+    /** Every note on it, for where a pitch stands */
+    pitched: Pitched[];
+    /** The notes on it whose moments are known */
     references: Reference[];
     span: { from: number; to: number };
+    /** Where a moment falls on a system laid out the ordinary way */
+    xAt?: (ms: number) => number;
+}
+
+/**
+ * Where a moment falls on a system laid out the ordinary way, read off the notes on it whose
+ * moments are known.
+ *
+ * One point per place in the bar: the notes drawn at one horizontal position were written to
+ * be struck together, and a chord spread over a fifth of a second still stands in one place,
+ * so the place takes the middle of the moments they were struck at. A place struck earlier than
+ * the one before it is left out, so that a moment never runs backwards along the staff. Between
+ * two places a moment falls in proportion. Beyond the first or the last it goes on at the pace
+ * of the nearest two, but not past the music on the system: a note played after the last one a
+ * system holds is drawn at its end rather than in the margin.
+ */
+export function timelineOf(
+    references: readonly { x: number; onsetMs: number }[],
+    space: number
+): (ms: number) => number {
+    const byPlace = new Map<number, number[]>();
+    for (const { x, onsetMs } of references) {
+        const place = Math.round(x);
+        const at = byPlace.get(place);
+        if (at) at.push(onsetMs);
+        else byPlace.set(place, [onsetMs]);
+    }
+
+    const points: { x: number; ms: number }[] = [];
+    for (const [x, struck] of [...byPlace].sort(([a], [b]) => a - b)) {
+        struck.sort((a, b) => a - b);
+        const middle =
+            struck.length % 2 === 1
+                ? struck[(struck.length - 1) / 2]
+                : (struck[struck.length / 2 - 1] + struck[struck.length / 2]) / 2;
+        const last = points.at(-1);
+        if (last && middle < last.ms) continue;
+        points.push({ x, ms: middle });
+    }
+
+    const first = points[0];
+    const last = points[points.length - 1];
+    const from = first.x - 2 * space;
+    const to = last.x + 2 * space;
+    const along = (a: { x: number; ms: number }, b: { x: number; ms: number }, ms: number) =>
+        b.ms === a.ms ? a.x : a.x + ((ms - a.ms) / (b.ms - a.ms)) * (b.x - a.x);
+
+    return (ms: number): number => {
+        if (points.length === 1) return Math.min(to, Math.max(from, first.x));
+        if (ms <= first.ms) return Math.max(from, along(first, points[1], ms));
+        if (ms >= last.ms) return Math.min(to, along(points[points.length - 2], last, ms));
+        let after = 1;
+        while (points[after].ms < ms) after++;
+        return along(points[after - 1], points[after], ms);
+    };
 }
 
 /**
@@ -225,6 +324,21 @@ function nearestReference(
         }
     }
 
+    return best;
+}
+
+/** The note nearest in pitch to measure a pitch from, and among those the nearest along. */
+function nearestPitched(notes: readonly Pitched[], x: number, step: number): Pitched | undefined {
+    let best: Pitched | undefined;
+    let bestCost = Infinity;
+    for (const note of notes) {
+        // Pitch dominates, as below: the wrong staff of a grand staff is an octave or more out
+        const cost = Math.abs(note.step - step) * 1e6 + Math.abs(note.x - x);
+        if (cost < bestCost) {
+            bestCost = cost;
+            best = note;
+        }
+    }
     return best;
 }
 

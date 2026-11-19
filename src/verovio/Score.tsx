@@ -37,6 +37,11 @@ interface ScoreProps {
     omissions?: readonly OmittedGroup[];
     /** The key the extra notes are spelled in. */
     tonic?: string;
+    /**
+     * When the written notes the extra notes are placed by were struck, by id, for a score laid
+     * out the ordinary way. Without it the layout is taken to be the performed one.
+     */
+    anchors?: ReadonlyMap<string, number>;
     onNoteClick?: (id: string, event: React.MouseEvent) => void;
     className?: string;
     style?: React.CSSProperties;
@@ -58,6 +63,7 @@ export const Score = ({
     extraNotes,
     omissions,
     tonic,
+    anchors,
     onNoteClick,
     className,
     style,
@@ -122,7 +128,7 @@ export const Score = ({
             if (omissions?.length) drawOmissionMarks(root, omissions, drawn);
             else clearOmissionMarks(root);
 
-            if (extraNotes?.length) drawExtraNotes(root, extraNotes, { ...drawn, tonic });
+            if (extraNotes?.length) drawExtraNotes(root, extraNotes, { ...drawn, tonic, struck: anchors });
             else clearExtraNotes(root);
 
             paint?.(root);
@@ -144,7 +150,7 @@ export const Score = ({
         };
         // `done` rather than the pages read out of it: `done?.pages ?? []` is a fresh array on
         // every render, so depending on it would repaint on renders that engraved nothing.
-    }, [done, paint, extenders, extraNotes, omissions, tonic, optionsKey]);
+    }, [done, paint, extenders, extraNotes, omissions, tonic, anchors, optionsKey]);
 
     /**
      * The pages as React takes them, the same objects from one render to the next.
