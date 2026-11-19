@@ -12,13 +12,13 @@ import type { Outcome } from '../../alignment/transcription';
  * play it as another (violet). The green and violet notes are in the score, written there by the
  * transcriber; the red ones are what the performance reading no longer has.
  */
-const MATCHED_COLOUR = '#6b7280';
+export const MATCHED_COLOUR = '#6b7280';
 /** A note verovio could place nowhere: nothing is known about it, rather than something. */
 const UNALIGNED_COLOUR = '#c9ced6';
 /** A written note the recording played as something else: sounded, but not as written. */
 export const REPLACED_COLOUR = '#7c3aed';
 /** Whichever disagreement the reader currently has open. */
-const SELECTED_COLOUR = '#1d4ed8';
+export const SELECTED_COLOUR = '#1d4ed8';
 /** A note sounding, while the performance is being listened to. */
 const PLAYING_COLOUR = '#f97316';
 

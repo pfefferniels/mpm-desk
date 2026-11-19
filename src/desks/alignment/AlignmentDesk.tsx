@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, GlobalStyles, Slider, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, GlobalStyles, Popper, Slider, Stack, Tooltip, Typography } from '@mui/material';
 import { NavigateBefore, NavigateNext } from '@mui/icons-material';
 import { applyAlignment } from '../../alignment/applyAlignment';
 import { divergencesOf, type Divergence } from '../../alignment/divergences';
@@ -36,6 +36,8 @@ import { ToolbarButton, ToolbarToggle } from '../../components/toolbar/ToolbarBu
 import { AlterationEditor } from './AlterationEditor';
 import { anchorsOf, certaintyOf, paintCertainty } from './certainty';
 import { Legend } from './Legend';
+import { RollPreview } from './RollPreview';
+import { excerptOf, type RollKind } from './rollExcerpt';
 import { PlaybackBar } from './PlaybackBar';
 import { REPLACED_COLOUR, alignmentStyles, paintAlignment, paintingOf } from './paintAlignment';
 import { marksOf } from './marks';
@@ -102,9 +104,9 @@ const EMPTY_EDITS: ReadonlyMap<string, NoteEdit> = new Map();
  * So this asks the boxes and not the paths: the note whose head the point is in, give or take
  * what a hand misses by.
  */
-const markedAt = (root: Element, x: number, y: number): Element | null => {
+const markedAt = (root: Element, x: number, y: number, which = '[data-divergence]'): Element | null => {
     const REACH = 3;
-    for (const element of root.querySelectorAll('[data-divergence]')) {
+    for (const element of root.querySelectorAll(which)) {
         const box = element.querySelector('.notehead')?.getBoundingClientRect();
         // Nothing drawn, or nothing laid out: no box to be in
         if (!box || box.width === 0 || box.height === 0) continue;
@@ -114,6 +116,9 @@ const markedAt = (root: Element, x: number, y: number): Element | null => {
     }
     return null;
 };
+
+/** What a pointer resting on the page can ask about: a note, or a played note with none. */
+const HOVERABLE = 'g.note[data-id], .performanceExtraNote[data-perf-id]';
 
 /** How much of the recording is sounded around an alteration when the reader asks to hear it. */
 const HEAR_BEFORE_MS = 1500;
@@ -220,6 +225,16 @@ export const AlignmentDesk = () => {
      * is fast.
      */
     const [layout, setLayout] = useState<'notated' | 'performed'>('notated');
+    /** Whether pointing at a note shows its bar as it was played. */
+    const [rollOnHover, setRollOnHover] = useState(true);
+    /** The note the pointer rests on, and the bar it is in. */
+    const [hovered, setHovered] = useState<{
+        element: Element;
+        noteId?: string;
+        perfId?: string;
+        bar: string[];
+        measure?: string;
+    }>();
 
     /** This session's run, until it is written. Absent means: show what the document holds. */
     const [run, setRun] = useState<AlignmentRun>();
@@ -452,6 +467,43 @@ export const AlignmentDesk = () => {
                 ? certaintyOf({ ...alignment, divergences, outcomes, ties })
                 : undefined,
         [alignment, divergences, outcomes, ties],
+    );
+
+    /**
+     * What the roll of a bar needs to know: which key each note of the page was played as, what
+     * each key was, and which written notes nothing was played for.
+     */
+    const roll = useMemo(() => {
+        const spans = alignment?.spans ?? [];
+        const playedOf = new Map((alignment?.matches ?? []).map((match) => [match.scoreId, match.performanceId]));
+        const kindOf = new Map<string, Exclude<RollKind, 'unplayed'>>();
+        for (const insertion of alignment?.insertions ?? []) kindOf.set(insertion.performanceId, 'added');
+        const byWritten = new Map(spans.map((span) => [writtenIdOf(span), span.id]));
+        for (const divergence of divergences) {
+            const outcome = outcomes.get(divergence.id);
+            if (divergence.kind === 'replaced') {
+                kindOf.set(divergence.perfId, 'replaced');
+                for (const id of outcome?.noteIds ?? []) playedOf.set(id, divergence.perfId);
+                continue;
+            }
+            for (const note of outcome?.notes ?? []) {
+                const span = byWritten.get(note.played);
+                if (!span) continue;
+                playedOf.set(note.id, span);
+                if (divergence.kind === 'added' && outcome?.written === 'variant') kindOf.set(span, 'replaced');
+            }
+        }
+        // A unison's twin and a note beyond the recording were not left out by anyone
+        const unplayed = new Set(
+            [...painting.unplayed].filter((id) => !painting.kept.has(id) && !painting.outside.has(id)),
+        );
+        const writtenOf = new Map(scoreNotes.map((note) => [note.note, note]));
+        return { spans, playedOf, kindOf, unplayed, writtenOf };
+    }, [alignment, divergences, outcomes, painting, scoreNotes]);
+
+    const excerpt = useMemo(
+        () => (hovered ? excerptOf({ ...roll, bar: hovered.bar, hovered }) : undefined),
+        [hovered, roll],
     );
 
     const paint = useCallback(
@@ -939,6 +991,46 @@ export const AlignmentDesk = () => {
         setAnchor(element);
     }, []);
 
+    /**
+     * The note the pointer rests on, asked once it has come to rest: a pointer crossing the page
+     * on its way somewhere else is not asking about every note it passes. Asked of the ink first
+     * and then of the boxes, because the middle of a whole note's head is a hole.
+     */
+    const resting = useRef<{ element: Element | null; timer?: ReturnType<typeof setTimeout> }>({ element: null });
+    const onScoreHover = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            clearTimeout(resting.current.timer);
+            const leaving = event.type === 'mouseleave' || !rollOnHover;
+            const host = event.currentTarget;
+            const direct = (event.target as Element).closest(HOVERABLE);
+            const { clientX, clientY } = event;
+            resting.current.timer = setTimeout(
+                () => {
+                    const target = leaving ? null : (direct ?? markedAt(host, clientX, clientY, 'g.note[data-id]'));
+                    if (target === resting.current.element) return;
+                    resting.current.element = target;
+                    if (!target) {
+                        setHovered(undefined);
+                        return;
+                    }
+                    const measure = target.closest('.measure');
+                    setHovered({
+                        element: target,
+                        noteId: target.getAttribute('data-id') ?? undefined,
+                        perfId: target.getAttribute('data-perf-id') ?? undefined,
+                        bar: [...(measure?.querySelectorAll('g.note[data-id]') ?? [])].map(
+                            (note) => note.getAttribute('data-id') ?? '',
+                        ),
+                        measure: measure?.getAttribute('data-n') ?? undefined,
+                    });
+                },
+                leaving ? 150 : 250,
+            );
+        },
+        [rollOnHover],
+    );
+    useEffect(() => () => clearTimeout(resting.current.timer), []);
+
     const counts = useMemo(() => countsOf(divergences, outcomes), [divergences, outcomes]);
     const open = divergences.find((divergence) => divergence.id === selected);
 
@@ -1087,6 +1179,21 @@ export const AlignmentDesk = () => {
                     >
                         Performed
                     </ToolbarToggle>
+                    <ToolbarToggle
+                        label="Roll on hover"
+                        tooltip={
+                            rollOnHover
+                                ? 'Pointing at a note shows its bar as it was played. Press to stop'
+                                : 'Show the bar a note is in as it was played, as a piano roll, when the pointer rests on it'
+                        }
+                        selected={rollOnHover}
+                        onChange={(on) => {
+                            setRollOnHover(on);
+                            if (!on) setHovered(undefined);
+                        }}
+                    >
+                        Roll on hover
+                    </ToolbarToggle>
                 </ToolGroup>
 
                 <ToolGroup label="Zoom">
@@ -1210,6 +1317,8 @@ export const AlignmentDesk = () => {
                 <Box
                     ref={setRoot}
                     onClick={onScoreClick}
+                    onMouseMove={onScoreHover}
+                    onMouseLeave={onScoreHover}
                     sx={{
                         overflow: 'auto',
                         bgcolor: '#ffffff',
@@ -1266,6 +1375,18 @@ export const AlignmentDesk = () => {
                     });
                 }}
             />
+
+            {/* Not while a card is open: the card is about the same bar, and two things floating
+                over one note is one too many */}
+            <Popper
+                open={Boolean(hovered?.element.isConnected && excerpt && !selected)}
+                anchorEl={hovered?.element}
+                placement="top"
+                modifiers={[{ name: 'offset', options: { offset: [0, 12] } }]}
+                sx={{ zIndex: (theme) => theme.zIndex.tooltip, pointerEvents: 'none' }}
+            >
+                {excerpt && <RollPreview excerpt={excerpt} bar={hovered?.measure} />}
+            </Popper>
 
             <AlterationEditor
                 divergence={open}
