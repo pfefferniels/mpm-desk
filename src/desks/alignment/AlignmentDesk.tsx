@@ -162,12 +162,23 @@ const besideTheMusic = (zoom: number) => 8 + 3.2 * zoom;
  * at every zoom, a small score would fill half the window's width and a large one would run off
  * it; so the length follows the width there is and the zoom the score is drawn at.
  */
-const secondsAcross = (width: number, zoom: number): number =>
-    Math.min(120, Math.max(SHORTEST_SYSTEM, Math.floor((width - besideTheMusic(zoom)) / pixelsPerSecond(zoom))));
+const secondsAcross = (width: number, zoom: number, stretch: number): number =>
+    Math.min(
+        120,
+        Math.max(SHORTEST_SYSTEM, Math.floor((width - besideTheMusic(zoom)) / pixelsPerSecond(zoom, stretch))),
+    );
 
-/** How wide a second of the recording is drawn at a zoom, in pixels. */
-const pixelsPerSecond = (zoom: number): number =>
-    (unitsPerSecond({ performanceScale: DEFAULT_PERFORMANCE_SCALE }) * zoom) / 1000;
+/** How wide a second of the recording is drawn at a zoom and a width, in pixels. */
+const pixelsPerSecond = (zoom: number, stretch: number): number =>
+    (unitsPerSecond({ performanceScale: DEFAULT_PERFORMANCE_SCALE * stretch }) * zoom) / 1000;
+
+/**
+ * How much wider than the default a second of the recording is drawn.
+ *
+ * The zoom makes the notes and the seconds larger together, so it cannot make room: a passage
+ * of eight notes a second is as crowded at any zoom. This is the other dial, the seconds alone.
+ */
+const DEFAULT_STRETCH = 1;
 
 /** No system is asked to hold less than this many seconds, however narrow the window. */
 const SHORTEST_SYSTEM = 4;
@@ -198,6 +209,7 @@ export const AlignmentDesk = () => {
     /** The take under review. The first there is, until somebody picks another. */
     const [picked, setPicked] = useState<string>();
     const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+    const [stretch, setStretch] = useState(DEFAULT_STRETCH);
     /** Whether the matches the model doubted are drawn where the score puts them. */
     const [anchored, setAnchored] = useState(true);
 
@@ -526,9 +538,9 @@ export const AlignmentDesk = () => {
      * found for, so that another window starts from what it asks for.
      */
     const [trimmed, setTrimmed] = useState({ fit: '', seconds: 0 });
-    const fit = `${String(width)}:${String(zoom)}:${take ?? ''}`;
+    const fit = `${String(width)}:${String(zoom)}:${String(stretch)}:${take ?? ''}`;
     const trim = trimmed.fit === fit ? trimmed.seconds : 0;
-    const seconds = width > 0 ? Math.max(SHORTEST_SYSTEM, secondsAcross(width, zoom) - trim) : undefined;
+    const seconds = width > 0 ? Math.max(SHORTEST_SYSTEM, secondsAcross(width, zoom, stretch) - trim) : undefined;
 
     // The engraving last looked at, by its first system. The page is painted again whenever a
     // note is selected or this very answer changes, and the score on it is then still the one
@@ -562,19 +574,20 @@ export const AlignmentDesk = () => {
             const widest = byLength[byLength.length - 1];
             const over = Math.max(0, ends[0] - width, most - width, widest - root.clientWidth);
             if (over > 1) {
-                setTrimmed({ fit, seconds: trim + Math.ceil(over / pixelsPerSecond(zoom)) });
+                setTrimmed({ fit, seconds: trim + Math.ceil(over / pixelsPerSecond(zoom, stretch)) });
             }
         },
-        [paint, root, seconds, width, zoom, fit, trim],
+        [paint, root, seconds, width, zoom, stretch, fit, trim],
     );
     const options = useMemo(
         () => ({
             ...performedOptions,
             scale: zoom,
+            performanceScale: DEFAULT_PERFORMANCE_SCALE * stretch,
             ...(seconds !== undefined && { performanceSystemDuration: seconds }),
             performanceRecording: take ?? '',
         }),
-        [zoom, seconds, take],
+        [zoom, stretch, seconds, take],
     );
 
     const pedals = useMemo<PlayablePedal[]>(() => {
@@ -1062,6 +1075,21 @@ export const AlignmentDesk = () => {
                         value={zoom}
                         onChange={(_, value) => {
                             setZoom(value as number);
+                        }}
+                    />
+                </ToolGroup>
+
+                <ToolGroup label="Width">
+                    <Slider
+                        aria-label="Width"
+                        getAriaValueText={(value) => `${String(value)} times as wide`}
+                        sx={{ width: '5rem', mx: 1 }}
+                        min={1}
+                        max={4}
+                        step={0.5}
+                        value={stretch}
+                        onChange={(_, value) => {
+                            setStretch(value as number);
                         }}
                     />
                 </ToolGroup>
