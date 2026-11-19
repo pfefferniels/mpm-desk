@@ -89,3 +89,19 @@ describe('resting the pointer on a note', () => {
         expect(roll()).toBeNull();
     });
 });
+
+describe('the card a coloured note opens', () => {
+    it('shows the bar as it was played under the bar as it is written, hover or no hover', async () => {
+        await act(async () => {
+            desk.querySelector('.alignment-score [data-id="n6"]')!.dispatchEvent(
+                new MouseEvent('click', { bubbles: true }),
+            );
+        });
+        await settle(() => document.querySelector('.MuiPopover-paper [data-roll-preview]') !== null);
+
+        const card = document.querySelector('.MuiPopover-paper');
+        expect(card?.querySelector('.alignment-bar, svg')).not.toBeNull();
+        // The e5 nobody played, ringed where it was due
+        expect(card?.querySelector('[data-roll-preview] rect[data-kind="unplayed"][stroke="#1d4ed8"]')).not.toBeNull();
+    });
+});

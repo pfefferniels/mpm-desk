@@ -1,4 +1,4 @@
-import { Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { EXTRA_COLOUR } from '../../verovio/extraNotes';
 import { OMITTED_COLOUR } from '../../verovio/omissionMarks';
 import { MATCHED_COLOUR, REPLACED_COLOUR, SELECTED_COLOUR } from './paintAlignment';
@@ -28,7 +28,16 @@ const clock = (ms: number) => {
  * colours the page draws the notes in. A written note nobody played is an outline where it was
  * due, since there is nothing played to fill it with. The note the pointer is on is ringed.
  */
-export const RollPreview = ({ excerpt, bar }: { excerpt: Excerpt; bar?: string }) => {
+export const RollPreview = ({
+    excerpt,
+    bar,
+    bare = false,
+}: {
+    excerpt: Excerpt;
+    bar?: string;
+    /** Drawn inside something that is a card already, rather than floating as one of its own */
+    bare?: boolean;
+}) => {
     const { fromMs, toMs, low, high, notes } = excerpt;
     const keys = high - low + 1;
     const row = Math.max(ROW.least, Math.min(ROW.most, TALLEST / keys));
@@ -43,8 +52,8 @@ export const RollPreview = ({ excerpt, bar }: { excerpt: Excerpt; bar?: string }
     const seconds = [];
     for (let s = Math.ceil(fromMs / 1000) * 1000; s <= toMs; s += 1000) seconds.push(s);
 
-    return (
-        <Paper elevation={4} sx={{ p: 1, pointerEvents: 'none' }} data-roll-preview>
+    const content = (
+        <>
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
                 {bar !== undefined ? `Bar ${bar}, as played` : 'As played'} · {clock(fromMs)}–{clock(toMs)}
             </Typography>
@@ -78,6 +87,15 @@ export const RollPreview = ({ excerpt, bar }: { excerpt: Excerpt; bar?: string }
                     );
                 })}
             </svg>
+        </>
+    );
+    return bare ? (
+        <Box sx={{ pointerEvents: 'none' }} data-roll-preview>
+            {content}
+        </Box>
+    ) : (
+        <Paper elevation={4} sx={{ p: 1, pointerEvents: 'none' }} data-roll-preview>
+            {content}
         </Paper>
     );
 };

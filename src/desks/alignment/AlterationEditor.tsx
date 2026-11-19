@@ -53,6 +53,11 @@ interface AlterationEditorProps {
     /** Hand it back to the transcriber */
     onReset: (divergence: Divergence) => void;
     onClose: () => void;
+    /**
+     * The bar as it was played, under the bar as it is written: what a reader deciding how a
+     * note is to be written wants to look at while deciding.
+     */
+    roll?: React.ReactNode;
 }
 
 /** What the score shows now, as the choice that would ask for it. */
@@ -185,6 +190,7 @@ export const AlterationEditor = ({
     onEdit,
     onReset,
     onClose,
+    roll,
 }: AlterationEditorProps) => {
     // The card is placed when it opens, which is before its bar has been engraved, and the bar
     // is most of its height. So it is placed again whenever its size changes: a card opened low
@@ -287,6 +293,8 @@ export const AlterationEditor = ({
                     }}
                 />
             )}
+
+            {roll && <Box sx={{ mt: 1, mb: 1.5 }}>{roll}</Box>}
 
             {choices.length > 1 && (
                 <ToggleButtonGroup

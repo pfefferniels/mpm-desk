@@ -506,6 +506,24 @@ export const AlignmentDesk = () => {
         [hovered, roll],
     );
 
+    /** The bar the open card is about, as it was played: drawn in the card, under the bar. */
+    const opened = useMemo(() => {
+        if (!anchor?.isConnected) return undefined;
+        const measure = anchor.closest('.measure');
+        const bar = [...(measure?.querySelectorAll('g.note[data-id]') ?? [])].map(
+            (note) => note.getAttribute('data-id') ?? '',
+        );
+        const excerpt = excerptOf({
+            ...roll,
+            bar,
+            hovered: {
+                noteId: selectedNote ?? anchor.getAttribute('data-id') ?? undefined,
+                perfId: anchor.getAttribute('data-perf-id') ?? undefined,
+            },
+        });
+        return excerpt && { excerpt, measure: measure?.getAttribute('data-n') ?? undefined };
+    }, [anchor, selectedNote, roll]);
+
     const paint = useCallback(
         (element: HTMLElement) => {
             paintAlignment(element, painting, selected);
@@ -1413,6 +1431,7 @@ export const AlignmentDesk = () => {
                     setSelectedNote(undefined);
                     setAnchor(undefined);
                 }}
+                roll={opened && <RollPreview excerpt={opened.excerpt} bar={opened.measure} bare />}
             />
         </>
     );
