@@ -110,6 +110,8 @@ against the first editions encoded by the Fryderyk Chopin Institute; `scripts/tr
 says how, and what came out.
 
 One take's alterations are in the score at a time: `<rdg source="performance">` is one reading.
+Transcribing one take leaves the others' records where they were saved, a tied note another
+take struck again included.
 
 ### `AlignSource`
 

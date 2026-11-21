@@ -1057,6 +1057,8 @@ export function transcribe(input: TranscribeInput): Transcribed {
         mark(doc, loose, "insertion");
     }
 
+    pointOtherTakes(recording);
+
     return { mei: new XMLSerializer().serializeToString(doc), outcomes, readings: readingsOf(doc) };
 }
 
@@ -1353,6 +1355,32 @@ function revertWhens(doc: Document, source?: string): void {
 /** The id the transcriber gives a note it writes for a played one, and the pitch in it. */
 const PLAYED_ID = /^played-\d+ms-(\d+)$/;
 
+/** What a saved record on the note a tie runs into keeps of that note, once it is a played note again. */
+const TIED_INTO = "tiedInto";
+
+/**
+ * Point the other takes' records of a tied note struck again back at that note.
+ *
+ * A record another take saved on the note a tie runs into was read back as a played note with
+ * no written one ({@link restoreWhens}), so that that take could be transcribed. But one take's
+ * alterations are in the score at a time, and the transcription just written is this take's:
+ * it says nothing about what the other takes played. Left a played note with no written one,
+ * the record would not be saved, and the other take would lose a note it struck. So it goes
+ * back to the note it was saved on, whatever this take did there.
+ */
+function pointOtherTakes(recording: Element): void {
+    for (const other of recording.ownerDocument.querySelectorAll("recording")) {
+        if (other === recording) continue;
+        for (const when of other.children) {
+            if (when.localName !== "when") continue;
+            const note = extOf(when, TIED_INTO)?.replace(/^#/, "");
+            if (!note) continue;
+            when.setAttribute("data", `#${note}`);
+            when.removeAttribute("type");
+        }
+    }
+}
+
 /**
  * Put a recording that was saved in the as-played-by format back into the working form.
  *
@@ -1411,7 +1439,7 @@ function restoreWhens(doc: Document, source?: string): void {
         }
 
         /** Back to a played note with no written one, as settled as a saved document is. */
-        const unwrite = (when: Element, pitch: number | undefined, anchor?: string) => {
+        const unwrite = (when: Element, pitch: number | undefined, anchor?: string, tiedInto?: string) => {
             when.removeAttribute("data");
             when.setAttribute("type", "insertion");
             if (pitch !== undefined) give(when, "pitch", String(pitch));
@@ -1420,6 +1448,8 @@ function restoreWhens(doc: Document, source?: string): void {
                 give(when, "ornamentAnchor", `#${anchor}`);
                 give(when, "ornamentAnchorFrom", "model");
             }
+            // Which note it was, for a take that is not the one transcribed (see `pointOtherTakes`)
+            if (tiedInto) give(when, TIED_INTO, `#${tiedInto}`);
         };
 
         const byNote = new Map<string, Element[]>();
@@ -1429,7 +1459,7 @@ function restoreWhens(doc: Document, source?: string): void {
 
             const played = PLAYED_ID.exec(id);
             if (played) unwrite(when, Number(played[1]));
-            else if (tieEnds.has(id)) unwrite(when, written.get(id)?.pitch);
+            else if (tieEnds.has(id)) unwrite(when, written.get(id)?.pitch, undefined, id);
             else {
                 const together = byNote.get(id);
                 if (together) together.push(when);

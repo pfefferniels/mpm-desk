@@ -338,4 +338,33 @@ describe('a tie the performer did not hold', () => {
     expect(second.readings).toEqual(result.readings)
     expect(canonical(strictRecordings(second.mei))).toBe(canonical(savedTie))
   })
+
+  describe('in a document with another take', () => {
+    // A second take, saved too, that struck the tied note again as well
+    const twoTakes = (() => {
+      const doc = parse(savedTie)
+      const other = doc.querySelector('recording')!.cloneNode(true) as Element
+      other.setAttribute('source', 'other')
+      doc.querySelector('recording')!.after(other)
+      return new XMLSerializer().serializeToString(doc)
+    })()
+    const otherRecords = (mei: string) =>
+      [...parse(mei).querySelectorAll('recording[source="other"] > when')].map((when) => when.getAttribute('data'))
+
+    // As the desk does it: every take read back into the working form, then this one transcribed
+    const reopened = (divergencesOfThisTake: typeof struck) =>
+      strictRecordings(
+        transcribe({ mei: untranscribed(twoTakes), source: SOURCE, divergences: divergencesOfThisTake, spans: [again] }).mei,
+      )
+
+    it('keeps the other take\'s record on the note, where this take struck it too', () => {
+      expect(otherRecords(twoTakes)).toContain('#n2')
+      expect(otherRecords(reopened(struck))).toContain('#n2')
+      expect(canonical(reopened(struck))).toBe(canonical(twoTakes))
+    })
+
+    it('keeps it there where this take held the tie: what one take did says nothing of another', () => {
+      expect(otherRecords(reopened([]))).toContain('#n2')
+    })
+  })
 })
