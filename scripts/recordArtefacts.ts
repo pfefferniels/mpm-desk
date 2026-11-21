@@ -14,13 +14,18 @@
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
-// `asMSM` reads the MEI with the platform `DOMParser`, which node has not got.
+// `asMSM` reads the MEI with the platform `DOMParser`, and `performanceReading` writes it back out
+// with the platform `XMLSerializer`, neither of which node has got.
+const { window } = new JSDOM();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-(globalThis as any).DOMParser ??= new JSDOM().window.DOMParser;
+(globalThis as any).DOMParser ??= window.DOMParser;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as any).XMLSerializer ??= window.XMLSerializer;
 
 import { convertMeiToMsm } from 'espressivo';
 import { runFit } from '../src/fitting/fit';
 import { asMSM } from '../src/fitting/asMSM';
+import { performanceReading } from '../src/mei/performanceReading';
 import { parseWorkFile, serializeWorkFile } from '../src/model/Work';
 import { publishedPath } from '../src/test/published';
 
@@ -39,7 +44,10 @@ export interface Recorded {
 export const recordArtefacts = (): Recorded => {
     const mei = readFileSync(publishedPath('mei'), 'utf-8');
     const work = parseWorkFile(readFileSync(publishedPath('work'), 'utf-8'));
-    const movement = convertMeiToMsm(mei)[0];
+    // The reading that was played, as the editor converts it (`App.tsx`). espressivo left to
+    // itself takes the source's reading of every `<app>`: a tie the performer struck again would
+    // hold, and the note struck would not be in the score the chain fits
+    const movement = convertMeiToMsm(performanceReading(mei))[0];
     const score = movement.msm;
 
     // The chain is noisy about MSM parts it cannot match; that is a property of the fixture.

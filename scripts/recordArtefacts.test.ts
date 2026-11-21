@@ -13,6 +13,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { performanceReading } from '../src/mei/performanceReading';
 import { publishedPath, type Published } from '../src/test/published';
 import { recordArtefacts } from './recordArtefacts';
 
@@ -34,5 +35,32 @@ describe('the published files are what the chain produces', () => {
 
     test('the score is the one this conversion makes of the MEI', () => {
         expect(withoutMintedIds(shipped('score'))).toBe(withoutMintedIds(recorded.score));
+    });
+
+    test('the score is the reading that was played: every note a recording sounds is in it', () => {
+        // espressivo makes one note of notes tied together, under the id of one of them. The
+        // ties are the played reading's: a tie the performer struck again is not one
+        const played = new DOMParser().parseFromString(performanceReading(shipped('mei')), 'application/xml');
+        const group = new Map<string, Set<string>>();
+        const groupOf = (id: string): Set<string> => group.get(id) ?? new Set([id]);
+        for (const tie of played.querySelectorAll('tie')) {
+            const ends = ['startid', 'endid'].map((end) => (tie.getAttribute(end) ?? '').replace(/^#/, ''));
+            const joined = new Set([...groupOf(ends[0]), ...groupOf(ends[1])]);
+            for (const id of joined) group.set(id, joined);
+        }
+
+        // And a grace note is not in the score at all: espressivo hands those over beside it
+        const graces = new Set(
+            [...played.querySelectorAll('note')]
+                .filter((note) => note.closest('[grace], graceGrp') !== null)
+                .map((note) => note.getAttribute('xml:id')),
+        );
+
+        const inScore = new Set([...recorded.score.matchAll(/xml:id="([^"]+)"/g)].map((match) => match[1]));
+        const sounded = [...shipped('mei').matchAll(/<when\b[^>]*\bdata="([^"]+)"/g)]
+            .flatMap((match) => match[1].split(/\s+/).map((id) => id.replace(/^#/, '')))
+            .filter((id) => !graces.has(id));
+        expect(sounded.length).toBeGreaterThan(0);
+        expect(sounded.filter((id) => ![...groupOf(id)].some((tied) => inScore.has(tied)))).toEqual([]);
     });
 });

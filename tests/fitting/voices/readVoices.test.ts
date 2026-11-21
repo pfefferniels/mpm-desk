@@ -4,6 +4,7 @@ import { convertMeiToMsm } from 'espressivo';
 import { asMSM } from '../../../src/fitting/asMSM';
 import { voiceKey, voiceLabel, voicesOf } from '../../../src/fitting/voices';
 import { Alignment, type AlignedNote } from '../../../src/fitting/alignment';
+import { performanceReading } from '../../../src/mei/performanceReading';
 import { publishedPath } from '../../../src/test/published';
 
 /**
@@ -16,7 +17,8 @@ import { publishedPath } from '../../../src/test/published';
 const mei = readFileSync(publishedPath('mei'), 'utf-8');
 
 describe('reading the voices off the MEI', () => {
-  const msm = convertMeiToMsm(mei)[0]!.msm;
+  // The reading that was played, as the editor converts it
+  const msm = convertMeiToMsm(performanceReading(mei))[0]!.msm;
   const alignment = asMSM(mei, msm);
 
   test('places every note in a voice', () => {

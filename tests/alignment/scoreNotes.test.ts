@@ -79,14 +79,16 @@ describe('the notes a score offers an aligner', () => {
 
   it('sounds a tied group once, for as long as the tie lasts', () => {
     const ids = new Set(everything.map((note) => note.note))
-    const tied = [
-      ...new DOMParser()
-        .parseFromString(mei, 'text/xml')
-        .querySelectorAll('tie[endid]'),
-    ].map((tie) => tie.getAttribute('endid')!.replace(/^#/, ''))
+    const ties = [...new DOMParser().parseFromString(mei, 'text/xml').querySelectorAll('tie[endid]')]
+    const endOf = (tie: Element) => tie.getAttribute('endid')!.replace(/^#/, '')
+    // A tie in the source's reading of an `<app>` is one the performer struck again
+    const struckAgain = (tie: Element) => tie.closest('rdg')?.getAttribute('source') === 'original'
+    const tied = ties.filter((tie) => !struckAgain(tie)).map(endOf)
 
     expect(tied.length).toBeGreaterThan(0)
     // A note another note is tied into is not sounded on its own
     expect(tied.filter((id) => ids.has(id))).toHaveLength(0)
+    // Unless the tie was not held
+    expect(ties.filter(struckAgain).map(endOf).filter((id) => !ids.has(id))).toHaveLength(0)
   })
 })

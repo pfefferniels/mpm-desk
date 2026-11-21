@@ -14,6 +14,7 @@ import { ZoomContext } from '../../hooks/ZoomProvider';
 import { createMpm, requireMap } from '../../fitting/instructions/index';
 import type { Mpm, Scope } from '../../fitting/instructions/index';
 import { deriveResidual } from '../../fitting/residual';
+import { performanceReading } from '../../mei/performanceReading';
 import { publishedPath } from '../../test/published';
 import { ArticulationDesk } from './ArticulationDesk';
 
@@ -29,7 +30,8 @@ let msm: Alignment;
 
 beforeAll(() => {
     const mei = readFileSync(publishedPath('mei'), 'utf-8');
-    takes = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
+    // The reading that was played, as the editor converts it
+    takes = asMSM(mei, convertMeiToMsm(performanceReading(mei))[0]!.msm);
     const [preferred] = takes.sources();
     msm = new Alignment(
         takes.allNotes.filter((note) => note.source === preferred),

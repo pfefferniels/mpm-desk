@@ -8,6 +8,7 @@ import {
   type AlignedPedal,
 } from '../../../src/fitting/alignment';
 import { asMSM } from '../../../src/fitting/asMSM';
+import { performanceReading } from '../../../src/mei/performanceReading';
 import { publishedPath } from '../../../src/test/published';
 
 /**
@@ -98,7 +99,8 @@ describe('how many notes are still on more than one reading', () => {
  */
 describe('the rows of the shipped transcription, before a base text is chosen', () => {
   const mei = readFileSync(publishedPath('mei'), 'utf-8');
-  const takes = asMSM(mei, convertMeiToMsm(mei)[0]!.msm);
+  // The reading that was played, as the editor converts it
+  const takes = asMSM(mei, convertMeiToMsm(performanceReading(mei))[0]!.msm);
 
   const distinct = (values: string[]) => new Set(values).size;
 
