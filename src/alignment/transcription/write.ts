@@ -688,7 +688,17 @@ function declareEditor(doc: Document, name: string): string | undefined {
     editor.setAttribute("xml:id", id);
     editor.setAttribute("type", TRANSCRIPTION);
     editor.textContent = said;
-    statement.appendChild(editor);
+
+    // On a line of its own where the statement's children are, indented as they are
+    const blank = (node: Node | null | undefined): node is Text => node?.nodeType === 3 && !node.textContent?.trim();
+    const tail = statement.lastChild;
+    const indent = statement.lastElementChild?.previousSibling;
+    if (blank(tail) && blank(indent)) {
+        statement.insertBefore(doc.createTextNode(indent.textContent ?? ""), tail);
+        statement.insertBefore(editor, tail);
+    } else {
+        statement.appendChild(editor);
+    }
     return `#${id}`;
 }
 
@@ -963,8 +973,13 @@ export function revertTranscription(doc: Document): void {
         parent.removeChild(app);
     }
 
-    // The editor they were attributed to, where the header names them only for that
-    for (const editor of [...doc.querySelectorAll(`titleStmt > editor[type="${TRANSCRIPTION}"]`)]) editor.remove();
+    // The editor they were attributed to, where the header names them only for that, and the
+    // line {@link declareEditor} put them on
+    for (const editor of [...doc.querySelectorAll(`titleStmt > editor[type="${TRANSCRIPTION}"]`)]) {
+        const before = editor.previousSibling;
+        if (editor.nextSibling?.nodeType === 3 && before?.nodeType === 3 && !before.textContent?.trim()) before.remove();
+        editor.remove();
+    }
 
     for (const note of [...doc.querySelectorAll(`[type~="${PINNED}"]`)]) {
         note.removeAttribute("accid");

@@ -167,6 +167,14 @@ describe('who answers for it', () => {
     expect(canonical(untranscribed(transcribe({ ...input(), resp: NAME }).mei))).toBe(canonical(base))
   })
 
+  it('is named on a line of its own in a header laid out in lines, and the line goes with it', () => {
+    const laidOut = scoreMei().replace('<titleStmt><title/></titleStmt>', '<titleStmt>\n      <title/>\n    </titleStmt>')
+    const result = transcribe({ ...input(laidOut), resp: NAME })
+
+    expect(result.mei).toContain(`<title/>\n      <editor xml:id="editor" type="transcription">${NAME}</editor>\n    </titleStmt>`)
+    expect(untranscribed(result.mei)).toContain('<titleStmt>\n      <title/>\n    </titleStmt>')
+  })
+
   it('is the editor the header already names, where it does', () => {
     const named = scoreMei().replace('<title/>', `<title/><editor xml:id="ed1">${NAME}</editor>`)
     const result = transcribe({ ...input(named), resp: NAME })
