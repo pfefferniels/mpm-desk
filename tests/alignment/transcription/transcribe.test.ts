@@ -119,7 +119,7 @@ describe('a played note the score does not write', () => {
     expect(performance(doc, 'b3')?.getAttribute('dur')).toBe('2')
     expect(performance(doc, 'b3')?.getAttribute('dots')).toBe('1')
     expect(performance(doc, 'b3-held')?.getAttribute('dur')).toBe('8')
-    expect(doc.querySelector('rdg[source="performance"] > tie[startid="#b3"]')?.getAttribute('endid')).toBe('#b3-held')
+    expect(doc.querySelector('rdg[source="performance"] > supplied[reason="voicing"] > tie[startid="#b3"]')?.getAttribute('endid')).toBe('#b3-held')
     expect(performance(doc, writtenIdOf(upbeat))?.getAttribute('dur')).toBe('8')
 
     // One note for verovio as for the chain, as long as it took to get to the next
@@ -201,7 +201,7 @@ describe('a played note the score does not write', () => {
     expect(chord?.getAttribute('dur')).toBe('4')
     expect(chord?.querySelector(`[*|id="${writtenIdOf(octave)}"]`)).not.toBeNull()
     expect(performance(doc, 'b1-held')?.parentElement?.getAttribute('dur')).toBe('16')
-    expect(doc.querySelectorAll('rdg[source="performance"] > tie')).toHaveLength(2)
+    expect(doc.querySelectorAll('rdg[source="performance"] > supplied[reason="voicing"] > tie')).toHaveLength(2)
     expect(performance(doc, writtenIdOf(after))?.getAttribute('dur')).toBe('8')
     expect(performance(doc, writtenIdOf(after))?.getAttribute('dots')).toBe('1')
 
@@ -433,7 +433,7 @@ describe('what a reader may ask for instead', () => {
     const doc = parse(result.mei)
 
     expect(result.outcomes.get('a')?.written).toBe('sign')
-    expect(doc.querySelector('measure app[type="transcription"] rdg[source="performance"] > mordent[startid="#n7"]')).not.toBeNull()
+    expect(doc.querySelector('measure app[type="transcription"] rdg[source="performance"] > supplied[reason="notation"] > mordent[startid="#n7"]')).not.toBeNull()
     expect(doc.querySelector(`[*|id="${writtenIdOf(lean)}"]`)).toBeNull()
     // Still a played note with no written one, which is what an ornament's notes are
     expect(doc.querySelectorAll('when[type="insertion"]')).toHaveLength(1)
@@ -452,9 +452,9 @@ describe('what a reader may ask for instead', () => {
 
     const turn = picked('turn')
     expect(turn.outcomes.get('a')?.sign).toBe('turn')
-    expect(parse(turn.mei).querySelector('rdg[source="performance"] > turn')?.getAttribute('startid')).toBe('#n7')
+    expect(parse(turn.mei).querySelector('rdg[source="performance"] > supplied > turn')?.getAttribute('startid')).toBe('#n7')
 
-    const mordent = parse(picked('mordent-lower').mei).querySelector('rdg[source="performance"] > mordent')
+    const mordent = parse(picked('mordent-lower').mei).querySelector('rdg[source="performance"] > supplied > mordent')
     expect(mordent?.getAttribute('form')).toBe('lower')
 
     // Unpicked, it is read off the figure, and the outcome says which it came to

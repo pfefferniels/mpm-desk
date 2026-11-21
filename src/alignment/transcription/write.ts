@@ -33,6 +33,25 @@
  * event's time, a new layer is padded with `<space>` to the barline, a note taken out leaves a
  * rest, and a triplet is closed inside its quarter, so that verovio counts the other voices
  * exactly as before.
+ *
+ * A performance reading says one of two kinds of thing. Some of them the recording settles: a
+ * written note was not struck, a tie was not held, a key was held over, another pitch sounded at
+ * a written note's moment and for its length, another note joined a written chord. Others it
+ * does not, and the editor has decided them: where in the bar a note of its own falls and how
+ * long it is written (`rhythm`), which voice it goes into and what becomes of the note that voice
+ * was holding (`voicing`), and whether a figure is written as grace notes or a sign (`notation`).
+ * What a reading of the second kind holds goes into a `<supplied>` inside it, which says on
+ * which of those grounds (`@reason`), how sure (`@cert`) and who answers for it (`@resp`).
+ *
+ *   written in a `<supplied>`            left as the recording has it
+ *   a note at a place of its own         a note not played
+ *   a new layer                          a tie not held, or one held that is not written
+ *   grace notes                          a note played at another pitch
+ *   a sign                               a note added to a written chord
+ *
+ * `@resp` points at the editor where the header names them, and the header is made to (see
+ * {@link declareEditor}). `@cert` stands on the `<supplied>` and not on the `<rdg>`, which in MEI
+ * 5.1 cannot carry it.
  */
 
 import { ownAccidental } from "../../score/accidentals";
@@ -131,9 +150,20 @@ export interface Edits {
 }
 
 interface Attribution {
-    /** Who answers for the reading, for `@resp` */
+    /** Who answers for the reading, by name: the editor named in the work's metadata */
     resp?: string;
 }
+
+/**
+ * What a reading rests on beyond the recording, for `@reason` on its `<supplied>`, in the order
+ * they are written there.
+ *
+ *   rhythm     where in the bar a note was struck, and what note value it is written as
+ *   voicing    which voice it is written in, and how that voice's own note is cut to make room
+ *   notation   whether a figure is written as grace notes, or as a sign
+ */
+const INTERPRETATIONS = ["rhythm", "voicing", "notation"] as const;
+type Interpretation = (typeof INTERPRETATIONS)[number];
 
 /** `high` from four in five, `medium` from one in two: what `@cert` can say. */
 const certaintyOf = (confidence: number): string =>
@@ -165,8 +195,25 @@ export function applyEdits(
     };
     const notation = planNotation(edits);
 
-    /** An `<app>` with both readings, the performance one attributed. */
-    const appFor = (notes: readonly { cause: string; confidence: number }[], fallback: string) => {
+    // Declared on the first reading written, so that a score nothing was written into is left as it was
+    let resp: string | null | undefined;
+    const respOf = (): string | undefined => {
+        if (resp === undefined) resp = (attribution.resp && declareEditor(doc, attribution.resp)) || null;
+        return resp ?? undefined;
+    };
+
+    /**
+     * An `<app>` with both readings, the performance one attributed.
+     *
+     * `interpreted` says what the performance reading rests on besides the recording. Where it
+     * rests on something, what is written into it goes into a `<supplied>` inside it, and that is
+     * the element handed back as `performance`.
+     */
+    const appFor = (
+        notes: readonly { cause: string; confidence: number }[],
+        fallback: string,
+        interpreted: readonly Interpretation[] = [],
+    ) => {
         const app = doc.createElementNS(MEI_NS, "app");
         app.setAttribute("type", TRANSCRIPTION);
 
@@ -174,16 +221,29 @@ export function applyEdits(
         original.setAttribute("source", "original");
         app.appendChild(original);
 
-        const performance = doc.createElementNS(MEI_NS, "rdg");
-        performance.setAttribute("source", "performance");
-        performance.setAttribute("cause", notes[0]?.cause ?? fallback);
-        if (attribution.resp) performance.setAttribute("resp", attribution.resp);
-        const least = notes.reduce((min, note) => Math.min(min, note.confidence), 1);
-        performance.setAttribute("cert", certaintyOf(notes.length > 0 ? least : 1));
-        app.appendChild(performance);
+        const reading = doc.createElementNS(MEI_NS, "rdg");
+        reading.setAttribute("source", "performance");
+        reading.setAttribute("cause", notes[0]?.cause ?? fallback);
+        const who = respOf();
+        if (who) reading.setAttribute("resp", who);
+        app.appendChild(reading);
 
-        return { app, original, performance };
+        if (interpreted.length === 0) return { app, original, performance: reading };
+
+        const supplied = doc.createElementNS(MEI_NS, "supplied");
+        supplied.setAttribute("reason", INTERPRETATIONS.filter((kind) => interpreted.includes(kind)).join(" "));
+        // What it is read from is in the document: the `<when>`s of the recording
+        supplied.setAttribute("evidence", "internal");
+        supplied.setAttribute("cert", certaintyOf(notes.reduce((min, note) => Math.min(min, note.confidence), 1)));
+        if (who) supplied.setAttribute("resp", who);
+        reading.appendChild(supplied);
+
+        return { app, original, performance: supplied };
     };
+
+    /** Grace notes among what a reading holds make it a reading of notation, too. */
+    const withGraces = (places: readonly OwnPlace[], interpreted: Interpretation[]): Interpretation[] =>
+        places.some((place) => place.graces.length > 0) ? [...interpreted, "notation"] : interpreted;
 
     /** A `<note>` for a played note, spelled, with no length of its own. */
     const noteFor = (note: NewNote): Element => {
@@ -322,6 +382,7 @@ export function applyEdits(
         const { app, original, performance } = appFor(
             [...inserted, ...edit.add, ...edit.replace.values()],
             "added-note",
+            withGraces(edit.inside, ["rhythm", "voicing"]),
         );
         parent.insertBefore(app, element);
         original.appendChild(element);
@@ -357,7 +418,7 @@ export function applyEdits(
         // Where its new length is no one note value it is tied values, and a tie is a line in
         // the measure: a reading of its own, beside the one the notes are in
         if (chain.length > 1) {
-            const { app: lines, performance: ties } = appFor(inserted, "added-note");
+            const { app: lines, performance: ties } = appFor(inserted, "added-note", ["voicing"]);
             for (let index = 1; index < chain.length; index++) {
                 const before = notesOf(chain[index - 1]);
                 notesOf(chain[index]).forEach((note, at) => {
@@ -382,7 +443,7 @@ export function applyEdits(
         if (!parent) continue;
 
         if (edit.graces.length > 0) {
-            const { app, performance } = appFor(edit.graces.flat(), "ornamentation");
+            const { app, performance } = appFor(edit.graces.flat(), "ornamentation", ["notation"]);
             for (const moment of edit.graces) performance.appendChild(graceFor(moment));
             const before = outsideItsBeam(element);
             before.parentElement?.insertBefore(app, before);
@@ -492,6 +553,7 @@ export function applyEdits(
             const { app, performance } = appFor(
                 places.flatMap((place) => [...place.notes, ...place.graces.flat()]),
                 "added-note",
+                withGraces(places, ["rhythm", "voicing"]),
             );
             const layer = doc.createElementNS(MEI_NS, "layer");
             layer.setAttribute("n", String(++n));
@@ -534,7 +596,11 @@ export function applyEdits(
 
     for (const edit of edits.signs) {
         const measure = edit.anchor.event.layer.staff.measure.element;
-        const { app, performance } = appFor([{ cause: "ornamentation", confidence: edit.confidence }], "ornamentation");
+        const { app, performance } = appFor(
+            [{ cause: "ornamentation", confidence: edit.confidence }],
+            "ornamentation",
+            ["notation"],
+        );
         const sign = doc.createElementNS(MEI_NS, edit.sign.name);
         sign.setAttribute("startid", `#${edit.anchor.id}`);
         if (edit.sign.name === "mordent") sign.setAttribute("form", edit.sign.form);
@@ -590,6 +656,40 @@ function nameReadings(doc: Document): void {
         taken.add(id);
         app.setAttribute("xml:id", id);
     }
+}
+
+/**
+ * The editor the readings are attributed to, as `@resp` takes them: a pointer into the header.
+ *
+ * `@resp` names no one itself. It points at an agent the header declares, so the editor named in
+ * the work's metadata is declared in the title statement, which is the file's own account of who
+ * answers for it, as an `<editor>`. One the title statement already names, under an id, is
+ * pointed at as it is. One declared here is marked, and {@link revertTranscription} takes it out
+ * with the readings.
+ *
+ * Undefined where there is no title statement to declare them in. Then nothing is attributed,
+ * since a pointer to nobody says less than no pointer at all.
+ */
+function declareEditor(doc: Document, name: string): string | undefined {
+    const statement = doc.querySelector("meiHead > fileDesc > titleStmt");
+    const said = name.replace(/\s+/g, " ").trim();
+    if (!statement || !said) return undefined;
+
+    for (const named of statement.querySelectorAll("editor, persName[role='editor']")) {
+        const id = named.getAttribute("xml:id");
+        if (id && named.textContent?.replace(/\s+/g, " ").trim() === said) return `#${id}`;
+    }
+
+    const used = new Set([...doc.querySelectorAll("*")].map((element) => element.getAttribute("xml:id")));
+    let id = "editor";
+    for (let count = 2; used.has(id); count++) id = `editor-${String(count)}`;
+
+    const editor = doc.createElementNS(MEI_NS, "editor");
+    editor.setAttribute("xml:id", id);
+    editor.setAttribute("type", TRANSCRIPTION);
+    editor.textContent = said;
+    statement.appendChild(editor);
+    return `#${id}`;
 }
 
 /** The names of the readings a transcription wrote into a score, in the order they stand. */
@@ -862,6 +962,9 @@ export function revertTranscription(doc: Document): void {
         for (const child of original ? [...original.childNodes] : []) parent.insertBefore(child, app);
         parent.removeChild(app);
     }
+
+    // The editor they were attributed to, where the header names them only for that
+    for (const editor of [...doc.querySelectorAll(`titleStmt > editor[type="${TRANSCRIPTION}"]`)]) editor.remove();
 
     for (const note of [...doc.querySelectorAll(`[type~="${PINNED}"]`)]) {
         note.removeAttribute("accid");

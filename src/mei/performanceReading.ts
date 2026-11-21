@@ -13,10 +13,16 @@ import { readableChildren } from "../score/accidentals";
  * So the choice is made here, once, by the rule verovio follows (`readableChildren`), and the
  * converter is handed a document that has no choice left in it.
  *
+ * Every `<supplied>` is given up as well, its content kept where it stood. What it says, that the
+ * editor wrote what was played this way and why, is nothing the converter has a use for, and its
+ * being there is something the converter cannot take: it times a `<layer>` against the layers
+ * beside it, and one standing inside a `<supplied>` has none, so that it would start where the
+ * staff's other voices end instead of at the barline.
+ *
  * Only for conversion. The document itself keeps both readings: this returns a copy.
  */
 export function performanceReading(mei: string): string {
-    if (!mei.includes("<app")) return mei;
+    if (!mei.includes("<app") && !mei.includes("<supplied")) return mei;
 
     const doc = new DOMParser().parseFromString(mei, "application/xml");
     if (doc.querySelector("parsererror")) return mei;
@@ -30,6 +36,13 @@ export function performanceReading(mei: string): string {
             for (const child of [...reading.childNodes]) parent.insertBefore(child, app);
         }
         parent.removeChild(app);
+    }
+
+    for (const supplied of [...doc.querySelectorAll("supplied")].reverse()) {
+        const parent = supplied.parentNode;
+        if (!parent) continue;
+        for (const child of [...supplied.childNodes]) parent.insertBefore(child, supplied);
+        parent.removeChild(supplied);
     }
 
     return new XMLSerializer().serializeToString(doc);

@@ -82,7 +82,18 @@ and nothing else.
 
 A recording added on the alignment desk is aligned at once, and whatever a reader then changes
 goes into the score by itself, a moment after: there is nothing to press to keep it. The
-readings are attributed to the editor named in the work's metadata.
+readings are attributed to the editor named in the work's metadata: `@resp` points at an
+`<editor>` in the header's title statement, which the transcription adds if the header does not
+already name them.
+
+A performance reading says what the recording settles, and some say more. That a written note
+was not struck, that a tie was not held or a key was held over, that another pitch sounded at a
+written note's moment or joined a written chord: the recording says so. Where in the bar a note
+of its own falls and what note value it is, which voice it goes into and what becomes of the
+note that voice was holding, whether a figure is grace notes or a sign: the editor decided.
+What a reading of that kind holds stands in a `<supplied>` inside it, whose `@reason` names the
+grounds, `rhythm`, `voicing` or `notation`, with `@evidence="internal"` (it is read from the
+recording in the same document), `@cert` and `@resp`.
 
 How a place is to be written is a question about how it sounded, so each one can be heard where
 it is decided: the bar that opens on a note plays the recording from a second and a half before
