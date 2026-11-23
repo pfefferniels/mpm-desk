@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.again.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -76,8 +76,24 @@ jobs:
           path: dist
           name: github-pages-${{ github.run_attempt }}
 
+      # Once more, a minute later, where the first could not find the artifact. `deploy-pages`
+      # looks for it among the run's artifacts a moment after it is uploaded, and a new one is not
+      # always listed yet: on 23 November 2026 three attempts running found every artifact but
+      # their own, and a re-run only repeats the race.
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
+
+      - name: Wait for the artifact to be listed
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to GitHub Pages, again
+        id: again
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v5
         with:
           artifact_name: github-pages-${{ github.run_attempt }}
