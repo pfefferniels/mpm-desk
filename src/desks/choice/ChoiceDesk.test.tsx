@@ -73,9 +73,11 @@ interface MountOptions {
     shift?: boolean;
     /** Where the recording begins, in milliseconds before the first note. */
     leader?: number;
+    /** The transcription the readings were aligned in, which names the symbol each performs. */
+    mei?: string;
 }
 
-const mount = ({ editable = true, selected, choices = [], shift = false, leader = 0 }: MountOptions = {}) => {
+const mount = ({ editable = true, selected, choices = [], shift = false, leader = 0, mei }: MountOptions = {}) => {
     const pristine = alignment();
     pristine.allNotes.forEach((row) => {
         row['milliseconds.date'] += leader;
@@ -99,7 +101,7 @@ const mount = ({ editable = true, selected, choices = [], shift = false, leader 
 
     const { container } = render(
         <EditingContext value={editable}>
-            <ScoreDocumentProvider mei={undefined} setMei={vi.fn()} recording="" pristine={pristine}>
+            <ScoreDocumentProvider mei={mei} setMei={vi.fn()} recording="" pristine={pristine}>
                 <ScrollSyncProvider symbolicZoom={20} physicalZoom={20}>
                     <CallSelectionProvider
                         calls={calls}
@@ -259,6 +261,35 @@ describe('in the viewer', () => {
 
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(addTransformer).not.toHaveBeenCalled();
+    });
+
+    /** Note `b` read in both takes, each by the symbol of the roll that sounds it there. */
+    const transcription = `<mei xmlns="http://www.music-encoding.org/ns/mei"><music><performance>
+        <recording source="rec1"><when absolute="720ms" data="#b" corresp="https://example.org/symbol_b1"/></recording>
+        <recording source="rec2"><when absolute="720ms" data="#b" corresp="https://example.org/symbol_b2"/></recording>
+    </performance></music></mei>`;
+
+    /** The bars that open a symbol, as `note/reading → IRI`. */
+    const links = (container: HTMLElement) =>
+        [...container.querySelectorAll('svg a')].map((link) => {
+            const rect = link.querySelector('rect');
+            return `${rect?.getAttribute('data-id') ?? ''}/${rect?.getAttribute('data-source') ?? ''} → ${link.getAttribute('href') ?? ''}`;
+        });
+
+    it('opens the symbol of the roll each reading performs', () => {
+        const { container } = mount({ editable: false, mei: transcription });
+
+        expect(links(container)).toEqual([
+            'b/rec1 → https://example.org/symbol_b1',
+            'b/rec2 → https://example.org/symbol_b2',
+        ]);
+        expect(container.querySelector('svg a')?.getAttribute('target')).toBe('_blank');
+    });
+
+    it('leaves a click in the editor to the choice', () => {
+        const { container } = mount({ mei: transcription });
+
+        expect(links(container)).toEqual([]);
     });
 });
 

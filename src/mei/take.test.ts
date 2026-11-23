@@ -36,6 +36,12 @@ describe('the name of a take', () => {
         );
     });
 
+    it('is named after the id of a version Roll Desk names by its IRI', () => {
+        expect(takeSource('https://welte225.org/0e5f443d-0dd9-4810-9dbe-7f5007df490f')).toBe(
+            '#take-0e5f443d-0dd9-4810-9dbe-7f5007df490f',
+        );
+    });
+
     it('holds a file stem with what an id cannot hold made hyphens', () => {
         const source = takeSource('Träumerei (2) take 1');
         expect(source).toBe('#take-Träumerei--2--take-1');

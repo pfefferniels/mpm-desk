@@ -21,6 +21,7 @@ import { useCallSelection } from "../../hooks/CallSelection"
 import { EVIDENCE_COLOUR } from "../evidence"
 import { useScoreDocument } from "../../hooks/ScoreDocument"
 import { readingName, readingsOnFittedAxis, takenNotes, takenPedalling } from "./readings"
+import { symbolsOf } from "../../mei/symbols"
 import { ReadingsLegend } from "./ReadingsLegend"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
@@ -97,6 +98,11 @@ interface ArticulatedNoteProps {
     stretchY: number
     /** Scopes the choice to the note. Absent in the viewer, where a choice is not made. */
     onClick?: (e: MouseEvent<Element>, note: AlignedNote) => void
+    /**
+     * The IRI of the symbol of the roll a reading performs, where its take names one — see
+     * `symbolsOf`. Followed by a click where a click scopes no choice, which is in the viewer.
+     */
+    symbolOf: (note: AlignedNote) => string | undefined
     colorFor: (source: string) => string
     nameFor: (source: string) => string
     /** One of the selected calls chose for this note — see `../evidence.ts`. */
@@ -123,8 +129,11 @@ interface ArticulatedNoteProps {
  *
  * Where a selected call made its choice for this note, the brace is drawn in the evidence colour
  * and the group is shown at full strength, however little its readings differ.
+ *
+ * In the viewer a reading's bar is a link to the symbol of the roll that sounds it, opened beside
+ * the reconstruction rather than in its place. In the editor a click scopes the choice instead.
  */
-const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, nameFor, evidence, taken }: ArticulatedNoteProps) => {
+const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, symbolOf, colorFor, nameFor, evidence, taken }: ArticulatedNoteProps) => {
     const [hovered, setHovered] = useState(false)
 
     if (!notes.length) return null
@@ -159,31 +168,39 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, nameFor, ev
                 const y = (100 - note["midi.pitch"] + yOffset) * stretchY
 
                 const color = colorFor(source)
+                const symbol = onClick ? undefined : symbolOf(note)
+
+                const bar = (
+                    <rect
+                        data-source={source}
+                        data-id={note['xml:id']}
+                        data-taken={state === 'taken' || undefined}
+                        x={onset * stretchX}
+                        y={y - (stretchY - 0.4) / 2}
+                        width={duration * stretchX}
+                        height={stretchY * 0.5}
+                        fill={color}
+                        fillOpacity={(velocity + 40) / 127}
+                        opacity={state === 'set aside' ? 0.35 : undefined}
+                        stroke='black'
+                        strokeWidth={0.8}
+                        strokeDasharray={state === 'taken' || (state === 'open' && hovered) ? 'none' : '1 1'}
+                        onClick={onClick && ((e) => onClick(e, note))}
+                    >
+                        <title>
+                            {`${nameFor(source)}, velocity ${velocity}${state === 'open' ? '' : `, ${state}`}`}
+                            {symbol && `\n${symbol}`}
+                        </title>
+                    </rect>
+                )
 
                 // Keyed by the row, not the note: every reading of a note shares its `xml:id`, so
                 // the id alone is the same key once per reading.
                 return (
                     <Fragment key={rowId(note)}>
-                        <rect
-                            data-source={source}
-                            data-id={note['xml:id']}
-                            data-taken={state === 'taken' || undefined}
-                            x={onset * stretchX}
-                            y={y - (stretchY - 0.4) / 2}
-                            width={duration * stretchX}
-                            height={stretchY * 0.5}
-                            fill={color}
-                            fillOpacity={(velocity + 40) / 127}
-                            opacity={state === 'set aside' ? 0.35 : undefined}
-                            stroke='black'
-                            strokeWidth={0.8}
-                            strokeDasharray={state === 'taken' || (state === 'open' && hovered) ? 'none' : '1 1'}
-                            onClick={onClick && ((e) => onClick(e, note))}
-                        >
-                            <title>
-                                {`${nameFor(source)}, velocity ${velocity}${state === 'open' ? '' : `, ${state}`}`}
-                            </title>
-                        </rect>
+                        {symbol
+                            ? <a href={symbol} target='_blank' rel='noreferrer'>{bar}</a>
+                            : bar}
 
                         {/* Through to the bars: a figure ten pixels high sits over the bar it labels
                             and the one stacked with it, which a click scoping the choice is aimed at. */}
@@ -229,13 +246,15 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, nameFor, ev
  * a choice made over the whole piece leaves the other reading there to narrow it against.
  *
  * In the viewer the readings are only shown: nothing is chosen, so the bar is empty and a click
- * on a note scopes nothing. A choice is selected from the legend, and the notes a selected
+ * on a note scopes nothing. It opens the symbol of the roll the reading performs instead, where
+ * the transcription names one. A choice is selected from the legend, and the notes a selected
  * `MakeChoice` chose for are marked.
  */
 export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
     const editable = useEditable()
     const { activeEvidence } = useCallSelection()
-    const { pristine } = useScoreDocument()
+    const { pristine, mei } = useScoreDocument()
+    const symbols = useMemo(() => mei ? symbolsOf(mei) : new Map<string, string>(), [mei])
     // `pristine` is in hand wherever a fit is, so the fallback is for a desk mounted on its own.
     const recorded = pristine ?? msm
     const readings = useMemo(() => readingsOnFittedAxis(recorded, msm), [recorded, msm])
@@ -297,6 +316,7 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                 stretchY={stretchY}
                 colorFor={colorFor}
                 nameFor={nameFor}
+                symbolOf={note => symbols.get(rowId(note))}
                 evidence={notes.some(note => activeEvidence.has(note['xml:id']))}
                 taken={taken.get(xmlId)}
                 onClick={editable ? (e) => {
