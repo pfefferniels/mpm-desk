@@ -17,6 +17,7 @@ import { deriveResidual } from '../../fitting/residual';
 import type { Scope } from '../../fitting/instructions/index';
 import type { SecondaryData } from '../TransformerViewProps';
 import { TempoDesk } from './TempoDesk';
+import { FollowBackProvider, type Followed } from '../../hooks/FollowBack';
 import { VERTICAL_SLIDER_WIDTH } from '../../components/ZoomControls';
 
 const note = (id: string, date: number, part: number, seconds: number): AlignedNote => ({
@@ -73,6 +74,7 @@ const Desk = ({
     addTransformer = vi.fn(),
     editable = true,
     selection = noSelection,
+    follow,
 }: {
     part: Scope;
     mpm: Mpm;
@@ -81,12 +83,15 @@ const Desk = ({
     addTransformer?: (transformer: InsertTempo) => void;
     editable?: boolean;
     selection?: Selection;
+    /** What the app hands the desk to follow a note back to Base Text with, in the viewer. */
+    follow?: (followed: Followed) => void;
 }) => {
     const msm = useMemo(() => alignment(), []);
     const [secondary, setSecondary] = useState(initial);
 
     return (
         <EditingContext value={editable}>
+            <FollowBackProvider follow={follow} followed={null}>
             <ZoomContext
                 value={{ symbolic: { stretchX: 0.1 }, physical: { stretchX: 20 }, setStretchX: vi.fn() }}
             >
@@ -127,6 +132,7 @@ const Desk = ({
                     </ScrollSyncProvider>
                 </NotesProvider>
             </ZoomContext>
+            </FollowBackProvider>
         </EditingContext>
     );
 };
@@ -135,7 +141,11 @@ const renderDesk = (
     part: Scope,
     secondary: SecondaryData = {},
     mpm: Mpm = createMpm(),
-    { editable = true, selection = noSelection }: { editable?: boolean; selection?: Selection } = {},
+    {
+        editable = true,
+        selection = noSelection,
+        follow,
+    }: { editable?: boolean; selection?: Selection; follow?: (followed: Followed) => void } = {},
 ) => {
     const bar = document.createElement('div');
     document.body.appendChild(bar);
@@ -150,6 +160,7 @@ const renderDesk = (
             addTransformer={addTransformer}
             editable={editable}
             selection={selection}
+            follow={follow}
         />,
     );
 
@@ -172,6 +183,7 @@ const renderDesk = (
                     addTransformer={addTransformer}
                     editable={editable}
                     selection={selection}
+                    follow={follow}
                 />,
             ),
         dispose: () => {
@@ -539,6 +551,48 @@ describe('the desk in the viewer', () => {
         expect(document.querySelectorAll('polygon.box:not([data-derived])')).toHaveLength(4);
         expect(document.querySelector('svg.skyline')).not.toHaveStyle({ cursor: 'crosshair' });
         expect(addTransformer).not.toHaveBeenCalled();
+        dispose();
+    });
+
+    it('follows a box back to Base Text, at the notes struck where it begins', () => {
+        const follow = vi.fn();
+        const { storedBoxes, dispose } = renderDesk('global', {}, createMpm(), { ...viewer, follow });
+        const box = document.querySelector('polygon.box:not([data-derived])[data-start="1440"]')!;
+
+        expect(box).toHaveStyle({ cursor: 'pointer' });
+        fireEvent.click(box);
+
+        // Both hands strike at 1440, and the scope is the piece, so both notes are followed.
+        expect(follow).toHaveBeenCalledTimes(1);
+        const [followed] = follow.mock.calls[0] as [Followed];
+        expect(followed.date).toBe(1440);
+        expect([...followed.notes].sort()).toEqual(['a3', 'b2']);
+        expect(storedBoxes()).toBe(0);
+        dispose();
+    });
+
+    it('follows only the notes of the part on the picker', () => {
+        const follow = vi.fn();
+        const { dispose } = renderDesk(0, {}, createMpm(), { ...viewer, follow });
+
+        fireEvent.click(document.querySelector('polygon.box:not([data-derived])[data-start="1440"]')!);
+
+        expect((follow.mock.calls[0] as [Followed])[0].notes).toEqual(['a3']);
+        dispose();
+    });
+});
+
+describe('a box clicked in the editor', () => {
+    it('is selected, and follows nothing', () => {
+        const follow = vi.fn();
+        const { dispose } = renderDesk(0, {}, createMpm(), { follow });
+        const box = () => document.querySelector('polygon.box:not([data-derived])[data-start="1440"]')!;
+
+        expect(box()).not.toHaveStyle({ cursor: 'pointer' });
+        fireEvent.click(box());
+
+        expect(follow).not.toHaveBeenCalled();
+        expect(box()).toHaveAttribute('stroke-width', '2');
         dispose();
     });
 });

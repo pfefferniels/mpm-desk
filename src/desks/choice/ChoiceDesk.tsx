@@ -21,7 +21,7 @@ import { useCallSelection } from "../../hooks/CallSelection"
 import { EVIDENCE_COLOUR } from "../evidence"
 import { useScoreDocument } from "../../hooks/ScoreDocument"
 import { readingName, readingsOnFittedAxis, takenNotes, takenPedalling } from "./readings"
-import { symbolsOf } from "../../mei/symbols"
+import { useFollowBack } from "../../hooks/FollowBack"
 import { ReadingsLegend } from "./ReadingsLegend"
 
 // Cf. https://gist.github.com/alexhornbake/6005176
@@ -55,6 +55,12 @@ const makeCurlyBrace = (x1: number, y1: number, x2: number, y2: number, w: numbe
         " Q " + qx3 + " " + qy3 + " " + qx4 + " " + qy4 +
         " T " + tx1 + " " + ty1);
 }
+
+/**
+ * Behind the readings of a note followed here from another desk: a highlighter's amber, which no
+ * reading is coloured in at this strength and which the evidence colour is not.
+ */
+const FOLLOWED_COLOUR = '#f59e0b'
 
 const colors = [
     "#e6194B",
@@ -98,15 +104,12 @@ interface ArticulatedNoteProps {
     stretchY: number
     /** Scopes the choice to the note. Absent in the viewer, where a choice is not made. */
     onClick?: (e: MouseEvent<Element>, note: AlignedNote) => void
-    /**
-     * The IRI of the symbol of the roll a reading performs, where its take names one — see
-     * `symbolsOf`. Followed by a click where a click scopes no choice, which is in the viewer.
-     */
-    symbolOf: (note: AlignedNote) => string | undefined
     colorFor: (source: string) => string
     nameFor: (source: string) => string
     /** One of the selected calls chose for this note — see `../evidence.ts`. */
     evidence: boolean
+    /** The reader followed this note here from another desk — see `useFollowBack`. */
+    followed: boolean
     /**
      * The reading the chain took this note from, `null` where it took none of them, and
      * undefined while the readings of it still stand side by side — see `takenNotes`.
@@ -132,8 +135,9 @@ interface ArticulatedNoteProps {
  *
  * In the viewer a reading's bar is a link to the symbol of the roll that sounds it, opened beside
  * the reconstruction rather than in its place. In the editor a click scopes the choice instead.
+ * A note followed here from another desk stands on an amber band, at full strength.
  */
-const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, symbolOf, colorFor, nameFor, evidence, taken }: ArticulatedNoteProps) => {
+const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, colorFor, nameFor, evidence, followed, taken }: ArticulatedNoteProps) => {
     const [hovered, setHovered] = useState(false)
 
     if (!notes.length) return null
@@ -149,14 +153,38 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, symbolOf, colorFor, n
         return acc + (velDiff + onsetDiff * 1000)
     }, 0)
 
+    // Where each reading's bar is drawn, as the loop below draws it, for the band to cover them all.
+    const placed = notes.map((note, i) => {
+        const yOffset = i - (notes.length / 2) + 0.5
+        const top = (100 - note["midi.pitch"] + yOffset) * stretchY - (stretchY - 0.4) / 2
+        const onset = onsetSeconds(note)
+        return { left: onset * stretchX, right: (onset + soundedSeconds(note)) * stretchX, top, bottom: top + stretchY * 0.5 }
+    })
+    const pad = 3
+
     return (
         <g
             data-evidence={evidence || undefined}
             data-note={notes[0]['xml:id']}
-            opacity={hovered || evidence || taken !== undefined ? 1 : (variationScore / (notes.length * 4) || 1)}
+            data-followed={followed || undefined}
+            opacity={hovered || evidence || followed || taken !== undefined ? 1 : (variationScore / (notes.length * 4) || 1)}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
+            {followed && (
+                <rect
+                    x={Math.min(...placed.map(bar => bar.left)) - pad}
+                    y={Math.min(...placed.map(bar => bar.top)) - pad}
+                    width={Math.max(...placed.map(bar => bar.right)) - Math.min(...placed.map(bar => bar.left)) + 2 * pad}
+                    height={Math.max(...placed.map(bar => bar.bottom)) - Math.min(...placed.map(bar => bar.top)) + 2 * pad}
+                    rx={2}
+                    fill={FOLLOWED_COLOUR}
+                    fillOpacity={0.35}
+                    stroke={FOLLOWED_COLOUR}
+                    strokeWidth={1.5}
+                    pointerEvents='none'
+                />
+            )}
             {notes.map((note, i) => {
                 const velocity = note.velocity
                 const duration = soundedSeconds(note)
@@ -168,7 +196,9 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, symbolOf, colorFor, n
                 const y = (100 - note["midi.pitch"] + yOffset) * stretchY
 
                 const color = colorFor(source)
-                const symbol = onClick ? undefined : symbolOf(note)
+                // The symbol of the roll the reading performs, where its take names one, followed
+                // by a click where a click scopes no choice: in the viewer.
+                const symbol = onClick ? undefined : note.symbol
 
                 const bar = (
                     <rect
@@ -229,7 +259,7 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, symbolOf, colorFor, n
                         0.55
                     )}
                 stroke={evidence ? EVIDENCE_COLOUR : 'black'}
-                strokeWidth={hovered || evidence ? 2 : 1.2}
+                strokeWidth={hovered || evidence || followed ? 2 : 1.2}
                 fill='none'
             />
         </g>
@@ -248,13 +278,15 @@ const ChoiceGroup = ({ notes, stretchX, stretchY, onClick, symbolOf, colorFor, n
  * In the viewer the readings are only shown: nothing is chosen, so the bar is empty and a click
  * on a note scopes nothing. It opens the symbol of the roll the reading performs instead, where
  * the transcription names one. A choice is selected from the legend, and the notes a selected
- * `MakeChoice` chose for are marked.
+ * `MakeChoice` chose for are marked. A note clicked on another desk of the viewer opens this one
+ * scrolled to it and marked, so that it can be followed on to the roll from here.
  */
 export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<MakeChoice>) => {
     const editable = useEditable()
     const { activeEvidence } = useCallSelection()
-    const { pristine, mei } = useScoreDocument()
-    const symbols = useMemo(() => mei ? symbolsOf(mei) : new Map<string, string>(), [mei])
+    const { pristine } = useScoreDocument()
+    const { followed } = useFollowBack()
+    const followedNotes = useMemo(() => new Set(followed?.notes), [followed])
     // `pristine` is in hand wherever a fit is, so the fallback is for a desk mounted on its own.
     const recorded = pristine ?? msm
     const readings = useMemo(() => readingsOnFittedAxis(recorded, msm), [recorded, msm])
@@ -316,8 +348,8 @@ export const ChoiceDesk = ({ msm, addTransformer }: ScopedTransformerViewProps<M
                 stretchY={stretchY}
                 colorFor={colorFor}
                 nameFor={nameFor}
-                symbolOf={note => symbols.get(rowId(note))}
                 evidence={notes.some(note => activeEvidence.has(note['xml:id']))}
+                followed={followedNotes.has(xmlId)}
                 taken={taken.get(xmlId)}
                 onClick={editable ? (e) => {
                     if (!e.shiftKey && !e.metaKey) {

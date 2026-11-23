@@ -3,6 +3,7 @@ import { parseTravel } from "../performance/pedalTravel"
 import { readTimeSignatures } from "../utils/score"
 import { v4 } from "uuid";
 import type { GraceGroup } from "espressivo";
+import { symbolOf } from "../mei/symbols";
 
 /** What one `<when>` says about the note it times, or nothing where it leaves any of it out. */
 const performedOf = (when: Element) => {
@@ -10,11 +11,13 @@ const performedOf = (when: Element) => {
     const duration = when.querySelector('extData[type="duration"]')?.textContent?.replace('ms', '')
     const velocity = when.querySelector('extData[type="velocity"]')?.textContent
     if (!absolute || !duration || !velocity) return null
+    const symbol = symbolOf(when)
     return {
         'milliseconds.date': +absolute,
         'milliseconds.date.end': +absolute + (+duration),
         velocity: +velocity,
         source: when.closest('recording')?.getAttribute('source') || undefined,
+        ...(symbol && { symbol }),
     }
 }
 
@@ -175,7 +178,9 @@ export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[]
                     'milliseconds.date': played[0]['milliseconds.date'],
                     'milliseconds.date.end': Math.max(...played.map((entry) => entry['milliseconds.date.end'])),
                     velocity: played[0].velocity,
-                    source
+                    source,
+                    // The symbol struck first, as the onset and the velocity are.
+                    ...(played[0].symbol && { symbol: played[0].symbol }),
                 })
                 continue
             }
@@ -186,6 +191,10 @@ export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[]
 
             if (!absolute || !duration || !velocity) continue
 
+            // Off the `<when>`, so that it follows the timing to the longer of two unison notes,
+            // which the `<when>` itself does not name.
+            const symbol = symbolOf(when)
+
             msmNotes.push({
                 ...scoreOf(note),
 
@@ -194,7 +203,8 @@ export const asMSM = (mei: string, msmXml: string, graces: readonly GraceGroup[]
                 'milliseconds.date': +absolute,
                 'milliseconds.date.end': +absolute + (+duration),
                 velocity: +velocity,
-                source
+                source,
+                ...(symbol && { symbol }),
             })
         }
     }

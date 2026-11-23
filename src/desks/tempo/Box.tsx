@@ -16,6 +16,11 @@ type BoxProps = {
   onToggleSelect: () => void
   onSelect: () => void
   onRemove: () => void
+  /**
+   * Open Base Text at the notes struck where the box begins: what a click does in the viewer,
+   * where nothing is selected — see `useFollowBack`. Absent in the editor.
+   */
+  onFollow?: () => void
 
   splitMode: boolean
   onSplit: (first: TempoSegment, second: TempoSegment, onset: number) => void
@@ -34,12 +39,13 @@ type BoxProps = {
  * @prop onToggleSelect - function called when a box is shift-clicked (multi-select toggle)
  * @prop onSelect - function called when a box is clicked
  * @prop onRemove - function called when a box is clicked with alt and shift pressed
+ * @prop onFollow - function called when a box is clicked, instead of the three above, where given
  */
 export const Box = (props: BoxProps) => {
   const [hovered, setHovered] = useState(false)
   const [splitSeconds, setSplitSeconds] = useState<number>()
 
-  const { segment, tickToSeconds, stretchX, stretchY, onPlay, onStop, onToggleSelect, onSelect, onRemove, splitMode, onSplit, drawMode, evidence } = props
+  const { segment, tickToSeconds, stretchX, stretchY, onPlay, onStop, onToggleSelect, onSelect, onRemove, onFollow, splitMode, onSplit, drawMode, evidence } = props
   const { selected } = segment
 
   const start = tickToSeconds(segment.date.start)
@@ -147,6 +153,7 @@ export const Box = (props: BoxProps) => {
         strokeDasharray={segment.silent ? '1 1' : undefined}
         strokeWidth={selected ? 2 : evidence ? 1.5 : 1}
         pointerEvents={drawMode ? 'none' : undefined}
+        style={onFollow ? { cursor: 'pointer' } : undefined}
         onMouseMove={handleMouseMove}
         onMouseOver={() => {
           onPlay?.(segment.date.start, segment.date.end)
@@ -172,12 +179,16 @@ export const Box = (props: BoxProps) => {
             }
             onSplit(first, second, splitSeconds)
           }
+          else if (onFollow) onFollow()
           else {
             if (e.shiftKey && e.altKey) onRemove()
             else if (e.shiftKey) onToggleSelect()
             else onSelect()
           }
-        }} />
+        }}
+      >
+        {onFollow && <title>Open Base Text at the notes struck here</title>}
+      </polygon>
     </g>
   )
 }

@@ -1,5 +1,6 @@
 /**
- * The help a desk gives, which in the viewer leaves out the gestures the viewer does not offer.
+ * The help a desk gives, which in the viewer leaves out the gestures the viewer does not offer,
+ * and in the editor those the viewer alone offers.
  */
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -35,6 +36,28 @@ describe('a desk’s help', () => {
         open(false);
         expect(screen.getByText('Hover a box')).toBeInTheDocument();
         expect(screen.queryByText('Drag in Draw mode')).not.toBeInTheDocument();
+    });
+
+    it('says what the viewer alone does with a gesture, there and not in the editor', () => {
+        const both: DeskHelp = {
+            summary: help.summary,
+            actions: [
+                { gesture: 'Click a box', does: 'select it alone', edits: true },
+                { gesture: 'Click a box', does: 'open Base Text at its notes', viewOnly: true },
+            ],
+        };
+
+        open(false, both);
+        expect(screen.getByText('open Base Text at its notes', { exact: false })).toBeInTheDocument();
+        expect(screen.queryByText('select it alone', { exact: false })).not.toBeInTheDocument();
+    });
+
+    it('leaves the viewer’s own gestures out of the editor’s', () => {
+        open(true, {
+            summary: help.summary,
+            actions: [{ gesture: 'Click a box', does: 'open Base Text at its notes', viewOnly: true }],
+        });
+        expect(screen.queryByText('Click a box')).not.toBeInTheDocument();
     });
 
     it('is the summary alone where every gesture edits', () => {

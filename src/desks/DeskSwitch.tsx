@@ -85,6 +85,11 @@ export interface DeskAction {
      * out. Absent on one that only reads: selecting, hearing, scrolling.
      */
     edits?: true;
+    /**
+     * The gesture is the viewer's alone, so the editor's help leaves it out: the editor gives the
+     * same gesture work of its own, or none.
+     */
+    viewOnly?: true;
 }
 
 /**
@@ -400,6 +405,11 @@ export const correspondingDesks: DeskEntry[] = [
             actions: [
                 { gesture: 'Click a note', does: 'scope the choice to it', edits: true },
                 {
+                    gesture: 'Click a reading',
+                    does: 'open the symbol of the roll that sounds it',
+                    viewOnly: true,
+                },
+                {
                     gesture: '⌘-click a note',
                     does: 'add it, where a note scope is already standing',
                     edits: true,
@@ -619,6 +629,11 @@ export const correspondingDesks: DeskEntry[] = [
             actions: [
                 { gesture: 'Hover a box', does: 'sound the passage it covers' },
                 { gesture: 'Click a box', does: 'select it alone', edits: true },
+                {
+                    gesture: 'Click a box',
+                    does: 'open Base Text at the notes it begins with, to follow them back to the roll',
+                    viewOnly: true,
+                },
                 { gesture: 'Shift-click a box', does: 'add it to the selection', edits: true },
                 { gesture: 'Shift+Alt-click a box', does: 'remove it', edits: true },
                 {

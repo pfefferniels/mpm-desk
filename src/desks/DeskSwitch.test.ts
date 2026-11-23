@@ -23,7 +23,7 @@
  * the registry exists to provide. That the field is there is the assertion.
  */
 import { describe, it, expect } from 'vitest';
-import { correspondingDesks, PLOTTED_INPUTS, type DocumentFacts } from './DeskSwitch';
+import { correspondingDesks, PLOTTED_INPUTS, type DeskAction, type DocumentFacts } from './DeskSwitch';
 import { deskOfCall, TRANSFORMER_ALIASES } from './transformerAliases';
 import { getTransformerOrder, isRegistered } from '../fitting/transformers/TransformerRegistry';
 
@@ -305,14 +305,20 @@ describe('the desk registry', () => {
                 }
         });
 
-        it('names a gesture once per desk', () => {
+        it('names a gesture once per desk, in each mode', () => {
             // The popover keys its rows on the gesture, so a second row under the same gesture is
-            // a React duplicate-key warning and one of the two rows losing its identity.
+            // a React duplicate-key warning and one of the two rows losing its identity. A gesture
+            // the editor and the viewer each give work of their own is listed once for either, and
+            // the popover shows one of the two (`DeskHelpButton`).
             for (const entry of correspondingDesks)
-                expect(
-                    duplicates((entry.help.actions ?? []).map(({ gesture }) => gesture)),
-                    `the ${entry.aspect} desk lists a gesture twice`,
-                ).toEqual([]);
+                for (const [mode, shown] of [
+                    ['editor', (action: DeskAction) => !action.viewOnly],
+                    ['viewer', (action: DeskAction) => !action.edits],
+                ] as const)
+                    expect(
+                        duplicates((entry.help.actions ?? []).filter(shown).map(({ gesture }) => gesture)),
+                        `the ${entry.aspect} desk lists a gesture twice in the ${mode}`,
+                    ).toEqual([]);
         });
     });
 

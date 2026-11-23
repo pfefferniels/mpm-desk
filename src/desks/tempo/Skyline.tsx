@@ -13,6 +13,7 @@ import { svgPoint } from "../../utils/svgPoint"
 import type { MidiFile } from "midifile-ts"
 import type { Scope } from "../TransformerViewProps"
 import { useEditable } from "../../hooks/Editing"
+import { useFollowBack } from "../../hooks/FollowBack"
 import { EVIDENCE_COLOUR } from "../evidence"
 
 export type SkylineMode = 'split' | 'draw' | undefined
@@ -65,10 +66,12 @@ const noEvidence: ReadonlySet<number> = new Set()
  *
  * In the viewer (`useEditable`) every gesture that changes the boxes is withheld — selecting,
  * removing, splitting, combining and the keys for them — and the desk passes no mode, so nothing
- * can be drawn. Hovering and clicking a written curve stay.
+ * can be drawn. Hovering and clicking a written curve stay, and a click on a box opens Base Text
+ * at the notes struck where it begins, so that the interval can be followed back to the roll.
  */
 export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLine, tickToSeconds, stretchX, stretchY, mode, onSplit, onToggleSplitMode, onPlaySegment, onStopSegment, activeElements, onActivateElement, committedTempos, silentOnsets, msm, onPlayTempo, onStopTempo, committedTempoMidis, evidenceDates = noEvidence }: SkylineProps) {
   const editable = useEditable()
+  const { follow } = useFollowBack()
   const [, setHoveredKey] = useState<string>()
   const [drawStart, setDrawStart] = useState<{ x: number, y: number }>()
   const [drawEnd, setDrawEnd] = useState<{ x: number, y: number }>()
@@ -290,6 +293,13 @@ export function Skyline({ part, tempos, setTempos, onsets, drawnLines, onDrawLin
                 tempos.removeTempo(tempo)
                 setTempos(new TempoCluster(tempos.segments))
               }}
+              // The editor's click selects, whatever the app hands down.
+              onFollow={follow && !editable && !isDrawMode
+                ? () => follow({
+                  notes: msm.in(part).notesAtDate(tempo.date.start).map(note => note['xml:id']),
+                  date: tempo.date.start,
+                })
+                : undefined}
               splitMode={mode === 'split' && !tempo.derived}
               onSplit={onSplit}
               drawMode={isDrawMode}

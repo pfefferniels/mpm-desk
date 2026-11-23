@@ -67,6 +67,8 @@ import { EditingContext } from './hooks/Editing';
 import { ViewerAddress } from './components/ViewerAddress';
 import { ViewHistory, type View } from './components/ViewHistory';
 import { RevealCall } from './components/RevealCall';
+import { RevealNote } from './components/RevealNote';
+import { FollowBackProvider, type Followed } from './hooks/FollowBack';
 import { documentSlug, downloadAsFile } from './utils/utils';
 
 /** A `history.state` that `ViewHistory` wrote, rather than none or what another page left. */
@@ -83,6 +85,9 @@ const isView = (state: unknown): state is View => {
 
 /** Where the viewer opens, and goes back to: the desk most of the reconstruction was made on. */
 const VIEWER_DESK = 'tempo';
+
+/** The desk the viewer follows a note back to, by the key the registry selects it under. */
+const BASE_TEXT = 'Base Text';
 
 /** Every edit refused: what the viewer's document is dispatched through. Opening one is not an edit. */
 const opensOnly =
@@ -145,6 +150,8 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     const [loadError, setLoadError] = useState<string>();
     /** The call last opened, for the desk to scroll to — see `RevealCall`. */
     const [opened, setOpened] = useState<{ id: string } | null>(null);
+    /** The notes last followed back to Base Text, for it to scroll to and mark — see `RevealNote`. */
+    const [followed, setFollowed] = useState<Followed | null>(null);
     const [scope, setScope] = useState<'global' | number>('global');
     const [activeCallIds, setActiveCallIds] = useState<Set<string>>(new Set());
     const [stretchX, setStretchX] = useState<number>(20);
@@ -663,6 +670,17 @@ export const App = ({ mode = 'edit' }: AppProps) => {
     );
 
     /**
+     * Open Base Text at notes clicked on another desk of the viewer, and mark them there. A new
+     * history entry, as `focusCall` makes, so that Back returns to the desk the note was clicked
+     * on; `ViewHistory` records the view into it.
+     */
+    const followToBaseText = useCallback((notes: Followed) => {
+        setFollowed({ notes: notes.notes, date: notes.date });
+        setSelectedDesk(BASE_TEXT);
+        window.history.pushState(null, '');
+    }, []);
+
+    /**
      * Back and Forward: put back the desk, scope and selection the entry was left on, where
      * `ViewHistory` recorded them. An entry that holds none is the hash's to answer, below: one
      * an address was typed into, or one left while the piece played.
@@ -861,6 +879,20 @@ export const App = ({ mode = 'edit' }: AppProps) => {
         setSelectedDesk(editable ? 'alignment' : VIEWER_DESK);
     }
 
+    // The notes followed are marked in Base Text for as long as it stays open. Whatever takes the
+    // reader elsewhere, the menu, a call, Back, drops them, so that Base Text opened later by any
+    // other way neither marks them nor scrolls back to them.
+    if (followed && selectedDesk !== BASE_TEXT) setFollowed(null);
+
+    // In the viewer, notes clicked on another desk open Base Text (`followToBaseText`, above),
+    // where Base Text can be opened at all. The editor follows nothing: a click on a note there
+    // scopes, selects or draws.
+    const baseTextOpens =
+        !editable &&
+        !correspondingDesks
+            .find((entry) => (entry.displayName ?? entry.aspect) === BASE_TEXT)
+            ?.unavailable?.(documentFacts);
+
     const deskProps = {
         msm: alignment,
         mpm,
@@ -922,6 +954,10 @@ export const App = ({ mode = 'edit' }: AppProps) => {
 
                                         <SampleLoadingNotice />
 
+                                        <FollowBackProvider
+                                            follow={baseTextOpens ? followToBaseText : undefined}
+                                            followed={followed}
+                                        >
                                         {/* The desk, and the aspect menu that floats over it. This box
                                             is the menu's containing block: the menu is `position:
                                             absolute`, so without one `top: 0` resolves against the
@@ -954,6 +990,12 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                                                                     outcomes={result.outcomes}
                                                                 />
                                                             )}
+                                                            {DeskComponent && followed && (
+                                                                <RevealNote
+                                                                    key={selectedDesk}
+                                                                    followed={followed}
+                                                                />
+                                                            )}
                                                         </Suspense>
                                                     </DeskErrorBoundary>
                                                 </NotesProvider>
@@ -965,6 +1007,7 @@ export const App = ({ mode = 'edit' }: AppProps) => {
                                                 documentFacts={documentFacts}
                                             />
                                         </Box>
+                                        </FollowBackProvider>
 
                                         <FollowPlayback
                                             mpm={mpm}

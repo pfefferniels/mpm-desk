@@ -11,6 +11,7 @@ import { createMpm } from '../../fitting/instructions/index';
 import { MakeChoice, type MakeChoiceOptions } from '../../fitting/transformers/choice/MakeChoice';
 import type { Call } from '../../model/Work';
 import { ChoiceDesk } from './ChoiceDesk';
+import { FollowBackProvider, type Followed } from '../../hooks/FollowBack';
 
 /**
  * What the desk holds after a click, read off the toolbar's own scope readout.
@@ -73,12 +74,18 @@ interface MountOptions {
     shift?: boolean;
     /** Where the recording begins, in milliseconds before the first note. */
     leader?: number;
-    /** The transcription the readings were aligned in, which names the symbol each performs. */
-    mei?: string;
+    /** The symbol of the roll each reading performs, by `note/reading`. */
+    symbols?: Record<string, string>;
+    /** Notes the reader followed here from another desk. */
+    followed?: Followed;
 }
 
-const mount = ({ editable = true, selected, choices = [], shift = false, leader = 0, mei }: MountOptions = {}) => {
+const mount = ({ editable = true, selected, choices = [], shift = false, leader = 0, symbols = {}, followed = undefined }: MountOptions = {}) => {
     const pristine = alignment();
+    pristine.allNotes.forEach((row) => {
+        const symbol = symbols[`${row['xml:id']}/${row.source ?? ''}`];
+        if (symbol) row.symbol = symbol;
+    });
     pristine.allNotes.forEach((row) => {
         row['milliseconds.date'] += leader;
         row['milliseconds.date.end'] += leader;
@@ -101,7 +108,8 @@ const mount = ({ editable = true, selected, choices = [], shift = false, leader 
 
     const { container } = render(
         <EditingContext value={editable}>
-            <ScoreDocumentProvider mei={mei} setMei={vi.fn()} recording="" pristine={pristine}>
+          <FollowBackProvider followed={followed ?? null}>
+            <ScoreDocumentProvider mei={undefined} setMei={vi.fn()} recording="" pristine={pristine}>
                 <ScrollSyncProvider symbolicZoom={20} physicalZoom={20}>
                     <CallSelectionProvider
                         calls={calls}
@@ -126,6 +134,7 @@ const mount = ({ editable = true, selected, choices = [], shift = false, leader 
                     </CallSelectionProvider>
                 </ScrollSyncProvider>
             </ScoreDocumentProvider>
+          </FollowBackProvider>
         </EditingContext>,
     );
 
@@ -264,10 +273,10 @@ describe('in the viewer', () => {
     });
 
     /** Note `b` read in both takes, each by the symbol of the roll that sounds it there. */
-    const transcription = `<mei xmlns="http://www.music-encoding.org/ns/mei"><music><performance>
-        <recording source="rec1"><when absolute="720ms" data="#b" corresp="https://example.org/symbol_b1"/></recording>
-        <recording source="rec2"><when absolute="720ms" data="#b" corresp="https://example.org/symbol_b2"/></recording>
-    </performance></music></mei>`;
+    const symbols = {
+        'b/rec1': 'https://example.org/symbol_b1',
+        'b/rec2': 'https://example.org/symbol_b2',
+    };
 
     /** The bars that open a symbol, as `note/reading → IRI`. */
     const links = (container: HTMLElement) =>
@@ -277,7 +286,7 @@ describe('in the viewer', () => {
         });
 
     it('opens the symbol of the roll each reading performs', () => {
-        const { container } = mount({ editable: false, mei: transcription });
+        const { container } = mount({ editable: false, symbols });
 
         expect(links(container)).toEqual([
             'b/rec1 → https://example.org/symbol_b1',
@@ -287,9 +296,23 @@ describe('in the viewer', () => {
     });
 
     it('leaves a click in the editor to the choice', () => {
-        const { container } = mount({ mei: transcription });
+        const { container } = mount({ symbols });
 
         expect(links(container)).toEqual([]);
+    });
+
+    it('marks the notes followed here from another desk, and no others', () => {
+        const { container } = mount({ editable: false, followed: { notes: ['c'], date: 1440 } });
+
+        const marked = [...container.querySelectorAll('g[data-followed]')].map((group) =>
+            group.getAttribute('data-note'),
+        );
+        expect(marked).toEqual(['c']);
+        // A band behind both readings of the note, and at full strength however alike they are.
+        const group = container.querySelector('g[data-followed]')!;
+        expect(group.firstElementChild?.tagName).toBe('rect');
+        expect(group.firstElementChild).not.toHaveAttribute('data-source');
+        expect(group).toHaveAttribute('opacity', '1');
     });
 });
 

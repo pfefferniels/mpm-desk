@@ -22,12 +22,15 @@ export interface PerformedAttributes {
 /**
  * What a fitted note carries beyond what MSM states.
  *
- * Only `source`, which records which reading of a passage a note came from; `MakeChoice` selects
- * on it. The reduction is deliberately not carried here, so an MSM comes out of a chain the way
- * it went in. What a fitter has left to explain comes from `deriveResidual`.
+ * Where it came from, and nothing else: `source`, which records which reading of a passage a note
+ * came from, and which `MakeChoice` selects on, and `symbol`, the IRI of the symbol of the roll
+ * that sounded it in that reading, which Base Text links to (see `mei/symbols.ts`). Neither is
+ * written into an MSM. The reduction is deliberately not carried here, so an MSM comes out of a
+ * chain the way it went in. What a fitter has left to explain comes from `deriveResidual`.
  */
 type TemporaryAttributes = Partial<{
   source: string;
+  symbol: string;
 }>;
 
 export type AlignedPedal = {

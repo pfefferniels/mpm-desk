@@ -37,6 +37,7 @@ export default tseslint.config(
           // something stateful.
           allowExportNames: [
             'useCallSelection',
+            'useFollowBack',
             'useMode',
             'useNotes',
             'usePerformances',

@@ -22,13 +22,13 @@ interface DeskHelpButtonProps {
  * without help would then be a desk that says nothing rather than one that fails to compile.
  *
  * In the viewer it leaves out the gestures that edit (`DeskAction.edits`), which the viewer does
- * not offer.
+ * not offer, and in the editor those the viewer alone offers (`DeskAction.viewOnly`).
  */
 export const DeskHelpButton = ({ deskName, help }: DeskHelpButtonProps) => {
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
     const label = `About the ${deskName} desk`;
     const editable = useEditable();
-    const actions = editable ? help.actions : help.actions?.filter((action) => !action.edits);
+    const actions = help.actions?.filter((action) => (editable ? !action.viewOnly : !action.edits));
 
     return (
         <>
