@@ -10,13 +10,14 @@ typed is about the whole piece. An expert, Claude Opus 5.5, reads each remark ("
 throughout", "steady tempo on half bars", "this note was presumably played quieter", "pull
 towards the downbeat") and turns it into calls to the fitting chain.
 
-The roll is on the recording's clock, and the recording stays where it is. Over it, in pencil, is
-what the MPM as it stands renders: a stroke where it has each note begin, as tall as it has it
-loud, a line as long as it has it last, and the bar lines where its tempo puts them. Red marks
-how far a rendered onset is from the played one. After every remark the chain runs again and the
-rendering goes to its new place, so that what is left on the roll is where the encoding and the
-playing run apart: a chord rolled by the pianist and not yet by the MPM, a bar whose tempo is
-right at both ends and wrong between them.
+The roll is on the recording's clock. Its notes are what the MPM as it stands renders, and
+behind each stands its shadow, the same note as it was played, which never moves. With nothing
+described the notes are the bare score at one tempo and one level, and the shadows show all the
+pianist did: beside a note where the tempo is off, taller than it where a loudness is not
+accounted for, staggered under a chord the MPM has not yet rolled. After every remark the chain
+runs again and the notes go to their new places, and where a note covers its shadow there is
+nothing left to see. The bar lines stand where the tempo as it stands puts them, dashed where it
+is only assumed.
 
 It is published as a Claude artifact, where the page asks Claude through the viewer's own
 account. Opened anywhere else it draws and fits, and a remark's calls can be written by hand.

@@ -49,6 +49,7 @@
     level: 64, // the velocity drawn one row tall
     view: { ppt: 0.03, shadows: true, pencil: false },
     hoverAnn: null,
+    hoverNote: null,
     openAnn: null,
     reference: false,
     refCalls: null,
@@ -242,7 +243,7 @@
       const result = await Engine.run(calls);
       if (token !== fitToken) return;
       if (S.result && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        S.tween = { from: new Map(S.result.notes.map((note) => [note.id, note.mpm])), beats: new Map(S.result.beats.map((beat) => [beat.date, beat.ms])), start: performance.now(), t: 0 };
+        S.tween = { from: new Map(S.result.notes.map((note) => [note.id, note.mpm])), beatDates: S.result.beatDates, beatMs: S.result.beatMs, start: performance.now(), t: 0 };
       }
       S.result = result;
       index(result);
@@ -278,37 +279,25 @@
     return ys[lo] + ((x - xs[lo]) / (xs[hi] - xs[lo])) * (ys[hi] - ys[lo]);
   };
 
-  /**
-   * The two ways from a date of the score to the roll's clock: when it was played, through the
-   * chords of the recording, and when the tempo as it stands has it, through the beats the
-   * engine placed.
-   */
+  /** A run, made ready to be drawn: its notes by id, and its beats as a line from score to clock. */
   const index = (result) => {
-    const byDate = new Map();
-    for (const note of result.notes) {
-      const list = byDate.get(note.date);
-      if (list) list.push(note.ms);
-      else byDate.set(note.date, [note.ms]);
-    }
-    const dates = [...byDate.keys()].sort((a, b) => a - b);
-    result.dates = dates;
-    result.played = dates.map((date) => {
-      const list = byDate.get(date).sort((a, b) => a - b);
-      return list[list.length >> 1];
-    });
+    result.dates = [...new Set(result.notes.map((note) => note.date))].sort((a, b) => a - b);
     result.beatDates = result.beats.map((beat) => beat.date);
     result.beatMs = result.beats.map((beat) => beat.ms);
-    result.total = result.notes.reduce((max, note) => Math.max(max, note.msEnd), result.beatMs[result.beatMs.length - 1] || 0);
+    result.total = result.notes.reduce((max, note) => Math.max(max, note.msEnd, note.mpm.msEnd), result.beatMs[result.beatMs.length - 1] || 0);
     result.byId = new Map(result.notes.map((note) => [note.id, note]));
   };
 
-  /** When a date of the score was played. */
-  const playedAt = (result, date) => along(result.dates, result.played, date);
-  /** When the tempo as it stands has a date of the score: on its way there, for a moment after a run. */
+  /**
+   * When the tempo as it stands has a date of the score, on the roll's clock: on its way there,
+   * for a moment after a run. The bar lines stand on it, and so does a bracket over a stretch,
+   * which goes with the notes it was drawn over.
+   */
   const encodedAt = (result, date) => {
     const now = along(result.beatDates, result.beatMs, date);
-    const was = S.tween ? S.tween.beats.get(date) : undefined;
-    return was === undefined ? now : was + (now - was) * S.tween.t;
+    if (!S.tween) return now;
+    const was = along(S.tween.beatDates, S.tween.beatMs, date);
+    return was + (now - was) * S.tween.t;
   };
 
   const assumedAt = (result, date) => result.assumed.tempo.some((s) => date >= s.from && date < s.to);
@@ -404,22 +393,23 @@
   const Y = (pitch) => G.top + (G.hi - pitch + 0.5) * G.rowH;
   /** How tall a velocity is drawn: one row at the level, doubling every `k` above it. */
   const tall = (velocity) => G.rowH * Math.min(7, Math.max(0.34, 2 ** ((velocity - S.level) / G.k)));
-  /** A note as it was played. It stays where it is: the recording is what everything is held against. */
-  const rectOf = (note) => {
-    const h = tall(note.velocity);
-    return { x: X(note.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (note.msEnd - note.ms) * S.view.ppt), h };
-  };
   /**
-   * The same note as the MPM as it stands sounds it: where the run has it, or, for a moment
-   * after a run, on its way there from where the run before had it. What a remark did is seen
-   * as the encoding going to the playing, or failing to.
+   * A note as the MPM as it stands sounds it, which is the note the roll draws solid: it is what
+   * a reader is shaping. Where the run has it, or, for a moment after a run, on its way there
+   * from where the run before had it, so that what a remark did is seen as the notes going to
+   * their shadows, or failing to.
    */
-  const encodedOf = (note) => {
+  const rectOf = (note) => {
     const from = S.tween ? S.tween.from.get(note.id) : null;
     const t = S.tween ? S.tween.t : 1;
     const mix = (key) => (from ? from[key] + (note.mpm[key] - from[key]) * t : note.mpm[key]);
     const h = tall(mix('velocity'));
     return { x: X(mix('ms')), y: Y(note.pitch) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h };
+  };
+  /** The same note as it was played: its shadow, which stays where it is. */
+  const shadowOf = (note, played = note) => {
+    const h = tall(played.velocity);
+    return { x: X(played.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (played.msEnd - played.ms) * S.view.ppt), h };
   };
   /** The box round a set of notes, where they now stand. */
   const boxOf = (ids) => {
@@ -570,8 +560,8 @@
     const placed = [];
     for (const ann of S.anns) {
       if (ann.scope.kind !== 'span' || S.pen.editing === ann) continue;
-      const a = playedAt(S.result, ann.scope.from);
-      const b = playedAt(S.result, ann.scope.to);
+      const a = encodedAt(S.result, ann.scope.from);
+      const b = encodedAt(S.result, ann.scope.to);
       const reach = Math.max(b, a + (widthOfLabel(ann.text) + 40) / S.view.ppt);
       let at = rows.findIndex((endsAt) => endsAt <= a - 2 / S.view.ppt);
       if (at === -1) {
@@ -640,8 +630,8 @@
 
     // The stretch a bracket being written is over, tinted down the whole roll.
     if (draft && draft.kind === 'span') {
-      const a = Math.max(G.gutter, X(playedAt(result, draft.from)));
-      const b = Math.min(width, X(playedAt(result, draft.to)));
+      const a = Math.max(G.gutter, X(encodedAt(result, draft.from)));
+      const b = Math.min(width, X(encodedAt(result, draft.to)));
       if (b > a) {
         ctx.fillStyle = palette.pencil;
         ctx.globalAlpha = 0.05;
@@ -684,37 +674,61 @@
       ctx.globalAlpha = 1;
     }
 
-    // The notes, as they were played.
     const lit = S.hoverAnn || S.openAnn;
     const evidence = lit && lit.report && lit.report.evidence.size ? lit.report.evidence : lit ? new Set(idsOf(lit.scope)) : null;
     // While a remark is being written about some notes, the others stand back.
     const chosen = !lit && draft && draft.kind !== 'piece' ? S.selection : null;
     const dimmed = (id) => (evidence && evidence.size ? !evidence.has(id) : chosen ? !chosen.has(id) : false);
-    // A note the reader has corrected keeps the roll's own value behind it, dashed.
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = palette.ghost;
-    ctx.fillStyle = palette.ghost;
-    ctx.setLineDash([2, 2]);
-    for (const note of result.notes) {
-      if (!note.arrived) continue;
-      const was = rectOf({ ...note, ...note.arrived });
-      if (was.x + was.w < G.gutter || was.x > width) continue;
-      ctx.globalAlpha = dimmed(note.id) ? 0.04 : 0.1;
-      rounded(was.x, was.y, was.w, was.h, 2);
-      ctx.fill();
-      ctx.globalAlpha = dimmed(note.id) ? 0.14 : 0.5;
-      rounded(was.x + 0.5, was.y + 0.5, was.w - 1, was.h - 1, 2);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
+    const apart = (a, b) => Math.abs(a.x - b.x) >= 1.5 || Math.abs(a.h - b.h) >= 1 || Math.abs(a.x + a.w - b.x - b.w) >= 2.5;
 
-    // Louder notes underneath, so that a soft one over a loud one can still be seen and picked.
-    for (const note of [...result.notes].sort((a, b) => b.loud - a.loud)) {
+    // Shadows: each note as it was played, in its hand's colour and faint, which stays where it
+    // is. The solid note over it is what the MPM as it stands makes of it, and a shadow shows
+    // wherever that is not yet the playing: beside its note where the tempo is off, taller than
+    // it where a loudness is not accounted for, staggered under a chord not yet rolled. Where a
+    // note covers its shadow there is nothing left to see.
+    G.shades = [];
+    if (S.view.shadows) {
+      ctx.lineWidth = 1;
+      for (const note of result.notes) {
+        const was = shadowOf(note);
+        if (was.x + was.w < G.gutter || was.x > width) continue;
+        if (!apart(was, rectOf(note))) continue;
+        const dim = dimmed(note.id);
+        const hue = note.part === 1 ? palette.rh : palette.lh;
+        ctx.fillStyle = hue;
+        ctx.strokeStyle = hue;
+        ctx.globalAlpha = dim ? 0.05 : 0.17;
+        rounded(was.x, was.y, was.w, was.h, 2.5);
+        ctx.fill();
+        ctx.setLineDash([3, 2]);
+        ctx.globalAlpha = dim ? 0.18 : 0.7;
+        rounded(was.x + 0.5, was.y + 0.5, was.w - 1, was.h - 1, 2.5);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        G.shades.push({ note, ...was });
+      }
+      // What the roll itself had of a note the reader corrected, behind the shadow that now stands for it.
+      ctx.strokeStyle = palette.ghost;
+      ctx.setLineDash([1, 3]);
+      for (const note of result.notes) {
+        if (!note.arrived) continue;
+        const was = shadowOf(note, note.arrived);
+        if (was.x + was.w < G.gutter || was.x > width) continue;
+        ctx.globalAlpha = dimmed(note.id) ? 0.15 : 0.6;
+        rounded(was.x + 0.5, was.y + 0.5, was.w - 1, was.h - 1, 2.5);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+
+    // The notes as the MPM has them. Louder ones underneath, so that a soft one over a loud one
+    // can still be seen and picked.
+    for (const note of [...result.notes].sort((a, b) => b.mpm.velocity - a.mpm.velocity)) {
       const r = rectOf(note);
       if (r.x + r.w < G.gutter || r.x > width) continue;
       const dim = dimmed(note.id);
-      ctx.globalAlpha = dim ? (chosen ? 0.3 : 0.16) : 0.74;
+      ctx.globalAlpha = dim ? (chosen ? 0.3 : 0.16) : 0.78;
       ctx.fillStyle = note.part === 1 ? palette.rh : palette.lh;
       rounded(r.x, r.y, r.w, r.h, 2.5);
       ctx.fill();
@@ -725,54 +739,22 @@
     }
     ctx.globalAlpha = 1;
 
-    // Over each note, what the MPM as it stands makes of it, in pencil: a stroke where it has the
-    // note begin, as tall as it has it loud, and a line as long as it has it last. Where the
-    // encoding has a note as it was played there is nothing to draw, so what is on the roll is
-    // where the two run apart; and the further apart, the fainter, a rendering half a bar from
-    // its note being no use in finding it.
-    if (S.view.shadows) {
-      ctx.strokeStyle = palette.pencil;
-      for (const note of result.notes) {
-        const now = rectOf(note);
-        const enc = encodedOf(note);
-        if (Math.max(now.x + now.w, enc.x + enc.w) < G.gutter || Math.min(now.x, enc.x) > width) continue;
-        const dx = Math.abs(enc.x - now.x);
-        const dh = Math.abs(enc.h - now.h);
-        const dw = Math.abs(enc.x + enc.w - (now.x + now.w));
-        if (dx < 1.5 && dh < 1 && dw < 2.5) continue;
-        const near = clamp(1 - dx / 240, 0.22, 1) * (dimmed(note.id) ? 0.3 : 1);
-        const y = Y(note.pitch);
-        const x0 = Math.round(enc.x) + 0.5;
-        if (dx >= 1.5) {
-          // How far apart the two begin, in red: the thing to be corrected.
-          ctx.strokeStyle = palette.apart;
-          ctx.globalAlpha = 0.85 * near;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(now.x, Math.round(y) + 0.5);
-          ctx.lineTo(enc.x, Math.round(y) + 0.5);
-          ctx.stroke();
-          ctx.strokeStyle = palette.pencil;
-        }
-        if (dx >= 1.5 || dw >= 2.5) {
-          ctx.globalAlpha = 0.4 * near;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x0, Math.round(y) + 0.5);
-          ctx.lineTo(enc.x + enc.w, Math.round(y) + 0.5);
-          ctx.moveTo(Math.round(enc.x + enc.w) + 0.5, y - 2.5);
-          ctx.lineTo(Math.round(enc.x + enc.w) + 0.5, y + 2.5);
-          ctx.stroke();
-        }
-        if (dx >= 1.5 || dh >= 1) {
-          ctx.globalAlpha = 0.9 * near;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(x0, y - enc.h / 2);
-          ctx.lineTo(x0, y + enc.h / 2);
-          ctx.stroke();
-        }
-      }
+    // The note under the pointer, tied to its shadow: which of the shadows is this note's is
+    // not always plain, least of all where nothing has been described and they are bars apart.
+    const pointed = S.hoverNote ? result.byId.get(S.hoverNote) : null;
+    if (pointed && S.view.shadows) {
+      const now = rectOf(pointed);
+      const was = shadowOf(pointed);
+      const y = Math.round(Y(pointed.pitch)) + 0.5;
+      ctx.strokeStyle = palette.apart;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(now.x, y);
+      ctx.lineTo(was.x, y);
+      ctx.stroke();
+      rounded(was.x + 0.5, was.y + 0.5, was.w - 1, was.h - 1, 2.5);
+      ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineWidth = 1;
     }
@@ -894,14 +876,14 @@
     const y = rowY(free);
     G.promptRow = { y, h: LANE };
     if (editing && editing.scope.kind === 'span') {
-      const a = playedAt(result, editing.scope.from);
-      bracket(X(a), X(playedAt(result, editing.scope.to)), y + 19, toneOf(editing), true);
+      const a = encodedAt(result, editing.scope.from);
+      bracket(X(a), X(encodedAt(result, editing.scope.to)), y + 19, toneOf(editing), true);
       G.penAt = { x: clamp(X(a) + 7, G.gutter + 7, width - 80), y: y - 3 };
     } else if (editing) {
       // Its own place holds the pen; nothing else is to be written meanwhile.
     } else if (draft && (draft.kind === 'piece' || draft.kind === 'span')) {
-      const a = draft.kind === 'piece' ? 0 : playedAt(result, draft.from);
-      const b = draft.kind === 'piece' ? wholeEnd : playedAt(result, draft.to);
+      const a = draft.kind === 'piece' ? 0 : encodedAt(result, draft.from);
+      const b = draft.kind === 'piece' ? wholeEnd : encodedAt(result, draft.to);
       bracket(X(a), X(b), y + 19, palette.pencil, true);
       G.penAt = { x: clamp(X(a) + 7, G.gutter + 7, width - 80), y: y - 3 };
     } else if (drag && drag.kind === 'band' && drag.moved && drag.flat) {
@@ -995,10 +977,10 @@
 
   const placePen = () => {
     if (!S.pen.open || !G.penAt) {
-      if (S.pen.open && !G.penAt) pen.style.visibility = 'hidden';
+      if (S.pen.open && !G.penAt) pen.style.opacity = '0';
       return;
     }
-    pen.style.visibility = 'visible';
+    pen.style.opacity = '1';
     pen.classList.toggle('up', G.penAt.grows === 'up');
     const left = clamp(G.penAt.x, G.gutter + 4, G.width - pen.offsetWidth - 8);
     const topAt = clamp(G.penAt.grows === 'up' ? G.penAt.y - pen.offsetHeight : G.penAt.y, 2, G.height - 30);
@@ -1086,7 +1068,7 @@
     closePop();
     S.pen.open = true;
     pen.hidden = false;
-    pen.style.visibility = 'hidden';
+    pen.style.opacity = '0';
     const scope = scopeNow();
     penText.placeholder =
       scope.kind === 'piece' ? 'about the whole piece…' : scope.kind === 'span' ? `about ${scope.label}…` : scope.ids.length === 1 ? 'about this note…' : `about these ${scope.ids.length} notes…`;
@@ -1095,7 +1077,8 @@
     renderPenUnder();
     renderHint();
     draw();
-    requestAnimationFrame(() => penText.focus({ preventScroll: true }));
+    // At once, so that what is typed next goes into it; it is shown when it has been placed.
+    penText.focus({ preventScroll: true });
   };
 
   const closePen = (keepSelection) => {
@@ -1149,13 +1132,17 @@
     const box = canvas.getBoundingClientRect();
     return { x: event.clientX - box.left, y: event.clientY - box.top };
   };
+  /** The note at a point: the solid one there, or else the one whose shadow is there. */
   const noteAt = (x, y) => {
-    let best = null;
-    for (const rect of G.rects) {
-      if (x < rect.x - 2 || x > rect.x + rect.w + 2 || y < rect.y - 2 || y > rect.y + rect.h + 2) continue;
-      if (!best || rect.w * rect.h < best.w * best.h) best = rect;
+    for (const rects of [G.rects, G.shades || []]) {
+      let best = null;
+      for (const rect of rects) {
+        if (x < rect.x - 2 || x > rect.x + rect.w + 2 || y < rect.y - 2 || y > rect.y + rect.h + 2) continue;
+        if (!best || rect.w * rect.h < best.w * best.h) best = rect;
+      }
+      if (best) return best.note;
     }
-    return best ? best.note : null;
+    return null;
   };
   const markAt = (x, y) => {
     for (let i = G.marks.length - 1; i >= 0; i--) {
@@ -1225,6 +1212,10 @@
     }
     const note = inLanes(y) || mark ? null : noteAt(x, y);
     canvas.style.cursor = mark || note ? 'pointer' : inLanes(y) && G.promptRow && y >= G.promptRow.y ? 'text' : 'crosshair';
+    if ((note ? note.id : null) !== S.hoverNote) {
+      S.hoverNote = note ? note.id : null;
+      draw();
+    }
     if (note) showTip(note, x, y);
     else tip.hidden = true;
   });
@@ -1279,8 +1270,9 @@
   });
   canvas.addEventListener('pointerleave', () => {
     tip.hidden = true;
-    if (S.hoverAnn) {
+    if (S.hoverAnn || S.hoverNote) {
       S.hoverAnn = null;
+      S.hoverNote = null;
       draw();
     }
   });
@@ -1430,9 +1422,9 @@
       return;
     }
     if (!S.result) return;
-    const key = 'In pencil, where the MPM has each note; in red, how far that is from where it was played. ';
+    const key = 'The notes are what the MPM so far renders; each shadow is that note as it was played. ';
     if (S.anns.length === 0) {
-      hint.append('Nothing is described yet, so the MPM is one steady tempo and one level. ', key, 'Drag across the roll to bracket a passage, click a note, or just type.');
+      hint.append('Nothing is described yet: one steady tempo, one level. ', key, 'Describe what you see until the notes cover their shadows: drag to bracket a passage, click a note, or just type.');
       return;
     }
     hint.append(key, S.result.assumed.tempo.length ? 'Dashed bar lines: the tempo there is only assumed. ' : '', 'Click a remark to see what it became.');
@@ -2200,7 +2192,7 @@
     if (typing || event.metaKey || event.ctrlKey || event.altKey || S.reference || !S.result) return;
     if (target && target.tagName === 'BUTTON' && (event.key === ' ' || event.key === 'Enter')) return;
     // Anything typed with nothing else in hand is the start of a remark.
-    if (event.key.length === 1 && event.key !== ' ') {
+    if (event.key.length === 1 && (event.key !== ' ' || S.pen.open)) {
       event.preventDefault();
       if (!S.pen.open) openPen(event.key);
       else {
