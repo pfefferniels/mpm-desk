@@ -61,6 +61,7 @@
     working: null,
     undo: null,
     notice: null,
+    tween: null,
   };
 
   // ------------------------------------------------------------------------------------------
@@ -239,6 +240,9 @@
     try {
       const result = await Engine.run(calls);
       if (token !== fitToken) return;
+      if (S.result && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        S.tween = { from: new Map(S.result.notes.map((note) => [note.id, { x: note.x, w: note.w, loud: note.loud }])), start: performance.now(), t: 0 };
+      }
       S.result = result;
       index(result);
       for (const ann of S.anns) ann.report = reportOf(ann, result);
@@ -379,9 +383,17 @@
   const Y = (pitch) => G.top + (G.hi - pitch + 0.5) * G.rowH;
   /** How tall a note is drawn: one row where nothing of its loudness is left, doubling every `k`. */
   const tall = (loud) => G.rowH * Math.min(7, Math.max(0.34, 2 ** (loud / G.k)));
+  /**
+   * Where a note is drawn: where the run has it, or, for a moment after a run, on its way there
+   * from where the run before had it. What a remark did is seen as the notes going to it.
+   */
   const rectOf = (note) => {
-    const h = tall(note.loud);
-    return { x: X(note.x), y: Y(note.pitch) - h / 2, w: Math.max(2, note.w * S.view.ppt), h };
+    const from = S.tween ? S.tween.from.get(note.id) : null;
+    const t = S.tween ? S.tween.t : 1;
+    const x = from ? from.x + (note.x - from.x) * t : note.x;
+    const w = from ? from.w + (note.w - from.w) * t : note.w;
+    const h = tall(from ? from.loud + (note.loud - from.loud) * t : note.loud);
+    return { x: X(x), y: Y(note.pitch) - h / 2, w: Math.max(2, w * S.view.ppt), h };
   };
   /** The box round a set of notes, where they now stand. */
   const boxOf = (ids) => {
@@ -556,6 +568,11 @@
 
   const paint = () => {
     const result = S.result;
+    if (S.tween) {
+      const elapsed = (performance.now() - S.tween.start) / 420;
+      if (elapsed >= 1) S.tween = null;
+      else S.tween.t = 1 - (1 - elapsed) ** 3;
+    }
     const { width, height } = G;
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = palette.roll;
@@ -645,15 +662,17 @@
     // While a remark is being written about some notes, the others stand back.
     const chosen = !lit && draft && draft.kind !== 'piece' ? S.selection : null;
     const dimmed = (id) => (evidence && evidence.size ? !evidence.has(id) : chosen ? !chosen.has(id) : false);
-    const baseById = S.base ? S.base.byId : null;
-
-    if (S.view.shadows && baseById && result !== S.base) {
+    // A shadow is the note as it was played, laid against the roll as it now stands. Describing
+    // a tempo moves the ruler, and a note and its shadow with it; they part only where a remark
+    // took something out of the note itself: the stagger of a roll, the give of a rubato, a
+    // loudness accounted for, a doubted value corrected.
+    if (S.view.shadows) {
       ctx.lineWidth = 1;
       ctx.strokeStyle = palette.ghost;
       ctx.fillStyle = palette.ghost;
       ctx.setLineDash([2, 2]);
       for (const note of result.notes) {
-        const was = baseById.get(note.id);
+        const was = note.played;
         if (!was) continue;
         const x0 = X(was.x);
         const w0 = Math.max(2, was.w * S.view.ppt);
@@ -688,6 +707,28 @@
       G.rects.push({ note, ...r });
     }
     ctx.globalAlpha = 1;
+
+    // Where a note was struck, as a stroke over it: a shadow that begins under its own note
+    // would otherwise show only its tail, and the onset is what a roll or a rubato moved.
+    if (S.view.shadows) {
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1;
+      for (const note of result.notes) {
+        if (!note.played) continue;
+        const x0 = Math.round(X(note.played.x)) + 0.5;
+        if (x0 < G.gutter || x0 > width) continue;
+        const now = rectOf(note);
+        if (Math.abs(x0 - now.x) < 2) continue;
+        const h0 = tall(note.played.loud);
+        const y = Y(note.pitch);
+        ctx.globalAlpha = dimmed(note.id) ? 0.15 : 0.6;
+        ctx.beginPath();
+        ctx.moveTo(x0, y - h0 / 2);
+        ctx.lineTo(x0, y + h0 / 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
 
     for (const grace of result.graces || []) {
       const x = X(grace.x);
@@ -874,7 +915,8 @@
 
     placePen();
     // A remark still being read breathes, so the roll is drawn again while one is.
-    if (S.working || S.queue.length) setTimeout(draw, 90);
+    if (S.tween) draw();
+    else if (S.working || S.queue.length) setTimeout(draw, 90);
   };
 
   // ------------------------------------------------------------------------------------------

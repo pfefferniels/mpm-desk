@@ -11,8 +11,10 @@ throughout", "steady tempo on half bars", "this note was presumably played quiet
 towards the downbeat") and turns it into calls to the fitting chain. The chain runs again, and
 the roll is redrawn as **what the MPM as it stands leaves unexplained**: a rolled chord that has
 become a `<temporalSpread>` stands as one onset, a passage whose tempo has been described falls
-onto the score's grid, a note whose loudness is accounted for is one row tall. Where each note
-stood in the recording stays behind as a shadow.
+onto the score's grid, a note whose loudness is accounted for is one row tall. Where a remark
+took something out of a note itself, the stagger of a roll or the give of a rubato, the note as
+it was played stays behind as a shadow. A tempo leaves none: it is the ruler the notes are laid
+against, and moves a note and its shadow alike.
 
 It is published as a Claude artifact, where the page asks Claude through the viewer's own
 account. Opened anywhere else it draws and fits, and a remark's calls can be written by hand.

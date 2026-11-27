@@ -176,6 +176,22 @@ describe('what a description adds to the chain', () => {
     expect(result.notes.every((note) => Number.isFinite(note.x) && Number.isFinite(note.v))).toBe(true);
   });
 
+  it('lays a shadow with its note where a tempo is described, and apart where a roll was taken out', () => {
+    // A tempo is the ruler the notes are laid against: it moves a note and its shadow alike.
+    const base = run([]);
+    const tempo = run([call('FitTempo', { from: bar(1), to: bar(9), shape: 'steady', step: BAR })]);
+    expect(base.notes.every((note) => Math.abs(note.played.x - note.x) < 1e-6)).toBe(true);
+    expect(tempo.notes.every((note) => Math.abs(note.played.x - note.x) < 1e-6)).toBe(true);
+    expect(tempo.notes.some((note, i) => Math.abs(note.x - base.notes[i]!.x) > 100)).toBe(true);
+
+    // A roll is taken out of the notes: each stays behind where it was struck.
+    const rolled = run([call('InsertTemporalSpread', {})]);
+    const apart = rolled.notes.filter((note) => Math.abs(note.played.x - note.x) > 12);
+    const fitted = new Set(rolled.calls[0]!.evidence);
+    expect(apart.length).toBeGreaterThan(100);
+    expect(apart.every((note) => fitted.has(note.id))).toBe(true);
+  });
+
   it('corrects the recording where a reader doubts it, and writes no instruction for that', () => {
     const base = run([]);
     const id = base.notes[5]!.id;

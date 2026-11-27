@@ -34,11 +34,14 @@ import {
 import { InsertTempo, type InsertTempoOptions } from '../src/fitting/transformers/tempo/InsertTempo';
 import { InsertDynamics } from '../src/fitting/transformers/dynamics/InsertDynamics';
 import {
+  coversDate,
   placeTempos,
   renderedMsAt,
+  segmentAtMs,
   type PlacedTempo,
 } from '../src/fitting/transformers/tempo/placedTempos';
 import {
+  dateAtMilliseconds,
   getTempoAt,
   millisecondsAt,
   resolveSpan,
@@ -869,6 +872,16 @@ export interface RollNote {
   long: number;
   longMs: number;
   loud: number;
+  /**
+   * The note as it was played, on the grid as it now stands: where its recorded onset falls
+   * under the tempo in force, how long it sounded there, and its velocity about the level.
+   *
+   * What a shadow is drawn from, and it is in the roll's own measure on purpose. A tempo is not
+   * something taken out of a note but the ruler the notes are laid against, so describing one
+   * moves a note and its shadow alike; they part only by what a remark took out of the note
+   * itself, the stagger of a roll, the give of a rubato, a correction of the recording.
+   */
+  played: { x: number; w: number; loud: number };
 }
 
 export interface CallReport {
@@ -952,6 +965,19 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
   if (!pristine) throw new Error('no piece loaded');
   const alignment = pristine.deepClone();
   clearResidualCache();
+
+  // The chain sets its clock to the first onset as it stands when the first tempo is written.
+  // How far that moved the recording is kept, to say where a note as it arrived falls.
+  let shifted = 0;
+  const shiftToFirstOnset = alignment.shiftToFirstOnset.bind(alignment);
+  alignment.shiftToFirstOnset = () => {
+    const earliest = alignment.allNotes.reduce(
+      (min, note) => (Number.isFinite(note['milliseconds.date']) ? Math.min(min, note['milliseconds.date']) : min),
+      Infinity,
+    );
+    if (Number.isFinite(earliest)) shifted += earliest;
+    shiftToFirstOnset();
+  };
 
   const { calls: written, origin, problems } = expand(userCalls, alignment);
   const expanded = settle(written, origin);
@@ -1082,6 +1108,22 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
         : note['milliseconds.date.end'] - note['milliseconds.date'] - (ends - begins);
     const loud = velocity ?? 0;
     const late = (x - note.date) * perTick;
+
+    // The same note as it arrived, placed as the tempo walk places one: its onset under the
+    // tempo governing its date, its release under the one in force when the key came up.
+    const governing = segments.find((segment) => coversDate(segment, note.date)) ?? segments[0];
+    const releasing = segmentAtMs(segments, original['milliseconds.date.end'] - shifted);
+    const struck = governing
+      ? dateAtMilliseconds(original['milliseconds.date'] - shifted - governing.startMs, governing.resolved)
+      : NaN;
+    const released = releasing
+      ? dateAtMilliseconds(original['milliseconds.date.end'] - shifted - releasing.startMs, releasing.resolved)
+      : NaN;
+    const played = {
+      x: Number.isFinite(struck) ? struck : x,
+      w: Number.isFinite(struck) && Number.isFinite(released) ? Math.max(released - struck, 12) : sounded,
+      loud: original.velocity - level,
+    };
     return {
       id: note['xml:id'],
       part: note.part,
@@ -1098,6 +1140,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
       long,
       longMs,
       loud,
+      played,
     };
   });
 

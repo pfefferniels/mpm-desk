@@ -66,6 +66,7 @@ At most 400 steps; a `Repeat` may not hold a `Repeat`. Repeating `InsertRubato`,
 | a fermata, a held chord | its own `FitTempo` `steady` from the held chord to the next onset; "broadening into the fermata, then a tempo" is three spans: transition up to the held chord, the held chord, steady after it |
 | a tempo, the tempo picks up again | `FitTempo` `steady` from that point to the end of the passage |
 | a tempo given in numbers | `InsertTempo` |
+| rushing, hurrying, getting ahead; dragging, holding back, falling behind (of a stretch, however briefly said: "rush") | Where the stretch's tempo is only assumed: `FitTempo` over it, `transition` if it gathers or loses speed across the stretch, else `steady` with a `step`. Where its tempo is already described: the playing leaves the described pulse inside a unit and comes back to it, so `InsertRubato` frames at that unit (or a finer `FitTempo` if whole beats arrive early). Say in `reading` which of the two it became and what the recording does there. |
 | lingering on the first note, agogic accent, the beat is stretched and made up, inégalité, swing, hurrying through the bar | `InsertRubato`, one frame per unit that returns to the grid (`Repeat` with `step` = the frame). Unequal eighths: a frame of one quarter. "Increasing" or "fading": one frame per unit, never combined. "The same throughout": add one `CombineAdjacentRubatos`. |
 | a late downbeat, a hesitation, a breath before the bar | `InsertRubato` on that frame (its late start is fitted) |
 | one level, piano here, flat dynamics | `FitDynamics` |
