@@ -94,8 +94,8 @@ button { cursor: pointer; }
 .pen .under { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 5px; }
 .chip { border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 1px 9px 2px; font-size: 12px; color: var(--ink-2); line-height: 1.4; }
 .chip:hover { color: var(--ink); border-color: var(--ink-3); }
-.pen .hear { border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 1px 9px 2px; font-size: 12px; color: var(--ink-2); line-height: 1.4; display: inline-flex; align-items: center; gap: 5px; }
-.pen .hear:hover { color: var(--ink); border-color: var(--ink-3); }
+.pen .hear, .pen .turn { border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 1px 9px 2px; font-size: 12px; color: var(--ink-2); line-height: 1.4; display: inline-flex; align-items: center; gap: 5px; }
+.pen .hear:hover, .pen .turn:hover { color: var(--ink); border-color: var(--ink-3); }
 .pen .hear::before { content: ""; border-left: 7px solid currentColor; border-block: 4.5px solid transparent; }
 .pen .keys { font-size: 11px; color: var(--ink-3); margin-left: 2px; background: rgba(251, 252, 252, 0.9); border-radius: 3px; padding: 0 3px; }
 
@@ -133,6 +133,8 @@ button { cursor: pointer; }
 .menu button span { color: var(--ink-3); }
 .menu .row { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 4px 9px; font-size: 13px; }
 .menu .row span { display: inline-flex; gap: 3px; }
+.menu .credit { margin: 4px 0 0; padding: 6px 9px 3px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-3); max-width: 250px; }
+.menu .credit a { color: inherit; }
 .menu .row button { display: inline-block; border: 1px solid var(--line); border-radius: 5px; padding: 1px 9px; font-family: var(--mono); text-align: center; }
 
 .legend { right: 8px; top: 8px; width: min(400px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow-y: auto; padding: 12px 14px 12px; font-size: 13px; color: var(--ink-2); }
@@ -219,6 +221,7 @@ pre.xml .hot { background: var(--accent-soft); }
       <div class="row" title="How much taller a louder note is drawn">Height of loud notes <span><button id="lowerBtn" aria-label="Lower">−</button><button id="higherBtn" aria-label="Taller">+</button></span></div>
       <button id="fullBtn" hidden>Full screen <span id="fullState">off</span></button>
       <button id="clearBtn">Remove every remark</button>
+      <p class="credit">Piano: Salamander Grand Piano V3 by Alexander Holm, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, as converted for @tonejs/piano.</p>
     </div>
     <aside class="drawer" id="drawer" hidden aria-label="MPM">
       <div class="bar">
@@ -235,4 +238,4 @@ pre.xml .hot { background: var(--accent-soft); }
   </main>
 </div>
 
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>

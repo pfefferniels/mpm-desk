@@ -1,8 +1,9 @@
-/* DescribeIt: the page. The fitting is `engine.js`; this draws what it leaves, takes down what a
-   reader writes on the roll, and asks the expert what it means. */
-/* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout, setInterval, clearInterval */
+/* DescribeIt page script: draws the piano roll, manages annotations and asks the model to
+   translate them into calls. The fitting itself runs in `engine.js`. */
+/* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout */
+import { createPlayer } from './player.js';
+
 (() => {
-  'use strict';
 
   const PPQ = 720;
   const STORE = 'describeit.v2';
@@ -14,6 +15,12 @@
   const RULER = 18;
   /** The room the line round a set of notes leaves them. */
   const HULL = 14;
+  /** The pedals, each in a row of this height under the keys. */
+  const PEDAL = 9;
+  const PEDALS = [
+    ['sustain', 'Ped'],
+    ['soft', 'u.c.'],
+  ];
 
   const $ = (selector) => document.querySelector(selector);
   const el = (tag, props, ...kids) => {
@@ -48,11 +55,11 @@
     result: null, // the run as it stands
     anns: [],
     selection: new Set(),
-    selKind: 'none', // none (the whole piece) | notes | span | box
+    selKind: 'none', // none (the whole piece) | notes | span | box | arrow
     pen: { open: false, editing: null },
     level: 64, // the velocity drawn one row tall
     view: { ppt: 0.03, shadows: true, pencil: false, height: 1 },
-    play: { on: false, source: 'played', at: 0 }, // what is heard, and where the playing would begin
+    play: { on: false, source: 'played', at: 0, loading: null }, // what is heard, and where the playing would begin
     hoverAnn: null,
     hoverNote: null,
     openAnn: null,
@@ -221,10 +228,17 @@
   // The chain as it stands
   // ------------------------------------------------------------------------------------------
 
-  const callsOf = (anns) =>
+  /** The flat list the engine runs: each remark as a `Describe` step, then the calls it became. */
+  const stepsOf = (anns) =>
     anns
       .filter((ann) => ann.enabled && ann.calls && ann.calls.length)
-      .flatMap((ann) => ann.calls.map((call, index) => ({ id: `${ann.id}:${index}`, name: call.name, options: call.options || {} })));
+      .flatMap((ann) => {
+        const calls = ann.calls.map((call, index) => ({ id: `${ann.id}:${index}`, name: call.name, options: call.options || {} }));
+        const { kind, from, to, ids } = ann.scope;
+        const notes = kind === 'piece' || kind === 'span' ? [] : ids;
+        const options = { text: ann.text, scope: { kind, from, to, notes }, model: ann.model || null, date: ann.date || null, calls: calls.map((call) => call.id) };
+        return [{ id: ann.id, name: 'Describe', options }, ...calls];
+      });
 
   const reportOf = (ann, result) => {
     const reports = (result ? result.calls : []).filter((report) => report.id.startsWith(`${ann.id}:`));
@@ -243,7 +257,7 @@
     const token = ++fitToken;
     S.fitting = true;
     renderMeters();
-    const calls = S.reference ? S.refCalls : callsOf(S.anns);
+    const calls = S.reference ? S.refCalls : stepsOf(S.anns);
     try {
       const result = await Engine.run(calls);
       if (token !== fitToken) return;
@@ -339,10 +353,12 @@
     velocity: +left.loud.toFixed(2),
     length_ms: +left.length.toFixed(0),
   });
+  /** Whether a scope is a passage, every note of it, rather than a set of notes. */
+  const passes = (scope) => scope.kind === 'span' || scope.kind === 'arrow';
   /** The notes a remark is about, which is where its effect is measured. */
   const idsOf = (scope) => {
     if (scope.kind === 'piece') return [];
-    if (scope.kind === 'span') return S.base.notes.filter((note) => note.date >= scope.from && note.date < scope.to).map((note) => note.id);
+    if (passes(scope)) return S.base.notes.filter((note) => note.date >= scope.from && note.date < scope.to).map((note) => note.id);
     return scope.ids;
   };
 
@@ -358,7 +374,7 @@
   const penText = $('#penText');
   const pop = $('#pop');
   const ctx = canvas.getContext('2d');
-  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, lo: 36, hi: 84, perOctave: 4, rects: [], marks: [], penAt: null, promptRow: null };
+  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, lo: 36, hi: 84, perOctave: 4, rects: [], marks: [], pedals: [], penAt: null, promptRow: null };
   let palette = {};
 
   const readPalette = () => {
@@ -390,6 +406,9 @@
     if (!S.result) return;
     spacer.style.width = `${Math.ceil(G.gutter + S.result.total * S.view.ppt + 60)}px`;
     G.top = G.lanes * LANE + RULER + 6;
+    const { played, mpm } = S.result.pedals;
+    G.pedals = PEDALS.filter(([kind]) => played.some((press) => press.kind === kind) || mpm.some((move) => move.kind === kind));
+    G.bottom = 8 + G.pedals.length * (PEDAL + 4);
     G.rowH = Math.max(3, (G.height - G.top - HEAD - G.bottom) / (G.hi - G.lo + 1));
   };
 
@@ -496,6 +515,20 @@
     ctx.quadraticCurveTo(mid, half, mid + q, half);
     ctx.lineTo(x1 - q, half);
     ctx.quadraticCurveTo(x1, half, x1, y);
+    ctx.stroke();
+  };
+
+  /** An arrow from one point to another, bowed so that its middle passes through `apex`. */
+  const arrowOver = (from, to, apex) => {
+    const control = { x: (from.x + to.x) / 2, y: 2 * apex - (from.y + to.y) / 2 };
+    const angle = Math.atan2(to.y - control.y, to.x - control.x);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.quadraticCurveTo(control.x, control.y, to.x, to.y);
+    for (const turn of [-0.45, 0.45]) {
+      ctx.moveTo(to.x, to.y);
+      ctx.lineTo(to.x - 9 * Math.cos(angle + turn), to.y - 9 * Math.sin(angle + turn));
+    }
     ctx.stroke();
   };
 
@@ -716,7 +749,7 @@
     const lit = S.hoverAnn || S.openAnn;
     const evidence = lit && lit.report && lit.report.evidence.size ? lit.report.evidence : lit ? new Set(idsOf(lit.scope)) : null;
     // While a remark is being written about some notes, the others stand back.
-    const chosen = !lit && draft && draft.kind !== 'piece' ? S.selection : null;
+    const chosen = !lit && draft && draft.kind !== 'piece' ? (draft.kind === 'arrow' ? new Set(idsOf(draft)) : S.selection) : null;
     const dimmed = (id) => (evidence && evidence.size ? !evidence.has(id) : chosen ? !chosen.has(id) : false);
     const apart = (a, b) => Math.abs(a.x - b.x) >= 1.5 || Math.abs(a.h - b.h) >= 1 || Math.abs(a.x + a.w - b.x - b.w) >= 2.5;
 
@@ -798,6 +831,34 @@
       ctx.lineWidth = 1;
     }
 
+    // The pedals, under the keys: a press as it was recorded is a shadow, what the MPM moves is solid.
+    const pedalY = (row) => bottom + 6 + row * (PEDAL + 4);
+    ctx.fillStyle = palette.pencil;
+    ctx.strokeStyle = palette.pencil;
+    G.pedals.forEach(([kind], row) => {
+      const y = pedalY(row);
+      if (S.view.shadows) {
+        ctx.setLineDash([3, 2]);
+        for (const press of result.pedals.played.filter((press) => press.kind === kind)) {
+          const [xa, xb] = [X(press.ms), X(press.msEnd)];
+          if (xb < G.gutter || xa > width) continue;
+          ctx.globalAlpha = 0.1;
+          ctx.fillRect(xa, y, xb - xa, PEDAL);
+          ctx.globalAlpha = 0.6;
+          ctx.strokeRect(xa + 0.5, y + 0.5, Math.max(1, xb - xa - 1), PEDAL - 1);
+        }
+        ctx.setLineDash([]);
+      }
+      ctx.globalAlpha = 0.8;
+      const moves = result.pedals.mpm.filter((move) => move.kind === kind);
+      moves.forEach((move, i) => {
+        const depth = (move.value / 127) * PEDAL;
+        const [xa, xb] = [X(move.ms), X(i + 1 < moves.length ? moves[i + 1].ms : result.total)];
+        if (depth >= 0.5 && xb >= G.gutter && xa <= width && xb > xa) ctx.fillRect(xa, y + PEDAL - depth, xb - xa, depth);
+      });
+      ctx.globalAlpha = 1;
+    });
+
     for (const grace of result.graces || []) {
       const x = X(grace.ms);
       if (x < G.gutter - 6 || x > width) continue;
@@ -826,23 +887,8 @@
       }
       return y;
     };
-    /** Draw what holds a remark's notes together, and say where its words go. */
-    const hold = (scope, alpha) => {
-      const stretch = scope.kind === 'span';
-      const notes = stretch
-        ? result.notes.filter((note) => note.date >= scope.from && note.date < scope.to)
-        : scope.ids.map((id) => result.byId.get(id)).filter(Boolean);
-      if (notes.length === 0) return null;
-      const rects = notes.map(rectOf);
-      let xa = stretch ? X(encodedAt(result, scope.from)) : Math.min(...rects.map((r) => r.x)) - HULL;
-      let xb = stretch ? X(encodedAt(result, scope.to)) : Math.max(...rects.map((r) => r.x + r.w)) + HULL;
-      xb = Math.max(xb, xa + 14);
-      if (xb < G.gutter || xa > width) return null;
-      // A stretch is held from above, clear of its shadows too; a set of notes has a line round it.
-      const room = stretch ? BRACE + 24 : 24;
-      let y = stretch ? topOf(notes) - 5 : Math.min(...rects.map((r) => r.y)) - HULL - 1;
-      // Just above its notes; above another remark only where the two would otherwise run into
-      // each other; and inside the roll.
+    /** As near above `y` as the remarks already placed leave room for, and inside the roll. */
+    const clearOf = (xa, xb, y, room) => {
       for (let again = true, turns = 0; again && turns < 12; turns++) {
         again = false;
         for (const other of overhead) {
@@ -852,20 +898,62 @@
           }
         }
       }
-      y = Math.max(y, top + room - 10);
+      return Math.max(y, top + room - 10);
+    };
+    const pencil = (alpha) => {
       ctx.strokeStyle = palette.pencil;
+      ctx.fillStyle = palette.pencil;
       ctx.lineWidth = 1.25;
       ctx.globalAlpha = alpha;
-      if (stretch) braceOver(xa, xb, y);
-      else {
-        softLine(hullOf(rects, G.gutter - 60, width + 60));
-        ctx.stroke();
-        ctx.fillStyle = palette.pencil;
-        ctx.globalAlpha = alpha * 0.05;
-        ctx.fill();
-      }
+    };
+    const seen = (xa, xb) => xb >= G.gutter && xa <= width;
+
+    /** A stretch: a brace as wide as it is, just above its highest note or shadow. */
+    const holdStretch = (scope, alpha) => {
+      const notes = result.notes.filter((note) => note.date >= scope.from && note.date < scope.to);
+      const xa = X(encodedAt(result, scope.from));
+      const xb = Math.max(X(encodedAt(result, scope.to)), xa + 14);
+      if (!notes.length || !seen(xa, xb)) return null;
+      const y = clearOf(xa, xb, topOf(notes) - 5, BRACE + 24);
+      pencil(alpha);
+      braceOver(xa, xb, y);
+      return { xa, xb, y, point: y - BRACE };
+    };
+    /** A set of notes: a line round them. */
+    const holdSet = (scope, alpha) => {
+      const rects = scope.ids.map((id) => result.byId.get(id)).filter(Boolean).map(rectOf);
+      if (!rects.length) return null;
+      const xa = Math.min(...rects.map((r) => r.x)) - HULL;
+      const xb = Math.max(...rects.map((r) => r.x + r.w)) + HULL;
+      if (!seen(xa, xb)) return null;
+      pencil(alpha);
+      softLine(hullOf(rects, G.gutter - 60, width + 60));
+      ctx.stroke();
+      ctx.globalAlpha = alpha * 0.05;
+      ctx.fill();
+      const y = clearOf(xa, xb, Math.min(...rects.map((r) => r.y)) - HULL - 1, 24);
+      return { xa, xb, y, point: y };
+    };
+    /** A direction: an arrow from its first note to its last, over what that hand plays between. */
+    const holdArrow = (scope, alpha) => {
+      const [first, last] = scope.ids.map((id) => result.byId.get(id));
+      if (!first || !last) return null;
+      const [a, b] = [rectOf(first), rectOf(last)];
+      const from = { x: a.x + Math.min(a.w / 2, 5), y: a.y - 3 };
+      const to = { x: Math.max(b.x + Math.min(b.w / 2, 3), from.x + 14), y: b.y - 4 };
+      if (!seen(from.x, to.x)) return null;
+      const between = result.notes.filter((note) => note.part === first.part && note.date > first.date && note.date < last.date).map((note) => rectOf(note).y);
+      const apex = Math.min(from.y, to.y, ...between) - clamp((to.x - from.x) * 0.08, 8, 22);
+      pencil(alpha);
+      arrowOver(from, to, apex);
+      const y = clearOf(from.x, to.x, apex - 2, 24);
+      return { xa: from.x, xb: to.x, y, point: y };
+    };
+    /** Draw what holds a remark's notes together, and say where its words go. */
+    const hold = (scope, alpha) => {
+      const spot = scope.kind === 'span' ? holdStretch(scope, alpha) : scope.kind === 'arrow' ? holdArrow(scope, alpha) : holdSet(scope, alpha);
       ctx.globalAlpha = 1;
-      return { xa, xb, y, point: stretch ? y - BRACE : y };
+      return spot;
     };
     const wordsOver = (spot, w) => {
       const x = clamp((spot.xa + spot.xb) / 2 - w / 2, G.gutter + 6, width - w - 8);
@@ -895,7 +983,9 @@
       const spot = hold(draft, 0.6);
       if (spot) G.penAt = { x: (spot.xa + spot.xb) / 2 - Math.max(75, pen.offsetWidth / 2), y: spot.point - 2, grows: 'up' };
     }
-    if (drag && drag.kind === 'band' && drag.moved) {
+    if (drag && drag.kind === 'band' && drag.moved && drag.aim) {
+      hold({ kind: 'arrow', ids: [drag.note, drag.aim].sort((a, b) => a.date - b.date).map((note) => note.id) }, 0.6);
+    } else if (drag && drag.kind === 'band' && drag.moved) {
       const x = Math.min(drag.x0, drag.x1);
       const y = Math.min(drag.y0, drag.y1);
       const w = Math.abs(drag.x1 - drag.x0);
@@ -1014,6 +1104,7 @@
     for (let pitch = G.lo; pitch <= G.hi; pitch++) {
       if (pitch % 12 === 0) ctx.fillText(`C${Math.floor(pitch / 12) - 1}`, 7, Y(pitch));
     }
+    G.pedals.forEach(([, label], row) => ctx.fillText(label, 7, pedalY(row) + PEDAL / 2 + 0.5));
 
     placePen();
     // A remark still being read breathes, so the roll is drawn again while one is.
@@ -1038,6 +1129,10 @@
     const to = next === undefined ? end : next;
     const ids = notes.map((n) => n['xml:id']);
     if (S.selKind === 'span') return { kind: 'span', ids, from: first, to, label: span(first, to) };
+    if (S.selKind === 'arrow' && notes.length === 2 && first < last) {
+      const [a, b] = ids.map((id) => S.result.byId.get(id));
+      return { kind: 'arrow', ids, from: first, to, label: `${pitchName(a)} → ${pitchName(b)}, ${where(first)} to ${where(last)}` };
+    }
     const parts = [...new Set(notes.map((n) => n.part))];
     const hands = parts.length === 1 ? `, ${hand(parts[0])}` : '';
     if (notes.length === 1) {
@@ -1074,7 +1169,7 @@
   const suggest = (scope) => {
     const ideas = [];
     const has = (name) => S.anns.some((ann) => ann.enabled && ann.calls.some((call) => call.name === name || (call.options && call.options.call && call.options.call.name === name)));
-    const ids = scope.kind === 'piece' ? [] : scope.kind === 'span' ? idsOf(scope) : scope.ids;
+    const ids = scope.kind === 'piece' ? [] : idsOf(scope);
     const left = leftIn(S.result, ids);
     const tempoAssumed = S.result.assumed.tempo.some((gap) => gap.from < scope.to && gap.to > scope.from);
     const notes = ids.length ? ids.map((id) => S.result.byId.get(id)).filter(Boolean) : S.result.notes;
@@ -1095,6 +1190,11 @@
         ideas.push(level(late) - level(early) > 1 ? 'crescendo' : level(early) - level(late) > 1 ? 'dying away' : 'one level');
       }
       ideas.push('pull towards the downbeat');
+    } else if (scope.kind === 'arrow') {
+      const half = (scope.from + scope.to) / 2;
+      const level = (list) => list.reduce((sum, n) => sum + n.velocity, 0) / Math.max(1, list.length);
+      const swell = level(notes.filter((n) => n.date >= half)) - level(notes.filter((n) => n.date < half));
+      ideas.push('towards it', swell > 2 ? 'growing into it' : swell < -2 ? 'falling into it' : 'pressing forward', 'broadening into it');
     } else if (notes.length === 1) {
       const note = notes[0];
       if (note.loud > 2.5) ideas.push('presumably played quieter', 'accented');
@@ -1111,6 +1211,12 @@
       if (mean('loud') > 2) ideas.push('accented');
     }
     return ideas.slice(0, 3);
+  };
+
+  /** The note a direction would name at a date: the right hand's highest there, or failing that anybody's. */
+  const leadAt = (date) => {
+    const there = S.result.notes.filter((note) => note.date === date).sort((a, b) => b.pitch - a.pitch);
+    return there.find((note) => note.part === 1) || there[0];
   };
 
   const renderPenUnder = () => {
@@ -1134,15 +1240,22 @@
     } else {
       under.append(el('span', { class: 'keys', text: S.sample || !S.sampleAsked ? 'Enter to translate · Esc to drop' : 'Enter to keep (the expert answers when this page is open in Claude)' }));
     }
+    // A passage can be made a direction, and a direction a passage: the same notes, held otherwise.
+    const scope = scopeNow();
+    const ends = scope.kind === 'span' ? [leadAt(scope.from), leadAt(S.result.dates.findLast((date) => date < scope.to))] : [];
+    if (scope.kind === 'arrow' || (ends[0] && ends[1] && ends[0].date < ends[1].date)) {
+      const turned = scope.kind === 'arrow' ? [idsOf(scope), 'span'] : [ends.map((note) => note.id), 'arrow'];
+      under.append(el('button', { class: 'turn', text: scope.kind === 'arrow' ? 'make it a passage' : 'make it an arrow', title: scope.kind === 'arrow' ? 'Hold these notes in a brace' : 'Draw it as a direction, from its first note to its last', onclick: () => select(...turned) }));
+    }
     // What is in hand can be heard by itself before anything is said of it.
-    if (scopeNow().kind !== 'piece') {
+    if (scope.kind !== 'piece') {
       under.append(
         el('button', {
           class: 'hear',
           title: 'Hear this by itself',
           text: 'hear it',
           onclick: () => {
-            if (Player.playing) Player.stop(true);
+            if (Player.playing) Player.stop();
             else Player.start();
             penText.focus({ preventScroll: true });
           },
@@ -1159,7 +1272,7 @@
     pen.style.opacity = '0';
     const scope = scopeNow();
     penText.placeholder =
-      scope.kind === 'piece' ? 'about the whole piece…' : scope.kind === 'span' ? `about ${scope.label}…` : scope.ids.length === 1 ? 'about this note…' : `about these ${scope.ids.length} notes…`;
+      scope.kind === 'piece' ? 'about the whole piece…' : scope.kind === 'span' ? `about ${scope.label}…` : scope.kind === 'arrow' ? 'where is it going…' : scope.ids.length === 1 ? 'about this note…' : `about these ${scope.ids.length} notes…`;
     if (seed !== undefined) penText.value = seed;
     growPen();
     renderPenUnder();
@@ -1284,6 +1397,9 @@
       drag.moved = drag.moved || Math.abs(x - drag.x0) > 4 || Math.abs(y - drag.y0) > 4;
       // A stroke along the roll is a bracket over a stretch; one that goes down it is a box.
       drag.flat = drag.lanes || Math.abs(y - drag.y0) < 16;
+      // From a note to another note is an arrow.
+      const aim = drag.note && drag.moved ? noteAt(x, y) : null;
+      drag.aim = aim && aim.date !== drag.note.date ? aim : null;
       draw();
       return;
     }
@@ -1323,6 +1439,11 @@
       else if (done.note) pick(done.note, done.additive);
       else emptyClick(done.x0, done.y0);
       draw();
+      return;
+    }
+    if (done.aim) {
+      closePop();
+      select([done.note.id, done.aim.id], 'arrow');
       return;
     }
     const x0 = Math.min(done.x0, done.x1);
@@ -1419,200 +1540,77 @@
   // Playing: the roll heard, as it was played, as the MPM has it, or both at once
   // ------------------------------------------------------------------------------------------
 
+  /** The stretches of the clock over which the pedal is down, and a key let go rings on. */
+  const pedalled = (result, which) => {
+    if (which === 'played') return result.pedals.played.filter((press) => press.kind === 'sustain').map((press) => [press.ms, press.msEnd]);
+    const spans = [];
+    let down = null;
+    for (const move of result.pedals.mpm.filter((move) => move.kind === 'sustain')) {
+      if (move.value >= 64 && down === null) down = move.ms;
+      else if (move.value < 64 && down !== null) {
+        spans.push([down, move.ms]);
+        down = null;
+      }
+    }
+    if (down !== null) spans.push([down, result.total]);
+    return spans;
+  };
+
+  /** Every key struck, in order: when, how hard, and when it is damped. */
+  const keysOf = (result, source, only) => {
+    const voice = (which, pan) => {
+      const spans = pedalled(result, which);
+      const damped = (end) => (spans.find(([down, up]) => end >= down && end < up) || [0, end])[1];
+      const keys = result.notes
+        .filter((note) => !only || only.has(note.id))
+        .map((note) => ({ pitch: note.pitch, sound: which === 'played' ? note : note.mpm }))
+        .map(({ pitch, sound }) => ({ ms: sound.ms, end: damped(sound.msEnd), pitch, velocity: sound.velocity, pan }));
+      // The grace notes are in the recording only: the score gives them no time to render.
+      if (which === 'played') {
+        for (const grace of result.graces.filter((grace) => !only || only.has(grace.principal))) {
+          keys.push({ ms: grace.ms, end: damped(grace.ms + 160), pitch: grace.pitch, velocity: grace.velocity, pan });
+        }
+      }
+      // A key struck again is damped first, however long the pedal would have held it.
+      keys.sort((a, b) => a.ms - b.ms);
+      const last = new Map();
+      for (const key of keys) {
+        const before = last.get(key.pitch);
+        if (before && before.end > key.ms) before.end = key.ms;
+        last.set(key.pitch, key);
+      }
+      return keys;
+    };
+    const played = source === 'mpm' ? [] : voice('played', source === 'both' ? -0.55 : 0);
+    const rendered = source === 'played' ? [] : voice('mpm', source === 'both' ? 0.55 : 0);
+    return [...played, ...rendered].sort((a, b) => a.ms - b.ms);
+  };
+
   const Player = (() => {
-    let audio = null;
-    let wave = null;
-    let bus = null;
-    let room = null;
-    let run = null; // what is sounding: its stretch of the clock, and the voices struck so far
-    let timer = 0;
-
-    const context = () => {
-      if (audio) return audio;
-      const Context = window.AudioContext || window.webkitAudioContext;
-      if (!Context) return null;
-      audio = new Context();
-      // One string: every partial weaker than the one under it.
-      const partials = 20;
-      const real = new Float32Array(partials);
-      const imag = new Float32Array(partials);
-      for (let k = 1; k < partials; k++) imag[k] = 1 / k ** 1.3;
-      wave = audio.createPeriodicWave(real, imag);
-      bus = audio.createDynamicsCompressor();
-      bus.threshold.value = -14;
-      bus.ratio.value = 4;
-      bus.attack.value = 0.004;
-      bus.release.value = 0.2;
-      bus.connect(audio.destination);
-      // A little room round the instrument: noise, dying away.
-      const length = Math.floor(audio.sampleRate * 1.5);
-      const impulse = audio.createBuffer(2, length, audio.sampleRate);
-      for (let channel = 0; channel < 2; channel++) {
-        const data = impulse.getChannelData(channel);
-        for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 4;
-      }
-      room = audio.createConvolver();
-      room.buffer = impulse;
-      const wet = audio.createGain();
-      wet.gain.value = 0.14;
-      room.connect(wet);
-      wet.connect(bus);
-      return audio;
-    };
-
-    /** The stretches of the clock over which the pedal is down, and a key let go rings on. */
-    const pedalled = (result, which) => {
-      const pedals = result.pedals || { played: [], mpm: [] };
-      if (which === 'played') return pedals.played.map((press) => [press.ms, press.msEnd]);
-      const spans = [];
-      let down = null;
-      for (const move of pedals.mpm) {
-        if (move.value >= 64 && down === null) down = move.ms;
-        else if (move.value < 64 && down !== null) {
-          spans.push([down, move.ms]);
-          down = null;
-        }
-      }
-      if (down !== null) spans.push([down, result.total]);
-      return spans;
-    };
-
-    /** Every key struck, in order: when, how hard, and when it is damped. */
-    const eventsOf = (result, source, only) => {
-      const events = [];
-      const add = (which, pan) => {
-        const spans = pedalled(result, which);
-        const damped = (end) => {
-          const span = spans.find(([down, up]) => end >= down && end < up);
-          return span ? span[1] : end;
-        };
-        const mine = [];
-        for (const note of result.notes) {
-          if (only && !only.has(note.id)) continue;
-          const sounds = which === 'played' ? note : note.mpm;
-          mine.push({ ms: sounds.ms, end: damped(sounds.msEnd), pitch: note.pitch, velocity: sounds.velocity, pan });
-        }
-        // The grace notes are in the recording only: the score gives them no time to render.
-        if (which === 'played') {
-          for (const grace of result.graces || []) {
-            if (only && !only.has(grace.principal)) continue;
-            mine.push({ ms: grace.ms, end: damped(grace.ms + 160), pitch: grace.pitch, velocity: grace.velocity, pan });
-          }
-        }
-        // A key struck again is damped first, however long the pedal would have held it.
-        mine.sort((a, b) => a.ms - b.ms);
-        const last = new Map();
-        for (const event of mine) {
-          const before = last.get(event.pitch);
-          if (before && before.end > event.ms) before.end = event.ms;
-          last.set(event.pitch, event);
-        }
-        events.push(...mine);
-      };
-      if (source !== 'mpm') add('played', source === 'both' ? -0.55 : 0);
-      if (source !== 'played') add('mpm', source === 'both' ? 0.55 : 0);
-      return events.sort((a, b) => a.ms - b.ms);
-    };
-
-    /** One key struck: strings that ring and darken, the brighter the harder the blow. */
-    const strike = (event, when, off) => {
-      const frequency = 440 * 2 ** ((event.pitch - 69) / 12);
-      const force = clamp(event.velocity, 1, 127) / 127;
-      const strings = event.pitch > 45 ? [-2, 2.5] : [0];
-      const peak = (0.03 + 0.8 * force ** 1.8) / strings.length;
-      const filter = audio.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.Q.value = 0.3;
-      const bright = Math.min(15000, 500 + frequency * (2 + 16 * force * force));
-      filter.frequency.setValueAtTime(bright, when);
-      filter.frequency.setTargetAtTime(Math.min(bright, 350 + frequency * 1.6), when, 0.3);
-      const gain = audio.createGain();
-      // A low string rings for seconds, a high one for a moment.
-      const ring = clamp(2.4 * 2 ** ((52 - event.pitch) / 14), 0.25, 3.5);
-      const damped = Math.max(off, when + 0.06);
-      gain.gain.setValueAtTime(0, when);
-      gain.gain.linearRampToValueAtTime(peak, when + 0.005);
-      gain.gain.setTargetAtTime(0, when + 0.005, ring);
-      gain.gain.setTargetAtTime(0, damped, 0.08);
-      const { live } = run;
-      for (const cents of strings) {
-        const string = audio.createOscillator();
-        string.setPeriodicWave(wave);
-        string.frequency.value = frequency;
-        string.detune.value = cents;
-        string.connect(filter);
-        string.start(when);
-        string.stop(damped + 0.7);
-        live.add(string);
-        string.onended = () => live.delete(string);
-      }
-      filter.connect(gain);
-      if (event.pan && audio.createStereoPanner) {
-        const side = audio.createStereoPanner();
-        side.pan.value = event.pan;
-        gain.connect(side);
-        side.connect(run.out);
-      } else gain.connect(run.out);
-    };
-
-    const position = () => (run ? run.from + (audio.currentTime - run.t0) * 1000 : S.play.at);
-
-    /** Strike what falls due in the next second or so, and stop at the end. */
-    const pump = () => {
-      if (!run) return;
-      const now = position();
-      if (now >= run.until) {
-        stop(false);
-        return;
-      }
-      while (run.next < run.events.length && run.events[run.next].ms < now + 1200) {
-        const event = run.events[run.next++];
-        const when = run.t0 + (event.ms - run.from) / 1000;
-        if (when < audio.currentTime - 0.03) continue;
-        strike(event, Math.max(when, audio.currentTime), run.t0 + (Math.min(event.end, run.until) - run.from) / 1000);
-      }
-    };
-
-    /** What is still to be struck, from the run as it stands and in what is to be heard. */
-    const load = () => {
-      const now = Math.max(position(), run.from);
-      run.events = eventsOf(S.result, S.play.source, run.only).filter((event) => event.ms >= now - 20 && event.ms < run.until);
-      run.next = 0;
-    };
-
-    const voice = () => {
-      const out = audio.createGain();
-      out.gain.value = 0.9;
-      out.connect(bus);
-      out.connect(room);
-      return out;
-    };
-
-    /** Damp everything that sounds. */
-    const hush = () => {
-      const now = audio.currentTime;
-      const old = run.out;
-      old.gain.setTargetAtTime(0, now, 0.025);
-      for (const string of run.live) {
-        try {
-          string.stop(now + 0.2);
-        } catch {
-          // It had stopped by itself.
-        }
-      }
-      setTimeout(() => old.disconnect(), 500);
-      run.live = new Set();
-    };
+    let only = null;
+    let scoped = false;
 
     const reflect = () => {
-      const on = Boolean(run);
+      const on = transport.playing;
       S.play.on = on;
       const button = $('#playBtn');
       button.setAttribute('aria-pressed', String(on));
       button.setAttribute('aria-label', on ? 'Pause' : 'Play');
       $('#playIcon').setAttribute('d', on ? 'M2 1.5h3v9H2zM7 1.5h3v9H7z' : 'M2.5 1v10l8.5-5z');
+      renderHint();
       draw();
     };
+
+    const transport = createPlayer({
+      onChange: reflect,
+      onEnd: () => {
+        if (!scoped) S.play.at = 0;
+      },
+      onLoading: (done, total) => {
+        S.play.loading = done < total ? { done, total } : null;
+        renderHint();
+      },
+    });
 
     /**
      * The stretch of the clock to play. What is in hand is played by itself, from its first note
@@ -1623,7 +1621,7 @@
       const result = S.result;
       const scope = S.pen.open || S.selection.size ? scopeNow() : S.openAnn ? S.openAnn.scope : null;
       if (scope && scope.kind !== 'piece') {
-        const ids = scope.kind === 'span' ? idsOf(scope) : scope.ids;
+        const ids = idsOf(scope);
         const sounds = ids
           .map((id) => result.byId.get(id))
           .filter(Boolean)
@@ -1637,60 +1635,37 @@
       return { from: from < result.total - 200 ? from : 0, until: result.total + 600, only: null, scoped: false };
     };
 
-    const halt = () => {
-      if (!run) return;
-      clearInterval(timer);
-      hush();
-      run = null;
+    const start = async (over) => {
+      if (!S.result || transport.loading) return;
+      const played = over || stretch();
+      ({ only, scoped } = played);
+      const started = await transport.play(keysOf(S.result, S.play.source, only), played);
+      S.play.loading = null;
+      if (!started) notice('The piano could not be heard here.');
     };
 
-    const start = (over) => {
-      if (!S.result) return;
-      if (!context()) {
-        notice('This browser cannot play sound.');
-        return;
-      }
-      halt();
-      if (audio.state === 'suspended') audio.resume();
-      run = { ...(over || stretch()), t0: audio.currentTime + 0.08, out: voice(), live: new Set(), events: [], next: 0 };
-      load();
-      timer = setInterval(pump, 50);
-      pump();
-      reflect();
-    };
-
-    /** Stop. Stopped by hand in the middle of the roll, the line stays where the playing was. */
-    const stop = (byHand) => {
-      if (!run) return;
-      const at = position();
-      const { scoped } = run;
-      halt();
-      if (!scoped) S.play.at = byHand ? clamp(at, 0, S.result.total) : 0;
-      reflect();
+    /** Stop. Stopped in the middle of the roll, the line stays where the playing was. */
+    const stop = () => {
+      if (!transport.playing) return;
+      if (!scoped) S.play.at = clamp(transport.position(), 0, S.result.total);
+      transport.stop();
     };
 
     /** Put the line somewhere; the playing, if there is any, goes on from there. */
     const seek = (ms) => {
       if (!S.result) return;
       S.play.at = clamp(ms, 0, S.result.total);
-      if (run) start({ from: S.play.at, until: S.result.total + 600, only: null, scoped: false });
+      if (transport.playing) start({ from: S.play.at, until: S.result.total + 600, only: null, scoped: false });
       else draw();
     };
 
-    /** The run has changed under the playing, or what is to be heard has: go on with what is now there. */
-    const refresh = () => {
-      if (!run) return;
-      hush();
-      run.out = voice();
-      load();
-      pump();
-    };
+    const refresh = () => transport.replace(keysOf(S.result, S.play.source, only));
 
     const hear = (source) => {
       S.play.source = source;
       for (const button of document.querySelectorAll('#hear button')) button.setAttribute('aria-pressed', String(button.dataset.src === source));
       // A passage is heard again from its start; the roll goes on where it is.
-      if (run && run.scoped) start();
+      if (transport.playing && scoped) start();
       else refresh();
     };
 
@@ -1700,11 +1675,10 @@
       seek,
       refresh,
       hear,
-      toggle: () => (run ? stop(true) : start()),
-      /** Where the playing is on the roll's clock, as it is heard. */
-      now: () => position() - (run ? (audio.outputLatency || audio.baseLatency || 0) * 1000 : 0),
+      toggle: () => (transport.playing ? stop() : start()),
+      now: () => transport.position(),
       get playing() {
-        return Boolean(run);
+        return transport.playing;
       },
     };
   })();
@@ -1829,6 +1803,10 @@
       if (S.notice.undo) hint.append(el('button', { text: 'Undo', onclick: S.notice.undo }));
       return;
     }
+    if (S.play.loading) {
+      hint.append(el('span', { class: 'pulse' }), `Fetching the piano: ${S.play.loading.done} of ${S.play.loading.total} samples.`);
+      return;
+    }
     if (S.pen.open) {
       hint.append(`Writing about ${scopeNow().label}.`);
       return;
@@ -1868,8 +1846,8 @@
   const effectOf = (ann) => {
     if (!ann.delta) return null;
     const parts = [];
-    if (Math.abs(ann.delta.pulse) >= 1) parts.push(`pulse ${signed(-ann.delta.pulse, 'ms')}`);
-    if (Math.abs(ann.delta.chords) >= 1) parts.push(`chords ${signed(-ann.delta.chords, 'ms')}`);
+    if (Math.abs(ann.delta.pulse) >= 1) parts.push(`timing ${signed(-ann.delta.pulse, 'ms')}`);
+    if (Math.abs(ann.delta.chords) >= 1) parts.push(`in chords ${signed(-ann.delta.chords, 'ms')}`);
     if (Math.abs(ann.delta.loud) >= 0.05) parts.push(`loudness ${signed(-ann.delta.loud, '', 2)}`);
     if (Math.abs(ann.delta.length) >= 1) parts.push(`length ${signed(-ann.delta.length, 'ms')}`);
     return parts.length ? parts.join(' · ') : 'nothing of what is measured';
@@ -1912,12 +1890,11 @@
     );
 
     if (ann.status === 'pending' || waiting) {
-      pop.append(el('div', { class: 'reading' }, el('span', { class: 'pulse' }), waiting ? 'Waiting for its turn…' : ann.reading || ann.progress || 'Reading the remark…'));
+      pop.append(el('div', { class: 'reading' }, el('span', { class: 'pulse' }), waiting ? 'Waiting for its turn…' : 'Reading the remark…'));
       pop.append(el('div', { class: 'acts' }, !waiting && el('button', { class: 'btn quiet', text: 'Stop', onclick: () => ann.abort && ann.abort.abort() }), el('button', { class: 'btn quiet', text: 'Remove', onclick: () => removeAnn(ann) })));
       return;
     }
 
-    if (ann.reading) pop.append(el('div', { class: 'reading', text: ann.reading }));
     if (ann.question) {
       const answer = el('input', { type: 'text', placeholder: 'Your answer', 'aria-label': 'Your answer', value: typed });
       answer.addEventListener('keydown', (event) => {
@@ -1944,6 +1921,9 @@
       const effect = effectOf(ann);
       if (effect && ann.enabled) steps.append(el('span', { class: `effect${effect.startsWith('nothing') ? ' none' : ''}`, text: effect, title: 'What it took off what is left unexplained in its passage' }));
       pop.append(steps);
+      // Who turned the words into these steps, and when: all that is kept besides the two.
+      const day = ann.date ? new Date(ann.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+      pop.append(el('div', { class: 'note', text: [ann.model || 'steps written by hand', day].filter(Boolean).join(' · ') }));
     }
 
     const acts = el('div', { class: 'acts' });
@@ -2002,6 +1982,7 @@
               const calls = JSON.parse(area.value);
               if (!Array.isArray(calls) || calls.some((call) => !call || typeof call.name !== 'string')) throw new Error('a list of {name, options}');
               ann.calls = calls.map((call) => ({ name: call.name, options: call.options || {} }));
+              ann.model = null;
               ann.status = 'done';
               ann.failure = null;
               ann.question = null;
@@ -2102,16 +2083,8 @@
   };
 
   /** The calls as the MPM Desk would hold them: a fitted step as the stated one it came to. */
-  const workFile = () => {
-    const calls = S.result.calls.flatMap((report) => report.concrete).map((call) => ({ id: call.id, name: call.name, options: call.options }));
-    const assumed = S.result.assumed.tempo.map((gap, i) => ({
-      id: `assumed-tempo-${i}`,
-      name: 'InsertTempo',
-      options: { scope: 'global', from: gap.from, to: gap.to, bpm: gap.bpm, beatLength: 0.25 },
-    }));
-    const remarks = S.anns.filter((ann) => ann.calls.length).map((ann) => ({ text: ann.text, about: ann.scope.label, from: ann.scope.from, to: ann.scope.to, notes: ann.scope.kind === 'span' ? [] : ann.scope.ids }));
-    return JSON.stringify({ name: S.piece.title, mei: 'transcription.mei', mpm: 'performance.mpm', provenance: [...assumed, ...calls], secondary: { describeIt: { remarks } } }, null, 2);
-  };
+  const workFile = () => JSON.stringify({ name: S.piece.title, mei: 'transcription.mei', mpm: 'performance.mpm', provenance: S.result.record }, null, 2);
+
 
   const flash = (button, text) => {
     const was = button.textContent;
@@ -2235,6 +2208,8 @@
         ? 'selected nothing, so speaks about the whole piece'
         : scope.kind === 'span'
           ? 'drew a bracket over a passage, both hands, every note in it'
+          : scope.kind === 'arrow'
+            ? 'drew an arrow from one note to another, a direction: the playing sets out at the first and makes for the last'
           : scope.kind === 'box'
             ? 'drew a box round some of the notes of a passage'
             : `picked ${picked.length === 1 ? 'one note' : 'these notes'}`;
@@ -2262,7 +2237,7 @@
       '# THE REMARK TO TRANSLATE',
       `The reader ${how}: ${scope.label}.`,
       `Ticks: from ${scope.from} (first selected onset) to ${scope.to} (the next onset in the score after the last selected one${scope.kind === 'piece' ? '; here the end of the score' : ''}).`,
-      picked.length ? `Selected note ids: ${picked.join(' ')}` : '',
+      scope.kind === 'arrow' ? `The arrow runs from note ${picked[0]} to note ${picked[1]}, whose chord is the last before tick ${scope.to}; its passage is every note from tick ${scope.from} up to tick ${scope.to}, both hands.` : picked.length ? `Selected note ids: ${picked.join(' ')}` : '',
       `Before your calls, what is left in the passage, ${measureText(leftIn(S.result, idsOf(scope)))}.`,
       '',
       `The remark, verbatim: """${ann.text}"""`,
@@ -2288,29 +2263,18 @@
         ? 'Check your calls with try_calls before you answer, as the section "What is left, and the tool that tells you" says: three tries at most.'
         : 'You have no try_calls here, so keep to option shapes you are sure of.',
       'Then reply with one JSON object and nothing else, in exactly this shape:',
-      '{"reading": "one or two plain sentences to the reader, in the language of the remark: how you understood it and what it becomes, in musical terms, naming the MPM instruction",',
-      ' "calls": [{"name": "<transformer or DescribeIt step>", "options": { ... }}],',
+      '{"calls": [{"name": "<transformer or DescribeIt step>", "options": { ... }}],',
       ' "question": null}',
-      'Put "reading" first. Leave "calls" empty and put one short question in "question" only when the remark cannot be translated without knowing more.',
+      'Leave "calls" empty and put one short question in "question", in the language of the remark, only when the remark cannot be translated without knowing more.',
     );
     return sections.filter((line) => line !== undefined).join('\n');
-  };
-
-  const readingSoFar = (text) => {
-    const match = /"reading"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(text);
-    if (!match) return null;
-    try {
-      return JSON.parse(`"${match[1].replace(/\\$/, '')}"`);
-    } catch {
-      return match[1];
-    }
   };
 
   const parseAnswer = (text) => {
     const candidates = [];
     const last = text.lastIndexOf('}');
     // With the tool the answer is the last object written, after whatever was said on the way.
-    const tail = text.lastIndexOf('{"reading"');
+    const tail = text.lastIndexOf('{"calls"');
     if (tail !== -1 && last > tail) candidates.push(text.slice(tail, last + 1));
     const fence = /```(?:json)?\s*([\s\S]*?)```/g;
     let match;
@@ -2320,7 +2284,7 @@
     for (const candidate of candidates) {
       try {
         const value = JSON.parse(candidate);
-        if (value && typeof value === 'object' && ('calls' in value || 'reading' in value)) return value;
+        if (value && typeof value === 'object' && ('calls' in value || 'question' in value)) return value;
       } catch {
         // try the next way of reading it
       }
@@ -2351,7 +2315,7 @@
       ann.progress = `Trying ${calls.length} ${calls.length === 1 ? 'step' : 'steps'} on the roll…`;
       if (S.openAnn === ann) renderPop();
       const mine = calls.map((call, index) => ({ id: `try:${index}`, name: call.name, options: call.options || {} }));
-      const result = await Engine.run([...callsOf(S.anns.filter((other) => other !== ann)), ...mine]);
+      const result = await Engine.run([...stepsOf(S.anns.filter((other) => other !== ann)), ...mine]);
       const ids = idsOf(ann.scope);
       return {
         calls: result.calls
@@ -2381,29 +2345,17 @@
     ann.status = 'pending';
     ann.abort = controller;
     ann.failure = null;
-    ann.progress = null;
-    if (mode !== 'repair') ann.reading = null;
     const asked = ann.question;
     ann.question = null;
     renderAll();
     try {
-      const options = {
-        ...EXPERT,
-        signal: controller.signal,
-        onText: ({ text }) => {
-          const reading = readingSoFar(text.slice(Math.max(0, text.lastIndexOf('{"reading"'))));
-          if (reading && reading !== ann.reading) {
-            ann.reading = reading;
-            if (S.openAnn === ann) renderPop();
-          }
-        },
-      };
+      const options = { ...EXPERT, signal: controller.signal };
       if (S.tools) options.tools = [tryTool(ann)];
       else options.cache = false;
       const { text } = await S.sample(buildPrompt(ann, mode), options);
       const answer = parseAnswer(text);
       if (!answer) throw { code: 'invalid_json' };
-      ann.reading = typeof answer.reading === 'string' ? answer.reading : ann.reading;
+      ann.model = EXPERT.model;
       ann.question = typeof answer.question === 'string' && answer.question.trim() ? answer.question : null;
       const calls = Array.isArray(answer.calls) ? answer.calls.filter((call) => call && typeof call.name === 'string') : [];
       ann.calls = calls.map((call) => ({ name: call.name, options: call.options && typeof call.options === 'object' ? call.options : {} }));
@@ -2486,7 +2438,7 @@
       closePen();
       if (changed || !editing.calls.length) {
         editing.calls = [];
-        editing.reading = null;
+        editing.date = new Date().toISOString();
         editing.question = null;
         editing.thread = null;
         editing.delta = null;
@@ -2503,6 +2455,7 @@
       status: 'done',
       calls: [],
       enabled: true,
+      date: new Date().toISOString(),
     };
     S.anns.push(ann);
     closePen();
@@ -2517,7 +2470,7 @@
 
   const save = () => {
     try {
-      const anns = S.anns.map(({ id, text, scope, calls, enabled, reading, question, thread, delta, example, failure }) => ({ id, text, scope, calls, enabled, reading, question, thread, delta, example, failure }));
+      const anns = S.anns.map(({ id, text, scope, calls, enabled, model, date, question, thread, delta, example, failure }) => ({ id, text, scope, calls, enabled, model, date, question, thread, delta, example, failure }));
       localStorage.setItem(STORE, JSON.stringify({ anns }));
     } catch {
       // Without storage the remarks last as long as the page does.
@@ -2755,7 +2708,7 @@
   };
 
   // For a test that drives the page: handed the state and the few verbs a reader has.
-  if (typeof window.__describeItTest === 'function') window.__describeItTest({ S, G, select, describe, refit, Engine, openPop, buildPrompt, Player });
+  if (typeof window.__describeItTest === 'function') window.__describeItTest({ S, G, select, describe, refit, apply, Engine, openPop, buildPrompt, tryTool, Player });
 
   start();
 })();

@@ -216,14 +216,47 @@ describe('what a description adds to the chain', () => {
     expect(result.notes.filter((note) => note.arrived)).toHaveLength(1);
   });
 
-  it('hands the pedal to whoever plays it back: the presses as recorded, and the MPM\'s once it has any', () => {
+  it('keeps a remark as a step of the flat list, naming the calls it became', () => {
+    const fit = call('FitTempo', { from: bar(1), to: bar(3), shape: 'steady', step: BAR }, 'r1:0');
+    const remark = call(
+      'Describe',
+      {
+        text: 'steady by the bar',
+        scope: { kind: 'span', from: bar(1), to: bar(3), notes: [] },
+        model: 'claude-opus-5-5',
+        date: '2026-11-27T12:00:00.000Z',
+        calls: ['r1:0'],
+      },
+      'r1',
+    );
+    const bare = run([fit]);
+    const described = run([remark, fit]);
+    // The step changes nothing by itself.
+    expect(described.mpm).toBe(bare.mpm);
+
+    const at = described.record.findIndex((step) => step.name === 'Describe');
+    const kept = described.record[at]!;
+    const made = described.record.slice(at + 1);
+    expect(kept.options).toMatchObject({ text: 'steady by the bar', model: 'claude-opus-5-5' });
+    // A fitted step is recorded as the call it came to, one tempo to the bar, numbers stated.
+    expect(made.map((step) => step.name)).toEqual(['InsertTempo', 'InsertTempo']);
+    expect(kept.options['calls']).toEqual(made.map((step) => step.id));
+    expect(made.every((step) => typeof step.options['bpm'] === 'number')).toBe(true);
+    // What was assumed for the rest stands before it, and nothing is recorded twice.
+    expect(described.record.slice(0, at).every((step) => step.id.startsWith('assumed-tempo-'))).toBe(true);
+    expect(new Set(described.record.map((step) => step.id)).size).toBe(described.record.length);
+  });
+
+  it('gives the pedals on the roll\'s clock: the presses as recorded, and the MPM\'s once it has any', () => {
     const base = run([]);
     const last = Math.max(...base.notes.map((note) => note.msEnd));
     expect(base.pedals.played.length).toBeGreaterThan(10);
-    // On the notes' own clock, in order, each press let go after it was made.
+    expect(new Set(base.pedals.played.map((press) => press.kind))).toEqual(new Set(['sustain', 'soft']));
+    // On the notes' own clock, in order, each press let go after it was made. The soft pedal goes
+    // down before the first note is struck.
     for (const [i, press] of base.pedals.played.entries()) {
       expect(press.msEnd).toBeGreaterThan(press.ms);
-      expect(press.ms).toBeGreaterThanOrEqual(i ? base.pedals.played[i - 1]!.ms : -1000);
+      expect(press.ms).toBeGreaterThanOrEqual(i ? base.pedals.played[i - 1]!.ms : -5000);
       expect(press.ms).toBeLessThan(last);
     }
     // Nothing described, nothing rendered; described, the pedal goes down and comes up again.

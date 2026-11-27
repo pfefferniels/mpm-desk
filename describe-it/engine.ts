@@ -1,26 +1,7 @@
 /**
- * DescribeIt's engine: the fitting chain of the MPM Desk, run for a piano roll that shows what the
- * MPM as it stands leaves unexplained.
- *
- * Nothing of the chain is reimplemented here. A list of calls goes in, `buildChain` orders it,
- * every transformer runs as it does in the editor, and `deriveResidual` says where each recorded
- * note falls on the score grid and how far its velocity is from what the document sounds it at.
- *
- * What is added is what a reader who only describes needs and a reader who draws does not:
- *
- * - **Fitted steps.** `InsertTempo` writes the tempo it is handed, because in the editor a person
- *   draws it. Somebody who says "steady on half bars" hands over no number, so {@link FitTempo}
- *   reads one off the recorded onsets and then makes the same `InsertTempo` call a drawn line
- *   would have made. {@link FitDynamics} does the same for a level.
- * - **Assumptions.** A tick position exists only under a `<tempo>`, and a velocity residual only
- *   against a `<dynamics>`. Where nothing has been said yet the engine assumes the least: a steady
- *   tempo joining what has been described on either side, and one level throughout. They are
- *   ordinary `InsertTempo` and `InsertDynamics` calls, reported apart so that a page can show
- *   them as assumed.
- * - **`Repeat`**, which writes one call per step of a span, for a remark about every beat of a
- *   passage.
- *
- * Bundled into one file for the browser by `build.ts`; it has no DOM in it and runs in a worker.
+ * DescribeIt's engine: runs the MPM Desk fitting chain on a list of calls and reports the residual.
+ * Adds fitted steps (`FitTempo`, `FitDynamics`), assumed tempo/dynamics for undescribed spans, and
+ * `Repeat`. DOM-free; bundled for the browser by `build.ts`.
  */
 import { performMsmToData } from 'espressivo';
 import '../src/fitting/transformers/index';
@@ -52,10 +33,10 @@ const PPQ = 720;
 const WHOLE = PPQ * 4;
 
 // ---------------------------------------------------------------------------------------------
-// Reading the recording
+// Recorded onsets
 // ---------------------------------------------------------------------------------------------
 
-/** The onset of the chord on each date: the note the tempo walk itself would anchor on. */
+/** Maps each score date (ticks) to the onset (ms) of the first global note on it. */
 const anchorsOf = (msm: Alignment): Map<number, number> => {
   const anchors = new Map<number, number>();
   for (const note of msm.in('global').notes()) {
@@ -66,7 +47,7 @@ const anchorsOf = (msm: Alignment): Map<number, number> => {
   return anchors;
 };
 
-/** The chords between two dates, both included, ascending. */
+/** Chords with `from <= date <= to`, ascending. */
 const chordsBetween = (anchors: Map<number, number>, from: number, to: number) =>
   [...anchors.entries()]
     .filter(([date]) => date >= from && date <= to)
@@ -83,32 +64,30 @@ const median = (values: number[]): number => {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Fitting a tempo
+// Tempo fitting
 // ---------------------------------------------------------------------------------------------
 
 interface FittedTempo {
   bpm: number;
   transitionTo?: number;
   meanTempoAt?: number;
-  /** How far the fitted line is from the onsets it was fitted to, root mean square, in ms. */
+  /** RMS distance of the fitted line from the onsets, in ms. */
   rmsMs: number;
-  /** How many chords it was fitted to. */
+  /** Number of chords fitted to. */
   onsets: number;
 }
 
-/** A moment of the span being fitted: a date of the score and when it sounded. */
+/** A score date (ticks) and the time it sounded (ms). */
 interface Moment {
   date: number;
   ms: number;
 }
 
 /**
- * The tempo a span has to hold for its last chord to fall where it was played, given when the
- * span begins.
+ * Constant tempo at which the last chord falls where it was played.
  *
- * @param start when the span's first tick sounds: its chord's onset, or, where no chord stands
- * there, where the tempo before it leaves off.
- * @param chords the chords after the span's first tick, ascending.
+ * @param start when the span's first tick sounds
+ * @param chords the chords after the span's first tick, ascending
  */
 const steadyTempo = (start: Moment, chords: Moment[], beatLength: number): FittedTempo | undefined => {
   const last = chords[chords.length - 1];
@@ -124,14 +103,10 @@ const steadyTempo = (start: Moment, chords: Moment[], beatLength: number): Fitte
 };
 
 /**
- * A tempo that moves across a span, fitted to the chords in it.
+ * Tempo transition fitted to the chords of a span. Searches the ratio `transitionTo / bpm` and
+ * `meanTempoAt`; the level is then fixed so the last chord falls where it was played.
  *
- * Two things are searched for, how far the tempo moves (`transitionTo / bpm`) and where along the
- * way it is half done (`meanTempoAt`); the level is not, because for any shape there is one level
- * at which the span's last chord falls where it was played, and that one is taken. So the fitted
- * line always meets both ends of what it was fitted to, as a steady one does.
- *
- * @param end where the instruction stops applying, which is where its curve arrives.
+ * @param end the date (ticks) at which the transition arrives
  */
 const movingTempo = (
   start: Moment,
@@ -141,13 +116,12 @@ const movingTempo = (
 ): FittedTempo | undefined => {
   const steady = steadyTempo(start, chords, beatLength);
   const last = chords[chords.length - 1];
-  // Two numbers more than a steady tempo has, so it takes chords to tell a bend from noise: with
-  // fewer than three after the start a curve passes through anything.
+  // With fewer than three chords the two extra parameters would fit anything.
   if (!steady || !last || chords.length < 3) return steady;
 
   const played = last.ms - start.ms;
   const errorOf = (ratio: number, meanTempoAt: number) => {
-    // At 60 to 60 x ratio the chords fall at `unscaled`; scaling both ends scales that inversely.
+    // Probe at 60 bpm, then scale: scaling both tempo ends scales the times inversely.
     const probe = resolveSpan({
       date: start.date,
       endDate: end,
@@ -171,7 +145,7 @@ const movingTempo = (
     const found = errorOf(ratio, meanTempoAt);
     if (found && found.squares < best.squares) best = { ...found, ratio, meanTempoAt };
   };
-  // Between half and double: a span whose tempo moves further than that is not one gesture.
+  // Coarse grid over ratios from 0.5 to 2, then a refinement around the best cell.
   for (let r = -12; r <= 12; r++) {
     for (let m = 3; m <= 17; m++) consider(2 ** (r / 12), m / 20);
   }
@@ -184,8 +158,7 @@ const movingTempo = (
   }
 
   const rmsMs = Math.sqrt(best.squares / chords.length);
-  // A tempo that hardly moves is a steady one, and so is one whose bend explains little more
-  // than a steady one does: both are written steady.
+  // Fall back to steady when the tempo barely changes or the curve improves the fit by under 15%.
   if (Math.abs(best.ratio - 1) < 0.03 || rmsMs > 0.85 * steady.rmsMs) return steady;
   return {
     bpm: best.bpm,
@@ -197,30 +170,27 @@ const movingTempo = (
 };
 
 export interface FitTempoOptions extends ScopedTransformationOptions {
-  /** Where the tempo starts, in ticks. */
+  /** Start, in ticks. */
   from: number;
-  /** Where it stops applying, in ticks, exclusive. A chord on it is the one fitted to. */
+  /** End, in ticks, exclusive; a chord on it is still fitted to. */
   to: number;
-  /** The beat the tempo is counted in, as a fraction of a whole note. */
+  /** Beat length as a fraction of a whole note. */
   beatLength: number;
-  /** One tempo held over the span, or one that moves across it. */
   shape: 'steady' | 'transition';
-  /** Set by the engine on a span nobody described: the tempo it assumes there. */
+  /** Set by the engine for spans without a described tempo. */
   assumed?: boolean;
 }
 
 /**
- * `InsertTempo` with the numbers read off the recording.
+ * `InsertTempo` with the tempo fitted to the recorded onsets.
  *
- * Fitted where `InsertTempo` runs, after the rolls of the chords have been taken out, so the
- * onsets it reads are the ones the tempo walk will place. Its calls run in the order of the
- * score, which the fit leans on: a span no chord begins is measured from where the tempo before
- * it leaves off, which that tempo has to have been written to say.
+ * Calls must run in score order: a span that does not start on a chord is measured from where
+ * the preceding tempo ends.
  */
 export class FitTempo extends AbstractTransformer<FitTempoOptions> {
   readonly name = 'FitTempo';
   readonly requires = [];
-  /** What the last run fitted, for the page to show and for an export that states it. */
+  /** Result of the last run. */
   fitted?: InsertTempoOptions & { rmsMs: number; onsets: number };
 
   constructor(options?: FitTempoOptions) {
@@ -247,8 +217,8 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
     const last = chords[chords.length - 1];
     const start = this.startOf(msm, mpm, anchors);
     if (this.options.assumed && (!last || !start)) {
-      // A gap nothing sounds in, the tail of the score after its last chord. No tempo can be
-      // read there and none places a note, but the tempo before it has to stop somewhere.
+      // No chord in an assumed span (e.g. after the last chord): use the overall tempo, so the
+      // preceding tempo instruction has an end.
       const all = chordsBetween(anchors, 0, Infinity);
       const whole = all[0] && steadyTempo(all[0], all.slice(1), beatLength);
       const options = { scope, from, to, beatLength, bpm: whole?.bpm ?? 60 };
@@ -263,8 +233,8 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
       );
     }
 
-    // A tempo that moves needs an instruction after it to arrive at, and the score's end has
-    // none. There its curve runs to the last chord, where a tempo that holds takes over.
+    // A transition needs a following instruction to arrive at. At the score's end it stops at the
+    // last chord and a constant tempo is added after it.
     const closes = shape === 'transition' && to >= msm.end && last.date > from;
     if (closes) to = last.date;
 
@@ -294,7 +264,7 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
     }
   }
 
-  /** When the span's first tick sounds: its chord, or where the tempo so far puts it. */
+  /** When the span's first tick sounds: its chord's onset, else where the preceding tempo puts it. */
   private startOf(msm: Alignment, mpm: Mpm, anchors: Map<number, number>): Moment | undefined {
     const { scope, from, to } = this.options;
     const onset = anchors.get(from);
@@ -305,7 +275,6 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
       const ms = segment.startMs + millisecondsAt(from, segment.resolved);
       if (Number.isFinite(ms)) return { date: from, ms };
     }
-    // No tempo before it to say: the span is measured from its first chord.
     const first = chordsBetween(anchors, from, to)[0];
     return first;
   }
@@ -316,13 +285,7 @@ export interface FitDynamicsOptions extends ScopedTransformationOptions {
   to: number;
 }
 
-/**
- * One level held over a span: the mean of what its chords were played at.
- *
- * `InsertDynamics` takes the first and last chord of its span as the two ends of a curve. A
- * level is the case where the reader says there is no curve, so the ends are not to be read off
- * two chords that happen to stand there.
- */
+/** Constant dynamics over a span: the mean of its chords' velocities. */
 export class FitDynamics extends AbstractTransformer<FitDynamicsOptions> {
   readonly name = 'FitDynamics';
   readonly requires = [];
@@ -353,11 +316,7 @@ export class FitDynamics extends AbstractTransformer<FitDynamicsOptions> {
   }
 }
 
-/**
- * The level assumed where no dynamics have been described: the median of what was played.
- *
- * One level for every gap, so that describing one passage does not redraw another.
- */
+/** Dynamics assumed where none are described: the median velocity, the same for every gap. */
 class AssumeLevel extends AbstractTransformer<ScopedTransformationOptions & { dates: number[] }> {
   readonly name = 'AssumeLevel';
   readonly requires = [];
@@ -389,9 +348,8 @@ class AssumeLevel extends AbstractTransformer<ScopedTransformationOptions & { da
   }
 }
 
-// A fitted step before the stated one of its kind, so that a number somebody gave is the one
-// that stands; the level assumed before either, so that what a reader described is written over
-// it. The tempo assumed in a gap is a `FitTempo` like any other, and takes its turn by its date.
+// Order matters: fitted steps run before the explicit ones so explicit values win, and the
+// assumed level runs before both so described dynamics overwrite it.
 registerTransformer(FitTempo, { before: 'InsertTempo' });
 registerTransformer(AssumeLevel, { before: 'InsertDynamics' });
 registerTransformer(FitDynamics, { before: 'InsertDynamics' });
@@ -400,28 +358,36 @@ registerTransformer(FitDynamics, { before: 'InsertDynamics' });
 // Calls
 // ---------------------------------------------------------------------------------------------
 
-/** A call as a page hands it over: `Map`s and `Set`s in the envelopes the work file uses. */
+/** A call in JSON form: `Map`s and `Set`s serialized as in the work file. */
 export interface PlainCall {
   id: string;
   name: string;
   options: Record<string, unknown>;
 }
 
+/**
+ * Provenance record of one remark: its text, scope, translating model and date, and the ids of
+ * the calls made from it. Has no effect on the chain.
+ */
+export const DESCRIBE = 'Describe';
+export interface DescribeOptions {
+  text: string;
+  scope: { kind: string; from: number; to: number; notes: string[] };
+  /** Null when the calls were written by hand. */
+  model: string | null;
+  date: string | null;
+  calls: string[];
+}
+
 const SYSTEM = new Set(['AssumeLevel']);
-/** The stated call a step of this module comes to, for a transformer that requires one. */
+/** The built-in transformer each one here ends up calling; used to satisfy `requires`. */
 const STANDS_FOR = new Map([
   ['FitTempo', 'InsertTempo'],
   ['AssumeLevel', 'InsertDynamics'],
   ['FitDynamics', 'InsertDynamics'],
 ]);
 
-/**
- * Calls a description does not make, and why.
- *
- * The first four a chain makes for itself or made on the score before there was a chain. The
- * piece arrives with its base text chosen and its staves as its parts, so there is no take left
- * to choose between, and what the engine assumes is written for both hands.
- */
+/** Calls a description may not contain, with the reason shown to the user. */
 const NOT_FOR_A_READER = new Map<string, string>([
   ['AlignSource', 'the recording is already aligned'],
   ['InsertMetadata', 'the chain writes the metadata itself'],
@@ -432,7 +398,7 @@ const NOT_FOR_A_READER = new Map<string, string>([
   ...[...SYSTEM].map((name): [string, string] => [name, 'the engine makes this assumption itself']),
 ]);
 
-/** Transformers that take a scope, which is the whole score where a call does not say. */
+/** Transformers that take a `scope`; it defaults to `'global'`. */
 const SCOPED = new Set([
   'Modify',
   'InsertDynamicsGradient',
@@ -449,10 +415,7 @@ const SCOPED = new Set([
   'MakeDefaultArticulation',
 ]);
 
-/**
- * Maps a part of its own would hide the global one from, for that part: the tempo and the level
- * the engine assumes are global, so a part's map would be measured against nothing.
- */
+/** Transformers allowed in the global scope only: a part's own map would hide the global one. */
 const BOTH_HANDS = new Set([
   'InsertTempo',
   'FitTempo',
@@ -464,7 +427,7 @@ const BOTH_HANDS = new Set([
   'MergeMetricalAccentuations',
 ]);
 
-/** The options that have to be numbers for a call to mean anything. */
+/** Options that must be finite numbers, per transformer. */
 const NUMBERS: Record<string, string[]> = {
   InsertTempo: ['from', 'to', 'bpm', 'beatLength'],
   FitTempo: ['from', 'to', 'beatLength'],
@@ -478,7 +441,7 @@ const NUMBERS: Record<string, string[]> = {
 
 const STYLIZE = { tickTolerance: 8, intensityTolerance: 0.3, gradientTolerance: 0.1 };
 
-/** A `Map` or a `Set` in the envelope a work file carries it in, from whatever shape it came in. */
+/** Normalizes an array, plain object or serialized value to the work file's `Map`/`Set` form. */
 const envelope = (value: unknown, dataType: 'Map' | 'Set'): unknown => {
   if (value && typeof value === 'object' && 'dataType' in value) return value;
   if (dataType === 'Set') return { dataType, value: Array.isArray(value) ? value : [] };
@@ -490,11 +453,9 @@ const envelope = (value: unknown, dataType: 'Map' | 'Set'): unknown => {
 };
 
 /**
- * A call with what the editor would have filled in: the options a desk always writes and a
- * description never mentions. A transformer takes its options whole, so one left out is
- * `undefined` where it is read, and a tempo with no beat length is written with the word.
+ * Fills in default options and validates a call.
  *
- * @returns the call, or why it cannot be made.
+ * @returns the completed call, or an error message
  */
 const complete = (call: PlainCall): PlainCall | string => {
   const options: Record<string, unknown> = { ...call.options };
@@ -580,15 +541,12 @@ const substitute = (value: unknown, bindings: Record<string, number>): unknown =
 
 interface Expanded {
   calls: PlainCall[];
-  /** The call a page made, by the id of each call the chain runs for it. */
+  /** Maps each expanded call's id to the id of the call it came from. */
   origin: Map<string, string>;
   problems: { id: string; message: string }[];
 }
 
-/**
- * Write out what a page's calls stand for: a `Repeat` as one call per step, a `FitTempo` with a
- * `step` as one per step.
- */
+/** Expands `Repeat`, `FitSpread` and stepped `FitTempo` calls into the calls the chain runs. */
 const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
   const out: PlainCall[] = [];
   const origin = new Map<string, string>();
@@ -632,8 +590,7 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
         });
         continue;
       }
-      // A frame with one chord in it has nothing to redistribute. Repeated over a passage such
-      // frames are passed over, a held note among the moving ones being no fault of the remark.
+      // A rubato frame with fewer than two chords has nothing to redistribute; skip it.
       const idle = ([from, to]: [number, number]) =>
         template.name === 'InsertRubato' && chordDates(piece).filter((date) => date >= from && date < to).length < 2;
       spans.forEach(([from, to], index) => {
@@ -650,8 +607,8 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
         });
       });
     } else if (call.name === 'FitSpread') {
-      // The rolled chords of a passage: `InsertTemporalSpread` takes one date or a whole scope,
-      // and a remark about bars 5 to 8 is about neither.
+      // `InsertTemporalSpread` takes one date or a whole scope, so a range becomes one call per
+      // spread chord.
       const { from, to } = options;
       const scope = (options['scope'] ?? 'global') as 'global' | number;
       const threshold = typeof options['durationThreshold'] === 'number' ? options['durationThreshold'] : 35;
@@ -691,9 +648,8 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
         problems.push({ id: call.id, message: `FitTempo: ${spans}` });
         continue;
       }
-      // A tempo is read off the chords at the two ends of its span, so each cut is made on the
-      // chord nearest the step, and a step with no chord near it is not cut at all: "every half
-      // bar" over a half note held into the next is one tempo up to where the next thing sounds.
+      // Cut on the chord nearest each step (within half a step); a step with no chord near it is
+      // merged into its neighbour, because a tempo is fitted between chords.
       const sounding = chordDates(piece);
       const [first] = spans[0]!;
       const [, last] = spans[spans.length - 1]!;
@@ -708,7 +664,7 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
       const edges = [first, ...[...cuts].sort((a, b) => a - b), last];
       const merged: [number, number][] = [];
       for (let i = 0; i + 1 < edges.length; i++) merged.push([edges[i]!, edges[i + 1]!]);
-      // The tail after the last chord has nothing to read either, and belongs to the span before.
+      // A last span without a chord is merged into the one before it.
       const final = merged[merged.length - 1];
       if (merged.length > 1 && final && !sounding.some((date) => date > final[0] && date <= final[1])) {
         merged.pop();
@@ -729,18 +685,10 @@ const DYNAMICS = new Set(['FitDynamics', 'InsertDynamics']);
 const ROLLS = new Set(['InsertTemporalSpread', 'InsertDynamicsGradient']);
 
 /**
- * Let what was said later stand where two remarks speak of the same place.
- *
- * The chain orders calls of one transformer by where they start, not by when they were made, and
- * each transformer settles an overlap its own way: a tempo cuts into the one before it, a second
- * roll on a chord measures the chord the first has already collapsed. Somebody describing a piece
- * bit by bit expects neither. They say "steady by the bar" and later, of two of those bars,
- * "broadening": the second remark is about those two bars, and the first is still about the rest.
- *
- * So, in the order the remarks were made: a tempo or a dynamics span takes its ticks out of every
- * earlier one, which is refitted over what it has left; a rubato frame replaces the earlier
- * frames it overlaps; a roll or a ramp on one chord replaces an earlier one on that chord. And a
- * call on one chord goes before a call over all of them, which then finds that chord done.
+ * Resolves overlaps so that the later call wins. In call order: a tempo or dynamics span is cut
+ * out of earlier spans of its kind; a rubato replaces earlier rubatos it overlaps; a spread or
+ * gradient on one chord replaces an earlier one on that chord. Single-chord calls are moved ahead
+ * of whole-scope ones.
  */
 const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] => {
   const out: PlainCall[] = [];
@@ -757,7 +705,7 @@ const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] =>
       if (end <= from || start >= to) continue;
       const left: PlainCall[] = [];
       if (start < from) left.push({ ...earlier, options: { ...earlier.options, to: from } });
-      // A stated tempo is a line from its start; what would be left of it after the cut is not.
+      // An `InsertTempo` is defined from its start, so its remainder after the cut is dropped.
       if (end > to && earlier.name !== 'InsertTempo') {
         const rest = { ...earlier, id: `${earlier.id}'`, options: { ...earlier.options, from: to } };
         origin.set(rest.id, origin.get(earlier.id) ?? earlier.id);
@@ -771,7 +719,7 @@ const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] =>
     const { options } = call;
     if (TEMPO.has(call.name) || DYNAMICS.has(call.name)) {
       const [from, to] = numbers(call, 'from', 'to');
-      // A level stated on one date is a point, and takes nothing out of a span it stands in.
+      // A zero-length span (a single point) cuts nothing.
       if (to > from) carve(TEMPO.has(call.name) ? TEMPO : DYNAMICS, from, to);
     } else if (call.name === 'InsertRubato') {
       const [date, length] = numbers(call, 'date', 'length');
@@ -800,7 +748,7 @@ const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] =>
   return [...out.filter(onOneChord), ...out.filter((call) => !onOneChord(call))];
 };
 
-/** The dates of the score a chord sounds on, ascending. */
+/** Score dates (ticks) on which a recorded chord sounds, ascending. */
 const chordDates = (piece: Alignment): number[] =>
   [
     ...new Set(
@@ -812,7 +760,7 @@ const chordDates = (piece: Alignment): number[] =>
     ),
   ].sort((a, b) => a - b);
 
-/** The stretches of `[start, end)` that no span covers. */
+/** The parts of `[start, end)` that no span covers. */
 const gaps = (spans: [number, number][], start: number, end: number): Range[] => {
   const sorted = spans
     .filter(([from, to]) => to > from)
@@ -836,7 +784,7 @@ const spanOf = (call: PlainCall): [number, number] | undefined => {
 };
 
 // ---------------------------------------------------------------------------------------------
-// The run
+// Running the chain
 // ---------------------------------------------------------------------------------------------
 
 export interface PieceData {
@@ -844,7 +792,7 @@ export interface PieceData {
   alignment: AlignmentData;
 }
 
-/** A note on the clock: when it begins and ends, in ms from the first note, and how loud. */
+/** A note's timing in ms from the first note, and its velocity. */
 export interface Sounded {
   ms: number;
   msEnd: number;
@@ -852,69 +800,67 @@ export interface Sounded {
 }
 
 /**
- * One note of the roll: as it was played, and as the MPM as it stands would have it played, on
- * one clock.
- *
- * The recording's clock, because that is the one thing that does not change as a piece is
- * described. The MPM's rendering is laid against it the way the chain itself places a tempo: on
- * the recorded onset of the chord a tempo begins on, so that what one stretch gets wrong is not
- * carried into the next, and where a rendering runs away from the playing is where the encoding
- * of that stretch is to be mended.
+ * One note as recorded (the inherited fields) and as the current MPM renders it (`mpm`), both on
+ * the recording's clock. The rendering is re-anchored on the recorded onset wherever a tempo
+ * instruction begins, so errors do not accumulate across instructions.
  */
 export interface RollNote extends Sounded {
   id: string;
   part: number;
   pitch: number;
-  /** Where the score has it, and for how long, in ticks. */
+  /** Score position and length, in ticks. */
   date: number;
   duration: number;
-  /** As the roll has it, where the reader has corrected that. */
+  /** The original recording, present when the note has been corrected. */
   arrived?: Sounded;
-  /** As the MPM sounds it. */
+  /** As the MPM renders it. */
   mpm: Sounded;
-  /** Played less rendered: the onset and the length in ms, and the velocity. */
+  /** Recorded minus rendered: onset (ms), length (ms) and velocity. */
   late: number;
   longMs: number;
   loud: number;
 }
 
 export interface CallReport {
-  /** The call the page made. */
+  /** Id of the call as passed to `run`. */
   id: string;
-  /** The MPM elements it is answerable for. */
+  /** Ids of the MPM elements the call produced. */
   elements: string[];
-  /** Those elements as they stand in the document: each one's start tag, one for one. */
+  /** The start tag of each of those elements, in the same order. */
   written: string[];
-  /** The definitions those elements name, whole: where an ornament or an articulation keeps its numbers. */
+  /** The full definitions those elements refer to (ornaments, articulations). */
   definitions: string[];
-  /** The notes it was fitted to. */
+  /** Ids of the notes the call was fitted to. */
   evidence: string[];
   range: { from: number; to: number | null } | null;
-  /** Why it did not run, where it did not. */
+  /** Set when the call did not run. */
   error?: string;
-  /** What a fitted step read off the recording. */
+  /** What `FitTempo`/`FitDynamics` fitted. */
   fitted?: Record<string, unknown>[];
-  /** The calls the editor would hold for it, numbers stated. */
+  /** The equivalent calls with explicit numbers. */
   concrete: PlainCall[];
 }
+
+type PedalKind = 'sustain' | 'soft';
 
 export interface RunResult {
   mpm: string;
   notes: RollNote[];
   calls: CallReport[];
-  /** What was assumed where nothing was described. */
+  /** Tempo and dynamics assumed for undescribed spans. */
   assumed: { tempo: { from: number; to: number; bpm: number }[]; level: number | null; levelDates: number[] };
-  /** The grace notes, which the score gives no time: when each was played. */
+  /** Grace notes with their recorded onsets (ms); the score gives them no date. */
   graces: { id: string; group: string; principal: string; pitch: number; ms: number; velocity: number }[];
-  /**
-   * The sustaining pedal, for whoever plays the roll back: the presses as they were recorded, and
-   * what the MPM as it stands has of them, each move of the pedal laid on the recording's clock
-   * as the notes are.
-   */
-  pedals: { played: { ms: number; msEnd: number }[]; mpm: { ms: number; value: number }[] };
-  /** The score's beats on the recording's clock, as the tempo as it stands places them. */
+  /** Pedals as recorded and as the MPM renders them, on the recording's clock; `value` is 0-127. */
+  pedals: {
+    played: { kind: PedalKind; ms: number; msEnd: number }[];
+    mpm: { kind: PedalKind; ms: number; value: number }[];
+  };
+  /** Score beats placed on the recording's clock by the current tempo map. */
   beats: { date: number; ms: number }[];
-  /** The level assumed where no dynamics are described. */
+  /** All steps in MPM Desk form: fitted steps as explicit calls, `Describe` steps listing theirs. */
+  record: PlainCall[];
+  /** The assumed dynamics level (velocity). */
   level: number;
   end: number;
   timeSignatures: AlignmentData['timeSignatures'];
@@ -924,7 +870,7 @@ export interface RunResult {
 
 let pristine: Alignment | null = null;
 
-/** Take a piece in. The alignment is kept as it arrived and cloned for every run. */
+/** Loads a piece. The alignment is kept unmodified and cloned for every run. */
 export const load = (piece: PieceData): { notes: number; end: number } => {
   const { alignment } = piece;
   pristine = new Alignment(alignment.allNotes, alignment.timeSignatures);
@@ -934,7 +880,7 @@ export const load = (piece: PieceData): { notes: number; end: number } => {
   return { notes: pristine.allNotes.length, end: pristine.end };
 };
 
-/** Give the options their `Map`s and `Set`s back, the way a work file is read. */
+/** Deserializes plain calls (restoring `Map`s and `Set`s) through the work file parser. */
 const revive = (calls: PlainCall[]): Call[] =>
   parseWorkFile(JSON.stringify({ name: '', mei: '', mpm: '', provenance: calls })).provenance;
 
@@ -949,18 +895,17 @@ const silently = <T>(work: () => T): T => {
 };
 
 /**
- * Run a list of calls over the piece and say what is left.
- *
- * A call that throws is left out and reported, and the rest still run: one remark that could not
- * be fitted is no reason to lose the picture the others drew.
+ * Runs the calls on the loaded piece and returns the rendering, the residual and a report per
+ * call. A call that fails is skipped and reported; the others still run.
  */
-export const run = (userCalls: readonly PlainCall[]): RunResult => {
+export const run = (steps: readonly PlainCall[]): RunResult => {
   if (!pristine) throw new Error('no piece loaded');
+  const userCalls = steps.filter((step) => step.name !== DESCRIBE);
   const alignment = pristine.deepClone();
   clearResidualCache();
 
-  // The chain sets its clock to the first onset as it stands when the first tempo is written.
-  // How far that moved the recording is kept, to say where a note as it arrived falls.
+  // The chain shifts all onsets so the first is at 0. Record the total shift (ms) to place the
+  // unmodified recording on the same clock.
   let shifted = 0;
   const shiftToFirstOnset = alignment.shiftToFirstOnset.bind(alignment);
   alignment.shiftToFirstOnset = () => {
@@ -976,7 +921,6 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
   const expanded = settle(written, origin);
   const failed = new Map<string, string>(problems.map((p) => [p.id, p.message]));
 
-  // What has been described, and so what is left to assume.
   const end = alignment.end;
   const tempoSpans = expanded
     .filter((call) => call.name === 'InsertTempo' || call.name === 'FitTempo')
@@ -987,7 +931,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     .map(spanOf)
     .filter((span): span is [number, number] => span !== undefined);
 
-  // A dynamics span takes in the chord on its last date, so a gap begins on the chord after it.
+  // A dynamics span includes the chord on its last date, so a gap starts on the chord after it.
   const dates = [...new Set(alignment.allNotes.map((note) => note.date))].sort((a, b) => a - b);
   const described = (date: number) => dynamicsSpans.some(([from, to]) => date >= from && date <= to);
   const levelDates = dates.filter(
@@ -1002,8 +946,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     })),
     { id: 'assume-level', name: 'AssumeLevel', options: { scope: 'global', dates: levelDates } },
   ];
-  // An ornament sounds only through a definition, and one call gives every ornament its own. It
-  // is no part of what anybody described, so the engine makes it wherever there is an ornament.
+  // Ornaments only take effect through their definitions, so add `StylizeOrnamentation` if absent.
   const ornaments = expanded.some(
     (call) => call.name === 'InsertTemporalSpread' || call.name === 'InsertDynamicsGradient',
   );
@@ -1021,8 +964,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     for (const call of built.unknown) {
       failed.set(origin.get(call.id) ?? call.id, `There is no transformer called ${call.name}`);
     }
-    // A call whose requirement nothing meets is left out, with what it would have needed. What
-    // the engine assumes, and a fitted step, stand for the stated call they come to.
+    // Drop calls whose `requires` is not met by an earlier transformer (or its `STANDS_FOR`).
     let chain = built.transformers;
     const done = new Set<string>();
     for (const transformer of chain) {
@@ -1052,15 +994,13 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
   });
   const chainMs = Date.now() - startedAt;
 
-  // The tempo as it stands, placed on the recording, and what a call about a press is placed by.
   const residual = silently(() => deriveResidual(alignment, mpm));
   const segments = silently(() => placeTempos(alignment, mpm, 'global'));
   const xml = exportMPM(mpm);
 
-  // What the document sounds, whole: every note as the renderer performs it, on the clock the
-  // tempo map makes by itself.
+  // The MPM as rendered, on the renderer's own clock.
   const performed = new Map<string, Sounded>();
-  const pedalled: { date: number; ms: number; value: number }[] = [];
+  const pedalled: { kind: PedalKind; date: number; ms: number; value: number }[] = [];
   silently(() => {
     const score = alignment.serializeScore();
     if (!score) return;
@@ -1071,15 +1011,17 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
         performed.set(note.id, { ms: note.milliseconds.date, msEnd: note.milliseconds.end, velocity: note.velocity });
       }
       for (const stream of part.controlChanges) {
-        if (stream.controller !== 'sustain') continue;
-        for (const point of stream.points) pedalled.push({ date: point.date, ms: point.milliseconds, value: point.value });
+        const kind = stream.controller;
+        if (kind !== 'sustain' && kind !== 'soft') continue;
+        for (const point of stream.points) {
+          pedalled.push({ kind, date: point.date, ms: point.milliseconds, value: point.value });
+        }
       }
     }
   });
 
-  // The recording as the reader has corrected it, and nothing else: what the rendering is held
-  // against. The chain's own copy will not do, the fitters having taken out of it what they
-  // explained, the stagger of a roll among it.
+  // The recording with only the `Modify` corrections applied, to compare the rendering with. The
+  // chain's copy cannot be used: the transformers remove from it what they have explained.
   const corrected = pristine.deepClone();
   silently(() => {
     const corrections = expanded.filter(
@@ -1090,7 +1032,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
       try {
         correction.run(corrected, createMpm());
       } catch {
-        // The run above has reported it.
+        // Already reported by the main run.
       }
     }
   });
@@ -1116,9 +1058,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     const original = onClock(asArrived.get(id) ?? note);
     const sounds = performed.get(id);
     const segment = governing(note.date);
-    // The renderer's clock runs on from its first tempo; the recording's is set again on every
-    // tempo that begins on a chord. What the two differ by at this note's tempo lays the one
-    // against the other.
+    // Offset (ms) between the renderer's clock and the recording's at this note's tempo segment.
     const lead = segment ? segment.startMs - segment.renderedStartMs : 0;
     const rendering: Sounded =
       sounds && segment
@@ -1143,7 +1083,6 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     };
   });
 
-  // The beats of the score, where the tempo as it stands puts them on the recording's clock.
   const clockAt = (date: number): number => {
     const segment = governing(date);
     return segment ? segment.startMs + millisecondsAt(date, segment.resolved) : date;
@@ -1160,16 +1099,18 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
   }
   beats.push({ date: end, ms: clockAt(end) });
 
-  // The pedal: as it was pressed, and as the MPM moves it, on the one clock.
   const pedals: RunResult['pedals'] = {
     played: corrected.pedals
-      .filter((pedal) => pedal.type === 'sustain')
-      .map((pedal) => ({ ms: pedal['milliseconds.date'] - shifted, msEnd: pedal['milliseconds.date.end'] - shifted }))
+      .map((pedal) => ({
+        kind: pedal.type,
+        ms: pedal['milliseconds.date'] - shifted,
+        msEnd: pedal['milliseconds.date.end'] - shifted,
+      }))
       .sort((a, b) => a.ms - b.ms),
     mpm: pedalled
-      .map((point) => {
-        const segment = governing(point.date);
-        return { ms: (segment ? segment.startMs - segment.renderedStartMs : 0) + point.ms, value: point.value };
+      .map(({ kind, date, ms, value }) => {
+        const segment = governing(date);
+        return { kind, ms: (segment ? segment.startMs - segment.renderedStartMs : 0) + ms, value };
       })
       .sort((a, b) => a.ms - b.ms),
   };
@@ -1183,7 +1124,6 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     velocity: grace.velocity,
   }));
 
-  // What each call of the page came to.
   const reports = new Map<string, CallReport>(
     userCalls.map((call) => [
       call.id,
@@ -1211,7 +1151,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
             : { from: range.from, to };
         }
       } catch {
-        // A range that cannot be told is no reason to lose the report.
+        // Evidence and range are optional; keep the rest of the report.
       }
     });
     if (transformer instanceof FitTempo && transformer.fitted) {
@@ -1236,9 +1176,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
       if (source) report.concrete.push(source);
     }
   }
-  // The elements themselves, so that a reader of the report sees the numbers a fit came to. An
-  // ornament, an articulation and an accentuation pattern keep theirs in the definition they
-  // name, so that is written out with them.
+  // Start tags by `xml:id`, and definitions by name, read from the exported XML.
   const tags = new Map<string, string>();
   for (const [tag, , id] of xml.matchAll(/<[\w.:-]+(\s+[\w.:-]+="[^"]*")*?\s+xml:id="([^"]+)"[^>]*>/g)) {
     tags.set(id!, tag);
@@ -1258,14 +1196,13 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     return [...named];
   };
 
-  // A call over every chord names no place, so it has no evidence of its own to give; what it
-  // was fitted to is the chords it wrote an ornament on.
   const onDate = Map.groupBy(alignment.allNotes, (note) => note.date);
   for (const report of reports.values()) {
     report.elements = [...new Set(report.elements)];
-    // One for one with the elements: an element a later call removed again has an empty place.
+    // Parallel to `elements`; '' for an element a later call removed.
     report.written = report.elements.map((id) => tags.get(id) ?? '');
     report.definitions = definedBy(report.written);
+    // A whole-scope call reports no evidence; use the chords it wrote ornaments on.
     if (report.evidence.length === 0) {
       for (const element of report.elements) {
         const dated = /^ornament_(\d+(?:\.\d+)?)/.exec(element);
@@ -1276,12 +1213,32 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     report.evidence = [...new Set(report.evidence)];
   }
 
+  // The assumed tempos come first so the record alone reproduces the document.
+  const concreteOf = (id: string) => reports.get(id)?.concrete ?? [];
+  const linked = new Set<string>();
+  const record: PlainCall[] = assumedTempo.map((gap, index) => ({
+    id: `assumed-tempo-${index}`,
+    name: 'InsertTempo',
+    options: { scope: 'global', from: gap.from, to: gap.to, bpm: gap.bpm, beatLength: 0.25 },
+  }));
+  for (const step of steps) {
+    if (step.name === DESCRIBE) {
+      const options = step.options as unknown as DescribeOptions;
+      const made = (options.calls ?? []).flatMap(concreteOf);
+      (options.calls ?? []).forEach((id) => linked.add(id));
+      record.push({ ...step, options: { ...options, calls: made.map((call) => call.id) } }, ...made);
+    } else if (!linked.has(step.id)) {
+      record.push(...concreteOf(step.id));
+    }
+  }
+
   return {
     mpm: xml,
     notes,
     graces,
     pedals,
     beats,
+    record,
     calls: [...reports.values()],
     assumed: {
       tempo: assumedTempo,

@@ -1,10 +1,6 @@
 /**
- * The engine as the page loads it: one file that is a worker when it is started as one, and a
- * global to call when it is not.
- *
- * A fit of a long description takes seconds, which is too long for the thread a piano roll is
- * drawn on. A page that cannot start a worker loads the same file with a `<script>` and calls
- * `DescribeItEngine.run` itself, late rather than not at all.
+ * Engine entry point. Runs as a Web Worker when started as one; loaded with a `<script>` it only
+ * exposes `load` and `run` on the `DescribeItEngine` global.
  */
 import { load, run, type PieceData, type PlainCall, type RunResult } from './engine';
 
