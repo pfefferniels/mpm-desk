@@ -7,8 +7,10 @@
   const PPQ = 720;
   const STORE = 'describeit.v2';
   const EXPERT = { model: 'claude-opus-5-5', modelTier: 'complex' };
-  const TONES = 6;
-  const LANE = 24;
+  const LANE = 22;
+  /** Room kept above the highest key, inside the roll, for what is written over the notes. */
+  const HEAD = 34;
+  const BRACE = 9;
   const RULER = 18;
 
   const $ = (selector) => document.querySelector(selector);
@@ -47,7 +49,7 @@
     selKind: 'none', // none (the whole piece) | notes | span | box
     pen: { open: false, editing: null },
     level: 64, // the velocity drawn one row tall
-    view: { ppt: 0.03, shadows: true, pencil: false },
+    view: { ppt: 0.03, shadows: true, pencil: false, height: 1 },
     hoverAnn: null,
     hoverNote: null,
     openAnn: null,
@@ -352,17 +354,17 @@
   const penText = $('#penText');
   const pop = $('#pop');
   const ctx = canvas.getContext('2d');
-  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, lo: 36, hi: 84, k: 6, rects: [], marks: [], penAt: null, promptRow: null };
+  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, lo: 36, hi: 84, perOctave: 4, rects: [], marks: [], penAt: null, promptRow: null };
   let palette = {};
 
   const readPalette = () => {
     const style = getComputedStyle(document.documentElement);
     const get = (name) => style.getPropertyValue(name).trim();
     palette = {
-      roll: get('--roll'), band: get('--band'), grid: get('--grid'), ink: get('--ink'), ink2: get('--ink-2'), ink3: get('--ink-3'),
+      roll: get('--roll'), grid: get('--grid'), ink: get('--ink'), ink2: get('--ink-2'), ink3: get('--ink-3'),
       rh: get('--rh'), lh: get('--lh'), grace: get('--grace'), ghost: get('--ghost'), pencil: get('--pencil'), raised: get('--raised'), line: get('--line'),
-      accent: get('--accent'), bad: get('--bad'), apart: get('--apart'), tones: Array.from({ length: TONES }, (_, i) => get(`--c${i + 1}`)),
-      font: get('--font') || 'sans-serif', mono: get('--mono') || 'monospace', hand: get('--hand') || 'cursive',
+      accent: get('--accent'), bad: get('--bad'), apart: get('--apart'),
+      font: get('--font') || 'sans-serif', mono: get('--mono') || 'monospace', serif: get('--serif') || 'serif',
     };
   };
 
@@ -384,15 +386,19 @@
     if (!S.result) return;
     spacer.style.width = `${Math.ceil(G.gutter + S.result.total * S.view.ppt + 60)}px`;
     G.top = G.lanes * LANE + RULER + 6;
-    G.rowH = Math.max(3, (G.height - G.top - G.bottom) / (G.hi - G.lo + 1));
+    G.rowH = Math.max(3, (G.height - G.top - HEAD - G.bottom) / (G.hi - G.lo + 1));
   };
 
   // The roll is laid out on the recording's clock: `ppt` is pixels to the millisecond.
   const X = (ms) => G.gutter + ms * S.view.ppt - scroller.scrollLeft;
   const msOf = (px) => (px - G.gutter + scroller.scrollLeft) / S.view.ppt;
-  const Y = (pitch) => G.top + (G.hi - pitch + 0.5) * G.rowH;
-  /** How tall a velocity is drawn: one row at the level, doubling every `k` above it. */
-  const tall = (velocity) => G.rowH * Math.min(7, Math.max(0.34, 2 ** ((velocity - S.level) / G.k)));
+  const Y = (pitch) => G.top + HEAD + (G.hi - pitch + 0.5) * G.rowH;
+  /**
+   * How tall a velocity is drawn: one row at the level, and from there by the logarithm of the
+   * velocity, so many rows to the doubling. Twice as loud is then always as much taller, and a
+   * loud note stands out of its track without swallowing the ones beside it.
+   */
+  const tall = (velocity) => G.rowH * clamp(1 + S.view.height * G.perOctave * Math.log2(Math.max(velocity, 1) / S.level), 0.3, 6);
   /**
    * A note as the MPM as it stands sounds it, which is the note the roll draws solid: it is what
    * a reader is shaping. Where the run has it, or, for a moment after a run, on its way there
@@ -411,64 +417,45 @@
     const h = tall(played.velocity);
     return { x: X(played.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (played.msEnd - played.ms) * S.view.ppt), h };
   };
-  /** The box round a set of notes, where they now stand. */
-  const boxOf = (ids) => {
-    let box = null;
-    for (const id of ids) {
-      const note = S.result.byId.get(id);
-      if (!note) continue;
-      const r = rectOf(note);
-      box = box
-        ? { x0: Math.min(box.x0, r.x), y0: Math.min(box.y0, r.y), x1: Math.max(box.x1, r.x + r.w), y1: Math.max(box.y1, r.y + r.h) }
-        : { x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h };
-    }
-    return box;
-  };
-
   const rounded = (x, y, w, h, r) => {
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
   };
-  const toneOf = (ann) => palette.tones[ann.tone % TONES];
   const hasTrouble = (ann) => Boolean(ann.failure || (ann.report && ann.report.errors.length));
   const shown = (text) => (text.length > 64 ? `${text.slice(0, 62)}…` : text.replace(/\s+/g, ' '));
+  const wordsFont = () => `500 14.5px ${palette.serif}`;
 
-  /** A remark as it stands on the roll: the reader's words in their own hand, and how it fared. */
-  const drawLabel = (ann, x, y, halo) => {
+  /**
+   * A remark as it stands on the roll: the reader's words, and how it fared. Among the notes it
+   * is given a pale ground to be read against.
+   */
+  const drawLabel = (ann, x, y, ground) => {
     const text = shown(ann.text);
-    ctx.font = `600 18px ${palette.hand}`;
+    ctx.font = wordsFont();
     ctx.textBaseline = 'middle';
     const width = ctx.measureText(text).width;
     const pending = ann.status === 'pending' || S.queue.some((entry) => entry.ann === ann);
     const lit = S.hoverAnn === ann || S.openAnn === ann;
-    if (halo) {
-      ctx.lineWidth = 5;
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = palette.roll;
-      ctx.globalAlpha = 0.92;
-      ctx.strokeText(text, x, y);
+    const badge = pending ? null : ann.question ? '?' : hasTrouble(ann) ? '!' : null;
+    const extra = badge ? 20 : 0;
+    if (ground) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.76)';
+      rounded(x - 4, y - 10, width + extra + 8, 20, 3);
+      ctx.fill();
     }
     ctx.globalAlpha = S.reference ? 0.35 : pending ? 0.45 + 0.3 * Math.sin(performance.now() / 260) : 1;
-    ctx.fillStyle = ann.enabled ? toneOf(ann) : palette.ink3;
-    ctx.fillText(text, x, y);
-    if (!ann.enabled) {
-      ctx.strokeStyle = palette.ink3;
+    ctx.fillStyle = ann.enabled ? palette.ink : palette.ink3;
+    ctx.fillText(text, x, y + 0.5);
+    if (!ann.enabled || lit) {
+      // Struck through where it is muted, underlined where it is pointed at.
+      const at = ann.enabled ? y + 9.5 : y + 1;
+      ctx.strokeStyle = ann.enabled ? palette.ink : palette.ink3;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x, y + 1);
-      ctx.lineTo(x + width, y + 1);
+      ctx.moveTo(x, at);
+      ctx.lineTo(x + width, at);
       ctx.stroke();
     }
-    if (lit) {
-      ctx.strokeStyle = toneOf(ann);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x, y + 9.5);
-      ctx.lineTo(x + width, y + 9.5);
-      ctx.stroke();
-    }
-    let extra = 0;
-    const badge = pending ? null : ann.question ? '?' : hasTrouble(ann) ? '!' : null;
     if (badge) {
       const cx = x + width + 11;
       ctx.globalAlpha = 1;
@@ -481,64 +468,53 @@
       ctx.textAlign = 'center';
       ctx.fillText(badge, cx, y + 0.5);
       ctx.textAlign = 'left';
-      extra = 20;
     }
     ctx.globalAlpha = 1;
-    G.marks.push({ ann, x: x - 3, y: y - 11, w: width + extra + 6, h: 22 });
+    G.marks.push({ ann, x: x - 4, y: y - 10, w: width + extra + 8, h: 20 });
     return width + extra;
   };
 
-  const widthOfLabel = (text) => {
-    ctx.font = `600 18px ${palette.hand}`;
-    return ctx.measureText(shown(text)).width;
+  const widthOfLabel = (ann) => {
+    ctx.font = wordsFont();
+    return ctx.measureText(shown(ann.text)).width + (ann.question || hasTrouble(ann) ? 20 : 0);
   };
 
-  /** A bracket over a stretch of the roll: a line with a tick down at each end. */
-  const bracket = (xa, xb, y, color, dashed) => {
-    const a = Math.max(xa, G.gutter - 4);
-    const b = Math.min(xb, G.width + 4);
-    if (b <= a) return;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash(dashed ? [4, 3] : []);
+  /** A brace over a stretch: its two feet down on what it holds, its point up at what is said of it. */
+  const braceOver = (x0, x1, y) => {
+    const mid = (x0 + x1) / 2;
+    const q = Math.min(BRACE, (x1 - x0) / 4);
+    const half = y - BRACE / 2;
     ctx.beginPath();
-    if (xa >= G.gutter - 4) {
-      ctx.moveTo(xa + 0.75, y + 5);
-      ctx.lineTo(xa + 0.75, y);
-    } else ctx.moveTo(a, y);
-    ctx.lineTo(b, y);
-    if (xb <= G.width + 4) ctx.lineTo(xb - 0.75, y + 5);
+    ctx.moveTo(x0, y);
+    ctx.quadraticCurveTo(x0, half, x0 + q, half);
+    ctx.lineTo(mid - q, half);
+    ctx.quadraticCurveTo(mid, half, mid, y - BRACE);
+    ctx.quadraticCurveTo(mid, half, mid + q, half);
+    ctx.lineTo(x1 - q, half);
+    ctx.quadraticCurveTo(x1, half, x1, y);
     ctx.stroke();
-    ctx.setLineDash([]);
   };
 
-  /** Four corners round some notes: a box drawn the way one is pencilled, not ruled. */
-  const corners = (box, color, dashed) => {
-    const pad = 5;
-    const x0 = box.x0 - pad;
-    const y0 = box.y0 - pad;
-    const x1 = box.x1 + pad;
-    const y1 = box.y1 + pad;
-    const arm = Math.min(12, (x1 - x0) / 3, (y1 - y0) / 3);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash(dashed ? [4, 3] : []);
+  /** A brace down the left of some notes: how far up and down the keyboard a remark reaches. */
+  const braceBeside = (x, y0, y1) => {
+    const mid = (y0 + y1) / 2;
+    const q = Math.min(7, (y1 - y0) / 4);
+    const half = x - 3.5;
     ctx.beginPath();
-    for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
-      ctx.moveTo(cx + dx * arm, cy);
-      ctx.lineTo(cx, cy);
-      ctx.lineTo(cx, cy + dy * arm);
-    }
+    ctx.moveTo(x, y0);
+    ctx.quadraticCurveTo(half, y0, half, y0 + q);
+    ctx.lineTo(half, mid - q);
+    ctx.quadraticCurveTo(half, mid, x - 7, mid);
+    ctx.quadraticCurveTo(half, mid, half, mid + q);
+    ctx.lineTo(half, y1 - q);
+    ctx.quadraticCurveTo(half, y1, x, y1);
     ctx.stroke();
-    ctx.setLineDash([]);
-    return { x0, y0, x1, y1 };
   };
 
   /**
-   * Which remarks stand in the lanes above the notes, and where.
-   *
    * What was said of the whole piece is written along the top, one remark after the other, and
-   * stays in view however the roll is scrolled. What was said of a stretch stands over it.
+   * stays in view however the roll is scrolled. Everything else stands in the roll, over what
+   * it is about.
    */
   const lanesOf = () => {
     const whole = [];
@@ -546,31 +522,15 @@
     let row = 0;
     for (const ann of S.anns) {
       if (ann.scope.kind !== 'piece') continue;
-      const w = widthOfLabel(ann.text) + 22;
+      const w = widthOfLabel(ann);
       if (x + w > G.width - 8 && x > G.gutter + 8) {
         row++;
         x = G.gutter + 8;
       }
       whole.push({ ann, x, row });
-      x += w + 18;
+      x += w + 26;
     }
-    const wholeRows = whole.length ? row + 1 : 0;
-
-    const rows = [];
-    const placed = [];
-    for (const ann of S.anns) {
-      if (ann.scope.kind !== 'span' || S.pen.editing === ann) continue;
-      const a = encodedAt(S.result, ann.scope.from);
-      const b = encodedAt(S.result, ann.scope.to);
-      const reach = Math.max(b, a + (widthOfLabel(ann.text) + 40) / S.view.ppt);
-      let at = rows.findIndex((endsAt) => endsAt <= a - 2 / S.view.ppt);
-      if (at === -1) {
-        at = rows.length;
-        rows.push(reach);
-      } else rows[at] = reach;
-      placed.push({ ann, a, b, row: wholeRows + at });
-    }
-    return { whole, wholeRows, placed, rows: wholeRows + rows.length };
+    return { whole, rows: whole.length ? row + 1 : 0 };
   };
 
   let frame = 0;
@@ -600,7 +560,7 @@
 
     // One row more than the remarks need: where the next one is written.
     const lanes = lanesOf();
-    const wanted = Math.min(lanes.rows + 1, 9);
+    const wanted = Math.min(lanes.rows + 1, 6);
     if (wanted !== G.lanes) {
       G.lanes = wanted;
       layout();
@@ -610,11 +570,7 @@
     const editing = S.pen.editing;
     const draft = S.pen.open && !editing ? scopeNow() : null;
 
-    // The keys: black ones a shade apart, and a line under every C.
-    ctx.fillStyle = palette.band;
-    for (let pitch = G.lo; pitch <= G.hi; pitch++) {
-      if ([1, 3, 6, 8, 10].includes(pitch % 12)) ctx.fillRect(G.gutter, Y(pitch) - G.rowH / 2, width - G.gutter, G.rowH);
-    }
+    // The keys, plain: a faint line under every C is all that tells them apart.
     ctx.strokeStyle = palette.grid;
     ctx.lineWidth = 1;
     ctx.globalAlpha = 0.6;
@@ -774,68 +730,127 @@
     }
     ctx.globalAlpha = 1;
 
-    // Remarks about some of the notes stand among them: corners round a group, a stroke to one.
-    const among = (scope, color, dashed) => {
-      const box = boxOf(scope.ids);
-      if (!box) return null;
-      if (scope.kind === 'box' || scope.ids.length > 3) return corners(box, color, dashed);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      for (const id of scope.ids) {
-        const note = result.byId.get(id);
-        if (!note) continue;
-        const r = rectOf(note);
-        rounded(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 4);
-        ctx.stroke();
+    // What was said of a stretch, or of some notes, stands in the roll over what it is about: a
+    // brace as wide as the stretch, just above its highest note, and the words at the brace's
+    // point. What reaches only some of the notes of its stretch has a second brace down its
+    // side, and what is about one note or two has a line round each.
+    const overhead = [];
+    const topOf = (notes) => {
+      let y = bottom;
+      for (const note of notes) {
+        y = Math.min(y, rectOf(note).y);
+        if (S.view.shadows) y = Math.min(y, shadowOf(note).y);
       }
-      return { x0: box.x0 - 2, y0: box.y0 - 2, x1: box.x1 + 2, y1: box.y1 + 2 };
+      return y;
     };
-    const labelSpot = (frame) => ({
-      x: clamp(frame.x0 + 1, G.gutter + 6, width - 60),
-      y: frame.y0 - 13 < top + 10 ? frame.y1 + 13 : frame.y0 - 13,
-    });
-    // The pen goes where the label will stand, and grows away from the notes it is about, so
-    // that none of them is under it: they may still have to be clicked.
-    const penSpot = (frame) => {
-      const spot = labelSpot(frame);
-      return spot.y < frame.y0 ? { x: spot.x, y: frame.y0 - 1, grows: 'up' } : { x: spot.x, y: frame.y1 + 2, grows: 'down' };
+    /** Draw what holds a remark's notes together, and say where its words go. */
+    const hold = (scope, alpha) => {
+      const notes =
+        scope.kind === 'span'
+          ? result.notes.filter((note) => note.date >= scope.from && note.date < scope.to)
+          : scope.ids.map((id) => result.byId.get(id)).filter(Boolean);
+      if (notes.length === 0) return null;
+      const few = scope.kind !== 'span' && scope.kind !== 'box' && notes.length <= 3;
+      let xa = Infinity;
+      let xb = -Infinity;
+      let y1 = -Infinity;
+      for (const note of notes) {
+        const r = rectOf(note);
+        xa = Math.min(xa, r.x);
+        xb = Math.max(xb, r.x + r.w);
+        y1 = Math.max(y1, r.y + r.h);
+      }
+      if (scope.kind === 'span') {
+        xa = X(encodedAt(result, scope.from));
+        xb = X(encodedAt(result, scope.to));
+      } else {
+        xa -= 4;
+        xb += 4;
+      }
+      xb = Math.max(xb, xa + 14);
+      if (xb < G.gutter || xa > width) return null;
+      const y0 = topOf(notes);
+      // Just above its notes; above another remark only where the two would otherwise run into
+      // each other; and inside the roll.
+      const room = few ? 24 : BRACE + 24;
+      let y = y0 - (few ? 3 : 5);
+      for (let again = true, turns = 0; again && turns < 12; turns++) {
+        again = false;
+        for (const other of overhead) {
+          if (other.xa < xb + 8 && other.xb > xa - 8 && y - room < other.bottom && y > other.top) {
+            y = other.top - 4;
+            again = true;
+          }
+        }
+      }
+      y = Math.max(y, top + room - 10);
+      ctx.strokeStyle = palette.pencil;
+      ctx.lineWidth = 1.25;
+      ctx.globalAlpha = alpha;
+      if (few) {
+        for (const note of notes) {
+          const r = rectOf(note);
+          rounded(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 4);
+          ctx.stroke();
+        }
+      } else {
+        braceOver(xa, xb, y);
+        if (scope.kind !== 'span' && y1 - y0 > 12) braceBeside(xa - 1, y0 - 1, y1 + 1);
+      }
+      ctx.globalAlpha = 1;
+      return { xa, xb, y, point: few ? y : y - BRACE };
     };
+    const wordsOver = (spot, w) => {
+      const x = clamp((spot.xa + spot.xb) / 2 - w / 2, G.gutter + 6, width - w - 8);
+      overhead.push({ xa: Math.min(spot.xa, x - 4), xb: Math.max(spot.xb, x + w + 4), top: spot.point - 22, bottom: spot.y });
+      return { x, y: spot.point - 11 };
+    };
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(G.gutter, top - 4, width - G.gutter, height - top + 4);
+    ctx.clip();
     if (!S.reference) {
-      for (const ann of S.anns) {
-        if (ann.scope.kind !== 'box' && ann.scope.kind !== 'notes') continue;
+      // The shorter the stretch, the nearer its notes its brace stands.
+      const inRoll = S.anns.filter((ann) => ann.scope.kind !== 'piece').sort((a, b) => a.scope.to - a.scope.from - (b.scope.to - b.scope.from));
+      for (const ann of inRoll) {
         const active = S.hoverAnn === ann || S.openAnn === ann;
-        ctx.globalAlpha = ann.enabled ? (active ? 1 : 0.8) : 0.4;
-        const frame = among(ann.scope, ann.enabled ? toneOf(ann) : palette.ink3, false);
-        ctx.globalAlpha = 1;
-        if (!frame || frame.x1 < G.gutter || frame.x0 > width) continue;
-        const spot = labelSpot(frame);
-        if (editing === ann) G.penAt = penSpot(frame);
-        else drawLabel(ann, spot.x, spot.y, true);
+        const spot = hold(ann.scope, !ann.enabled ? 0.35 : active ? 1 : 0.7);
+        if (!spot) continue;
+        const w = widthOfLabel(ann);
+        const words = wordsOver(spot, w);
+        G.marks.push({ ann, x: Math.max(spot.xa, G.gutter), y: spot.point - 1, w: Math.min(spot.xb, width) - Math.max(spot.xa, G.gutter), h: spot.y - spot.point + 3 });
+        if (editing === ann) G.penAt = { x: words.x, y: spot.point - 2, grows: 'up' };
+        else drawLabel(ann, words.x, words.y, true);
       }
     }
-    if (draft && (draft.kind === 'box' || draft.kind === 'notes')) {
-      const frame = among(draft, palette.pencil, true);
-      if (frame) G.penAt = penSpot(frame);
+    if (draft && draft.kind !== 'piece') {
+      const spot = hold(draft, 0.6);
+      if (spot) G.penAt = { x: (spot.xa + spot.xb) / 2 - Math.max(75, pen.offsetWidth / 2), y: spot.point - 2, grows: 'up' };
     }
     if (drag && drag.kind === 'band' && drag.moved) {
       const x = Math.min(drag.x0, drag.x1);
       const y = Math.min(drag.y0, drag.y1);
       const w = Math.abs(drag.x1 - drag.x0);
+      ctx.strokeStyle = palette.pencil;
       if (drag.flat) {
         ctx.fillStyle = palette.pencil;
         ctx.globalAlpha = 0.06;
         ctx.fillRect(x, top, w, bottom - top);
+        ctx.globalAlpha = 0.6;
+        ctx.lineWidth = 1.25;
+        if (w > 14) braceOver(x, x + w, Math.max(drag.y0 - 10, top + 12 + BRACE));
         ctx.globalAlpha = 1;
       } else {
-        ctx.strokeStyle = palette.pencil;
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 3]);
         ctx.strokeRect(x + 0.5, y + 0.5, w, Math.abs(drag.y1 - drag.y0));
         ctx.setLineDash([]);
       }
     }
+    ctx.restore();
 
-    // Above the notes: what was said of a stretch, or of the whole, each under its bracket.
+    // Above the roll: what was said of the whole piece, and where the next such remark goes.
     ctx.fillStyle = palette.raised;
     ctx.fillRect(0, 0, width, top - 5);
     ctx.strokeStyle = palette.line;
@@ -846,55 +861,20 @@
     ctx.stroke();
 
     const rowY = (row) => 3 + row * LANE;
-    const wholeEnd = result.total + 60 / S.view.ppt;
-    for (let row = 0; row < lanes.wholeRows && row < G.lanes; row++) {
-      ctx.globalAlpha = S.reference ? 0.3 : 0.75;
-      bracket(X(0), X(wholeEnd), rowY(row) + 19, palette.ink3, false);
-      ctx.globalAlpha = 1;
-    }
     for (const { ann, x, row } of lanes.whole) {
       if (row >= G.lanes) continue;
-      if (editing === ann) G.penAt = { x, y: rowY(row) - 3 };
-      else drawLabel(ann, x, rowY(row) + 9, false);
+      if (editing === ann) G.penAt = { x, y: rowY(row) - 1, grows: 'down' };
+      else drawLabel(ann, x, rowY(row) + 10, false);
     }
-    for (const { ann, a, b, row } of lanes.placed) {
-      if (row >= G.lanes) continue;
-      const y = rowY(row);
-      const xa = X(a);
-      const xb = X(b);
-      if (xb < G.gutter || xa > width) continue;
-      const color = ann.enabled ? toneOf(ann) : palette.ink3;
-      ctx.globalAlpha = S.reference ? 0.3 : 1;
-      bracket(xa, xb, y + 19, color, false);
-      ctx.globalAlpha = 1;
-      const labelW = widthOfLabel(ann.text);
-      drawLabel(ann, clamp(xa + 7, G.gutter + 7, xb - labelW - 12), y + 9, false);
-      G.marks.push({ ann, x: Math.max(xa, G.gutter), y: y + 14, w: Math.min(xb, width) - Math.max(xa, G.gutter), h: 10 });
-    }
-    // The row the next remark goes in: a bracket being drawn, or an invitation to write.
     const free = Math.min(lanes.rows, G.lanes - 1);
-    const y = rowY(free);
-    G.promptRow = { y, h: LANE };
-    if (editing && editing.scope.kind === 'span') {
-      const a = encodedAt(result, editing.scope.from);
-      bracket(X(a), X(encodedAt(result, editing.scope.to)), y + 19, toneOf(editing), true);
-      G.penAt = { x: clamp(X(a) + 7, G.gutter + 7, width - 80), y: y - 3 };
-    } else if (editing) {
-      // Its own place holds the pen; nothing else is to be written meanwhile.
-    } else if (draft && (draft.kind === 'piece' || draft.kind === 'span')) {
-      const a = draft.kind === 'piece' ? 0 : encodedAt(result, draft.from);
-      const b = draft.kind === 'piece' ? wholeEnd : encodedAt(result, draft.to);
-      bracket(X(a), X(b), y + 19, palette.pencil, true);
-      G.penAt = { x: clamp(X(a) + 7, G.gutter + 7, width - 80), y: y - 3 };
-    } else if (drag && drag.kind === 'band' && drag.moved && drag.flat) {
-      bracket(Math.min(drag.x0, drag.x1), Math.max(drag.x0, drag.x1), y + 19, palette.pencil, true);
+    G.promptRow = { y: rowY(free), h: LANE };
+    if (draft && draft.kind === 'piece') {
+      G.penAt = { x: G.gutter + 8, y: rowY(free) - 1, grows: 'down' };
     } else if (!S.pen.open && !S.reference) {
-      ctx.font = `500 17px ${palette.hand}`;
+      ctx.font = `italic 400 14px ${palette.serif}`;
       ctx.textBaseline = 'middle';
       ctx.fillStyle = palette.ink3;
-      ctx.globalAlpha = 0.9;
-      ctx.fillText(S.anns.length ? 'write here about the whole piece…' : 'write here about the whole piece, or drag across the notes to bracket a passage…', G.gutter + 8, y + 10);
-      ctx.globalAlpha = 1;
+      ctx.fillText(S.anns.length ? 'write here about the whole piece…' : 'write here about the whole piece, or drag across the notes to hold a passage in a brace…', G.gutter + 8, rowY(free) + 10.5);
     }
 
     const rulerY = G.lanes * LANE + RULER / 2 + 2;
@@ -990,9 +970,9 @@
 
   /** The pen takes the room of its words and no more: what it covers cannot be clicked. */
   const growPen = () => {
-    ctx.font = `600 21px ${palette.hand}`;
+    ctx.font = `500 16px ${palette.serif}`;
     const widest = Math.max(...(penText.value || penText.placeholder).split('\n').map((line) => ctx.measureText(line).width));
-    penText.style.width = `${clamp(widest + 26, 150, Math.min(300, G.width - 24))}px`;
+    penText.style.width = `${clamp(widest + 22, 150, Math.min(320, G.width - 24))}px`;
     penText.style.height = 'auto';
     penText.style.height = `${penText.scrollHeight + 2}px`;
   };
@@ -1158,26 +1138,23 @@
     const { x, y } = local(event);
     closeMenu();
     tip.hidden = true;
-    const mark = S.reference ? null : markAt(x, y);
-    if (mark) {
-      drag = { kind: 'mark', mark, x0: x, y0: y };
-      return;
-    }
     if (S.reference) return;
+    // A remark stands among the notes now, so a press on one may be the start of a stroke as well.
+    const mark = markAt(x, y);
     const touch = event.pointerType === 'touch';
-    const note = inLanes(y) ? null : noteAt(x, y);
+    const note = mark || inLanes(y) ? null : noteAt(x, y);
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
     if (touch && !S.view.pencil) {
-      drag = { kind: 'tap', x0: x, y0: y, note, additive };
+      drag = { kind: 'tap', x0: x, y0: y, note, mark, additive };
       return;
     }
-    // A press that lands on a note is a click on it only if it does not go on to be a stroke.
+    // A press that lands on a note or a remark is a click on it only if it does not go on to be a stroke.
     try {
       canvas.setPointerCapture(event.pointerId);
     } catch {
       // A pointer that cannot be captured still draws; it only stops at the roll's edge.
     }
-    drag = { kind: 'band', x0: x, y0: y, x1: x, y1: y, note, additive, lanes: inLanes(y), flat: true, moved: false, scroll: scroller.scrollLeft };
+    drag = { kind: 'band', x0: x, y0: y, x1: x, y1: y, note, mark, additive, lanes: inLanes(y), flat: true, moved: false, scroll: scroller.scrollLeft };
   });
 
   const pick = (note, additive) => {
@@ -1225,19 +1202,17 @@
     const done = drag;
     drag = null;
     const { x, y } = local(event);
-    if (done.kind === 'mark') {
-      if (Math.hypot(x - done.x0, y - done.y0) < 6) openPop(done.mark.ann, done.mark);
-      return;
-    }
     if (done.kind === 'tap') {
       if (Math.hypot(x - done.x0, y - done.y0) >= 8) return;
-      if (done.note) pick(done.note, done.additive);
+      if (done.mark) openPop(done.mark.ann, done.mark);
+      else if (done.note) pick(done.note, done.additive);
       else emptyClick(done.x0, done.y0);
       return;
     }
     if (done.kind !== 'band') return;
     if (!done.moved) {
-      if (done.note) pick(done.note, done.additive);
+      if (done.mark) openPop(done.mark.ann, done.mark);
+      else if (done.note) pick(done.note, done.additive);
       else emptyClick(done.x0, done.y0);
       draw();
       return;
@@ -1483,7 +1458,6 @@
     const typed = pop.querySelector('.ask input') ? pop.querySelector('.ask input').value : '';
     pop.replaceChildren();
     pop.setAttribute('style', `${pop.getAttribute('style') || ''}`);
-    pop.style.setProperty('--tone', `var(--c${(ann.tone % TONES) + 1})`);
     const report = ann.report;
     const waiting = S.queue.some((entry) => entry.ann === ann);
 
@@ -2083,7 +2057,6 @@
       status: 'done',
       calls: [],
       enabled: true,
-      tone: S.anns.reduce((max, other) => Math.max(max, other.tone + 1), 0),
     };
     S.anns.push(ann);
     closePen();
@@ -2098,7 +2071,7 @@
 
   const save = () => {
     try {
-      const anns = S.anns.map(({ id, text, scope, calls, enabled, tone, reading, question, thread, delta, example, failure }) => ({ id, text, scope, calls, enabled, tone, reading, question, thread, delta, example, failure }));
+      const anns = S.anns.map(({ id, text, scope, calls, enabled, reading, question, thread, delta, example, failure }) => ({ id, text, scope, calls, enabled, reading, question, thread, delta, example, failure }));
       localStorage.setItem(STORE, JSON.stringify({ anns }));
     } catch {
       // Without storage the remarks last as long as the page does.
@@ -2169,6 +2142,24 @@
       refit();
     });
   });
+  const VIEW = 'describeit.view';
+  try {
+    const kept = JSON.parse(localStorage.getItem(VIEW) || 'null');
+    if (kept && Number.isFinite(kept.height)) S.view.height = clamp(kept.height, 0.25, 4);
+  } catch {
+    // Nothing kept: the heights are the usual ones.
+  }
+  const setHeight = (factor) => {
+    S.view.height = clamp(S.view.height * factor, 0.25, 4);
+    try {
+      localStorage.setItem(VIEW, JSON.stringify({ height: S.view.height }));
+    } catch {
+      // It lasts as long as the page does.
+    }
+    draw();
+  };
+  $('#lowerBtn').addEventListener('click', () => setHeight(1 / 1.25));
+  $('#higherBtn').addEventListener('click', () => setHeight(1.25));
   $('#zoomIn').addEventListener('click', () => zoom(1.3));
   $('#zoomOut').addEventListener('click', () => zoom(1 / 1.3));
   $('#zoomFit').addEventListener('click', fit);
@@ -2216,7 +2207,7 @@
     readPalette();
     new ResizeObserver(resize).observe(scroller);
     if (document.fonts && document.fonts.load) {
-      Promise.all([document.fonts.load('600 18px Caveat'), document.fonts.load('500 17px Caveat'), document.fonts.ready]).then(draw, draw);
+      Promise.all([document.fonts.load('500 14.5px "Source Serif 4"'), document.fonts.load('italic 400 14px "Source Serif 4"'), document.fonts.ready]).then(draw, draw);
     }
     if (matchMedia('(pointer: coarse)').matches) $('#pencilBtn').hidden = false;
 
@@ -2230,17 +2221,20 @@
       S.knowledge = knowledge;
       for (const note of piece.alignment.allNotes) S.score.set(note['xml:id'], note);
       S.firstMs = Math.min(...piece.alignment.allNotes.map((n) => n['milliseconds.date']));
-      const pitches = piece.alignment.allNotes.map((n) => n['midi.pitch']);
-      G.lo = Math.min(...pitches) - 2;
-      G.hi = Math.max(...pitches) + 3;
+      const pitches = [...piece.alignment.allNotes, ...piece.alignment.graces].map((n) => n['midi.pitch']);
+      // The keys the piece uses, and no others.
+      G.lo = Math.min(...pitches);
+      G.hi = Math.max(...pitches);
 
       S.base = await Engine.run([]);
       index(S.base);
       S.bars = buildBars(S.base.timeSignatures, S.base.end);
       // The scale of loudness: a note in the loudest twentieth stands four rows tall.
       S.level = S.base.level;
-      const louds = S.base.notes.map((n) => Math.abs(n.velocity - S.level)).sort((a, b) => a - b);
-      G.k = Math.max(2, louds[Math.floor(louds.length * 0.95)] / 2);
+      // The scale of loudness: the loudest fiftieth of the notes stand three rows tall.
+      const velocities = S.base.notes.map((n) => n.velocity).sort((a, b) => a - b);
+      const loudest = velocities[Math.floor(velocities.length * 0.98)];
+      G.perOctave = 2 / Math.max(0.15, Math.log2(Math.max(loudest, S.level + 1) / S.level));
       S.result = S.base;
 
       const kept = restore();
@@ -2255,7 +2249,7 @@
       } else {
         // The examples, applied one after the other, so that each shows what it took off.
         for (const [i, example] of examples.entries()) {
-          const ann = { ...example, id: `example${i}`, status: 'done', enabled: true, tone: i, example: true };
+          const ann = { ...example, id: `example${i}`, status: 'done', enabled: true, example: true };
           S.anns.push(ann);
           await apply(ann, true);
         }

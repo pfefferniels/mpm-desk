@@ -1,8 +1,8 @@
 <title>DescribeIt!</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Fraunces:ital,opsz,wght@1,9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
 <style>
-/* Layout: the roll is the page. Remarks are written on it; everything else is called up and put away. One look, light, like paper under a pencil. */
+/* Layout: the roll is the page. Remarks are written on it, in one ink and one serif; everything else is called up and put away. One look, light. */
 :root {
   color-scheme: light;
   --paper: #eef1f2;
@@ -24,11 +24,9 @@
   --accent-soft: #dcefeb;
   --bad: #b02a20;
   --bad-soft: #f8e3e0;
-  --c1: #0b7566; --c2: #6d3fc0; --c3: #9a5f08; --c4: #c0306f; --c5: #1f6fb5; --c6: #4f7a12;
   --font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
-  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --serif: "Source Serif 4", "Iowan Old Style", Georgia, "Times New Roman", serif;
 }
 
 html, body { height: 100%; }
@@ -43,8 +41,7 @@ button { cursor: pointer; }
 
 /* ---- the line above the roll ---- */
 .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
-.top h1 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 600; font-size: 22px; letter-spacing: -0.01em; line-height: 1; }
-.top h1 b { color: var(--accent); font-weight: 600; }
+.top h1 { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 21px; letter-spacing: -0.005em; line-height: 1; }
 .top .piece { margin: 0; color: var(--ink-2); font-size: 13px; min-width: 0; flex: 1 1 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meters { display: flex; gap: 12px; align-items: flex-end; }
 .meter { width: 82px; }
@@ -79,8 +76,8 @@ button { cursor: pointer; }
 .pen.up { flex-direction: column-reverse; }
 .pen.up .under { margin: 0 0 5px; }
 .pen .under { width: fit-content; max-width: 100%; }
-.pen textarea { display: block; width: 150px; max-width: 100%; border: 0; border-bottom: 1.5px solid var(--pencil); border-radius: 0; background: rgba(251, 252, 252, 0.94); padding: 0 2px 1px; font-family: var(--hand); font-weight: 600; font-size: 21px; line-height: 1.15; color: var(--pencil); resize: none; overflow: hidden; outline: none; }
-.pen textarea::placeholder { color: var(--ink-3); font-weight: 500; }
+.pen textarea { display: block; width: 150px; max-width: 100%; border: 0; border-bottom: 1.5px solid var(--pencil); border-radius: 0; background: rgba(255, 255, 255, 0.9); padding: 1px 3px 2px; font-family: var(--serif); font-weight: 500; font-size: 16px; line-height: 1.3; color: var(--ink); resize: none; overflow: hidden; outline: none; }
+.pen textarea::placeholder { color: var(--ink-3); font-weight: 400; font-style: italic; }
 .pen .under { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 5px; }
 .chip { border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 1px 9px 2px; font-size: 12px; color: var(--ink-2); line-height: 1.4; }
 .chip:hover { color: var(--ink); border-color: var(--ink-3); }
@@ -89,8 +86,8 @@ button { cursor: pointer; }
 /* ---- what is called up ---- */
 .pop, .menu { position: absolute; z-index: 6; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 28px rgba(23, 33, 42, 0.16); }
 .pop { width: min(330px, calc(100% - 16px)); padding: 11px 12px 9px 14px; display: flex; flex-direction: column; gap: 6px; max-height: calc(100% - 50px); overflow-y: auto; }
-.pop::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--tone, var(--ink-3)); }
-.pop .said { font-family: var(--hand); font-weight: 600; font-size: 21px; line-height: 1.15; color: var(--tone, var(--pencil)); overflow-wrap: anywhere; }
+.pop::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--ink-3); }
+.pop .said { font-family: var(--serif); font-weight: 600; font-size: 17px; line-height: 1.25; color: var(--ink); overflow-wrap: anywhere; }
 .pop .where { font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .pop .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
 .pop .reading { color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
@@ -118,6 +115,9 @@ button { cursor: pointer; }
 .menu button { border: 0; background: none; text-align: left; padding: 6px 9px; border-radius: 5px; font-size: 13px; display: flex; justify-content: space-between; gap: 14px; }
 .menu button:hover { background: var(--band); }
 .menu button span { color: var(--ink-3); }
+.menu .row { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 4px 9px; font-size: 13px; }
+.menu .row span { display: inline-flex; gap: 3px; }
+.menu .row button { display: inline-block; border: 1px solid var(--line); border-radius: 5px; padding: 1px 9px; font-family: var(--mono); text-align: center; }
 
 .tip { position: absolute; z-index: 7; pointer-events: none; background: var(--ink); color: #fff; border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.4; max-width: 300px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
 .tip b { font-weight: 600; }
@@ -142,7 +142,7 @@ pre.xml .hot { background: var(--accent-soft); }
 
 <div class="app">
   <header class="top">
-    <h1>Describe<b>It!</b></h1>
+    <h1>DescribeIt!</h1>
     <p class="piece" id="pieceName">Schumann, Träumerei — Alfred Grünfeld on Welte-Mignon roll 225</p>
     <div class="meters" id="meters" aria-label="What the MPM does not yet explain">
       <div class="meter" data-k="pulse" title="Still unexplained: how far the chords were played from where the MPM has them"><div class="lab"><span>Pulse</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
@@ -178,6 +178,7 @@ pre.xml .hot { background: var(--accent-soft); }
     <div class="menu" id="menu" hidden>
       <button id="refBtn">Compare with the published reconstruction <span id="refState">off</span></button>
       <button id="ghostBtn" title="Behind each note, faint and dashed: the note as it was played">Shadows of the notes as played <span id="ghostState">on</span></button>
+      <div class="row" title="How much taller a louder note is drawn">Height of loud notes <span><button id="lowerBtn" aria-label="Lower">−</button><button id="higherBtn" aria-label="Taller">+</button></span></div>
       <button id="clearBtn">Remove every remark</button>
     </div>
     <aside class="drawer" id="drawer" hidden aria-label="MPM">
