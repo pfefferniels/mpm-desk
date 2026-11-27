@@ -906,6 +906,12 @@ export interface RunResult {
   assumed: { tempo: { from: number; to: number; bpm: number }[]; level: number | null; levelDates: number[] };
   /** The grace notes, which the score gives no time: when each was played. */
   graces: { id: string; group: string; principal: string; pitch: number; ms: number; velocity: number }[];
+  /**
+   * The sustaining pedal, for whoever plays the roll back: the presses as they were recorded, and
+   * what the MPM as it stands has of them, each move of the pedal laid on the recording's clock
+   * as the notes are.
+   */
+  pedals: { played: { ms: number; msEnd: number }[]; mpm: { ms: number; value: number }[] };
   /** The score's beats on the recording's clock, as the tempo as it stands places them. */
   beats: { date: number; ms: number }[];
   /** The level assumed where no dynamics are described. */
@@ -1054,6 +1060,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
   // What the document sounds, whole: every note as the renderer performs it, on the clock the
   // tempo map makes by itself.
   const performed = new Map<string, Sounded>();
+  const pedalled: { date: number; ms: number; value: number }[] = [];
   silently(() => {
     const score = alignment.serializeScore();
     if (!score) return;
@@ -1062,6 +1069,10 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
       for (const note of part.notes) {
         if (note.id === null) continue;
         performed.set(note.id, { ms: note.milliseconds.date, msEnd: note.milliseconds.end, velocity: note.velocity });
+      }
+      for (const stream of part.controlChanges) {
+        if (stream.controller !== 'sustain') continue;
+        for (const point of stream.points) pedalled.push({ date: point.date, ms: point.milliseconds, value: point.value });
       }
     }
   });
@@ -1148,6 +1159,20 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     for (let date = 0; date < end; date += PPQ) beats.push({ date, ms: clockAt(date) });
   }
   beats.push({ date: end, ms: clockAt(end) });
+
+  // The pedal: as it was pressed, and as the MPM moves it, on the one clock.
+  const pedals: RunResult['pedals'] = {
+    played: corrected.pedals
+      .filter((pedal) => pedal.type === 'sustain')
+      .map((pedal) => ({ ms: pedal['milliseconds.date'] - shifted, msEnd: pedal['milliseconds.date.end'] - shifted }))
+      .sort((a, b) => a.ms - b.ms),
+    mpm: pedalled
+      .map((point) => {
+        const segment = governing(point.date);
+        return { ms: (segment ? segment.startMs - segment.renderedStartMs : 0) + point.ms, value: point.value };
+      })
+      .sort((a, b) => a.ms - b.ms),
+  };
 
   const graces = alignment.graces.map((grace) => ({
     id: grace['xml:id'],
@@ -1255,6 +1280,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     mpm: xml,
     notes,
     graces,
+    pedals,
     beats,
     calls: [...reports.values()],
     assumed: {

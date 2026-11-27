@@ -215,4 +215,23 @@ describe('what a description adds to the chain', () => {
     expect(corrected.arrived?.velocity).toBe(velocity);
     expect(result.notes.filter((note) => note.arrived)).toHaveLength(1);
   });
+
+  it('hands the pedal to whoever plays it back: the presses as recorded, and the MPM\'s once it has any', () => {
+    const base = run([]);
+    const last = Math.max(...base.notes.map((note) => note.msEnd));
+    expect(base.pedals.played.length).toBeGreaterThan(10);
+    // On the notes' own clock, in order, each press let go after it was made.
+    for (const [i, press] of base.pedals.played.entries()) {
+      expect(press.msEnd).toBeGreaterThan(press.ms);
+      expect(press.ms).toBeGreaterThanOrEqual(i ? base.pedals.played[i - 1]!.ms : -1000);
+      expect(press.ms).toBeLessThan(last);
+    }
+    // Nothing described, nothing rendered; described, the pedal goes down and comes up again.
+    expect(base.pedals.mpm).toEqual([]);
+    const pedalled = run([call('InsertPedal', {})]);
+    expect(pedalled.calls[0]?.error).toBeUndefined();
+    expect(pedalled.pedals.mpm.some((move) => move.value >= 64)).toBe(true);
+    expect(pedalled.pedals.mpm.some((move) => move.value < 64)).toBe(true);
+    expect(pedalled.pedals.mpm.every((move, i, moves) => i === 0 || move.ms >= moves[i - 1]!.ms)).toBe(true);
+  });
 });

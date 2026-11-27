@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
 <style>
-/* Layout: the roll is the page. Remarks are written on it, in one ink and one serif; everything else is called up and put away. One look, light. */
+/* Layout: the roll is the page, from edge to edge: one line above it, one under it. Remarks are written on it, in one ink and one serif; everything else is called up and put away. One look, light. */
 :root {
   color-scheme: light;
   --paper: #eef1f2;
@@ -30,26 +30,29 @@
 }
 
 html, body { height: 100%; }
-body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+body { background: var(--raised); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; }
 *, *::before, *::after { box-sizing: border-box; }
 button, textarea, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app { height: 100%; display: flex; flex-direction: column; gap: 8px; padding-block: 8px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.app { height: 100%; display: flex; flex-direction: column; }
 
 /* ---- the line above the roll ---- */
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding-block: 6px 4px; background: var(--raised);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .top h1 { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 21px; letter-spacing: -0.005em; line-height: 1; }
-.top .piece { margin: 0; color: var(--ink-2); font-size: 13px; min-width: 0; flex: 1 1 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.meters { display: flex; gap: 12px; align-items: flex-end; }
-.meter { width: 82px; }
-.meter .lab { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: 10.5px; color: var(--ink-3); }
-.meter .lab span:first-child { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
-.meter .lab span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
-.meter .track { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 3px; }
-.meter .fill { height: 100%; width: 100%; background: var(--ink-2); transition: width 0.5s ease; }
+.top .piece { margin: 0; color: var(--ink-2); font-size: 13px; min-width: 0; flex: 1 1 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* How far the notes still are from their shadows: one sentence, four numbers. */
+.meters { display: flex; gap: 16px; align-items: center; border: 0; background: none; border-radius: 6px; padding: 3px 8px; margin: -3px -8px; text-align: left; }
+.meters:hover, .meters[aria-expanded="true"] { background: var(--band); }
+.meters .cap { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.meter { display: block; }
+.meter .lab { display: flex; justify-content: space-between; align-items: baseline; gap: 7px; white-space: nowrap; }
+.meter .name { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; color: var(--ink-3); }
+.meter .val { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); min-width: 5ch; text-align: right; }
+.meter .track { display: block; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 2px; }
+.meter .fill { display: block; height: 100%; width: 100%; background: var(--ink-2); transition: width 0.5s ease; }
 .btn { border: 1px solid var(--line); background: var(--raised); border-radius: 6px; padding: 4px 10px; font-size: 13px; line-height: 1.3; white-space: nowrap; }
 .btn:hover { border-color: var(--ink-3); }
 .btn[aria-pressed="true"], .btn[aria-expanded="true"] { background: var(--ink); color: var(--raised); border-color: var(--ink); }
@@ -58,15 +61,25 @@ button { cursor: pointer; }
 .btn.icon { min-width: 28px; padding: 4px 6px; text-align: center; font-family: var(--mono); }
 
 /* ---- the roll ---- */
-.stage { flex: 1 1 auto; min-height: 0; position: relative; background: var(--roll); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.stage { flex: 1 1 auto; min-height: 0; position: relative; background: var(--roll); overflow: hidden; display: flex; flex-direction: column; }
 .rollscroll { flex: 1 1 auto; min-height: 0; overflow-x: auto; overflow-y: hidden; position: relative; }
 .rollscroll canvas { position: sticky; left: 0; top: 0; display: block; touch-action: pan-x; cursor: crosshair; outline: none; }
 .rollscroll canvas.pencil { touch-action: none; }
 .rollscroll .spacer { height: 1px; margin-top: -1px; }
-.foot { display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 12px; border-top: 1px solid var(--line); background: var(--raised); font-size: 12.5px; color: var(--ink-2); min-height: 34px; }
+.foot { display: flex; align-items: center; gap: 6px 12px; padding-block: 4px; border-top: 1px solid var(--line); background: var(--raised); font-size: 12.5px; color: var(--ink-2); min-height: 36px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .foot #hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
 .foot #hint button { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.foot .zoom { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+.foot .zoom, .foot .play { display: inline-flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+.foot .zoom { gap: 3px; }
+.btn.icon svg { display: block; margin: 2.5px auto; }
+/* What is heard: one of three. */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); overflow: hidden; }
+.seg button { border: 0; background: none; padding: 4px 9px; font-size: 12.5px; line-height: 1.3; color: var(--ink-2); white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover { color: var(--ink); background: var(--band); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--raised); }
+.seg button:focus-visible { outline-offset: -2px; }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); background: var(--roll); z-index: 8; text-align: center; padding: 20px; }
 
 /* ---- the pencil: where a remark is written, on the roll ---- */
@@ -81,10 +94,13 @@ button { cursor: pointer; }
 .pen .under { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 5px; }
 .chip { border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 1px 9px 2px; font-size: 12px; color: var(--ink-2); line-height: 1.4; }
 .chip:hover { color: var(--ink); border-color: var(--ink-3); }
+.pen .hear { border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 1px 9px 2px; font-size: 12px; color: var(--ink-2); line-height: 1.4; display: inline-flex; align-items: center; gap: 5px; }
+.pen .hear:hover { color: var(--ink); border-color: var(--ink-3); }
+.pen .hear::before { content: ""; border-left: 7px solid currentColor; border-block: 4.5px solid transparent; }
 .pen .keys { font-size: 11px; color: var(--ink-3); margin-left: 2px; background: rgba(251, 252, 252, 0.9); border-radius: 3px; padding: 0 3px; }
 
 /* ---- what is called up ---- */
-.pop, .menu { position: absolute; z-index: 6; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 28px rgba(23, 33, 42, 0.16); }
+.pop, .menu, .legend { position: absolute; z-index: 6; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 28px rgba(23, 33, 42, 0.16); }
 .pop { width: min(330px, calc(100% - 16px)); padding: 11px 12px 9px 14px; display: flex; flex-direction: column; gap: 6px; max-height: calc(100% - 50px); overflow-y: auto; }
 .pop::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--ink-3); }
 .pop .said { font-family: var(--serif); font-weight: 600; font-size: 17px; line-height: 1.25; color: var(--ink); overflow-wrap: anywhere; }
@@ -119,6 +135,14 @@ button { cursor: pointer; }
 .menu .row span { display: inline-flex; gap: 3px; }
 .menu .row button { display: inline-block; border: 1px solid var(--line); border-radius: 5px; padding: 1px 9px; font-family: var(--mono); text-align: center; }
 
+.legend { right: 8px; top: 8px; width: min(400px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow-y: auto; padding: 12px 14px 12px; font-size: 13px; color: var(--ink-2); }
+.legend h2 { margin: 0 0 4px; font-family: var(--serif); font-weight: 600; font-size: 16px; line-height: 1.25; color: var(--ink); text-wrap: balance; }
+.legend p { margin: 0 0 8px; }
+.legend dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; }
+.legend dt { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; color: var(--ink); padding-top: 2px; white-space: nowrap; }
+.legend dd { margin: 0; }
+.legend dd .now { display: block; font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+
 .tip { position: absolute; z-index: 7; pointer-events: none; background: var(--ink); color: #fff; border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.4; max-width: 300px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
 .tip b { font-weight: 600; }
 .tip .row { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -133,10 +157,14 @@ pre.xml .t { color: var(--rh); } pre.xml .a { color: var(--ink-2); } pre.xml .v 
 pre.xml .hot { background: var(--accent-soft); }
 
 @media (max-width: 720px) {
-  .meters { flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; order: 5; }
-  .meter { width: auto; }
+  .meters { flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 10px; order: 5; }
+  .meters .cap { grid-column: 1 / -1; }
   .meter .lab { flex-direction: column; align-items: flex-start; gap: 0; }
+  .meter .val { text-align: left; }
   .top .piece { flex-basis: 120px; }
+  .foot { flex-wrap: wrap; }
+  .foot #hint { order: -1; flex: 1 1 100%; }
+  .foot .zoom { margin-left: auto; }
 }
 </style>
 
@@ -144,12 +172,13 @@ pre.xml .hot { background: var(--accent-soft); }
   <header class="top">
     <h1>DescribeIt!</h1>
     <p class="piece" id="pieceName">Schumann, Träumerei — Alfred Grünfeld on Welte-Mignon roll 225</p>
-    <div class="meters" id="meters" aria-label="What the MPM does not yet explain">
-      <div class="meter" data-k="pulse" title="Still unexplained: how far the chords were played from where the MPM has them"><div class="lab"><span>Pulse</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
-      <div class="meter" data-k="chords" title="Still unexplained: how far the notes of a chord were played from one another, beyond what the MPM has"><div class="lab"><span>Chords</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
-      <div class="meter" data-k="loud" title="Still unexplained: how far the velocities are from what the MPM sounds"><div class="lab"><span>Loudness</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
-      <div class="meter" data-k="length" title="Still unexplained: how far the lengths are from what the MPM gives the notes"><div class="lab"><span>Length</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
-    </div>
+    <button class="meters" id="meters" aria-expanded="false" aria-controls="legend" title="How far the notes still are from their shadows, on average. Click for what each number means.">
+      <span class="cap">Notes still off their shadows by</span>
+      <span class="meter" data-k="pulse"><span class="lab"><span class="name">Timing</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
+      <span class="meter" data-k="chords"><span class="lab"><span class="name">In chords</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
+      <span class="meter" data-k="loud"><span class="lab"><span class="name">Loudness</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
+      <span class="meter" data-k="length"><span class="lab"><span class="name">Length</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
+    </button>
     <button class="btn" id="mpmBtn" aria-expanded="false" title="The MPM your remarks have become">MPM</button>
     <button class="btn icon" id="menuBtn" aria-expanded="false" aria-label="More">⋯</button>
   </header>
@@ -160,6 +189,14 @@ pre.xml .hot { background: var(--accent-soft); }
       <div class="spacer" id="rollSpacer"></div>
     </div>
     <div class="foot">
+      <span class="play">
+        <button class="btn icon" id="playBtn" aria-pressed="false" aria-label="Play" title="Play from the line, or what is selected (Space)"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path id="playIcon" d="M2.5 1v10l8.5-5z" fill="currentColor"/></svg></button>
+        <span class="seg" id="hear" role="group" aria-label="What is heard">
+          <button data-src="played" aria-pressed="true" title="Hear the notes as they were played: the shadows">as played</button>
+          <button data-src="mpm" aria-pressed="false" title="Hear the notes as the MPM so far renders them">the MPM</button>
+          <button data-src="both" aria-pressed="false" title="Hear both at once: the playing to the left, the MPM to the right">both</button>
+        </span>
+      </span>
       <span id="hint"></span>
       <span class="zoom">
         <button class="btn icon" id="pencilBtn" aria-pressed="false" title="Draw brackets with a finger" hidden>✎</button>
@@ -175,10 +212,12 @@ pre.xml .hot { background: var(--accent-soft); }
     </div>
     <div class="pop" id="pop" hidden></div>
     <div class="tip" id="tip" hidden></div>
+    <div class="legend" id="legend" hidden></div>
     <div class="menu" id="menu" hidden>
       <button id="refBtn">Compare with the published reconstruction <span id="refState">off</span></button>
       <button id="ghostBtn" title="Behind each note, faint and dashed: the note as it was played">Shadows of the notes as played <span id="ghostState">on</span></button>
       <div class="row" title="How much taller a louder note is drawn">Height of loud notes <span><button id="lowerBtn" aria-label="Lower">−</button><button id="higherBtn" aria-label="Taller">+</button></span></div>
+      <button id="fullBtn" hidden>Full screen <span id="fullState">off</span></button>
       <button id="clearBtn">Remove every remark</button>
     </div>
     <aside class="drawer" id="drawer" hidden aria-label="MPM">

@@ -19,6 +19,12 @@ runs again and the notes go to their new places, and where a note covers its sha
 nothing left to see. The bar lines stand where the tempo as it stands puts them, dashed where it
 is only assumed.
 
+The roll can be heard: as it was played, as the MPM has it, or both at once, the playing to the
+left and the MPM to the right. With a passage or some notes in hand, those are played by
+themselves; otherwise the roll plays from the line a click on nothing leaves. The four numbers
+above the roll say how far the notes still are from their shadows, in timing, within chords, in
+loudness and in length.
+
 It is published as a Claude artifact, where the page asks Claude through the viewer's own
 account. Opened anywhere else it draws and fits, and a remark's calls can be written by hand.
 
@@ -53,6 +59,8 @@ a remark made today may be about a place somebody spoke of yesterday.
 - **The rendering, against the recording.** The renderer's own performance of the MPM, laid on
   the recording's clock the way the chain places a tempo: anew on the chord each tempo begins on,
   so that what one stretch gets wrong is not carried into the next.
+- **The pedal, for playing back.** The presses as they were recorded and the moves the MPM's
+  rendering makes, on the one clock.
 - **A later remark owns its place.** A tempo or dynamics span is taken out of every earlier one,
   which is refitted over what it has left; a roll on one chord goes before a roll over all.
 - **What a desk always writes** is filled in, an ornament gets its definition unasked, and a call
@@ -67,6 +75,8 @@ reconstruction replayed through it the rendering stands fifty times nearer the p
 - The expert is not given the score's own markings (fermatas, hairpins, slurs), only the notes.
 - Tempo, rubato, dynamics and accentuation are written for both hands; one hand's share is said
   through note ids.
-- Remarks are kept in the browser's own storage, and nothing is played back.
+- Remarks are kept in the browser's own storage.
+- What is played back is a plain synthesized string, there to tell early from late and loud from
+  soft, not to sound like the instrument.
 - A `work.json` can be saved from the page, a fitted step stated as the call it came to; opening
   it in the editor has not been tried.

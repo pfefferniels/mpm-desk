@@ -1,6 +1,6 @@
 /* DescribeIt: the page. The fitting is `engine.js`; this draws what it leaves, takes down what a
    reader writes on the roll, and asks the expert what it means. */
-/* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout */
+/* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout, setInterval, clearInterval */
 (() => {
   'use strict';
 
@@ -8,10 +8,12 @@
   const STORE = 'describeit.v2';
   const EXPERT = { model: 'claude-opus-5-5', modelTier: 'complex' };
   const LANE = 22;
-  /** Room kept above the highest key, inside the roll, for what is written over the notes. */
-  const HEAD = 34;
+  /** Room kept above the highest key, inside the roll: for words over its notes, and a brace over those. */
+  const HEAD = 62;
   const BRACE = 9;
   const RULER = 18;
+  /** The room the line round a set of notes leaves them. */
+  const HULL = 14;
 
   const $ = (selector) => document.querySelector(selector);
   const el = (tag, props, ...kids) => {
@@ -50,6 +52,7 @@
     pen: { open: false, editing: null },
     level: 64, // the velocity drawn one row tall
     view: { ppt: 0.03, shadows: true, pencil: false, height: 1 },
+    play: { on: false, source: 'played', at: 0 }, // what is heard, and where the playing would begin
     hoverAnn: null,
     hoverNote: null,
     openAnn: null,
@@ -250,6 +253,7 @@
       S.result = result;
       index(result);
       for (const ann of S.anns) ann.report = reportOf(ann, result);
+      Player.refresh();
     } catch (error) {
       if (token !== fitToken) return;
       console.error(error);
@@ -495,20 +499,99 @@
     ctx.stroke();
   };
 
-  /** A brace down the left of some notes: how far up and down the keyboard a remark reaches. */
-  const braceBeside = (x, y0, y1) => {
-    const mid = (y0 + y1) / 2;
-    const q = Math.min(7, (y1 - y0) / 4);
-    const half = x - 3.5;
+  /**
+   * The line round a set of notes: over the tops of the notes from the first to the last and back
+   * under them, straight across wherever no note of the set sounds. It is hollow where the set
+   * is, so a melody that climbs and falls is followed up and down and what lies above or below it
+   * is left outside. But it is drawn with a free hand: it leaves the notes room, passes over any
+   * dip it would have to squeeze into, and takes every turn in a wide curve.
+   *
+   * Worked out in steps along the roll, between `from` and `to`, which is as much of it as can
+   * be seen.
+   *
+   * @param rects the notes, as they are drawn
+   * @returns the points of the line, in order round it
+   */
+  const hullOf = (rects, from, to) => {
+    const STEP = 4;
+    const NEAR = 8; // the least room it leaves a note, where it has to turn in
+    const WIDE = 10; // steps: a dip narrower than twice this is passed over
+    const ROUND = 6; // steps: how wide a turn is taken
+    const left = Math.max(from, Math.min(...rects.map((r) => r.x)) - HULL);
+    const right = Math.min(to, Math.max(...rects.map((r) => r.x + r.w)) + HULL);
+    const n = Math.max(2, Math.ceil((right - left) / STEP) + 1);
+    const column = () => new Array(n).fill(null);
+    const [top, bottom, topMost, bottomMost] = [column(), column(), column(), column()];
+    for (const r of rects) {
+      const a = Math.max(0, Math.floor((r.x - HULL - left) / STEP));
+      const b = Math.min(n - 1, Math.ceil((r.x + r.w + HULL - left) / STEP));
+      for (let i = a; i <= b; i++) {
+        top[i] = Math.min(top[i] ?? Infinity, r.y - HULL);
+        bottom[i] = Math.max(bottom[i] ?? -Infinity, r.y + r.h + HULL);
+        const x = left + i * STEP;
+        if (x < r.x - NEAR || x > r.x + r.w + NEAR) continue;
+        topMost[i] = Math.min(topMost[i] ?? Infinity, r.y - NEAR);
+        bottomMost[i] = Math.max(bottomMost[i] ?? -Infinity, r.y + r.h + NEAR);
+      }
+    }
+    // Across a silence: straight from the note before it to the note after.
+    const bridge = (values) => {
+      let before = -1;
+      for (let i = 0; i < n; i++) {
+        if (values[i] === null) continue;
+        for (let j = before + 1; j < i; j++) {
+          values[j] = before < 0 ? values[i] : values[before] + ((values[i] - values[before]) * (j - before)) / (i - before);
+        }
+        before = i;
+      }
+      for (let j = before + 1; j < n; j++) values[j] = before < 0 ? 0 : values[before];
+    };
+    bridge(top);
+    bridge(bottom);
+    const sliding = (values, radius, pick) => values.map((_, i) => pick(...values.slice(Math.max(0, i - radius), i + radius + 1)));
+    const mean = (...values) => values.reduce((a, b) => a + b, 0) / values.length;
+    // The dips are passed over, the turns rounded twice, and the line is then held off the notes
+    // it has come too near, which is rounded once more.
+    const eased = (values, out, back, keep) => {
+      let line = sliding(sliding(values, WIDE, out), WIDE, back);
+      line = sliding(sliding(line, ROUND, mean), ROUND, mean).map(keep);
+      return sliding(line, 2, mean).map(keep);
+    };
+    const offTop = (y, i) => Math.min(y, topMost[i] ?? Infinity);
+    const offBottom = (y, i) => Math.max(y, bottomMost[i] ?? -Infinity);
+    const over = eased(top, Math.min, Math.max, offTop);
+    const under = eased(bottom, Math.max, Math.min, offBottom);
+    // Either end is closed in a round, as wide a one as its height and its notes allow.
+    const END = 26;
+    const close = (i, d) => {
+      const radius = Math.min((under[i] - over[i]) / 2, END);
+      if (d >= radius) return;
+      const inset = radius - Math.sqrt(radius * radius - (radius - d) ** 2);
+      over[i] = offTop(over[i] + inset, i);
+      under[i] = offBottom(under[i] - inset, i);
+    };
+    for (let k = 0; k * STEP < END && k < n / 2 - 1; k++) {
+      close(k, k * STEP);
+      close(n - 1 - k, k * STEP);
+    }
+    const points = over.map((y, i) => ({ x: left + i * STEP, y }));
+    for (let i = n - 1; i >= 0; i--) points.push({ x: left + i * STEP, y: under[i] });
+    return points;
+  };
+
+  /** A closed line through some points, bent at each so that it has no corners. */
+  const softLine = (points) => {
+    const n = points.length;
+    if (n < 3) return;
+    const between = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    const start = between(points[n - 1], points[0]);
     ctx.beginPath();
-    ctx.moveTo(x, y0);
-    ctx.quadraticCurveTo(half, y0, half, y0 + q);
-    ctx.lineTo(half, mid - q);
-    ctx.quadraticCurveTo(half, mid, x - 7, mid);
-    ctx.quadraticCurveTo(half, mid, half, mid + q);
-    ctx.lineTo(half, y1 - q);
-    ctx.quadraticCurveTo(half, y1, x, y1);
-    ctx.stroke();
+    ctx.moveTo(start.x, start.y);
+    for (let i = 0; i < n; i++) {
+      const to = between(points[i], points[(i + 1) % n]);
+      ctx.quadraticCurveTo(points[i].x, points[i].y, to.x, to.y);
+    }
+    ctx.closePath();
   };
 
   /**
@@ -730,10 +813,10 @@
     }
     ctx.globalAlpha = 1;
 
-    // What was said of a stretch, or of some notes, stands in the roll over what it is about: a
-    // brace as wide as the stretch, just above its highest note, and the words at the brace's
-    // point. What reaches only some of the notes of its stretch has a second brace down its
-    // side, and what is about one note or two has a line round each.
+    // What was said of a stretch, or of some notes, stands in the roll over what it is about. A
+    // stretch is held in a brace as wide as it is, just above its highest note, with the words
+    // at the brace's point. A set of notes has a line drawn round it that keeps to the notes,
+    // and the words over it.
     const overhead = [];
     const topOf = (notes) => {
       let y = bottom;
@@ -745,35 +828,21 @@
     };
     /** Draw what holds a remark's notes together, and say where its words go. */
     const hold = (scope, alpha) => {
-      const notes =
-        scope.kind === 'span'
-          ? result.notes.filter((note) => note.date >= scope.from && note.date < scope.to)
-          : scope.ids.map((id) => result.byId.get(id)).filter(Boolean);
+      const stretch = scope.kind === 'span';
+      const notes = stretch
+        ? result.notes.filter((note) => note.date >= scope.from && note.date < scope.to)
+        : scope.ids.map((id) => result.byId.get(id)).filter(Boolean);
       if (notes.length === 0) return null;
-      const few = scope.kind !== 'span' && scope.kind !== 'box' && notes.length <= 3;
-      let xa = Infinity;
-      let xb = -Infinity;
-      let y1 = -Infinity;
-      for (const note of notes) {
-        const r = rectOf(note);
-        xa = Math.min(xa, r.x);
-        xb = Math.max(xb, r.x + r.w);
-        y1 = Math.max(y1, r.y + r.h);
-      }
-      if (scope.kind === 'span') {
-        xa = X(encodedAt(result, scope.from));
-        xb = X(encodedAt(result, scope.to));
-      } else {
-        xa -= 4;
-        xb += 4;
-      }
+      const rects = notes.map(rectOf);
+      let xa = stretch ? X(encodedAt(result, scope.from)) : Math.min(...rects.map((r) => r.x)) - HULL;
+      let xb = stretch ? X(encodedAt(result, scope.to)) : Math.max(...rects.map((r) => r.x + r.w)) + HULL;
       xb = Math.max(xb, xa + 14);
       if (xb < G.gutter || xa > width) return null;
-      const y0 = topOf(notes);
+      // A stretch is held from above, clear of its shadows too; a set of notes has a line round it.
+      const room = stretch ? BRACE + 24 : 24;
+      let y = stretch ? topOf(notes) - 5 : Math.min(...rects.map((r) => r.y)) - HULL - 1;
       // Just above its notes; above another remark only where the two would otherwise run into
       // each other; and inside the roll.
-      const room = few ? 24 : BRACE + 24;
-      let y = y0 - (few ? 3 : 5);
       for (let again = true, turns = 0; again && turns < 12; turns++) {
         again = false;
         for (const other of overhead) {
@@ -787,18 +856,16 @@
       ctx.strokeStyle = palette.pencil;
       ctx.lineWidth = 1.25;
       ctx.globalAlpha = alpha;
-      if (few) {
-        for (const note of notes) {
-          const r = rectOf(note);
-          rounded(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 4);
-          ctx.stroke();
-        }
-      } else {
-        braceOver(xa, xb, y);
-        if (scope.kind !== 'span' && y1 - y0 > 12) braceBeside(xa - 1, y0 - 1, y1 + 1);
+      if (stretch) braceOver(xa, xb, y);
+      else {
+        softLine(hullOf(rects, G.gutter - 60, width + 60));
+        ctx.stroke();
+        ctx.fillStyle = palette.pencil;
+        ctx.globalAlpha = alpha * 0.05;
+        ctx.fill();
       }
       ctx.globalAlpha = 1;
-      return { xa, xb, y, point: few ? y : y - BRACE };
+      return { xa, xb, y, point: stretch ? y - BRACE : y };
     };
     const wordsOver = (spot, w) => {
       const x = clamp((spot.xa + spot.xb) / 2 - w / 2, G.gutter + 6, width - w - 8);
@@ -907,6 +974,32 @@
       ctx.stroke();
     }
 
+    // Where the playing is, or would begin: a line down the roll, hung from the ruler. The roll
+    // turns its page when the line reaches the edge.
+    const playing = Player.playing;
+    const head = X(playing ? Player.now() : S.play.at);
+    if (playing && !drag && head > width - 36 && head < width + 260) scroller.scrollLeft += head - G.gutter - 48;
+    if ((playing || S.play.at > 0) && head >= G.gutter - 1 && head <= width) {
+      const hx = Math.round(head) + 0.5;
+      ctx.strokeStyle = palette.ink;
+      ctx.fillStyle = palette.ink;
+      ctx.lineWidth = playing ? 1.5 : 1;
+      ctx.globalAlpha = playing ? 0.85 : 0.3;
+      ctx.beginPath();
+      ctx.moveTo(hx, top - 6);
+      ctx.lineTo(hx, bottom);
+      ctx.stroke();
+      ctx.globalAlpha = playing ? 1 : 0.5;
+      ctx.beginPath();
+      ctx.moveTo(hx - 5, top - 14);
+      ctx.lineTo(hx + 5, top - 14);
+      ctx.lineTo(hx, top - 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
+    }
+
     // The gutter: which key is which.
     ctx.fillStyle = palette.raised;
     ctx.fillRect(0, 0, G.gutter, height);
@@ -924,7 +1017,7 @@
 
     placePen();
     // A remark still being read breathes, so the roll is drawn again while one is.
-    if (S.tween) draw();
+    if (S.tween || Player.playing) draw();
     else if (S.working || S.queue.length) setTimeout(draw, 90);
   };
 
@@ -1040,6 +1133,21 @@
       }
     } else {
       under.append(el('span', { class: 'keys', text: S.sample || !S.sampleAsked ? 'Enter to translate · Esc to drop' : 'Enter to keep (the expert answers when this page is open in Claude)' }));
+    }
+    // What is in hand can be heard by itself before anything is said of it.
+    if (scopeNow().kind !== 'piece') {
+      under.append(
+        el('button', {
+          class: 'hear',
+          title: 'Hear this by itself',
+          text: 'hear it',
+          onclick: () => {
+            if (Player.playing) Player.stop(true);
+            else Player.start();
+            penText.focus({ preventScroll: true });
+          },
+        }),
+      );
     }
   };
 
@@ -1259,17 +1367,20 @@
       return;
     }
     const prompt = G.promptRow && inLanes(y) && y >= G.promptRow.y && y <= G.promptRow.y + G.promptRow.h;
-    if (S.pen.open && !penText.value.trim()) {
-      closePen();
-      if (!prompt) return;
+    const kept = S.pen.open && penText.value.trim();
+    if (S.pen.open && !kept) closePen();
+    // On the ruler or among the notes, a click on nothing is where the playing begins.
+    if (!prompt && !kept && x >= G.gutter && y >= G.lanes * LANE) {
+      Player.seek(msOf(x));
+      return;
     }
-    if (prompt || (S.pen.open && penText.value.trim())) {
+    if (prompt || kept) {
       // Words already written stay, and are now about the whole piece.
-      const kept = penText.value;
+      const words = penText.value;
       S.pen.editing = null;
       S.selection.clear();
       S.selKind = 'none';
-      openPen(kept);
+      openPen(words);
     }
   };
 
@@ -1303,6 +1414,303 @@
     scroller.scrollLeft = 0;
     draw();
   };
+
+  // ------------------------------------------------------------------------------------------
+  // Playing: the roll heard, as it was played, as the MPM has it, or both at once
+  // ------------------------------------------------------------------------------------------
+
+  const Player = (() => {
+    let audio = null;
+    let wave = null;
+    let bus = null;
+    let room = null;
+    let run = null; // what is sounding: its stretch of the clock, and the voices struck so far
+    let timer = 0;
+
+    const context = () => {
+      if (audio) return audio;
+      const Context = window.AudioContext || window.webkitAudioContext;
+      if (!Context) return null;
+      audio = new Context();
+      // One string: every partial weaker than the one under it.
+      const partials = 20;
+      const real = new Float32Array(partials);
+      const imag = new Float32Array(partials);
+      for (let k = 1; k < partials; k++) imag[k] = 1 / k ** 1.3;
+      wave = audio.createPeriodicWave(real, imag);
+      bus = audio.createDynamicsCompressor();
+      bus.threshold.value = -14;
+      bus.ratio.value = 4;
+      bus.attack.value = 0.004;
+      bus.release.value = 0.2;
+      bus.connect(audio.destination);
+      // A little room round the instrument: noise, dying away.
+      const length = Math.floor(audio.sampleRate * 1.5);
+      const impulse = audio.createBuffer(2, length, audio.sampleRate);
+      for (let channel = 0; channel < 2; channel++) {
+        const data = impulse.getChannelData(channel);
+        for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 4;
+      }
+      room = audio.createConvolver();
+      room.buffer = impulse;
+      const wet = audio.createGain();
+      wet.gain.value = 0.14;
+      room.connect(wet);
+      wet.connect(bus);
+      return audio;
+    };
+
+    /** The stretches of the clock over which the pedal is down, and a key let go rings on. */
+    const pedalled = (result, which) => {
+      const pedals = result.pedals || { played: [], mpm: [] };
+      if (which === 'played') return pedals.played.map((press) => [press.ms, press.msEnd]);
+      const spans = [];
+      let down = null;
+      for (const move of pedals.mpm) {
+        if (move.value >= 64 && down === null) down = move.ms;
+        else if (move.value < 64 && down !== null) {
+          spans.push([down, move.ms]);
+          down = null;
+        }
+      }
+      if (down !== null) spans.push([down, result.total]);
+      return spans;
+    };
+
+    /** Every key struck, in order: when, how hard, and when it is damped. */
+    const eventsOf = (result, source, only) => {
+      const events = [];
+      const add = (which, pan) => {
+        const spans = pedalled(result, which);
+        const damped = (end) => {
+          const span = spans.find(([down, up]) => end >= down && end < up);
+          return span ? span[1] : end;
+        };
+        const mine = [];
+        for (const note of result.notes) {
+          if (only && !only.has(note.id)) continue;
+          const sounds = which === 'played' ? note : note.mpm;
+          mine.push({ ms: sounds.ms, end: damped(sounds.msEnd), pitch: note.pitch, velocity: sounds.velocity, pan });
+        }
+        // The grace notes are in the recording only: the score gives them no time to render.
+        if (which === 'played') {
+          for (const grace of result.graces || []) {
+            if (only && !only.has(grace.principal)) continue;
+            mine.push({ ms: grace.ms, end: damped(grace.ms + 160), pitch: grace.pitch, velocity: grace.velocity, pan });
+          }
+        }
+        // A key struck again is damped first, however long the pedal would have held it.
+        mine.sort((a, b) => a.ms - b.ms);
+        const last = new Map();
+        for (const event of mine) {
+          const before = last.get(event.pitch);
+          if (before && before.end > event.ms) before.end = event.ms;
+          last.set(event.pitch, event);
+        }
+        events.push(...mine);
+      };
+      if (source !== 'mpm') add('played', source === 'both' ? -0.55 : 0);
+      if (source !== 'played') add('mpm', source === 'both' ? 0.55 : 0);
+      return events.sort((a, b) => a.ms - b.ms);
+    };
+
+    /** One key struck: strings that ring and darken, the brighter the harder the blow. */
+    const strike = (event, when, off) => {
+      const frequency = 440 * 2 ** ((event.pitch - 69) / 12);
+      const force = clamp(event.velocity, 1, 127) / 127;
+      const strings = event.pitch > 45 ? [-2, 2.5] : [0];
+      const peak = (0.03 + 0.8 * force ** 1.8) / strings.length;
+      const filter = audio.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.Q.value = 0.3;
+      const bright = Math.min(15000, 500 + frequency * (2 + 16 * force * force));
+      filter.frequency.setValueAtTime(bright, when);
+      filter.frequency.setTargetAtTime(Math.min(bright, 350 + frequency * 1.6), when, 0.3);
+      const gain = audio.createGain();
+      // A low string rings for seconds, a high one for a moment.
+      const ring = clamp(2.4 * 2 ** ((52 - event.pitch) / 14), 0.25, 3.5);
+      const damped = Math.max(off, when + 0.06);
+      gain.gain.setValueAtTime(0, when);
+      gain.gain.linearRampToValueAtTime(peak, when + 0.005);
+      gain.gain.setTargetAtTime(0, when + 0.005, ring);
+      gain.gain.setTargetAtTime(0, damped, 0.08);
+      const { live } = run;
+      for (const cents of strings) {
+        const string = audio.createOscillator();
+        string.setPeriodicWave(wave);
+        string.frequency.value = frequency;
+        string.detune.value = cents;
+        string.connect(filter);
+        string.start(when);
+        string.stop(damped + 0.7);
+        live.add(string);
+        string.onended = () => live.delete(string);
+      }
+      filter.connect(gain);
+      if (event.pan && audio.createStereoPanner) {
+        const side = audio.createStereoPanner();
+        side.pan.value = event.pan;
+        gain.connect(side);
+        side.connect(run.out);
+      } else gain.connect(run.out);
+    };
+
+    const position = () => (run ? run.from + (audio.currentTime - run.t0) * 1000 : S.play.at);
+
+    /** Strike what falls due in the next second or so, and stop at the end. */
+    const pump = () => {
+      if (!run) return;
+      const now = position();
+      if (now >= run.until) {
+        stop(false);
+        return;
+      }
+      while (run.next < run.events.length && run.events[run.next].ms < now + 1200) {
+        const event = run.events[run.next++];
+        const when = run.t0 + (event.ms - run.from) / 1000;
+        if (when < audio.currentTime - 0.03) continue;
+        strike(event, Math.max(when, audio.currentTime), run.t0 + (Math.min(event.end, run.until) - run.from) / 1000);
+      }
+    };
+
+    /** What is still to be struck, from the run as it stands and in what is to be heard. */
+    const load = () => {
+      const now = Math.max(position(), run.from);
+      run.events = eventsOf(S.result, S.play.source, run.only).filter((event) => event.ms >= now - 20 && event.ms < run.until);
+      run.next = 0;
+    };
+
+    const voice = () => {
+      const out = audio.createGain();
+      out.gain.value = 0.9;
+      out.connect(bus);
+      out.connect(room);
+      return out;
+    };
+
+    /** Damp everything that sounds. */
+    const hush = () => {
+      const now = audio.currentTime;
+      const old = run.out;
+      old.gain.setTargetAtTime(0, now, 0.025);
+      for (const string of run.live) {
+        try {
+          string.stop(now + 0.2);
+        } catch {
+          // It had stopped by itself.
+        }
+      }
+      setTimeout(() => old.disconnect(), 500);
+      run.live = new Set();
+    };
+
+    const reflect = () => {
+      const on = Boolean(run);
+      S.play.on = on;
+      const button = $('#playBtn');
+      button.setAttribute('aria-pressed', String(on));
+      button.setAttribute('aria-label', on ? 'Pause' : 'Play');
+      $('#playIcon').setAttribute('d', on ? 'M2 1.5h3v9H2zM7 1.5h3v9H7z' : 'M2.5 1v10l8.5-5z');
+      draw();
+    };
+
+    /**
+     * The stretch of the clock to play. What is in hand is played by itself, from its first note
+     * to its last: a passage whole, a set of notes without the others. With nothing in hand the
+     * roll is played from the line, or from the left edge where the line is out of sight.
+     */
+    const stretch = () => {
+      const result = S.result;
+      const scope = S.pen.open || S.selection.size ? scopeNow() : S.openAnn ? S.openAnn.scope : null;
+      if (scope && scope.kind !== 'piece') {
+        const ids = scope.kind === 'span' ? idsOf(scope) : scope.ids;
+        const sounds = ids
+          .map((id) => result.byId.get(id))
+          .filter(Boolean)
+          .flatMap((note) => (S.play.source === 'played' ? [note] : S.play.source === 'mpm' ? [note.mpm] : [note, note.mpm]));
+        if (sounds.length) {
+          return { from: Math.min(...sounds.map((sound) => sound.ms)) - 40, until: Math.max(...sounds.map((sound) => sound.msEnd)) + 500, only: new Set(ids), scoped: true };
+        }
+      }
+      const seen = X(S.play.at) >= G.gutter - 1 && X(S.play.at) < G.width;
+      const from = seen ? S.play.at : Math.max(0, msOf(G.gutter));
+      return { from: from < result.total - 200 ? from : 0, until: result.total + 600, only: null, scoped: false };
+    };
+
+    const halt = () => {
+      if (!run) return;
+      clearInterval(timer);
+      hush();
+      run = null;
+    };
+
+    const start = (over) => {
+      if (!S.result) return;
+      if (!context()) {
+        notice('This browser cannot play sound.');
+        return;
+      }
+      halt();
+      if (audio.state === 'suspended') audio.resume();
+      run = { ...(over || stretch()), t0: audio.currentTime + 0.08, out: voice(), live: new Set(), events: [], next: 0 };
+      load();
+      timer = setInterval(pump, 50);
+      pump();
+      reflect();
+    };
+
+    /** Stop. Stopped by hand in the middle of the roll, the line stays where the playing was. */
+    const stop = (byHand) => {
+      if (!run) return;
+      const at = position();
+      const { scoped } = run;
+      halt();
+      if (!scoped) S.play.at = byHand ? clamp(at, 0, S.result.total) : 0;
+      reflect();
+    };
+
+    /** Put the line somewhere; the playing, if there is any, goes on from there. */
+    const seek = (ms) => {
+      if (!S.result) return;
+      S.play.at = clamp(ms, 0, S.result.total);
+      if (run) start({ from: S.play.at, until: S.result.total + 600, only: null, scoped: false });
+      else draw();
+    };
+
+    /** The run has changed under the playing, or what is to be heard has: go on with what is now there. */
+    const refresh = () => {
+      if (!run) return;
+      hush();
+      run.out = voice();
+      load();
+      pump();
+    };
+
+    const hear = (source) => {
+      S.play.source = source;
+      for (const button of document.querySelectorAll('#hear button')) button.setAttribute('aria-pressed', String(button.dataset.src === source));
+      // A passage is heard again from its start; the roll goes on where it is.
+      if (run && run.scoped) start();
+      else refresh();
+    };
+
+    return {
+      start,
+      stop,
+      seek,
+      refresh,
+      hear,
+      toggle: () => (run ? stop(true) : start()),
+      /** Where the playing is on the roll's clock, as it is heard. */
+      now: () => position() - (run ? (audio.outputLatency || audio.baseLatency || 0) * 1000 : 0),
+      get playing() {
+        return Boolean(run);
+      },
+    };
+  })();
+
+  $('#playBtn').addEventListener('click', () => Player.toggle());
+  for (const button of document.querySelectorAll('#hear button')) button.addEventListener('click', () => Player.hear(button.dataset.src));
 
   const signed = (value, unit, digits = 0) => {
     const number = Number(value.toFixed(digits));
@@ -1341,23 +1749,60 @@
   // Meters and the line under the roll
   // ------------------------------------------------------------------------------------------
 
-  const UNITS = { pulse: 'ms', chords: 'ms', loud: '', length: 'ms' };
+  /** A distance as it is shown: a time in milliseconds, or in seconds once it is one; a loudness in velocities. */
+  const amountOf = (key, value) => {
+    if (key === 'loud') return value.toFixed(1);
+    if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)} s`;
+    return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ms`;
+  };
+  const METERS = {
+    pulse: ['Timing', 'How early or late a chord sounds against where it was played. Remarks about tempo and rubato bring it down.'],
+    chords: ['In chords', 'How far the notes of one chord were played from each other, beyond what the MPM has: rolled chords, hands not together.'],
+    loud: ['Loudness', 'How much louder or softer a note was played, in key velocity (the MIDI scale, 1 to 127). Dynamics and accents.'],
+    length: ['Length', 'How much longer or shorter a note was held. Articulation: legato, detached, held over.'],
+  };
+
+  const renderLegend = () => {
+    const now = S.result && S.result.left;
+    const was = S.base && S.base.left;
+    $('#legend').replaceChildren(
+      el('h2', { text: 'How far the notes still are from their shadows' }),
+      el('p', {
+        text: 'A note is what the MPM so far renders, its shadow the same note as it was played. Each number is the distance between the two, averaged over all the notes. They fall as you describe more; at zero the MPM plays what the pianist played. The bar under a number is how much is left of what there was with nothing described.',
+      }),
+      el(
+        'dl',
+        {},
+        Object.entries(METERS).flatMap(([key, [name, text]]) => [
+          el('dt', { text: name }),
+          el('dd', {}, text, now && was && el('span', { class: 'now', text: `${amountOf(key, now[key])} now · ${amountOf(key, was[key])} with nothing described` })),
+        ]),
+      ),
+    );
+  };
+  const setLegend = (open) => {
+    $('#legend').hidden = !open;
+    $('#meters').setAttribute('aria-expanded', String(open));
+    if (open) renderLegend();
+  };
+  $('#meters').addEventListener('click', () => setLegend($('#legend').hidden));
+
   const renderMeters = () => {
     const now = S.result ? (S.result.left = S.result.left || leftIn(S.result)) : null;
     const was = S.base ? (S.base.left = S.base.left || leftIn(S.base)) : null;
     for (const meter of document.querySelectorAll('.meter')) {
       const key = meter.dataset.k;
-      const value = meter.querySelector('.lab span:last-child');
+      const value = meter.querySelector('.val');
       const fill = meter.querySelector('.fill');
       if (!now || !was || !Number.isFinite(now[key])) {
         value.textContent = '–';
         continue;
       }
-      const amount = now[key] >= 100 ? String(Math.round(now[key])) : now[key].toFixed(1);
-      value.textContent = `${amount}${UNITS[key] ? ` ${UNITS[key]}` : ''}`;
+      value.textContent = amountOf(key, now[key]);
       fill.style.width = `${clamp((now[key] / Math.max(was[key], 1e-9)) * 100, 2, 100)}%`;
       fill.style.opacity = S.fitting ? '0.45' : '1';
     }
+    if (!$('#legend').hidden) renderLegend();
   };
 
   let noticeTimer = 0;
@@ -1397,12 +1842,12 @@
       return;
     }
     if (!S.result) return;
-    const key = 'The notes are what the MPM so far renders; each shadow is that note as it was played. ';
+    const key = 'Notes: what the MPM so far renders. Shadows: what was played. ';
     if (S.anns.length === 0) {
       hint.append('Nothing is described yet: one steady tempo, one level. ', key, 'Describe what you see until the notes cover their shadows: drag to bracket a passage, click a note, or just type.');
       return;
     }
-    hint.append(key, S.result.assumed.tempo.length ? 'Dashed bar lines: the tempo there is only assumed. ' : '', 'Click a remark to see what it became.');
+    hint.append(key, S.result.assumed.tempo.length ? 'Dashed bar lines: tempo only assumed. ' : '', 'Click a remark to see what it became. Space plays.');
   };
 
   // ------------------------------------------------------------------------------------------
@@ -1713,6 +2158,7 @@
   };
   $('#menuBtn').addEventListener('click', () => {
     const open = $('#menu').hidden;
+    setLegend(false);
     $('#menu').hidden = !open;
     $('#menuBtn').setAttribute('aria-expanded', String(open));
     $('#refState').textContent = S.reference ? 'on' : 'off';
@@ -2142,6 +2588,16 @@
       refit();
     });
   });
+  // Where the frame the page is shown in allows it, the roll can have the whole screen.
+  if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+    $('#fullBtn').hidden = false;
+    $('#fullBtn').addEventListener('click', () => {
+      closeMenu();
+      const asked = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+      Promise.resolve(asked).catch(() => notice('The roll cannot have the whole screen here.'));
+    });
+    document.addEventListener('fullscreenchange', () => ($('#fullState').textContent = document.fullscreenElement ? 'on' : 'off'));
+  }
   const VIEW = 'describeit.view';
   try {
     const kept = JSON.parse(localStorage.getItem(VIEW) || 'null');
@@ -2175,13 +2631,21 @@
     const typing = target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable);
     if (event.key === 'Escape') {
       if (!$('#menu').hidden) closeMenu();
+      else if (!$('#legend').hidden) setLegend(false);
       else if (S.openAnn) closePop();
       else if (S.pen.open) closePen();
       else if (!$('#drawer').hidden) setDrawer(false);
       return;
     }
-    if (typing || event.metaKey || event.ctrlKey || event.altKey || S.reference || !S.result) return;
+    if (typing || event.metaKey || event.ctrlKey || event.altKey || !S.result) return;
     if (target && target.tagName === 'BUTTON' && (event.key === ' ' || event.key === 'Enter')) return;
+    // Space plays and stops, unless a remark is being written, where it is a space.
+    if (event.key === ' ' && !S.pen.open) {
+      event.preventDefault();
+      Player.toggle();
+      return;
+    }
+    if (S.reference) return;
     // Anything typed with nothing else in hand is the start of a remark.
     if (event.key.length === 1 && (event.key !== ' ' || S.pen.open)) {
       event.preventDefault();
@@ -2194,9 +2658,14 @@
       }
     }
   });
+  // A button clicked with the mouse hands the keys back to the roll, so that Space still plays.
+  document.addEventListener('click', (event) => {
+    if (event.detail > 0 && event.target.closest('.top button, .foot button, .menu button')) (S.pen.open ? penText : canvas).focus({ preventScroll: true });
+  });
   document.addEventListener('pointerdown', (event) => {
     if (!$('#menu').hidden && !event.target.closest('#menu') && !event.target.closest('#menuBtn')) closeMenu();
-    if (S.openAnn && !event.target.closest('#pop') && !event.target.closest('#roll') && !event.target.closest('#drawer') && !event.target.closest('#mpmBtn')) closePop();
+    if (!$('#legend').hidden && !event.target.closest('#legend') && !event.target.closest('#meters')) setLegend(false);
+    if (S.openAnn && !event.target.closest('#pop') && !event.target.closest('#roll') && !event.target.closest('#drawer') && !event.target.closest('#mpmBtn') && !event.target.closest('.foot')) closePop();
   });
 
   // ------------------------------------------------------------------------------------------
@@ -2286,7 +2755,7 @@
   };
 
   // For a test that drives the page: handed the state and the few verbs a reader has.
-  if (typeof window.__describeItTest === 'function') window.__describeItTest({ S, G, select, describe, refit, Engine, openPop, buildPrompt });
+  if (typeof window.__describeItTest === 'function') window.__describeItTest({ S, G, select, describe, refit, Engine, openPop, buildPrompt, Player });
 
   start();
 })();
