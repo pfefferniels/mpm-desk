@@ -2,7 +2,7 @@
 
 DescribeIt is an editor for reconstructing a recorded piano performance as Music Performance Markup (MPM). Its reader is a musician or musicologist who looks at a piano roll of the recording, selects a note, a passage or nothing at all (the whole piece), and says in their own words what they notice: "arpeggio throughout", "steady tempo on half bars", "this note was presumably played quieter", "increasing inégalité", "pull towards the downbeat". The reader does not know MPM and is never asked to.
 
-You turn each remark into **calls**: steps of the MPM Desk's fitting chain, which fit MPM instructions to the recording. After every remark the whole chain runs again and the roll is redrawn as *what the MPM does not yet explain*: a rolled chord that has become a `<temporalSpread>` is drawn as one upright onset, a passage whose tempo has been described falls onto the score's grid, a note whose loudness is accounted for shrinks to one row. A good translation is one after which the thing the reader named has gone from the roll, and nothing else has.
+You turn each remark into **calls**: steps of the MPM Desk's fitting chain, which fit MPM instructions to the recording. The roll shows the recording on its own clock, where it stays, and over it, in pencil, what the MPM as it stands renders: where it has each note begin, how loud and how long, and where it has the bar lines. After every remark the whole chain runs again and the rendering is drawn anew. Where a rolled chord has become a `<temporalSpread>` the rendering spreads out to meet the playing; where a passage's tempo has been described its bar lines and notes fall where they were played; where a loudness is accounted for the rendering stands as tall as the note. A good translation is one after which the rendering has come onto the playing in the thing the reader named, and nothing else has moved.
 
 This section is about DescribeIt and decides what you emit. The two references after it give every transformer of the chain with its exact options, and what every MPM instruction means to the renderer. **Where this section and a reference differ, this section holds**: DescribeIt's engine wraps the chain, and the references describe the chain bare.
 
@@ -91,10 +91,12 @@ Dependencies you must see to yourself:
 ## What is left, and the tool that tells you
 
 Four measures, each a root mean square over the notes concerned, are given for the passage before your calls and returned by `try_calls` before and after:
-- `pulse_ms`: how far the chords (each at the mean of its notes) stand from the score's grid under the tempo as it stands. Tempo and rubato bring it down.
-- `spread_ms`: how far the notes of a chord stand from that chord's mean onset. Rolls bring it down.
+- `pulse_ms`: how far the chords (each at the mean of its notes) were played from where the MPM renders them. Tempo and rubato bring it down.
+- `spread_ms`: how far the notes of a chord were played from one another, beyond how the MPM renders them. Rolls bring it down, to the few ms by which a fitted spread misses each note.
 - `velocity`: recorded velocity less what the MPM sounds the note at. Dynamics, accentuation, velocity articulations and gradients bring it down.
 - `length_ms`: sounded length less the length the MPM gives the note. Duration articulations bring it down; a tempo changes it as a side effect, in either direction.
+
+Each is the recording less the MPM's rendering. The rendering is the renderer's own, laid against the recording wherever a tempo begins on a chord, so what one stretch gets wrong is not carried into the next. A reader who sees the rendering "behind" or "ahead of" the playing somewhere is looking at `left_late_ms` there: positive where the playing comes later than the MPM has it.
 
 `try_calls({calls})` runs the chain with your calls added to everything already described, keeps nothing, and returns per call either `error` or `wrote` (how many MPM elements of which kind), `written` (the first of those elements as they stand in the MPM, attributes and all, followed by the definitions they name: this is where a fitted rubato's `intensity`, a dynamics curve's ends, an articulation's `relativeDuration` or `relativeVelocity`, an ornament's frame can be read), `fitted` (for `FitTempo` and `FitDynamics`) and `fitted_to_notes`; then the four measures for the passage and for the piece.
 

@@ -8,13 +8,15 @@ ones beside it. The reader writes on the roll as on paper: a stroke along it bra
 a stroke down it boxes some of its notes, a click picks a note, and with nothing in hand what is
 typed is about the whole piece. An expert, Claude Opus 5.5, reads each remark ("arpeggio
 throughout", "steady tempo on half bars", "this note was presumably played quieter", "pull
-towards the downbeat") and turns it into calls to the fitting chain. The chain runs again, and
-the roll is redrawn as **what the MPM as it stands leaves unexplained**: a rolled chord that has
-become a `<temporalSpread>` stands as one onset, a passage whose tempo has been described falls
-onto the score's grid, a note whose loudness is accounted for is one row tall. Where a remark
-took something out of a note itself, the stagger of a roll or the give of a rubato, the note as
-it was played stays behind as a shadow. A tempo leaves none: it is the ruler the notes are laid
-against, and moves a note and its shadow alike.
+towards the downbeat") and turns it into calls to the fitting chain.
+
+The roll is on the recording's clock, and the recording stays where it is. Over it, in pencil, is
+what the MPM as it stands renders: a stroke where it has each note begin, as tall as it has it
+loud, a line as long as it has it last, and the bar lines where its tempo puts them. Red marks
+how far a rendered onset is from the played one. After every remark the chain runs again and the
+rendering goes to its new place, so that what is left on the roll is where the encoding and the
+playing run apart: a chord rolled by the pianist and not yet by the MPM, a bar whose tempo is
+right at both ends and wrong between them.
 
 It is published as a Claude artifact, where the page asks Claude through the viewer's own
 account. Opened anywhere else it draws and fits, and a remark's calls can be written by hand.
@@ -44,18 +46,20 @@ a remark made today may be about a place somebody spoke of yesterday.
   into steps, and makes the `InsertTempo` call a drawn line would have made. **`FitDynamics`**
   does the same for a level, **`FitSpread`** rolls the chords of a passage, and **`Repeat`**
   writes one call per step of a span.
-- **Assumptions.** A tick position exists only under a `<tempo>` and a velocity residual only
-  against a `<dynamics>`, so where nothing has been said the engine assumes a steady tempo
-  joining what is described on either side, and one level. They are reported apart, and the page
-  draws their bar lines dashed.
+- **Assumptions.** A rendering needs a `<tempo>` and a `<dynamics>` everywhere, so where nothing
+  has been said the engine assumes a steady tempo joining what is described on either side, and
+  one level. They are reported apart, and the page draws their bar lines dashed.
+- **The rendering, against the recording.** The renderer's own performance of the MPM, laid on
+  the recording's clock the way the chain places a tempo: anew on the chord each tempo begins on,
+  so that what one stretch gets wrong is not carried into the next.
 - **A later remark owns its place.** A tempo or dynamics span is taken out of every earlier one,
   which is refitted over what it has left; a roll on one chord goes before a roll over all.
 - **What a desk always writes** is filled in, an ornament gets its definition unasked, and a call
   that cannot run is left out and reported while the rest still run.
 
 `tests/describe-it/engine.test.ts` holds it to that, over the published transcription: with
-nothing described the roll is the recording, and with the published reconstruction replayed
-through it what is left of the timing falls by more than fifty times.
+nothing described the rendering is one tempo and one level, and with the published
+reconstruction replayed through it the rendering stands fifty times nearer the playing.
 
 ## What it does not do yet
 

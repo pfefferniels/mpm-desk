@@ -46,7 +46,8 @@
     selection: new Set(),
     selKind: 'none', // none (the whole piece) | notes | span | box
     pen: { open: false, editing: null },
-    view: { ppt: 0.045, shadows: true, pencil: false },
+    level: 64, // the velocity drawn one row tall
+    view: { ppt: 0.03, shadows: true, pencil: false },
     hoverAnn: null,
     openAnn: null,
     reference: false,
@@ -241,7 +242,7 @@
       const result = await Engine.run(calls);
       if (token !== fitToken) return;
       if (S.result && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        S.tween = { from: new Map(S.result.notes.map((note) => [note.id, { x: note.x, w: note.w, loud: note.loud }])), start: performance.now(), t: 0 };
+        S.tween = { from: new Map(S.result.notes.map((note) => [note.id, note.mpm])), beats: new Map(S.result.beats.map((beat) => [beat.date, beat.ms])), start: performance.now(), t: 0 };
       }
       S.result = result;
       index(result);
@@ -258,37 +259,56 @@
   // Geometry of a run, and what it leaves
   // ------------------------------------------------------------------------------------------
 
-  /** Where a date of the score is on the roll: through the chords, as they now stand. */
+  /** A value read off a line through points, carried on past either end at the slope it has there. */
+  const along = (xs, ys, x) => {
+    const last = xs.length - 1;
+    if (last < 0) return x;
+    if (last === 0) return ys[0];
+    let lo = 0;
+    let hi = last;
+    if (x <= xs[0]) hi = 1;
+    else if (x >= xs[last]) lo = last - 1;
+    else {
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (xs[mid] <= x) lo = mid;
+        else hi = mid;
+      }
+    }
+    return ys[lo] + ((x - xs[lo]) / (xs[hi] - xs[lo])) * (ys[hi] - ys[lo]);
+  };
+
+  /**
+   * The two ways from a date of the score to the roll's clock: when it was played, through the
+   * chords of the recording, and when the tempo as it stands has it, through the beats the
+   * engine placed.
+   */
   const index = (result) => {
     const byDate = new Map();
     for (const note of result.notes) {
       const list = byDate.get(note.date);
-      if (list) list.push(note.x);
-      else byDate.set(note.date, [note.x]);
+      if (list) list.push(note.ms);
+      else byDate.set(note.date, [note.ms]);
     }
     const dates = [...byDate.keys()].sort((a, b) => a - b);
     result.dates = dates;
-    result.xs = dates.map((date) => {
+    result.played = dates.map((date) => {
       const list = byDate.get(date).sort((a, b) => a - b);
       return list[list.length >> 1];
     });
+    result.beatDates = result.beats.map((beat) => beat.date);
+    result.beatMs = result.beats.map((beat) => beat.ms);
+    result.total = result.notes.reduce((max, note) => Math.max(max, note.msEnd), result.beatMs[result.beatMs.length - 1] || 0);
     result.byId = new Map(result.notes.map((note) => [note.id, note]));
   };
 
-  const xAt = (result, date) => {
-    const { dates, xs } = result;
-    if (!dates || dates.length === 0) return date;
-    if (date <= dates[0]) return xs[0] + (date - dates[0]);
-    const last = dates.length - 1;
-    if (date >= dates[last]) return xs[last] + (date - dates[last]);
-    let lo = 0;
-    let hi = last;
-    while (hi - lo > 1) {
-      const mid = (lo + hi) >> 1;
-      if (dates[mid] <= date) lo = mid;
-      else hi = mid;
-    }
-    return xs[lo] + ((date - dates[lo]) / (dates[hi] - dates[lo])) * (xs[hi] - xs[lo]);
+  /** When a date of the score was played. */
+  const playedAt = (result, date) => along(result.dates, result.played, date);
+  /** When the tempo as it stands has a date of the score: on its way there, for a moment after a run. */
+  const encodedAt = (result, date) => {
+    const now = along(result.beatDates, result.beatMs, date);
+    const was = S.tween ? S.tween.beats.get(date) : undefined;
+    return was === undefined ? now : was + (now - was) * S.tween.t;
   };
 
   const assumedAt = (result, date) => result.assumed.tempo.some((s) => date >= s.from && date < s.to);
@@ -352,7 +372,7 @@
     palette = {
       roll: get('--roll'), band: get('--band'), grid: get('--grid'), ink: get('--ink'), ink2: get('--ink-2'), ink3: get('--ink-3'),
       rh: get('--rh'), lh: get('--lh'), grace: get('--grace'), ghost: get('--ghost'), pencil: get('--pencil'), raised: get('--raised'), line: get('--line'),
-      accent: get('--accent'), bad: get('--bad'), tones: Array.from({ length: TONES }, (_, i) => get(`--c${i + 1}`)),
+      accent: get('--accent'), bad: get('--bad'), apart: get('--apart'), tones: Array.from({ length: TONES }, (_, i) => get(`--c${i + 1}`)),
       font: get('--font') || 'sans-serif', mono: get('--mono') || 'monospace', hand: get('--hand') || 'cursive',
     };
   };
@@ -373,27 +393,33 @@
 
   const layout = () => {
     if (!S.result) return;
-    spacer.style.width = `${Math.ceil(G.gutter + S.result.end * S.view.ppt + 60)}px`;
+    spacer.style.width = `${Math.ceil(G.gutter + S.result.total * S.view.ppt + 60)}px`;
     G.top = G.lanes * LANE + RULER + 6;
     G.rowH = Math.max(3, (G.height - G.top - G.bottom) / (G.hi - G.lo + 1));
   };
 
-  const X = (tick) => G.gutter + tick * S.view.ppt - scroller.scrollLeft;
-  const tickOf = (px) => (px - G.gutter + scroller.scrollLeft) / S.view.ppt;
+  // The roll is laid out on the recording's clock: `ppt` is pixels to the millisecond.
+  const X = (ms) => G.gutter + ms * S.view.ppt - scroller.scrollLeft;
+  const msOf = (px) => (px - G.gutter + scroller.scrollLeft) / S.view.ppt;
   const Y = (pitch) => G.top + (G.hi - pitch + 0.5) * G.rowH;
-  /** How tall a note is drawn: one row where nothing of its loudness is left, doubling every `k`. */
-  const tall = (loud) => G.rowH * Math.min(7, Math.max(0.34, 2 ** (loud / G.k)));
-  /**
-   * Where a note is drawn: where the run has it, or, for a moment after a run, on its way there
-   * from where the run before had it. What a remark did is seen as the notes going to it.
-   */
+  /** How tall a velocity is drawn: one row at the level, doubling every `k` above it. */
+  const tall = (velocity) => G.rowH * Math.min(7, Math.max(0.34, 2 ** ((velocity - S.level) / G.k)));
+  /** A note as it was played. It stays where it is: the recording is what everything is held against. */
   const rectOf = (note) => {
+    const h = tall(note.velocity);
+    return { x: X(note.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (note.msEnd - note.ms) * S.view.ppt), h };
+  };
+  /**
+   * The same note as the MPM as it stands sounds it: where the run has it, or, for a moment
+   * after a run, on its way there from where the run before had it. What a remark did is seen
+   * as the encoding going to the playing, or failing to.
+   */
+  const encodedOf = (note) => {
     const from = S.tween ? S.tween.from.get(note.id) : null;
     const t = S.tween ? S.tween.t : 1;
-    const x = from ? from.x + (note.x - from.x) * t : note.x;
-    const w = from ? from.w + (note.w - from.w) * t : note.w;
-    const h = tall(from ? from.loud + (note.loud - from.loud) * t : note.loud);
-    return { x: X(x), y: Y(note.pitch) - h / 2, w: Math.max(2, w * S.view.ppt), h };
+    const mix = (key) => (from ? from[key] + (note.mpm[key] - from[key]) * t : note.mpm[key]);
+    const h = tall(mix('velocity'));
+    return { x: X(mix('ms')), y: Y(note.pitch) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h };
   };
   /** The box round a set of notes, where they now stand. */
   const boxOf = (ids) => {
@@ -544,8 +570,8 @@
     const placed = [];
     for (const ann of S.anns) {
       if (ann.scope.kind !== 'span' || S.pen.editing === ann) continue;
-      const a = xAt(S.result, ann.scope.from);
-      const b = xAt(S.result, ann.scope.to);
+      const a = playedAt(S.result, ann.scope.from);
+      const b = playedAt(S.result, ann.scope.to);
       const reach = Math.max(b, a + (widthOfLabel(ann.text) + 40) / S.view.ppt);
       let at = rows.findIndex((endsAt) => endsAt <= a - 2 / S.view.ppt);
       if (at === -1) {
@@ -614,8 +640,8 @@
 
     // The stretch a bracket being written is over, tinted down the whole roll.
     if (draft && draft.kind === 'span') {
-      const a = Math.max(G.gutter, X(xAt(result, draft.from)));
-      const b = Math.min(width, X(xAt(result, draft.to)));
+      const a = Math.max(G.gutter, X(playedAt(result, draft.from)));
+      const b = Math.min(width, X(playedAt(result, draft.to)));
       if (b > a) {
         ctx.fillStyle = palette.pencil;
         ctx.globalAlpha = 0.05;
@@ -624,18 +650,20 @@
       }
     }
 
-    // The bars. Where a tempo has been described the grid is the score's; where it is only
-    // assumed, a bar line stands where that bar was played.
+    // The bars, where the tempo as it stands has them on the recording's clock: the encoding's
+    // own ruler, which a remark about the tempo moves under the notes. Dashed where the tempo is
+    // only assumed.
     const bars = [];
     for (const bar of S.bars) {
       const assumed = assumedAt(result, bar.from);
-      const x = X(assumed ? xAt(result, bar.from) : bar.from);
+      const x = X(encodedAt(result, bar.from));
       bars.push({ bar, x, assumed });
-      if (!assumed && S.view.ppt * bar.beat > 9) {
+      const beatPx = ((X(encodedAt(result, bar.to)) - x) * bar.beat) / (bar.to - bar.from);
+      if (!assumed && beatPx > 9) {
         ctx.strokeStyle = palette.grid;
         ctx.globalAlpha = 0.9;
         for (let beat = bar.from + bar.beat; beat < bar.to - 1; beat += bar.beat) {
-          const bx = Math.round(X(beat)) + 0.5;
+          const bx = Math.round(X(encodedAt(result, beat))) + 0.5;
           if (bx < G.gutter || bx > width) continue;
           ctx.beginPath();
           ctx.moveTo(bx, top);
@@ -656,41 +684,30 @@
       ctx.globalAlpha = 1;
     }
 
-    // Notes. Shadows first: where each stood before anything was explained.
+    // The notes, as they were played.
     const lit = S.hoverAnn || S.openAnn;
     const evidence = lit && lit.report && lit.report.evidence.size ? lit.report.evidence : lit ? new Set(idsOf(lit.scope)) : null;
     // While a remark is being written about some notes, the others stand back.
     const chosen = !lit && draft && draft.kind !== 'piece' ? S.selection : null;
     const dimmed = (id) => (evidence && evidence.size ? !evidence.has(id) : chosen ? !chosen.has(id) : false);
-    // A shadow is the note as it was played, laid against the roll as it now stands. Describing
-    // a tempo moves the ruler, and a note and its shadow with it; they part only where a remark
-    // took something out of the note itself: the stagger of a roll, the give of a rubato, a
-    // loudness accounted for, a doubted value corrected.
-    if (S.view.shadows) {
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = palette.ghost;
-      ctx.fillStyle = palette.ghost;
-      ctx.setLineDash([2, 2]);
-      for (const note of result.notes) {
-        const was = note.played;
-        if (!was) continue;
-        const x0 = X(was.x);
-        const w0 = Math.max(2, was.w * S.view.ppt);
-        if (x0 + w0 < G.gutter || x0 > width) continue;
-        const h0 = tall(was.loud);
-        const now = rectOf(note);
-        if (Math.abs(x0 - now.x) < 1.5 && Math.abs(h0 - now.h) < 1 && Math.abs(w0 - now.w) < 2) continue;
-        const y = Y(note.pitch);
-        ctx.globalAlpha = dimmed(note.id) ? 0.04 : 0.09;
-        rounded(x0, y - h0 / 2, w0, h0, 2);
-        ctx.fill();
-        ctx.globalAlpha = dimmed(note.id) ? 0.14 : 0.45;
-        rounded(x0 + 0.5, y - h0 / 2 + 0.5, w0 - 1, h0 - 1, 2);
-        ctx.stroke();
-      }
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
+    // A note the reader has corrected keeps the roll's own value behind it, dashed.
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = palette.ghost;
+    ctx.fillStyle = palette.ghost;
+    ctx.setLineDash([2, 2]);
+    for (const note of result.notes) {
+      if (!note.arrived) continue;
+      const was = rectOf({ ...note, ...note.arrived });
+      if (was.x + was.w < G.gutter || was.x > width) continue;
+      ctx.globalAlpha = dimmed(note.id) ? 0.04 : 0.1;
+      rounded(was.x, was.y, was.w, was.h, 2);
+      ctx.fill();
+      ctx.globalAlpha = dimmed(note.id) ? 0.14 : 0.5;
+      rounded(was.x + 0.5, was.y + 0.5, was.w - 1, was.h - 1, 2);
+      ctx.stroke();
     }
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
 
     // Louder notes underneath, so that a soft one over a loud one can still be seen and picked.
     for (const note of [...result.notes].sort((a, b) => b.loud - a.loud)) {
@@ -708,30 +725,60 @@
     }
     ctx.globalAlpha = 1;
 
-    // Where a note was struck, as a stroke over it: a shadow that begins under its own note
-    // would otherwise show only its tail, and the onset is what a roll or a rubato moved.
+    // Over each note, what the MPM as it stands makes of it, in pencil: a stroke where it has the
+    // note begin, as tall as it has it loud, and a line as long as it has it last. Where the
+    // encoding has a note as it was played there is nothing to draw, so what is on the roll is
+    // where the two run apart; and the further apart, the fainter, a rendering half a bar from
+    // its note being no use in finding it.
     if (S.view.shadows) {
-      ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = palette.pencil;
       for (const note of result.notes) {
-        if (!note.played) continue;
-        const x0 = Math.round(X(note.played.x)) + 0.5;
-        if (x0 < G.gutter || x0 > width) continue;
         const now = rectOf(note);
-        if (Math.abs(x0 - now.x) < 2) continue;
-        const h0 = tall(note.played.loud);
+        const enc = encodedOf(note);
+        if (Math.max(now.x + now.w, enc.x + enc.w) < G.gutter || Math.min(now.x, enc.x) > width) continue;
+        const dx = Math.abs(enc.x - now.x);
+        const dh = Math.abs(enc.h - now.h);
+        const dw = Math.abs(enc.x + enc.w - (now.x + now.w));
+        if (dx < 1.5 && dh < 1 && dw < 2.5) continue;
+        const near = clamp(1 - dx / 240, 0.22, 1) * (dimmed(note.id) ? 0.3 : 1);
         const y = Y(note.pitch);
-        ctx.globalAlpha = dimmed(note.id) ? 0.15 : 0.6;
-        ctx.beginPath();
-        ctx.moveTo(x0, y - h0 / 2);
-        ctx.lineTo(x0, y + h0 / 2);
-        ctx.stroke();
+        const x0 = Math.round(enc.x) + 0.5;
+        if (dx >= 1.5) {
+          // How far apart the two begin, in red: the thing to be corrected.
+          ctx.strokeStyle = palette.apart;
+          ctx.globalAlpha = 0.85 * near;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(now.x, Math.round(y) + 0.5);
+          ctx.lineTo(enc.x, Math.round(y) + 0.5);
+          ctx.stroke();
+          ctx.strokeStyle = palette.pencil;
+        }
+        if (dx >= 1.5 || dw >= 2.5) {
+          ctx.globalAlpha = 0.4 * near;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x0, Math.round(y) + 0.5);
+          ctx.lineTo(enc.x + enc.w, Math.round(y) + 0.5);
+          ctx.moveTo(Math.round(enc.x + enc.w) + 0.5, y - 2.5);
+          ctx.lineTo(Math.round(enc.x + enc.w) + 0.5, y + 2.5);
+          ctx.stroke();
+        }
+        if (dx >= 1.5 || dh >= 1) {
+          ctx.globalAlpha = 0.9 * near;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x0, y - enc.h / 2);
+          ctx.lineTo(x0, y + enc.h / 2);
+          ctx.stroke();
+        }
       }
       ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
     }
 
     for (const grace of result.graces || []) {
-      const x = X(grace.x);
+      const x = X(grace.ms);
       if (x < G.gutter - 6 || x > width) continue;
       const y = Y(grace.pitch);
       ctx.fillStyle = palette.grace;
@@ -817,7 +864,7 @@
     ctx.stroke();
 
     const rowY = (row) => 3 + row * LANE;
-    const wholeEnd = result.end + 60 / S.view.ppt;
+    const wholeEnd = result.total + 60 / S.view.ppt;
     for (let row = 0; row < lanes.wholeRows && row < G.lanes; row++) {
       ctx.globalAlpha = S.reference ? 0.3 : 0.75;
       bracket(X(0), X(wholeEnd), rowY(row) + 19, palette.ink3, false);
@@ -847,14 +894,14 @@
     const y = rowY(free);
     G.promptRow = { y, h: LANE };
     if (editing && editing.scope.kind === 'span') {
-      const a = xAt(result, editing.scope.from);
-      bracket(X(a), X(xAt(result, editing.scope.to)), y + 19, toneOf(editing), true);
+      const a = playedAt(result, editing.scope.from);
+      bracket(X(a), X(playedAt(result, editing.scope.to)), y + 19, toneOf(editing), true);
       G.penAt = { x: clamp(X(a) + 7, G.gutter + 7, width - 80), y: y - 3 };
     } else if (editing) {
       // Its own place holds the pen; nothing else is to be written meanwhile.
     } else if (draft && (draft.kind === 'piece' || draft.kind === 'span')) {
-      const a = draft.kind === 'piece' ? 0 : xAt(result, draft.from);
-      const b = draft.kind === 'piece' ? result.end + 60 / S.view.ppt : xAt(result, draft.to);
+      const a = draft.kind === 'piece' ? 0 : playedAt(result, draft.from);
+      const b = draft.kind === 'piece' ? wholeEnd : playedAt(result, draft.to);
       bracket(X(a), X(b), y + 19, palette.pencil, true);
       G.penAt = { x: clamp(X(a) + 7, G.gutter + 7, width - 80), y: y - 3 };
     } else if (drag && drag.kind === 'band' && drag.moved && drag.flat) {
@@ -889,8 +936,8 @@
     }
     if (cursor < result.end) described.push([cursor, result.end]);
     for (const [from, to] of described) {
-      const a = Math.max(G.gutter, X(from));
-      const b = Math.min(width, X(to));
+      const a = Math.max(G.gutter, X(encodedAt(result, from)));
+      const b = Math.min(width, X(encodedAt(result, to)));
       if (b <= a) continue;
       ctx.beginPath();
       ctx.moveTo(a, top - 6.5);
@@ -1276,15 +1323,15 @@
 
   const zoom = (factor, anchorPx) => {
     const anchor = anchorPx === undefined ? G.width / 2 : anchorPx;
-    const tick = tickOf(anchor);
-    S.view.ppt = clamp(S.view.ppt * factor, 0.003, 0.5);
+    const ms = msOf(anchor);
+    S.view.ppt = clamp(S.view.ppt * factor, 0.002, 0.4);
     layout();
-    scroller.scrollLeft = Math.max(0, G.gutter + tick * S.view.ppt - anchor);
+    scroller.scrollLeft = Math.max(0, G.gutter + ms * S.view.ppt - anchor);
     draw();
   };
   const fit = () => {
     if (!S.result) return;
-    S.view.ppt = Math.max(0.003, (G.width - G.gutter - 70) / S.result.end);
+    S.view.ppt = Math.max(0.002, (G.width - G.gutter - 70) / S.result.total);
     layout();
     scroller.scrollLeft = 0;
     draw();
@@ -1303,11 +1350,18 @@
       el(
         'div',
         { class: 'row' },
-        el('span', { class: 'k', text: 'left' }),
+        el('span', { class: 'k', text: 'the MPM' }),
         Math.abs(note.late) < 8 && Math.abs(note.loud) < 1.5 && Math.abs(note.longMs) < 30
-          ? 'nothing: on the grid, at the level, as long as written'
-          : `${signed(note.late, 'ms')} late, ${signed(note.loud, '', 1)} loud, ${signed(note.longMs, 'ms')} long`,
+          ? 'has it as it was played'
+          : `has it ${[
+              Math.abs(note.late) >= 8 && `${Math.round(Math.abs(note.late))} ms ${note.late > 0 ? 'too early' : 'too late'}`,
+              Math.abs(note.loud) >= 1.5 && `${Math.abs(note.loud).toFixed(1)} ${note.loud > 0 ? 'too soft' : 'too loud'}`,
+              Math.abs(note.longMs) >= 30 && `${Math.round(Math.abs(note.longMs))} ms ${note.longMs > 0 ? 'too short' : 'too long'}`,
+            ]
+              .filter(Boolean)
+              .join(', ')}`,
       ),
+      note.arrived && el('div', { class: 'row' }, el('span', { class: 'k', text: 'the roll' }), `had velocity ${note.arrived.velocity}, ${Math.round(note.arrived.msEnd - note.arrived.ms)} ms long: corrected`),
     );
     tip.hidden = false;
     const left = clamp(x + 14, G.gutter, G.width - tip.offsetWidth - 8);
@@ -1376,16 +1430,12 @@
       return;
     }
     if (!S.result) return;
+    const key = 'In pencil, where the MPM has each note; in red, how far that is from where it was played. ';
     if (S.anns.length === 0) {
-      hint.append('Drag across the roll to bracket a passage, click a note, or just start typing to speak about the whole piece.');
+      hint.append('Nothing is described yet, so the MPM is one steady tempo and one level. ', key, 'Drag across the roll to bracket a passage, click a note, or just type.');
       return;
     }
-    const gaps = S.result.assumed.tempo;
-    const all = gaps.reduce((sum, gap) => sum + (gap.to - gap.from), 0) >= S.result.end - 1;
-    const parts = [];
-    if (gaps.length) parts.push(all ? `a steady ${gaps[0].bpm.toFixed(0)} quarters a minute` : 'a steady tempo where the bar lines are dashed');
-    if (S.result.assumed.levelDates.length) parts.push(`one level (velocity ${S.result.assumed.level}) where no dynamics are described`);
-    hint.append(parts.length ? `Assumed until you say otherwise: ${parts.join(', ')}. ` : '', 'Click a remark to see what it became.');
+    hint.append(key, S.result.assumed.tempo.length ? 'Dashed bar lines: the tempo there is only assumed. ' : '', 'Click a remark to see what it became.');
   };
 
   // ------------------------------------------------------------------------------------------
@@ -1720,10 +1770,10 @@
   };
 
   const noteTable = () => {
-    const rows = ['id\thand\ttick\tbar:beat\tticks\tpitch\tname\tonset_ms\tsounds_ms\tvelocity\tleft_late_ms\tleft_loud\tleft_long_ticks'];
+    const rows = ['id\thand\ttick\tbar:beat\tticks\tpitch\tname\tonset_ms\tsounds_ms\tvelocity\tleft_late_ms\tleft_loud\tleft_long_ms'];
     for (const note of [...S.result.notes].sort((a, b) => a.date - b.date || a.pitch - b.pitch)) {
       rows.push(
-        [note.id, note.part === 1 ? 'R' : 'L', note.date, place(note.date), note.duration, note.pitch, pitchName(note), Math.round(note.ms), Math.round(note.msEnd - note.ms), note.velocity, Math.round(note.late), note.loud.toFixed(1), Math.round(note.long)].join('\t'),
+        [note.id, note.part === 1 ? 'R' : 'L', note.date, place(note.date), note.duration, note.pitch, pitchName(note), Math.round(note.ms), Math.round(note.msEnd - note.ms), note.velocity, Math.round(note.late), note.loud.toFixed(1), Math.round(note.longMs)].join('\t'),
       );
     }
     return rows.join('\n');
@@ -1785,7 +1835,7 @@
       'Hands: R is part 1 (scope 0, upper staff), L is part 2 (scope 1, lower staff). Bars 9–16 are the written-out repeat of bars 1–8 (ids ending in -rend2).',
       '',
       '## Every note, with what the chain as it stands leaves unexplained',
-      'onset_ms and sounds_ms are the recording (ms from the first note); velocity is the recording. left_late_ms is the recorded onset against the score grid under the tempo as it stands (positive: later than the grid), left_loud the recorded velocity less what the MPM sounds the note at, left_long_ticks the sounded length less the length the MPM gives it.',
+      'onset_ms and sounds_ms are the recording (ms from the first note); velocity is the recording. The three left_ columns are the recording less what the MPM as it stands renders, the rendering being laid against the recording wherever a tempo begins on a chord: left_late_ms the onset (positive: played later than the MPM has it), left_loud the velocity, left_long_ms the sounded length.',
       noteTable(),
       '',
       '## Pedal presses as recorded (ms from the first note)',
@@ -2196,14 +2246,16 @@
       index(S.base);
       S.bars = buildBars(S.base.timeSignatures, S.base.end);
       // The scale of loudness: a note in the loudest twentieth stands four rows tall.
-      const louds = S.base.notes.map((n) => Math.abs(n.loud)).sort((a, b) => a - b);
+      S.level = S.base.level;
+      const louds = S.base.notes.map((n) => Math.abs(n.velocity - S.level)).sort((a, b) => a - b);
       G.k = Math.max(2, louds[Math.floor(louds.length * 0.95)] / 2);
       S.result = S.base;
 
       const kept = restore();
       $('#loading').hidden = true;
       resize();
-      S.view.ppt = clamp((G.width - G.gutter) / (9 * 2880), 0.02, 0.06);
+      // Some three quarters of a minute across the roll: eight or nine bars of this piece.
+      S.view.ppt = clamp((G.width - G.gutter) / 45000, 0.012, 0.05);
       if (kept) {
         S.anns = kept;
         renderAll();

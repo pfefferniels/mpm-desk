@@ -1,8 +1,8 @@
 /**
- * DescribeIt's engine, over the published transcription: that the roll it draws is the recording
- * while nothing is described, that it comes down to the score as the published reconstruction is
- * replayed through it, and that what the engine adds to the chain does what a reader describing a
- * piece bit by bit needs of it.
+ * DescribeIt's engine, over the published transcription: that with nothing described the MPM's
+ * rendering is a steady tempo and one level laid against the recording, that it comes onto the
+ * playing as the published reconstruction is replayed through it, and that what the engine adds
+ * to the chain does what a reader describing a piece bit by bit needs of it.
  */
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -18,7 +18,7 @@ const call = (name: string, options: Record<string, unknown>, id = name): PlainC
 const rms = (values: number[]) =>
   Math.sqrt(values.reduce((sum, value) => sum + value * value, 0) / Math.max(1, values.length));
 
-/** How far the chords stand from the grid, and the notes of a chord from one another, in ms. */
+/** How far the chords were played from where the MPM has them, and the notes of a chord from one another, in ms. */
 const left = (result: RunResult, from = -Infinity, to = Infinity) => {
   const notes = result.notes.filter((note) => note.date >= from && note.date < to);
   const chords = Map.groupBy(notes, (note) => note.date);
@@ -61,22 +61,29 @@ beforeAll(() => {
 });
 
 describe('with nothing described', () => {
-  it('draws the recording: a steady tempo and one level are all that is assumed', () => {
+  it('renders a steady tempo and one level, laid against the recording at its two ends', () => {
     const base = run([]);
     expect(base.assumed.tempo).toHaveLength(1);
     expect(base.assumed.tempo[0]).toMatchObject({ from: 0, to: base.end });
     expect(base.assumed.levelDates).toEqual([0]);
-    // Under one tempo a tick is so many ms, so the roll is the recording to scale (as nearly as
-    // a tempo written to four decimals says it).
-    const [first, second] = base.notes;
-    expect(first && second && (second.x - first.x) / (second.ms - first.ms)).toBeCloseTo(
-      (base.assumed.tempo[0]!.bpm * 720) / 60000,
-      4,
-    );
-    // And a velocity is drawn as it was played.
-    for (const note of base.notes.slice(0, 20)) expect(note.v).toBeCloseTo(note.velocity, 6);
     expect(base.mpm).toContain('<tempo');
     expect(base.mpm).toContain('<dynamics');
+
+    // The recording runs from its first note, and the rendering begins with it.
+    const first = base.notes.reduce((a, b) => (b.ms < a.ms ? b : a));
+    expect(first.ms).toBe(0);
+    expect(first.mpm.ms).toBeCloseTo(0, 6);
+    // One tempo: every beat as long as the next, and the last chord where it was played.
+    const steps = base.beats.slice(1, -1).map((beat, i) => beat.ms - base.beats[i]!.ms);
+    expect(Math.max(...steps) - Math.min(...steps)).toBeLessThan(1e-6);
+    const lastDate = Math.max(...base.notes.map((note) => note.date));
+    const last = base.notes.filter((note) => note.date === lastDate);
+    expect(Math.min(...last.map((note) => Math.abs(note.late)))).toBeLessThan(1);
+    // In between the two run apart, which is what there is to describe.
+    expect(left(base).pulse).toBeGreaterThan(1000);
+    // One level: every note rendered as loud as every other.
+    expect(new Set(base.notes.map((note) => note.mpm.velocity)).size).toBe(1);
+    expect(base.notes.every((note) => note.loud === note.velocity - note.mpm.velocity)).toBe(true);
   });
 });
 
@@ -87,7 +94,7 @@ describe('the published reconstruction, replayed', () => {
     const after = left(result);
     expect(result.calls.filter((report) => report.error)).toEqual([]);
     expect(after.pulse).toBeLessThan(base.pulse / 50);
-    expect(after.spread).toBeLessThan(10);
+    expect(after.spread).toBeLessThan(base.spread / 3);
     expect(after.loud).toBeLessThan(base.loud);
     expect(result.assumed.levelDates).toEqual([]);
   });
@@ -96,7 +103,7 @@ describe('the published reconstruction, replayed', () => {
 describe('what a description adds to the chain', () => {
   it('rolls every chord, and gives the ornaments their definitions unasked', () => {
     const result = run([call('InsertTemporalSpread', {})]);
-    expect(left(result).spread).toBeLessThan(5);
+    expect(left(result).spread).toBeLessThan(left(run([])).spread / 3);
     expect(result.mpm).toContain('<ornamentDef');
     expect(result.mpm).not.toContain('neutralArpeggio');
     expect(result.calls[0]?.evidence.length).toBeGreaterThan(100);
@@ -173,35 +180,39 @@ describe('what a description adds to the chain', () => {
     expect(errors['choice']).toMatch(/one take/);
     expect(errors['unknown']).toMatch(/no transformer called Nonsense/);
     expect(errors['level']).toBeUndefined();
-    expect(result.notes.every((note) => Number.isFinite(note.x) && Number.isFinite(note.v))).toBe(true);
+    expect(result.notes.every((note) => Number.isFinite(note.mpm.ms) && Number.isFinite(note.loud))).toBe(true);
   });
 
-  it('lays a shadow with its note where a tempo is described, and apart where a roll was taken out', () => {
-    // A tempo is the ruler the notes are laid against: it moves a note and its shadow alike.
+  it('holds the recording still, and moves the rendering to it', () => {
     const base = run([]);
     const tempo = run([call('FitTempo', { from: bar(1), to: bar(9), shape: 'steady', step: BAR })]);
-    expect(base.notes.every((note) => Math.abs(note.played.x - note.x) < 1e-6)).toBe(true);
-    expect(tempo.notes.every((note) => Math.abs(note.played.x - note.x) < 1e-6)).toBe(true);
-    expect(tempo.notes.some((note, i) => Math.abs(note.x - base.notes[i]!.x) > 100)).toBe(true);
+    const before = new Map(base.notes.map((note) => [note.id, note]));
+    // What was played is where it was; what the MPM renders has moved, and nearer.
+    expect(tempo.notes.every((note) => note.ms === before.get(note.id)!.ms)).toBe(true);
+    expect(tempo.notes.some((note) => Math.abs(note.mpm.ms - before.get(note.id)!.mpm.ms) > 100)).toBe(true);
+    expect(left(tempo, bar(1), bar(9)).pulse).toBeLessThan(left(base, bar(1), bar(9)).pulse / 5);
+    // The beats of the described bars went with it: no longer one as long as the next.
+    const steps = tempo.beats.slice(1, 30).map((beat, i) => beat.ms - tempo.beats[i]!.ms);
+    expect(Math.max(...steps) - Math.min(...steps)).toBeGreaterThan(50);
 
-    // A roll is taken out of the notes: each stays behind where it was struck.
-    const rolled = run([call('InsertTemporalSpread', {})]);
-    const apart = rolled.notes.filter((note) => Math.abs(note.played.x - note.x) > 12);
-    const fitted = new Set(rolled.calls[0]!.evidence);
-    expect(apart.length).toBeGreaterThan(100);
-    expect(apart.every((note) => fitted.has(note.id))).toBe(true);
+    // A roll stays as it was played, and it is the rendering that spreads out to meet it.
+    const rolled = run([call('InsertTemporalSpread', { date: 4320 })]);
+    const chord = (result: RunResult) => result.notes.filter((note) => note.date === 4320);
+    const span = (values: number[]) => Math.max(...values) - Math.min(...values);
+    expect(span(chord(base).map((note) => note.mpm.ms))).toBeLessThan(1e-6);
+    expect(span(chord(rolled).map((note) => note.ms))).toBe(span(chord(base).map((note) => note.ms)));
+    expect(span(chord(rolled).map((note) => note.mpm.ms))).toBeCloseTo(span(chord(base).map((note) => note.ms)), 0);
   });
 
   it('corrects the recording where a reader doubts it, and writes no instruction for that', () => {
     const base = run([]);
-    const id = base.notes[5]!.id;
+    const { id, velocity } = base.notes[5]!;
     const result = run([call('Modify', { aspect: 'velocity', change: -6, noteIDs: [id] })]);
+    const corrected = result.notes.find((note) => note.id === id)!;
     expect(result.calls[0]?.elements).toEqual([]);
-    expect(result.notes.find((note) => note.id === id)!.v).toBeCloseTo(
-      base.notes.find((note) => note.id === id)!.v - 6,
-      6,
-    );
-    // The shadow keeps the velocity as it arrived.
-    expect(result.notes.find((note) => note.id === id)!.velocity).toBe(base.notes[5]!.velocity);
+    expect(corrected.velocity).toBe(velocity - 6);
+    // What the roll had stays behind it, and no other note has anything behind it.
+    expect(corrected.arrived?.velocity).toBe(velocity);
+    expect(result.notes.filter((note) => note.arrived)).toHaveLength(1);
   });
 });

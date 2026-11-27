@@ -19,6 +19,7 @@
   --grace: #7a3fb0;
   --ghost: #74838e;
   --pencil: #2f3a44;
+  --apart: #d0342c;
   --accent: #0b7566;
   --accent-soft: #dcefeb;
   --bad: #b02a20;
@@ -144,10 +145,10 @@ pre.xml .hot { background: var(--accent-soft); }
     <h1>Describe<b>It!</b></h1>
     <p class="piece" id="pieceName">Schumann, Träumerei — Alfred Grünfeld on Welte-Mignon roll 225</p>
     <div class="meters" id="meters" aria-label="What the MPM does not yet explain">
-      <div class="meter" data-k="pulse" title="Still unexplained: how far the chords stand from the score's grid under the tempo as it stands"><div class="lab"><span>Pulse</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
-      <div class="meter" data-k="chords" title="Still unexplained: how far the notes of a chord stand from one another"><div class="lab"><span>Chords</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
-      <div class="meter" data-k="loud" title="Still unexplained: how far the velocities stand from what the MPM sounds them at"><div class="lab"><span>Loudness</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
-      <div class="meter" data-k="length" title="Still unexplained: how far the lengths stand from what the MPM gives the notes"><div class="lab"><span>Length</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+      <div class="meter" data-k="pulse" title="Still unexplained: how far the chords were played from where the MPM has them"><div class="lab"><span>Pulse</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+      <div class="meter" data-k="chords" title="Still unexplained: how far the notes of a chord were played from one another, beyond what the MPM has"><div class="lab"><span>Chords</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+      <div class="meter" data-k="loud" title="Still unexplained: how far the velocities are from what the MPM sounds"><div class="lab"><span>Loudness</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+      <div class="meter" data-k="length" title="Still unexplained: how far the lengths are from what the MPM gives the notes"><div class="lab"><span>Length</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
     </div>
     <button class="btn" id="mpmBtn" aria-expanded="false" title="The MPM your remarks have become">MPM</button>
     <button class="btn icon" id="menuBtn" aria-expanded="false" aria-label="More">⋯</button>
@@ -155,7 +156,7 @@ pre.xml .hot { background: var(--accent-soft); }
 
   <main class="stage" id="stage">
     <div class="rollscroll" id="rollScroll">
-      <canvas id="roll" tabindex="0" aria-label="Piano roll of the recording, drawn as what remains unexplained. Drag across it to bracket a passage, click a note, or type to speak about the whole piece."></canvas>
+      <canvas id="roll" tabindex="0" aria-label="Piano roll of the recording on its own clock, with what the MPM as it stands renders drawn over it. Drag across it to bracket a passage, click a note, or type to speak about the whole piece."></canvas>
       <div class="spacer" id="rollSpacer"></div>
     </div>
     <div class="foot">
@@ -176,7 +177,7 @@ pre.xml .hot { background: var(--accent-soft); }
     <div class="tip" id="tip" hidden></div>
     <div class="menu" id="menu" hidden>
       <button id="refBtn">Compare with the published reconstruction <span id="refState">off</span></button>
-      <button id="ghostBtn" title="Where a remark took something out of a note, the note as it was played stays behind, dashed">Shadows of the notes as played <span id="ghostState">on</span></button>
+      <button id="ghostBtn" title="In pencil over each note: where the MPM as it stands has it begin, how loud and how long">The MPM's rendering over the notes <span id="ghostState">on</span></button>
       <button id="clearBtn">Remove every remark</button>
     </div>
     <aside class="drawer" id="drawer" hidden aria-label="MPM">

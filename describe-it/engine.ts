@@ -36,17 +36,12 @@ import { InsertDynamics } from '../src/fitting/transformers/dynamics/InsertDynam
 import {
   coversDate,
   placeTempos,
-  renderedMsAt,
-  segmentAtMs,
-  type PlacedTempo,
 } from '../src/fitting/transformers/tempo/placedTempos';
 import {
-  dateAtMilliseconds,
-  getTempoAt,
   millisecondsAt,
   resolveSpan,
 } from '../src/fitting/transformers/tempo/tempoCalculations';
-import { createMpm, exportMPM, type Mpm, withoutMaps } from '../src/fitting/instructions/index';
+import { createMpm, exportMPM, type Mpm } from '../src/fitting/instructions/index';
 import { clearResidualCache, deriveResidual, type Residual } from '../src/fitting/residual';
 import { Alignment, type AlignedNote } from '../src/fitting/alignment';
 import type { Range } from '../src/fitting/transformers/range';
@@ -849,39 +844,38 @@ export interface PieceData {
   alignment: AlignmentData;
 }
 
-/** One note of the roll: what was played, and what of it nothing has explained yet. */
-export interface RollNote {
+/** A note on the clock: when it begins and ends, in ms from the first note, and how loud. */
+export interface Sounded {
+  ms: number;
+  msEnd: number;
+  velocity: number;
+}
+
+/**
+ * One note of the roll: as it was played, and as the MPM as it stands would have it played, on
+ * one clock.
+ *
+ * The recording's clock, because that is the one thing that does not change as a piece is
+ * described. The MPM's rendering is laid against it the way the chain itself places a tempo: on
+ * the recorded onset of the chord a tempo begins on, so that what one stretch gets wrong is not
+ * carried into the next, and where a rendering runs away from the playing is where the encoding
+ * of that stretch is to be mended.
+ */
+export interface RollNote extends Sounded {
   id: string;
   part: number;
   pitch: number;
   /** Where the score has it, and for how long, in ticks. */
   date: number;
   duration: number;
-  /** What was played: onset and release in ms from the first note, and the velocity. */
-  ms: number;
-  msEnd: number;
-  velocity: number;
-  /** Where the onset falls on the score grid under the tempo as it stands, in ticks. */
-  x: number;
-  /** How long it sounds on that grid, less what its articulation accounts for. */
-  w: number;
-  /** The velocity left once what the document sounds it at is taken off, about the level. */
-  v: number;
-  /** The three remainders themselves: onset in ms, length in ticks and in ms, velocity. */
+  /** As the roll has it, where the reader has corrected that. */
+  arrived?: Sounded;
+  /** As the MPM sounds it. */
+  mpm: Sounded;
+  /** Played less rendered: the onset and the length in ms, and the velocity. */
   late: number;
-  long: number;
   longMs: number;
   loud: number;
-  /**
-   * The note as it was played, on the grid as it now stands: where its recorded onset falls
-   * under the tempo in force, how long it sounded there, and its velocity about the level.
-   *
-   * What a shadow is drawn from, and it is in the roll's own measure on purpose. A tempo is not
-   * something taken out of a note but the ruler the notes are laid against, so describing one
-   * moves a note and its shadow alike; they part only by what a remark took out of the note
-   * itself, the stagger of a roll, the give of a rubato, a correction of the recording.
-   */
-  played: { x: number; w: number; loud: number };
 }
 
 export interface CallReport {
@@ -910,9 +904,11 @@ export interface RunResult {
   calls: CallReport[];
   /** What was assumed where nothing was described. */
   assumed: { tempo: { from: number; to: number; bpm: number }[]; level: number | null; levelDates: number[] };
-  /** The grace notes, which the score gives no time: where each was played. */
-  graces: { id: string; group: string; principal: string; pitch: number; x: number; velocity: number }[];
-  /** The level a velocity is drawn about. */
+  /** The grace notes, which the score gives no time: when each was played. */
+  graces: { id: string; group: string; principal: string; pitch: number; ms: number; velocity: number }[];
+  /** The score's beats on the recording's clock, as the tempo as it stands places them. */
+  beats: { date: number; ms: number }[];
+  /** The level assumed where no dynamics are described. */
   level: number;
   end: number;
   timeSignatures: AlignmentData['timeSignatures'];
@@ -935,15 +931,6 @@ export const load = (piece: PieceData): { notes: number; end: number } => {
 /** Give the options their `Map`s and `Set`s back, the way a work file is read. */
 const revive = (calls: PlainCall[]): Call[] =>
   parseWorkFile(JSON.stringify({ name: '', mei: '', mpm: '', provenance: calls })).provenance;
-
-const msPerTickAt = (segments: PlacedTempo[], date: number): number => {
-  const segment =
-    segments.find((s) => date >= s.tempo.date && (s.nextDate === undefined || date < s.nextDate)) ??
-    segments[0];
-  if (!segment) return 1;
-  const bpm = getTempoAt(Math.min(Math.max(date, segment.tempo.date), segment.tempo.endDate), segment.tempo);
-  return 60000 / (bpm * WHOLE * segment.tempo.beatLength);
-};
 
 const silently = <T>(work: () => T): T => {
   const { log, warn, error } = console;
@@ -1059,24 +1046,49 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
   });
   const chainMs = Date.now() - startedAt;
 
-  // Where everything fell, and what it is sounded at.
+  // The tempo as it stands, placed on the recording, and what a call about a press is placed by.
   const residual = silently(() => deriveResidual(alignment, mpm));
   const segments = silently(() => placeTempos(alignment, mpm, 'global'));
+  const xml = exportMPM(mpm);
 
-  // The lengths the document gives the notes, which is where an articulation shows. Asked of the
-  // articulations alone: with no tempo in the document a tick lasts a millisecond, so what comes
-  // back is the length in ticks, and no bend of the tempo has to be taken out of it again.
-  const rendered = new Map<string, number>();
+  // What the document sounds, whole: every note as the renderer performs it, on the clock the
+  // tempo map makes by itself.
+  const performed = new Map<string, Sounded>();
   silently(() => {
     const score = alignment.serializeScore();
     if (!score) return;
-    const probe = withoutMaps(mpm, ['tempo', 'rubato', 'ornament']);
-    const data = performMsmToData({ msm: score, mpm: exportMPM(probe) }, { expandOrnaments: false, seed: 1 });
+    const data = performMsmToData({ msm: score, mpm: xml }, { expandOrnaments: false, seed: 1 });
     for (const part of data.parts) {
       for (const note of part.notes) {
-        if (note.id !== null) rendered.set(note.id, note.milliseconds.end - note.milliseconds.date);
+        if (note.id === null) continue;
+        performed.set(note.id, { ms: note.milliseconds.date, msEnd: note.milliseconds.end, velocity: note.velocity });
       }
     }
+  });
+
+  // The recording as the reader has corrected it, and nothing else: what the rendering is held
+  // against. The chain's own copy will not do, the fitters having taken out of it what they
+  // explained, the stagger of a roll among it.
+  const corrected = pristine.deepClone();
+  silently(() => {
+    const corrections = expanded.filter(
+      (call) => call.name === 'Modify' && !failed.has(origin.get(call.id) ?? call.id),
+    );
+    for (const correction of buildChain(revive(corrections)).transformers) {
+      if (correction.name !== 'Modify') continue;
+      try {
+        correction.run(corrected, createMpm());
+      } catch {
+        // The run above has reported it.
+      }
+    }
+  });
+  const asCorrected = new Map(corrected.allNotes.map((note) => [note['xml:id'], note]));
+  const asArrived = new Map(pristine.allNotes.map((note) => [note['xml:id'], note]));
+  const onClock = (note: AlignedNote): Sounded => ({
+    ms: note['milliseconds.date'] - shifted,
+    msEnd: note['milliseconds.date.end'] - shifted,
+    velocity: note.velocity,
   });
 
   const assumeLevel = transformers.find((t): t is AssumeLevel => t instanceof AssumeLevel);
@@ -1085,85 +1097,66 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     .map((t) => ({ from: t.options.from, to: t.options.to, bpm: (t.fitted as InsertTempoOptions).bpm }));
   const level = assumeLevel?.level ?? Math.round(median(alignment.allNotes.map((n) => n.velocity)));
 
-  // The recording as it arrived, on the clock the chain moved it to.
-  const first = pristine.allNotes.reduce(
-    (min, note) => Math.min(min, note['milliseconds.date']),
-    Infinity,
-  );
-  const arrived = new Map(pristine.allNotes.map((note) => [note['xml:id'], note]));
+  const governing = (date: number) => segments.find((segment) => coversDate(segment, date)) ?? segments[0];
 
-  const notes: RollNote[] = residual.notes.map(({ note, tickDate, tickDuration, velocity }) => {
-    const original = arrived.get(note['xml:id']) as AlignedNote;
-    const perTick = msPerTickAt(segments, note.date);
-    const x = tickDate ?? note.date;
-    const sounded = tickDuration ?? note.duration;
-    const explained = rendered.get(note['xml:id']) ?? note.duration;
-    const long = sounded - explained;
-    // In ms, against how long the tempo map makes those ticks last from the note's place on.
-    const begins = renderedMsAt(segments, note.date);
-    const ends = renderedMsAt(segments, note.date + explained);
-    const longMs =
-      begins === undefined || ends === undefined
-        ? long * perTick
-        : note['milliseconds.date.end'] - note['milliseconds.date'] - (ends - begins);
-    const loud = velocity ?? 0;
-    const late = (x - note.date) * perTick;
-
-    // The same note as it arrived, placed as the tempo walk places one: its onset under the
-    // tempo governing its date, its release under the one in force when the key came up.
-    const governing = segments.find((segment) => coversDate(segment, note.date)) ?? segments[0];
-    const releasing = segmentAtMs(segments, original['milliseconds.date.end'] - shifted);
-    const struck = governing
-      ? dateAtMilliseconds(original['milliseconds.date'] - shifted - governing.startMs, governing.resolved)
-      : NaN;
-    const released = releasing
-      ? dateAtMilliseconds(original['milliseconds.date.end'] - shifted - releasing.startMs, releasing.resolved)
-      : NaN;
-    const played = {
-      x: Number.isFinite(struck) ? struck : x,
-      w: Number.isFinite(struck) && Number.isFinite(released) ? Math.max(released - struck, 12) : sounded,
-      loud: original.velocity - level,
-    };
+  const notes: RollNote[] = alignment.allNotes.map((note) => {
+    const id = note['xml:id'];
+    const played = onClock(asCorrected.get(id) ?? note);
+    const original = onClock(asArrived.get(id) ?? note);
+    const sounds = performed.get(id);
+    const segment = governing(note.date);
+    // The renderer's clock runs on from its first tempo; the recording's is set again on every
+    // tempo that begins on a chord. What the two differ by at this note's tempo lays the one
+    // against the other.
+    const lead = segment ? segment.startMs - segment.renderedStartMs : 0;
+    const rendering: Sounded =
+      sounds && segment
+        ? { ms: lead + sounds.ms, msEnd: lead + sounds.msEnd, velocity: sounds.velocity }
+        : played;
+    const changed =
+      Math.abs(original.ms - played.ms) > 1e-6 ||
+      Math.abs(original.msEnd - played.msEnd) > 1e-6 ||
+      original.velocity !== played.velocity;
     return {
-      id: note['xml:id'],
+      id,
       part: note.part,
       pitch: note['midi.pitch'],
       date: note.date,
       duration: note.duration,
-      ms: original['milliseconds.date'] - first,
-      msEnd: original['milliseconds.date.end'] - first,
-      velocity: original.velocity,
-      x,
-      w: Math.max(note.duration + long, 12),
-      v: level + loud,
-      late,
-      long,
-      longMs,
-      loud,
-      played,
+      ...played,
+      ...(changed && { arrived: original }),
+      mpm: rendering,
+      late: played.ms - rendering.ms,
+      longMs: played.msEnd - played.ms - (rendering.msEnd - rendering.ms),
+      loud: played.velocity - rendering.velocity,
     };
   });
 
-  // A grace note has no date of its own, so it is drawn as far from its principal as it was
-  // played from it.
-  const drawn = new Map(notes.map((note) => [note.id, note]));
-  const sounded = new Map(alignment.allNotes.map((note) => [note['xml:id'], note]));
-  const graces = alignment.graces.map((grace) => {
-    const principal = drawn.get(grace.principal);
-    const ground = sounded.get(grace.principal);
-    const ahead =
-      principal && ground
-        ? (grace['milliseconds.date'] - ground['milliseconds.date']) / msPerTickAt(segments, grace.date)
-        : -PPQ / 8;
-    return {
-      id: grace['xml:id'],
-      group: grace.group,
-      principal: grace.principal,
-      pitch: grace['midi.pitch'],
-      x: (principal?.x ?? grace.date) + ahead,
-      velocity: grace.velocity,
-    };
+  // The beats of the score, where the tempo as it stands puts them on the recording's clock.
+  const clockAt = (date: number): number => {
+    const segment = governing(date);
+    return segment ? segment.startMs + millisecondsAt(date, segment.resolved) : date;
+  };
+  const beats: RunResult['beats'] = [];
+  alignment.timeSignatures.forEach((signature, i) => {
+    const until = alignment.timeSignatures[i + 1]?.date ?? end;
+    for (let date = signature.date; date < until; date += WHOLE / signature.denominator) {
+      beats.push({ date, ms: clockAt(date) });
+    }
   });
+  if (beats.length === 0) {
+    for (let date = 0; date < end; date += PPQ) beats.push({ date, ms: clockAt(date) });
+  }
+  beats.push({ date: end, ms: clockAt(end) });
+
+  const graces = alignment.graces.map((grace) => ({
+    id: grace['xml:id'],
+    group: grace.group,
+    principal: grace.principal,
+    pitch: grace['midi.pitch'],
+    ms: grace['milliseconds.date'],
+    velocity: grace.velocity,
+  }));
 
   // What each call of the page came to.
   const reports = new Map<string, CallReport>(
@@ -1221,7 +1214,6 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
   // The elements themselves, so that a reader of the report sees the numbers a fit came to. An
   // ornament, an articulation and an accentuation pattern keep theirs in the definition they
   // name, so that is written out with them.
-  const xml = exportMPM(mpm);
   const tags = new Map<string, string>();
   for (const [tag, , id] of xml.matchAll(/<[\w.:-]+(\s+[\w.:-]+="[^"]*")*?\s+xml:id="([^"]+)"[^>]*>/g)) {
     tags.set(id!, tag);
@@ -1263,6 +1255,7 @@ export const run = (userCalls: readonly PlainCall[]): RunResult => {
     mpm: xml,
     notes,
     graces,
+    beats,
     calls: [...reports.values()],
     assumed: {
       tempo: assumedTempo,
