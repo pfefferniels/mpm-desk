@@ -8,7 +8,8 @@ export default tseslint.config(
   // which overflows the stack of at least `no-nonoctal-decimal-escape` if offered to it.
   // `welte225.org` is where CI checks out the published reconstruction the tests read. Its own
   // scripts are not this repository's to lint.
-  { ignores: ['dist', '.claude', 'vendor', 'welte225.org'] },
+  // `describe-it/dist` is what `describe-it/build.ts` writes: a bundle, and files joined from others.
+  { ignores: ['dist', '.claude', 'vendor', 'welte225.org', 'describe-it/dist'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

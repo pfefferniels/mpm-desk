@@ -1,0 +1,197 @@
+<title>DescribeIt!</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Fraunces:ital,opsz,wght@1,9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: the roll is the page. Remarks are written on it; everything else is called up and put away. One look, light, like paper under a pencil. */
+:root {
+  color-scheme: light;
+  --paper: #eef1f2;
+  --roll: #fbfcfc;
+  --band: #f2f5f5;
+  --grid: #d2dadf;
+  --ink: #17212a;
+  --ink-2: #4c5b66;
+  --ink-3: #8795a0;
+  --line: #d4dce0;
+  --raised: #ffffff;
+  --rh: #2c47cf;
+  --lh: #bf5412;
+  --grace: #7a3fb0;
+  --ghost: #74838e;
+  --pencil: #2f3a44;
+  --accent: #0b7566;
+  --accent-soft: #dcefeb;
+  --bad: #b02a20;
+  --bad-soft: #f8e3e0;
+  --c1: #0b7566; --c2: #6d3fc0; --c3: #9a5f08; --c4: #c0306f; --c5: #1f6fb5; --c6: #4f7a12;
+  --font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+}
+
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+*, *::before, *::after { box-sizing: border-box; }
+button, textarea, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: flex; flex-direction: column; gap: 8px; padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* ---- the line above the roll ---- */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.top h1 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 600; font-size: 22px; letter-spacing: -0.01em; line-height: 1; }
+.top h1 b { color: var(--accent); font-weight: 600; }
+.top .piece { margin: 0; color: var(--ink-2); font-size: 13px; min-width: 0; flex: 1 1 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meters { display: flex; gap: 12px; align-items: flex-end; }
+.meter { width: 82px; }
+.meter .lab { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-size: 10.5px; color: var(--ink-3); }
+.meter .lab span:first-child { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+.meter .lab span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.meter .track { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 3px; }
+.meter .fill { height: 100%; width: 100%; background: var(--ink-2); transition: width 0.5s ease; }
+.btn { border: 1px solid var(--line); background: var(--raised); border-radius: 6px; padding: 4px 10px; font-size: 13px; line-height: 1.3; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn[aria-pressed="true"], .btn[aria-expanded="true"] { background: var(--ink); color: var(--raised); border-color: var(--ink); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--ink-2); padding: 3px 6px; }
+.btn.quiet:hover { color: var(--ink); background: var(--band); }
+.btn.icon { min-width: 28px; padding: 4px 6px; text-align: center; font-family: var(--mono); }
+
+/* ---- the roll ---- */
+.stage { flex: 1 1 auto; min-height: 0; position: relative; background: var(--roll); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.rollscroll { flex: 1 1 auto; min-height: 0; overflow-x: auto; overflow-y: hidden; position: relative; }
+.rollscroll canvas { position: sticky; left: 0; top: 0; display: block; touch-action: pan-x; cursor: crosshair; outline: none; }
+.rollscroll canvas.pencil { touch-action: none; }
+.rollscroll .spacer { height: 1px; margin-top: -1px; }
+.foot { display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 12px; border-top: 1px solid var(--line); background: var(--raised); font-size: 12.5px; color: var(--ink-2); min-height: 34px; }
+.foot #hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+.foot #hint button { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.foot .zoom { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); background: var(--roll); z-index: 8; text-align: center; padding: 20px; }
+
+/* ---- the pencil: where a remark is written, on the roll ---- */
+.pen { position: absolute; z-index: 5; width: fit-content; max-width: min(300px, calc(100% - 24px)); pointer-events: none; }
+.pen > * { pointer-events: auto; }
+.pen { display: flex; flex-direction: column; }
+.pen.up { flex-direction: column-reverse; }
+.pen.up .under { margin: 0 0 5px; }
+.pen .under { width: fit-content; max-width: 100%; }
+.pen textarea { display: block; width: 150px; max-width: 100%; border: 0; border-bottom: 1.5px solid var(--pencil); border-radius: 0; background: rgba(251, 252, 252, 0.94); padding: 0 2px 1px; font-family: var(--hand); font-weight: 600; font-size: 21px; line-height: 1.15; color: var(--pencil); resize: none; overflow: hidden; outline: none; }
+.pen textarea::placeholder { color: var(--ink-3); font-weight: 500; }
+.pen .under { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 5px; }
+.chip { border: 1px solid var(--line); background: var(--raised); border-radius: 999px; padding: 1px 9px 2px; font-size: 12px; color: var(--ink-2); line-height: 1.4; }
+.chip:hover { color: var(--ink); border-color: var(--ink-3); }
+.pen .keys { font-size: 11px; color: var(--ink-3); margin-left: 2px; background: rgba(251, 252, 252, 0.9); border-radius: 3px; padding: 0 3px; }
+
+/* ---- what is called up ---- */
+.pop, .menu { position: absolute; z-index: 6; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 28px rgba(23, 33, 42, 0.16); }
+.pop { width: min(330px, calc(100% - 16px)); padding: 11px 12px 9px 14px; display: flex; flex-direction: column; gap: 6px; max-height: calc(100% - 50px); overflow-y: auto; }
+.pop::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--tone, var(--ink-3)); }
+.pop .said { font-family: var(--hand); font-weight: 600; font-size: 21px; line-height: 1.15; color: var(--tone, var(--pencil)); overflow-wrap: anywhere; }
+.pop .where { font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.pop .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
+.pop .reading { color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
+.pop .steps { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.step { font-family: var(--mono); font-size: 11.5px; background: var(--band); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.step em { font-style: normal; color: var(--ink-3); }
+.effect { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.effect.none { color: var(--ink-3); }
+.pop .err { background: var(--bad-soft); color: var(--bad); border-radius: 5px; padding: 5px 8px; font-size: 12.5px; overflow-wrap: anywhere; }
+.pop .ask { background: var(--accent-soft); border-radius: 5px; padding: 6px 8px; font-size: 13px; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 5px; }
+.pop .ask input { border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; background: var(--raised); width: 100%; }
+.pop .acts { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; margin-left: -6px; }
+.pop details { font-size: 12px; }
+.pop details summary { cursor: pointer; color: var(--ink-3); list-style: none; display: inline-block; }
+.pop details summary::-webkit-details-marker { display: none; }
+.pop details summary:hover { color: var(--ink); }
+.pop textarea.calls { width: 100%; min-height: 110px; font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--line); border-radius: 5px; background: var(--roll); padding: 6px; margin-top: 5px; white-space: pre; overflow: auto; resize: vertical; }
+.pop .list { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 5px 0 0; padding: 0; list-style: none; max-height: 120px; overflow: auto; white-space: nowrap; }
+.pop .note { font-size: 12px; color: var(--ink-3); }
+.pulse { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.1s ease-in-out infinite; margin-right: 6px; }
+@keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .meter .fill { transition: none; } }
+
+.menu { right: 8px; top: 8px; padding: 5px; display: flex; flex-direction: column; min-width: 230px; }
+.menu button { border: 0; background: none; text-align: left; padding: 6px 9px; border-radius: 5px; font-size: 13px; display: flex; justify-content: space-between; gap: 14px; }
+.menu button:hover { background: var(--band); }
+.menu button span { color: var(--ink-3); }
+
+.tip { position: absolute; z-index: 7; pointer-events: none; background: var(--ink); color: #fff; border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.4; max-width: 300px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
+.tip b { font-weight: 600; }
+.tip .row { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.tip .k { opacity: 0.65; display: inline-block; min-width: 46px; font-family: var(--font); }
+
+.drawer { position: absolute; z-index: 6; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: var(--raised); border-left: 1px solid var(--line); box-shadow: -8px 0 28px rgba(23, 33, 42, 0.1); display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; }
+.drawer .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.drawer .bar h2 { margin: 0 auto 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--ink-2); }
+.drawer .counts { display: flex; flex-wrap: wrap; gap: 4px; }
+pre.xml { margin: 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; background: var(--roll); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; overflow: auto; white-space: pre; flex: 1 1 auto; min-height: 0; }
+pre.xml .t { color: var(--rh); } pre.xml .a { color: var(--ink-2); } pre.xml .v { color: var(--lh); }
+pre.xml .hot { background: var(--accent-soft); }
+
+@media (max-width: 720px) {
+  .meters { flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; order: 5; }
+  .meter { width: auto; }
+  .meter .lab { flex-direction: column; align-items: flex-start; gap: 0; }
+  .top .piece { flex-basis: 120px; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>Describe<b>It!</b></h1>
+    <p class="piece" id="pieceName">Schumann, Träumerei — Alfred Grünfeld on Welte-Mignon roll 225</p>
+    <div class="meters" id="meters" aria-label="What the MPM does not yet explain">
+      <div class="meter" data-k="pulse" title="Still unexplained: how far the chords stand from the score's grid under the tempo as it stands"><div class="lab"><span>Pulse</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+      <div class="meter" data-k="chords" title="Still unexplained: how far the notes of a chord stand from one another"><div class="lab"><span>Chords</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+      <div class="meter" data-k="loud" title="Still unexplained: how far the velocities stand from what the MPM sounds them at"><div class="lab"><span>Loudness</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+      <div class="meter" data-k="length" title="Still unexplained: how far the lengths stand from what the MPM gives the notes"><div class="lab"><span>Length</span><span>–</span></div><div class="track"><div class="fill"></div></div></div>
+    </div>
+    <button class="btn" id="mpmBtn" aria-expanded="false" title="The MPM your remarks have become">MPM</button>
+    <button class="btn icon" id="menuBtn" aria-expanded="false" aria-label="More">⋯</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="rollscroll" id="rollScroll">
+      <canvas id="roll" tabindex="0" aria-label="Piano roll of the recording, drawn as what remains unexplained. Drag across it to bracket a passage, click a note, or type to speak about the whole piece."></canvas>
+      <div class="spacer" id="rollSpacer"></div>
+    </div>
+    <div class="foot">
+      <span id="hint"></span>
+      <span class="zoom">
+        <button class="btn icon" id="pencilBtn" aria-pressed="false" title="Draw brackets with a finger" hidden>✎</button>
+        <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
+        <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
+        <button class="btn" id="zoomFit">Fit</button>
+      </span>
+    </div>
+
+    <div class="pen" id="pen" hidden>
+      <textarea id="penText" rows="1" aria-label="Your remark" autocomplete="off" spellcheck="false"></textarea>
+      <div class="under" id="penUnder"></div>
+    </div>
+    <div class="pop" id="pop" hidden></div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="menu" id="menu" hidden>
+      <button id="refBtn">Compare with the published reconstruction <span id="refState">off</span></button>
+      <button id="ghostBtn">Shadows of the notes as played <span id="ghostState">on</span></button>
+      <button id="clearBtn">Remove every remark</button>
+    </div>
+    <aside class="drawer" id="drawer" hidden aria-label="MPM">
+      <div class="bar">
+        <h2>MPM</h2>
+        <button class="btn" id="copyMpm">Copy</button>
+        <button class="btn" id="saveMpm" hidden>Save .mpm</button>
+        <button class="btn" id="saveWork" hidden title="The calls as the MPM Desk reads them, numbers stated">Save work.json</button>
+        <button class="btn icon" id="closeDrawer" aria-label="Close">×</button>
+      </div>
+      <div class="counts" id="mpmCounts"></div>
+      <pre class="xml" id="mpmXml" tabindex="0"></pre>
+    </aside>
+    <div class="loading" id="loading">Loading the roll…</div>
+  </main>
+</div>
+
+<script src="app.js"></script>

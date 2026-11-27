@@ -172,6 +172,7 @@ The tests read that checkout, expected beside this repository as `../welte225.or
 | `src/verovio/` | the toolkit wrapper and the performed layout |
 | `scripts/` | one-shot tools, run with `vite-node` |
 | `scripts/transcription/` | the corpus the transcription is measured on, and the measuring |
+| `describe-it/` | DescribeIt!, a prototype in which a performance is described in words and the chain fits what was said; see its README |
 
 ## Disclosure
 

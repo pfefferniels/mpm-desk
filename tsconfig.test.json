@@ -1,6 +1,7 @@
 {
   // Everything that is run but not shipped: the fitting suite under `tests/`, the one-shot
-  // migrations under `scripts/`, and their tests.
+  // migrations under `scripts/`, and their tests; and the DescribeIt prototype under
+  // `describe-it/`, whose engine is the chain of `src/fitting` bundled for a page of its own.
   //
   // These were invisible. `tsconfig.json` includes only `src`, so `tsc --noEmit` never looked at
   // them while vitest ran them happily — which is how a broken import into `tests/fitting/` got
@@ -19,5 +20,5 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["tests", "scripts", "src/vite-env.d.ts"]
+  "include": ["tests", "scripts", "describe-it", "src/vite-env.d.ts"]
 }

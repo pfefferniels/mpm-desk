@@ -11,6 +11,8 @@ node_modules
 # Anchored, so that the vendored verovio toolkit under vendor/verovio/dist is tracked
 /dist
 /dist-ssr
+# What describe-it/build.ts writes
+/describe-it/dist
 *.local
 
 # Editor directories and files

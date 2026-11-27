@@ -1,0 +1,18 @@
+[
+  {
+    "text": "arpeggio throughout",
+    "scope": { "kind": "piece", "ids": [], "from": 0, "to": 92880, "label": "the whole piece" },
+    "reading": "Rolled chords all through the piece: every chord that is spread out in time becomes an ornament with a <temporalSpread> fitted to how it was rolled, and is taken as one onset from here on.",
+    "calls": [
+      { "name": "InsertTemporalSpread", "options": { "scope": "global", "placement": "estimate", "durationThreshold": 35 } }
+    ]
+  },
+  {
+    "text": "steady tempo on half bars",
+    "scope": { "kind": "span", "ids": [], "from": 720, "to": 23760, "label": "bars 1–8" },
+    "reading": "Each half bar of bars 1 to 8 gets its own steady tempo, read off where its first chord and the next half bar's were played; where a half bar begins on a held note, the tempo runs on to the next onset.",
+    "calls": [
+      { "name": "FitTempo", "options": { "scope": "global", "from": 720, "to": 23760, "beatLength": 0.25, "shape": "steady", "step": 1440 } }
+    ]
+  }
+]
