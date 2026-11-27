@@ -1,7 +1,6 @@
 /**
  * DescribeIt's engine: runs the MPM Desk fitting chain on a list of calls and reports the residual.
- * Adds fitted steps (`FitTempo`, `FitDynamics`), assumed tempo/dynamics for undescribed spans, and
- * `Repeat`. DOM-free; bundled for the browser by `build.ts`.
+ * DOM-free; bundled for the browser by `build.ts`.
  */
 import { performMsmToData } from 'espressivo';
 import '../src/fitting/transformers/index';
@@ -36,7 +35,7 @@ const WHOLE = PPQ * 4;
 // Recorded onsets
 // ---------------------------------------------------------------------------------------------
 
-/** Maps each score date (ticks) to the onset (ms) of the first global note on it. */
+/** Score date (ticks) -> recorded onset (ms) of the first note on it. */
 const anchorsOf = (msm: Alignment): Map<number, number> => {
   const anchors = new Map<number, number>();
   for (const note of msm.in('global').notes()) {
@@ -47,7 +46,6 @@ const anchorsOf = (msm: Alignment): Map<number, number> => {
   return anchors;
 };
 
-/** Chords with `from <= date <= to`, ascending. */
 const chordsBetween = (anchors: Map<number, number>, from: number, to: number) =>
   [...anchors.entries()]
     .filter(([date]) => date >= from && date <= to)
@@ -71,24 +69,19 @@ interface FittedTempo {
   bpm: number;
   transitionTo?: number;
   meanTempoAt?: number;
-  /** RMS distance of the fitted line from the onsets, in ms. */
+  /** RMS distance of the fit from the onsets. */
   rmsMs: number;
   /** Number of chords fitted to. */
   onsets: number;
 }
 
-/** A score date (ticks) and the time it sounded (ms). */
+/** A score date (ticks) and when it sounded (ms). */
 interface Moment {
   date: number;
   ms: number;
 }
 
-/**
- * Constant tempo at which the last chord falls where it was played.
- *
- * @param start when the span's first tick sounds
- * @param chords the chords after the span's first tick, ascending
- */
+/** Constant tempo from `start` at which the last of `chords` (ascending) falls where it was played. */
 const steadyTempo = (start: Moment, chords: Moment[], beatLength: number): FittedTempo | undefined => {
   const last = chords[chords.length - 1];
   if (!last || last.date <= start.date || last.ms <= start.ms) return undefined;
@@ -103,10 +96,8 @@ const steadyTempo = (start: Moment, chords: Moment[], beatLength: number): Fitte
 };
 
 /**
- * Tempo transition fitted to the chords of a span. Searches the ratio `transitionTo / bpm` and
- * `meanTempoAt`; the level is then fixed so the last chord falls where it was played.
- *
- * @param end the date (ticks) at which the transition arrives
+ * Tempo transition fitted to `chords`, arriving at `end` (ticks). Searches `transitionTo / bpm`
+ * and `meanTempoAt`; `bpm` then follows from the last chord falling where it was played.
  */
 const movingTempo = (
   start: Moment,
@@ -116,12 +107,12 @@ const movingTempo = (
 ): FittedTempo | undefined => {
   const steady = steadyTempo(start, chords, beatLength);
   const last = chords[chords.length - 1];
-  // With fewer than three chords the two extra parameters would fit anything.
+  // Two extra parameters need at least three chords.
   if (!steady || !last || chords.length < 3) return steady;
 
   const played = last.ms - start.ms;
   const errorOf = (ratio: number, meanTempoAt: number) => {
-    // Probe at 60 bpm, then scale: scaling both tempo ends scales the times inversely.
+    // Probe at 60 bpm: scaling both tempo ends scales the times inversely.
     const probe = resolveSpan({
       date: start.date,
       endDate: end,
@@ -145,7 +136,7 @@ const movingTempo = (
     const found = errorOf(ratio, meanTempoAt);
     if (found && found.squares < best.squares) best = { ...found, ratio, meanTempoAt };
   };
-  // Coarse grid over ratios from 0.5 to 2, then a refinement around the best cell.
+  // Coarse grid over ratios 0.5 to 2, then a finer one around the best.
   for (let r = -12; r <= 12; r++) {
     for (let m = 3; m <= 17; m++) consider(2 ** (r / 12), m / 20);
   }
@@ -158,7 +149,7 @@ const movingTempo = (
   }
 
   const rmsMs = Math.sqrt(best.squares / chords.length);
-  // Fall back to steady when the tempo barely changes or the curve improves the fit by under 15%.
+  // Steady unless the tempo changes by 3% or more and the RMS improves by 15% or more.
   if (Math.abs(best.ratio - 1) < 0.03 || rmsMs > 0.85 * steady.rmsMs) return steady;
   return {
     bpm: best.bpm,
@@ -170,11 +161,11 @@ const movingTempo = (
 };
 
 export interface FitTempoOptions extends ScopedTransformationOptions {
-  /** Start, in ticks. */
+  /** In ticks. */
   from: number;
-  /** End, in ticks, exclusive; a chord on it is still fitted to. */
+  /** In ticks, exclusive; a chord on it is still fitted to. */
   to: number;
-  /** Beat length as a fraction of a whole note. */
+  /** As a fraction of a whole note. */
   beatLength: number;
   shape: 'steady' | 'transition';
   /** Set by the engine for spans without a described tempo. */
@@ -182,15 +173,12 @@ export interface FitTempoOptions extends ScopedTransformationOptions {
 }
 
 /**
- * `InsertTempo` with the tempo fitted to the recorded onsets.
- *
- * Calls must run in score order: a span that does not start on a chord is measured from where
- * the preceding tempo ends.
+ * `InsertTempo` with the tempo fitted to the recorded onsets. Calls must run in score order: a
+ * span that does not start on a chord is measured from where the preceding tempo ends.
  */
 export class FitTempo extends AbstractTransformer<FitTempoOptions> {
   readonly name = 'FitTempo';
   readonly requires = [];
-  /** Result of the last run. */
   fitted?: InsertTempoOptions & { rmsMs: number; onsets: number };
 
   constructor(options?: FitTempoOptions) {
@@ -217,8 +205,7 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
     const last = chords[chords.length - 1];
     const start = this.startOf(msm, mpm, anchors);
     if (this.options.assumed && (!last || !start)) {
-      // No chord in an assumed span (e.g. after the last chord): use the overall tempo, so the
-      // preceding tempo instruction has an end.
+      // An assumed span without chords still needs a tempo, to end the preceding one.
       const all = chordsBetween(anchors, 0, Infinity);
       const whole = all[0] && steadyTempo(all[0], all.slice(1), beatLength);
       const options = { scope, from, to, beatLength, bpm: whole?.bpm ?? 60 };
@@ -233,8 +220,8 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
       );
     }
 
-    // A transition needs a following instruction to arrive at. At the score's end it stops at the
-    // last chord and a constant tempo is added after it.
+    // A transition needs a following tempo to arrive at; at the score's end it stops at the last
+    // chord and a constant tempo follows.
     const closes = shape === 'transition' && to >= msm.end && last.date > from;
     if (closes) to = last.date;
 
@@ -316,7 +303,7 @@ export class FitDynamics extends AbstractTransformer<FitDynamicsOptions> {
   }
 }
 
-/** Dynamics assumed where none are described: the median velocity, the same for every gap. */
+/** Dynamics assumed where none are described: the median velocity, the same in every gap. */
 class AssumeLevel extends AbstractTransformer<ScopedTransformationOptions & { dates: number[] }> {
   readonly name = 'AssumeLevel';
   readonly requires = [];
@@ -348,8 +335,7 @@ class AssumeLevel extends AbstractTransformer<ScopedTransformationOptions & { da
   }
 }
 
-// Order matters: fitted steps run before the explicit ones so explicit values win, and the
-// assumed level runs before both so described dynamics overwrite it.
+// Order matters: explicit calls run after fitted ones and so win; the assumed level runs first.
 registerTransformer(FitTempo, { before: 'InsertTempo' });
 registerTransformer(AssumeLevel, { before: 'InsertDynamics' });
 registerTransformer(FitDynamics, { before: 'InsertDynamics' });
@@ -365,10 +351,7 @@ export interface PlainCall {
   options: Record<string, unknown>;
 }
 
-/**
- * Provenance record of one remark: its text, scope, translating model and date, and the ids of
- * the calls made from it. Has no effect on the chain.
- */
+/** Provenance step for one remark and the calls made from it; has no effect on the chain. */
 export const DESCRIBE = 'Describe';
 export interface DescribeOptions {
   text: string;
@@ -380,14 +363,14 @@ export interface DescribeOptions {
 }
 
 const SYSTEM = new Set(['AssumeLevel']);
-/** The built-in transformer each one here ends up calling; used to satisfy `requires`. */
+/** The built-in transformer each of these runs, which is what satisfies a `requires`. */
 const STANDS_FOR = new Map([
   ['FitTempo', 'InsertTempo'],
   ['AssumeLevel', 'InsertDynamics'],
   ['FitDynamics', 'InsertDynamics'],
 ]);
 
-/** Calls a description may not contain, with the reason shown to the user. */
+/** Calls that are rejected, with the reason reported. */
 const NOT_FOR_A_READER = new Map<string, string>([
   ['AlignSource', 'the recording is already aligned'],
   ['InsertMetadata', 'the chain writes the metadata itself'],
@@ -398,7 +381,7 @@ const NOT_FOR_A_READER = new Map<string, string>([
   ...[...SYSTEM].map((name): [string, string] => [name, 'the engine makes this assumption itself']),
 ]);
 
-/** Transformers that take a `scope`; it defaults to `'global'`. */
+/** Transformers whose `scope` defaults to `'global'`. */
 const SCOPED = new Set([
   'Modify',
   'InsertDynamicsGradient',
@@ -415,7 +398,7 @@ const SCOPED = new Set([
   'MakeDefaultArticulation',
 ]);
 
-/** Transformers allowed in the global scope only: a part's own map would hide the global one. */
+/** Global scope only: a part's own map would hide the global one. */
 const BOTH_HANDS = new Set([
   'InsertTempo',
   'FitTempo',
@@ -427,7 +410,7 @@ const BOTH_HANDS = new Set([
   'MergeMetricalAccentuations',
 ]);
 
-/** Options that must be finite numbers, per transformer. */
+/** Options that must be finite numbers. */
 const NUMBERS: Record<string, string[]> = {
   InsertTempo: ['from', 'to', 'bpm', 'beatLength'],
   FitTempo: ['from', 'to', 'beatLength'],
@@ -441,7 +424,7 @@ const NUMBERS: Record<string, string[]> = {
 
 const STYLIZE = { tickTolerance: 8, intensityTolerance: 0.3, gradientTolerance: 0.1 };
 
-/** Normalizes an array, plain object or serialized value to the work file's `Map`/`Set` form. */
+/** Converts an array or plain object to the work file's serialized `Map`/`Set` form. */
 const envelope = (value: unknown, dataType: 'Map' | 'Set'): unknown => {
   if (value && typeof value === 'object' && 'dataType' in value) return value;
   if (dataType === 'Set') return { dataType, value: Array.isArray(value) ? value : [] };
@@ -452,11 +435,7 @@ const envelope = (value: unknown, dataType: 'Map' | 'Set'): unknown => {
   return { dataType, value: [] };
 };
 
-/**
- * Fills in default options and validates a call.
- *
- * @returns the completed call, or an error message
- */
+/** Fills in default options and validates a call; returns the call or an error message. */
 const complete = (call: PlainCall): PlainCall | string => {
   const options: Record<string, unknown> = { ...call.options };
   const { name } = call;
@@ -541,7 +520,7 @@ const substitute = (value: unknown, bindings: Record<string, number>): unknown =
 
 interface Expanded {
   calls: PlainCall[];
-  /** Maps each expanded call's id to the id of the call it came from. */
+  /** Expanded call id -> id of the call it came from. */
   origin: Map<string, string>;
   problems: { id: string; message: string }[];
 }
@@ -590,7 +569,7 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
         });
         continue;
       }
-      // A rubato frame with fewer than two chords has nothing to redistribute; skip it.
+      // A rubato frame needs at least two chords.
       const idle = ([from, to]: [number, number]) =>
         template.name === 'InsertRubato' && chordDates(piece).filter((date) => date >= from && date < to).length < 2;
       spans.forEach(([from, to], index) => {
@@ -607,8 +586,7 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
         });
       });
     } else if (call.name === 'FitSpread') {
-      // `InsertTemporalSpread` takes one date or a whole scope, so a range becomes one call per
-      // spread chord.
+      // `InsertTemporalSpread` takes one date or a whole scope: make one call per spread chord.
       const { from, to } = options;
       const scope = (options['scope'] ?? 'global') as 'global' | number;
       const threshold = typeof options['durationThreshold'] === 'number' ? options['durationThreshold'] : 35;
@@ -648,8 +626,8 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
         problems.push({ id: call.id, message: `FitTempo: ${spans}` });
         continue;
       }
-      // Cut on the chord nearest each step (within half a step); a step with no chord near it is
-      // merged into its neighbour, because a tempo is fitted between chords.
+      // A tempo is fitted between chords: cut on the chord nearest each step (within half a
+      // step), and not at all where there is none.
       const sounding = chordDates(piece);
       const [first] = spans[0]!;
       const [, last] = spans[spans.length - 1]!;
@@ -664,7 +642,7 @@ const expand = (calls: readonly PlainCall[], piece: Alignment): Expanded => {
       const edges = [first, ...[...cuts].sort((a, b) => a - b), last];
       const merged: [number, number][] = [];
       for (let i = 0; i + 1 < edges.length; i++) merged.push([edges[i]!, edges[i + 1]!]);
-      // A last span without a chord is merged into the one before it.
+      // Merge a last span without chords into the one before.
       const final = merged[merged.length - 1];
       if (merged.length > 1 && final && !sounding.some((date) => date > final[0] && date <= final[1])) {
         merged.pop();
@@ -685,10 +663,9 @@ const DYNAMICS = new Set(['FitDynamics', 'InsertDynamics']);
 const ROLLS = new Set(['InsertTemporalSpread', 'InsertDynamicsGradient']);
 
 /**
- * Resolves overlaps so that the later call wins. In call order: a tempo or dynamics span is cut
- * out of earlier spans of its kind; a rubato replaces earlier rubatos it overlaps; a spread or
- * gradient on one chord replaces an earlier one on that chord. Single-chord calls are moved ahead
- * of whole-scope ones.
+ * Resolves overlaps so that the later call wins: a tempo or dynamics span is cut out of earlier
+ * ones, a rubato replaces those it overlaps, a spread or gradient replaces an earlier one on the
+ * same chord. Single-chord calls are moved ahead of whole-scope ones.
  */
 const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] => {
   const out: PlainCall[] = [];
@@ -705,7 +682,7 @@ const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] =>
       if (end <= from || start >= to) continue;
       const left: PlainCall[] = [];
       if (start < from) left.push({ ...earlier, options: { ...earlier.options, to: from } });
-      // An `InsertTempo` is defined from its start, so its remainder after the cut is dropped.
+      // An `InsertTempo` is defined from its start, so its part after the cut is dropped.
       if (end > to && earlier.name !== 'InsertTempo') {
         const rest = { ...earlier, id: `${earlier.id}'`, options: { ...earlier.options, from: to } };
         origin.set(rest.id, origin.get(earlier.id) ?? earlier.id);
@@ -719,7 +696,7 @@ const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] =>
     const { options } = call;
     if (TEMPO.has(call.name) || DYNAMICS.has(call.name)) {
       const [from, to] = numbers(call, 'from', 'to');
-      // A zero-length span (a single point) cuts nothing.
+      // A zero-length span cuts nothing.
       if (to > from) carve(TEMPO.has(call.name) ? TEMPO : DYNAMICS, from, to);
     } else if (call.name === 'InsertRubato') {
       const [date, length] = numbers(call, 'date', 'length');
@@ -748,7 +725,7 @@ const settle = (calls: PlainCall[], origin: Map<string, string>): PlainCall[] =>
   return [...out.filter(onOneChord), ...out.filter((call) => !onOneChord(call))];
 };
 
-/** Score dates (ticks) on which a recorded chord sounds, ascending. */
+/** Score dates (ticks) with a recorded chord, ascending. */
 const chordDates = (piece: Alignment): number[] =>
   [
     ...new Set(
@@ -792,7 +769,7 @@ export interface PieceData {
   alignment: AlignmentData;
 }
 
-/** A note's timing in ms from the first note, and its velocity. */
+/** Times in ms from the first note. */
 export interface Sounded {
   ms: number;
   msEnd: number;
@@ -800,40 +777,36 @@ export interface Sounded {
 }
 
 /**
- * One note as recorded (the inherited fields) and as the current MPM renders it (`mpm`), both on
- * the recording's clock. The rendering is re-anchored on the recorded onset wherever a tempo
- * instruction begins, so errors do not accumulate across instructions.
+ * One note as recorded and as the MPM renders it (`mpm`), on the recording's clock. The rendering
+ * is re-anchored on the recorded onset wherever a tempo begins on a chord.
  */
 export interface RollNote extends Sounded {
   id: string;
   part: number;
   pitch: number;
-  /** Score position and length, in ticks. */
+  /** In ticks. */
   date: number;
   duration: number;
-  /** The original recording, present when the note has been corrected. */
+  /** The uncorrected recording, where a `Modify` call changed the note. */
   arrived?: Sounded;
-  /** As the MPM renders it. */
   mpm: Sounded;
-  /** Recorded minus rendered: onset (ms), length (ms) and velocity. */
+  /** Recorded minus rendered: onset (ms), length (ms), velocity. */
   late: number;
   longMs: number;
   loud: number;
 }
 
 export interface CallReport {
-  /** Id of the call as passed to `run`. */
   id: string;
   /** Ids of the MPM elements the call produced. */
   elements: string[];
-  /** The start tag of each of those elements, in the same order. */
+  /** The start tag of each element, parallel to `elements`. */
   written: string[];
-  /** The full definitions those elements refer to (ornaments, articulations). */
+  /** The definitions those elements reference. */
   definitions: string[];
   /** Ids of the notes the call was fitted to. */
   evidence: string[];
   range: { from: number; to: number | null } | null;
-  /** Set when the call did not run. */
   error?: string;
   /** What `FitTempo`/`FitDynamics` fitted. */
   fitted?: Record<string, unknown>[];
@@ -847,18 +820,18 @@ export interface RunResult {
   mpm: string;
   notes: RollNote[];
   calls: CallReport[];
-  /** Tempo and dynamics assumed for undescribed spans. */
+  /** What was assumed for undescribed spans. */
   assumed: { tempo: { from: number; to: number; bpm: number }[]; level: number | null; levelDates: number[] };
-  /** Grace notes with their recorded onsets (ms); the score gives them no date. */
+  /** Grace notes as recorded; the score gives them no date. */
   graces: { id: string; group: string; principal: string; pitch: number; ms: number; velocity: number }[];
-  /** Pedals as recorded and as the MPM renders them, on the recording's clock; `value` is 0-127. */
+  /** Pedals as recorded and as rendered, on the recording's clock; `value` is 0-127. */
   pedals: {
     played: { kind: PedalKind; ms: number; msEnd: number }[];
     mpm: { kind: PedalKind; ms: number; value: number }[];
   };
-  /** Score beats placed on the recording's clock by the current tempo map. */
+  /** Score beats on the recording's clock, placed by the tempo map. */
   beats: { date: number; ms: number }[];
-  /** All steps in MPM Desk form: fitted steps as explicit calls, `Describe` steps listing theirs. */
+  /** All steps in MPM Desk form, fitted steps as explicit calls. */
   record: PlainCall[];
   /** The assumed dynamics level (velocity). */
   level: number;
@@ -870,7 +843,7 @@ export interface RunResult {
 
 let pristine: Alignment | null = null;
 
-/** Loads a piece. The alignment is kept unmodified and cloned for every run. */
+/** Loads a piece; its alignment is cloned for every run. */
 export const load = (piece: PieceData): { notes: number; end: number } => {
   const { alignment } = piece;
   pristine = new Alignment(alignment.allNotes, alignment.timeSignatures);
@@ -880,7 +853,7 @@ export const load = (piece: PieceData): { notes: number; end: number } => {
   return { notes: pristine.allNotes.length, end: pristine.end };
 };
 
-/** Deserializes plain calls (restoring `Map`s and `Set`s) through the work file parser. */
+/** Restores `Map`s and `Set`s in plain calls through the work file parser. */
 const revive = (calls: PlainCall[]): Call[] =>
   parseWorkFile(JSON.stringify({ name: '', mei: '', mpm: '', provenance: calls })).provenance;
 
@@ -894,18 +867,14 @@ const silently = <T>(work: () => T): T => {
   }
 };
 
-/**
- * Runs the calls on the loaded piece and returns the rendering, the residual and a report per
- * call. A call that fails is skipped and reported; the others still run.
- */
+/** Runs the calls on the loaded piece. A failing call is skipped and reported; the rest still run. */
 export const run = (steps: readonly PlainCall[]): RunResult => {
   if (!pristine) throw new Error('no piece loaded');
   const userCalls = steps.filter((step) => step.name !== DESCRIBE);
   const alignment = pristine.deepClone();
   clearResidualCache();
 
-  // The chain shifts all onsets so the first is at 0. Record the total shift (ms) to place the
-  // unmodified recording on the same clock.
+  // The chain moves the first onset to 0; keep the shift (ms) to place the original recording.
   let shifted = 0;
   const shiftToFirstOnset = alignment.shiftToFirstOnset.bind(alignment);
   alignment.shiftToFirstOnset = () => {
@@ -946,7 +915,7 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
     })),
     { id: 'assume-level', name: 'AssumeLevel', options: { scope: 'global', dates: levelDates } },
   ];
-  // Ornaments only take effect through their definitions, so add `StylizeOrnamentation` if absent.
+  // Ornaments only take effect through definitions, which `StylizeOrnamentation` writes.
   const ornaments = expanded.some(
     (call) => call.name === 'InsertTemporalSpread' || call.name === 'InsertDynamicsGradient',
   );
@@ -964,7 +933,7 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
     for (const call of built.unknown) {
       failed.set(origin.get(call.id) ?? call.id, `There is no transformer called ${call.name}`);
     }
-    // Drop calls whose `requires` is not met by an earlier transformer (or its `STANDS_FOR`).
+    // Drop calls whose `requires` no earlier transformer meets.
     let chain = built.transformers;
     const done = new Set<string>();
     for (const transformer of chain) {
@@ -1020,8 +989,8 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
     }
   });
 
-  // The recording with only the `Modify` corrections applied, to compare the rendering with. The
-  // chain's copy cannot be used: the transformers remove from it what they have explained.
+  // The recording with only `Modify` applied, to compare the rendering with. The chain's copy
+  // will not do: transformers remove from it what they explain.
   const corrected = pristine.deepClone();
   silently(() => {
     const corrections = expanded.filter(
@@ -1058,7 +1027,7 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
     const original = onClock(asArrived.get(id) ?? note);
     const sounds = performed.get(id);
     const segment = governing(note.date);
-    // Offset (ms) between the renderer's clock and the recording's at this note's tempo segment.
+    // Offset (ms) from the renderer's clock to the recording's in this tempo segment.
     const lead = segment ? segment.startMs - segment.renderedStartMs : 0;
     const rendering: Sounded =
       sounds && segment
@@ -1151,7 +1120,7 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
             : { from: range.from, to };
         }
       } catch {
-        // Evidence and range are optional; keep the rest of the report.
+        // Evidence and range are optional.
       }
     });
     if (transformer instanceof FitTempo && transformer.fitted) {
@@ -1176,7 +1145,7 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
       if (source) report.concrete.push(source);
     }
   }
-  // Start tags by `xml:id`, and definitions by name, read from the exported XML.
+  // Start tags by `xml:id` and definitions by name, from the exported XML.
   const tags = new Map<string, string>();
   for (const [tag, , id] of xml.matchAll(/<[\w.:-]+(\s+[\w.:-]+="[^"]*")*?\s+xml:id="([^"]+)"[^>]*>/g)) {
     tags.set(id!, tag);
@@ -1199,10 +1168,10 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
   const onDate = Map.groupBy(alignment.allNotes, (note) => note.date);
   for (const report of reports.values()) {
     report.elements = [...new Set(report.elements)];
-    // Parallel to `elements`; '' for an element a later call removed.
+    // '' for an element a later call removed.
     report.written = report.elements.map((id) => tags.get(id) ?? '');
     report.definitions = definedBy(report.written);
-    // A whole-scope call reports no evidence; use the chords it wrote ornaments on.
+    // A whole-scope call reports no evidence: use the chords it wrote ornaments on.
     if (report.evidence.length === 0) {
       for (const element of report.elements) {
         const dated = /^ornament_(\d+(?:\.\d+)?)/.exec(element);
@@ -1213,7 +1182,7 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
     report.evidence = [...new Set(report.evidence)];
   }
 
-  // The assumed tempos come first so the record alone reproduces the document.
+  // Assumed tempos first, so the record alone reproduces the document.
   const concreteOf = (id: string) => reports.get(id)?.concrete ?? [];
   const linked = new Set<string>();
   const record: PlainCall[] = assumedTempo.map((gap, index) => ({

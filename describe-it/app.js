@@ -1,5 +1,4 @@
-/* DescribeIt page script: draws the piano roll, manages annotations and asks the model to
-   translate them into calls. The fitting itself runs in `engine.js`. */
+/* DescribeIt page script: piano roll, annotations, and their translation into engine calls. */
 /* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout */
 import { createPlayer } from './player.js';
 
@@ -9,14 +8,11 @@ import { createPlayer } from './player.js';
   const STORE = 'describeit.v2';
   const EXPERT = { model: 'claude-opus-5-5', modelTier: 'complex' };
   const LANE = 22;
-  /** Room kept above the highest key, inside the roll: for words over its notes, and a brace over those. */
-  const HEAD = 62;
+  const HEAD = 62; // px above the top pitch, for labels
   const BRACE = 9;
   const RULER = 18;
-  /** The room the line round a set of notes leaves them. */
-  const HULL = 14;
-  /** The pedals, each in a row of this height under the keys. */
-  const PEDAL = 9;
+  const HULL = 14; // hull padding around notes
+  const PEDAL = 9; // pedal row height
   const PEDALS = [
     ['sustain', 'Ped'],
     ['soft', 'u.c.'],
@@ -48,18 +44,18 @@ import { createPlayer } from './player.js';
 
   const S = {
     piece: null,
-    score: new Map(), // id -> the note as the alignment has it
+    score: new Map(), // note id -> aligned note
     firstMs: 0,
     bars: [],
-    base: null, // the run with nothing described
-    result: null, // the run as it stands
+    base: null, // engine result with no calls
+    result: null,
     anns: [],
     selection: new Set(),
-    selKind: 'none', // none (the whole piece) | notes | span | box | arrow
+    selKind: 'none', // none (whole piece) | notes | span | box | arrow
     pen: { open: false, editing: null },
-    level: 64, // the velocity drawn one row tall
+    level: 64, // velocity drawn one row tall
     view: { ppt: 0.03, shadows: true, pencil: false, height: 1 },
-    play: { on: false, source: 'played', at: 0, loading: null }, // what is heard, and where the playing would begin
+    play: { on: false, source: 'played', at: 0, loading: null }, // `at` in ms
     hoverAnn: null,
     hoverNote: null,
     openAnn: null,
@@ -79,7 +75,7 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // The engine: a worker, or the same file on this thread where a worker cannot start
+  // Engine (worker, with a main-thread fallback)
   // ------------------------------------------------------------------------------------------
 
   const Engine = (() => {
@@ -113,7 +109,7 @@ import { createPlayer } from './player.js';
             reject(new Error(event.message || 'the engine did not start'));
           }
         };
-        // A worker that cannot load says so through `onerror`; one that can answers this.
+        // A worker that fails to load fires `onerror`; one that loads answers this request.
         const requestId = ++sequence;
         waiting.set(requestId, {
           resolve: () => {
@@ -164,13 +160,13 @@ import { createPlayer } from './player.js';
   })();
 
   // ------------------------------------------------------------------------------------------
-  // The score's bars
+  // Bars and score positions
   // ------------------------------------------------------------------------------------------
 
   const buildBars = (signatures, end) => {
     const bars = [];
     const list = signatures.length ? signatures : [{ date: 0, numerator: 4, denominator: 4 }];
-    // An opening signature shorter than the bar that follows it is an upbeat, and counts as 0.
+    // A first signature shorter than a bar of the next is an upbeat: bar 0.
     const lengthOf = (s) => (s.numerator * PPQ * 4) / s.denominator;
     const upbeat = list.length > 1 && list[1].date - list[0].date < lengthOf(list[1]);
     let number = upbeat ? 0 : 1;
@@ -194,13 +190,11 @@ import { createPlayer } from './player.js';
     const beat = Math.round((1 + (tick - bar.from) / bar.beat) * 100) / 100;
     return { bar: bar.n, beat: Number.isInteger(beat) ? String(beat) : beat.toFixed(2).replace(/0+$/, '') };
   };
-  /** A place in the score, compactly: bar, colon, beat. */
   const place = (tick) => {
     if (!S.bars.length) return '';
     const { bar, beat } = beatOf(tick);
     return `${bar}:${beat}`;
   };
-  /** The same as a musician says it. */
   const where = (tick) => {
     if (!S.bars.length) return '';
     const { bar, beat } = beatOf(tick);
@@ -225,10 +219,10 @@ import { createPlayer } from './player.js';
   const hand = (part) => (part === 1 ? 'right hand' : 'left hand');
 
   // ------------------------------------------------------------------------------------------
-  // The chain as it stands
+  // Running the chain
   // ------------------------------------------------------------------------------------------
 
-  /** The flat list the engine runs: each remark as a `Describe` step, then the calls it became. */
+  /** Engine input: per enabled annotation, a `Describe` step followed by its calls. */
   const stepsOf = (anns) =>
     anns
       .filter((ann) => ann.enabled && ann.calls && ann.calls.length)
@@ -277,10 +271,10 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // Geometry of a run, and what it leaves
+  // Result geometry and residuals
   // ------------------------------------------------------------------------------------------
 
-  /** A value read off a line through points, carried on past either end at the slope it has there. */
+  /** Linear interpolation through (xs, ys), extrapolated past both ends. */
   const along = (xs, ys, x) => {
     const last = xs.length - 1;
     if (last < 0) return x;
@@ -299,7 +293,6 @@ import { createPlayer } from './player.js';
     return ys[lo] + ((x - xs[lo]) / (xs[hi] - xs[lo])) * (ys[hi] - ys[lo]);
   };
 
-  /** A run, made ready to be drawn: its notes by id, and its beats as a line from score to clock. */
   const index = (result) => {
     result.dates = [...new Set(result.notes.map((note) => note.date))].sort((a, b) => a - b);
     result.beatDates = result.beats.map((beat) => beat.date);
@@ -308,11 +301,7 @@ import { createPlayer } from './player.js';
     result.byId = new Map(result.notes.map((note) => [note.id, note]));
   };
 
-  /**
-   * When the tempo as it stands has a date of the score, on the roll's clock: on its way there,
-   * for a moment after a run. The bar lines stand on it, and so does a bracket over a stretch,
-   * which goes with the notes it was drawn over.
-   */
+  /** Time (ms) of a score date under the current tempo map, tweened after a refit. */
   const encodedAt = (result, date) => {
     const now = along(result.beatDates, result.beatMs, date);
     if (!S.tween) return now;
@@ -322,10 +311,7 @@ import { createPlayer } from './player.js';
 
   const assumedAt = (result, date) => result.assumed.tempo.some((s) => date >= s.from && date < s.to);
 
-  /**
-   * What is left, as four root mean squares: where the chords stand against the grid, how far
-   * the notes of a chord stand from one another, the velocities, and the lengths.
-   */
+  /** Residual RMS over `ids` (all notes if empty): chord onsets, onsets within chords, velocity, length. */
   const leftIn = (result, ids) => {
     const wanted = ids && ids.length ? new Set(ids) : null;
     const notes = wanted ? result.notes.filter((note) => wanted.has(note.id)) : result.notes;
@@ -345,7 +331,7 @@ import { createPlayer } from './player.js';
       length: rms(notes.map((note) => note.longMs)),
     };
   };
-  /** The same four, under the names the expert is told. */
+  /** The residuals of `leftIn` under the names used in the model prompt. */
   const measures = (left) => ({
     notes: left.notes,
     pulse_ms: +left.pulse.toFixed(1),
@@ -353,9 +339,8 @@ import { createPlayer } from './player.js';
     velocity: +left.loud.toFixed(2),
     length_ms: +left.length.toFixed(0),
   });
-  /** Whether a scope is a passage, every note of it, rather than a set of notes. */
+  /** Whether a scope is a tick range rather than a set of note ids. */
   const passes = (scope) => scope.kind === 'span' || scope.kind === 'arrow';
-  /** The notes a remark is about, which is where its effect is measured. */
   const idsOf = (scope) => {
     if (scope.kind === 'piece') return [];
     if (passes(scope)) return S.base.notes.filter((note) => note.date >= scope.from && note.date < scope.to).map((note) => note.id);
@@ -363,7 +348,7 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // The roll
+  // Piano roll
   // ------------------------------------------------------------------------------------------
 
   const canvas = $('#roll');
@@ -412,22 +397,13 @@ import { createPlayer } from './player.js';
     G.rowH = Math.max(3, (G.height - G.top - HEAD - G.bottom) / (G.hi - G.lo + 1));
   };
 
-  // The roll is laid out on the recording's clock: `ppt` is pixels to the millisecond.
+  // The x axis is recording time; `ppt` is pixels per millisecond.
   const X = (ms) => G.gutter + ms * S.view.ppt - scroller.scrollLeft;
   const msOf = (px) => (px - G.gutter + scroller.scrollLeft) / S.view.ppt;
   const Y = (pitch) => G.top + HEAD + (G.hi - pitch + 0.5) * G.rowH;
-  /**
-   * How tall a velocity is drawn: one row at the level, and from there by the logarithm of the
-   * velocity, so many rows to the doubling. Twice as loud is then always as much taller, and a
-   * loud note stands out of its track without swallowing the ones beside it.
-   */
+  /** Drawn height of a velocity: one row at `S.level`, `G.perOctave` rows more per doubling. */
   const tall = (velocity) => G.rowH * clamp(1 + S.view.height * G.perOctave * Math.log2(Math.max(velocity, 1) / S.level), 0.3, 6);
-  /**
-   * A note as the MPM as it stands sounds it, which is the note the roll draws solid: it is what
-   * a reader is shaping. Where the run has it, or, for a moment after a run, on its way there
-   * from where the run before had it, so that what a remark did is seen as the notes going to
-   * their shadows, or failing to.
-   */
+  /** Rectangle of a note as the MPM renders it, tweened after a refit. */
   const rectOf = (note) => {
     const from = S.tween ? S.tween.from.get(note.id) : null;
     const t = S.tween ? S.tween.t : 1;
@@ -435,7 +411,7 @@ import { createPlayer } from './player.js';
     const h = tall(mix('velocity'));
     return { x: X(mix('ms')), y: Y(note.pitch) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h };
   };
-  /** The same note as it was played: its shadow, which stays where it is. */
+  /** Rectangle of a note as recorded: its shadow. */
   const shadowOf = (note, played = note) => {
     const h = tall(played.velocity);
     return { x: X(played.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (played.msEnd - played.ms) * S.view.ppt), h };
@@ -448,10 +424,7 @@ import { createPlayer } from './player.js';
   const shown = (text) => (text.length > 64 ? `${text.slice(0, 62)}…` : text.replace(/\s+/g, ' '));
   const wordsFont = () => `500 14.5px ${palette.serif}`;
 
-  /**
-   * A remark as it stands on the roll: the reader's words, and how it fared. Among the notes it
-   * is given a pale ground to be read against.
-   */
+  /** Draws an annotation's label and status badge, registers its hit area, returns its width. */
   const drawLabel = (ann, x, y, ground) => {
     const text = shown(ann.text);
     ctx.font = wordsFont();
@@ -470,7 +443,7 @@ import { createPlayer } from './player.js';
     ctx.fillStyle = ann.enabled ? palette.ink : palette.ink3;
     ctx.fillText(text, x, y + 0.5);
     if (!ann.enabled || lit) {
-      // Struck through where it is muted, underlined where it is pointed at.
+      // Struck through when disabled, underlined when hovered or open.
       const at = ann.enabled ? y + 9.5 : y + 1;
       ctx.strokeStyle = ann.enabled ? palette.ink : palette.ink3;
       ctx.lineWidth = 1;
@@ -502,7 +475,6 @@ import { createPlayer } from './player.js';
     return ctx.measureText(shown(ann.text)).width + (ann.question || hasTrouble(ann) ? 20 : 0);
   };
 
-  /** A brace over a stretch: its two feet down on what it holds, its point up at what is said of it. */
   const braceOver = (x0, x1, y) => {
     const mid = (x0 + x1) / 2;
     const q = Math.min(BRACE, (x1 - x0) / 4);
@@ -518,7 +490,7 @@ import { createPlayer } from './player.js';
     ctx.stroke();
   };
 
-  /** An arrow from one point to another, bowed so that its middle passes through `apex`. */
+  /** Strokes a curved arrow whose midpoint passes through y = `apex`. */
   const arrowOver = (from, to, apex) => {
     const control = { x: (from.x + to.x) / 2, y: 2 * apex - (from.y + to.y) / 2 };
     const angle = Math.atan2(to.y - control.y, to.x - control.x);
@@ -533,23 +505,14 @@ import { createPlayer } from './player.js';
   };
 
   /**
-   * The line round a set of notes: over the tops of the notes from the first to the last and back
-   * under them, straight across wherever no note of the set sounds. It is hollow where the set
-   * is, so a melody that climbs and falls is followed up and down and what lies above or below it
-   * is left outside. But it is drawn with a free hand: it leaves the notes room, passes over any
-   * dip it would have to squeeze into, and takes every turn in a wide curve.
-   *
-   * Worked out in steps along the roll, between `from` and `to`, which is as much of it as can
-   * be seen.
-   *
-   * @param rects the notes, as they are drawn
-   * @returns the points of the line, in order round it
+   * Outline around note rectangles: smoothed upper and lower envelopes, sampled every `STEP` px
+   * between `from` and `to`. Returns its points in order around it.
    */
   const hullOf = (rects, from, to) => {
     const STEP = 4;
-    const NEAR = 8; // the least room it leaves a note, where it has to turn in
-    const WIDE = 10; // steps: a dip narrower than twice this is passed over
-    const ROUND = 6; // steps: how wide a turn is taken
+    const NEAR = 8; // minimum distance to a note, px
+    const WIDE = 10; // steps: concavities narrower than twice this are filled
+    const ROUND = 6; // steps: smoothing radius
     const left = Math.max(from, Math.min(...rects.map((r) => r.x)) - HULL);
     const right = Math.min(to, Math.max(...rects.map((r) => r.x + r.w)) + HULL);
     const n = Math.max(2, Math.ceil((right - left) / STEP) + 1);
@@ -567,7 +530,7 @@ import { createPlayer } from './player.js';
         bottomMost[i] = Math.max(bottomMost[i] ?? -Infinity, r.y + r.h + NEAR);
       }
     }
-    // Across a silence: straight from the note before it to the note after.
+    // Interpolate across columns without a note.
     const bridge = (values) => {
       let before = -1;
       for (let i = 0; i < n; i++) {
@@ -583,8 +546,7 @@ import { createPlayer } from './player.js';
     bridge(bottom);
     const sliding = (values, radius, pick) => values.map((_, i) => pick(...values.slice(Math.max(0, i - radius), i + radius + 1)));
     const mean = (...values) => values.reduce((a, b) => a + b, 0) / values.length;
-    // The dips are passed over, the turns rounded twice, and the line is then held off the notes
-    // it has come too near, which is rounded once more.
+    // Fill concavities, smooth, and re-apply the minimum distance to the notes (`keep`).
     const eased = (values, out, back, keep) => {
       let line = sliding(sliding(values, WIDE, out), WIDE, back);
       line = sliding(sliding(line, ROUND, mean), ROUND, mean).map(keep);
@@ -594,7 +556,7 @@ import { createPlayer } from './player.js';
     const offBottom = (y, i) => Math.max(y, bottomMost[i] ?? -Infinity);
     const over = eased(top, Math.min, Math.max, offTop);
     const under = eased(bottom, Math.max, Math.min, offBottom);
-    // Either end is closed in a round, as wide a one as its height and its notes allow.
+    // Round both ends, radius at most `END` px.
     const END = 26;
     const close = (i, d) => {
       const radius = Math.min((under[i] - over[i]) / 2, END);
@@ -612,7 +574,7 @@ import { createPlayer } from './player.js';
     return points;
   };
 
-  /** A closed line through some points, bent at each so that it has no corners. */
+  /** Builds a closed smooth path through the midpoints between consecutive points. */
   const softLine = (points) => {
     const n = points.length;
     if (n < 3) return;
@@ -627,11 +589,7 @@ import { createPlayer } from './player.js';
     ctx.closePath();
   };
 
-  /**
-   * What was said of the whole piece is written along the top, one remark after the other, and
-   * stays in view however the roll is scrolled. Everything else stands in the roll, over what
-   * it is about.
-   */
+  /** Lays out the whole-piece annotations in rows along the top. */
   const lanesOf = () => {
     const whole = [];
     let x = G.gutter + 8;
@@ -674,7 +632,7 @@ import { createPlayer } from './player.js';
     G.penAt = null;
     if (!result) return;
 
-    // One row more than the remarks need: where the next one is written.
+    // One spare row for the next whole-piece annotation.
     const lanes = lanesOf();
     const wanted = Math.min(lanes.rows + 1, 6);
     if (wanted !== G.lanes) {
@@ -686,7 +644,7 @@ import { createPlayer } from './player.js';
     const editing = S.pen.editing;
     const draft = S.pen.open && !editing ? scopeNow() : null;
 
-    // The keys, plain: a faint line under every C is all that tells them apart.
+    // Pitch grid
     ctx.strokeStyle = palette.grid;
     ctx.lineWidth = 1;
     ctx.globalAlpha = 0.6;
@@ -700,7 +658,6 @@ import { createPlayer } from './player.js';
     }
     ctx.globalAlpha = 1;
 
-    // The stretch a bracket being written is over, tinted down the whole roll.
     if (draft && draft.kind === 'span') {
       const a = Math.max(G.gutter, X(encodedAt(result, draft.from)));
       const b = Math.min(width, X(encodedAt(result, draft.to)));
@@ -712,9 +669,7 @@ import { createPlayer } from './player.js';
       }
     }
 
-    // The bars, where the tempo as it stands has them on the recording's clock: the encoding's
-    // own ruler, which a remark about the tempo moves under the notes. Dashed where the tempo is
-    // only assumed.
+    // Bar and beat lines; dashed where the tempo is assumed.
     const bars = [];
     for (const bar of S.bars) {
       const assumed = assumedAt(result, bar.from);
@@ -748,16 +703,12 @@ import { createPlayer } from './player.js';
 
     const lit = S.hoverAnn || S.openAnn;
     const evidence = lit && lit.report && lit.report.evidence.size ? lit.report.evidence : lit ? new Set(idsOf(lit.scope)) : null;
-    // While a remark is being written about some notes, the others stand back.
+    // Notes outside the annotation being written are dimmed.
     const chosen = !lit && draft && draft.kind !== 'piece' ? (draft.kind === 'arrow' ? new Set(idsOf(draft)) : S.selection) : null;
     const dimmed = (id) => (evidence && evidence.size ? !evidence.has(id) : chosen ? !chosen.has(id) : false);
     const apart = (a, b) => Math.abs(a.x - b.x) >= 1.5 || Math.abs(a.h - b.h) >= 1 || Math.abs(a.x + a.w - b.x - b.w) >= 2.5;
 
-    // Shadows: each note as it was played, in its hand's colour and faint, which stays where it
-    // is. The solid note over it is what the MPM as it stands makes of it, and a shadow shows
-    // wherever that is not yet the playing: beside its note where the tempo is off, taller than
-    // it where a loudness is not accounted for, staggered under a chord not yet rolled. Where a
-    // note covers its shadow there is nothing left to see.
+    // Shadows: notes as recorded, drawn only where they differ visibly from the rendered note.
     G.shades = [];
     if (S.view.shadows) {
       ctx.lineWidth = 1;
@@ -779,7 +730,7 @@ import { createPlayer } from './player.js';
         ctx.setLineDash([]);
         G.shades.push({ note, ...was });
       }
-      // What the roll itself had of a note the reader corrected, behind the shadow that now stands for it.
+      // Uncorrected recording of corrected notes.
       ctx.strokeStyle = palette.ghost;
       ctx.setLineDash([1, 3]);
       for (const note of result.notes) {
@@ -794,8 +745,7 @@ import { createPlayer } from './player.js';
       ctx.globalAlpha = 1;
     }
 
-    // The notes as the MPM has them. Louder ones underneath, so that a soft one over a loud one
-    // can still be seen and picked.
+    // Rendered notes, loudest first, so a soft note over a loud one stays visible and clickable.
     for (const note of [...result.notes].sort((a, b) => b.mpm.velocity - a.mpm.velocity)) {
       const r = rectOf(note);
       if (r.x + r.w < G.gutter || r.x > width) continue;
@@ -804,15 +754,12 @@ import { createPlayer } from './player.js';
       ctx.fillStyle = note.part === 1 ? palette.rh : palette.lh;
       rounded(r.x, r.y, r.w, r.h, 2.5);
       ctx.fill();
-      // The onset, a darker edge: what makes a chord read as lined up, or not.
       ctx.globalAlpha = dim ? (chosen ? 0.4 : 0.2) : 0.95;
       ctx.fillRect(r.x, r.y, Math.min(2, r.w), r.h);
       G.rects.push({ note, ...r });
     }
     ctx.globalAlpha = 1;
 
-    // The note under the pointer, tied to its shadow: which of the shadows is this note's is
-    // not always plain, least of all where nothing has been described and they are bars apart.
     const pointed = S.hoverNote ? result.byId.get(S.hoverNote) : null;
     if (pointed && S.view.shadows) {
       const now = rectOf(pointed);
@@ -831,7 +778,7 @@ import { createPlayer } from './player.js';
       ctx.lineWidth = 1;
     }
 
-    // The pedals, under the keys: a press as it was recorded is a shadow, what the MPM moves is solid.
+    // Pedal rows: recorded presses dashed, rendered pedal depth solid.
     const pedalY = (row) => bottom + 6 + row * (PEDAL + 4);
     ctx.fillStyle = palette.pencil;
     ctx.strokeStyle = palette.pencil;
@@ -874,10 +821,7 @@ import { createPlayer } from './player.js';
     }
     ctx.globalAlpha = 1;
 
-    // What was said of a stretch, or of some notes, stands in the roll over what it is about. A
-    // stretch is held in a brace as wide as it is, just above its highest note, with the words
-    // at the brace's point. A set of notes has a line drawn round it that keeps to the notes,
-    // and the words over it.
+    // Annotation markers
     const overhead = [];
     const topOf = (notes) => {
       let y = bottom;
@@ -887,7 +831,7 @@ import { createPlayer } from './player.js';
       }
       return y;
     };
-    /** As near above `y` as the remarks already placed leave room for, and inside the roll. */
+    /** Moves `y` up until `room` px above it are clear of the markers placed so far. */
     const clearOf = (xa, xb, y, room) => {
       for (let again = true, turns = 0; again && turns < 12; turns++) {
         again = false;
@@ -908,7 +852,7 @@ import { createPlayer } from './player.js';
     };
     const seen = (xa, xb) => xb >= G.gutter && xa <= width;
 
-    /** A stretch: a brace as wide as it is, just above its highest note or shadow. */
+    // Each `hold*` draws a marker and returns its extent and `point`, the y its label sits above.
     const holdStretch = (scope, alpha) => {
       const notes = result.notes.filter((note) => note.date >= scope.from && note.date < scope.to);
       const xa = X(encodedAt(result, scope.from));
@@ -919,7 +863,6 @@ import { createPlayer } from './player.js';
       braceOver(xa, xb, y);
       return { xa, xb, y, point: y - BRACE };
     };
-    /** A set of notes: a line round them. */
     const holdSet = (scope, alpha) => {
       const rects = scope.ids.map((id) => result.byId.get(id)).filter(Boolean).map(rectOf);
       if (!rects.length) return null;
@@ -934,7 +877,6 @@ import { createPlayer } from './player.js';
       const y = clearOf(xa, xb, Math.min(...rects.map((r) => r.y)) - HULL - 1, 24);
       return { xa, xb, y, point: y };
     };
-    /** A direction: an arrow from its first note to its last, over what that hand plays between. */
     const holdArrow = (scope, alpha) => {
       const [first, last] = scope.ids.map((id) => result.byId.get(id));
       if (!first || !last) return null;
@@ -949,7 +891,6 @@ import { createPlayer } from './player.js';
       const y = clearOf(from.x, to.x, apex - 2, 24);
       return { xa: from.x, xb: to.x, y, point: y };
     };
-    /** Draw what holds a remark's notes together, and say where its words go. */
     const hold = (scope, alpha) => {
       const spot = scope.kind === 'span' ? holdStretch(scope, alpha) : scope.kind === 'arrow' ? holdArrow(scope, alpha) : holdSet(scope, alpha);
       ctx.globalAlpha = 1;
@@ -966,7 +907,7 @@ import { createPlayer } from './player.js';
     ctx.rect(G.gutter, top - 4, width - G.gutter, height - top + 4);
     ctx.clip();
     if (!S.reference) {
-      // The shorter the stretch, the nearer its notes its brace stands.
+      // Shortest ranges first: their markers go closest to the notes.
       const inRoll = S.anns.filter((ann) => ann.scope.kind !== 'piece').sort((a, b) => a.scope.to - a.scope.from - (b.scope.to - b.scope.from));
       for (const ann of inRoll) {
         const active = S.hoverAnn === ann || S.openAnn === ann;
@@ -1007,7 +948,7 @@ import { createPlayer } from './player.js';
     }
     ctx.restore();
 
-    // Above the roll: what was said of the whole piece, and where the next such remark goes.
+    // Header
     ctx.fillStyle = palette.raised;
     ctx.fillRect(0, 0, width, top - 5);
     ctx.strokeStyle = palette.line;
@@ -1044,7 +985,7 @@ import { createPlayer } from './player.js';
       ctx.fillStyle = assumed ? palette.ink3 : palette.ink;
       ctx.fillText(String(bar.n), x + 4, rulerY);
     }
-    // The stretches whose tempo has been described, as a line under the numbers.
+    // Underline ranges whose tempo is described, not assumed.
     ctx.strokeStyle = palette.accent;
     ctx.lineWidth = 2;
     let cursor = 0;
@@ -1064,8 +1005,7 @@ import { createPlayer } from './player.js';
       ctx.stroke();
     }
 
-    // Where the playing is, or would begin: a line down the roll, hung from the ruler. The roll
-    // turns its page when the line reaches the edge.
+    // Playhead; the roll scrolls a page when it reaches the edge.
     const playing = Player.playing;
     const head = X(playing ? Player.now() : S.play.at);
     if (playing && !drag && head > width - 36 && head < width + 260) scroller.scrollLeft += head - G.gutter - 48;
@@ -1090,7 +1030,7 @@ import { createPlayer } from './player.js';
       ctx.lineWidth = 1;
     }
 
-    // The gutter: which key is which.
+    // Gutter
     ctx.fillStyle = palette.raised;
     ctx.fillRect(0, 0, G.gutter, height);
     ctx.strokeStyle = palette.line;
@@ -1107,16 +1047,16 @@ import { createPlayer } from './player.js';
     G.pedals.forEach(([, label], row) => ctx.fillText(label, 7, pedalY(row) + PEDAL / 2 + 0.5));
 
     placePen();
-    // A remark still being read breathes, so the roll is drawn again while one is.
+    // Repaint while tweening, playing, or pulsing a pending label.
     if (S.tween || Player.playing) draw();
     else if (S.working || S.queue.length) setTimeout(draw, 90);
   };
 
   // ------------------------------------------------------------------------------------------
-  // The pencil: where a remark is written
+  // Annotation input
   // ------------------------------------------------------------------------------------------
 
-  /** What a remark made now would be about. */
+  /** The scope of the annotation being written, from the current selection. */
   const scopeNow = () => {
     if (S.pen.editing) return S.pen.editing.scope;
     const end = S.result ? S.result.end : 0;
@@ -1124,7 +1064,7 @@ import { createPlayer } from './player.js';
     const notes = [...S.selection].map((id) => S.score.get(id)).filter(Boolean).sort((a, b) => a.date - b.date || a['midi.pitch'] - b['midi.pitch']);
     const first = notes[0].date;
     const last = notes[notes.length - 1].date;
-    // Where the passage stops: the next thing the score has after its last onset.
+    // The range ends at the next score date after the last selected onset.
     const next = S.base.dates.find((date) => date > last);
     const to = next === undefined ? end : next;
     const ids = notes.map((n) => n['xml:id']);
@@ -1156,7 +1096,7 @@ import { createPlayer } from './player.js';
     pen.style.top = `${topAt}px`;
   };
 
-  /** The pen takes the room of its words and no more: what it covers cannot be clicked. */
+  /** Sizes the input to its text: what it covers cannot be clicked. */
   const growPen = () => {
     ctx.font = `500 16px ${palette.serif}`;
     const widest = Math.max(...(penText.value || penText.placeholder).split('\n').map((line) => ctx.measureText(line).width));
@@ -1165,7 +1105,6 @@ import { createPlayer } from './player.js';
     penText.style.height = `${penText.scrollHeight + 2}px`;
   };
 
-  /** What a reader might be about to say of this, going by what is left in it. */
   const suggest = (scope) => {
     const ideas = [];
     const has = (name) => S.anns.some((ann) => ann.enabled && ann.calls.some((call) => call.name === name || (call.options && call.options.call && call.options.call.name === name)));
@@ -1213,7 +1152,7 @@ import { createPlayer } from './player.js';
     return ideas.slice(0, 3);
   };
 
-  /** The note a direction would name at a date: the right hand's highest there, or failing that anybody's. */
+  /** The highest right-hand note on a date, else the highest note there. */
   const leadAt = (date) => {
     const there = S.result.notes.filter((note) => note.date === date).sort((a, b) => b.pitch - a.pitch);
     return there.find((note) => note.part === 1) || there[0];
@@ -1240,14 +1179,12 @@ import { createPlayer } from './player.js';
     } else {
       under.append(el('span', { class: 'keys', text: S.sample || !S.sampleAsked ? 'Enter to translate · Esc to drop' : 'Enter to keep (the expert answers when this page is open in Claude)' }));
     }
-    // A passage can be made a direction, and a direction a passage: the same notes, held otherwise.
     const scope = scopeNow();
     const ends = scope.kind === 'span' ? [leadAt(scope.from), leadAt(S.result.dates.findLast((date) => date < scope.to))] : [];
     if (scope.kind === 'arrow' || (ends[0] && ends[1] && ends[0].date < ends[1].date)) {
       const turned = scope.kind === 'arrow' ? [idsOf(scope), 'span'] : [ends.map((note) => note.id), 'arrow'];
       under.append(el('button', { class: 'turn', text: scope.kind === 'arrow' ? 'make it a passage' : 'make it an arrow', title: scope.kind === 'arrow' ? 'Hold these notes in a brace' : 'Draw it as a direction, from its first note to its last', onclick: () => select(...turned) }));
     }
-    // What is in hand can be heard by itself before anything is said of it.
     if (scope.kind !== 'piece') {
       under.append(
         el('button', {
@@ -1278,7 +1215,7 @@ import { createPlayer } from './player.js';
     renderPenUnder();
     renderHint();
     draw();
-    // At once, so that what is typed next goes into it; it is shown when it has been placed.
+    // Focus now so typing is not lost; `paint` positions the input and shows it.
     penText.focus({ preventScroll: true });
   };
 
@@ -1325,7 +1262,7 @@ import { createPlayer } from './player.js';
   });
 
   // ------------------------------------------------------------------------------------------
-  // Pointer
+  // Pointer input
   // ------------------------------------------------------------------------------------------
 
   let drag = null;
@@ -1333,7 +1270,7 @@ import { createPlayer } from './player.js';
     const box = canvas.getBoundingClientRect();
     return { x: event.clientX - box.left, y: event.clientY - box.top };
   };
-  /** The note at a point: the solid one there, or else the one whose shadow is there. */
+  /** The rendered note at a point, else the note whose shadow is there. */
   const noteAt = (x, y) => {
     for (const rects of [G.rects, G.shades || []]) {
       let best = null;
@@ -1360,20 +1297,19 @@ import { createPlayer } from './player.js';
     closeMenu();
     tip.hidden = true;
     if (S.reference) return;
-    // A remark stands among the notes now, so a press on one may be the start of a stroke as well.
     const mark = markAt(x, y);
     const touch = event.pointerType === 'touch';
     const note = mark || inLanes(y) ? null : noteAt(x, y);
     const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+    // Touch scrolls the roll, so it only taps unless draw mode is on.
     if (touch && !S.view.pencil) {
       drag = { kind: 'tap', x0: x, y0: y, note, mark, additive };
       return;
     }
-    // A press that lands on a note or a remark is a click on it only if it does not go on to be a stroke.
     try {
       canvas.setPointerCapture(event.pointerId);
     } catch {
-      // A pointer that cannot be captured still draws; it only stops at the roll's edge.
+      // Capture is optional; without it the drag ends at the canvas edge.
     }
     drag = { kind: 'band', x0: x, y0: y, x1: x, y1: y, note, mark, additive, lanes: inLanes(y), flat: true, moved: false, scroll: scroller.scrollLeft };
   });
@@ -1389,15 +1325,14 @@ import { createPlayer } from './player.js';
   canvas.addEventListener('pointermove', (event) => {
     const { x, y } = local(event);
     if (drag && drag.kind === 'band') {
-      // The bracket is drawn in what is on screen, and the roll may scroll under it.
+      // Compensate for scrolling during the drag.
       drag.x0 += drag.scroll - scroller.scrollLeft;
       drag.scroll = scroller.scrollLeft;
       drag.x1 = x;
       drag.y1 = y;
       drag.moved = drag.moved || Math.abs(x - drag.x0) > 4 || Math.abs(y - drag.y0) > 4;
-      // A stroke along the roll is a bracket over a stretch; one that goes down it is a box.
+      // A horizontal drag is a span, a diagonal one a box, note to note an arrow.
       drag.flat = drag.lanes || Math.abs(y - drag.y0) < 16;
-      // From a note to another note is an arrow.
       const aim = drag.note && drag.moved ? noteAt(x, y) : null;
       drag.aim = aim && aim.date !== drag.note.date ? aim : null;
       draw();
@@ -1464,7 +1399,7 @@ import { createPlayer } from './player.js';
       return;
     }
     closePop();
-    // A box that takes in every note of its stretch is a bracket over the stretch.
+    // A box holding every note of its time range is a span.
     select(boxed.map((note) => note.id), done.flat || boxed.length === within.length ? 'span' : 'box', done.additive);
   };
   canvas.addEventListener('pointerup', endDrag);
@@ -1481,7 +1416,6 @@ import { createPlayer } from './player.js';
     }
   });
 
-  /** A click on nothing: puts away what is open, or starts a remark about the whole piece. */
   const emptyClick = (x, y) => {
     if (S.openAnn) {
       closePop();
@@ -1490,13 +1424,12 @@ import { createPlayer } from './player.js';
     const prompt = G.promptRow && inLanes(y) && y >= G.promptRow.y && y <= G.promptRow.y + G.promptRow.h;
     const kept = S.pen.open && penText.value.trim();
     if (S.pen.open && !kept) closePen();
-    // On the ruler or among the notes, a click on nothing is where the playing begins.
     if (!prompt && !kept && x >= G.gutter && y >= G.lanes * LANE) {
       Player.seek(msOf(x));
       return;
     }
     if (prompt || kept) {
-      // Words already written stay, and are now about the whole piece.
+      // Typed text is kept and now applies to the whole piece.
       const words = penText.value;
       S.pen.editing = null;
       S.selection.clear();
@@ -1537,10 +1470,10 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // Playing: the roll heard, as it was played, as the MPM has it, or both at once
+  // Playback
   // ------------------------------------------------------------------------------------------
 
-  /** The stretches of the clock over which the pedal is down, and a key let go rings on. */
+  /** Ranges `[down, up]` in ms where the sustain pedal is down. */
   const pedalled = (result, which) => {
     if (which === 'played') return result.pedals.played.filter((press) => press.kind === 'sustain').map((press) => [press.ms, press.msEnd]);
     const spans = [];
@@ -1556,7 +1489,7 @@ import { createPlayer } from './player.js';
     return spans;
   };
 
-  /** Every key struck, in order: when, how hard, and when it is damped. */
+  /** Notes to play for a source, sorted by onset, their ends extended by the sustain pedal. */
   const keysOf = (result, source, only) => {
     const voice = (which, pan) => {
       const spans = pedalled(result, which);
@@ -1565,13 +1498,13 @@ import { createPlayer } from './player.js';
         .filter((note) => !only || only.has(note.id))
         .map((note) => ({ pitch: note.pitch, sound: which === 'played' ? note : note.mpm }))
         .map(({ pitch, sound }) => ({ ms: sound.ms, end: damped(sound.msEnd), pitch, velocity: sound.velocity, pan }));
-      // The grace notes are in the recording only: the score gives them no time to render.
+      // Grace notes exist in the recording only, with a nominal length of 160 ms.
       if (which === 'played') {
         for (const grace of result.graces.filter((grace) => !only || only.has(grace.principal))) {
           keys.push({ ms: grace.ms, end: damped(grace.ms + 160), pitch: grace.pitch, velocity: grace.velocity, pan });
         }
       }
-      // A key struck again is damped first, however long the pedal would have held it.
+      // A repeated pitch ends the previous note on it, even under the pedal.
       keys.sort((a, b) => a.ms - b.ms);
       const last = new Map();
       for (const key of keys) {
@@ -1612,11 +1545,7 @@ import { createPlayer } from './player.js';
       },
     });
 
-    /**
-     * The stretch of the clock to play. What is in hand is played by itself, from its first note
-     * to its last: a passage whole, a set of notes without the others. With nothing in hand the
-     * roll is played from the line, or from the left edge where the line is out of sight.
-     */
+    /** Range to play: the selection or open annotation alone, else from the playhead. */
     const stretch = () => {
       const result = S.result;
       const scope = S.pen.open || S.selection.size ? scopeNow() : S.openAnn ? S.openAnn.scope : null;
@@ -1644,14 +1573,13 @@ import { createPlayer } from './player.js';
       if (!started) notice('The piano could not be heard here.');
     };
 
-    /** Stop. Stopped in the middle of the roll, the line stays where the playing was. */
     const stop = () => {
       if (!transport.playing) return;
+      // The playhead stays where unscoped playback stopped.
       if (!scoped) S.play.at = clamp(transport.position(), 0, S.result.total);
       transport.stop();
     };
 
-    /** Put the line somewhere; the playing, if there is any, goes on from there. */
     const seek = (ms) => {
       if (!S.result) return;
       S.play.at = clamp(ms, 0, S.result.total);
@@ -1664,7 +1592,7 @@ import { createPlayer } from './player.js';
     const hear = (source) => {
       S.play.source = source;
       for (const button of document.querySelectorAll('#hear button')) button.setAttribute('aria-pressed', String(button.dataset.src === source));
-      // A passage is heard again from its start; the roll goes on where it is.
+      // Scoped playback restarts; unscoped playback continues in place.
       if (transport.playing && scoped) start();
       else refresh();
     };
@@ -1720,10 +1648,10 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // Meters and the line under the roll
+  // Meters and hint line
   // ------------------------------------------------------------------------------------------
 
-  /** A distance as it is shown: a time in milliseconds, or in seconds once it is one; a loudness in velocities. */
+  /** Formats a residual: ms (s from 1000 ms) for times, velocity for 'loud'. */
   const amountOf = (key, value) => {
     if (key === 'loud') return value.toFixed(1);
     if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)} s`;
@@ -1790,7 +1718,6 @@ import { createPlayer } from './player.js';
     renderHint();
   };
 
-  /** One line under the roll: what can be done now, or what is being done. */
   const renderHint = () => {
     const hint = $('#hint');
     hint.replaceChildren();
@@ -1829,10 +1756,10 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // A remark, called up
+  // Annotation popover
   // ------------------------------------------------------------------------------------------
 
-  /** What a remark's elements are, counted by kind: `tempo x 8`. */
+  /** A report's MPM elements counted by tag name, as `[kind, count]` pairs. */
   const kinds = (report) => {
     const counts = new Map();
     report.elements.forEach((id, i) => {
@@ -1921,7 +1848,6 @@ import { createPlayer } from './player.js';
       const effect = effectOf(ann);
       if (effect && ann.enabled) steps.append(el('span', { class: `effect${effect.startsWith('nothing') ? ' none' : ''}`, text: effect, title: 'What it took off what is left unexplained in its passage' }));
       pop.append(steps);
-      // Who turned the words into these steps, and when: all that is kept besides the two.
       const day = ann.date ? new Date(ann.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : null;
       pop.append(el('div', { class: 'note', text: [ann.model || 'steps written by hand', day].filter(Boolean).join(' · ') }));
     }
@@ -1961,7 +1887,6 @@ import { createPlayer } from './player.js';
     acts.append(el('button', { class: 'btn quiet', text: 'Remove', onclick: () => removeAnn(ann) }));
     pop.append(acts);
 
-    // The steps themselves, for somebody who knows the MPM Desk and wants to see or mend them.
     const details = el('details', {});
     details.open = open;
     details.append(el('summary', { text: ann.calls.length ? `${ann.calls.length} ${ann.calls.length === 1 ? 'call' : 'calls'} to the chain` : 'Write its calls by hand' }));
@@ -2033,7 +1958,7 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // MPM
+  // MPM drawer and export
   // ------------------------------------------------------------------------------------------
 
   const pretty = (xml) => {
@@ -2082,7 +2007,6 @@ import { createPlayer } from './player.js';
     if (firstHot) firstHot.scrollIntoView({ block: 'center' });
   };
 
-  /** The calls as the MPM Desk would hold them: a fitted step as the stated one it came to. */
   const workFile = () => JSON.stringify({ name: S.piece.title, mei: 'transcription.mei', mpm: 'performance.mpm', provenance: S.result.record }, null, 2);
 
 
@@ -2139,7 +2063,7 @@ import { createPlayer } from './player.js';
   });
 
   // ------------------------------------------------------------------------------------------
-  // The expert
+  // Model translation
   // ------------------------------------------------------------------------------------------
 
   const COPY = {
@@ -2273,7 +2197,7 @@ import { createPlayer } from './player.js';
   const parseAnswer = (text) => {
     const candidates = [];
     const last = text.lastIndexOf('}');
-    // With the tool the answer is the last object written, after whatever was said on the way.
+    // After tool use the answer is the last `{"calls"` object in the text.
     const tail = text.lastIndexOf('{"calls"');
     if (tail !== -1 && last > tail) candidates.push(text.slice(tail, last + 1));
     const fence = /```(?:json)?\s*([\s\S]*?)```/g;
@@ -2286,13 +2210,13 @@ import { createPlayer } from './player.js';
         const value = JSON.parse(candidate);
         if (value && typeof value === 'object' && ('calls' in value || 'question' in value)) return value;
       } catch {
-        // try the next way of reading it
+        // Try the next candidate.
       }
     }
     return null;
   };
 
-  /** The first elements a call wrote, and the definitions those name. */
+  /** A report's first eight element tags and the definitions they reference. */
   const shownOf = (report) => {
     const first = report.written.filter(Boolean).slice(0, 8);
     const names = new Set(first.map((tag) => (/\sname\.ref="([^"]+)"/.exec(tag) || [])[1]).filter(Boolean));
@@ -2375,7 +2299,7 @@ import { createPlayer } from './player.js';
     }
   };
 
-  /** Remarks are read one at a time, in the order they were written. */
+  /** Translates queued annotations one at a time, in order. */
   const pump = async () => {
     if (S.working) return;
     const next = S.queue.shift();
@@ -2393,12 +2317,11 @@ import { createPlayer } from './player.js';
     }
   };
 
-  /** Settled once the viewer has said whether the expert can be asked here. */
+  /** Resolves once it is known whether the host provides model access. */
   let expertKnown;
   const whenExpertKnown = new Promise((resolve) => (expertKnown = resolve));
 
   const enqueue = async (ann, mode) => {
-    // A remark written in the first moment of the page waits to hear whether there is an expert.
     if (!S.sampleAsked) await whenExpertKnown;
     if (!S.anns.includes(ann)) return;
     if (!S.sample) {
@@ -2413,7 +2336,7 @@ import { createPlayer } from './player.js';
     pump();
   };
 
-  /** Run the chain with a remark's calls in it, and note what it took off what is left. */
+  /** Refits with the annotation enabled and records the change in its residuals as `delta`. */
   const apply = async (ann, unsaved) => {
     const ids = idsOf(ann.scope);
     const before = S.result ? leftIn(S.result, ids) : null;
@@ -2432,7 +2355,7 @@ import { createPlayer } from './player.js';
     if (!text || !S.result || S.reference) return;
     const editing = S.pen.editing;
     if (editing) {
-      // The same remark in other words: what the old words became goes with them.
+      // New text invalidates the calls made from the old.
       const changed = editing.text !== text;
       editing.text = text;
       closePen();
@@ -2465,7 +2388,7 @@ import { createPlayer } from './player.js';
   };
 
   // ------------------------------------------------------------------------------------------
-  // Keeping, and the rest of the controls
+  // Persistence and controls
   // ------------------------------------------------------------------------------------------
 
   const save = () => {
@@ -2473,7 +2396,7 @@ import { createPlayer } from './player.js';
       const anns = S.anns.map(({ id, text, scope, calls, enabled, model, date, question, thread, delta, example, failure }) => ({ id, text, scope, calls, enabled, model, date, question, thread, delta, example, failure }));
       localStorage.setItem(STORE, JSON.stringify({ anns }));
     } catch {
-      // Without storage the remarks last as long as the page does.
+      // Storage unavailable: nothing is persisted.
     }
   };
   const restore = () => {
@@ -2481,7 +2404,7 @@ import { createPlayer } from './player.js';
       const stored = JSON.parse(localStorage.getItem(STORE) || 'null');
       if (stored && Array.isArray(stored.anns)) return stored.anns.map((ann) => ({ ...ann, status: 'done', calls: ann.calls || [] }));
     } catch {
-      // Nothing kept, or nothing readable.
+      // Storage unavailable or unreadable.
     }
     return null;
   };
@@ -2541,7 +2464,6 @@ import { createPlayer } from './player.js';
       refit();
     });
   });
-  // Where the frame the page is shown in allows it, the roll can have the whole screen.
   if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
     $('#fullBtn').hidden = false;
     $('#fullBtn').addEventListener('click', () => {
@@ -2556,14 +2478,14 @@ import { createPlayer } from './player.js';
     const kept = JSON.parse(localStorage.getItem(VIEW) || 'null');
     if (kept && Number.isFinite(kept.height)) S.view.height = clamp(kept.height, 0.25, 4);
   } catch {
-    // Nothing kept: the heights are the usual ones.
+    // No stored view: keep the default.
   }
   const setHeight = (factor) => {
     S.view.height = clamp(S.view.height * factor, 0.25, 4);
     try {
       localStorage.setItem(VIEW, JSON.stringify({ height: S.view.height }));
     } catch {
-      // It lasts as long as the page does.
+      // Storage unavailable.
     }
     draw();
   };
@@ -2592,14 +2514,13 @@ import { createPlayer } from './player.js';
     }
     if (typing || event.metaKey || event.ctrlKey || event.altKey || !S.result) return;
     if (target && target.tagName === 'BUTTON' && (event.key === ' ' || event.key === 'Enter')) return;
-    // Space plays and stops, unless a remark is being written, where it is a space.
     if (event.key === ' ' && !S.pen.open) {
       event.preventDefault();
       Player.toggle();
       return;
     }
     if (S.reference) return;
-    // Anything typed with nothing else in hand is the start of a remark.
+    // Typing outside any field starts or continues an annotation.
     if (event.key.length === 1 && (event.key !== ' ' || S.pen.open)) {
       event.preventDefault();
       if (!S.pen.open) openPen(event.key);
@@ -2611,7 +2532,7 @@ import { createPlayer } from './player.js';
       }
     }
   });
-  // A button clicked with the mouse hands the keys back to the roll, so that Space still plays.
+  // After a mouse click on a button, refocus the roll so Space still toggles playback.
   document.addEventListener('click', (event) => {
     if (event.detail > 0 && event.target.closest('.top button, .foot button, .menu button')) (S.pen.open ? penText : canvas).focus({ preventScroll: true });
   });
@@ -2622,7 +2543,7 @@ import { createPlayer } from './player.js';
   });
 
   // ------------------------------------------------------------------------------------------
-  // Start
+  // Startup
   // ------------------------------------------------------------------------------------------
 
   const start = async () => {
@@ -2644,16 +2565,14 @@ import { createPlayer } from './player.js';
       for (const note of piece.alignment.allNotes) S.score.set(note['xml:id'], note);
       S.firstMs = Math.min(...piece.alignment.allNotes.map((n) => n['milliseconds.date']));
       const pitches = [...piece.alignment.allNotes, ...piece.alignment.graces].map((n) => n['midi.pitch']);
-      // The keys the piece uses, and no others.
       G.lo = Math.min(...pitches);
       G.hi = Math.max(...pitches);
 
       S.base = await Engine.run([]);
       index(S.base);
       S.bars = buildBars(S.base.timeSignatures, S.base.end);
-      // The scale of loudness: a note in the loudest twentieth stands four rows tall.
       S.level = S.base.level;
-      // The scale of loudness: the loudest fiftieth of the notes stand three rows tall.
+      // Height scale: the 98th-percentile velocity is drawn three rows tall.
       const velocities = S.base.notes.map((n) => n.velocity).sort((a, b) => a - b);
       const loudest = velocities[Math.floor(velocities.length * 0.98)];
       G.perOctave = 2 / Math.max(0.15, Math.log2(Math.max(loudest, S.level + 1) / S.level));
@@ -2662,14 +2581,14 @@ import { createPlayer } from './player.js';
       const kept = restore();
       $('#loading').hidden = true;
       resize();
-      // Some three quarters of a minute across the roll: eight or nine bars of this piece.
+      // Initial zoom: about 45 s across the view.
       S.view.ppt = clamp((G.width - G.gutter) / 45000, 0.012, 0.05);
       if (kept) {
         S.anns = kept;
         renderAll();
         if (S.anns.some((ann) => ann.calls.length)) await refit();
       } else {
-        // The examples, applied one after the other, so that each shows what it took off.
+        // One by one, so each example gets its own `delta`.
         for (const [i, example] of examples.entries()) {
           const ann = { ...example, id: `example${i}`, status: 'done', enabled: true, example: true };
           S.anns.push(ann);
@@ -2684,7 +2603,7 @@ import { createPlayer } from './player.js';
       return;
     }
 
-    // The expert and the save dialog arrive when the viewer has answered, and may never.
+    // The host grants model access and downloads asynchronously, or never.
     if (window.claude && typeof window.claude.use === 'function') {
       window.claude.use('sample').then(async (sample) => {
         S.sample = sample || null;
@@ -2707,7 +2626,7 @@ import { createPlayer } from './player.js';
     }
   };
 
-  // For a test that drives the page: handed the state and the few verbs a reader has.
+  // Test hook.
   if (typeof window.__describeItTest === 'function') window.__describeItTest({ S, G, select, describe, refit, apply, Engine, openPop, buildPrompt, tryTool, Player });
 
   start();

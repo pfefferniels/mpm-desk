@@ -11,9 +11,9 @@ const LEAD_IN_S = 0.08;
  *
  * @typedef {{ ms: number, end: number, pitch: number, velocity: number, pan?: number }} Key
  * @param {object} listeners
- * @param {() => void} listeners.onChange called when playback starts or stops
- * @param {() => void} listeners.onEnd called when playback reaches the end of the range
- * @param {(done: number, total: number) => void} listeners.onLoading called while samples load
+ * @param {() => void} listeners.onChange playback started or stopped
+ * @param {() => void} listeners.onEnd playback reached the end of the range
+ * @param {(done: number, total: number) => void} listeners.onLoading sample loading progress
  */
 export function createPlayer({ onChange, onEnd, onLoading }) {
   let audio = null;
@@ -74,12 +74,7 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
   };
 
   return {
-    /**
-     * Plays `keys` from `from` to `until` (ms). Resolves to whether playback started.
-     *
-     * @param {Key[]} keys sorted by `ms`
-     * @param {{ from: number, until: number }} range
-     */
+    /** Plays `keys` (a `Key[]` sorted by `ms`) from `from` to `until`; resolves to whether it started. */
     async play(keys, { from, until }) {
       if (!open()) return false;
       halt();
@@ -103,7 +98,7 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
       return true;
     },
 
-    /** Swaps the notes being played without moving the playback position. */
+    /** Swaps the notes being played, keeping the playback position. */
     replace(keys) {
       if (!run) return;
       piano.hush();
@@ -123,7 +118,7 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
       return loading;
     },
 
-    /** Audible position in ms, compensated for output latency; undefined when stopped. */
+    /** Audible position in ms (latency-compensated); undefined when stopped. */
     position() {
       if (!run) return undefined;
       return position() - (audio.outputLatency || audio.baseLatency || 0) * 1000;

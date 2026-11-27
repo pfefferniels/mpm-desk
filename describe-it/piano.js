@@ -1,8 +1,7 @@
-/* Sampled piano on the Web Audio API: Salamander Grand Piano samples, played the way
-   `@tonejs/piano` plays them. */
+/* Sampled piano on the Web Audio API: Salamander samples, played as `@tonejs/piano` plays them. */
 /* global fetch */
 
-/** Recorded velocity layers (of 16) used for a given layer count; `velocitiesMap` in `@tonejs/piano`. */
+/** Recorded layers (of 16) used per layer count; `velocitiesMap` in `@tonejs/piano`. */
 const LAYERS = {
   1: [8],
   2: [6, 12],
@@ -34,10 +33,7 @@ const sampledKey = (pitch) => Math.min(108, Math.max(21, 3 * Math.round(pitch / 
 
 const fileOf = (key, layer) => `${['C', 'Ds', 'Fs', 'A'][(key % 12) / 3]}${Math.floor(key / 12) - 1}v${layer}.mp3`;
 
-/**
- * Layer and gain for a velocity. Each layer covers one velocity band, across which its gain rises
- * from 0.5 to 1.5; layers are not crossfaded (as `PianoStrings.triggerAttack`).
- */
+/** Layer and gain for a velocity: per band the gain rises from 0.5 to 1.5, without crossfade. */
 const layerOf = (velocity, layers) => {
   const force = Math.min(Math.max(velocity, 0), 127) / 127;
   const scaled = force * (layers.length - 0.01) - 0.5;
@@ -48,11 +44,10 @@ const layerOf = (velocity, layers) => {
 /**
  * Creates a sampled piano on an audio context.
  *
- * - `load(keys, onProgress?)` fetches and decodes the samples for `{ pitch, velocity }` keys.
- *   Results are cached; a failed sample is retried on the next call.
- * - `ready(keys)` tells whether all their samples are loaded.
- * - `strike({ pitch, velocity, when, off, pan }, destination)` plays a note. `when` and `off` are
- *   context times in seconds, `pan` is -1 to 1. A note whose sample is not loaded is skipped.
+ * - `load(keys, onProgress?)` fetches the samples for `{ pitch, velocity }` keys; cached.
+ * - `ready(keys)` tells whether their samples are loaded.
+ * - `strike({ pitch, velocity, when, off, pan }, destination)` plays a note; `when` and `off` are
+ *   context times in seconds. A note whose sample is not loaded is skipped.
  * - `hush(when?)` fades out all playing and scheduled notes.
  *
  * @param {AudioContext} audio
@@ -95,7 +90,7 @@ export function createPiano(audio, { url = 'piano/', velocities = 3 } = {}) {
 
   const ready = (keys) => filesFor(keys).every((file) => buffers.has(file));
 
-  /** Tone's release curve: exponential decay, linear over the last tenth of the release time. */
+  /** Tone's release: exponential, then linear over the last tenth of the time. */
   const damp = ({ source, envelope }, level, off) => {
     envelope.gain.setTargetAtTime(0, off, DAMPING);
     envelope.gain.setValueAtTime(level * Math.exp((-0.9 * RELEASE) / DAMPING), off + 0.9 * RELEASE);
