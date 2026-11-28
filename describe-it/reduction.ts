@@ -32,8 +32,8 @@ const ACCIDENTALS: Record<string, number> = { s: 1, f: -1, ss: 2, x: 2, ff: -2, 
 const FLATS = 'beadgcf';
 const SHARPS = 'fcgdaeb';
 
-/** The checkout, resolved as `src/test/published.ts` resolves it. */
-export const reductionPath = resolve(process.env['WELTE225'] ?? '../welte225.org', 'hummed/reduction/reduction.mei');
+/** In the checkout, which is found as `src/test/published.ts` finds it. */
+const reductionPath = resolve(process.env['WELTE225'] ?? '../welte225.org', 'hummed/reduction/reduction.mei');
 
 /** The pitch names the key signature alters, and by how much (`keysig="1f"`: b flat). */
 const keySignature = (score: Element): Map<string, number> => {
@@ -46,10 +46,11 @@ const midiPitch = (note: Element, key: Map<string, number>): number => {
   const name = note.getAttribute('pname') ?? '';
   const step = STEPS[name];
   if (step === undefined) throw new Error(`the reduction has a note without a pitch name: ${note.outerHTML}`);
+  // An accidental is on the note or on an `<accid>` in it, written or only sounding; else the key decides.
   const sign = note.querySelector('accid');
-  const written =
+  const accidental =
     note.getAttribute('accid') ?? note.getAttribute('accid.ges') ?? sign?.getAttribute('accid') ?? sign?.getAttribute('accid.ges');
-  const alter = written == null ? (key.get(name) ?? 0) : (ACCIDENTALS[written] ?? 0);
+  const alter = typeof accidental === 'string' ? (ACCIDENTALS[accidental] ?? 0) : (key.get(name) ?? 0);
   return 12 * (Number(note.getAttribute('oct')) + 1) + step + alter;
 };
 
@@ -63,10 +64,8 @@ const lengthOf = (event: Element): number => {
   return 2 * base - base / 2 ** dots;
 };
 
-/**
- * Reads the reduction from MEI. Needs a global `DOMParser`, which `build.ts` takes from jsdom.
- */
-export function parseReduction(mei: string): Reduction {
+/** Reads the reduction from MEI. Needs a global `DOMParser`, which `build.ts` takes from jsdom. */
+function parseReduction(mei: string): Reduction {
   const score = new DOMParser().parseFromString(mei, 'application/xml').querySelector('score');
   if (!score) throw new Error('the reduction holds no score');
   const key = keySignature(score);
@@ -76,7 +75,9 @@ export function parseReduction(mei: string): Reduction {
   let tick = 0;
 
   for (const measure of score.querySelectorAll('measure')) {
-    if (measure.querySelector('chord, tuplet')) throw new Error('the reduction holds a chord or a tuplet: the voice sings one note at a time');
+    if (measure.querySelector('chord, tuplet')) {
+      throw new Error('the reduction holds a chord or a tuplet: the voice sings one note at a time');
+    }
     // Not a selector list: jsdom returns the matches of one out of document order.
     for (const event of measure.querySelectorAll('*')) {
       if (!EVENTS.has(event.localName)) continue;
@@ -103,6 +104,6 @@ export function parseReduction(mei: string): Reduction {
   return { notes, rests };
 }
 
-/** The reduction of the checkout, or `undefined` where the checkout has none. */
+/** The reduction of the checkout of welte225.org, or `undefined` where that has none. */
 export const readReduction = (path = reductionPath): Reduction | undefined =>
   existsSync(path) ? parseReduction(readFileSync(path, 'utf-8')) : undefined;

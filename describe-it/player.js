@@ -6,6 +6,8 @@ import { createVoice } from './voice.js';
 const LOOKAHEAD_MS = 1200;
 const TICK_MS = 50;
 const LEAD_IN_S = 0.08;
+// Under the piano: about 10 dB below a soft passage. Set by measurement, not yet by ear.
+const VOICE_LEVEL = 0.3;
 
 /**
  * Creates the transport. Times are in milliseconds.
@@ -100,7 +102,7 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
       }
       run = { from, until, startedAt: audio.currentTime + LEAD_IN_S, keys: [], next: 0 };
       queue(keys);
-      if (line && line.length) voice.hum(line, timeOf, output, { exaggerate });
+      if (line && line.length) voice.hum(line, timeOf, output, { level: VOICE_LEVEL, exaggerate });
       timer = setInterval(schedule, TICK_MS);
       schedule();
       onChange();

@@ -32,6 +32,15 @@ the roll says how well the MPM matches the playing; under the pointer it opens i
 is made of, how far the notes still are from their shadows in timing, within chords, in loudness
 and in length.
 
+A remark the pointer rests on is played brought out: its passage alone, with the instructions it
+wrote exaggerated, every other dimension of the performance held back, and a pianist's inner
+voice humming along. A slider sets how strongly. The exaggeration is espressivo's, which works on
+whole dimensions (tempo, dynamics, rubato and so on) rather than on single instructions; playing
+only the passage is what keeps it to the remark. The voice is the idea of welte225.org's front
+page in small: the line of its hand-made reduction, each note sung when the piano note it comes
+from is struck. There it is VocalTractLab that sings; here it is a hum made with the browser's
+own audio, which is plainer.
+
 It is published as a Claude artifact, where the page asks Claude through the viewer's own
 account. Opened anywhere else it draws and fits, and a remark's calls can be written by hand.
 
@@ -43,6 +52,8 @@ account. Opened anywhere else it draws and fits, and a remark's calls can be wri
 | `engine.worker.ts` | The engine as the page loads it: a worker, or a global where a worker cannot start. |
 | `index.html`, `app.js` | The page: the roll, the pencil, the remarks, the expert's prompt. |
 | `staff.js` | Spelling and staff positions: where a pitch sits on a staff, its ledger lines, the key signature read off the notes. |
+| `voice.js` | The inner voice: the sung line of a passage in time with a performance, and a hum for it. |
+| `reduction.ts` | Reads the line that is hummed from the site's `hummed/reduction/reduction.mei`, at build time. |
 | `player.js`, `piano.js` | Playing back: a transport over struck keys, and the piano it plays, which is the Salamander samples struck as `@tonejs/piano` strikes them in the Desk. |
 | `knowledge/` | What the expert is told: how a remark becomes calls (`00`), every transformer with its options (`10`), what every MPM instruction means to the renderer (`20`). |
 | `examples.json` | The two remarks the page opens with, translated in advance. |
@@ -50,7 +61,9 @@ account. Opened anywhere else it draws and fits, and a remark's calls can be wri
 
     WELTE225=../welte225.org npx vite-node describe-it/build.ts
 
-The piece is the published transcription of WM 225 with its base text chosen. The build also
+The piece is the published transcription of WM 225 with its base text chosen. With a checkout of
+the whole site the build also writes `reduction.json`, the line the inner voice hums; with the
+published files alone it writes an empty one, and nothing is hummed. The build also
 fetches the piano's samples into `dist/piano/`, which the page can load from nowhere but beside
 itself. `dist/` is not committed.
 
@@ -90,6 +103,8 @@ a remark made today may be about a place somebody spoke of yesterday.
   so that what one stretch gets wrong is not carried into the next.
 - **The pedals.** The presses as they were recorded and the moves the MPM's rendering makes, on
   the one clock.
+- **A remark brought out.** A run's MPM rendered with the dimensions of one remark's instructions
+  exaggerated and the others damped, on that rendering's own clock.
 - **The record.** Every step as the Desk reads it, a fitted step stated as the call it came to,
   under the Desk's `Describe` step for the remark it came from.
 - **A later remark owns its place.** A tempo or dynamics span is taken out of every earlier one,
