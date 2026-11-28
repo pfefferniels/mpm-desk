@@ -10,11 +10,9 @@ import type { DescriptionReply, DescriptionRequest } from './description.worker'
 import type { BroughtOut, DescribeRunOptions, DescriptionRun } from './index';
 
 export type {
-    Assumed,
     BroughtOut,
     DescribeRunOptions,
     DescriptionRun,
-    Displaced,
     RemarkReport,
     Roll,
     RollNote,
@@ -32,6 +30,16 @@ export interface DescriptionClient {
      * of the requests made while one runs only the newest is run after it, and every request still
      * unanswered is answered with that newest run. A request with a `trial` is another matter: it
      * is always run, and answered with its own.
+     *
+     * A remark on trial takes the place of the calls made by hand it stands over, and its report
+     * says which (`RemarkReport.displaced`, and per step `StepReport.displaces`); a remark the
+     * document holds stands behind them (`StepReport.gaveWayTo`, `StepReport.behind`). Where
+     * something is displaced, the reader is asked first. "Replace" is one `replaceCalls` from
+     * the trial's run: out go the displaced calls, every `Describe` call and every call one of
+     * them names; in go what is left of the displaced calls, then every remark of the run with
+     * its `concrete`, the `Describe` call naming their ids, a new remark dated after every
+     * other. "Keep" writes the remark alone, and the next plain run cuts it round what stands.
+     * The whole of it, with the reasons, is at the head of `run.ts`.
      *
      * @param alignment the alignment as loaded. Sent to the worker when it does not hold the
      * arrays of the one sent last.

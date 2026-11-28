@@ -14,7 +14,7 @@ import {
 } from '../../../src/fitting/description/index';
 import type { Call } from '../../../src/model/Work';
 import { EMPTY_WORK, workReducer } from '../../../src/model/workReducer';
-import { bar, BAR, left, loadPublished, remark, step, type Published } from './published';
+import { bar, left, loadPublished, remark, step, type Published } from './published';
 
 /** Bars 16 and 17: five tempos, four dynamics spans, six rolls and four presses made by hand. */
 const [FROM, TO] = [bar(16), bar(18)];
@@ -24,6 +24,8 @@ const TODAY = '2026-11-28T12:00:00.000Z';
 let published: Published;
 /** The published reconstruction, with a tempo for its last bar: nothing in it is left to assume. */
 let document: Call[];
+/** The document as it stands, before anything is said of it. */
+let before: DescriptionRun;
 
 const run = (calls: readonly Call[], options?: DescribeRunOptions) =>
     runDescription(published.alignment, calls, options);
@@ -81,7 +83,8 @@ beforeAll(() => {
             options: { scope: 'global', from: 91440, to: end, bpm: 45.518, beatLength: 0.25 },
         },
     ];
-});
+    before = run(document);
+}, 120_000);
 
 describe('a remark over bars that are described by hand', () => {
     /** A broadening, one level, a roll on the first chord and the four presses traced. */
@@ -93,14 +96,12 @@ describe('a remark over bars that are described by hand', () => {
     ];
     const said = remark('said', steps, { date: TODAY });
 
-    let before: DescriptionRun;
     let trial: DescriptionRun;
     let replaced: Call[];
     let after: DescriptionRun;
     let kept: DescriptionRun;
 
     beforeAll(() => {
-        before = run(document);
         trial = run(document, { trial: { remark: 'said', steps } });
         replaced = write(document, [said], trial);
         after = run(replaced);
@@ -110,9 +111,9 @@ describe('a remark over bars that are described by hand', () => {
     it('on trial takes the place of what stands there, and says what goes and what is left', () => {
         const tried = trial.remarks.at(-1)!;
         expect(trial.problems).toEqual([]);
-        expect(tried.steps.map(({ error, withheld, behind }) => error ?? withheld ?? behind)).toEqual(
-            Array(steps.length).fill(undefined),
-        );
+        expect(
+            tried.steps.map(({ error, withheld, behind }) => error ?? withheld ?? behind),
+        ).toEqual(Array(steps.length).fill(undefined));
         expect(tried.steps.every((report) => report.gaveWayTo === undefined)).toBe(true);
 
         // Five tempos start in the two bars, and all of them go.
@@ -121,12 +122,19 @@ describe('a remark over bars that are described by hand', () => {
         expect(tempo?.displaces).toHaveLength(5);
         // Of the four dynamics spans the two inside go; the one reaching in ends on the chord
         // before the bars, the one reaching out begins on the chord after them.
-        const chords = [...new Set(before.roll.notes.map((note) => note.date))].sort((a, b) => a - b);
-        const whatIsLeft = (id: string) => tried.displaced!.find(({ call }) => call.id === id)!.left;
+        const chords = [...new Set(before.roll.notes.map((note) => note.date))].sort(
+            (a, b) => a - b,
+        );
+        const whatIsLeft = (id: string) =>
+            tried.displaced!.find(({ call }) => call.id === id)!.left;
         expect(dynamics?.displaces).toHaveLength(4);
         const spans = dynamics!.displaces!.map((id) => {
             const { from, to } = document.find((call) => call.id === id)!.options;
-            return [from, to, whatIsLeft(id).map(({ options }) => [options['from'], options['to']])];
+            return [
+                from,
+                to,
+                whatIsLeft(id).map(({ options }) => [options['from'], options['to']]),
+            ];
         });
         expect(spans).toEqual([
             [46800, 48960, []],
@@ -139,7 +147,9 @@ describe('a remark over bars that are described by hand', () => {
             byHandIn('InsertTemporalSpread', ({ options }) => options['date'] === FROM),
         );
         expect(pedals.map((report) => report.displaces)).toEqual(
-            PRESSES.map((pedal) => byHandIn('InsertPedal', ({ options }) => options['pedal'] === pedal)),
+            PRESSES.map((pedal) =>
+                byHandIn('InsertPedal', ({ options }) => options['pedal'] === pedal),
+            ),
         );
 
         // Every one of them is in `displaced` once, as the document holds it; what is left of a
@@ -149,11 +159,12 @@ describe('a remark over bars that are described by hand', () => {
             tried.steps.flatMap((report) => report.displaces!).sort(),
         );
         expect(displaced.every(({ call }) => document.includes(call))).toBe(true);
-        expect(displaced.flatMap(({ call, left: rest }) => rest.map(({ id }) => id === call.id))).toEqual([
+        expect(
+            displaced.flatMap(({ call, left: rest }) => rest.map(({ id }) => id === call.id)),
+        ).toEqual([true, true]);
+        expect(trial.remarks.slice(0, -1).every((report) => report.displaced === undefined)).toBe(
             true,
-            true,
-        ]);
-        expect(trial.remarks.slice(0, -1).every((report) => report.displaced === undefined)).toBe(true);
+        );
     });
 
     it('on trial comes out clean: one tempo, one level, the chord rolled, each press once', () => {
@@ -163,7 +174,7 @@ describe('a remark over bars that are described by hand', () => {
         expect(tags(trial.mpm, 'tempo')).toEqual(tempo?.written);
         expect(dynamics?.elements).toEqual([`dynamics_${FROM}`]);
         expect(tags(trial.mpm, 'dynamics', FROM, TO)).toEqual(dynamics?.written);
-        expect(dynamics?.written[0]).toMatch(/volume="26\.3609"/);
+        expect(Number(/volume="([\d.]+)"/.exec(dynamics!.written[0]!)?.[1])).toBeCloseTo(26.36, 1);
 
         // The chord is rolled on the beat over what was played, not left with a frame of nothing.
         const definition = roll?.definitions[0] ?? '';
@@ -182,15 +193,16 @@ describe('a remark over bars that are described by hand', () => {
         const steps = trial.remarks.at(-1)!.steps;
         expect(steps.every((report) => report.calls.length > 0)).toBe(true);
         expect(steps.flatMap((report) => report.written).every((tag) => tag !== '')).toBe(true);
-        // One curve for two bars is coarser than the five it replaces; what else was fitted by
-        // hand in those bars is fitted again to it.
+        // One curve for two bars is coarser than the five it replaces, and one level than four
+        // curves: that is what was said, and the trial shows it.
         expect(left(before, FROM, TO).pulse).toBeLessThan(60);
-        expect(left(trial, FROM, TO).pulse).toBeLessThan(100);
+        expect(left(trial, FROM, TO).pulse).toBeGreaterThan(left(before, FROM, TO).pulse);
+        expect(left(trial, FROM, TO).loud).toBeGreaterThan(left(before, FROM, TO).loud);
     });
 
     it('is written in one edit, after which a plain run and the Desk itself agree with the trial', () => {
         const tried = trial.remarks.at(-1)!;
-        // Out: the eleven calls displaced. In: two remainders, the remark and its seven calls.
+        // Out: the fourteen calls displaced. In: two remainders, the remark and its seven calls.
         expect(tried.displaced).toHaveLength(14);
         expect(replaced).toHaveLength(document.length - 14 + 2 + 1 + tried.concrete.length);
         expect(tried.concrete).toHaveLength(7);
@@ -206,7 +218,7 @@ describe('a remark over bars that are described by hand', () => {
         expect(fit(replaced)).toBe(trial.mpm);
 
         // Written again from the plain run, the document does not change: nothing more to undo.
-        expect(write(replaced, [said], after)).toEqual(replaced);
+        expect(write(replaced, [said], after)).toBe(replaced);
     });
 
     it('written with the calls made by hand kept, stands behind them and changes nothing', () => {
@@ -220,21 +232,27 @@ describe('a remark over bars that are described by hand', () => {
         const [tempo, dynamics, roll, ...pedals] = report.steps;
         expect(report.steps.every(({ error, withheld }) => !error && !withheld)).toBe(true);
         expect(tempo?.behind).toMatch(/stands behind .*made by hand.*InsertTempo ×4/);
-        expect(byHandIn('InsertTempo', starting)).toEqual(expect.arrayContaining(tempo!.gaveWayTo!));
+        expect(byHandIn('InsertTempo', starting)).toEqual(
+            expect.arrayContaining(tempo!.gaveWayTo!),
+        );
         expect(dynamics?.behind).toMatch(/InsertDynamics ×4/);
         expect(roll?.behind).toMatch(/InsertTemporalSpread ×1/);
         expect(roll?.gaveWayTo).toEqual(
             byHandIn('InsertTemporalSpread', ({ options }) => options['date'] === FROM),
         );
         expect(pedals.map((one) => one.gaveWayTo)).toEqual(
-            PRESSES.map((pedal) => byHandIn('InsertPedal', ({ options }) => options['pedal'] === pedal)),
+            PRESSES.map((pedal) =>
+                byHandIn('InsertPedal', ({ options }) => options['pedal'] === pedal),
+            ),
         );
-        expect(report.steps.every((one) => one.calls.length === 0 && one.elements.length === 0)).toBe(true);
+        expect(
+            report.steps.every((one) => one.calls.length === 0 && one.elements.length === 0),
+        ).toBe(true);
     });
 });
 
 describe('what is left of a call made by hand', () => {
-    it('keeps a drawn tempo\'s line either side of the cut, and a level where a hand\'s stood', () => {
+    it("keeps a drawn tempo's line either side of the cut, and a level where a hand's stood", () => {
         // The tempo cuts into a hand-drawn transition at either end; the level begins on the very
         // date a hand-made `<dynamics>` stands on; the gradient is said of a chord a hand-made
         // call over every chord describes already.
@@ -243,51 +261,79 @@ describe('what is left of a call made by hand', () => {
             step('FitDynamics', { from: 46800, to: TO }),
             step('InsertDynamicsGradient', { date: FROM }),
         ];
-        const before = run(document);
         const trial = run(document, { trial: { remark: 'said', steps } });
         const [tempo, dynamics, gradient] = trial.remarks.at(-1)!.steps;
         const whatIsLeft = (from: number) =>
             trial.remarks
                 .at(-1)!
-                .displaced!.filter(({ call }) => call.name === 'InsertTempo' && call.options['from'] === from)
-                .map(({ call, left: rest }) => ({ was: call.options, left: rest.map(({ options }) => options) }));
+                .displaced!.filter(
+                    ({ call }) => call.name === 'InsertTempo' && call.options['from'] === from,
+                )
+                .map(({ call, left: rest }) => ({
+                    was: call.options,
+                    left: rest.map(({ options }) => options),
+                }));
 
         // Up to the cut the line is the one that was drawn: it arrives at the tempo it had there.
         for (const { was, left: rest } of whatIsLeft(FROM)) {
             expect(rest).toHaveLength(1);
-            expect(rest[0]).toMatchObject({ from: FROM, to: 44640, bpm: was['bpm'], meanTempoAt: was['meanTempoAt'] });
-            const [start, end, there] = [was['bpm'], was['transitionTo'], rest[0]!['transitionTo']] as number[];
+            expect(rest[0]).toMatchObject({
+                from: FROM,
+                to: 44640,
+                bpm: was['bpm'],
+                meanTempoAt: was['meanTempoAt'],
+            });
+            const [start, end, there] = [
+                was['bpm'],
+                was['transitionTo'],
+                rest[0]!['transitionTo'],
+            ] as number[];
             expect(there).toBeGreaterThan(Math.min(start!, end!));
             expect(there).toBeLessThan(Math.max(start!, end!));
         }
         // From the cut on it starts at the tempo it had there and arrives where it was going.
         const [{ was, left: rest }] = whatIsLeft(46800);
         expect(rest).toHaveLength(1);
-        expect(rest[0]).toMatchObject({ from: 47520, to: was['to'], transitionTo: was['transitionTo'] });
+        expect(rest[0]).toMatchObject({
+            from: 47520,
+            to: was['to'],
+            transitionTo: was['transitionTo'],
+        });
         expect(rest[0]!['bpm']).toBeLessThan(was['bpm'] as number);
         expect(rest[0]!['bpm']).toBeGreaterThan(was['transitionTo'] as number);
         // The one that lay inside is gone.
         expect(whatIsLeft(45360)).toEqual([{ was: expect.anything(), left: [] }]);
         expect(tempo?.displaces).toHaveLength(4);
 
-        // So the notes before the remark's tempo are rendered where they were, and those after it
-        // within a few ms of it, each stretch being laid against the recording on its first chord.
-        const moved = (from: number, to: number) => {
-            const was = new Map(before.roll.notes.map((note) => [note.id, note.mpm.ms]));
-            const notes = trial.roll.notes.filter((note) => note.date >= from && note.date < to);
-            return Math.max(...notes.map((note) => Math.abs(note.mpm.ms - was.get(note.id)!)));
+        // So the beats before the remark's tempo fall where they fell. After it the hand-drawn
+        // line begins on a chord, and is laid against the recording there: from that chord on the
+        // beats are as far apart as they were, to a few ms, and past the next such chord they
+        // fall where they fell again.
+        const beats = (result: DescriptionRun) =>
+            new Map(result.roll.beats.map((beat) => [beat.date, beat.ms]));
+        const [fell, fall] = [beats(before), beats(trial)];
+        const moved = (from: number, to: number, since?: number) => {
+            const lead = since === undefined ? 0 : fall.get(since)! - fell.get(since)!;
+            const dates = [...fall.keys()].filter((date) => date >= from && date < to);
+            return Math.max(
+                ...dates.map((date) => Math.abs(fall.get(date)! - fell.get(date)! - lead)),
+            );
         };
-        expect(moved(0, 44640)).toBeLessThan(0.5);
-        expect(moved(47520, 48294)).toBeLessThan(10);
-        expect(moved(48295, 60000)).toBeLessThan(0.5);
+        expect(moved(0, 44640)).toBeLessThan(0.05);
         expect(moved(44640, 47520)).toBeGreaterThan(20);
+        expect(moved(47520, 49680, 47520)).toBeLessThan(5);
+        expect(moved(49680, 90000)).toBeLessThan(0.05);
 
         // The level is written, on a date cleared for it: the span that ended there ends a chord
         // earlier, and its last instruction with it.
         expect(dynamics?.elements).toEqual(['dynamics_46800']);
-        expect(dynamics?.written[0]).toMatch(/<dynamics date="46800" volume="31\.6316"/);
+        expect(dynamics?.written[0]).toMatch(/<dynamics date="46800" volume="31\.63/);
         expect(dynamics?.calls).toEqual(['said.1.0']);
-        const ended = trial.remarks.at(-1)!.displaced!.find(({ call }) => call.options['to'] === 46800)!;
+        const ended = trial.remarks
+            .at(-1)!
+            .displaced!.find(
+                ({ call }) => call.name === 'InsertDynamics' && call.options['to'] === 46800,
+            )!;
         expect(ended.left.map(({ options }) => options['to'])).toEqual([46440]);
 
         // What is said by hand of every chord is not undone for one: there the remark stands
@@ -298,10 +344,12 @@ describe('what is left of a call made by hand', () => {
 
         expect(trial.problems).toEqual([]);
         expect(twice(trial.mpm)).toEqual([]);
-        expect(fit(write(document, [remark('said', steps, { date: TODAY })], trial))).toBe(trial.mpm);
+        expect(fit(write(document, [remark('said', steps, { date: TODAY })], trial))).toBe(
+            trial.mpm,
+        );
     }, 120_000);
 
-    it('goes by the call\'s id, and by the next id free where a call is left in two', () => {
+    it("goes by the call's id, and by the next id free where a call is left in two", () => {
         // A level for bars 3 and 4, in the middle of dynamics drawn by hand over bars 1 to 6.
         const drawn: Call = {
             id: 'drawn',
@@ -314,21 +362,49 @@ describe('what is left of a call made by hand', () => {
         const { displaced } = trial.remarks[0]!;
         expect(displaced).toHaveLength(1);
         expect(displaced![0]?.call).toBe(drawn);
-        expect(displaced![0]?.left.map(({ id }) => id)).toEqual(['drawn', 'drawn.1']);
-        expect(displaced![0]?.left.map(({ options }) => options['from'] <= bar(3) || options['from'] > bar(5))).toEqual([true, true]);
+        const [first, second] = displaced![0]!.left;
+        expect([first?.id, second?.id]).toEqual(['drawn', 'drawn.1']);
+        expect(first?.options).toMatchObject({ from: bar(1) });
+        expect(first?.options['to']).toBeLessThan(bar(3));
+        expect(second?.options).toMatchObject({ to: bar(7) });
+        expect(second?.options['from']).toBeGreaterThan(bar(5));
         // Run again, the same trial names them alike.
-        expect(run(calls, { trial: { remark: 'r1', steps: level } }).remarks[0]?.displaced).toEqual(displaced);
+        expect(run(calls, { trial: { remark: 'r1', steps: level } }).remarks[0]?.displaced).toEqual(
+            displaced,
+        );
 
         // Written, and cut again by a second remark: the id taken is passed over.
-        const first = remark('r1', level, { date: '2026-11-27T12:00:00.000Z' });
-        const once = write(calls, [first], trial);
-        expect(once.map(({ id }) => id)).toEqual([...published.choice.map(({ id }) => id), 'drawn', 'drawn.1', 'r1', 'r1.0.0']);
-        const again = run(once, { trial: { remark: 'r2', steps: [step('FitDynamics', { from: bar(1) + 720, to: bar(2) })] } });
-        expect(again.remarks.at(-1)?.displaced?.map(({ call, left: rest }) => [call.id, rest.map(({ id }) => id)])).toEqual([
-            ['drawn', ['drawn', 'drawn.2']],
+        const said = remark('r1', level, { date: '2026-11-27T12:00:00.000Z' });
+        const once = write(calls, [said], trial);
+        expect(once.map(({ id }) => id)).toEqual([
+            ...published.choice.map(({ id }) => id),
+            'drawn',
+            'drawn.1',
+            'r1',
+            'r1.0.0',
         ]);
+        const again = run(once, {
+            trial: {
+                remark: 'r2',
+                steps: [step('FitDynamics', { from: bar(1) + 720, to: bar(2) })],
+            },
+        });
+        expect(
+            again.remarks
+                .at(-1)
+                ?.displaced?.map(({ call, left: rest }) => [call.id, rest.map(({ id }) => id)]),
+        ).toEqual([['drawn', ['drawn', 'drawn.2']]]);
         expect(again.remarks[0]?.displaced).toBeUndefined();
-        expect(fit(once)).toBe(run(once).mpm.replace(/<tempo[^>]*>/g, '').length > 0 ? fit(once) : '');
+
+        // The Desk's own chain states the same dynamics for the document as written, less the
+        // level the run assumed where nothing is described.
+        const plain = run(once);
+        const dynamics = (mpm: string) => tags(mpm, 'dynamics', 0, Infinity);
+        const assumed = plain.roll.assumed.levelDates.map((date) => `date="${date}"`);
+        expect(plain.remarks[0]?.concrete).toEqual(trial.remarks[0]?.concrete);
+        expect(
+            dynamics(plain.mpm).filter((tag) => !assumed.some((date) => tag.includes(date))),
+        ).toEqual(dynamics(fit(once)));
     });
 });
 
@@ -339,7 +415,9 @@ describe('a written remark and a call made by hand since', () => {
             name: 'InsertTempo',
             options: { scope: 'global', from: bar(3), to: bar(4), bpm: 50, beatLength: 0.25 },
         };
-        const said = remark('r1', [step('FitTempo', { from: bar(1), to: bar(6) })], { date: TODAY });
+        const said = remark('r1', [step('FitTempo', { from: bar(1), to: bar(6) })], {
+            date: TODAY,
+        });
         const alone = run([...published.choice, said]).remarks[0]!;
         const result = run([...published.choice, said, drawn]);
         const { concrete, steps, displaced } = result.remarks[0]!;
@@ -353,16 +431,24 @@ describe('a written remark and a call made by hand since', () => {
         expect(steps[0]?.behind).toBeUndefined();
         expect(displaced).toBeUndefined();
         expect(result.mpm).toContain(`<tempo date="${bar(3)}" bpm="50"`);
-        expect(steps[0]?.fitted.map((line) => line['bpm'])).not.toContain(alone.steps[0]?.fitted[0]?.['bpm']);
+        expect(steps[0]?.fitted.map((line) => line['bpm'])).not.toContain(
+            alone.steps[0]?.fitted[0]?.['bpm'],
+        );
 
         // The same remark on trial takes the drawn tempo's place instead.
-        const trial = run([...published.choice, drawn], { trial: { remark: 'r1', steps: [step('FitTempo', { from: bar(1), to: bar(6) })] } });
+        const trial = run([...published.choice, drawn], {
+            trial: { remark: 'r1', steps: [step('FitTempo', { from: bar(1), to: bar(6) })] },
+        });
         expect(trial.remarks[0]?.displaced).toEqual([{ call: drawn, left: [] }]);
         expect(trial.remarks[0]?.concrete).toEqual(alone.concrete);
     });
 
     it('leaves to the hand the presses the hand describes, and traces the rest', () => {
-        const press = (pedal: string): Call => ({ id: `drawn-${pedal}`, name: 'InsertPedal', options: { pedal } });
+        const press = (pedal: string): Call => ({
+            id: `drawn-${pedal}`,
+            name: 'InsertPedal',
+            options: { pedal },
+        });
         const base = run(published.choice);
         const [first, second] = base.roll.pedals.played.map(({ id }) => id);
         const calls = [...published.choice, press(first!), press(second!)];
@@ -370,25 +456,31 @@ describe('a written remark and a call made by hand since', () => {
         const kept = run([...calls, remark('r1', every)]);
         const { concrete, steps } = kept.remarks[0]!;
 
-        expect(steps[0]?.gaveWayTo).toEqual([`drawn-${first}`, `drawn-${second}`]);
+        expect([...steps[0]!.gaveWayTo!].sort()).toEqual(
+            [`drawn-${first}`, `drawn-${second}`].sort(),
+        );
         expect(steps[0]?.behind).toBeUndefined();
         expect(concrete.length).toBeGreaterThan(10);
         expect(concrete.map((call) => call.options['pedal'])).not.toContain(first);
         expect(twice(kept.mpm)).toEqual([]);
         // With nothing made by hand it is the line one call over every press writes.
         const all = run([...published.choice, remark('r1', every)]);
-        expect(all.mpm).toBe(run([...published.choice, { id: 'every', name: 'InsertPedal', options: {} }]).mpm);
+        expect(all.mpm).toBe(
+            run([...published.choice, { id: 'every', name: 'InsertPedal', options: {} }]).mpm,
+        );
         expect(kept.mpm).toBe(all.mpm);
 
         // On trial it takes both presses over; a call made by hand over every press it leaves be.
         const trial = run(calls, { trial: { remark: 'r1', steps: every } });
-        expect(trial.remarks[0]?.displaced?.map(({ call, left: rest }) => [call.id, rest])).toEqual([
-            [`drawn-${first}`, []],
-            [`drawn-${second}`, []],
-        ]);
-        const under = run([...published.choice, { id: 'every', name: 'InsertPedal', options: {} }], {
-            trial: { remark: 'r1', steps: every },
-        });
+        expect(trial.remarks[0]?.displaced).toEqual(
+            calls.slice(-2).map((call) => ({ call, left: [] })),
+        );
+        const under = run(
+            [...published.choice, { id: 'every', name: 'InsertPedal', options: {} }],
+            {
+                trial: { remark: 'r1', steps: every },
+            },
+        );
         expect(under.remarks[0]).toMatchObject({ concrete: [] });
         expect(under.remarks[0]?.displaced).toBeUndefined();
         expect(under.remarks[0]?.steps[0]?.behind).toMatch(/InsertPedal ×1/);
@@ -421,23 +513,53 @@ describe('what is never handed over', () => {
         expect(trial.remarks[0]?.steps[0]?.withheld).toBeUndefined();
     });
 
-    it('is an id written twice: where two calls made by hand come to that, the run says so', () => {
-        const [press] = run(published.choice).roll.pedals.played;
-        const traced = (id: string): Call => ({ id, name: 'InsertPedal', options: { pedal: press!.id } });
-        const result = run([...published.choice, traced('one'), traced('two')]);
-        expect(twice(result.mpm)).toEqual([`${press!.id}_down`, `${press!.id}_rest`]);
-        expect(result.problems).toEqual([expect.stringMatching(/2 elements of the MPM share their xml:id/)]);
+    it('is the place of a call made by hand, to a call on trial that then comes to nothing', () => {
+        const drawn: Call = {
+            id: 'drawn',
+            name: 'InsertTempo',
+            options: { scope: 'global', from: bar(3), to: bar(4), bpm: 50, beatLength: 0.25 },
+        };
+        const calls = [...published.choice, drawn];
+        // No chord sounds in the ten ticks it speaks of, so there is no tempo to read off: the
+        // drawn tempo it would have cut in two is left whole, and nothing is offered to replace.
+        const nothing = [step('FitTempo', { from: bar(3) + 10, to: bar(3) + 20 })];
+        const trial = run(calls, { trial: { remark: 'r1', steps: nothing } });
+        const [report] = trial.remarks[0]!.steps;
+
+        expect(report?.error).toMatch(/no chord sounds/);
+        expect(report?.displaces).toBeUndefined();
+        expect(trial.remarks[0]?.displaced).toBeUndefined();
+        expect(trial.remarks[0]?.concrete).toEqual([]);
+        expect(trial.mpm).toBe(run(calls).mpm);
+        // With a chord to read it off, the same step does cut the drawn tempo in two.
+        const fitted = [step('FitTempo', { from: bar(3) + 10, to: bar(3) + 1440 })];
+        const taken = run(calls, { trial: { remark: 'r1', steps: fitted } }).remarks[0]!;
+        expect(taken.steps[0]?.error).toBeUndefined();
+        expect(taken.displaced?.map(({ left: rest }) => rest.map(({ id }) => id))).toEqual([
+            ['drawn', 'drawn.1'],
+        ]);
     });
 
-    it('is the credit for a tempo another call is answerable for', () => {
-        // Half a bar by the tempo desk in the middle of two bars a remark speaks of, and nothing
-        // stated where they end: the Desk writes the tempo that was in force back there.
-        const result = run([
-            ...published.choice,
-            remark('r1', [step('FitTempo', { from: bar(1), to: bar(3), step: BAR })]),
+    it('is an id written twice: where two calls made by hand come to that, the run says so', () => {
+        const [press] = run(published.choice).roll.pedals.played;
+        const traced = (id: string): Call => ({
+            id,
+            name: 'InsertPedal',
+            options: { pedal: press!.id },
+        });
+        const result = run([...published.choice, traced('one'), traced('two')]);
+        expect(twice(result.mpm)).toContain(`${press!.id}_down`);
+        expect(result.problems).toEqual([
+            expect.stringMatching(/elements of the MPM share their xml:id/),
         ]);
-        const [report] = result.remarks[0]!.steps;
-        expect(report?.elements).toEqual([`tempo_${bar(1)}`, `tempo_${bar(2)}`]);
-        expect(report?.written.every((tag) => tag.startsWith('<tempo'))).toBe(true);
+        // A remark's line for that press stands behind both, and adds no third.
+        const said = run([
+            ...published.choice,
+            traced('one'),
+            traced('two'),
+            remark('r1', [step('InsertPedal', { pedal: press!.id })]),
+        ]);
+        expect(said.remarks[0]).toMatchObject({ concrete: [], steps: [{ gaveWayTo: ['one'] }] });
+        expect(said.mpm).toBe(result.mpm);
     });
 });

@@ -12,10 +12,14 @@ const GROUND = new Set(['ProcessVoices', 'MakeChoice', 'CorrectPedal', 'Modify']
 /** A remark no document holds, tried with no steps: how a run of its own is asked of the client. */
 const NOTHING_SAID = { remark: 'describe-desk:nothing-described', steps: [] };
 
+const NOTHING_RAN: readonly Call[] = [];
+
 interface Ran {
     run: DescriptionRun;
     key: string;
     alignment: AlignmentData;
+    /** The document the run was made of. */
+    of: readonly Call[];
 }
 
 interface DescriptionOptions {
@@ -36,6 +40,11 @@ interface DescriptionOptions {
 interface Description {
     /** The last run that came in; null until the first has. */
     run: DescriptionRun | null;
+    /**
+     * The document `run` was made of. While the run stands, what was made by hand in it is what
+     * the document still holds: a call made by hand is part of what a run is a function of.
+     */
+    ran: readonly Call[];
     /** The same document with nothing described: what the match is measured against. */
     bare: DescriptionRun | null;
     /** The document as `run` was made of it or the next will be: remarks read, answers in place. */
@@ -66,7 +75,7 @@ interface Description {
  */
 export const useDescription = ({ alignment, calls, asked, client, onRun }: DescriptionOptions): Description => {
     const [ran, setRan] = useState<Ran | null>(null);
-    const [bare, setBare] = useState<Ran | null>(null);
+    const [bare, setBare] = useState<Omit<Ran, 'of'> | null>(null);
     const [failed, setFailed] = useState<{ key: string; message: string } | null>(null);
 
     const made = useMemo(() => {
@@ -104,10 +113,11 @@ export const useDescription = ({ alignment, calls, asked, client, onRun }: Descr
             return;
         }
         let overtaken = false;
-        client.describe(alignment, madeRef.current).then(
+        const of = madeRef.current;
+        client.describe(alignment, of).then(
             (run) => {
                 if (overtaken) return;
-                last.current = { run, key, alignment };
+                last.current = { run, key, alignment, of };
                 setRan(last.current);
                 setFailed(null);
                 onRunRef.current(madeRef.current, run);
@@ -147,6 +157,7 @@ export const useDescription = ({ alignment, calls, asked, client, onRun }: Descr
     const current = ran !== null && ran.alignment === alignment;
     return {
         run: current ? ran.run : null,
+        ran: current ? ran.of : NOTHING_RAN,
         bare: bare !== null && bare.alignment === alignment && bare.key === groundKey ? bare.run : null,
         made,
         stale: !current || ran.key !== key,

@@ -11,9 +11,9 @@ import { useCallSelection } from '../../hooks/CallSelection';
 import { useEditable } from '../../hooks/Editing';
 import { usePhysicalZoom } from '../../hooks/ZoomProvider';
 import { useLatest } from '../../hooks/useLatest';
-import { groundOf, notesOf, spellingOf } from './adapter';
+import { groundOf, notesOf, scaleOf, spellingOf } from './adapter';
 import type { Asked } from './asking';
-import type { Remark } from './document';
+import { byHand, type Remark } from './document';
 import { ExpertKey, KeyField } from './ExpertKey';
 import { Match } from './Match';
 import { Pen } from './Pen';
@@ -136,7 +136,12 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
 
     const spelling = useMemo(() => spellingOf(alignment ?? { allNotes: [] }), [alignment]);
     const ground = useMemo(() => (run && alignment ? groundOf(run.roll, alignment) : null), [run, alignment]);
-    const notes = useMemo(() => (run ? notesOf(run.roll, spelling, playback.moved) : []), [run, spelling, playback.moved]);
+    // What the run was made of by hand, and what its remarks came to in it.
+    const scale = useMemo(
+        () => scaleOf(run ? [...byHand(told.ran), ...run.remarks.flatMap((remark) => remark.concrete)] : []),
+        [run, told.ran],
+    );
+    const notes = useMemo(() => (run ? notesOf(run.roll, spelling, scale, playback.moved) : []), [run, spelling, scale, playback.moved]);
     const end = run?.roll.end ?? endOf(notes, ground?.bars ?? []);
     const bars = ground?.bars;
 

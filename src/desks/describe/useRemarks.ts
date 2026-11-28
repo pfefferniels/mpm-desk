@@ -31,6 +31,8 @@ export interface Remarks {
     alignment: AlignmentData | null;
     /** The document as it was last run; null until its first run is in. */
     run: DescriptionRun | null;
+    /** The calls `run` was made of. */
+    ran: readonly Call[];
     /** The same recording with nothing described. */
     bare: DescriptionRun | null;
     /** A run is under way, and `run` is of a document since changed. */
@@ -181,6 +183,7 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
     return {
         alignment,
         run,
+        ran: description.ran,
         bare: description.bare,
         stale: description.stale,
         problem: description.problem,

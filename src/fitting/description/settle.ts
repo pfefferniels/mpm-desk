@@ -173,7 +173,8 @@ export const leave = (earlier: Call, later: Call, places: Places): Call[] => {
 
     if (earlier.name === 'InsertRubato' && later.name === 'InsertRubato') {
         if (scopeOf(earlier) !== scopeOf(later)) return untouched;
-        const frame = ({ options }: Call) => [options['date'], options['length']] as [number, number];
+        const frame = ({ options }: Call) =>
+            [options['date'], options['length']] as [number, number];
         const [[start, span], [date, length]] = [frame(earlier), frame(later)];
         return start < date + length && start + span > date ? [] : untouched;
     }
@@ -204,7 +205,8 @@ const yieldTo = <T extends { call: Call }>(
         const takers: Call[] = [];
         for (const taker of later) {
             const next = calls.flatMap((call) => leave(call, taker, places));
-            if (next.length === calls.length && next.every((call, i) => call === calls[i])) continue;
+            if (next.length === calls.length && next.every((call, i) => call === calls[i]))
+                continue;
             takers.push(taker);
             calls = next;
         }
@@ -243,7 +245,7 @@ export interface Displaced {
     left: Call[];
 }
 
-export interface Settled {
+interface Settled {
     /**
      * The remarks' calls, each named `${remark}.${step}.${part}`. Where a part came to several
      * calls, cut in two by a later span, those after the first are numbered: `….${part}.1`.
@@ -308,7 +310,9 @@ export const settle = (
     };
     const displaced = [...taking.took].map(([{ call }, { takers: by, rest }]) => ({
         call,
-        left: rest.map((left, piece) => (piece === 0 ? left.call : { ...left.call, id: free(call.id) })),
+        left: rest.map((left, piece) =>
+            piece === 0 ? left.call : { ...left.call, id: free(call.id) },
+        ),
         by: by.map((taker) => takers.get(taker)!),
     }));
     const gone = new Set(displaced.map(({ call }) => call));
@@ -341,7 +345,10 @@ export const settle = (
     return {
         calls: [...named.values()],
         byHand: remaining,
-        displaced: displaced.map((one) => ({ ...one, by: one.by.map((entry) => named.get(entry)!) })),
+        displaced: displaced.map((one) => ({
+            ...one,
+            by: one.by.map((entry) => named.get(entry)!),
+        })),
         gaveWay,
     };
 };

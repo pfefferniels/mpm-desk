@@ -330,19 +330,26 @@ const locate = (
     }
 };
 
+/** Why a call of the remark on trial came to nothing: it could not run, or wrote nothing. */
+interface Idle {
+    why: string;
+    as: 'error' | 'withheld';
+}
+
 /**
- * Run a document's calls and its remarks' steps over an alignment.
+ * One run; see {@link describe}.
  *
- * @param alignment the recording as it was loaded; it is copied, never written through.
- * @param calls the document's calls as they stand.
- * @throws where the readings still stand side by side: nothing can be read off a recording
- * that has not been chosen.
+ * @param idle calls of the remark on trial that are left out of this run, by `${step}.${part}`,
+ * each with what its step is to say of it.
+ * @returns the run, and the calls of the remark on trial that took the place of calls made by
+ * hand in it and then came to nothing.
  */
-export const describe = (
+const resolve = (
     alignment: Alignment,
     calls: readonly Call[],
-    { trial }: DescribeRunOptions = {},
-): DescriptionRun => {
+    trial: DescribeRunOptions['trial'],
+    idle: ReadonlyMap<string, Idle>,
+): { run: DescriptionRun; undone: Map<string, Idle> } => {
     clearResidualCache();
     const { remarks, byHand } = read(calls, trial);
     const reports = new Map(
@@ -363,12 +370,19 @@ export const describe = (
         reports.get(remark)![step]!;
     const problems: string[] = [];
 
-    /** The calls the steps came to, by their ids. */
+    /** The calls the steps came to, by their ids; those that could not run; those that wrote none. */
     const origin = new Map<string, StepCall>();
+    const stopped = new Map<StepCall, string>();
+    const mute = new Map<StepCall, string>();
+    const silent = new Map<StepReport, string>();
     const blame = (id: string, name: string, message: string) => {
         const entry = origin.get(id);
-        if (entry) reportOf(entry).error ??= message;
-        else problems.push(`${name}: ${message}`);
+        if (!entry) {
+            problems.push(`${name}: ${message}`);
+            return;
+        }
+        stopped.set(entry, message);
+        reportOf(entry).error ??= message;
     };
 
     // The later remark owns its place, so the steps are written out in the order they were made.
@@ -384,13 +398,12 @@ export const describe = (
                 return [];
             }
             const general = everywhere(source);
-            return expanded.map(({ part, call }) => ({
-                call,
-                remark,
-                step,
-                part,
-                ...(general && { general }),
-            }));
+            return expanded.flatMap(({ part, call }) => {
+                const out = remark === trial?.remark ? idle.get(`${step}.${part}`) : undefined;
+                if (out?.as === 'error') reportOf({ remark, step }).error ??= out.why;
+                if (out?.as === 'withheld') silent.set(reportOf({ remark, step }), out.why);
+                return out ? [] : [{ call, remark, step, part, ...(general && { general }) }];
+            });
         });
     const corrects = ({ source }: (typeof steps)[number]) => {
         const repeated =
@@ -601,21 +614,24 @@ export const describe = (
                 `(${[...twice].slice(0, 3).join(', ')}): two calls describe the same thing`,
         );
     }
-    const silent = new Map<StepReport, string>();
     for (const transformer of ran) {
         const entry = origin.get(transformer.id);
         if (!entry || !/^(Insert|Fit)/.test(transformer.name)) continue;
         const shared = transformer.created.find((id) => twice.has(id));
         if (shared !== undefined) {
-            reportOf(entry).withheld ??=
-                `${transformer.name} wrote ${shared}, which another call wrote as well`;
+            mute.set(
+                entry,
+                `${transformer.name} wrote ${shared}, which another call wrote as well`,
+            );
+            reportOf(entry).withheld ??= mute.get(entry);
         } else if (transformer.created.some((id) => tags.has(id))) {
             continue;
         } else {
-            silent.set(
-                reportOf(entry),
+            mute.set(
+                entry,
                 `${transformer.name} wrote nothing: what it says is said in its place already`,
             );
+            silent.set(reportOf(entry), mute.get(entry)!);
         }
         concrete.delete(entry.call.id);
     }
@@ -662,7 +678,17 @@ export const describe = (
         report.evidence = [...new Set(report.evidence)];
     }
 
-    return {
+    const undone = new Map<string, Idle>();
+    for (const entry of new Set(settled.displaced.flatMap(({ by }) => by))) {
+        const why = stopped.get(entry) ?? mute.get(entry);
+        if (why === undefined) continue;
+        undone.set(`${entry.step}.${entry.part}`, {
+            why,
+            as: stopped.has(entry) ? 'error' : 'withheld',
+        });
+    }
+
+    const run = {
         mpm: xml,
         score: score ?? '',
         roll,
@@ -679,4 +705,29 @@ export const describe = (
         })),
         problems,
     };
+    return { run, undone };
+};
+
+/**
+ * Run a document's calls and its remarks' steps over an alignment.
+ *
+ * @param alignment the recording as it was loaded; it is copied, never written through.
+ * @param calls the document's calls as they stand.
+ * @throws where the readings still stand side by side: nothing can be read off a recording
+ * that has not been chosen.
+ */
+export const describe = (
+    alignment: Alignment,
+    calls: readonly Call[],
+    { trial }: DescribeRunOptions = {},
+): DescriptionRun => {
+    // A call of the remark on trial that takes the place of calls made by hand and then cannot
+    // run, or writes nothing, would leave their place empty. The run is made again without it:
+    // what it would have displaced stands, and its step says why it came to nothing.
+    const idle = new Map<string, Idle>();
+    for (;;) {
+        const { run, undone } = resolve(alignment, calls, trial, idle);
+        if (undone.size === 0) return run;
+        for (const [part, why] of undone) idle.set(part, why);
+    }
 };

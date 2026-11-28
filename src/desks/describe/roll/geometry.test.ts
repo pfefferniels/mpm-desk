@@ -298,6 +298,13 @@ describe('the bar and beat lines', () => {
         expect(barLinesOf(bars, [], (date) => date / 200).map((line) => line.numbered)).toEqual([true, false, true]);
     });
 
+    it('leaves out the upbeat\'s 0 rather than the 1 it would crowd, and keeps it where there is room for both', () => {
+        const upbeat = [{ n: 0, from: 0, to: 720 }, ...bars.map((bar) => ({ ...bar, from: bar.from + 720, to: bar.to + 720 }))];
+        // A quarter of upbeat at 20 px: no room for a number on both lines.
+        expect(barLinesOf(upbeat, [], (date) => date / 36).map((line) => line.numbered)).toEqual([false, true, true, true]);
+        expect(barLinesOf(upbeat, [], xAt).map((line) => line.numbered)).toEqual([true, true, true, true]);
+    });
+
     it('draws the beats inside the bars, not the ones the bar lines stand on', () => {
         expect(beatLinesOf(bars, beats, [], xAt)).toEqual([72, 144, 216, 360, 432, 504, 648, 720, 792]);
     });

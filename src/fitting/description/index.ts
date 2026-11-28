@@ -6,9 +6,8 @@
  */
 export { describe } from './run';
 export type { DescribeRunOptions, DescriptionRun, RemarkReport, StepReport } from './run';
-export type { Assumed, Roll, RollNote } from './roll';
+export type { Roll, RollNote } from './roll';
 export type { Sounded } from './perform';
 export type { Step } from './expand';
-export type { Displaced } from './settle';
 export { bringOut } from './bringOut';
 export type { BroughtOut } from './bringOut';

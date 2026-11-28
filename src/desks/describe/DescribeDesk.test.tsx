@@ -99,7 +99,7 @@ const piece = () =>
  * are. `Broken` does not run and says why; `Withheld` runs and is kept out; a remark with steps
  * that ran is rendered where it was played, and one without is rendered a tenth of a second late.
  */
-const scriptedClient = () => {
+const scriptedClient = (arrived: Readonly<Record<string, Sounded>> = {}) => {
     const runOf = (alignment: { allNotes: AlignedNote[] }, calls: readonly Call[], trial?: { remark: string; steps: Step[] }): DescriptionRun => {
         const remarks = calls
             .filter((call) => call.name === 'Describe')
@@ -134,6 +134,7 @@ const scriptedClient = () => {
                         date: played.date,
                         duration: played.duration,
                         ...sounded,
+                        ...(arrived[played['xml:id']] && { arrived: arrived[played['xml:id']] }),
                         mpm: { ms: sounded.ms + late, msEnd: sounded.msEnd + late, velocity: sounded.velocity },
                         late: -late,
                         longMs: 0,
@@ -276,6 +277,8 @@ interface MountOptions {
     expertKey?: string | null;
     /** Why the worker refuses the document, if it does. */
     refused?: string;
+    /** How the run says a note arrived, before the corrections: by the note's id. */
+    arrived?: Readonly<Record<string, Sounded>>;
     /**
      * Mount `DescribeDesk` itself, as the Desk does: the reader's key from the browser and the
      * Desk's piano, with only what reaches outside the page given from here.
@@ -283,8 +286,8 @@ interface MountOptions {
     registered?: boolean;
 }
 
-const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused, registered = false }: MountOptions = {}) => {
-    const description = scriptedClient();
+const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused, arrived, registered = false }: MountOptions = {}) => {
+    const description = scriptedClient(arrived);
     if (refused !== undefined) description.describe.mockRejectedValue(new Error(refused));
     const expert = scriptedExpert();
     const piano = pianoScript();
@@ -437,6 +440,20 @@ describe('the describe desk shows the document', () => {
         // A step that did not run, and words nothing has come of: both are marked.
         expect(document.querySelector('[data-remark="part"]')?.getAttribute('data-state')).toBe('trouble');
         expect(document.querySelector('[data-remark="kept"]')?.getAttribute('data-state')).toBe('trouble');
+    });
+
+    it('outlines a note where it arrived, but not for what the document did to every note alike', async () => {
+        // Every note arrived at 80 and stands at 64: the roll's loudness is read on another scale.
+        // One of them arrived a tenth of a second sooner as well, and was put right by hand.
+        const scale: Call = { id: 'scale', name: 'Modify', options: { scope: 'global', aspect: 'velocity', points: [[0, 0], [80, 64]] } };
+        const later: Call = { id: 'later', name: 'Modify', options: { scope: 'global', aspect: 'onset', change: 100, noteIDs: ['b'] } };
+        const was = (id: string, sooner = 0) => {
+            const { 'milliseconds.date': ms, 'milliseconds.date.end': msEnd } = piece().allNotes.find((each) => each['xml:id'] === id)!;
+            return { ms: ms - sooner, msEnd: msEnd - sooner, velocity: 80 };
+        };
+        mount({ calls: [scale, later], arrived: { a: was('a'), b: was('b', 100), c: was('c'), d: was('d'), low: was('low') } });
+        await drawn();
+        expect([...document.querySelectorAll('[data-arrived]')].map((outline) => outline.getAttribute('data-arrived'))).toEqual(['b']);
     });
 
     it('says why there is no roll where the readings still stand side by side, and writes nothing', async () => {

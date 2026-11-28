@@ -285,16 +285,26 @@ type Stretch = Readonly<{ from: number; to: number }>;
 
 const within = (stretches: readonly Stretch[], date: number) => stretches.some((stretch) => date >= stretch.from && date < stretch.to);
 
-/** @param xAt where a score date is drawn */
+/** How far apart two numbers on the ruler have to stand to be told apart, in px. */
+const NUMBER_ROOM = 26;
+
+/**
+ * A number that would run into the one before it is left out. The upbeat's `0` is the exception,
+ * and gives way to the bar after it: bar 1 is the one a reader looks for first.
+ *
+ * @param xAt where a score date is drawn
+ */
 export const barLinesOf = (
     bars: readonly ({ n: number } & Stretch)[],
     assumed: readonly Stretch[],
     xAt: (date: number) => number,
 ): BarLine[] => {
     let numbered = -Infinity;
-    return bars.map((bar) => {
+    return bars.map((bar, index) => {
         const x = xAt(bar.from);
-        const room = x - numbered >= 26;
+        const next = bars.at(index + 1);
+        const crowdsTheFirstBar = index === 0 && bar.n === 0 && next !== undefined && xAt(next.from) - x < NUMBER_ROOM;
+        const room = !crowdsTheFirstBar && x - numbered >= NUMBER_ROOM;
         if (room) numbered = x;
         return { n: bar.n, x, assumed: within(assumed, bar.from), numbered: room };
     });
