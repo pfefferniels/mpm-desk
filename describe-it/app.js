@@ -1735,8 +1735,9 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       const result = S.result;
       const ids = ann.report ? ann.report.elements : [];
       if (!result || !ids.length || transport.loading) return;
-      const out = await Engine.bringOut(result.mpm, ids, S.view.bring, DAMPED);
-      if (S.hoverAnn !== ann || S.result !== result) return;
+      // The engine keeps only its last few runs; one it has forgotten is not brought out.
+      const out = await Engine.bringOut(result.mpm, ids, S.view.bring, DAMPED).catch(() => null);
+      if (!out || S.hoverAnn !== ann || S.result !== result) return;
       const performed = new Map(out.notes.map((note) => [note.id, note]));
       const seen = (note) => X(note.mpm.ms) >= G.gutter && X(note.mpm.ms) < G.width;
       const about = ann.scope.kind === 'piece' ? result.notes.filter(seen) : idsOf(ann.scope).map((id) => result.byId.get(id));

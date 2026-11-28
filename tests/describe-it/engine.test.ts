@@ -1,18 +1,19 @@
 /**
  * DescribeIt's engine, over the published transcription: that with nothing described the MPM's
  * rendering is a steady tempo and one level laid against the recording, that it comes onto the
- * playing as the published reconstruction is replayed through it, and that what the engine adds
- * to the chain does what a reader describing a piece bit by bit needs of it.
+ * playing as the published reconstruction is replayed through it, that what the engine adds to
+ * the chain does what a reader describing a piece bit by bit needs of it, and that a run's
+ * rendering can be had with the instructions of one remark exaggerated and the rest damped.
  */
 import { readFileSync } from 'node:fs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { convertMeiToMsm } from 'espressivo';
 import { runFit } from '../../src/fitting/fit';
 import { buildChain } from '../../src/fitting/chain';
 import { asMSM } from '../../src/fitting/asMSM';
 import { parseWorkFile, type Call } from '../../src/model/Work';
 import { publishedPath } from '../../src/test/published';
-import { load, run, type PlainCall, type RunResult } from '../../describe-it/engine';
+import { bringOut, load, run, type BroughtOut, type PlainCall, type RunResult } from '../../describe-it/engine';
 
 const call = (name: string, options: Record<string, unknown>, id = name): PlainCall => ({ id, name, options });
 
@@ -270,5 +271,125 @@ describe('what a description adds to the chain', () => {
     expect(pedalled.pedals.mpm.some((move) => move.value >= 64)).toBe(true);
     expect(pedalled.pedals.mpm.some((move) => move.value < 64)).toBe(true);
     expect(pedalled.pedals.mpm.every((move, i, moves) => i === 0 || move.ms >= moves[i - 1]!.ms)).toBe(true);
+  });
+});
+
+describe('the instructions of one remark, brought out', () => {
+  // Two bars that press forward and grow louder, described as a tempo and as a loudness.
+  const [FROM, TO] = [bar(16), bar(18)];
+  const DAMPED = 0.35;
+  let result: RunResult;
+  let plain: BroughtOut;
+  let tempo: string[];
+  let dynamics: string[];
+
+  beforeEach(() => {
+    result = run([
+      call('FitTempo', { from: FROM, to: TO, shape: 'transition' }, 'tempo'),
+      call('InsertDynamics', { from: FROM, to: TO }, 'dynamics'),
+    ]);
+    plain = bringOut(result.mpm, [], 1, 1);
+    [tempo, dynamics] = result.calls.map((report) => report.elements) as [string[], string[]];
+  });
+
+  /** The notes of a rendering that the two bars hold, by their chord's date. */
+  const chords = (rendering: BroughtOut) => {
+    const dates = new Map(result.notes.map((note) => [note.id, note.date]));
+    const inside = rendering.notes.filter((note) => {
+      const date = dates.get(note.id);
+      return date !== undefined && date >= FROM && date <= TO;
+    });
+    return [...Map.groupBy(inside, (note) => dates.get(note.id)!)].sort(([a], [b]) => a - b);
+  };
+  /** Ms from each chord of the two bars to the next. */
+  const gaps = (rendering: BroughtOut) => {
+    const onsets = chords(rendering).map(([, chord]) => Math.min(...chord.map((note) => note.ms)));
+    return onsets.slice(1).map((ms, i) => ms - onsets[i]!);
+  };
+  const velocities = (rendering: BroughtOut) =>
+    chords(rendering).flatMap(([, chord]) => chord.map((note) => note.velocity));
+  const furthest = (a: number[], b: number[]) => Math.max(...a.map((value, i) => Math.abs(value - b[i]!)));
+
+  it('renders the run as it stands where no instruction is named', () => {
+    expect(tempo).toHaveLength(1);
+    expect(dynamics.length).toBeGreaterThan(0);
+    expect(plain.spared).toEqual([]);
+    expect(plain.pedal).toEqual([]);
+    // The run lays each tempo's notes against the recording; the two clocks part by rounding only.
+    const rendered = new Map(plain.notes.map((note) => [note.id, note]));
+    for (const note of result.notes) {
+      const { ms, msEnd, velocity } = rendered.get(note.id)!;
+      expect(velocity).toBe(note.mpm.velocity);
+      expect(Math.abs(ms - note.mpm.ms)).toBeLessThan(0.1);
+      expect(Math.abs(msEnd - note.mpm.msEnd)).toBeLessThan(0.1);
+    }
+    // Under one tempo from the first note on they are one clock, and nothing parts.
+    const base = run([]);
+    const whole = new Map(bringOut(base.mpm, [], 1, 1).notes.map((note) => [note.id, note]));
+    for (const note of base.notes) expect(whole.get(note.id)).toEqual({ id: note.id, ...note.mpm });
+  });
+
+  it('exaggerates a tempo: the chords of its bars move in time, and so does the rest of the piece', () => {
+    const out = bringOut(result.mpm, tempo, 1.8, DAMPED);
+    expect(out.spared).toContain('tempo');
+    expect(out.notes.map((note) => note.id)).toEqual(plain.notes.map((note) => note.id));
+    expect(furthest(gaps(out), gaps(plain))).toBeGreaterThan(50);
+    // A clock of its own: the piece no longer ends when the plain rendering does.
+    const end = (rendering: BroughtOut) => Math.max(...rendering.notes.map((note) => note.msEnd));
+    expect(Math.abs(end(out) - end(plain))).toBeGreaterThan(1000);
+  });
+
+  it('exaggerates a loudness and damps the tempo, which is then not among the spared', () => {
+    const out = bringOut(result.mpm, dynamics, 1.8, DAMPED);
+    expect(out.spared).toContain('dynamics');
+    expect(out.spared).not.toContain('tempo');
+    expect(furthest(velocities(out), velocities(plain))).toBeGreaterThan(2);
+    expect(out.notes.every((note) => note.msEnd > note.ms && note.velocity > 0)).toBe(true);
+  });
+
+  it('changes nothing at factor 1 with nothing damped, whatever is named', () => {
+    const out = bringOut(result.mpm, [...tempo, ...dynamics], 1, 1);
+    expect(out.notes).toEqual(plain.notes);
+    expect(out.pedal).toEqual(plain.pedal);
+  });
+
+  it('keeps the factor to 1.9 and the damping to a twentieth', () => {
+    expect(bringOut(result.mpm, tempo, 5, 0)).toEqual(bringOut(result.mpm, tempo, 1.9, 0.05));
+    expect(bringOut(result.mpm, tempo, 0.2, 3).notes).toEqual(plain.notes);
+  });
+
+  it('passes over ids the document does not hold, and renders the run as it stands with none left', () => {
+    const out = bringOut(result.mpm, [...tempo, 'tempo_1'], 1.8, DAMPED);
+    expect(out).toEqual(bringOut(result.mpm, tempo, 1.8, DAMPED));
+    expect(bringOut(result.mpm, ['tempo_1', 'nothing'], 1.8, DAMPED)).toEqual(plain);
+  });
+
+  it('renders the run as it stands where an id names no instruction', () => {
+    const rolled = run([call('InsertTemporalSpread', { date: 1440 })]);
+    expect(rolled.mpm).toContain('xml:id="style_ornament_global"');
+    const out = bringOut(rolled.mpm, ['style_ornament_global', ...rolled.calls[0]!.elements], 1.8, DAMPED);
+    expect(out).toEqual(bringOut(rolled.mpm, [], 1, 1));
+  });
+
+  it('gives each move of the sustaining pedal once, in order', () => {
+    const pedalled = run([call('InsertPedal', {})]);
+    const { pedal } = bringOut(pedalled.mpm, [], 1, 1);
+    const move = ({ ms, value }: { ms: number; value: number }) => `${ms} ${value}`;
+    // The run states a move once for every part and more; under its one tempo the clocks agree.
+    const stated = pedalled.pedals.mpm.filter(({ kind }) => kind === 'sustain').map(move);
+    expect(pedal.length).toBeGreaterThan(10);
+    expect(pedal.length).toBeLessThan(stated.length);
+    expect(pedal.map(move)).toEqual([...new Set(stated)]);
+    expect(pedal.every(({ ms }, i) => i === 0 || ms >= pedal[i - 1]!.ms)).toBe(true);
+  });
+
+  it('knows a run by its MPM through the trials run after it, and forgets it after a few more', () => {
+    run([]);
+    run([call('FitDynamics', { from: FROM, to: TO })]);
+    expect(bringOut(result.mpm, tempo, 1, 1).notes).toEqual(plain.notes);
+    expect(() => bringOut(`${result.mpm}\n`, tempo, 1, 1)).toThrow(/not known/);
+
+    for (let bpm = 50; bpm < 56; bpm++) run([call('InsertTempo', { from: 0, to: 720, bpm, beatLength: 0.25 })]);
+    expect(() => bringOut(result.mpm, tempo, 1, 1)).toThrow(/not known/);
   });
 });

@@ -19,6 +19,7 @@ import { runFit } from '../src/fitting/fit';
 import { asMSM } from '../src/fitting/asMSM';
 import { parseWorkFile, type Call } from '../src/model/Work';
 import { publishedPath } from '../src/test/published';
+import { readReduction } from './reduction';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(here, process.env['DESCRIBEIT_OUT'] ?? 'dist');
@@ -79,11 +80,16 @@ const knowledge = readdirSync(resolve(here, 'knowledge'))
   .join('\n\n\n');
 writeFileSync(resolve(dist, 'knowledge.txt'), knowledge);
 
+// The line the inner voice hums; a checkout without it gives a page that hums nothing.
+const reduction = readReduction();
+writeFileSync(resolve(dist, 'reduction.json'), JSON.stringify(reduction ?? { notes: [], rests: [] }));
+
 copyFileSync(resolve(here, 'examples.json'), resolve(dist, 'examples.json'));
 copyFileSync(resolve(here, 'app.js'), resolve(dist, 'app.js'));
 copyFileSync(resolve(here, 'piano.js'), resolve(dist, 'piano.js'));
 copyFileSync(resolve(here, 'player.js'), resolve(dist, 'player.js'));
 copyFileSync(resolve(here, 'staff.js'), resolve(dist, 'staff.js'));
+copyFileSync(resolve(here, 'voice.js'), resolve(dist, 'voice.js'));
 
 // Piano samples (every third key from A0 to C8, three velocity layers) are too large for git and
 // are downloaded once. `curl` is used because it honours the shell's proxy; Node's `fetch` does not.
@@ -121,5 +127,6 @@ console.log(
   `piece.json ${String(piece.alignment.allNotes.length)} notes, ` +
     `reference.json ${String(reference.length)} calls, ` +
     `knowledge.txt ${String(knowledge.length)} characters, ` +
+    `reduction.json ${reduction ? `${String(reduction.notes.length)} sung notes` : 'empty (the checkout has no hummed/reduction/reduction.mei)'}, ` +
     `piano ${String(samples.length)} samples, ${String(downloaded)} of them downloaded`,
 );

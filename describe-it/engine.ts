@@ -994,8 +994,8 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
   const xml = exportMPM(mpm);
 
   const score = silently(() => alignment.serializeScore());
-  if (score) keep(xml, score);
   const rendered = score ? perform(score, xml) : { notes: [], pedals: [] };
+  if (score) keep(xml, score);
   const performed = new Map<string, Sounded>(rendered.notes.map((note) => [note.id, note]));
   const pedalled = rendered.pedals;
 
@@ -1248,38 +1248,43 @@ export interface BroughtOut {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-/** `mpm` with the dimensions of the instructions `ids` exaggerated and the others damped. */
+/** `mpm` with the dimensions of the instructions `ids` exaggerated and all other dimensions damped. */
 const emphasize = (mpm: string, ids: readonly string[], factor: number, attenuation: number) => {
   const plain = { mpm, spared: [] as string[] };
   const present = ids.filter((id) => mpm.includes(`xml:id="${id}"`));
   if (present.length === 0) return plain;
   try {
     const { mpm: damped, spared } = spotlightMpm(mpm, { ids: present, attenuation: clamp(attenuation, 0.05, 1) });
-    // Beyond 1.9 an ornament can end a note before it begins.
-    const factors = Object.fromEntries(spared.map((dimension) => [dimension, clamp(factor, 1, 1.9)]));
+    // Beyond 1.9 an ornament can end a note before it begins. The shape of a transition is left
+    // as it is: exaggerated, a late ritardando is squeezed into its last chord.
+    const sized = spared.filter((dimension) => !dimension.endsWith('Shape'));
+    const factors = Object.fromEntries(sized.map((dimension) => [dimension, clamp(factor, 1, 1.9)]));
     return { mpm: exaggerateMpm(damped, { factors }).mpm, spared: [...spared] };
   } catch {
-    // An id on a definition or a style switch: nothing to bring out.
+    // An id that governs no dimension (a definition, a style switch): nothing to bring out.
     return plain;
   }
 };
 
+/** The sustaining pedal's moves in time order. The renderer states each several times, and in every part. */
+const sustaining = (pedals: { kind: PedalKind; ms: number; value: number }[]) => {
+  const moves = new Map(
+    pedals.filter((move) => move.kind === 'sustain').map(({ ms, value }) => [`${ms} ${value}`, { ms, value }]),
+  );
+  return [...moves.values()].sort((a, b) => a.ms - b.ms);
+};
+
 /**
- * Renders the MPM of a run with the instructions `ids` exaggerated by `factor` (1 to 1.9) and the
- * other dimensions damped to `attenuation` (0.05 to 1). `mpm` is the `RunResult.mpm` of a recent run.
+ * Renders the MPM of a recent run (its `RunResult.mpm`) with the instructions `ids` exaggerated by
+ * `factor` (1 to 1.9) and all other dimensions damped to `attenuation` (0.05 to 1).
  */
 export const bringOut = (mpm: string, ids: readonly string[], factor: number, attenuation: number): BroughtOut => {
   const score = scores.get(mpm);
-  if (score === undefined) throw new Error('bringOut: this MPM is not that of a recent run, so its run is not known');
+  if (score === undefined) {
+    throw new Error(`bringOut: the run of this MPM is not known (the last ${RUNS_KEPT} runs are)`);
+  }
   keep(mpm, score);
-  const emphasized = emphasize(mpm, ids, factor, attenuation);
+  const emphasized = silently(() => emphasize(mpm, ids, factor, attenuation));
   const { notes, pedals } = perform(score, emphasized.mpm);
-  return {
-    notes,
-    pedal: pedals
-      .filter((move) => move.kind === 'sustain')
-      .map(({ ms, value }) => ({ ms, value }))
-      .sort((a, b) => a.ms - b.ms),
-    spared: emphasized.spared,
-  };
+  return { notes, pedal: sustaining(pedals), spared: emphasized.spared };
 };
