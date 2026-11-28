@@ -67,12 +67,39 @@ export const KeyField = ({ held, onChange, model }: KeyFieldProps) => {
     );
 };
 
-/** The key, called up from the toolbar. */
-export const ExpertKey = (props: KeyFieldProps) => {
-    const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+/**
+ * The key, called up from the toolbar.
+ *
+ * The button says whether there is one: without it remarks are kept as words and nothing comes
+ * of them, which the reader should not have to make a remark to find out.
+ */
+export const ExpertKey = ({ held, onChange, model }: KeyFieldProps) => {
+    // The button's holder in state, not a ref: it is what the popover is hung on while it renders.
+    const [holder, setHolder] = useState<HTMLSpanElement | null>(null);
+    const [open, setOpen] = useState(false);
     return (
-        <Box ref={setAnchor} sx={{ display: 'inline-flex' }}>
-            <ExpertKeyButton held={props.held !== null} onOpen={() => setOpen(true)} />
-        </Box>
+        <span ref={setHolder} style={{ display: 'inline-flex' }}>
+            <ToolbarButton
+                icon={<Key fontSize="small" color={held === null ? 'warning' : 'inherit'} />}
+                label="Expert"
+                tooltip={
+                    held === null
+                        ? 'No key: remarks are kept as words, and not turned into steps. Enter one here'
+                        : 'Remarks are turned into steps with your key'
+                }
+                onClick={() => setOpen(true)}
+            >
+                Expert
+            </ToolbarButton>
+            <Popover
+                open={open}
+                anchorEl={holder}
+                onClose={() => setOpen(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                slotProps={{ paper: { sx: { p: 2, width: 380, mt: 0.5 } } }}
+            >
+                <KeyField held={held} onChange={onChange} model={model} />
+            </Popover>
+        </span>
     );
 };

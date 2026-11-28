@@ -1,0 +1,270 @@
+import { useState, type ReactNode } from 'react';
+import { Box, Button, InputBase, Link, Paper, Typography } from '@mui/material';
+import { keyframes } from '@mui/material/styles';
+import type { RemarkReport } from '../../fitting/description/client';
+import type { Call } from '../../model/Work';
+import type { Asked } from './asking';
+import type { Remark } from './document';
+import { WORDS_FAMILY } from './roll/tones';
+import { dayOf, failureOf, whereOf, wroteOf } from './words';
+
+interface RemarkCardProps {
+    remark: Remark;
+    /** Where it was made, in words. */
+    place: string;
+    /** What it came to in the run on screen; null while there is none of it. */
+    report: RemarkReport | null;
+    /** What is known of its way through the expert. */
+    asked: Asked | null;
+    bars: readonly { n: number; from: number; to: number }[];
+    /** False in the viewer: it is read, and nothing of it is changed. */
+    editable: boolean;
+    /** Whether there is a key to ask the expert with. */
+    hasKey: boolean;
+    /** The key field, shown where a remark waits for one. */
+    keyField: ReactNode;
+    /** The words were changed. */
+    onReword: (text: string) => void;
+    onAsk: () => void;
+    onStop: () => void;
+    onDelete: () => void;
+    /** The reader's answer to what the expert asked. */
+    onReply: (answer: string) => void;
+    /** Go to a call the remark became: select it, on the desk that shows it. */
+    onOpenCall: (id: string) => void;
+}
+
+/** How many of a step's calls are offered as links before the rest are only counted. */
+const LINKS = 8;
+
+const pulse = keyframes({ '0%, 100%': { opacity: 0.25 }, '50%': { opacity: 1 } });
+
+const Note = ({ tone, children }: { tone: 'trouble' | 'question' | 'plain'; children: ReactNode }) => (
+    <Box
+        sx={{
+            borderRadius: 1,
+            px: 1,
+            py: 0.75,
+            typography: 'body2',
+            overflowWrap: 'anywhere',
+            ...(tone === 'trouble' && { bgcolor: '#fdecea', color: 'error.dark' }),
+            ...(tone === 'question' && { bgcolor: '#e3f1ee', color: 'text.primary' }),
+            ...(tone === 'plain' && { bgcolor: 'action.hover', color: 'text.secondary' }),
+        }}
+    >
+        {children}
+    </Box>
+);
+
+/**
+ * A remark called up: its words, who turned them into steps and when, what each step became, and
+ * whatever stands between it and being done.
+ *
+ * In the editor the words are a field: changing them is saying the remark anew, and it is asked
+ * again. What a step became is a list of links to the calls it resolved to, which are plain calls
+ * of the Desk: a link selects one on the desk that shows it, as a link to a call does anywhere.
+ */
+export const RemarkCard = ({
+    remark,
+    place,
+    report,
+    asked,
+    bars,
+    editable,
+    hasKey,
+    keyField,
+    onReword,
+    onAsk,
+    onStop,
+    onDelete,
+    onReply,
+    onOpenCall,
+}: RemarkCardProps) => {
+    // The words as they are being changed; null while they are as the document has them.
+    const [typed, setTyped] = useState<string | null>(null);
+    const [reply, setReply] = useState('');
+
+    const turn = asked?.turn ?? null;
+    const awaited = turn !== null || (asked?.answer ?? null) !== null;
+    const question = asked?.question ?? null;
+    const failure = asked?.failure ?? null;
+    const concrete = new Map((report?.concrete ?? []).map((call) => [call.id, call]));
+    const untold = remark.steps.length === 0 && remark.model === null && !awaited && question === null && failure === null;
+    const troubled = failure !== null || (report?.steps.some((step) => step.error !== undefined) ?? false);
+
+    const commit = () => {
+        const text = (typed ?? '').trim();
+        setTyped(null);
+        if (text !== '' && text !== remark.text) onReword(text);
+    };
+    const answered = [remark.model ?? (remark.steps.length > 0 ? 'steps written by hand' : null), dayOf(remark.date)].filter(Boolean).join(' · ');
+
+    return (
+        <Paper
+            data-remark-card={remark.id}
+            elevation={6}
+            sx={{
+                width: 340,
+                maxWidth: 'calc(100vw - 32px)',
+                p: '11px 12px 9px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 0.75,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 2,
+                position: 'relative',
+                '&::before': { content: '""', position: 'absolute', left: 5, top: 10, bottom: 10, width: 3, borderRadius: 1, bgcolor: 'text.disabled' },
+            }}
+        >
+            {editable ? (
+                <InputBase
+                    multiline
+                    value={typed ?? remark.text}
+                    onChange={(event) => setTyped(event.target.value)}
+                    onBlur={commit}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            (event.target as HTMLElement).blur();
+                        } else if (event.key === 'Escape') {
+                            event.stopPropagation();
+                            setTyped(null);
+                        }
+                    }}
+                    inputProps={{ 'aria-label': 'The remark', spellCheck: false }}
+                    sx={{ fontFamily: WORDS_FAMILY, fontSize: 18, lineHeight: 1.25, p: 0, color: 'text.primary' }}
+                />
+            ) : (
+                <Typography sx={{ fontFamily: WORDS_FAMILY, fontSize: 18, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{remark.text}</Typography>
+            )}
+            <Typography variant="caption" color="text.secondary">
+                {[place, answered].filter(Boolean).join(' · ')}
+            </Typography>
+
+            {awaited && (
+                <Typography variant="body2" color="text.secondary" data-reading>
+                    <Box
+                        component="span"
+                        sx={{
+                            display: 'inline-block',
+                            width: 7,
+                            height: 7,
+                            borderRadius: '50%',
+                            bgcolor: '#0b7566',
+                            mr: 0.75,
+                            animation: `${pulse} 1.1s ease-in-out infinite`,
+                            '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+                        }}
+                    />
+                    {turn === 'waiting' ? 'Waiting for its turn…' : (asked?.progress ?? 'Reading the remark…')}
+                </Typography>
+            )}
+
+            {question !== null && (
+                <Note tone="question">
+                    <Box data-question>{question}</Box>
+                    {editable && hasKey && (
+                        <InputBase
+                            fullWidth
+                            placeholder="Your answer"
+                            value={reply}
+                            onChange={(event) => setReply(event.target.value)}
+                            onKeyDown={(event) => {
+                                event.stopPropagation();
+                                if (event.key !== 'Enter' || reply.trim() === '') return;
+                                onReply(reply.trim());
+                                setReply('');
+                            }}
+                            inputProps={{ 'aria-label': 'Your answer' }}
+                            sx={{ mt: 0.75, px: 0.75, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 1, fontSize: 14 }}
+                        />
+                    )}
+                </Note>
+            )}
+
+            {failure !== null && <Note tone="trouble">{failureOf(failure)}</Note>}
+
+            {untold && (
+                <Note tone="plain">
+                    This remark has not been turned into steps{editable && !hasKey ? ': there is no key to ask the expert with.' : '.'}
+                    {editable && !hasKey && <Box sx={{ mt: 1 }}>{keyField}</Box>}
+                </Note>
+            )}
+
+            {remark.steps.length > 0 && (
+                <Box component="ol" data-steps sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {remark.steps.map((step, index) => {
+                        const told = report?.steps[index];
+                        const calls = (told?.calls ?? []).flatMap((id) => concrete.get(id) ?? []);
+                        const wrote = told ? wroteOf(told) : '';
+                        return (
+                            <Box component="li" key={index} data-step={step.name} sx={{ typography: 'body2' }}>
+                                <Box component="span" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', fontSize: 12 }}>
+                                    {step.name}
+                                </Box>
+                                {wrote !== '' && (
+                                    <Typography component="span" variant="caption" color="text.secondary">
+                                        {' '}
+                                        wrote {wrote}
+                                    </Typography>
+                                )}
+                                {calls.length > 0 && (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '2px 8px', mt: 0.25 }}>
+                                        {calls.slice(0, LINKS).map((call, at) => (
+                                            <Link
+                                                key={call.id}
+                                                component="button"
+                                                type="button"
+                                                variant="caption"
+                                                underline="hover"
+                                                data-call={call.id}
+                                                title={`${call.name}: select this call on its own desk`}
+                                                onClick={() => onOpenCall(call.id)}
+                                            >
+                                                {calls.length === 1 ? call.name : `${call.name}, ${whereOf(call, at, bars)}`}
+                                            </Link>
+                                        ))}
+                                        {calls.length > LINKS && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                and {calls.length - LINKS} more
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                )}
+                                {told?.error !== undefined && (
+                                    <Note tone="trouble">
+                                        {step.name} did not run: {told.error}
+                                    </Note>
+                                )}
+                                {told?.withheld !== undefined && (
+                                    <Note tone="plain">
+                                        {step.name} is in the picture here but kept out of the document: {told.withheld}
+                                    </Note>
+                                )}
+                            </Box>
+                        );
+                    })}
+                </Box>
+            )}
+
+            {editable && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, ml: -0.75 }}>
+                    {turn !== null && (
+                        <Button variant="text" color="inherit" onClick={onStop}>
+                            Stop
+                        </Button>
+                    )}
+                    {turn === null && hasKey && (
+                        <Button variant="text" color="inherit" onClick={onAsk}>
+                            {untold ? 'Ask the expert' : troubled ? 'Ask again' : 'Ask again'}
+                        </Button>
+                    )}
+                    <Button variant="text" color="inherit" onClick={onDelete}>
+                        Delete
+                    </Button>
+                </Box>
+            )}
+        </Paper>
+    );
+};
