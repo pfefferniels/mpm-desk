@@ -19,6 +19,7 @@
     "verovio:build": "tools/build-verovio.sh"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@mui/icons-material": "^5.18.0",
