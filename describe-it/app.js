@@ -485,11 +485,12 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   const MUSIC = '"Noto Music", "Bravura Text", "Apple Symbols", "Segoe UI Symbol", serif';
   /** Draw a music glyph scaled so that its ink is `height` tall and stands on `bottom`. */
   const glyphOn = (glyph, x, bottom, height) => {
+    // The baseline first: the ink's extent is measured from whichever one is set.
+    ctx.textBaseline = 'alphabetic';
     ctx.font = `100px ${MUSIC}`;
     const probe = ctx.measureText(glyph);
     const scale = height / (probe.actualBoundingBoxAscent + probe.actualBoundingBoxDescent);
     ctx.font = `${100 * scale}px ${MUSIC}`;
-    ctx.textBaseline = 'alphabetic';
     ctx.fillText(glyph, x, bottom - probe.actualBoundingBoxDescent * scale);
   };
   /** Draw an accidental ending at `right`, on the line or space at `y`. */
@@ -1166,7 +1167,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
         // clef's dots sit either side of the fourth.
         const treble = 14.6 * G.rowH;
         const bass = 6.9 * G.rowH;
-        glyphOn('𝄞', 7, Y(TREBLE[1] + liftOf('treble')) + 0.34 * treble, treble);
+        glyphOn('𝄞', 7, Y(TREBLE[1] + liftOf('treble')) + 0.375 * treble, treble);
         glyphOn('𝄢', 7, Y(BASS[3]) + 0.71 * bass, bass);
       }
       for (const staff of ['treble', 'bass']) {
