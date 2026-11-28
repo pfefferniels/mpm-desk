@@ -197,6 +197,7 @@ describe('a try, then an answer', () => {
         });
         expect(JSON.parse(result!.content as string)).toMatchObject({
             steps: [{ step: 0, name: 'FitTempo', wrote: ['tempo x1'], fitted_to_notes: 2 }],
+            replaces_made_by_hand: 0,
             left_in_piece: { before: { notes: 2 }, after: { notes: 2 } },
         });
     });

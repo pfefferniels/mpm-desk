@@ -1,8 +1,15 @@
 /**
  * The expert's one tool: its steps tried on the roll, and what came of them.
  */
-import type { DescriptionRun, Step, StepReport } from '../../../fitting/description/client';
+import type {
+    DescriptionRun,
+    RemarkReport,
+    Step,
+    StepReport,
+} from '../../../fitting/description/client';
+import type { Call } from '../../../model/Work';
 import { asStep } from './answer';
+import { byTransformer, type Told } from './hand';
 import { idsOf, leftIn, measures } from './left';
 import { placesOf } from './places';
 import type { ExpertRequest } from './types';
@@ -17,7 +24,7 @@ const FITTED = 48;
 export const TRY_STEPS = {
     name: 'try_steps',
     description:
-        "Runs the document with your steps in place of this remark's, keeping nothing. Returns per step an error, or what it wrote (counts by MPM element, and the first elements themselves with their fitted attributes), what a fitted step read off the recording, and why what it came to is withheld from the document where it is; then pulse_ms, spread_ms, velocity and length_ms left in the passage and in the piece, before and after. Call it with the steps you intend before you answer, three times at most.",
+        "Runs the document with your steps in place of this remark's, keeping nothing. Where a step speaks of a place a call made by hand on another desk speaks of, it is run as taking that place, which in the document it does only if the reader agrees. Returns per step an error, or what it wrote (counts by MPM element, and the first elements themselves with their fitted attributes), what a fitted step read off the recording, what made by hand it would replace or stands behind, and why what it came to is withheld from the document where it is; then how many calls made by hand would be replaced in all, and pulse_ms, spread_ms, velocity and length_ms left in the passage and in the piece, before and after. Call it with the steps you intend before you answer, three times at most.",
     input_schema: {
         type: 'object' as const,
         properties: {
@@ -96,20 +103,56 @@ interface StepTried {
     fitted_shown?: string;
     fitted_to_notes?: number;
     withheld?: string;
+    /** The calls made by hand it would take the place of, a line to a transformer. */
+    replaces?: string[];
+    /** Those it was cut round or left out for, which no trial replaces. */
+    gave_way_to?: string[];
+    /** Why it wrote nothing: what it stands behind. */
+    behind?: string;
 }
+
+/** What a trial has to say of the calls made by hand that stand where the remark speaks. */
+interface MadeByHand {
+    /** What the remark would take the place of, by the id of the call. */
+    displaced: ReadonlyMap<string, NonNullable<RemarkReport['displaced']>[number]>;
+    /** Some of the calls made by hand, by transformer and with the ticks they speak of. */
+    tell: (calls: readonly Call[]) => Told[];
+    /** The calls made by hand by their ids, as far as the request gives them. */
+    standing: ReadonlyMap<string, Call>;
+}
+
+const replaces = (ids: readonly string[], { displaced, tell }: MadeByHand): string[] =>
+    tell(ids.flatMap((id) => displaced.get(id)?.call ?? [])).map(({ count, where, calls }) => {
+        const cut = calls.filter((call) => displaced.get(call.id)!.left.length > 0).length;
+        const cutBack = cut > 0 ? `; ${cut} of them only cut back` : '';
+        return `${count}${where ? `: ${where}` : ''}${cutBack}`;
+    });
+
+const gaveWayTo = (ids: readonly string[], { standing, tell }: MadeByHand): string[] => {
+    const calls = ids.flatMap((id) => standing.get(id) ?? []);
+    if (calls.length < ids.length) {
+        return [`${ids.length} ${ids.length === 1 ? 'call' : 'calls'} made by hand`];
+    }
+    return tell(calls).map(({ count, where }) => (where ? `${count}: ${where}` : count));
+};
 
 const stepTried = (
     step: number,
     name: string,
     report: StepReport | undefined,
     place: (tick: number) => string,
+    made: MadeByHand,
 ): StepTried => {
     if (!report) return { step, name, error: 'the run says nothing of this step' };
     if (report.error !== undefined) return { step, name, error: report.error };
-    const { elements, fitted, evidence, withheld } = report;
+    const { elements, fitted, evidence, withheld, displaces, behind } = report;
+    const gaveWay = report.gaveWayTo && { gave_way_to: gaveWayTo(report.gaveWayTo, made) };
+    if (behind !== undefined) return { step, name, behind, ...gaveWay };
     return {
         step,
         name,
+        ...(displaces && { replaces: replaces(displaces, made) }),
+        ...gaveWay,
         wrote: kinds(report),
         written: shown(report),
         ...(elements.length > ELEMENTS && {
@@ -125,25 +168,36 @@ const stepTried = (
 };
 
 /**
- * What came of a trial: per step what it wrote or why it did not run, and the four measures of
- * the remark's passage and of the piece, as the document stands and as the trial leaves them.
+ * What came of a trial: per step what it wrote or why it did not run, what made by hand the
+ * remark would take the place of, and the four measures of the remark's passage and of the
+ * piece, as the document stands and as the trial leaves them.
  *
- * @param tried the document run with `steps` in place of the remark's own.
+ * @param tried the document run with `steps` in place of the remark's own. On trial a remark
+ * takes the place of the calls made by hand it speaks over, so this is the document as it would
+ * stand if the reader let it.
  */
 export const reportOf = (
-    { remark, run, piece }: ExpertRequest,
+    { remark, run, piece, byHand = [] }: ExpertRequest,
     steps: readonly Step[],
     tried: DescriptionRun,
 ) => {
-    const reports = tried.remarks.find(({ id }) => id === remark.id)?.steps ?? [];
+    const report = tried.remarks.find(({ id }) => id === remark.id);
+    const reports = report?.steps ?? [];
     const { place } = placesOf(piece, tried.roll.timeSignatures);
+    const dates = new Map(run.roll.notes.map((note) => [note.id, note.date]));
+    const made: MadeByHand = {
+        displaced: new Map((report?.displaced ?? []).map((one) => [one.call.id, one])),
+        tell: (calls) => byTransformer(calls, place, (note) => dates.get(note)),
+        standing: new Map(byHand.map((call) => [call.id, call])),
+    };
     const ids = idsOf(remark.about, run.roll.notes);
     const left = (of?: readonly string[]) => ({
         before: measures(leftIn(run.roll.notes, of)),
         after: measures(leftIn(tried.roll.notes, of)),
     });
     return {
-        steps: steps.map(({ name }, index) => stepTried(index, name, reports[index], place)),
+        steps: steps.map(({ name }, index) => stepTried(index, name, reports[index], place, made)),
+        replaces_made_by_hand: made.displaced.size,
         left_in_passage: left(ids),
         left_in_piece: left(),
     };

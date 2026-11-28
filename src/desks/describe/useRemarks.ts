@@ -10,10 +10,24 @@ import { useWorkDocument } from '../../hooks/WorkDocument';
 import type { Call } from '../../model/Work';
 import { barsOf } from './adapter';
 import type { Asked, Driver } from './asking';
-import { byHand, made, migrated, remarkCall, remarksOf, removed, resolved, reworded, type Remark } from './document';
+import {
+    answered,
+    byHand,
+    displacedBy,
+    edited,
+    made,
+    migrated,
+    remarkCall,
+    remarksOf,
+    removed,
+    replaced,
+    resolved,
+    reworded,
+    type Remark,
+} from './document';
 import type { RemarkInWords } from './expert';
 import type { DescribeServices } from './services';
-import { useDescription } from './useDescription';
+import { useDescription, type Tried } from './useDescription';
 
 const NO_REMARKS: readonly Remark[] = [];
 
@@ -56,6 +70,13 @@ export interface Remarks {
     stop: (id: string) => void;
     /** Answer what the expert asked about a remark. */
     reply: (id: string, answer: string) => void;
+    /**
+     * The reader's word on an answer that would take the place of calls made by hand: write it
+     * in their place, as one edit.
+     */
+    replace: (id: string) => void;
+    /** Or keep them, and write the answer to stand behind them. */
+    keep: (id: string) => void;
 }
 
 /**
@@ -69,6 +90,11 @@ export interface Remarks {
  * - **Ask.** The request is made of the document and the run in hand when a remark's turn
  *   comes; its answer is run before it is written, so that the steps and the calls they come to
  *   arrive together; and steps the chain refused go back once for mending.
+ * - **Try, and ask the reader.** The answer is run on trial, where it takes the place of the
+ *   calls made by hand it stands over. Where it takes no call's place it is written at once,
+ *   from that run. Where it does, nothing is written: the remark waits for the reader to say
+ *   "replace" (one edit: those calls out, what is left of them and the remark in) or "keep"
+ *   (the remark is written to stand behind them). The line of remarks goes on meanwhile.
  *
  * In the viewer the document is run and shown, and nothing is written or asked.
  */
@@ -100,16 +126,15 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
     const asked = useSyncExternalStore(asking.subscribe, asking.read);
 
     /**
-     * A run is in: the calls its remarks came to go into the document, as one edit.
+     * A run of the document is in: the calls its remarks came to go into it, as one edit.
      *
-     * The one place an expert's answer is written. It reaches here already run: the answer waits
-     * in the session, the document is run with it in place (`useDescription`), and this is handed
-     * both. Whatever is to stand between an answer and its being written, a question to the
-     * reader about what it would displace, belongs in front of the `replaceCalls` below.
+     * An answer reaches here only once the reader has said to keep what it would displace: it is
+     * in the document that was run, standing behind those calls, and is written with what it
+     * came to. Every other answer is written by `put`.
      */
     const write = (document: readonly Call[], run: DescriptionRun) => {
         if (!editable) return;
-        const answers = [...asking.read()].flatMap(([id, entry]) => (entry.answer ? [id] : []));
+        const answers = [...asking.read()].flatMap(([id, entry]) => (entry.answer && entry.kept ? [id] : []));
         // A state of the document undo has brought back is left as the reader asked for it.
         if (answers.length === 0 && session.written.has(calls)) return;
         session.written.add(calls);
@@ -121,7 +146,45 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
             asking.written(id, remark ? errorsOf(run, remark) : []);
         }
     };
-    const description = useDescription({ alignment, calls, asked, client, onRun: write });
+
+    /**
+     * An answer written from the run it was tried in: the remark, what its steps came to and,
+     * where the reader said so, what is left of the calls made by hand in place of them. One edit.
+     *
+     * @returns the document as it now stands, which the trial's run is the run of.
+     */
+    const put = (document: readonly Call[], { id, answer, run }: Pick<Tried, 'id' | 'answer' | 'run'>): Call[] => {
+        const edit = replaced(document, id, answer, run);
+        session.written.add(calls);
+        replaceCalls(edit.remove, edit.add);
+        const remark = remarksOf(answered(document, id, answer)).find((each) => each.id === id);
+        asking.written(id, remark ? errorsOf(run, remark) : []);
+        return edited(document, edit);
+    };
+
+    /**
+     * An answer has been tried. Where it takes the place of nothing made by hand it is written
+     * at once; where it does, the reader is asked first, and nothing is written.
+     */
+    const tried = (document: readonly Call[], trial: Tried): Call[] | null => {
+        const entry = asking.read().get(trial.id);
+        // Asked anew, or gone, while it was tried.
+        if (!editable || entry?.answer !== trial.answer || entry.kept) return null;
+        if (displacedBy(trial.run, trial.id).length === 0) return put(document, trial);
+        asking.tried(trial.id, { run: trial.run, key: trial.key, alignment: trial.alignment });
+        return null;
+    };
+    const description = useDescription({
+        alignment,
+        calls,
+        asked,
+        client,
+        onRun: write,
+        onTried: tried,
+        onUntried: (id, answer) => {
+            if (asking.read().get(id)?.answer === answer) asking.dropped(id);
+        },
+    });
     const { run } = description;
 
     const remarks = useMemo(() => (alignment ? remarksOf(description.made) : NO_REMARKS), [alignment, description.made]);
@@ -173,6 +236,14 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
         asking.resume();
     }, [asking, description.made]);
 
+    // An answer waiting for the reader was tried on a document, and what it would displace is
+    // true of that one: where the document has changed since, it is tried again.
+    useEffect(() => {
+        for (const [id, { displacing }] of asked) {
+            if (displacing !== null && (displacing.key !== description.key || displacing.alignment !== alignment)) asking.retry(id);
+        }
+    }, [asked, asking, description.key, alignment]);
+
     // What is known of a remark the document no longer holds is known of nothing.
     useEffect(() => {
         if (!alignment) return;
@@ -211,5 +282,13 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
         ask: (id) => asking.enqueue(id),
         stop: (id) => asking.stop(id),
         reply: (id, answer) => asking.reply(id, answer),
+        replace: (id) => {
+            const entry = asking.read().get(id);
+            const trial = entry?.displacing;
+            // Only from a trial of the document as it stands: what was asked is what is done.
+            if (!entry?.answer || !trial || trial.key !== description.key || trial.alignment !== alignment) return;
+            description.adopt(trial.run, put(description.made, { id, answer: entry.answer, run: trial.run }));
+        },
+        keep: (id) => asking.keep(id),
     };
 };

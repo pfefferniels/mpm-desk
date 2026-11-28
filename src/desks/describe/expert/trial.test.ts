@@ -117,6 +117,86 @@ describe('what a trial reports', () => {
     });
 });
 
+describe('a trial over what was made by hand', () => {
+    /** Bars 16 and 17 of the published reconstruction, described by hand in every respect. */
+    const [FROM, TO] = [bar(16), bar(18)];
+    const PRESSES = ['sustain-43920', 'sustain-45000', 'sustain-45720', 'sustain-47520'];
+    let request: ExpertRequest;
+
+    beforeAll(() => {
+        request = fixture.request(said('asked', 'one tempo here', about('span', FROM, TO)), [], {
+            byHand: fixture.published,
+        });
+    });
+
+    it('says what a step would take the place of, how many in all, and what that leaves', async () => {
+        const tried = await report(request, [step('FitTempo', { from: FROM, to: TO })]);
+        expect(tried.steps[0]).toMatchObject({
+            replaces: ['InsertTempo ×5: ticks 43920 to 49680 (16:1 to 18:1)'],
+            wrote: ['tempo x1'],
+        });
+        expect(tried.steps[0]).not.toHaveProperty('behind');
+        expect(tried.replaces_made_by_hand).toBe(5);
+        // One tempo for two bars is coarser than the five drawn ones, and the trial shows it.
+        const { before, after } = tried.left_in_passage;
+        expect(after.pulse_ms).toBeGreaterThan(before.pulse_ms);
+    });
+
+    it('tells each step its own share: what goes, what is only cut back, and where', async () => {
+        const tried = await report(request, [
+            step('FitTempo', { from: FROM, to: TO, shape: 'transition' }),
+            step('FitDynamics', { from: FROM, to: TO }),
+            step('InsertTemporalSpread', { date: FROM, placement: 'on-beat' }),
+            ...PRESSES.map((pedal) => step('InsertPedal', { pedal })),
+        ]);
+        const [tempo, dynamics, roll, ...pedals] = tried.steps;
+        expect(tempo?.replaces).toEqual(['InsertTempo ×5: ticks 43920 to 49680 (16:1 to 18:1)']);
+        // Two of the four spans reach beyond the bars, and keep what lies outside them.
+        expect(dynamics?.replaces).toEqual([
+            'InsertDynamics ×4: ticks 42480 to 50400 (15:3 to 18:2); 2 of them only cut back',
+        ]);
+        expect(roll?.replaces).toEqual(['InsertTemporalSpread ×1: tick 43920 (16:1)']);
+        // A line drawn by hand for a press is placed by its guides.
+        for (const pedal of pedals) {
+            expect(pedal.replaces).toEqual([
+                expect.stringMatching(/^InsertPedal ×1: ticks \d+ to \d+ \(1[567]:[\d.]+ to 1[67]:[\d.]+\)$/),
+            ]);
+        }
+        expect(tried.replaces_made_by_hand).toBe(14);
+        expect(tried.steps.every((one) => one.error === undefined && !one.behind)).toBe(true);
+    });
+
+    it('says where a step stands behind what is said of every chord, and wrote nothing', async () => {
+        const steps = [
+            step('InsertDynamicsGradient', { date: FROM }),
+            step('InsertArticulation', { noteIDs: ['nxbdd6x'], aspects: ['relativeVelocity'] }),
+        ];
+        const tried = await report(request, steps);
+        expect(tried.steps[0]).toEqual({
+            step: 0,
+            name: 'InsertDynamicsGradient',
+            behind: 'stands behind what was made by hand in its place: InsertDynamicsGradient ×1',
+            gave_way_to: ['InsertDynamicsGradient ×1'],
+        });
+        // An articulation is not settled against anything: it runs beside what stands.
+        expect(tried.steps[1]).toMatchObject({ wrote: ['articulation x1'] });
+        expect(tried.steps[1]).not.toHaveProperty('replaces');
+        expect(tried.replaces_made_by_hand).toBe(0);
+
+        // Not told which calls were made by hand, it can still say how many it gave way to.
+        const untold = { ...request, byHand: undefined };
+        const again = reportOf(untold, steps, await request.tryOut(steps));
+        expect(again.steps[0]?.gave_way_to).toEqual(['1 call made by hand']);
+    });
+
+    it('replaces nothing where nothing made by hand stands in the way', async () => {
+        const alone = fixture.request(said('asked', 'one tempo here', about('span', FROM, TO)));
+        const tried = await report(alone, [step('FitTempo', { from: FROM, to: TO })]);
+        expect(tried.replaces_made_by_hand).toBe(0);
+        expect(tried.steps[0]).not.toHaveProperty('replaces');
+    });
+});
+
 describe('the tool', () => {
     const request = (tryOut: ExpertRequest['tryOut']): ExpertRequest => ({
         ...fixture.request(said('asked', 'pull towards the downbeat', ARROW)),

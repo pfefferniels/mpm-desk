@@ -184,6 +184,46 @@ export const resolved = (calls: readonly Call[], run: Pick<DescriptionRun, 'rema
     });
 };
 
+/** A call made by hand that an answer on trial takes the place of, with what is left of it. */
+export type Displaced = NonNullable<DescriptionRun['remarks'][number]['displaced']>[number];
+
+/** What an answer tried on the document would take the place of; none where it stands free. */
+export const displacedBy = (run: Pick<DescriptionRun, 'remarks'>, id: string): readonly Displaced[] =>
+    run.remarks.find((report) => report.id === id)?.displaced ?? [];
+
+/**
+ * An answer written from the run it was tried in, as one edit: the remark with its steps and
+ * what they came to, and, where it takes the place of calls made by hand, those calls out and
+ * what is left of them in.
+ *
+ * The order is the fitting's (`fitting/description/run.ts`): what is left of the calls made by
+ * hand, then every remark with what it resolved to in that run. A plain run of the document so
+ * written comes to the same calls and displaces nothing; and one step of undo brings back what
+ * was made by hand, since it went in the same edit.
+ *
+ * @param calls the document the answer was tried on.
+ * @param run the trial's run, with `id` the remark on trial.
+ */
+export const replaced = (
+    calls: readonly Call[],
+    id: string,
+    answer: { steps: readonly Step[]; model: string },
+    run: Pick<DescriptionRun, 'remarks'>,
+): Edit => {
+    const displaced = displacedBy(run, id);
+    const { remove, add } = resolved(answered(calls, id, answer), run);
+    return {
+        remove: [...displaced.map(({ call }) => call.id), ...remove],
+        add: [...displaced.flatMap(({ left }) => left), ...add],
+    };
+};
+
+/** The document as an edit leaves it: what it takes out gone, what it puts in at the end. */
+export const edited = (calls: readonly Call[], { remove, add }: Edit): Call[] => {
+    const gone = new Set(remove);
+    return [...calls.filter((call) => !gone.has(call.id)), ...add];
+};
+
 /** A remark made: the document's remarks as they stand, and the new one after them. */
 export const made = (calls: readonly Call[], remark: Call): Edit => {
     const { remove, add } = standing(calls, (held, owned) => [held, ...owned]);

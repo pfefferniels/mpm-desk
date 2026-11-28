@@ -4,10 +4,10 @@
  */
 import type { Roll, RollNote, Step } from '../../../fitting/description/client';
 import type { DescribedPlace } from '../../../fitting/transformers/description/Describe';
-import type { Call } from '../../../model/Work';
 import describing from './knowledge/00-describe-desk.md?raw';
 import transformers from './knowledge/10-transformers.md?raw';
 import instructions from './knowledge/20-mpm.md?raw';
+import { byTransformer } from './hand';
 import { idsOf, leftIn, measures, type Left } from './left';
 import { placesOf, type Places } from './places';
 import type { ExpertRequest } from './types';
@@ -244,47 +244,23 @@ const describedSection = ({ others, byHand }: ExpertRequest, sheet: Sheet) => {
     ];
 };
 
-/** The ticks a call speaks of, as far as its options say; none where it names no place. */
-const ticksOf = ({ options }: Call, { scored }: Sheet): number[] => {
-    const { from, to, date, length, noteIDs, guides } = options;
-    if (typeof from === 'number' && typeof to === 'number') return [from, to];
-    if (typeof date === 'number') return [date, date + (typeof length === 'number' ? length : 0)];
-    if (Array.isArray(noteIDs)) {
-        return noteIDs.flatMap((id) => scored.get(String(id))?.date ?? []);
-    }
-    return guides instanceof Map ? [...guides.keys()].filter((key) => typeof key === 'number') : [];
-};
-
-/**
- * What the document holds that no remark made, a line to a transformer: a real document may hold
- * hundreds of such calls, and the expert has to know of them without reading them.
- */
-const byHandSection = ({ byHand = [] }: ExpertRequest, sheet: Sheet) => {
+/** What the document holds that no remark made, a line to a transformer. */
+const byHandSection = ({ byHand = [] }: ExpertRequest, { place, scored }: Sheet) => {
     if (byHand.length === 0) return [];
-    const placed: string[] = [];
-    const placeless: string[] = [];
-    for (const [name, calls] of Map.groupBy(byHand, (call) => call.name)) {
-        const ticks = calls.map((call) => ticksOf(call, sheet)).filter((of) => of.length > 0);
-        const count = `${name} ×${calls.length}`;
-        if (ticks.length === 0) {
-            placeless.push(count);
-            continue;
-        }
-        const first = Math.round(Math.min(...ticks.flat()));
-        const last = Math.round(Math.max(...ticks.flat()));
-        const where =
-            first === last
-                ? `tick ${first} (${sheet.place(first)})`
-                : `ticks ${first} to ${last} (${sheet.place(first)} to ${sheet.place(last)})`;
-        const elsewhere = calls.length - ticks.length;
-        placed.push(`- ${count}: ${where}${elsewhere > 0 ? `; ${elsewhere} without a place` : ''}`);
-    }
+    const told = byTransformer(byHand, place, (note) => scored.get(note)?.date);
+    const placed = told.flatMap(({ count, where, placeless }) => {
+        if (!where) return [];
+        return `- ${count}: ${where}${placeless > 0 ? `; ${placeless} without a place` : ''}`;
+    });
+    const elsewhere = told.flatMap(({ count, where }) => (where ? [] : count));
     return [
         '',
         '# WHAT WAS MADE BY HAND ON THE OTHER DESKS',
-        `${byHand.length} calls of the document belong to no remark. They run as they stand, and are not settled against your steps as the steps of remarks are among themselves: where a step speaks of ticks one of them already speaks of, both run. Per transformer, how many there are, and the first and the last tick they speak of (as bar:beat in brackets):`,
+        `${byHand.length} calls of the document belong to no remark. A step that speaks of a place one of them speaks of takes that place only if the reader agrees: try_steps says what each step would replace, so take no more than the remark speaks of. Per transformer, how many there are, and the first and the last tick they speak of (as bar:beat in brackets):`,
         ...placed,
-        ...(placeless.length > 0 ? [`- naming no place in the score: ${placeless.join(', ')}`] : []),
+        ...(elsewhere.length > 0
+            ? [`- naming no place in the score: ${elsewhere.join(', ')}`]
+            : []),
     ];
 };
 

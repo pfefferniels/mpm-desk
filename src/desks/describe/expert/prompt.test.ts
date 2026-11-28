@@ -48,6 +48,14 @@ describe('the knowledge', () => {
 
         expect(KNOWLEDGE).toContain('`try_steps({steps})`');
         expect(KNOWLEDGE).toContain('`withheld`');
+        // What was made by hand gives way only if the reader says so, and four kinds not at all.
+        expect(KNOWLEDGE).toContain('gives way only if the reader says so');
+        expect(KNOWLEDGE).toContain('the narrowest step that says it');
+        expect(KNOWLEDGE).toMatch(
+            /not settled at all, so that both still run.*`InsertArticulation` on the same notes, `InsertMetricalAccentuation` over the same span, grace figures, and a tempo or dynamics in a part's own scope/,
+        );
+        expect(KNOWLEDGE).toContain('`replaces_made_by_hand`');
+        expect(KNOWLEDGE).not.toContain('runs as it stands');
         // A press of the pedal is named by its id, which the piece lists.
         expect(KNOWLEDGE).toContain('or `{"pedal": id}` per press (the presses are listed with the piece)');
         expect(KNOWLEDGE).not.toMatch(/DescribeIt|try_calls|"calls"|`reading`/);
@@ -181,7 +189,7 @@ describe('what was made by hand on the other desks', () => {
         const prompt = buildPrompt({ ...request, byHand });
         expect(under(prompt, HEADING)).toEqual([
             expect.stringMatching(
-                /^8 calls of the document belong to no remark\. They run as they stand, .*: where a step speaks of ticks one of them already speaks of, both run\. /,
+                /^8 calls of the document belong to no remark\. A step that speaks of a place one of them speaks of takes that place only if the reader agrees: try_steps says what each step would replace, so take no more than the remark speaks of\. /,
             ),
             '- InsertTempo ×2: ticks 720 to 6480 (1:1 to 3:1)',
             '- InsertRubato ×1: ticks 2880 to 3600 (1:4 to 2:1)',

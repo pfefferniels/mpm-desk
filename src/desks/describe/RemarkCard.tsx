@@ -2,10 +2,11 @@ import { useState, type ReactNode } from 'react';
 import { Box, Button, InputBase, Link, Paper, Typography } from '@mui/material';
 import { keyframes } from '@mui/material/styles';
 import type { RemarkReport } from '../../fitting/description/client';
+import type { Call } from '../../model/Work';
 import type { Asked } from './asking';
-import type { Remark } from './document';
+import { displacedBy, type Remark } from './document';
 import { WORDS_FAMILY } from './roll/tones';
-import { dayOf, failureOf, whereOf, wroteOf } from './words';
+import { dayOf, displacingOf, failureOf, gaveWayOf, whereOf, wroteOf } from './words';
 
 interface RemarkCardProps {
     remark: Remark;
@@ -16,6 +17,8 @@ interface RemarkCardProps {
     /** What is known of its way through the expert. */
     asked: Asked | null;
     bars: readonly { n: number; from: number; to: number }[];
+    /** The calls made by hand in the document that was run, by their ids. */
+    madeByHand: ReadonlyMap<string, Call>;
     /** False in the viewer: it is read, and nothing of it is changed. */
     editable: boolean;
     /** Whether there is a key to ask the expert with. */
@@ -29,7 +32,10 @@ interface RemarkCardProps {
     onDelete: () => void;
     /** The reader's answer to what the expert asked. */
     onReply: (answer: string) => void;
-    /** Go to a call the remark became: select it, on the desk that shows it. */
+    /** The reader's word on what the answer would take the place of. */
+    onReplace: () => void;
+    onKeep: () => void;
+    /** Go to a call: one the remark became, or one made by hand it met. Select it, on the desk that shows it. */
     onOpenCall: (id: string) => void;
 }
 
@@ -37,6 +43,9 @@ interface RemarkCardProps {
 const LINKS = 8;
 
 const alike = (calls: readonly { name: string }[]) => calls.every((call) => call.name === calls[0].name);
+
+/** What a run said, as a sentence of its own. */
+const sentence = (said: string) => `${said.charAt(0).toUpperCase()}${said.slice(1)}${/[.!?]$/.test(said) ? '' : '.'}`;
 
 const pulse = keyframes({ '0%, 100%': { opacity: 0.25 }, '50%': { opacity: 1 } });
 
@@ -57,9 +66,55 @@ const Note = ({ tone, children }: { tone: 'trouble' | 'question' | 'plain'; chil
     </Box>
 );
 
+/** Calls as links, told apart by where they act; beyond a few, the rest are only counted. */
+const Calls = ({
+    calls,
+    bars,
+    named,
+    onOpen,
+}: {
+    calls: readonly Call[];
+    bars: RemarkCardProps['bars'];
+    /** Whether each link says what the call is, where they are not all of one kind anyway. */
+    named: boolean;
+    onOpen: (id: string) => void;
+}) => (
+    <>
+        {calls.slice(0, LINKS).map((call, at) => (
+            <Link
+                key={call.id}
+                component="button"
+                type="button"
+                variant="caption"
+                underline="hover"
+                data-call={call.id}
+                title={`${call.name}: select this call on its own desk`}
+                onClick={() => onOpen(call.id)}
+            >
+                {calls.length === 1 && named ? call.name : alike(calls) || !named ? whereOf(call, at, bars) : `${call.name}, ${whereOf(call, at, bars)}`}
+            </Link>
+        ))}
+        {calls.length > LINKS && (
+            <Typography variant="caption" color="text.secondary">
+                and {calls.length - LINKS} more
+            </Typography>
+        )}
+    </>
+);
+
 /**
  * A remark called up: its words, who turned them into steps and when, what each step became, and
  * whatever stands between it and being done.
+ *
+ * ## Where it meets what was made by hand
+ *
+ * An answer that would take the place of calls made on the other desks is not written until the
+ * reader has said so. The card asks, in one sentence that names those calls as their own desks
+ * do, and offers the two answers there are: replace them, or keep them and let the remark stand
+ * behind them. It is the reader who is asked, not the expert, so there is no field to answer in.
+ *
+ * Afterwards each step says what became of it there: that it stands behind what was drawn by
+ * hand, or was cut round it, with links to those calls.
  *
  * In the editor the words are a field: changing them is saying the remark anew, and it is asked
  * again. What a step became is a list of links to the calls it resolved to, which are plain calls
@@ -71,6 +126,7 @@ export const RemarkCard = ({
     report,
     asked,
     bars,
+    madeByHand,
     editable,
     hasKey,
     keyField,
@@ -79,6 +135,8 @@ export const RemarkCard = ({
     onStop,
     onDelete,
     onReply,
+    onReplace,
+    onKeep,
     onOpenCall,
 }: RemarkCardProps) => {
     // The words as they are being changed; null while they are as the document has them.
@@ -86,11 +144,22 @@ export const RemarkCard = ({
     const [reply, setReply] = useState('');
 
     const turn = asked?.turn ?? null;
-    const awaited = turn !== null || (asked?.answer ?? null) !== null;
+    // What its answer would take the place of, where the reader is asked before it is written.
+    const displaced = asked?.displacing ? displacedBy(asked.displacing.run, remark.id) : null;
+    const awaited = turn !== null || ((asked?.answer ?? null) !== null && displaced === null);
     const question = asked?.question ?? null;
     const failure = asked?.failure ?? null;
     const concrete = new Map((report?.concrete ?? []).map((call) => [call.id, call]));
-    const untold = remark.steps.length === 0 && remark.model === null && !awaited && question === null && failure === null;
+    const untold =
+        remark.steps.length === 0 && remark.model === null && !awaited && displaced === null && question === null && failure === null;
+    const doing =
+        turn === 'waiting'
+            ? 'Waiting for its turn…'
+            : turn === 'asking'
+              ? (asked?.progress ?? 'Reading the remark…')
+              : asked?.kept
+                ? 'Writing it behind what was drawn by hand…'
+                : 'Trying it out on the document…';
 
     const commit = () => {
         const text = (typed ?? '').trim();
@@ -157,8 +226,34 @@ export const RemarkCard = ({
                             '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
                         }}
                     />
-                    {turn === 'waiting' ? 'Waiting for its turn…' : (asked?.progress ?? 'Reading the remark…')}
+                    {doing}
                 </Typography>
+            )}
+
+            {displaced !== null && (
+                <Note tone="question">
+                    <Box data-displacing>This would {displacingOf(displaced, remark.about, bars)}.</Box>
+                    {editable && (
+                        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.75, ml: -0.75 }}>
+                            <Button
+                                variant="text"
+                                color="inherit"
+                                title="Take them out and write the remark in their place. One step of undo brings them back."
+                                onClick={onReplace}
+                            >
+                                Replace
+                            </Button>
+                            <Button
+                                variant="text"
+                                color="inherit"
+                                title="Leave them as they are. The remark is written and stands behind them."
+                                onClick={onKeep}
+                            >
+                                Keep
+                            </Button>
+                        </Box>
+                    )}
+                </Note>
             )}
 
             {question !== null && (
@@ -198,6 +293,8 @@ export const RemarkCard = ({
                         const told = report?.steps[index];
                         const calls = (told?.calls ?? []).flatMap((id) => concrete.get(id) ?? []);
                         const wrote = told ? wroteOf(told) : '';
+                        const gaveWayTo = told?.gaveWayTo ?? [];
+                        const met = gaveWayTo.flatMap((id) => madeByHand.get(id) ?? []);
                         return (
                             <Box component="li" key={index} data-step={step.name} sx={{ typography: 'body2' }}>
                                 <Box component="span" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', fontSize: 12 }}>
@@ -217,41 +314,28 @@ export const RemarkCard = ({
                                                 {calls[0].name}:
                                             </Typography>
                                         )}
-                                        {calls.slice(0, LINKS).map((call, at) => (
-                                            <Link
-                                                key={call.id}
-                                                component="button"
-                                                type="button"
-                                                variant="caption"
-                                                underline="hover"
-                                                data-call={call.id}
-                                                title={`${call.name}: select this call on its own desk`}
-                                                onClick={() => onOpenCall(call.id)}
-                                            >
-                                                {calls.length === 1
-                                                    ? call.name
-                                                    : alike(calls)
-                                                      ? whereOf(call, at, bars)
-                                                      : `${call.name}, ${whereOf(call, at, bars)}`}
-                                            </Link>
-                                        ))}
-                                        {calls.length > LINKS && (
-                                            <Typography variant="caption" color="text.secondary">
-                                                and {calls.length - LINKS} more
-                                            </Typography>
-                                        )}
+                                        <Calls calls={calls} bars={bars} named onOpen={onOpenCall} />
                                     </Box>
+                                )}
+                                {gaveWayTo.length > 0 && (
+                                    <Note tone="plain">
+                                        <Box data-gave-way={told?.behind !== undefined ? 'behind' : 'cut'}>
+                                            {told?.behind !== undefined ? 'Stands behind' : 'Cut round'} what was drawn by hand here:{' '}
+                                            {gaveWayOf(gaveWayTo, madeByHand)}.
+                                        </Box>
+                                        {met.length > 0 && (
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px 8px', mt: 0.25 }}>
+                                                <Calls calls={met} bars={bars} named={false} onOpen={onOpenCall} />
+                                            </Box>
+                                        )}
+                                    </Note>
                                 )}
                                 {told?.error !== undefined && (
                                     <Note tone="trouble">
                                         {step.name} did not run: {told.error}
                                     </Note>
                                 )}
-                                {told?.withheld !== undefined && (
-                                    <Note tone="plain">
-                                        {step.name} is in the picture here but kept out of the document: {told.withheld}
-                                    </Note>
-                                )}
+                                {told?.withheld !== undefined && <Note tone="plain">Not written into the document. {sentence(told.withheld)}</Note>}
                             </Box>
                         );
                     })}

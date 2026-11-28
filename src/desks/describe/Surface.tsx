@@ -39,13 +39,16 @@ const TAKES_TYPING = `input, textarea, select, ${TAKES_SPACE}`;
 
 /** How a remark stands, for the roll to show. */
 const stateOf = (remark: Remark, run: DescriptionRun | null, asked: Asked | undefined): RemarkState => {
-    if (asked?.turn || asked?.answer) return 'pending';
-    if (asked?.question) return 'question';
+    // Waiting for the reader's word on what it would take the place of is a question too.
+    if (asked?.turn || (asked?.answer && !asked.displacing)) return 'pending';
+    if (asked?.question || asked?.displacing) return 'question';
     if (asked?.failure) return 'trouble';
     const report = run?.remarks.find((told) => told.id === remark.id);
     if (report?.steps.some((step) => step.error !== undefined || step.withheld !== undefined)) return 'trouble';
     // Words that nothing has come of yet: kept, and not what the roll shows.
-    return remark.steps.length === 0 && remark.model === null ? 'trouble' : 'done';
+    if (remark.steps.length === 0 && remark.model === null) return 'trouble';
+    // Every step behind what was made by hand: it says nothing at the moment, and nothing is wrong.
+    return report && report.steps.length > 0 && report.steps.every((step) => step.behind !== undefined) ? 'muted' : 'done';
 };
 
 interface LiveRollProps extends Omit<DescribeRollProps, 'playheadMs'> {
@@ -142,6 +145,7 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
         [run, told.ran],
     );
     const notes = useMemo(() => (run ? notesOf(run.roll, spelling, scale, playback.moved) : []), [run, spelling, scale, playback.moved]);
+    const madeByHand = useMemo(() => new Map(byHand(told.ran).map((call) => [call.id, call])), [told.ran]);
     const end = run?.roll.end ?? endOf(notes, ground?.bars ?? []);
     const bars = ground?.bars;
 
@@ -316,6 +320,8 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
 
     const read = [...asked].find(([, entry]) => entry.turn === 'asking')?.[0];
     const waiting = [...asked].filter(([, entry]) => entry.turn === 'waiting').length;
+    /** A remark that waits for the reader's word on what it would take the place of. */
+    const undecided = [...asked].find(([, entry]) => entry.displacing !== null)?.[0];
     const textOf = (id: string | null | undefined) => shown(remarks.find((remark) => remark.id === id)?.text ?? '');
     const status = !alignment
         ? 'No score is open.'
@@ -331,9 +337,11 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
                   ? `Writing about ${placeOf(draft.about, bars ?? [])}.`
                   : read !== undefined
                     ? `Reading “${textOf(read)}”${waiting > 0 ? `, ${String(waiting)} more waiting` : ''}. You can go on writing.`
-                    : run.problems.length > 0
-                      ? run.problems.join(' ')
-                      : remarks.length === 0
+                    : undecided !== undefined && places.has(undecided)
+                      ? `“${textOf(undecided)}” would take the place of what was drawn by hand: click it to replace that, or keep it.`
+                      : run.problems.length > 0
+                        ? run.problems.join(' ')
+                        : remarks.length === 0
                         ? editable
                             ? 'Nothing is described yet. Notes: what the MPM so far renders. Shadows: what was played. Drag to bracket a passage, click a note, or just type.'
                             : 'Nothing is described here. Notes: what the MPM renders. Shadows: what was played.'
@@ -460,6 +468,7 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
                                     report={run.remarks.find((report) => report.id === openRemark.id) ?? null}
                                     asked={asked.get(openRemark.id) ?? null}
                                     bars={bars ?? []}
+                                    madeByHand={madeByHand}
                                     editable={editable}
                                     hasKey={told.canAsk}
                                     keyField={keyField}
@@ -468,6 +477,8 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
                                     onStop={() => told.stop(openRemark.id)}
                                     onDelete={() => remove(openRemark.id)}
                                     onReply={(answer) => told.reply(openRemark.id, answer)}
+                                    onReplace={() => told.replace(openRemark.id)}
+                                    onKeep={() => told.keep(openRemark.id)}
                                     onOpenCall={focusCall}
                                 />
                             ) : undefined

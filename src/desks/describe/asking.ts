@@ -1,4 +1,4 @@
-import type { DescriptionClient, Step } from '../../fitting/description/client';
+import type { DescriptionClient, DescriptionRun, Step } from '../../fitting/description/client';
 import type { ExpertAnswer, ExpertFailure } from './expert';
 
 /**
@@ -16,10 +16,33 @@ import type { ExpertAnswer, ExpertFailure } from './expert';
  * One remark is asked at a time, in the order they were made, as the prototype's `pump` did: an
  * answer is tried out against the document as it stands, and two tried at once would each be
  * tried against a document the other is about to change.
+ *
+ * ## An answer on its way into the document
+ *
+ * An answer is tried before it is written, and three things can be true of it meanwhile:
+ *
+ * - **Being tried**: neither `displacing` nor `kept`. The line waits; it does not take long.
+ * - **Waiting for the reader** (`displacing`): written as it is, it would take the place of calls
+ *   made by hand, and whether it may is the reader's to say. That can take as long as the reader
+ *   likes, so the line goes on past it, with the document as it stands.
+ * - **Kept behind** (`kept`): the reader said to keep what was made by hand. It is written to
+ *   stand behind those calls, which is a run of the document as any other; the line waits.
  */
 
 /** Why no answer came. */
 export type Failure = ExpertFailure;
+
+/**
+ * An answer tried on the document, where it would take the place of calls made by hand: what the
+ * reader is asked about, and what "replace" is written from.
+ */
+export interface Trial {
+    /** The document as it would stand; the remark's report in it says what it displaces. */
+    run: DescriptionRun;
+    /** What the document it was tried on is told by: its `runKey`, and the alignment it was run against. */
+    key: string;
+    alignment: object;
+}
 
 /** What is known of one remark's way through the expert. */
 export interface Asked {
@@ -34,11 +57,28 @@ export interface Asked {
     failure: Failure | null;
     /** An answer that has come and is not written into the document yet. */
     answer: { steps: Step[]; model: string } | null;
+    /** The answer's trial, where the reader is asked before it is written; null otherwise. */
+    displacing: Trial | null;
+    /** The reader said to keep what the answer would displace: it is written to stand behind it. */
+    kept: boolean;
     /** Whether its steps have gone back once already for what the chain refused of them. */
     mended: boolean;
 }
 
-const UNASKED: Asked = { turn: null, progress: null, thread: [], question: null, failure: null, answer: null, mended: false };
+const UNASKED: Asked = {
+    turn: null,
+    progress: null,
+    thread: [],
+    question: null,
+    failure: null,
+    answer: null,
+    displacing: null,
+    kept: false,
+    mended: false,
+};
+
+/** No answer on its way: what an entry is set to when one is written, dropped or asked for anew. */
+const NO_ANSWER = { answer: null, displacing: null, kept: false } as const;
 
 /**
  * How one remark is asked: the desk's to say, since the request is made of the document and the
@@ -61,10 +101,21 @@ export interface Asking {
     /** The reader's answer to what the expert asked: into the thread, and asked again. */
     reply: (id: string, answer: string) => void;
     /**
+     * Its answer was tried, and would take the place of calls made by hand: the reader is asked,
+     * and the line goes on meanwhile.
+     */
+    tried: (id: string, trial: Trial) => void;
+    /** The document is no longer the one its answer was tried on: it is to be tried again. */
+    retry: (id: string) => void;
+    /** The reader's word on what the answer would displace: keep it, and write the answer behind it. */
+    keep: (id: string) => void;
+    /**
      * Its answer is in the document. `errors` is what the chain said of the steps that did not
      * run: they go back for mending, once.
      */
     written: (id: string, errors: readonly string[]) => void;
+    /** Its answer could not be tried, and is let go. */
+    dropped: (id: string) => void;
     /** The remark is gone, or said anew: nothing known of it holds any longer. */
     forget: (id: string) => void;
     /** The desk came, and says how to ask; or left, and the line waits for it. */
@@ -102,7 +153,8 @@ const createAsking = (idle: () => void): Asking => {
         for (const listener of [...listeners]) listener();
     };
 
-    const unwritten = () => [...entries.values()].some((entry) => entry.answer !== null);
+    /** An answer being tried or written: the next is asked about the document with it in. */
+    const unwritten = () => [...entries.values()].some((entry) => entry.answer !== null && entry.displacing === null);
 
     const pump = () => {
         if (working || !driver || unwritten()) return;
@@ -139,7 +191,7 @@ const createAsking = (idle: () => void): Asking => {
                 ended(
                     answer.question !== null && answer.question.trim() !== ''
                         ? { question: answer.question }
-                        : { question: null, answer: { steps: answer.steps, model: answer.model }, mended: mend !== undefined },
+                        : { question: null, ...NO_ANSWER, answer: { steps: answer.steps, model: answer.model }, mended: mend !== undefined },
                 ),
             (thrown: unknown) => ended({ failure: abort.signal.aborted ? 'stopped' : reasonOf(thrown) }),
         );
@@ -158,7 +210,8 @@ const createAsking = (idle: () => void): Asking => {
         enqueue: (id) => {
             if (working?.id === id || line.some((waiting) => waiting.id === id)) return;
             line.push({ id });
-            set(id, { turn: 'waiting', failure: null, mended: false });
+            // Asked anew: an answer still on its way, the reader's word on it included, is let go.
+            set(id, { turn: 'waiting', failure: null, mended: false, ...NO_ANSWER });
             pump();
         },
         stop: (id) => {
@@ -179,15 +232,32 @@ const createAsking = (idle: () => void): Asking => {
             set(id, { turn: 'waiting', failure: null });
             pump();
         },
+        tried: (id, trial) => {
+            const { answer, kept } = of(id);
+            if (answer === null || kept) return;
+            set(id, { displacing: trial });
+            pump();
+        },
+        retry: (id) => {
+            if (of(id).displacing !== null) set(id, { displacing: null });
+        },
+        keep: (id) => {
+            if (of(id).displacing !== null) set(id, { displacing: null, kept: true });
+        },
         written: (id, errors) => {
             const { answer, mended } = of(id);
             if (answer === null) return;
-            set(id, { answer: null });
+            set(id, NO_ANSWER);
             if (errors.length === 0 || mended) return;
             // Marked now, not when the mended answer comes: one that never comes is not asked for twice.
             unqueue(id);
             line.push({ id, mend: errors });
             set(id, { turn: 'waiting', mended: true });
+        },
+        dropped: (id) => {
+            if (of(id).answer === null) return;
+            set(id, { ...NO_ANSWER, failure: 'failed' });
+            pump();
         },
         forget: (id) => {
             unqueue(id);
