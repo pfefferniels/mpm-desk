@@ -498,6 +498,76 @@ export const correspondingDesks: DeskEntry[] = [
         // for the MPM to explain away when the subject is what the roll scan read.
         unavailable: needsRecording,
     },
+    // The describe desk, between the desks that settle the recording and the desks that each
+    // describe one dimension of it: it describes all of them at once, in the reader's words, and
+    // what it writes are calls of the desks below. A group of its own, so the menu sets it apart.
+    //
+    // It claims `Describe`, the remark. The calls a remark resolves to are plain calls of the
+    // other desks and open there; a link to the remark itself opens here.
+    //
+    // No hold-out, and nothing of what the fit hands a desk: it runs the document itself, with
+    // what is assumed where nothing is described (`src/fitting/description`). No `writes` either:
+    // a remark's steps name their own scopes, and the picker decides nothing here.
+    //
+    // Offered in the viewer, where it is the roll, the remarks and the hearing.
+    {
+        transformerName: 'Describe',
+        aspect: 'describe',
+        desk: lazy(() =>
+            import('./describe/DescribeDesk').then((m) => ({ default: m.DescribeDesk })),
+        ),
+        group: 'description',
+        help: {
+            summary:
+                'The recording as a piano roll over a grand staff: every note as the MPM so far ' +
+                'renders it, over a gray shadow where it was played. What is said of it is ' +
+                'written on the roll in words, and an expert turns each remark into calls of ' +
+                'the other desks.',
+            actions: [
+                {
+                    gesture: 'Drag along the roll',
+                    does: 'hold a passage in a brace, to say something of it',
+                    edits: true,
+                },
+                { gesture: 'Drag down the roll', does: 'box some of its notes', edits: true },
+                {
+                    gesture: 'Drag from one note to another',
+                    does: 'draw an arrow: where the playing is going',
+                    edits: true,
+                },
+                { gesture: 'Click a note', does: 'take it in hand', edits: true },
+                {
+                    gesture: 'Shift-click a note',
+                    does: 'add it to what is in hand, or let it go',
+                    edits: true,
+                },
+                {
+                    gesture: 'Type',
+                    does: 'write the remark. With nothing in hand it is about the whole piece',
+                    edits: true,
+                },
+                { gesture: 'Enter', does: 'say the remark, and have it turned into steps', edits: true },
+                { gesture: 'Esc', does: 'drop what is being written, or put a remark away' },
+                {
+                    gesture: 'Click a remark',
+                    does: 'call it up: who answered, what each step became, and a link to every call',
+                },
+                {
+                    gesture: 'Rest on a remark',
+                    does: 'hear its passage with what it wrote brought out and the rest held back',
+                },
+                { gesture: 'Click nothing, or the ruler', does: 'set the line to play from' },
+                { gesture: 'Space', does: 'play the roll from the line, or stop' },
+                {
+                    gesture: 'Hover the match',
+                    does: 'open the one figure into the four it is made of',
+                },
+            ],
+        },
+        // The roll is the recording, and a remark is fitted to it: with the readings still side
+        // by side there is no one recording to read, and the run refuses the document.
+        unavailable: allOf(needsRecording, needsChoice),
+    },
     // Timing, top to bottom in the order the work is done. Arpeggiation before tempo, because
     // that is where the chain puts it: `InsertDynamicsGradient` and `InsertTemporalSpread` run
     // before `InsertTempo` in `Order.ts`, reading onsets in the recording's own domain, which a

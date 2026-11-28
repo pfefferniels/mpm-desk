@@ -10,6 +10,12 @@ export interface PlaybackInput {
     /** Where each remark of the run was made, by the id of its `Describe` call. */
     places: ReadonlyMap<string, DescribedPlace>;
     client: DescriptionClient;
+    /**
+     * Stops whatever else plays on the Desk's one piano, the app bar's transport above all. Called
+     * before the desk plays, so that the other does not go on believing that it does and stop the
+     * piano under the desk later.
+     */
+    silence?: () => void;
 }
 
 export interface DescribePlayback {

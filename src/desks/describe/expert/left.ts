@@ -11,9 +11,9 @@ type Measured = Pick<RollNote, 'id' | 'date' | 'late' | 'loud' | 'longMs'>;
 
 export interface Left {
     notes: number;
-    /** How far the chords, each at the mean of its notes, stand from where they are rendered, in ms. */
+    /** How far the chords, each at the mean of its notes, stand from their rendering, in ms. */
     pulse: number;
-    /** How far the notes of a chord stand from one another, beyond how they are rendered, in ms. */
+    /** How far the notes of a chord stand from one another, beyond their rendering, in ms. */
     chords: number;
     /** In velocity. */
     loud: number;

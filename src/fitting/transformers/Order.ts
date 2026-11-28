@@ -45,8 +45,10 @@ import {
 // still reach means deleting a control, and a control nobody notices going is much harder to ask
 // for back than a registry entry nobody runs. Unused is not the same as unreachable.
 //
-// `Describe` is registered though no desk makes one: the work files DescribeIt saves carry it, and
-// a file naming a step the registry does not hold is reported as unknown.
+// `Describe` is a remark of the describe desk. It writes nothing: the calls its steps resolve to
+// do, and those are resolved by `src/fitting/description`, never by the chain. It is registered
+// so that the chain passes over a remark as a call it knows, where a file naming a step the
+// registry does not hold is reported as unknown.
 //
 // No registered transformer `requires` an unregistered one — checked, not assumed. A saved work
 // file naming one is reported as unknown rather than silently skipped; see `validate` below.

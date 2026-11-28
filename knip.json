@@ -7,8 +7,7 @@
     "scripts/*.ts",
     "scripts/transcription/*.ts",
     "src/fitting/fit.worker.ts",
-    "src/fitting/description/description.worker.ts",
-    "src/fitting/description/client.ts"
+    "src/fitting/description/description.worker.ts"
   ],
   "project": [
     "src/**/*.{ts,tsx}",

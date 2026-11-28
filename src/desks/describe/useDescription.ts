@@ -71,7 +71,9 @@ export const useDescription = ({ alignment, calls, asked, client, onRun }: Descr
 
     const made = useMemo(() => {
         let next = migrated(calls);
-        for (const [id, { answer }] of asked) if (answer) next = answered(next, id, answer);
+        asked.forEach(({ answer }, id) => {
+            if (answer) next = answered(next, id, answer);
+        });
         return next;
     }, [calls, asked]);
     const key = useMemo(() => runKey(made), [made]);

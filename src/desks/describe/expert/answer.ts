@@ -7,11 +7,10 @@ import type { ExpertAnswer } from './types';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** A step as it was written, or `undefined` where it has no name or its options are no object. */
+/** A step as it was written, or `undefined` where it has no name. */
 export const asStep = (value: unknown): Step | undefined => {
     if (!isRecord(value) || typeof value['name'] !== 'string') return undefined;
-    const options = value['options'] ?? {};
-    return isRecord(options) ? { name: value['name'], options } : undefined;
+    return { name: value['name'], options: isRecord(value['options']) ? value['options'] : {} };
 };
 
 /**

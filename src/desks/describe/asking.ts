@@ -69,6 +69,11 @@ export interface Asking {
     forget: (id: string) => void;
     /** The desk came, and says how to ask; or left, and the line waits for it. */
     drive: (driver: Driver | null) => void;
+    /**
+     * The document has taken in what was written to it: the next in line can be asked. Until
+     * then it waits, since it is asked about the document, the last answer included.
+     */
+    resume: () => void;
     /** Whether a remark is being asked right now. */
     busy: () => boolean;
 }
@@ -97,8 +102,10 @@ const createAsking = (idle: () => void): Asking => {
         for (const listener of [...listeners]) listener();
     };
 
+    const unwritten = () => [...entries.values()].some((entry) => entry.answer !== null);
+
     const pump = () => {
-        if (working || !driver) return;
+        if (working || !driver || unwritten()) return;
         const next = line.shift();
         if (!next) return;
         const { id, mend } = next;
@@ -181,7 +188,6 @@ const createAsking = (idle: () => void): Asking => {
             unqueue(id);
             line.push({ id, mend: errors });
             set(id, { turn: 'waiting', mended: true });
-            pump();
         },
         forget: (id) => {
             unqueue(id);
@@ -193,6 +199,7 @@ const createAsking = (idle: () => void): Asking => {
             driver = next;
             pump();
         },
+        resume: pump,
         busy: () => working !== null,
     };
 };

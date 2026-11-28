@@ -70,6 +70,8 @@ export const Pen = ({ value, onChange, placeholder, hint, onSend, onDrop, grows 
                 placeholder={placeholder}
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
+                // After what is already written: a pen opened by a keystroke holds that letter.
+                onFocus={(event) => event.target.setSelectionRange(event.target.value.length, event.target.value.length)}
                 onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey) {
                         event.preventDefault();
