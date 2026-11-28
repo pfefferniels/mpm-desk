@@ -83,6 +83,7 @@ copyFileSync(resolve(here, 'examples.json'), resolve(dist, 'examples.json'));
 copyFileSync(resolve(here, 'app.js'), resolve(dist, 'app.js'));
 copyFileSync(resolve(here, 'piano.js'), resolve(dist, 'piano.js'));
 copyFileSync(resolve(here, 'player.js'), resolve(dist, 'player.js'));
+copyFileSync(resolve(here, 'staff.js'), resolve(dist, 'staff.js'));
 
 // Piano samples (every third key from A0 to C8, three velocity layers) are too large for git and
 // are downloaded once. `curl` is used because it honours the shell's proxy; Node's `fetch` does not.

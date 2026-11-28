@@ -1,6 +1,6 @@
 <title>DescribeIt!</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Music&display=swap">
 <style>
 /* Layout: the roll is the page, from edge to edge: one line above it, one under it. Remarks are written on it, in one ink and one serif; everything else is called up and put away. One look, light. */
 :root {
@@ -39,14 +39,20 @@ button { cursor: pointer; }
 .app { height: 100%; display: flex; flex-direction: column; }
 
 /* ---- the line above the roll ---- */
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding-block: 6px 4px; background: var(--raised);
+.top { position: relative; z-index: 9; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding-block: 6px 4px; background: var(--raised);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .top h1 { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 21px; letter-spacing: -0.005em; line-height: 1; }
 .top .piece { margin: 0; color: var(--ink-2); font-size: 13px; min-width: 0; flex: 1 1 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* How far the notes still are from their shadows: one sentence, four numbers. */
-.meters { display: flex; gap: 16px; align-items: center; border: 0; background: none; border-radius: 6px; padding: 3px 8px; margin: -3px -8px; text-align: left; }
-.meters:hover, .meters[aria-expanded="true"] { background: var(--band); }
-.meters .cap { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+/* One figure for how well the MPM matches the playing; the four it is made of show on hover. */
+.match { position: relative; display: inline-flex; gap: 9px; align-items: center; border: 0; background: none; border-radius: 6px; padding: 3px 8px; margin: -3px -8px; text-align: left; }
+.match:hover, .match[aria-expanded="true"] { background: var(--band); }
+.match .cap { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.match > .track { display: block; width: 84px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.match > .track .fill { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.5s ease; }
+.match > .val { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); min-width: 4.5ch; text-align: right; }
+.match .parts { position: absolute; top: calc(100% + 5px); right: 0; display: none; gap: 16px; align-items: center; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 28px rgba(23, 33, 42, 0.16); padding: 8px 12px; }
+.match:hover .parts, .match:focus-visible .parts { display: flex; }
+.match[aria-expanded="true"] .parts { display: none; }
 .meter { display: block; }
 .meter .lab { display: flex; justify-content: space-between; align-items: baseline; gap: 7px; white-space: nowrap; }
 .meter .name { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; color: var(--ink-3); }
@@ -159,10 +165,7 @@ pre.xml .t { color: var(--rh); } pre.xml .a { color: var(--ink-2); } pre.xml .v 
 pre.xml .hot { background: var(--accent-soft); }
 
 @media (max-width: 720px) {
-  .meters { flex: 1 1 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 10px; order: 5; }
-  .meters .cap { grid-column: 1 / -1; }
-  .meter .lab { flex-direction: column; align-items: flex-start; gap: 0; }
-  .meter .val { text-align: left; }
+  .match .parts { display: none !important; }
   .top .piece { flex-basis: 120px; }
   .foot { flex-wrap: wrap; }
   .foot #hint { order: -1; flex: 1 1 100%; }
@@ -174,12 +177,17 @@ pre.xml .hot { background: var(--accent-soft); }
   <header class="top">
     <h1>DescribeIt!</h1>
     <p class="piece" id="pieceName">Schumann, Träumerei — Alfred Grünfeld on Welte-Mignon roll 225</p>
-    <button class="meters" id="meters" aria-expanded="false" aria-controls="legend" title="How far the notes still are from their shadows, on average. Click for what each number means.">
-      <span class="cap">Notes still off their shadows by</span>
+    <button class="match" id="meters" aria-expanded="false" aria-controls="legend">
+      <span class="cap">Match with the playing</span>
+      <span class="track"><span class="fill" id="matchFill"></span></span>
+      <span class="val" id="matchVal">–</span>
+      <span class="parts">
+      <span class="cap">still off by</span>
       <span class="meter" data-k="pulse"><span class="lab"><span class="name">Timing</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
       <span class="meter" data-k="chords"><span class="lab"><span class="name">In chords</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
       <span class="meter" data-k="loud"><span class="lab"><span class="name">Loudness</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
       <span class="meter" data-k="length"><span class="lab"><span class="name">Length</span><span class="val">–</span></span><span class="track"><span class="fill"></span></span></span>
+      </span>
     </button>
     <button class="btn" id="mpmBtn" aria-expanded="false" title="The MPM your remarks have become">MPM</button>
     <button class="btn icon" id="menuBtn" aria-expanded="false" aria-label="More">⋯</button>
@@ -217,7 +225,8 @@ pre.xml .hot { background: var(--accent-soft); }
     <div class="legend" id="legend" hidden></div>
     <div class="menu" id="menu" hidden>
       <button id="refBtn">Compare with the published reconstruction <span id="refState">off</span></button>
-      <button id="ghostBtn" title="Behind each note, faint and dashed: the note as it was played">Shadows of the notes as played <span id="ghostState">on</span></button>
+      <button id="ghostBtn" title="Behind each note, gray and dashed: the note as it was played">Shadows of the notes as played <span id="ghostState">on</span></button>
+      <button id="staffBtn" title="Draw the notes on the two staves, by their spelling, or key by key">Grand staff <span id="staffState">on</span></button>
       <div class="row" title="How much taller a louder note is drawn. It is also drawn more solid.">Height of loud notes <span><button id="lowerBtn" aria-label="Lower">−</button><button id="higherBtn" aria-label="Taller">+</button></span></div>
       <button id="fullBtn" hidden>Full screen <span id="fullState">off</span></button>
       <button id="clearBtn">Remove every remark</button>

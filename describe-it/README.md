@@ -3,8 +3,10 @@
 A prototype of another way into the MPM Desk: a reader describes a recorded performance in their
 own words, on its piano roll, and never has to know MPM.
 
-The roll draws the louder note taller and more solid, so that a loud note stands out of its own
-track into the ones beside it and a soft one is pale. The reader writes on the roll as on paper: a stroke along it brackets a passage,
+The roll is laid over a grand staff: two compact staves set apart, every note a box on the staff
+it is written on, on its line or in its space, with ledger lines, the key signature, and an
+accidental where a note departs from it. It can be put back key by key. The louder note is drawn
+taller and more solid, so that a loud note stands out of its place and a soft one is pale. The reader writes on the roll as on paper: a stroke along it brackets a passage,
 a stroke down it boxes some of its notes, a stroke from one note to another is an arrow, a
 direction the playing takes, a click picks a note, and with nothing in hand what is typed is
 about the whole piece. An expert, Claude Opus 5.5, reads each remark ("arpeggio
@@ -12,7 +14,7 @@ throughout", "steady tempo on half bars", "this note was presumably played quiet
 towards the downbeat") and turns it into calls to the fitting chain.
 
 The roll is on the recording's clock. Its notes are what the MPM as it stands renders, and
-behind each stands its shadow, the same note as it was played, which never moves. With nothing
+behind each stands its shadow in gray, the same note as it was played, which never moves. With nothing
 described the notes are the bare score at one tempo and one level, and the shadows show all the
 pianist did: beside a note where the tempo is off, taller than it where a loudness is not
 accounted for, staggered under a chord the MPM has not yet rolled. After every remark the chain
@@ -25,9 +27,10 @@ what the MPM moves is solid.
 
 The roll can be heard on a sampled piano: as it was played, as the MPM has it, or both at once,
 the playing to the left and the MPM to the right. With a passage or some notes in hand, those are played by
-themselves; otherwise the roll plays from the line a click on nothing leaves. The four numbers
-above the roll say how far the notes still are from their shadows, in timing, within chords, in
-loudness and in length.
+themselves; otherwise the roll plays from the line a click on nothing leaves. One figure above
+the roll says how well the MPM matches the playing; under the pointer it opens into the four it
+is made of, how far the notes still are from their shadows in timing, within chords, in loudness
+and in length.
 
 It is published as a Claude artifact, where the page asks Claude through the viewer's own
 account. Opened anywhere else it draws and fits, and a remark's calls can be written by hand.
@@ -39,6 +42,7 @@ account. Opened anywhere else it draws and fits, and a remark's calls can be wri
 | `engine.ts` | The chain of `src/fitting`, run for a roll of residuals. Nothing of it is reimplemented; what is added is listed below. |
 | `engine.worker.ts` | The engine as the page loads it: a worker, or a global where a worker cannot start. |
 | `index.html`, `app.js` | The page: the roll, the pencil, the remarks, the expert's prompt. |
+| `staff.js` | Spelling and staff positions: where a pitch sits on a staff, its ledger lines, the key signature read off the notes. |
 | `player.js`, `piano.js` | Playing back: a transport over struck keys, and the piano it plays, which is the Salamander samples struck as `@tonejs/piano` strikes them in the Desk. |
 | `knowledge/` | What the expert is told: how a remark becomes calls (`00`), every transformer with its options (`10`), what every MPM instruction means to the renderer (`20`). |
 | `examples.json` | The two remarks the page opens with, translated in advance. |

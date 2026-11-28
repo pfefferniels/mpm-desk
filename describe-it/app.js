@@ -1,6 +1,7 @@
 /* DescribeIt page script: piano roll, annotations, and their translation into engine calls. */
 /* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout */
 import { createPlayer } from './player.js';
+import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell, stepOf } from './staff.js';
 
 (() => {
 
@@ -12,6 +13,7 @@ import { createPlayer } from './player.js';
   const BRACE = 9;
   const RULER = 18;
   const HULL = 14; // hull padding around notes
+  const STAFF_STEP = 8.5; // pixels per staff position at most; a staff is eight positions tall
   const PEDAL = 9; // pedal row height
   const PEDALS = [
     ['sustain', 'Ped'],
@@ -53,7 +55,9 @@ import { createPlayer } from './player.js';
     selection: new Set(),
     selKind: 'none', // none (whole piece) | notes | span | box | arrow
     pen: { open: false, editing: null },
-    view: { ppt: 0.03, shadows: true, pencil: false, height: 1 },
+    view: { ppt: 0.03, shadows: true, pencil: false, height: 1, staff: true },
+    spelled: new Map(), // id -> { letter, alter, pitch, step, staff }
+    signature: new Map(), // letter -> alteration in the key signature
     play: { on: false, source: 'played', at: 0, loading: null }, // `at` in ms
     hoverAnn: null,
     hoverNote: null,
@@ -364,7 +368,7 @@ import { createPlayer } from './player.js';
   const penText = $('#penText');
   const pop = $('#pop');
   const ctx = canvas.getContext('2d');
-  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, lo: 36, hi: 84, rects: [], marks: [], pedals: [], penAt: null, promptRow: null };
+  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, unit: 8, lo: 36, hi: 84, shift: 0, pad: 0, span: null, rects: [], marks: [], pedals: [], penAt: null, promptRow: null };
   let palette = {};
 
   const readPalette = () => {
@@ -394,21 +398,61 @@ import { createPlayer } from './player.js';
 
   const layout = () => {
     if (!S.result) return;
+    G.gutter = S.view.staff ? 68 + 7 * S.signature.size : 34;
     spacer.style.width = `${Math.ceil(G.gutter + S.result.total * S.view.ppt + 60)}px`;
     G.top = G.lanes * LANE + RULER + 6;
     const { played, mpm } = S.result.pedals;
     G.pedals = PEDALS.filter(([kind]) => played.some((press) => press.kind === kind) || mpm.some((move) => move.kind === kind));
     G.bottom = 8 + G.pedals.length * (PEDAL + 4);
-    G.rowH = Math.max(3, (G.height - G.top - HEAD - G.bottom) / (G.hi - G.lo + 1));
+    const room = G.height - G.top - HEAD - G.bottom;
+    if (S.view.staff) {
+      // Two compact staves, the treble lifted clear of the bass: far enough that what hangs
+      // under the one never meets what stands on the other, and further where there is room.
+      const { treble, bass } = G.span;
+      const least = Math.max(bass.hi - treble.lo + 3, 6);
+      const rows = (shift) => treble.hi + shift - bass.lo + 1;
+      G.rowH = clamp(room / rows(least), 3, STAFF_STEP);
+      G.shift = least + Math.min((room / G.rowH - rows(least)) * 0.6, 18);
+      G.lo = bass.lo;
+      G.hi = treble.hi + G.shift;
+      G.pad = (room - G.rowH * rows(G.shift)) / 2;
+      // A note at the level is a good half of a notehead, so a box on a line is told from one in a space.
+      G.unit = G.rowH * 1.15;
+    } else {
+      [G.lo, G.hi] = G.span.keys;
+      G.shift = 0;
+      G.pad = 0;
+      G.rowH = Math.max(3, room / (G.hi - G.lo + 1));
+      G.unit = G.rowH;
+    }
+  };
+
+  /** How far a staff's positions are lifted, in rows: the treble staff stands apart from the bass. */
+  const liftOf = (staff) => (staff === 'treble' ? G.shift : 0);
+  /** The row a note is drawn in: its position on its staff, or its key. */
+  const rowOf = (id, pitch) => {
+    if (!S.view.staff) return pitch;
+    const { step, staff } = S.spelled.get(id);
+    return step + liftOf(staff);
+  };
+  /** What the roll has to show: the keys the piece uses, and each staff with what is written on it. */
+  const setRange = () => {
+    const spelled = [...S.spelled.values()];
+    const pitches = spelled.map((note) => note.pitch);
+    const reach = (staff, lines) => {
+      const steps = [...spelled.filter((note) => note.staff === staff).map((note) => note.step), lines[0] - 1, lines[4] + 1];
+      return { lo: Math.min(...steps), hi: Math.max(...steps) };
+    };
+    G.span = { keys: [Math.min(...pitches), Math.max(...pitches)], treble: reach('treble', TREBLE), bass: reach('bass', BASS) };
   };
 
   // The x axis is recording time; `ppt` is pixels per millisecond.
   const X = (ms) => G.gutter + ms * S.view.ppt - scroller.scrollLeft;
   const msOf = (px) => (px - G.gutter + scroller.scrollLeft) / S.view.ppt;
-  const Y = (pitch) => G.top + HEAD + (G.hi - pitch + 0.5) * G.rowH;
+  const Y = (row) => G.top + HEAD + G.pad + (G.hi - row + 0.5) * G.rowH;
   /** Rows a velocity stands above the run's level (below, if negative): the scale height and opacity share. */
   const loudness = (velocity) => S.result.scale.perOctave * Math.log2(Math.max(velocity, 1) / S.result.scale.level);
-  const tall = (velocity) => G.rowH * clamp(1 + S.view.height * loudness(velocity), 0.3, 6);
+  const tall = (velocity) => G.unit * clamp(1 + S.view.height * loudness(velocity), 0.3, 6);
   /** Opacity of a note: the louder, the more solid. */
   const solid = (velocity) => clamp(0.7 + 0.15 * loudness(velocity), 0.3, 1);
   /** Rectangle of a note as the MPM renders it, tweened after a refit. */
@@ -418,13 +462,45 @@ import { createPlayer } from './player.js';
     const mix = (key) => (from ? from[key] + (note.mpm[key] - from[key]) * t : note.mpm[key]);
     const velocity = mix('velocity');
     const h = tall(velocity);
-    return { x: X(mix('ms')), y: Y(note.pitch) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h, ink: solid(velocity) };
+    return { x: X(mix('ms')), y: Y(rowOf(note.id, note.pitch)) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h, ink: solid(velocity) };
   };
   /** Rectangle of a note as recorded: its shadow. */
   const shadowOf = (note, played = note) => {
     const h = tall(played.velocity);
-    return { x: X(played.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (played.msEnd - played.ms) * S.view.ppt), h, ink: solid(played.velocity) };
+    return { x: X(played.ms), y: Y(rowOf(note.id, note.pitch)) - h / 2, w: Math.max(2, (played.msEnd - played.ms) * S.view.ppt), h, ink: solid(played.velocity) };
   };
+  const MUSIC = '"Noto Music", "Bravura Text", "Apple Symbols", "Segoe UI Symbol", serif';
+  /** Draw a music glyph scaled so that its ink is `height` tall and stands on `bottom`. */
+  const glyphOn = (glyph, x, bottom, height) => {
+    ctx.font = `100px ${MUSIC}`;
+    const probe = ctx.measureText(glyph);
+    const scale = height / (probe.actualBoundingBoxAscent + probe.actualBoundingBoxDescent);
+    ctx.font = `${100 * scale}px ${MUSIC}`;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(glyph, x, bottom - probe.actualBoundingBoxDescent * scale);
+  };
+  /** Draw an accidental ending at `right`, on the line or space at `y`. */
+  const accidental = (alter, right, y) => {
+    const glyph = ACCIDENTAL.get(alter);
+    if (!glyph) return;
+    ctx.font = `${clamp(G.rowH * 2.9, 12, 22)}px ${MUSIC}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    const { actualBoundingBoxAscent: up, actualBoundingBoxDescent: down } = ctx.measureText(glyph);
+    // A flat sits on its belly, which is the lower part of the sign; the others are centred.
+    ctx.fillText(glyph, right, alter < 0 ? y + 0.24 * (up + down) - down : y + (up - down) / 2);
+    ctx.textAlign = 'left';
+  };
+  /** The rows of the ten staff lines. */
+  const staffRows = () => [...BASS, ...TREBLE.map((step) => step + liftOf('treble'))];
+  const staffLine = (step, from, to) => {
+    const y = Math.round(Y(step)) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(from, y);
+    ctx.lineTo(to, y);
+    ctx.stroke();
+  };
+
   const rounded = (x, y, w, h, r) => {
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
@@ -653,17 +729,18 @@ import { createPlayer } from './player.js';
     const editing = S.pen.editing;
     const draft = S.pen.open && !editing ? scopeNow() : null;
 
-    // Pitch grid
-    ctx.strokeStyle = palette.grid;
+    // The two staves, or a line under every C
     ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.6;
-    for (let pitch = G.lo; pitch <= G.hi; pitch++) {
-      if (pitch % 12 !== 0) continue;
-      const y = Math.round(Y(pitch) + G.rowH / 2) + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(G.gutter, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
+    if (S.view.staff) {
+      ctx.strokeStyle = palette.ink3;
+      ctx.globalAlpha = 0.55;
+      for (const row of staffRows()) staffLine(row, G.gutter, width);
+    } else {
+      ctx.strokeStyle = palette.grid;
+      ctx.globalAlpha = 0.6;
+      for (let pitch = G.lo; pitch <= G.hi; pitch++) {
+        if (pitch % 12 === 0) staffLine(pitch - 0.5, G.gutter, width);
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -726,9 +803,8 @@ import { createPlayer } from './player.js';
         if (was.x + was.w < G.gutter || was.x > width) continue;
         if (!apart(was, rectOf(note))) continue;
         const dim = dimmed(note.id);
-        const hue = note.part === 1 ? palette.rh : palette.lh;
-        ctx.fillStyle = hue;
-        ctx.strokeStyle = hue;
+        ctx.fillStyle = palette.ghost;
+        ctx.strokeStyle = palette.ghost;
         // A shadow stays fainter than any note, and within that the louder is the darker.
         ctx.globalAlpha = (0.08 + 0.48 * (was.ink - 0.3)) * (dim ? 0.3 : 1);
         rounded(was.x, was.y, was.w, was.h, 2.5);
@@ -756,6 +832,17 @@ import { createPlayer } from './player.js';
     }
 
     // Rendered notes, loudest first, so a soft note over a loud one stays visible and clickable.
+    if (S.view.staff) {
+      ctx.strokeStyle = palette.ink2;
+      ctx.globalAlpha = 0.75;
+      for (const note of result.notes) {
+        const { step, staff } = S.spelled.get(note.id);
+        const lines = ledgersOf(step, staff === 'treble' ? TREBLE : BASS);
+        const r = lines.length ? rectOf(note) : null;
+        if (!r || r.x + r.w < G.gutter || r.x > width) continue;
+        for (const line of lines) staffLine(line + liftOf(staff), r.x - 5, r.x + r.w + 5);
+      }
+    }
     for (const note of [...result.notes].sort((a, b) => b.mpm.velocity - a.mpm.velocity)) {
       const r = rectOf(note);
       if (r.x + r.w < G.gutter || r.x > width) continue;
@@ -767,6 +854,9 @@ import { createPlayer } from './player.js';
       ctx.fill();
       ctx.globalAlpha = Math.min(1, r.ink + 0.25) * faded;
       ctx.fillRect(r.x, r.y, Math.min(2, r.w), r.h);
+      // An accidental where the note departs from the key signature.
+      const spelled = S.spelled.get(note.id);
+      if (S.view.staff && spelled.alter !== (S.signature.get(spelled.letter) ?? 0)) accidental(spelled.alter, r.x - 2.5, r.y + r.h / 2);
       G.rects.push({ note, ...r });
     }
     ctx.globalAlpha = 1;
@@ -775,7 +865,7 @@ import { createPlayer } from './player.js';
     if (pointed && S.view.shadows) {
       const now = rectOf(pointed);
       const was = shadowOf(pointed);
-      const y = Math.round(Y(pointed.pitch)) + 0.5;
+      const y = Math.round(Y(rowOf(pointed.id, pointed.pitch))) + 0.5;
       ctx.strokeStyle = palette.apart;
       ctx.lineWidth = 1.5;
       ctx.globalAlpha = 0.9;
@@ -820,13 +910,14 @@ import { createPlayer } from './player.js';
     for (const grace of result.graces || []) {
       const x = X(grace.ms);
       if (x < G.gutter - 6 || x > width) continue;
-      const y = Y(grace.pitch);
+      const y = Y(rowOf(grace.id, grace.pitch));
       ctx.fillStyle = palette.grace;
       ctx.globalAlpha = evidence ? 0.25 : 0.85;
       ctx.beginPath();
-      ctx.moveTo(x, y - G.rowH * 0.7);
-      ctx.lineTo(x + Math.max(5, G.rowH), y);
-      ctx.lineTo(x, y + G.rowH * 0.7);
+      const size = clamp(G.unit, 5, 13);
+      ctx.moveTo(x, y - size * 0.7);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size * 0.7);
       ctx.closePath();
       ctx.fill();
     }
@@ -1050,9 +1141,29 @@ import { createPlayer } from './player.js';
     ctx.moveTo(G.gutter - 0.5, 0);
     ctx.lineTo(G.gutter - 0.5, height);
     ctx.stroke();
+    if (S.view.staff) {
+      ctx.strokeStyle = palette.ink3;
+      ctx.globalAlpha = 0.55;
+      for (const row of staffRows()) staffLine(row, 5, G.gutter);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = palette.ink2;
+      // Clefs only in the font they were placed for; a fallback's would sit elsewhere.
+      if (document.fonts && document.fonts.check('20px "Noto Music"', '𝄞𝄢')) {
+        // Each on its line: the G clef curls round the second line from the bottom, the F
+        // clef's dots sit either side of the fourth.
+        const treble = 14.6 * G.rowH;
+        const bass = 6.9 * G.rowH;
+        glyphOn('𝄞', 7, Y(TREBLE[1] + liftOf('treble')) + 0.34 * treble, treble);
+        glyphOn('𝄢', 7, Y(BASS[3]) + 0.71 * bass, bass);
+      }
+      for (const staff of ['treble', 'bass']) {
+        signatureMarks(S.signature, staff).forEach(({ step }, index) => accidental([...S.signature.values()][0], 66 + index * 7, Y(step + liftOf(staff))));
+      }
+      ctx.textBaseline = 'middle';
+    }
     ctx.font = `400 10.5px ${palette.mono}`;
     ctx.fillStyle = palette.ink3;
-    for (let pitch = G.lo; pitch <= G.hi; pitch++) {
+    for (let pitch = G.lo; !S.view.staff && pitch <= G.hi; pitch++) {
       if (pitch % 12 === 0) ctx.fillText(`C${Math.floor(pitch / 12) - 1}`, 7, Y(pitch));
     }
     G.pedals.forEach(([, label], row) => ctx.fillText(label, 7, pedalY(row) + PEDAL / 2 + 0.5));
@@ -1679,9 +1790,9 @@ import { createPlayer } from './player.js';
     const now = S.result && S.result.left;
     const was = S.base && S.base.left;
     $('#legend').replaceChildren(
-      el('h2', { text: 'How far the notes still are from their shadows' }),
+      el('h2', { text: 'How well the MPM matches the playing' }),
       el('p', {
-        text: 'A note is what the MPM so far renders, its shadow the same note as it was played. Each number is the distance between the two, averaged over all the notes. They fall as you describe more; at zero the MPM plays what the pianist played. The bar under a number is how much is left of what there was with nothing described.',
+        text: 'A note is what the MPM so far renders, its shadow the same note as it was played. Each number is the distance between the two, averaged over all the notes. They fall as you describe more; at zero the MPM plays what the pianist played. The bar under a number is how much is left of what there was with nothing described. The match is the share of that which is gone, each of the four counting a quarter.',
       }),
       el(
         'dl',
@@ -1715,6 +1826,13 @@ import { createPlayer } from './player.js';
       fill.style.width = `${clamp((now[key] / Math.max(was[key], 1e-9)) * 100, 2, 100)}%`;
       fill.style.opacity = S.fitting ? '0.45' : '1';
     }
+    // One figure for all four: the share of what there was to explain that is explained.
+    const measured = now && was && Object.keys(METERS).every((key) => Number.isFinite(now[key]));
+    const left = measured ? Object.keys(METERS).map((key) => clamp(now[key] / Math.max(was[key], 1e-9), 0, 1)) : [];
+    const match = measured ? 1 - left.reduce((a, b) => a + b, 0) / left.length : null;
+    $('#matchVal').textContent = match === null ? '–' : `${Math.round(match * 100)} %`;
+    $('#matchFill').style.width = `${match === null ? 0 : clamp(match * 100, 2, 100)}%`;
+    $('#matchFill').style.opacity = S.fitting ? '0.45' : '1';
     if (!$('#legend').hidden) renderLegend();
   };
 
@@ -2071,6 +2189,7 @@ import { createPlayer } from './player.js';
     $('#menuBtn').setAttribute('aria-expanded', String(open));
     $('#refState').textContent = S.reference ? 'on' : 'off';
     $('#ghostState').textContent = S.view.shadows ? 'on' : 'off';
+    $('#staffState').textContent = S.view.staff ? 'on' : 'off';
   });
 
   // ------------------------------------------------------------------------------------------
@@ -2488,18 +2607,30 @@ import { createPlayer } from './player.js';
   try {
     const kept = JSON.parse(localStorage.getItem(VIEW) || 'null');
     if (kept && Number.isFinite(kept.height)) S.view.height = clamp(kept.height, 0.25, 4);
+    if (kept && typeof kept.staff === 'boolean') S.view.staff = kept.staff;
   } catch {
     // No stored view: keep the default.
   }
-  const setHeight = (factor) => {
-    S.view.height = clamp(S.view.height * factor, 0.25, 4);
+  const keepView = () => {
     try {
-      localStorage.setItem(VIEW, JSON.stringify({ height: S.view.height }));
+      localStorage.setItem(VIEW, JSON.stringify({ height: S.view.height, staff: S.view.staff }));
     } catch {
       // Storage unavailable.
     }
+  };
+  const setHeight = (factor) => {
+    S.view.height = clamp(S.view.height * factor, 0.25, 4);
+    keepView();
     draw();
   };
+  $('#staffBtn').addEventListener('click', () => {
+    S.view.staff = !S.view.staff;
+    closeMenu();
+    keepView();
+    setRange();
+    layout();
+    draw();
+  });
   $('#lowerBtn').addEventListener('click', () => setHeight(1 / 1.25));
   $('#higherBtn').addEventListener('click', () => setHeight(1.25));
   $('#zoomIn').addEventListener('click', () => zoom(1.3));
@@ -2561,7 +2692,7 @@ import { createPlayer } from './player.js';
     readPalette();
     new ResizeObserver(resize).observe(scroller);
     if (document.fonts && document.fonts.load) {
-      Promise.all([document.fonts.load('500 14.5px "Source Serif 4"'), document.fonts.load('italic 400 14px "Source Serif 4"'), document.fonts.ready]).then(draw, draw);
+      Promise.all([document.fonts.load('500 14.5px "Source Serif 4"'), document.fonts.load('italic 400 14px "Source Serif 4"'), document.fonts.load('20px "Noto Music"', '𝄞𝄢♭♯♮'), document.fonts.ready]).then(draw, draw);
     }
     if (matchMedia('(pointer: coarse)').matches) $('#pencilBtn').hidden = false;
 
@@ -2575,9 +2706,13 @@ import { createPlayer } from './player.js';
       S.knowledge = knowledge;
       for (const note of piece.alignment.allNotes) S.score.set(note['xml:id'], note);
       S.firstMs = Math.min(...piece.alignment.allNotes.map((n) => n['milliseconds.date']));
-      const pitches = [...piece.alignment.allNotes, ...piece.alignment.graces].map((n) => n['midi.pitch']);
-      G.lo = Math.min(...pitches);
-      G.hi = Math.max(...pitches);
+      const staffOf = (n) => (String(n.staff ?? n.part) === '1' ? 'treble' : 'bass');
+      const written = piece.alignment.allNotes.map((n) => ({ id: n['xml:id'], letter: n.pitchname, alter: n.accidentals, pitch: n['midi.pitch'], staff: staffOf(n) }));
+      S.signature = signatureOf(written);
+      // The score gives a grace note no spelling of its own.
+      const graces = piece.alignment.graces.map((n) => ({ id: n['xml:id'], ...spell(n['midi.pitch'], S.signature), staff: staffOf(n) }));
+      for (const { id, ...spelling } of [...written, ...graces]) S.spelled.set(id, { ...spelling, step: stepOf(spelling) });
+      setRange();
 
       S.base = await Engine.run([]);
       index(S.base);
