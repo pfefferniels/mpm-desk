@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { RollNote } from '../../fitting/description/client';
 import type { DescribeSession } from './asking';
-import type { Expert } from './expert/types';
+import type { Expert } from './expert';
 import type { Left } from './match';
 
 /**

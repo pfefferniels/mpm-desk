@@ -41,8 +41,9 @@ export interface DescribePlayback {
     readonly strength: number;
     setStrength: (strength: number) => void;
     /**
-     * While a remark is brought out: every note as that rendering has it, on the recording's
-     * clock, for the roll to draw its notes there.
+     * While a remark is brought out: the notes of the stretch that is heard as that rendering has
+     * them, on the recording's clock, for the roll to draw them there. Every other note stays
+     * where the MPM has it. For a remark on the whole piece it is every note.
      */
     readonly moved: ReadonlyMap<string, Sounded> | null;
     /**

@@ -12,6 +12,10 @@
  * got to. So it is moved once more, as a whole, to where the first chord that is played stands on
  * the roll: what is heard is one stretch of one clock, and the roll shows each note where it
  * sounds.
+ *
+ * Only the notes that are played are shown there. The further a note is from that chord the
+ * further the rendering's clock has run from the roll's, by seconds at the other end of a piece,
+ * and where it then stands says nothing of the remark.
  */
 import type { BroughtOut, Roll, RollNote, Sounded } from '../../../fitting/description/client';
 import type { DescribedPlace } from '../../../fitting/transformers/description/Describe';
@@ -63,7 +67,10 @@ export const lay = (
 
 /** A remark as it is played. */
 export interface Rendering {
-    /** Every note where the rendering has it, in ms of the recording; null as the MPM stands. */
+    /**
+     * The notes struck in the stretch where the rendering has them, in ms of the recording; every
+     * note, for a remark on the whole piece. Null as the MPM stands.
+     */
     moved: ReadonlyMap<string, Sounded> | null;
     heard: Heard;
     /** The stretch that is played, in ms of the recording. */
@@ -86,13 +93,11 @@ export const renderingOf = (
     line: number,
     brought: { plain: BroughtOut; out: BroughtOut } | null,
 ): Rendering | null => {
+    const whole = place.kind === 'piece';
+    const chosen = whole ? playedFrom(roll, line) : playedFor(roll, place, wrote);
+    if (!chosen) return null;
     const laid = brought && lay(roll.notes, brought.plain.notes, brought.out.notes);
     const carried = (note: RollNote) => laid?.notes.get(note.id) ?? note.mpm;
-    const chosen =
-        place.kind === 'piece'
-            ? playedFrom(roll, line)
-            : playedFor(roll, place, wrote, (note) => carried(note).ms);
-    if (!chosen) return null;
 
     // The first chord that is played stays where the roll has it; everything else is as far from
     // it as the rendering has it.
@@ -102,24 +107,20 @@ export const renderingOf = (
     const shift =
         Math.min(...opening.map((note) => note.mpm.ms)) -
         Math.min(...opening.map((note) => carried(note).ms));
-    const moved = new Map(
-        roll.notes.map((note): [string, Sounded] => {
-            const at = laid?.notes.get(note.id);
-            return [
-                note.id,
-                at
-                    ? { ms: at.ms + shift, msEnd: at.msEnd + shift, velocity: at.velocity }
-                    : note.mpm,
-            ];
-        }),
-    );
-    const soundOf = (note: RollNote) => moved.get(note.id) ?? note.mpm;
+    const soundOf = (note: RollNote): Sounded => {
+        const at = laid?.notes.get(note.id);
+        if (!at) return note.mpm;
+        return { ms: at.ms + shift, msEnd: at.msEnd + shift, velocity: at.velocity };
+    };
     const { from, until } = timesOf(
         fresh.map(soundOf),
         fresh.filter((note) => chosen.own.has(note.id)).map(soundOf),
     );
     return {
-        moved: laid ? moved : null,
+        // A note held over into the stretch began before it, and stays where it began.
+        moved: laid
+            ? new Map((whole ? roll.notes : fresh).map((note) => [note.id, soundOf(note)]))
+            : null,
         heard: {
             notes: struck(soundsOf(roll.notes, soundOf, chosen)),
             pedals:

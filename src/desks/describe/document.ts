@@ -77,6 +77,15 @@ const remarkOf = (call: Call): Remark => ({
     calls: ownedBy(call),
 });
 
+/**
+ * What was made by hand on the other desks: the calls that are no remark and that no remark
+ * owns.
+ */
+export const byHand = (calls: readonly Call[]): Call[] => {
+    const owned = new Set(calls.filter(isDescribe).flatMap(ownedBy));
+    return calls.filter((call) => !isDescribe(call) && !owned.has(call.id));
+};
+
 /** The remarks of a document, in its order. */
 export const remarksOf = (calls: readonly Call[]): Remark[] => calls.filter(isDescribe).map(remarkOf);
 
@@ -122,7 +131,7 @@ export const runKey = (calls: readonly Call[]): string => {
         mei: '',
         mpm: '',
         provenance: calls
-            .filter((call) => !owned.has(call.id))
+            .filter((call) => isDescribe(call) || !owned.has(call.id))
             .map(({ id, name, options }) =>
                 name === DESCRIBE
                     ? { id, name, options: { date: options['date'] ?? null, steps: options['steps'] ?? [] } }

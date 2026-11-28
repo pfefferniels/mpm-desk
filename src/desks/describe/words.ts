@@ -1,4 +1,5 @@
 import type { StepReport } from '../../fitting/description/client';
+import { PULSES_PER_QUARTER } from '../../fitting/ppq';
 import type { DescribedPlace } from '../../fitting/transformers/description/Describe';
 import type { Call } from '../../model/Work';
 import type { Failure } from './asking';
@@ -58,11 +59,16 @@ export const wroteOf = (report: Pick<StepReport, 'elements' | 'written'>): strin
     return [...counts].map(([kind, count]) => (count > 1 ? `${kind} ×${String(count)}` : kind)).join(', ');
 };
 
-/** Where a call acts, for telling the calls of one step apart: its bar, or its place in the list. */
+/**
+ * Where a call acts, for telling the calls of one step apart: its bar, with the quarter it is on
+ * where that is not the first; or its place in the list, where it names no date.
+ */
 export const whereOf = (call: Call, index: number, bars: Bars): string => {
     const at = [call.options['from'], call.options['date']].find((value): value is number => typeof value === 'number');
     const bar = at === undefined ? undefined : barAt(bars, at);
-    return bar ? `bar ${String(bar.n)}` : String(index + 1);
+    if (at === undefined || !bar) return String(index + 1);
+    const beat = Math.round((1 + (at - bar.from) / PULSES_PER_QUARTER) * 100) / 100;
+    return beat === 1 ? `bar ${String(bar.n)}` : `bar ${String(bar.n)}, beat ${String(beat)}`;
 };
 
 /** A day, as it is written beside who answered. */

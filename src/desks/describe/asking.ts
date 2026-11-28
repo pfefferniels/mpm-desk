@@ -1,5 +1,5 @@
 import type { DescriptionClient, Step } from '../../fitting/description/client';
-import type { ExpertAnswer, ExpertFailure } from './expert/types';
+import type { ExpertAnswer, ExpertFailure } from './expert';
 
 /**
  * What is going on between the remarks and the expert, kept where a desk is not.

@@ -36,6 +36,8 @@ interface RemarkCardProps {
 /** How many of a step's calls are offered as links before the rest are only counted. */
 const LINKS = 8;
 
+const alike = (calls: readonly { name: string }[]) => calls.every((call) => call.name === calls[0].name);
+
 const pulse = keyframes({ '0%, 100%': { opacity: 0.25 }, '50%': { opacity: 1 } });
 
 const Note = ({ tone, children }: { tone: 'trouble' | 'question' | 'plain'; children: ReactNode }) => (
@@ -208,7 +210,13 @@ export const RemarkCard = ({
                                     </Typography>
                                 )}
                                 {calls.length > 0 && (
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '2px 8px', mt: 0.25 }}>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px 8px', mt: 0.25 }}>
+                                        {/* Calls of one name are told apart by where they act, and named once. */}
+                                        {calls.length > 1 && alike(calls) && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                {calls[0].name}:
+                                            </Typography>
+                                        )}
                                         {calls.slice(0, LINKS).map((call, at) => (
                                             <Link
                                                 key={call.id}
@@ -220,7 +228,11 @@ export const RemarkCard = ({
                                                 title={`${call.name}: select this call on its own desk`}
                                                 onClick={() => onOpenCall(call.id)}
                                             >
-                                                {calls.length === 1 ? call.name : `${call.name}, ${whereOf(call, at, bars)}`}
+                                                {calls.length === 1
+                                                    ? call.name
+                                                    : alike(calls)
+                                                      ? whereOf(call, at, bars)
+                                                      : `${call.name}, ${whereOf(call, at, bars)}`}
                                             </Link>
                                         ))}
                                         {calls.length > LINKS && (

@@ -16,8 +16,8 @@ import { initialHistory, workHistoryReducer, type WorkHistory } from '../../mode
 import { theme } from '../../theme';
 import { createSession } from './asking';
 import { leftIn } from './expert/left';
-import type { Expert, ExpertAnswer, ExpertFailure, ExpertRequest } from './expert/types';
-import type { DescribePlayback, Hearing, PlaybackInput } from './playback/types';
+import type { Expert, ExpertAnswer, ExpertFailure, ExpertRequest } from './expert';
+import type { DescribePlayback, Hearing, PlaybackInput } from './playback';
 import type { DescribeServices } from './services';
 import { DescribeSurface } from './Surface';
 import { useRemarks } from './useRemarks';
@@ -540,7 +540,12 @@ describe('the describe desk makes a remark', () => {
     });
 
     it('shows the expert the remark, the others, the document as it stands, and lets it try steps out', async () => {
-        const desk = mount({ calls: [describeCall('before', 'steady', { model: 'someone', steps: [TEMPO] })] });
+        const desk = mount({
+            calls: [
+                { id: 'by-hand', name: 'InsertDynamics', options: { scope: 'global', from: 0, to: 720 } },
+                describeCall('before', 'steady', { model: 'someone', steps: [TEMPO] }),
+            ],
+        });
         await drawn();
         fireEvent.click(desk.one('[data-prompt] rect'));
         desk.say('rolled chords');
@@ -550,6 +555,8 @@ describe('the describe desk makes a remark', () => {
         expect(request.others).toEqual([{ id: 'before', text: 'steady', about: { kind: 'piece', from: 0, to: 2880, notes: [] }, steps: [TEMPO] }]);
         expect(request.thread).toEqual([]);
         expect(request.mend).toBeUndefined();
+        // What was made by hand on other desks, and nothing a remark owns.
+        expect(request.byHand).toEqual([{ id: 'by-hand', name: 'InsertDynamics', options: { scope: 'global', from: 0, to: 720 } }]);
         expect(request.piece).toEqual({ title: '', ppq: 720, bars: [{ n: 1, from: 0, to: 2880 }] });
         expect(request.run.roll.notes).toHaveLength(5);
         // Trying steps out is a run with them in the remark's place, and nothing of it is kept.
@@ -928,6 +935,28 @@ describe('the describe desk lets the roll be heard', () => {
         expect(desk.piano.bring).not.toHaveBeenCalled();
     });
 
+    it('does not interrupt the roll while it plays: resting on a remark then only lights it', async () => {
+        const desk = mount({ calls: TOLD });
+        await drawn();
+        fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
+        fireEvent.pointerEnter(desk.one('[data-words="r"]'));
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        expect(desk.piano.bring).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-remark="r"]')?.getAttribute('data-lit')).toBe('true');
+    });
+
+    it('moves the notes with the slider, and plays the remark again once the slider is let go', async () => {
+        const desk = mount({ calls: TOLD });
+        await drawn();
+        fireEvent.pointerEnter(desk.one('[data-words="r"]'));
+        await waitFor(() => expect(desk.piano.bring).toHaveBeenCalledTimes(1), { timeout: 1500 });
+        fireEvent.change(within(desk.bar).getByRole('slider'), { target: { value: '1.8' } });
+        expect(within(desk.bar).getByRole('slider')).toHaveValue('1.8');
+        expect(desk.piano.bring).toHaveBeenLastCalledWith('r');
+        expect(desk.piano.bring).toHaveBeenCalledTimes(2);
+        expect(desk.one<HTMLElement>('[data-status]').textContent).toMatch(/×1\.8/);
+    });
+
     it('leaves a remark brought out while it is the one called up', async () => {
         const desk = mount({ calls: TOLD });
         await drawn();
@@ -1003,10 +1032,10 @@ describe('the describe desk in the viewer', () => {
         expect(screen.getByText('steady')).toBeInTheDocument();
         // The remark is shown as it resolves, though nothing of that is in the document.
         expect(desk.boxOf('a').x).toBe(100);
-        fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
-        expect(desk.piano.toggle).toHaveBeenCalledTimes(1);
         fireEvent.pointerEnter(desk.one('[data-words="r"]'));
         await waitFor(() => expect(desk.piano.bring).toHaveBeenCalledExactlyOnceWith('r'), { timeout: 1500 });
+        fireEvent.keyDown(document.body, { key: ' ', code: 'Space' });
+        expect(desk.piano.toggle).toHaveBeenCalledTimes(1);
     });
 
     it('writes nothing into the document, however the run resolves it', async () => {

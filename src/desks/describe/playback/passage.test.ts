@@ -3,7 +3,7 @@
  * (`r0` to `r7`), the left hand a whole note to the bar (`l0`, `l1`).
  */
 import { describe, expect, it } from 'vitest';
-import type { RollNote } from '../../../fitting/description/client';
+import type { Roll } from '../../../fitting/description/client';
 import type { DescribedPlace } from '../../../fitting/transformers/description/Describe';
 import type { Subject } from './context';
 import { aRun, places, QUARTER, step } from './fixture';
@@ -23,7 +23,14 @@ const { roll } = run;
 const tempo = places().get('tempo')!;
 
 const wrote = (...about: Subject[]) => ({ about: new Set(about), touched: [] });
-const asRendered = (note: RollNote) => note.mpm.ms;
+/** The roll with the MPM's rendering `times` as slow. */
+const slowed = (times: number): Roll => ({
+    ...roll,
+    notes: roll.notes.map((note) => ({
+        ...note,
+        mpm: { ...note.mpm, ms: note.mpm.ms * times, msEnd: note.mpm.msEnd * times },
+    })),
+});
 const levels = (chosen: Chosen | null) => Object.fromEntries(chosen?.gains ?? []);
 const on = (id: string): DescribedPlace => {
     const { date } = roll.notes.find((note) => note.id === id)!;
@@ -86,7 +93,7 @@ describe('the score as the context rules read it', () => {
 
 describe('the notes played for a remark', () => {
     it('are its own, and what it takes around them: for a tempo two chords before and two after', () => {
-        const chosen = playedFor(roll, tempo, wrote('tempo'), asRendered)!;
+        const chosen = playedFor(roll, tempo, wrote('tempo'))!;
         expect(chosen.own).toEqual(new Set(['r4', 'r5', 'l1']));
         // The whole note of the first bar is still sounding where the playing begins.
         expect(levels(chosen)).toEqual({
@@ -112,7 +119,7 @@ describe('the notes played for a remark', () => {
     });
 
     it('are fewer where the remark wrote nothing: the chord before and the chord after', () => {
-        expect(levels(playedFor(roll, tempo, wrote(), asRendered))).toEqual({
+        expect(levels(playedFor(roll, tempo, wrote()))).toEqual({
             r3: 1,
             r4: 1,
             r5: 1,
@@ -123,13 +130,13 @@ describe('the notes played for a remark', () => {
     });
 
     it('hold the other hand back under single notes, so that they are heard in their line', () => {
-        const chosen = playedFor(roll, on('r4'), wrote(), asRendered)!;
+        const chosen = playedFor(roll, on('r4'), wrote())!;
         expect(chosen.own).toEqual(new Set(['r4']));
         expect(levels(chosen)).toEqual({ r3: 1, r4: 1, r5: 1, l1: 0.55, l0: 0.7 * 0.55 });
     });
 
     it('leave the other hand as loud where loudness is what the remark is about', () => {
-        expect(levels(playedFor(roll, on('r4'), wrote('dynamics'), asRendered))).toEqual({
+        expect(levels(playedFor(roll, on('r4'), wrote('dynamics')))).toEqual({
             r3: 1,
             r4: 1,
             r5: 1,
@@ -138,43 +145,23 @@ describe('the notes played for a remark', () => {
         });
     });
 
-    it('reach no further than 2.6 s from the passage in the rendering played, but for the nearest chord either side', () => {
+    it('reach no further than 2.6 s from the passage as the MPM has it, but for the nearest chord either side', () => {
+        const fresh = (times: number) =>
+            freshOf(roll.notes, playedFor(slowed(times), tempo, wrote('tempo'))!).map(
+                (note) => note.id,
+            );
         // Four times as slow, a quarter takes two seconds: the second chord after is out of reach.
-        const slow = playedFor(roll, tempo, wrote('tempo'), (note) => note.mpm.ms * 4)!;
-        expect(freshOf(roll.notes, slow).map((note) => note.id)).toEqual([
-            'r3',
-            'r4',
-            'r5',
-            'r6',
-            'l1',
-        ]);
+        expect(fresh(4)).toEqual(['r3', 'r4', 'r5', 'r6', 'l1']);
         // Eight times as slow every chord is, and the nearest is played all the same.
-        const slower = playedFor(roll, tempo, wrote('tempo'), (note) => note.mpm.ms * 8)!;
-        expect(freshOf(roll.notes, slower).map((note) => note.id)).toEqual([
-            'r3',
-            'r4',
-            'r5',
-            'r6',
-            'l1',
-        ]);
+        expect(fresh(8)).toEqual(['r3', 'r4', 'r5', 'r6', 'l1']);
         // Twice as slow nothing is.
-        expect(
-            freshOf(roll.notes, playedFor(roll, tempo, wrote('tempo'), (note) => note.mpm.ms * 2)!),
-        ).toHaveLength(7);
+        expect(fresh(2)).toHaveLength(7);
     });
 
     it('are none where its place holds no note', () => {
-        expect(
-            playedFor(roll, { kind: 'span', from: 100, to: 200, notes: [] }, wrote(), asRendered),
-        ).toBeNull();
-        expect(
-            playedFor(
-                roll,
-                { kind: 'notes', from: 0, to: 720, notes: ['gone'] },
-                wrote(),
-                asRendered,
-            ),
-        ).toBeNull();
+        const nowhere: DescribedPlace = { kind: 'span', from: 100, to: 200, notes: [] };
+        expect(playedFor(roll, nowhere, wrote())).toBeNull();
+        expect(playedFor(roll, { ...on('r0'), notes: ['gone'] }, wrote())).toBeNull();
     });
 
     it('are all of them from the line on, for a remark on the whole piece', () => {
@@ -186,7 +173,7 @@ describe('the notes played for a remark', () => {
 });
 
 describe('the notes chosen, as the piano strikes them', () => {
-    const chosen = playedFor(roll, tempo, wrote('tempo'), asRendered)!;
+    const chosen = playedFor(roll, tempo, wrote('tempo'))!;
 
     it('sound where the rendering has them, each at its level', () => {
         const keys = soundsOf(roll.notes, (note) => note.mpm, chosen);

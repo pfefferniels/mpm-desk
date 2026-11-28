@@ -10,8 +10,8 @@ import { useWorkDocument } from '../../hooks/WorkDocument';
 import type { Call } from '../../model/Work';
 import { barsOf } from './adapter';
 import type { Asked, Driver } from './asking';
-import { made, migrated, remarkCall, remarksOf, removed, resolved, reworded, type Remark } from './document';
-import type { RemarkInWords } from './expert/types';
+import { byHand, made, migrated, remarkCall, remarksOf, removed, resolved, reworded, type Remark } from './document';
+import type { RemarkInWords } from './expert';
 import type { DescribeServices } from './services';
 import { useDescription } from './useDescription';
 
@@ -97,7 +97,14 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
     const expert = useMemo(() => (expertKey === null ? null : services.createExpert(expertKey)), [expertKey, services]);
     const asked = useSyncExternalStore(asking.subscribe, asking.read);
 
-    /** A run is in: the calls its remarks came to go into the document, as one edit. */
+    /**
+     * A run is in: the calls its remarks came to go into the document, as one edit.
+     *
+     * The one place an expert's answer is written. It reaches here already run: the answer waits
+     * in the session, the document is run with it in place (`useDescription`), and this is handed
+     * both. Whatever is to stand between an answer and its being written, a question to the
+     * reader about what it would displace, belongs in front of the `replaceCalls` below.
+     */
     const write = (document: readonly Call[], run: DescriptionRun) => {
         if (!editable) return;
         const answers = [...asking.read()].flatMap(([id, entry]) => (entry.answer ? [id] : []));
@@ -136,6 +143,7 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
                     thread: entry.thread,
                     ...(mend && { mend }),
                     others: all.filter((each) => each.id !== id).map(inWords),
+                    byHand: byHand(document),
                     run: now.run,
                     piece: { title: now.title, ppq: PULSES_PER_QUARTER, bars: barsOf(now.run.roll) },
                     tryOut: (steps) => client.describe(recording, document, { trial: { remark: id, steps: [...steps] } }),

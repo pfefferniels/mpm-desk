@@ -17,7 +17,7 @@ import type { Remark } from './document';
 import { ExpertKey, KeyField } from './ExpertKey';
 import { Match } from './Match';
 import { Pen } from './Pen';
-import type { DescribePlayback } from './playback/types';
+import type { DescribePlayback } from './playback';
 import { RemarkCard } from './RemarkCard';
 import { DescribeRoll, type DescribeRollProps } from './roll/DescribeRoll';
 import { xOf } from './roll/geometry';
@@ -137,7 +137,6 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
     const spelling = useMemo(() => spellingOf(alignment ?? { allNotes: [] }), [alignment]);
     const ground = useMemo(() => (run && alignment ? groundOf(run.roll, alignment) : null), [run, alignment]);
     const notes = useMemo(() => (run ? notesOf(run.roll, spelling, playback.moved) : []), [run, spelling, playback.moved]);
-    console.error('DEBUG moved', playback.brought, playback.moved?.size, playback.moved && run ? run.roll.notes.filter((n) => Math.abs((playback.moved?.get(n.id)?.ms ?? n.mpm.ms) - n.mpm.ms) > 5).length : null);
     const end = run?.roll.end ?? endOf(notes, ground?.bars ?? []);
     const bars = ground?.bars;
 
@@ -236,7 +235,9 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
         if (id !== null) {
             if (draft || playback.brought === id) return;
             dwell.current = setTimeout(() => {
-                if (!latest.current.draft) latest.current.playback.bring(id);
+                const { playback: now, draft: writing } = latest.current;
+                // Not while the roll itself plays: resting on a remark is not a way to interrupt it.
+                if (!writing && !(now.playing && now.brought === null)) now.bring(id);
             }, DWELL_MS);
         } else {
             dwell.current = setTimeout(() => {
@@ -370,6 +371,12 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
                         step={0.1}
                         value={playback.strength}
                         onChange={(_, strength) => playback.setStrength(strength as number)}
+                        // While it moves the notes go where the rendering now has them; let go,
+                        // the remark it acts on is played again, to hear what was set.
+                        onChangeCommitted={() => {
+                            const acted = playback.brought ?? called;
+                            if (acted !== null) playback.bring(acted);
+                        }}
                         valueLabelDisplay="auto"
                         valueLabelFormat={(strength) => `×${strength.toFixed(1)}`}
                         aria-label="How strongly a remark is brought out when the pointer rests on it"

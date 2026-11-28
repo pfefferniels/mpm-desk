@@ -379,7 +379,8 @@ describe('bringing a remark out', () => {
         const { moved } = playback.current;
         expect(moved!.get('r2')).toEqual({ ms: 1000, msEnd: 1675, velocity: 60 });
         expect(moved!.get('r4')).toEqual({ ms: 2500, msEnd: 3175, velocity: 60 });
-        expect(moved!.size).toBe(10);
+        // Only what is struck in the passage: not what came before it, nor the note held into it.
+        expect([...moved!.keys()]).toEqual(['r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'l1']);
 
         expect(playback.current.playing).toBe(true);
         expect(rig.played).toHaveLength(1);

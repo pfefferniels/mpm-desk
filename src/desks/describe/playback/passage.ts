@@ -14,7 +14,7 @@ import { keyOf } from './hearing';
 const HELD = 0.7;
 /** The hand that a remark on single notes does not name. */
 const SHADED = 0.55;
-/** No context further than this from the passage, however slow the music. */
+/** No context further than this from the passage as the MPM has it, however slow the music. */
 const REACH_MS = 2600;
 
 /** The playing begins this long before the first note, */
@@ -96,21 +96,23 @@ const ownOf = (place: DescribedPlace, notes: readonly RollNote[]): Set<string> =
  * what it takes around them to hear what is said of them (`contextOf`), and what is held over
  * into the start.
  *
- * @param onsetOf a note's onset in the rendering that will be played, in ms.
+ * They are chosen on the roll as it stands, not in the rendering that is played: a remark has the
+ * same notes around it however strongly it is brought out, and none of them is moved at one
+ * strength and left where it was at the next.
+ *
  * @returns null where the remark's place holds no note.
  */
 export const playedFor = (
     roll: Roll,
     place: DescribedPlace,
     { about, touched }: Pick<Wrote, 'about' | 'touched'>,
-    onsetOf: (note: RollNote) => number,
 ): Chosen | null => {
     const own = ownOf(place, roll.notes);
     const mine = roll.notes.filter((note) => own.has(note.id));
     if (mine.length === 0) return null;
     const grid = gridOf(roll);
     const span = contextOf(grid, place, about, touched);
-    const onsets = mine.map(onsetOf);
+    const onsets = mine.map((note) => note.mpm.ms);
     const dates = mine.map((note) => note.date);
     // In slow music two beats are a long time; the nearest chord either side is kept all the same.
     const nearest = new Set([
@@ -119,8 +121,8 @@ export const playedFor = (
     ]);
     const near = (note: RollNote) =>
         nearest.has(note.date) ||
-        (onsetOf(note) >= Math.min(...onsets) - REACH_MS &&
-            onsetOf(note) <= Math.max(...onsets) + REACH_MS);
+        (note.mpm.ms >= Math.min(...onsets) - REACH_MS &&
+            note.mpm.ms <= Math.max(...onsets) + REACH_MS);
     // Of single notes the other hand is held back, so that they are heard in their line; not
     // where loudness is the point.
     const hands = new Set(mine.map((note) => note.part));
