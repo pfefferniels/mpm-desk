@@ -41,6 +41,24 @@ page in small: the line of its hand-made reduction, each note sung when the pian
 from is struck. There it is VocalTractLab that sings; here it is a hum made with the browser's
 own audio, which is plainer.
 
+A passage is never played bare. What is said of it is only heard against what surrounds it, and
+how much it takes depends on what was said, which the page knows from what the remark wrote:
+
+- always the chord before, to measure against, and the chord after, because the time a note takes
+  is only heard when the next one comes;
+- for a pulse (tempo, rubato, a chord rolled against its beat) back to the beat before the
+  passage's first, and on through a second chord after it;
+- for touch (legato, held over, detached) and for anything said of single notes, the note before
+  and the note after in the same hand, with the other hand held back;
+- for an accent pattern its whole bar, for the pedal the beat either side;
+- never more than two beats or some two and a half seconds, and what is already sounding where
+  the playing begins is struck with its first chord, softer.
+
+Tried on the 109 hand-made segments of WM 225: one note before and one after is half a second
+either side in the median, which is one eighth of the accompaniment; for 56 of the 71 segments
+about timing it gives less than a beat to measure against, and for 8 of the 15 about touch the
+next note is in the other hand. These rules give about a beat either side.
+
 It is published as a Claude artifact, where the page asks Claude through the viewer's own
 account. Opened anywhere else it draws and fits, and a remark's calls can be written by hand.
 
@@ -52,6 +70,7 @@ account. Opened anywhere else it draws and fits, and a remark's calls can be wri
 | `engine.worker.ts` | The engine as the page loads it: a worker, or a global where a worker cannot start. |
 | `index.html`, `app.js` | The page: the roll, the pencil, the remarks, the expert's prompt. |
 | `staff.js` | Spelling and staff positions: where a pitch sits on a staff, its ledger lines, the key signature read off the notes. |
+| `context.js` | How much of the music around a passage has to be played for what is said of it to be heard. |
 | `voice.js` | The inner voice: the sung line of a passage in time with a performance, and a hum for it. |
 | `reduction.ts` | Reads the line that is hummed from the site's `hummed/reduction/reduction.mei`, at build time. |
 | `player.js`, `piano.js` | Playing back: a transport over struck keys, and the piano it plays, which is the Salamander samples struck as `@tonejs/piano` strikes them in the Desk. |

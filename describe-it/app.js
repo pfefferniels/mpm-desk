@@ -1,6 +1,7 @@
 /* DescribeIt page script: piano roll, annotations, and their translation into engine calls. */
 /* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout */
 import { createPlayer } from './player.js';
+import { contextOf } from './context.js';
 import { lineOf } from './voice.js';
 import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell, stepOf } from './staff.js';
 
@@ -1645,13 +1646,70 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     return keys;
   };
 
+  const HELD = 0.7; // a note already sounding where playback begins is struck with its first chord, softer
+  const SHADED = 0.55; // the hand that a remark on single notes does not name
+  const REACH_MS = 2600; // no context further than this from the passage, however slow the music
+
+  /** What a remark wrote, in the terms the context rules are stated in. */
+  const ABOUT = { tempo: 'tempo', rubato: 'rubato', dynamics: 'dynamics', ornament: 'roll', articulation: 'touch', accentuationPattern: 'accent', movement: 'pedal' };
+  const aboutOf = (ann) => new Set(ann && ann.report ? kinds(ann.report).map(([tag]) => ABOUT[tag]).filter(Boolean) : []);
+
+  /**
+   * The notes to play for a scope, each with its level: its own, what it takes around them to
+   * hear what is said of them (`contextOf`), and what is held over into the start.
+   *
+   * @param ann the remark, where there is one: what it wrote decides how much context
+   * @param onsetOf a note's onset in the rendering that will be played, in ms
+   * @returns {{ gains: Map<string, number>, held: Set<string>, own: Set<string> }}
+   */
+  const playedFor = (scope, ann, onsetOf) => {
+    const result = S.result;
+    const about = aboutOf(ann);
+    const touched = about.has('touch') ? [...ann.report.evidence] : [];
+    const score = { dates: result.dates, beats: result.beatDates, bars: S.bars.map((bar) => bar.from), notes: result.notes };
+    const span = contextOf(score, scope, about, touched);
+    const own = new Set(idsOf(scope));
+    const mine = result.notes.filter((note) => own.has(note.id));
+    const onsets = mine.map(onsetOf);
+    const dates = mine.map((note) => note.date);
+    // In slow music two beats are a long time; the nearest chord either side is kept all the same.
+    const nearest = new Set([result.dates.filter((date) => date < Math.min(...dates)).at(-1), result.dates.find((date) => date > Math.max(...dates))]);
+    const near = (note) => nearest.has(note.date) || (onsetOf(note) >= Math.min(...onsets) - REACH_MS && onsetOf(note) <= Math.max(...onsets) + REACH_MS);
+    // Of single notes the other hand is held back, so that they are heard in their line; not where loudness is the point.
+    const named = scope.kind === 'notes' || scope.kind === 'box';
+    const hands = new Set(mine.map((note) => note.part));
+    const levelOf = (note) => (named && !about.has('dynamics') && !hands.has(note.part) ? SHADED : 1);
+    const around = result.notes.filter((note) => own.has(note.id) || (note.date >= span.from && note.date <= span.to && near(note)));
+    const gains = new Map(around.map((note) => [note.id, levelOf(note)]));
+    const begins = Math.min(...around.map((note) => note.date));
+    const held = new Set(result.notes.filter((note) => note.date < begins && note.date + note.duration > begins + 1).map((note) => note.id));
+    for (const id of held) gains.set(id, HELD * levelOf(result.byId.get(id)));
+    return { gains, held, own };
+  };
+
+  /** The sounds of the notes chosen by `playedFor`, in one rendering; a held note begins with the first of the others. */
+  const soundsOf = (notes, soundOf, { gains, held }) => {
+    const pick = (note) => ({ pitch: note.pitch, ...soundOf(note), velocity: soundOf(note).velocity * gains.get(note.id) });
+    const fresh = notes.filter((note) => gains.has(note.id) && !held.has(note.id)).map(pick);
+    const start = Math.min(...fresh.map((sound) => sound.ms));
+    const under = notes.filter((note) => held.has(note.id) && soundOf(note).msEnd > start + 50).map((note) => ({ ...pick(note), ms: start }));
+    return [...fresh, ...under];
+  };
+
+  /** When to begin and end playing some sounds: a moment before the first, and the last chord given time to be heard. */
+  const timesOf = (sounds, own) => ({
+    from: Math.min(...sounds.map((sound) => sound.ms)) - 40,
+    until: Math.max(...own.map((sound) => sound.msEnd), Math.max(...sounds.map((sound) => sound.ms)) + 700) + 300,
+  });
+
   /** Notes to play for a source, sorted by onset, their ends extended by the sustain pedal. */
   const keysOf = (result, source, only) => {
     const voice = (which, pan) => {
-      const sounds = result.notes.filter((note) => !only || only.has(note.id)).map((note) => ({ pitch: note.pitch, ...(which === 'played' ? note : note.mpm) }));
+      const pick = (note) => (which === 'played' ? note : note.mpm);
+      const sounds = only ? soundsOf(result.notes, pick, only) : result.notes.map((note) => ({ pitch: note.pitch, ...pick(note) }));
       // Grace notes exist in the recording only, with a nominal length of 160 ms.
       if (which === 'played') {
-        for (const grace of result.graces.filter((grace) => !only || only.has(grace.principal))) {
+        for (const grace of result.graces.filter((grace) => !only || only.gains.has(grace.principal))) {
           sounds.push({ pitch: grace.pitch, ms: grace.ms, msEnd: grace.ms + 160, velocity: grace.velocity });
         }
       }
@@ -1702,15 +1760,14 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     const stretch = () => {
       const result = S.result;
       const scope = S.pen.open || S.selection.size ? scopeNow() : S.openAnn ? S.openAnn.scope : null;
-      if (scope && scope.kind !== 'piece') {
-        const ids = idsOf(scope);
-        const sounds = ids
-          .map((id) => result.byId.get(id))
-          .filter(Boolean)
-          .flatMap((note) => (S.play.source === 'played' ? [note] : S.play.source === 'mpm' ? [note.mpm] : [note, note.mpm]));
-        if (sounds.length) {
-          return { from: Math.min(...sounds.map((sound) => sound.ms)) - 40, until: Math.max(...sounds.map((sound) => sound.msEnd)) + 500, only: new Set(ids), scoped: true };
-        }
+      if (scope && scope.kind !== 'piece' && idsOf(scope).length) {
+        // The remark, where the scope is one's: what it wrote decides how much is played around it.
+        const ann = S.pen.editing || (!S.pen.open && !S.selection.size ? S.openAnn : null);
+        const renderings = S.play.source === 'played' ? [(note) => note] : S.play.source === 'mpm' ? [(note) => note.mpm] : [(note) => note, (note) => note.mpm];
+        const chosen = playedFor(scope, ann, (note) => renderings[0](note).ms);
+        const fresh = result.notes.filter((note) => chosen.gains.has(note.id) && !chosen.held.has(note.id));
+        const own = fresh.filter((note) => chosen.own.has(note.id));
+        return { ...timesOf(fresh.flatMap((note) => renderings.map((of) => of(note))), own.flatMap((note) => renderings.map((of) => of(note)))), only: chosen, scoped: true };
       }
       const seen = X(S.play.at) >= G.gutter - 1 && X(S.play.at) < G.width;
       const from = seen ? S.play.at : Math.max(0, msOf(G.gutter));
@@ -1740,21 +1797,22 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       const out = await Engine.bringOut(result.mpm, ids, S.view.bring, DAMPED).catch(() => null);
       if (!out || S.hoverAnn !== ann || S.result !== result) return;
       const performed = new Map(out.notes.map((note) => [note.id, note]));
-      const seen = (note) => X(note.mpm.ms) >= G.gutter && X(note.mpm.ms) < G.width;
-      const about = ann.scope.kind === 'piece' ? result.notes.filter(seen) : idsOf(ann.scope).map((id) => result.byId.get(id));
-      const inside = about.filter((note) => note && performed.has(note.id));
-      if (!inside.length) return;
-      const sounds = inside.map((note) => ({ pitch: note.pitch, ...performed.get(note.id) }));
-      const from = Math.min(...sounds.map((sound) => sound.ms)) - 40;
-      const until = Math.max(...sounds.map((sound) => sound.msEnd)) + 500;
-      const dates = [...new Set(inside.map((note) => note.date))].sort((a, b) => a - b);
-      const earliest = (pick) => dates.map((date) => Math.min(...inside.filter((note) => note.date === date).map(pick)));
-      clock = { theirs: earliest((note) => performed.get(note.id).ms), ours: earliest((note) => note.mpm.ms) };
-      only = new Set(inside.map((note) => note.id));
+      const notes = result.notes.filter((note) => performed.has(note.id));
+      const soundOf = (note) => performed.get(note.id);
+      // Of the whole piece, what is in view; of a passage, the passage and what it takes around it.
+      const seen = notes.filter((note) => X(note.mpm.ms) >= G.gutter && X(note.mpm.ms) < G.width).map((note) => note.id);
+      const chosen = ann.scope.kind === 'piece' ? { gains: new Map(seen.map((id) => [id, 1])), held: new Set(), own: new Set(seen) } : playedFor(ann.scope, ann, (note) => (performed.get(note.id) || note.mpm).ms);
+      const fresh = notes.filter((note) => chosen.gains.has(note.id) && !chosen.held.has(note.id));
+      if (!fresh.length) return;
+      const { from, until } = timesOf(fresh.map(soundOf), fresh.filter((note) => chosen.own.has(note.id)).map(soundOf));
+      const dates = [...new Set(fresh.map((note) => note.date))].sort((a, b) => a - b);
+      const earliest = (pick) => dates.map((date) => Math.min(...fresh.filter((note) => note.date === date).map(pick)));
+      clock = { theirs: earliest((note) => soundOf(note).ms), ours: earliest((note) => note.mpm.ms) };
+      only = chosen;
       scoped = true;
       S.play.bringing = ann;
       const line = lineOf(S.reduction, performed, dates[0], dates[dates.length - 1] + 1);
-      const started = await transport.play(struck(sounds, spansOf(out.pedal, until), 0), { from, until, line, exaggerate: S.view.bring });
+      const started = await transport.play(struck(soundsOf(notes, soundOf, chosen), spansOf(out.pedal, until), 0), { from, until, line, exaggerate: S.view.bring });
       S.play.loading = null;
       if (!started) S.play.bringing = null;
     };
@@ -2864,7 +2922,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   };
 
   // Test hook.
-  if (typeof window.__describeItTest === 'function') window.__describeItTest({ S, G, select, describe, refit, apply, Engine, openPop, buildPrompt, tryTool, Player });
+  if (typeof window.__describeItTest === 'function') window.__describeItTest({ S, G, select, describe, refit, apply, Engine, openPop, buildPrompt, tryTool, Player, playedFor });
 
   start();
 })();

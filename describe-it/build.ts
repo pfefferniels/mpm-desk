@@ -89,6 +89,7 @@ copyFileSync(resolve(here, 'app.js'), resolve(dist, 'app.js'));
 copyFileSync(resolve(here, 'piano.js'), resolve(dist, 'piano.js'));
 copyFileSync(resolve(here, 'player.js'), resolve(dist, 'player.js'));
 copyFileSync(resolve(here, 'staff.js'), resolve(dist, 'staff.js'));
+copyFileSync(resolve(here, 'context.js'), resolve(dist, 'context.js'));
 copyFileSync(resolve(here, 'voice.js'), resolve(dist, 'voice.js'));
 
 // Piano samples (every third key from A0 to C8, three velocity layers) are too large for git and
