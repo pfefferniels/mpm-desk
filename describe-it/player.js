@@ -1,6 +1,7 @@
-/* Playback transport: schedules notes through the sampled piano. */
+/* Playback transport: schedules notes through the sampled piano, and a hummed line with them. */
 /* global window, setInterval, clearInterval */
 import { createPiano } from './piano.js';
+import { createVoice } from './voice.js';
 
 const LOOKAHEAD_MS = 1200;
 const TICK_MS = 50;
@@ -18,6 +19,7 @@ const LEAD_IN_S = 0.08;
 export function createPlayer({ onChange, onEnd, onLoading }) {
   let audio = null;
   let piano = null;
+  let voice = null;
   let output = null;
   let run = null;
   let timer = 0;
@@ -37,6 +39,7 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
     output.gain.value = 0.5;
     output.connect(limiter);
     piano = createPiano(audio);
+    voice = createVoice(audio);
     return true;
   };
 
@@ -69,13 +72,18 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
     if (!run) return;
     clearInterval(timer);
     piano.hush();
+    voice.hush();
     run = null;
     onChange();
   };
 
   return {
-    /** Plays `keys` (a `Key[]` sorted by `ms`) from `from` to `until`; resolves to whether it started. */
-    async play(keys, { from, until }) {
+    /**
+     * Plays `keys` (a `Key[]` sorted by `ms`) from `from` to `until`; resolves to whether it started.
+     * `line` is a sung line on the same clock (`lineOf` in voice.js), hummed along; `exaggerate`
+     * is how much more than the piano its loudness moves.
+     */
+    async play(keys, { from, until, line, exaggerate }) {
       if (!open()) return false;
       halt();
       if (audio.state === 'suspended') audio.resume();
@@ -92,6 +100,7 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
       }
       run = { from, until, startedAt: audio.currentTime + LEAD_IN_S, keys: [], next: 0 };
       queue(keys);
+      if (line && line.length) voice.hum(line, timeOf, output, { exaggerate });
       timer = setInterval(schedule, TICK_MS);
       schedule();
       onChange();
@@ -109,6 +118,15 @@ export function createPlayer({ onChange, onEnd, onLoading }) {
     },
 
     stop: halt,
+
+    /** Opens the audio output, which browsers allow only from a user's gesture. */
+    unlock() {
+      if (open() && audio.state === 'suspended') audio.resume();
+    },
+
+    get unlocked() {
+      return Boolean(audio) && audio.state === 'running';
+    },
 
     get playing() {
       return Boolean(run);

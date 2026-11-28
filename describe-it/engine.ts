@@ -2,7 +2,7 @@
  * DescribeIt's engine: runs the MPM Desk fitting chain on a list of calls and reports the residual.
  * DOM-free; bundled for the browser by `build.ts`.
  */
-import { performMsmToData } from 'espressivo';
+import { exaggerateMpm, performMsmToData, spotlightMpm } from 'espressivo';
 import '../src/fitting/transformers/index';
 import { buildChain } from '../src/fitting/chain';
 import { registerTransformer } from '../src/fitting/transformers/TransformerRegistry';
@@ -836,6 +836,16 @@ export interface RunResult {
 
 let pristine: Alignment | null = null;
 
+const RUNS_KEPT = 6;
+/** MPM of a recent run -> the score (MSM) it was rendered with, oldest first. */
+const scores = new Map<string, string>();
+
+const keep = (mpm: string, score: string) => {
+  scores.delete(mpm);
+  scores.set(mpm, score);
+  if (scores.size > RUNS_KEPT) scores.delete(scores.keys().next().value!);
+};
+
 /** Loads a piece; its alignment is cloned for every run. */
 export const load = (piece: PieceData): { notes: number; end: number } => {
   const { alignment } = piece;
@@ -843,6 +853,7 @@ export const load = (piece: PieceData): { notes: number; end: number } => {
   pristine.pedals = alignment.pedals;
   pristine.graces = alignment.graces;
   pristine.tiedPrincipals = alignment.tiedPrincipals;
+  scores.clear();
   return { notes: pristine.allNotes.length, end: pristine.end };
 };
 
@@ -859,6 +870,28 @@ const silently = <T>(work: () => T): T => {
     Object.assign(console, { log, warn, error });
   }
 };
+
+/** `mpm` as the renderer performs `score`, on the renderer's own clock. */
+const perform = (score: string, mpm: string) =>
+  silently(() => {
+    const notes: ({ id: string } & Sounded)[] = [];
+    const pedals: { kind: PedalKind; date: number; ms: number; value: number }[] = [];
+    const data = performMsmToData({ msm: score, mpm }, { expandOrnaments: false, seed: 1 });
+    for (const part of data.parts) {
+      for (const note of part.notes) {
+        if (note.id === null) continue;
+        notes.push({ id: note.id, ms: note.milliseconds.date, msEnd: note.milliseconds.end, velocity: note.velocity });
+      }
+      for (const stream of part.controlChanges) {
+        const kind = stream.controller;
+        if (kind !== 'sustain' && kind !== 'soft') continue;
+        for (const point of stream.points) {
+          pedals.push({ kind, date: point.date, ms: point.milliseconds, value: point.value });
+        }
+      }
+    }
+    return { notes, pedals };
+  });
 
 /** Runs the calls on the loaded piece. A failing call is skipped and reported; the rest still run. */
 export const run = (steps: readonly PlainCall[]): RunResult => {
@@ -960,27 +993,11 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
   const segments = silently(() => placeTempos(alignment, mpm, 'global'));
   const xml = exportMPM(mpm);
 
-  // The MPM as rendered, on the renderer's own clock.
-  const performed = new Map<string, Sounded>();
-  const pedalled: { kind: PedalKind; date: number; ms: number; value: number }[] = [];
-  silently(() => {
-    const score = alignment.serializeScore();
-    if (!score) return;
-    const data = performMsmToData({ msm: score, mpm: xml }, { expandOrnaments: false, seed: 1 });
-    for (const part of data.parts) {
-      for (const note of part.notes) {
-        if (note.id === null) continue;
-        performed.set(note.id, { ms: note.milliseconds.date, msEnd: note.milliseconds.end, velocity: note.velocity });
-      }
-      for (const stream of part.controlChanges) {
-        const kind = stream.controller;
-        if (kind !== 'sustain' && kind !== 'soft') continue;
-        for (const point of stream.points) {
-          pedalled.push({ kind, date: point.date, ms: point.milliseconds, value: point.value });
-        }
-      }
-    }
-  });
+  const score = silently(() => alignment.serializeScore());
+  if (score) keep(xml, score);
+  const rendered = score ? perform(score, xml) : { notes: [], pedals: [] };
+  const performed = new Map<string, Sounded>(rendered.notes.map((note) => [note.id, note]));
+  const pedalled = rendered.pedals;
 
   // The recording with only `Modify` applied, to compare the rendering with. The chain's copy
   // will not do: transformers remove from it what they explain.
@@ -1212,5 +1229,57 @@ export const run = (steps: readonly PlainCall[]): RunResult => {
     timeSignatures: alignment.timeSignatures,
     chainMs,
     problems: messages,
+  };
+};
+
+// ---------------------------------------------------------------------------------------------
+// Bringing instructions out
+// ---------------------------------------------------------------------------------------------
+
+/** The MPM of a run with some of its instructions brought out, as the renderer performs it. */
+export interface BroughtOut {
+  /** Every note as performed, in ms on this rendering's own clock (not the recording's). */
+  notes: { id: string; ms: number; msEnd: number; velocity: number }[];
+  /** The sustaining pedal's moves in this rendering, on the same clock; `value` is of 127. */
+  pedal: { ms: number; value: number }[];
+  /** The expression dimensions that were exaggerated; empty where nothing could be brought out. */
+  spared: string[];
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/** `mpm` with the dimensions of the instructions `ids` exaggerated and the others damped. */
+const emphasize = (mpm: string, ids: readonly string[], factor: number, attenuation: number) => {
+  const plain = { mpm, spared: [] as string[] };
+  const present = ids.filter((id) => mpm.includes(`xml:id="${id}"`));
+  if (present.length === 0) return plain;
+  try {
+    const { mpm: damped, spared } = spotlightMpm(mpm, { ids: present, attenuation: clamp(attenuation, 0.05, 1) });
+    // Beyond 1.9 an ornament can end a note before it begins.
+    const factors = Object.fromEntries(spared.map((dimension) => [dimension, clamp(factor, 1, 1.9)]));
+    return { mpm: exaggerateMpm(damped, { factors }).mpm, spared: [...spared] };
+  } catch {
+    // An id on a definition or a style switch: nothing to bring out.
+    return plain;
+  }
+};
+
+/**
+ * Renders the MPM of a run with the instructions `ids` exaggerated by `factor` (1 to 1.9) and the
+ * other dimensions damped to `attenuation` (0.05 to 1). `mpm` is the `RunResult.mpm` of a recent run.
+ */
+export const bringOut = (mpm: string, ids: readonly string[], factor: number, attenuation: number): BroughtOut => {
+  const score = scores.get(mpm);
+  if (score === undefined) throw new Error('bringOut: this MPM is not that of a recent run, so its run is not known');
+  keep(mpm, score);
+  const emphasized = emphasize(mpm, ids, factor, attenuation);
+  const { notes, pedals } = perform(score, emphasized.mpm);
+  return {
+    notes,
+    pedal: pedals
+      .filter((move) => move.kind === 'sustain')
+      .map(({ ms, value }) => ({ ms, value }))
+      .sort((a, b) => a.ms - b.ms),
+    spared: emphasized.spared,
   };
 };

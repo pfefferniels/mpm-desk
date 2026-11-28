@@ -1,6 +1,7 @@
 /* DescribeIt page script: piano roll, annotations, and their translation into engine calls. */
 /* global window, document, console, localStorage, fetch, navigator, performance, Worker, AbortController, ResizeObserver, getComputedStyle, getSelection, matchMedia, requestAnimationFrame, setTimeout, clearTimeout */
 import { createPlayer } from './player.js';
+import { lineOf } from './voice.js';
 import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell, stepOf } from './staff.js';
 
 (() => {
@@ -55,10 +56,11 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     selection: new Set(),
     selKind: 'none', // none (whole piece) | notes | span | box | arrow
     pen: { open: false, editing: null },
-    view: { ppt: 0.03, shadows: true, pencil: false, height: 1, staff: true },
+    view: { ppt: 0.03, shadows: true, pencil: false, height: 1, staff: true, bring: 1.5 },
     spelled: new Map(), // id -> { letter, alter, pitch, step, staff }
     signature: new Map(), // letter -> alteration in the key signature
-    play: { on: false, source: 'played', at: 0, loading: null }, // `at` in ms
+    play: { on: false, source: 'played', at: 0, loading: null, bringing: null }, // `bringing`: the remark being played brought out
+    reduction: { notes: [], rests: [] }, // the line the inner voice hums // `at` in ms
     hoverAnn: null,
     hoverNote: null,
     openAnn: null,
@@ -159,7 +161,18 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       return direct.run(calls);
     };
 
-    return { start, run };
+    /** The run's MPM with some instructions exaggerated and the rest damped, as rendered. */
+    const bringOut = async (mpm, ids, factor, attenuation) => {
+      await start();
+      if (!worker) return direct.bringOut(mpm, ids, factor, attenuation);
+      return new Promise((resolve, reject) => {
+        const requestId = ++sequence;
+        waiting.set(requestId, { resolve: (reply) => resolve(reply.result), reject });
+        worker.postMessage({ type: 'bringOut', requestId, mpm, ids, factor, attenuation });
+      });
+    };
+
+    return { start, run, bringOut };
   })();
 
   // ------------------------------------------------------------------------------------------
@@ -1465,6 +1478,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     const hover = mark ? mark.ann : null;
     if (hover !== S.hoverAnn) {
       S.hoverAnn = hover;
+      Player.hover(hover);
       draw();
       if (!$('#drawer').hidden) renderMpm();
     }
@@ -1534,6 +1548,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     if (S.hoverAnn || S.hoverNote) {
       S.hoverAnn = null;
       S.hoverNote = null;
+      Player.hover(null);
       draw();
     }
   });
@@ -1596,54 +1611,66 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   // ------------------------------------------------------------------------------------------
 
   /** Ranges `[down, up]` in ms where the sustain pedal is down. */
-  const pedalled = (result, which) => {
-    if (which === 'played') return result.pedals.played.filter((press) => press.kind === 'sustain').map((press) => [press.ms, press.msEnd]);
+  /** The stretches over which a pedal is down, from its moves. */
+  const spansOf = (moves, end) => {
     const spans = [];
     let down = null;
-    for (const move of result.pedals.mpm.filter((move) => move.kind === 'sustain')) {
+    for (const move of moves) {
       if (move.value >= 64 && down === null) down = move.ms;
       else if (move.value < 64 && down !== null) {
         spans.push([down, move.ms]);
         down = null;
       }
     }
-    if (down !== null) spans.push([down, result.total]);
+    if (down !== null) spans.push([down, end]);
     return spans;
+  };
+  const pedalled = (result, which) => {
+    if (which === 'played') return result.pedals.played.filter((press) => press.kind === 'sustain').map((press) => [press.ms, press.msEnd]);
+    return spansOf(result.pedals.mpm.filter((move) => move.kind === 'sustain'), result.total);
+  };
+
+  /** Keys for some sounds, in order: each damped at its end, or when the pedal holding it comes up. */
+  const struck = (sounds, spans, pan) => {
+    const damped = (end) => (spans.find(([down, up]) => end >= down && end < up) || [0, end])[1];
+    const keys = sounds.map(({ pitch, ms, msEnd, velocity }) => ({ ms, end: damped(msEnd), pitch, velocity, pan })).sort((a, b) => a.ms - b.ms);
+    // A repeated pitch ends the previous note on it, even under the pedal.
+    const last = new Map();
+    for (const key of keys) {
+      const before = last.get(key.pitch);
+      if (before && before.end > key.ms) before.end = key.ms;
+      last.set(key.pitch, key);
+    }
+    return keys;
   };
 
   /** Notes to play for a source, sorted by onset, their ends extended by the sustain pedal. */
   const keysOf = (result, source, only) => {
     const voice = (which, pan) => {
-      const spans = pedalled(result, which);
-      const damped = (end) => (spans.find(([down, up]) => end >= down && end < up) || [0, end])[1];
-      const keys = result.notes
-        .filter((note) => !only || only.has(note.id))
-        .map((note) => ({ pitch: note.pitch, sound: which === 'played' ? note : note.mpm }))
-        .map(({ pitch, sound }) => ({ ms: sound.ms, end: damped(sound.msEnd), pitch, velocity: sound.velocity, pan }));
+      const sounds = result.notes.filter((note) => !only || only.has(note.id)).map((note) => ({ pitch: note.pitch, ...(which === 'played' ? note : note.mpm) }));
       // Grace notes exist in the recording only, with a nominal length of 160 ms.
       if (which === 'played') {
         for (const grace of result.graces.filter((grace) => !only || only.has(grace.principal))) {
-          keys.push({ ms: grace.ms, end: damped(grace.ms + 160), pitch: grace.pitch, velocity: grace.velocity, pan });
+          sounds.push({ pitch: grace.pitch, ms: grace.ms, msEnd: grace.ms + 160, velocity: grace.velocity });
         }
       }
-      // A repeated pitch ends the previous note on it, even under the pedal.
-      keys.sort((a, b) => a.ms - b.ms);
-      const last = new Map();
-      for (const key of keys) {
-        const before = last.get(key.pitch);
-        if (before && before.end > key.ms) before.end = key.ms;
-        last.set(key.pitch, key);
-      }
-      return keys;
+      return struck(sounds, pedalled(result, which), pan);
     };
     const played = source === 'mpm' ? [] : voice('played', source === 'both' ? -0.55 : 0);
     const rendered = source === 'played' ? [] : voice('mpm', source === 'both' ? 0.55 : 0);
     return [...played, ...rendered].sort((a, b) => a.ms - b.ms);
   };
 
+  const DAMPED = 0.35; // how much the instructions a remark did not write are damped while its own are brought out
+  const DWELL_MS = 450; // the pointer rests this long on a remark before it plays
+  const LINGER_MS = 200; // and it plays on this long after the pointer has left
+
   const Player = (() => {
     let only = null;
     let scoped = false;
+    // While a remark is brought out: its rendering's clock against the roll's, chord by chord.
+    let clock = null;
+    let hovering = 0;
 
     const reflect = () => {
       const on = transport.playing;
@@ -1657,7 +1684,10 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     };
 
     const transport = createPlayer({
-      onChange: reflect,
+      onChange: () => {
+        if (!transport.playing) S.play.bringing = null;
+        reflect();
+      },
       onEnd: () => {
         if (!scoped) S.play.at = 0;
       },
@@ -1690,9 +1720,49 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       if (!S.result || transport.loading) return;
       const played = over || stretch();
       ({ only, scoped } = played);
+      clock = null;
       const started = await transport.play(keysOf(S.result, S.play.source, only), played);
       S.play.loading = null;
       if (!started) notice('The piano could not be heard here.');
+    };
+
+    /**
+     * Plays a remark's passage with the instructions it wrote exaggerated and the others damped,
+     * the inner voice humming along. An exaggerated tempo moves every onset, so the rendering
+     * has a clock of its own; the playhead is carried back onto the roll chord by chord.
+     */
+    const bring = async (ann) => {
+      const result = S.result;
+      const ids = ann.report ? ann.report.elements : [];
+      if (!result || !ids.length || transport.loading) return;
+      const out = await Engine.bringOut(result.mpm, ids, S.view.bring, DAMPED);
+      if (S.hoverAnn !== ann || S.result !== result) return;
+      const performed = new Map(out.notes.map((note) => [note.id, note]));
+      const seen = (note) => X(note.mpm.ms) >= G.gutter && X(note.mpm.ms) < G.width;
+      const about = ann.scope.kind === 'piece' ? result.notes.filter(seen) : idsOf(ann.scope).map((id) => result.byId.get(id));
+      const inside = about.filter((note) => note && performed.has(note.id));
+      if (!inside.length) return;
+      const sounds = inside.map((note) => ({ pitch: note.pitch, ...performed.get(note.id) }));
+      const from = Math.min(...sounds.map((sound) => sound.ms)) - 40;
+      const until = Math.max(...sounds.map((sound) => sound.msEnd)) + 500;
+      const dates = [...new Set(inside.map((note) => note.date))].sort((a, b) => a - b);
+      const earliest = (pick) => dates.map((date) => Math.min(...inside.filter((note) => note.date === date).map(pick)));
+      clock = { theirs: earliest((note) => performed.get(note.id).ms), ours: earliest((note) => note.mpm.ms) };
+      only = new Set(inside.map((note) => note.id));
+      scoped = true;
+      S.play.bringing = ann;
+      const line = lineOf(S.reduction, performed, dates[0], dates[dates.length - 1] + 1);
+      const started = await transport.play(struck(sounds, spansOf(out.pedal, until), 0), { from, until, line, exaggerate: S.view.bring });
+      S.play.loading = null;
+      if (!started) S.play.bringing = null;
+    };
+
+    /** The pointer came to rest on a remark (`ann`), or left it (`null`). */
+    const hover = (ann) => {
+      clearTimeout(hovering);
+      const free = !S.pen.open && !S.reference && transport.unlocked && (!transport.playing || S.play.bringing);
+      if (ann && free && ann !== S.play.bringing) hovering = setTimeout(() => bring(ann), DWELL_MS);
+      else if (!ann && S.play.bringing) hovering = setTimeout(() => S.play.bringing && transport.stop(), LINGER_MS);
     };
 
     const stop = () => {
@@ -1709,7 +1779,11 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       else draw();
     };
 
-    const refresh = () => transport.replace(keysOf(S.result, S.play.source, only));
+    const refresh = () => {
+      // A remark brought out is one rendering of one run: a new run ends it.
+      if (S.play.bringing) transport.stop();
+      else transport.replace(keysOf(S.result, S.play.source, only));
+    };
 
     const hear = (source) => {
       S.play.source = source;
@@ -1725,8 +1799,11 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       seek,
       refresh,
       hear,
+      hover,
+      unlock: () => transport.unlock(),
       toggle: () => (transport.playing ? stop() : start()),
-      now: () => transport.position(),
+      /** Where the playing is, on the roll's clock. */
+      now: () => (clock && S.play.bringing ? along(clock.theirs, clock.ours, transport.position()) : transport.position()),
       get playing() {
         return transport.playing;
       },
@@ -1734,6 +1811,8 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   })();
 
   $('#playBtn').addEventListener('click', () => Player.toggle());
+  // Sound can only be opened from a gesture; after the first one a remark plays when pointed at.
+  for (const gesture of ['pointerdown', 'keydown']) document.addEventListener(gesture, () => Player.unlock(), { once: true });
   for (const button of document.querySelectorAll('#hear button')) button.addEventListener('click', () => Player.hear(button.dataset.src));
 
   const signed = (value, unit, digits = 0) => {
@@ -1863,6 +1942,10 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       hint.append(el('span', { class: 'pulse' }), `Fetching the piano: ${S.play.loading.done} of ${S.play.loading.total} samples.`);
       return;
     }
+    if (S.play.bringing) {
+      hint.append(`Bringing out “${shown(S.play.bringing.text)}”: what it wrote ×${S.view.bring.toFixed(1)}, the rest held back${S.reduction.notes.length ? ', the inner voice humming along' : ''}.`);
+      return;
+    }
     if (S.pen.open) {
       hint.append(`Writing about ${scopeNow().label}.`);
       return;
@@ -1881,7 +1964,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       hint.append('Nothing is described yet: one steady tempo, one level. ', key, 'Describe what you see until the notes cover their shadows: drag to bracket a passage, click a note, or just type.');
       return;
     }
-    hint.append(key, S.result.assumed.tempo.length ? 'Dashed bar lines: tempo only assumed. ' : '', 'Click a remark to see what it became. Space plays.');
+    hint.append(key, S.result.assumed.tempo.length ? 'Dashed bar lines: tempo only assumed. ' : '', 'Click a remark to see what it became; rest on it to hear it brought out. Space plays.');
   };
 
   // ------------------------------------------------------------------------------------------
@@ -2608,16 +2691,22 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     const kept = JSON.parse(localStorage.getItem(VIEW) || 'null');
     if (kept && Number.isFinite(kept.height)) S.view.height = clamp(kept.height, 0.25, 4);
     if (kept && typeof kept.staff === 'boolean') S.view.staff = kept.staff;
+    if (kept && Number.isFinite(kept.bring)) S.view.bring = clamp(kept.bring, 1, 1.9);
   } catch {
     // No stored view: keep the default.
   }
   const keepView = () => {
     try {
-      localStorage.setItem(VIEW, JSON.stringify({ height: S.view.height, staff: S.view.staff }));
+      localStorage.setItem(VIEW, JSON.stringify({ height: S.view.height, staff: S.view.staff, bring: S.view.bring }));
     } catch {
       // Storage unavailable.
     }
   };
+  $('#bring').value = String(S.view.bring);
+  $('#bring').addEventListener('input', (event) => {
+    S.view.bring = clamp(Number(event.target.value), 1, 1.9);
+    keepView();
+  });
   const setHeight = (factor) => {
     S.view.height = clamp(S.view.height * factor, 0.25, 4);
     keepView();
@@ -2702,6 +2791,11 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
         fetch('knowledge.txt').then((r) => r.text()),
         fetch('examples.json').then((r) => (r.ok ? r.json() : [])).catch(() => []),
       ]);
+      // The inner voice's line; without it a remark is brought out on the piano alone.
+      fetch('reduction.json')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((reduction) => reduction && (S.reduction = reduction))
+        .catch(() => undefined);
       S.piece = piece;
       S.knowledge = knowledge;
       for (const note of piece.alignment.allNotes) S.score.set(note['xml:id'], note);

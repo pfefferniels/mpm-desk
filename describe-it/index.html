@@ -86,6 +86,8 @@ button { cursor: pointer; }
 .seg button:hover { color: var(--ink); background: var(--band); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--raised); }
 .seg button:focus-visible { outline-offset: -2px; }
+.bring { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.bring input { width: 70px; accent-color: var(--ink); }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); background: var(--roll); z-index: 8; text-align: center; padding: 20px; }
 
 /* ---- the pencil: where a remark is written, on the roll ---- */
@@ -166,6 +168,7 @@ pre.xml .hot { background: var(--accent-soft); }
 
 @media (max-width: 720px) {
   .match .parts { display: none !important; }
+  .bring { display: none; }
   .top .piece { flex-basis: 120px; }
   .foot { flex-wrap: wrap; }
   .foot #hint { order: -1; flex: 1 1 100%; }
@@ -206,6 +209,7 @@ pre.xml .hot { background: var(--accent-soft); }
           <button data-src="mpm" aria-pressed="false" title="Hear the notes as the MPM so far renders them">the MPM</button>
           <button data-src="both" aria-pressed="false" title="Hear both at once: the playing to the left, the MPM to the right">both</button>
         </span>
+        <label class="bring" title="Rest the pointer on a remark to hear its passage with what it wrote brought out, everything else held back, and the inner voice humming along. This sets how strongly.">bring out <input type="range" id="bring" min="1" max="1.9" step="0.1" value="1.5" aria-label="How strongly a remark is brought out when pointed at"></label>
       </span>
       <span id="hint"></span>
       <span class="zoom">
