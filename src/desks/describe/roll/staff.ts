@@ -7,7 +7,7 @@ const NATURAL = [0, 2, 4, 5, 7, 9, 11];
 export type StaffName = 'treble' | 'bass';
 
 /** A pitch as it is written: its letter, its alteration in semitones, and the MIDI number. */
-export interface Spelled {
+interface Spelled {
     letter: string;
     alter: number;
     pitch: number;

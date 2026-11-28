@@ -297,6 +297,121 @@ describe('the option envelopes', () => {
     });
 });
 
+describe('replacing calls', () => {
+    const tempo = (id: string, bpm: number): Call => ({ id, name: 'InsertTempo', options: { from: 0, bpm } });
+
+    it('takes the calls named out and puts the new ones at the end, in the order given', () => {
+        const [x, y] = [tempo('x', 60), tempo('y', 72)];
+        const before = base();
+        const next = workReducer(before, { type: 'replace-calls', remove: ['a', 'c'], add: [x, y] });
+
+        expect(next.provenance.map(({ id }) => id)).toEqual(['b', 'd', 'x', 'y']);
+        expect(next.provenance.at(-2)).toBe(x);
+        expect(next.provenance.at(-1)).toBe(y);
+        // What stays is carried over, envelopes and all, and the document handed in is left alone.
+        expect(byId(next, 'd')).toBe(byId(before, 'd'));
+        expect(byId(next, 'd').options.guides).toBe(guides);
+        expect(before.provenance.map(({ id }) => id)).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('puts a call back at the end under the id it was taken out by', () => {
+        const next = workReducer(base(), { type: 'replace-calls', remove: ['a'], add: [tempo('a', 60)] });
+        expect(next.provenance.map(({ id }) => id)).toEqual(['b', 'c', 'd', 'a']);
+        expect(byId(next, 'a').options).toEqual({ from: 0, bpm: 60 });
+    });
+
+    it('only adds where it is given nothing to remove, and only removes where nothing to add', () => {
+        const added = workReducer(base(), { type: 'replace-calls', remove: [], add: [tempo('x', 60)] });
+        expect(added.provenance.map(({ id }) => id)).toEqual(['a', 'b', 'c', 'd', 'x']);
+
+        const removed = workReducer(base(), { type: 'replace-calls', remove: ['b', 'nobody'], add: [] });
+        expect(removed.provenance.map(({ id }) => id)).toEqual(['a', 'c', 'd']);
+    });
+
+    it('is one edit, and one step of undo', () => {
+        const opened = initialHistory(base());
+        const replaced = workHistoryReducer(opened, {
+            type: 'replace-calls',
+            remove: ['a', 'b'],
+            add: [tempo('x', 60), tempo('y', 72)],
+        });
+        expect(replaced.past).toHaveLength(1);
+        expect(replaced.present.provenance.map(({ id }) => id)).toEqual(['c', 'd', 'x', 'y']);
+
+        const undone = workHistoryReducer(replaced, { type: 'undo' });
+        expect(undone.present).toBe(opened.present);
+        expect(workHistoryReducer(undone, { type: 'redo' }).present).toBe(replaced.present);
+    });
+
+    it('says nothing happened when it removes nothing and adds nothing', () => {
+        const before = base();
+        expect(workReducer(before, { type: 'replace-calls', remove: [], add: [] })).toBe(before);
+        expect(workReducer(before, { type: 'replace-calls', remove: ['nobody'], add: [] })).toBe(before);
+    });
+
+    it('says nothing happened when the calls put in are the calls taken out, in their place', () => {
+        const before = base();
+        // Made anew, as a run makes them: equal, envelope for envelope, and no object shared.
+        const again: Call[] = [
+            { id: 'c', name: 'InsertArticulation', options: { aspects: new Set(aspects) }, elements: ['articulation_0'] },
+            { id: 'd', name: 'InsertDynamics', options: { guides: new Map(guides) } },
+        ];
+        expect(workReducer(before, { type: 'replace-calls', remove: ['c', 'd'], add: again })).toBe(before);
+
+        const history = workHistoryReducer(initialHistory(before), { type: 'replace-calls', remove: ['c', 'd'], add: again });
+        expect(canUndo(history)).toBe(false);
+
+        // A run hands a call over without the elements a save recorded on it. It is the same call,
+        // and what was recorded stays.
+        const bare: Call[] = again.map(({ id, name, options }) => ({ id, name, options }));
+        const kept = workReducer(before, { type: 'replace-calls', remove: ['c', 'd'], add: bare });
+        expect(kept).toBe(before);
+        expect(byId(kept, 'c').elements).toEqual(['articulation_0']);
+
+        // In another order, or with another guide, it is an edit, and the call that says what it
+        // said is still the one the document held.
+        const reordered = workReducer(before, { type: 'replace-calls', remove: ['c', 'd'], add: [...bare].reverse() });
+        expect(reordered.provenance.map(({ id }) => id)).toEqual(['a', 'b', 'd', 'c']);
+        expect(byId(reordered, 'c')).toBe(byId(before, 'c'));
+        const guided: Call = { id: 'd', name: 'InsertDynamics', options: { guides: new Map([['note_12', 65]]) } };
+        const changed = workReducer(before, { type: 'replace-calls', remove: ['c', 'd'], add: [bare[0]!, guided] });
+        expect(changed).not.toBe(before);
+        expect(byId(changed, 'c')).toBe(byId(before, 'c'));
+        expect(byId(changed, 'd')).toBe(guided);
+    });
+
+    it('moves the guides of the calls that stay with an expansion that comes or goes, as adding one does', () => {
+        const curve = (id: string, value: number): Call => ({
+            id,
+            name: 'InsertDynamics',
+            options: { scope: 'global', from: 0, to: 2880, guides: new Map([[720, value]]) },
+        });
+        const expansion: Call = {
+            id: 'e',
+            name: 'Modify',
+            options: { scope: 'global', aspect: 'velocity', points: [[35, 20], [54, 46]] },
+        };
+        const guideOf = (work: WorkFile, id: string) => [...(byId(work, id).options.guides as Map<number, number>)];
+        const before: WorkFile = deepFrozen({ ...EMPTY_WORK, provenance: [curve('stays', 35), curve('goes', 35)] });
+
+        // The curve that stays goes onto the expanded scale; the one handed in arrives on it.
+        const expanded = workReducer(before, {
+            type: 'replace-calls',
+            remove: ['goes'],
+            add: [expansion, curve('comes', 46)],
+        });
+        expect(expanded.provenance.map(({ id }) => id)).toEqual(['stays', 'e', 'comes']);
+        expect(guideOf(expanded, 'stays')).toEqual([[720, 20]]);
+        expect(guideOf(expanded, 'comes')).toEqual([[720, 46]]);
+        expect(guideOf(before, 'stays')).toEqual([[720, 35]]);
+
+        // And back, when the expansion is taken out again.
+        const back = workReducer(expanded, { type: 'replace-calls', remove: ['e'], add: [] });
+        expect(guideOf(back, 'stays')).toEqual([[720, 35]]);
+        expect(guideOf(back, 'comes')).toEqual([[720, 54]]);
+    });
+});
+
 const add = (id: string): WorkAction => ({
     type: 'add-call',
     call: { id, name: 'InsertPedal', options: {} },
