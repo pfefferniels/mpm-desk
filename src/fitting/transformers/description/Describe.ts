@@ -20,7 +20,17 @@ export interface DescribeOptions extends TransformationOptions {
   model: string | null;
   /** When the remark was made, ISO 8601. */
   date: string | null;
-  /** The ids of the calls the remark became. */
+  /**
+   * The steps the remark became, as they were written: registered transformers, or the fitted
+   * steps of `src/fitting/description` (`FitTempo`, `FitDynamics`, `FitSpread`, `Repeat`).
+   *
+   * Absent on a call saved before November 2026, which reads as none.
+   */
+  steps: { name: string; options: Record<string, unknown> }[];
+  /**
+   * The ids of the calls in the document those steps resolve to. Derived: written again whenever
+   * the remarks are resolved.
+   */
   calls: string[];
 }
 
@@ -29,14 +39,16 @@ const NOTHING: DescribeOptions = {
   about: { kind: 'piece', from: 0, to: 0, notes: [] },
   model: null,
   date: null,
+  steps: [],
   calls: [],
 };
 
 /**
- * A remark in words, and the calls it was turned into.
+ * A remark in words, the steps it was turned into, and the calls those resolve to.
  *
  * It writes nothing: the calls it names do. It is a step of the chain so that the list of calls
- * stays flat and still says which of them came from which remark, by whom and when.
+ * stays flat and still says which of them came from which remark, by whom and when. Its steps
+ * are resolved against the recording by `src/fitting/description`, never by the chain.
  */
 export class Describe extends AbstractTransformer<DescribeOptions> {
   readonly name = 'Describe';

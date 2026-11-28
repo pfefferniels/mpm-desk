@@ -52,6 +52,11 @@ interface WorkDocumentValue {
     alignments: readonly WorkAlignment[];
 
     removeCalls: (ids: readonly string[]) => void;
+    /**
+     * Take the calls with the ids `remove` out and put `add` at the end, as one edit: one step of
+     * undo, and none at all where the document comes out as it went in.
+     */
+    replaceCalls: (remove: readonly string[], add: readonly Call[]) => void;
     setMetadata: (update: MetadataUpdate) => void;
     setVoices: (update: VoicesUpdate) => void;
     /**
@@ -90,6 +95,13 @@ export const WorkDocumentProvider = ({
     const removeCalls = useCallback(
         (ids: readonly string[]) => {
             dispatch({ type: 'remove-calls', ids });
+        },
+        [dispatch],
+    );
+
+    const replaceCalls = useCallback(
+        (remove: readonly string[], add: readonly Call[]) => {
+            dispatch({ type: 'replace-calls', remove, add });
         },
         [dispatch],
     );
@@ -143,6 +155,7 @@ export const WorkDocumentProvider = ({
             voices,
             alignments,
             removeCalls,
+            replaceCalls,
             setMetadata,
             setVoices,
             setAlignment,
@@ -157,6 +170,7 @@ export const WorkDocumentProvider = ({
             voices,
             alignments,
             removeCalls,
+            replaceCalls,
             setMetadata,
             setVoices,
             setAlignment,

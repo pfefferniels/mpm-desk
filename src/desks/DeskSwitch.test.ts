@@ -83,6 +83,7 @@ const FITTED: DocumentFacts = { readings: 2, aligned: 476, tempos: 9, unchosen: 
  */
 const PLOTS_THE_RECORDING = [
     'corrections',
+    'describe',
     'Temporal Spread',
     'Dynamics Gradient',
     'tempo',

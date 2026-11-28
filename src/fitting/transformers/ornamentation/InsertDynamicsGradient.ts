@@ -71,6 +71,15 @@ const directionOf = (struck: readonly AlignedNote[]): ArpeggioDirection => {
 };
 
 /**
+ * Which way a chord's velocities lean across its roll, or `undefined` where none of its notes
+ * sounded: the direction a call over every chord picks its gradient by.
+ */
+export const leanOf = (chord: readonly AlignedNote[]): ArpeggioDirection | undefined => {
+  const struck = struckOrder(chord);
+  return struck.length > 0 ? directionOf(struck) : undefined;
+};
+
+/**
  * The velocities the ramp is fitted along: those of the chord's sounded notes in the order they
  * were struck, or, with `sortVelocities`, the same velocities redealt so that they rise or fall
  * monotonically in the chord's own direction, which is what the fit then writes onto the notes.

@@ -16,7 +16,7 @@
  * (see {@link Call}), so no cheap deep-equal compares two work files honestly.
  */
 
-import type { Call, WorkFile } from './Work';
+import { serializeWorkFile, type Call, type WorkFile } from './Work';
 import type {
     PartLayout,
     VoiceMove,
@@ -58,6 +58,13 @@ export type WorkAction =
     | { type: 'add-call'; call: Call }
     /** Calls, deleted. */
     | { type: 'remove-calls'; ids: readonly string[] }
+    /**
+     * Calls taken out and calls put in their place, as one edit and so one step of undo: what the
+     * steps of a remark resolved to, replaced by what they resolve to now.
+     *
+     * The calls named by `remove` go, then `add` lands at the end of the chain in the order given.
+     */
+    | { type: 'replace-calls'; remove: readonly string[]; add: readonly Call[] }
     /** The desk bag replaced, or updated from its previous value. */
     | { type: 'set-secondary'; update: SecondaryUpdate }
     /**
@@ -375,6 +382,14 @@ const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'Describe', 'ProcessVoi
 export const describesPerformance = (call: Call): boolean => !WRITES_NO_INSTRUCTION.has(call.name);
 
 /**
+ * What a call says, spelled as the file's own writer spells it: `options` holds `Map`s and `Set`s.
+ *
+ * Without what a run recorded on the call, its `elements` and `range`, which are not what it says.
+ */
+const spelled = ({ id, name, options }: Call): string =>
+    serializeWorkFile({ ...EMPTY_WORK, provenance: [{ id, name, options }] });
+
+/**
  * Apply one edit to the document.
  *
  * Returns the state it was given, by reference, for an edit that changes nothing.
@@ -407,6 +422,36 @@ export const workReducer = (state: WorkFile, action: WorkAction): WorkFile => {
                 : kept;
 
             return { ...state, provenance };
+        }
+
+        case 'replace-calls': {
+            const dropping = new Set(action.remove);
+            const dropped = state.provenance.filter((call) => dropping.has(call.id));
+            if (dropped.length === 0 && action.add.length === 0) return state;
+            const kept = state.provenance.filter((call) => !dropping.has(call.id));
+
+            // A call put back saying what it said is the call the document holds already. Taken
+            // as handed in, it would lose what a run recorded on it, and be a change where there
+            // is none.
+            const held = new Map(dropped.map((call) => [call.id, call]));
+            const added = action.add.map((call) => {
+                const was = held.get(call.id);
+                return was && spelled(was) === spelled(call) ? was : call;
+            });
+
+            // An expansion of velocity that comes or goes takes the guides of the calls that stay
+            // with it, as in the two cases above. The calls put in are left as they were handed
+            // over: their guides were set on the scale they arrive with.
+            const staying = [...dropped, ...added].some(movesGuides)
+                ? followExpansions(state.provenance, [...kept, ...added]).slice(0, kept.length)
+                : kept;
+            const provenance = [...staying, ...added];
+
+            // Resolved again and come to the same calls in the same places: not a step to undo.
+            const unchanged =
+                provenance.length === state.provenance.length &&
+                provenance.every((call, i) => call === state.provenance[i]);
+            return unchanged ? state : { ...state, provenance };
         }
 
         case 'set-secondary': {
