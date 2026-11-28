@@ -50,9 +50,12 @@ export interface Roll {
         ms: number;
         velocity: number;
     }[];
-    /** The pedals as recorded and as rendered; `value` is of 127. */
+    /**
+     * The pedals as recorded and as rendered; `value` is of 127. A press as recorded goes by the
+     * id a call names it by.
+     */
     pedals: {
-        played: { kind: PedalKind; ms: number; msEnd: number }[];
+        played: { id: string; kind: PedalKind; ms: number; msEnd: number }[];
         mpm: { kind: PedalKind; ms: number; value: number }[];
     };
     /** The beats of the score, where the tempo map puts them. */
@@ -188,6 +191,7 @@ export const layRoll = ({
         pedals: {
             played: played.pedals
                 .map((pedal) => ({
+                    id: pedal['xml:id'],
                     kind: pedal.type,
                     ms: pedal['milliseconds.date'] - shifted,
                     msEnd: pedal['milliseconds.date.end'] - shifted,

@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { about, bar, loadFixture, said, step, type Fixture } from './fixture';
 import { leftIn, measures } from './left';
 import { buildPrompt, KNOWLEDGE } from './prompt';
+import type { Call } from '../../../model/Work';
 import type { ExpertRequest } from './types';
 
 /**
@@ -47,6 +48,8 @@ describe('the knowledge', () => {
 
         expect(KNOWLEDGE).toContain('`try_steps({steps})`');
         expect(KNOWLEDGE).toContain('`withheld`');
+        // A press of the pedal is named by its id, which the piece lists.
+        expect(KNOWLEDGE).toContain('or `{"pedal": id}` per press (the presses are listed with the piece)');
         expect(KNOWLEDGE).not.toMatch(/DescribeIt|try_calls|"calls"|`reading`/);
     });
 
@@ -117,10 +120,12 @@ describe('the piece', () => {
     it('lists the presses of the pedals and the grace-note groups as they were recorded', () => {
         const { pedals, graces } = request.run.roll;
         const [head, ...presses] = under(prompt, '## Pedal presses');
-        expect(head).toBe('pedal\tdown_ms\tup_ms');
-        expect(presses).toHaveLength(pedals.played.length);
-        // The soft pedal is down before the first note.
-        expect(presses[0]).toBe('soft\t-1824\t75715');
+        expect(head).toBe('id\tpedal\tdown_ms\tup_ms');
+        // Each by the id a step names it by; the soft pedal is down before the first note.
+        expect(presses.map((press) => press.split('\t')[0])).toEqual(
+            pedals.played.map((press) => press.id),
+        );
+        expect(presses[0]).toBe('soft-0\tsoft\t-1824\t75715');
 
         const [columns, ...groups] = under(prompt, '## Grace-note groups');
         expect(columns).toBe('group\tprincipal\tbar:beat\tnotes');
@@ -132,6 +137,9 @@ describe('the piece', () => {
     it('says what is assumed and what is left where nothing is described', () => {
         const described = lines(prompt).slice(lines(prompt).indexOf('# WHAT HAS BEEN DESCRIBED SO FAR'));
         expect(described[1]).toBe('No other remark has become steps yet.');
+        // Whether anything was made by hand it was not told, and says so.
+        expect(described[2]).toMatch(/^Calls made by hand on the other desks .* are not listed/);
+        expect(prompt).not.toContain('# WHAT WAS MADE BY HAND');
         expect(described).toContain('- steady tempo: [0,92880) 47.9 bpm');
         expect(described).toContain('- level: velocity 37 from ticks 0');
         const left = measures(leftIn(request.run.roll.notes));
@@ -144,6 +152,83 @@ describe('the piece', () => {
         const barless = buildPrompt({ ...request, piece: { ...request.piece, bars: [] } });
         expect(barless).toContain('The score states no metre, so it has no bars');
         expect(under(barless, '## Every note')[2]).toMatch(/^npk4lw6\t1\t0\ttick 0\t/);
+    });
+});
+
+describe('what was made by hand on the other desks', () => {
+    const HEADING = '# WHAT WAS MADE BY HAND ON THE OTHER DESKS';
+    const call = (name: string, options: Record<string, unknown> = {}): Call => ({
+        id: `${name}-${JSON.stringify(options).length}`,
+        name,
+        options,
+    });
+
+    it('is counted by transformer, each with the ticks its calls speak of', () => {
+        const byHand = [
+            call('MakeChoice', { prefer: '#take' }),
+            call('InsertTempo', { from: bar(1), to: bar(2), bpm: 50, beatLength: 0.25 }),
+            call('InsertTempo', { from: bar(2), to: bar(3), bpm: 60, beatLength: 0.25 }),
+            call('InsertRubato', { date: 2880, length: 720 }),
+            call('InsertArticulation', { noteIDs: [MELODY, C5], name: 'held' }),
+            call('Modify', { aspect: 'velocity', change: -2, noteIDs: [UPBEAT] }),
+            call('Modify', { aspect: 'velocity', points: [[35, 20], [54, 46]] }),
+            call('InsertPedal', {
+                pedal: 'sustain-1440',
+                guides: new Map([[600.4, 0], [800, 1], [2100.6, 0]]),
+            }),
+        ];
+        const request = fixture.request(said('r1', 'rush', PIECE));
+        const prompt = buildPrompt({ ...request, byHand });
+        expect(under(prompt, HEADING)).toEqual([
+            expect.stringMatching(
+                /^8 calls of the document belong to no remark\. They run as they stand, .*: where a step speaks of ticks one of them already speaks of, both run\. /,
+            ),
+            '- InsertTempo ×2: ticks 720 to 6480 (1:1 to 3:1)',
+            '- InsertRubato ×1: ticks 2880 to 3600 (1:4 to 2:1)',
+            // Placed by the notes it names, and by the guides of a press.
+            '- InsertArticulation ×1: ticks 720 to 3600 (1:1 to 2:1)',
+            '- Modify ×2: tick 0 (0:1); 1 without a place',
+            '- InsertPedal ×1: ticks 600 to 2101 (0:1.83 to 1:2.92)',
+            '- naming no place in the score: MakeChoice ×1',
+        ]);
+        // It comes after what the remarks became, and the caveat it answers is gone.
+        const all = lines(prompt);
+        expect(all.indexOf(HEADING)).toBeGreaterThan(all.indexOf('# WHAT HAS BEEN DESCRIBED SO FAR'));
+        expect(all.indexOf(HEADING)).toBeLessThan(all.indexOf('# THE REMARK TO TRANSLATE'));
+        expect(prompt).not.toContain('are not listed');
+    });
+
+    it('is a dozen lines for the published reconstruction, every transformer once', () => {
+        const byHand = fixture.published;
+        const request = fixture.request(said('r1', 'rush', PIECE), [], { byHand });
+        const prompt = buildPrompt(request);
+        const [counted, ...rows] = under(prompt, HEADING);
+        expect(counted).toMatch(new RegExp(`^${byHand.length} calls of the document `));
+        expect(rows.length).toBeLessThanOrEqual(12);
+
+        const section = rows.join('\n');
+        for (const [name, calls] of Map.groupBy(byHand, ({ name }) => name)) {
+            expect(section.split(`${name} ×${calls.length}`)).toHaveLength(2);
+        }
+        // The tempos drawn, from the first of them to where the last ends.
+        const tempos = byHand.filter(({ name }) => name === 'InsertTempo');
+        const first = Math.min(...tempos.map(({ options }) => options['from'] as number));
+        const last = Math.max(...tempos.map(({ options }) => options['to'] as number));
+        expect(rows).toContainEqual(
+            expect.stringMatching(
+                new RegExp(`^- InsertTempo ×${tempos.length}: ticks ${first} to ${last} \\(`),
+            ),
+        );
+        expect(rows.at(-1)).toMatch(/^- naming no place in the score: .*MakeChoice ×1/);
+        // What they describe is no longer assumed, and little is left of it.
+        expect(prompt).toContain('- level: none, dynamics are described throughout');
+    });
+
+    it('is left out where nothing was', () => {
+        const request = fixture.request(said('r1', 'rush', PIECE));
+        const prompt = buildPrompt({ ...request, byHand: [] });
+        expect(prompt).not.toContain(HEADING);
+        expect(prompt).not.toContain('are not listed');
     });
 });
 

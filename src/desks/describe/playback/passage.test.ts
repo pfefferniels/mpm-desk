@@ -7,7 +7,16 @@ import type { RollNote } from '../../../fitting/description/client';
 import type { DescribedPlace } from '../../../fitting/transformers/description/Describe';
 import type { Subject } from './context';
 import { aRun, places, QUARTER, step } from './fixture';
-import { freshOf, gridOf, playedFor, playedFrom, soundsOf, timesOf, wroteOf, type Chosen } from './passage';
+import {
+    freshOf,
+    gridOf,
+    playedFor,
+    playedFrom,
+    soundsOf,
+    timesOf,
+    wroteOf,
+    type Chosen,
+} from './passage';
 
 const run = aRun();
 const { roll } = run;
@@ -23,7 +32,11 @@ const on = (id: string): DescribedPlace => {
 
 describe('what a remark wrote', () => {
     it('is read off the elements of its steps', () => {
-        expect(wroteOf(run.remarks[0])).toEqual({ elements: ['tempo_2880'], about: new Set(['tempo']), touched: [] });
+        expect(wroteOf(run.remarks[0])).toEqual({
+            elements: ['tempo_2880'],
+            about: new Set(['tempo']),
+            touched: [],
+        });
     });
 
     it('names its subjects as the context rules do, and passes over what says nothing', () => {
@@ -31,8 +44,14 @@ describe('what a remark wrote', () => {
             id: 'r',
             concrete: [],
             steps: [
-                step(['<rubato date="0" xml:id="a" />', '<ornament date="0" name.ref="roll" xml:id="b" />']),
-                step(['<accentuationPattern date="0" xml:id="c" />', '<movement date="0" xml:id="d" />']),
+                step([
+                    '<rubato date="0" xml:id="a" />',
+                    '<ornament date="0" name.ref="roll" xml:id="b" />',
+                ]),
+                step([
+                    '<accentuationPattern date="0" xml:id="c" />',
+                    '<movement date="0" xml:id="d" />',
+                ]),
                 step(['<asynchrony date="0" xml:id="e" />', '<style date="0" xml:id="f" />']),
             ],
         };
@@ -70,13 +89,37 @@ describe('the notes played for a remark', () => {
         const chosen = playedFor(roll, tempo, wrote('tempo'), asRendered)!;
         expect(chosen.own).toEqual(new Set(['r4', 'r5', 'l1']));
         // The whole note of the first bar is still sounding where the playing begins.
-        expect(levels(chosen)).toEqual({ r2: 1, r3: 1, r4: 1, r5: 1, r6: 1, r7: 1, l1: 1, l0: 0.7 });
+        expect(levels(chosen)).toEqual({
+            r2: 1,
+            r3: 1,
+            r4: 1,
+            r5: 1,
+            r6: 1,
+            r7: 1,
+            l1: 1,
+            l0: 0.7,
+        });
         expect(chosen.held).toEqual(new Set(['l0']));
-        expect(freshOf(roll.notes, chosen).map((note) => note.id)).toEqual(['r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'l1']);
+        expect(freshOf(roll.notes, chosen).map((note) => note.id)).toEqual([
+            'r2',
+            'r3',
+            'r4',
+            'r5',
+            'r6',
+            'r7',
+            'l1',
+        ]);
     });
 
     it('are fewer where the remark wrote nothing: the chord before and the chord after', () => {
-        expect(levels(playedFor(roll, tempo, wrote(), asRendered))).toEqual({ r3: 1, r4: 1, r5: 1, r6: 1, l1: 1, l0: 0.7 });
+        expect(levels(playedFor(roll, tempo, wrote(), asRendered))).toEqual({
+            r3: 1,
+            r4: 1,
+            r5: 1,
+            r6: 1,
+            l1: 1,
+            l0: 0.7,
+        });
     });
 
     it('hold the other hand back under single notes, so that they are heard in their line', () => {
@@ -86,23 +129,52 @@ describe('the notes played for a remark', () => {
     });
 
     it('leave the other hand as loud where loudness is what the remark is about', () => {
-        expect(levels(playedFor(roll, on('r4'), wrote('dynamics'), asRendered))).toEqual({ r3: 1, r4: 1, r5: 1, l1: 1, l0: 0.7 });
+        expect(levels(playedFor(roll, on('r4'), wrote('dynamics'), asRendered))).toEqual({
+            r3: 1,
+            r4: 1,
+            r5: 1,
+            l1: 1,
+            l0: 0.7,
+        });
     });
 
     it('reach no further than 2.6 s from the passage in the rendering played, but for the nearest chord either side', () => {
         // Four times as slow, a quarter takes two seconds: the second chord after is out of reach.
         const slow = playedFor(roll, tempo, wrote('tempo'), (note) => note.mpm.ms * 4)!;
-        expect(freshOf(roll.notes, slow).map((note) => note.id)).toEqual(['r3', 'r4', 'r5', 'r6', 'l1']);
+        expect(freshOf(roll.notes, slow).map((note) => note.id)).toEqual([
+            'r3',
+            'r4',
+            'r5',
+            'r6',
+            'l1',
+        ]);
         // Eight times as slow every chord is, and the nearest is played all the same.
         const slower = playedFor(roll, tempo, wrote('tempo'), (note) => note.mpm.ms * 8)!;
-        expect(freshOf(roll.notes, slower).map((note) => note.id)).toEqual(['r3', 'r4', 'r5', 'r6', 'l1']);
+        expect(freshOf(roll.notes, slower).map((note) => note.id)).toEqual([
+            'r3',
+            'r4',
+            'r5',
+            'r6',
+            'l1',
+        ]);
         // Twice as slow nothing is.
-        expect(freshOf(roll.notes, playedFor(roll, tempo, wrote('tempo'), (note) => note.mpm.ms * 2)!)).toHaveLength(7);
+        expect(
+            freshOf(roll.notes, playedFor(roll, tempo, wrote('tempo'), (note) => note.mpm.ms * 2)!),
+        ).toHaveLength(7);
     });
 
     it('are none where its place holds no note', () => {
-        expect(playedFor(roll, { kind: 'span', from: 100, to: 200, notes: [] }, wrote(), asRendered)).toBeNull();
-        expect(playedFor(roll, { kind: 'notes', from: 0, to: 720, notes: ['gone'] }, wrote(), asRendered)).toBeNull();
+        expect(
+            playedFor(roll, { kind: 'span', from: 100, to: 200, notes: [] }, wrote(), asRendered),
+        ).toBeNull();
+        expect(
+            playedFor(
+                roll,
+                { kind: 'notes', from: 0, to: 720, notes: ['gone'] },
+                wrote(),
+                asRendered,
+            ),
+        ).toBeNull();
     });
 
     it('are all of them from the line on, for a remark on the whole piece', () => {
@@ -118,18 +190,40 @@ describe('the notes chosen, as the piano strikes them', () => {
 
     it('sound where the rendering has them, each at its level', () => {
         const keys = soundsOf(roll.notes, (note) => note.mpm, chosen);
-        expect(keys.find((key) => key.id === 'r2')).toEqual({ id: 'r2', pitch: 62, onsetMs: 1000, offsetMs: 1450, velocity: 60 });
-        expect(keys.find((key) => key.id === 'l1')).toEqual({ id: 'l1', pitch: 43, onsetMs: 2000, offsetMs: 3950, velocity: 60 });
+        expect(keys.find((key) => key.id === 'r2')).toEqual({
+            id: 'r2',
+            pitch: 62,
+            onsetMs: 1000,
+            offsetMs: 1450,
+            velocity: 60,
+        });
+        expect(keys.find((key) => key.id === 'l1')).toEqual({
+            id: 'l1',
+            pitch: 43,
+            onsetMs: 2000,
+            offsetMs: 3950,
+            velocity: 60,
+        });
         expect(keys).toHaveLength(8);
     });
 
     it('begin a held note with the first of the others, softer, and let it end when it did', () => {
         const keys = soundsOf(roll.notes, (note) => note.mpm, chosen);
-        expect(keys.find((key) => key.id === 'l0')).toEqual({ id: 'l0', pitch: 36, onsetMs: 1000, offsetMs: 1950, velocity: 42 });
+        expect(keys.find((key) => key.id === 'l0')).toEqual({
+            id: 'l0',
+            pitch: 36,
+            onsetMs: 1000,
+            offsetMs: 1950,
+            velocity: 42,
+        });
     });
 
     it('leave a held note out that has ended by then', () => {
-        const keys = soundsOf(roll.notes, (note) => (note.id === 'l0' ? { ...note.mpm, msEnd: 1040 } : note.mpm), chosen);
+        const keys = soundsOf(
+            roll.notes,
+            (note) => (note.id === 'l0' ? { ...note.mpm, msEnd: 1040 } : note.mpm),
+            chosen,
+        );
         expect(keys.map((key) => key.id)).not.toContain('l0');
         expect(keys).toHaveLength(7);
     });
@@ -139,10 +233,15 @@ describe('when the playing begins and ends', () => {
     const sound = (ms: number, msEnd: number) => ({ ms, msEnd, velocity: 60 });
 
     it('begins a moment before the first sound, and ends after the last of the remark has', () => {
-        expect(timesOf([sound(1000, 1450), sound(2000, 3950), sound(3500, 3950)], [sound(2000, 5000)])).toEqual({ from: 960, until: 5300 });
+        expect(
+            timesOf([sound(1000, 1450), sound(2000, 3950), sound(3500, 3950)], [sound(2000, 5000)]),
+        ).toEqual({ from: 960, until: 5300 });
     });
 
     it('gives the last chord time to be heard where the remark ends sooner', () => {
-        expect(timesOf([sound(1000, 1450), sound(3500, 3950)], [sound(1000, 1450)])).toEqual({ from: 960, until: 4500 });
+        expect(timesOf([sound(1000, 1450), sound(3500, 3950)], [sound(1000, 1450)])).toEqual({
+            from: 960,
+            until: 4500,
+        });
     });
 });

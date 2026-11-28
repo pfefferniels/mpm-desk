@@ -65,7 +65,11 @@ export const contextOf = (
     let to = after(dates, last);
 
     if (about.has('tempo') || about.has('rubato') || about.has('roll')) {
-        from = Math.min(from, atOrBefore(beats, atOrBefore(beats, first) - 1), before(dates, first, 2));
+        from = Math.min(
+            from,
+            atOrBefore(beats, atOrBefore(beats, first) - 1),
+            before(dates, first, 2),
+        );
         to = Math.max(to, Math.min(after(dates, last, 2), to + 1.5 * beat));
     }
     const named = place.kind === 'notes' || place.kind === 'box';

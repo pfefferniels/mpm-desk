@@ -47,7 +47,11 @@ export const lay = (
         const stood = plainly.get(note.id);
         if (!sounds || !stood) continue;
         const by = note.mpm.ms - stood.ms;
-        laid.set(note.id, { ms: sounds.ms + by, msEnd: sounds.msEnd + by, velocity: sounds.velocity });
+        laid.set(note.id, {
+            ms: sounds.ms + by,
+            msEnd: sounds.msEnd + by,
+            velocity: sounds.velocity,
+        });
         carried.push({ ms: sounds.ms, by });
     }
     carried.sort((a, b) => a.ms - b.ms);
@@ -59,7 +63,7 @@ export const lay = (
 
 /** A remark as it is played. */
 export interface Rendering {
-    /** Every note where the rendering has it, in ms of the recording; null with nothing brought out. */
+    /** Every note where the rendering has it, in ms of the recording; null as the MPM stands. */
     moved: ReadonlyMap<string, Sounded> | null;
     heard: Heard;
     /** The stretch that is played, in ms of the recording. */
@@ -101,7 +105,9 @@ export const renderingOf = (
             const at = laid?.notes.get(note.id);
             return [
                 note.id,
-                at ? { ms: at.ms + shift, msEnd: at.msEnd + shift, velocity: at.velocity } : note.mpm,
+                at
+                    ? { ms: at.ms + shift, msEnd: at.msEnd + shift, velocity: at.velocity }
+                    : note.mpm,
             ];
         }),
     );

@@ -77,6 +77,19 @@ export const useDescription = ({ alignment, calls, asked, client, onRun }: Descr
         return next;
     }, [calls, asked]);
     const key = useMemo(() => runKey(made), [made]);
+    /**
+     * The remarks with an answer waiting to be written. An answer can say again what its remark
+     * already holds, and then the document it makes is one the last run already answers: that the
+     * answer came is the only thing that changed, and it still has to be taken.
+     */
+    const awaited = useMemo(
+        () =>
+            [...asked]
+                .flatMap(([id, { answer }]) => (answer ? [id] : []))
+                .sort()
+                .join(' '),
+        [asked],
+    );
 
     const madeRef = useLatest(made);
     const onRunRef = useLatest(onRun);
@@ -108,7 +121,7 @@ export const useDescription = ({ alignment, calls, asked, client, onRun }: Descr
             overtaken = true;
         };
         // `made` and `onRun` through refs: what a run depends on of them is in `key`.
-    }, [alignment, key, client, madeRef, onRunRef]);
+    }, [alignment, key, awaited, client, madeRef, onRunRef]);
 
     // The same recording with nothing said of it. Asked as a trial, which the client always runs
     // by itself: a plain request made beside the one above would be answered with that one's run.

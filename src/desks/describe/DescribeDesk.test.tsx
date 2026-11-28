@@ -694,6 +694,23 @@ describe('the describe desk and the expert', () => {
         expect(desk.card().getByText(/Broken did not run: there is nothing there to fit/)).toBeInTheDocument();
     });
 
+    it('takes an answer that says again what the remark already holds, and moves on to the next', async () => {
+        const desk = await asking();
+        await desk.answer([TEMPO]);
+        await waitFor(() => expect(desk.calls()).toHaveLength(2));
+        callUp('steady throughout');
+        fireEvent.click(desk.card().getByRole('button', { name: 'Ask again' }));
+        await waitFor(() => expect(desk.asked).toHaveLength(2));
+        const runs = desk.plainRuns().length;
+        const steps = desk.held.history.past.length;
+        await desk.answer([TEMPO]);
+        // Nothing to run and nothing to write: but the answer is taken, and nothing waits on it.
+        await waitFor(() => expect(document.querySelector('[data-remark="r1"]')?.getAttribute('data-state')).toBe('done'));
+        expect(desk.services.session.asking.read().get('r1')?.answer).toBeNull();
+        expect(desk.plainRuns()).toHaveLength(runs);
+        expect(desk.held.history.past).toHaveLength(steps);
+    });
+
     it('takes a mended answer that runs', async () => {
         const desk = await asking();
         await desk.answer([{ name: 'Broken', options: {} }]);

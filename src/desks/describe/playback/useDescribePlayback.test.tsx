@@ -10,7 +10,11 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MidiFile } from 'midifile-ts';
 import { addAbsoluteTime } from 'react-pianosound';
-import type { BroughtOut, DescriptionClient, DescriptionRun } from '../../../fitting/description/client';
+import type {
+    BroughtOut,
+    DescriptionClient,
+    DescriptionRun,
+} from '../../../fitting/description/client';
 import { midiFileOf } from '../../../performance/buildMidiFile';
 import { createFakePiano } from '../../../test/fakePiano';
 import { aRun, performed, places } from './fixture';
@@ -25,7 +29,10 @@ const samples = { loading: false, waiting: new Set<(piano: RigPiano) => void>() 
 
 vi.mock('../../../performance/piano', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../../../performance/piano')>()),
-    usePiano: () => (samples.loading ? { ...rig.usePiano(), status: 'loading', play: () => null } : rig.usePiano()),
+    usePiano: () =>
+        samples.loading
+            ? { ...rig.usePiano(), status: 'loading', play: () => null }
+            : rig.usePiano(),
     whenSamplesArrive: (start: (piano: RigPiano) => void) => {
         if (!samples.loading) return null;
         samples.waiting.add(start);
@@ -58,7 +65,14 @@ const client: DescriptionClient = {
     describe: () => new Promise(() => undefined),
     bringOut: (run, ids, factor, attenuation) =>
         new Promise((resolve, reject) => {
-            asks.push({ run, ids, factor, attenuation, answered: false, settle: (out) => (out ? resolve(out) : reject(new Error('refused'))) });
+            asks.push({
+                run,
+                ids,
+                factor,
+                attenuation,
+                answered: false,
+                settle: (out) => (out ? resolve(out) : reject(new Error('refused'))),
+            });
         }),
     dispose: () => undefined,
 };
@@ -104,16 +118,22 @@ const events = (file: MidiFile) => addAbsoluteTime(file);
 /** The keys a file strikes, in order: `ms pitch velocity`. */
 const keys = (file: MidiFile) =>
     events(file).flatMap((event) =>
-        event.type === 'channel' && event.subtype === 'noteOn' ? [`${event.abs} ${event.noteNumber} ${event.velocity}`] : [],
+        event.type === 'channel' && event.subtype === 'noteOn'
+            ? [`${event.abs} ${event.noteNumber} ${event.velocity}`]
+            : [],
     );
 /** The moves of the sustaining pedal in a file: `ms value`. */
 const pedal = (file: MidiFile) =>
     events(file).flatMap((event) =>
-        event.type === 'channel' && event.subtype === 'controller' && event.controllerType === 64 ? [`${event.abs} ${event.value}`] : [],
+        event.type === 'channel' && event.subtype === 'controller' && event.controllerType === 64
+            ? [`${event.abs} ${event.value}`]
+            : [],
     );
 /** The keys the piano was sent after `second` of its transport: `second pitch`. */
 const struckAfter = (second: number) =>
-    rig.piano.actions.flatMap(({ type, time, midi }) => (type === 'keyDown' && time > second ? [`${time.toFixed(2)} ${midi}`] : []));
+    rig.piano.actions.flatMap(({ type, time, midi }) =>
+        type === 'keyDown' && time > second ? [`${time.toFixed(2)} ${midi}`] : [],
+    );
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -235,7 +255,7 @@ describe('putting the line somewhere', () => {
 });
 
 describe('what is heard', () => {
-    it('is the MPM\'s rendering once that is chosen: no grace note, and the pedal as the MPM moves it', () => {
+    it("is the MPM's rendering once that is chosen: no grace note, and the pedal as the MPM moves it", () => {
         const { playback } = mount();
         act(() => playback.current.setHearing('rendered'));
         act(() => playback.current.toggle());
@@ -364,7 +384,16 @@ describe('bringing a remark out', () => {
         expect(playback.current.playing).toBe(true);
         expect(rig.played).toHaveLength(1);
         // From 40 ms before that chord; the whole note held under it is struck with it, softer.
-        expect(keys(rig.played[0])).toEqual(['40 62 60', '40 36 42', '790 63 60', '1540 64 60', '1540 43 60', '2290 65 60', '3040 66 60', '3790 67 60']);
+        expect(keys(rig.played[0])).toEqual([
+            '40 62 60',
+            '40 36 42',
+            '790 63 60',
+            '1540 64 60',
+            '1540 43 60',
+            '2290 65 60',
+            '3040 66 60',
+            '3790 67 60',
+        ]);
         expect(pedal(rig.played[0])).toEqual(['0 127', '790 0']);
     });
 
@@ -492,7 +521,14 @@ describe('bringing a remark out', () => {
         });
 
         expect(playback.current.moved!.get('r0')).toEqual({ ms: 0, msEnd: 450, velocity: 72 });
-        expect(keys(rig.played[0])).toEqual(['40 63 72', '540 64 72', '540 43 72', '1040 65 72', '1540 66 72', '2040 67 72']);
+        expect(keys(rig.played[0])).toEqual([
+            '40 63 72',
+            '540 64 72',
+            '540 43 72',
+            '1040 65 72',
+            '1540 66 72',
+            '2040 67 72',
+        ]);
     });
 
     it('lets go of a remark the run does not hold', async () => {
@@ -660,7 +696,9 @@ describe('the document being edited', () => {
     /** The run after an edit: the right hand's fourth note comes 200 ms later. */
     const edited = (): DescriptionRun => {
         const run = aRun();
-        const notes = run.roll.notes.map((note) => (note.id === 'r3' ? { ...note, mpm: { ...note.mpm, ms: note.mpm.ms + 200 } } : note));
+        const notes = run.roll.notes.map((note) =>
+            note.id === 'r3' ? { ...note, mpm: { ...note.mpm, ms: note.mpm.ms + 200 } } : note,
+        );
         return { ...run, roll: { ...run.roll, notes } };
     };
 
@@ -674,7 +712,10 @@ describe('the document being edited', () => {
         const next = edited();
         set({ run: next });
         expect(playback.current.moved).toBe(before);
-        expect(asks.slice(2).map((ask) => [ask.run === next, ask.ids.length])).toEqual([[true, 0], [true, 1]]);
+        expect(asks.slice(2).map((ask) => [ask.run === next, ask.ids.length])).toEqual([
+            [true, 0],
+            [true, 1],
+        ]);
 
         await answer();
         expect(playback.current.brought).toBe('tempo');
@@ -739,6 +780,20 @@ describe('the one piano of the Desk', () => {
         expect(rig.transport.state).toBe('started');
     });
 
+    it('is not stopped under the other even before a frame has shown that it was taken', () => {
+        const { playback } = mount();
+        act(() => playback.current.toggle());
+        runTo(1);
+        act(() => {
+            rig.usePiano().play(elsewhere);
+        });
+        expect(playback.current.playing).toBe(true);
+
+        act(() => playback.current.stop());
+        expect(playback.current.playing).toBe(false);
+        expect(rig.transport.state).toBe('started');
+    });
+
     it('is seen to have been stopped elsewhere', () => {
         const { playback } = mount();
         act(() => playback.current.toggle());
@@ -782,7 +837,15 @@ describe('what the desk is handed', () => {
         expect(follow).toHaveBeenCalledTimes(2);
         expect(playback.current).toBe(playing);
 
-        for (const control of ['setHearing', 'toggle', 'stop', 'seek', 'bring', 'setStrength', 'line'] as const) {
+        for (const control of [
+            'setHearing',
+            'toggle',
+            'stop',
+            'seek',
+            'bring',
+            'setStrength',
+            'line',
+        ] as const) {
             expect(playback.current[control]).toBe(first[control]);
         }
 

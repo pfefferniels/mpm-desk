@@ -37,7 +37,9 @@ const client: DescriptionClient = {
 
 // Two bars that press forward and grow louder.
 const [FROM, TO] = [bar(16), bar(18)];
-const places = new Map<string, DescribedPlace>([['r1', { kind: 'span', from: FROM, to: TO, notes: [] }]]);
+const places = new Map<string, DescribedPlace>([
+    ['r1', { kind: 'span', from: FROM, to: TO, notes: [] }],
+]);
 
 /** The published reconstruction as it stands, and a remark on the two bars' loudness. */
 let reconstructed: DescriptionRun;
@@ -68,7 +70,8 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-const mount = (run: DescriptionRun) => renderHook(() => useDescribePlayback({ run, places, client })).result;
+const mount = (run: DescriptionRun) =>
+    renderHook(() => useDescribePlayback({ run, places, client })).result;
 
 const runTo = (seconds: number) =>
     act(() => {
@@ -107,13 +110,18 @@ describe('the roll of the published transcription', () => {
         const keys = struckIn(rig.played[0]);
         expect(keys.size).toBe(roll.notes.length + roll.graces.length);
         for (const note of roll.notes) {
-            expect(keys.get(note.id)).toEqual({ ms: Math.round(note.ms), velocity: Math.round(note.velocity) });
+            expect(keys.get(note.id)).toEqual({
+                ms: Math.round(note.ms),
+                velocity: Math.round(note.velocity),
+            });
         }
 
         runTo(endOf(roll) / 1000 + 1);
         expect(sent('keyDown')).toBe(keys.size);
         expect(new Set(rig.heard).size).toBe(keys.size);
-        expect(sent('pedalDown')).toBe(roll.pedals.played.filter((press) => press.kind === 'sustain').length);
+        expect(sent('pedalDown')).toBe(
+            roll.pedals.played.filter((press) => press.kind === 'sustain').length,
+        );
         expect(rig.piano.dropped).toBe(0);
         expect(playback.current.playing).toBe(false);
         expect(sounding()).toBe(0);
@@ -122,7 +130,12 @@ describe('the roll of the published transcription', () => {
     it('is struck as the MPM renders it: every note once, though the rendering holds some into the next on their key', () => {
         const { roll } = reconstructed;
         const held = roll.notes.filter((note) =>
-            roll.notes.some((next) => next.pitch === note.pitch && next.mpm.ms > note.mpm.ms && next.mpm.ms < note.mpm.msEnd),
+            roll.notes.some(
+                (next) =>
+                    next.pitch === note.pitch &&
+                    next.mpm.ms > note.mpm.ms &&
+                    next.mpm.ms < note.mpm.msEnd,
+            ),
         );
         expect(held.length).toBeGreaterThan(10);
 
@@ -131,7 +144,10 @@ describe('the roll of the published transcription', () => {
         act(() => playback.current.toggle());
         const keys = struckIn(rig.played[0]);
         for (const note of roll.notes) {
-            expect(keys.get(note.id)).toEqual({ ms: Math.round(note.mpm.ms), velocity: Math.round(note.mpm.velocity) });
+            expect(keys.get(note.id)).toEqual({
+                ms: Math.round(note.mpm.ms),
+                velocity: Math.round(note.mpm.velocity),
+            });
         }
 
         runTo(endOf(roll) / 1000 + 1);
@@ -142,7 +158,8 @@ describe('the roll of the published transcription', () => {
 });
 
 describe('a remark of the published transcription, brought out', () => {
-    const own = (run: DescriptionRun) => run.roll.notes.filter((note) => note.date >= FROM && note.date < TO);
+    const own = (run: DescriptionRun) =>
+        run.roll.notes.filter((note) => note.date >= FROM && note.date < TO);
 
     it('is struck where the roll shows it and as loud, with what it takes around it, and then is still', async () => {
         const playback = mount(described);
@@ -178,7 +195,9 @@ describe('a remark of the published transcription, brought out', () => {
         await settled();
 
         // The tempo brought out more strongly has the two bars' last notes far from where they were.
-        const apart = own(described).map((note) => Math.abs(playback.current.moved!.get(note.id)!.ms - before.get(note.id)!.ms));
+        const apart = own(described).map((note) =>
+            Math.abs(playback.current.moved!.get(note.id)!.ms - before.get(note.id)!.ms),
+        );
         expect(Math.max(...apart)).toBeGreaterThan(300);
         expect(rig.played).toHaveLength(1);
         expect(rig.splices).toHaveLength(1);

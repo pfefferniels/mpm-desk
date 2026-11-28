@@ -22,7 +22,13 @@ const LATE = 30;
 /** Where the MPM has a date, in ms. */
 const msAt = (date: number) => (date / QUARTER) * QUARTER_MS;
 
-const note = (id: string, part: number, pitch: number, date: number, duration: number): RollNote => {
+const note = (
+    id: string,
+    part: number,
+    pitch: number,
+    date: number,
+    duration: number,
+): RollNote => {
     const mpm = { ms: msAt(date), msEnd: msAt(date + duration) - 50, velocity: 60 };
     return {
         id,
@@ -73,8 +79,8 @@ export const aRun = (): DescriptionRun => ({
         graces: [{ id: 'g', group: 'g', principal: 'r4', pitch: 59, ms: 1950, velocity: 40 }],
         pedals: {
             played: [
-                { kind: 'sustain', ms: 0, msEnd: 1800 },
-                { kind: 'soft', ms: 0, msEnd: 400 },
+                { id: 'sustain-0', kind: 'sustain', ms: 0, msEnd: 1800 },
+                { id: 'soft-0', kind: 'soft', ms: 0, msEnd: 400 },
             ],
             mpm: [
                 { kind: 'sustain', ms: 0, value: 127 },
@@ -88,7 +94,9 @@ export const aRun = (): DescriptionRun => ({
         timeSignatures: [{ date: 0, numerator: 4, denominator: 4 }],
     },
     remarks: [
-        remark('tempo', [step(['<tempo date="2880" bpm="120" xml:id="tempo_2880" />'], ['r4', 'r5', 'l1'])]),
+        remark('tempo', [
+            step(['<tempo date="2880" bpm="120" xml:id="tempo_2880" />'], ['r4', 'r5', 'l1']),
+        ]),
         remark('quiet', [step([], [], 'nothing to fit')]),
         remark('whole', [step(['<dynamics date="0" volume="60" xml:id="dynamics_0" />'])]),
     ],

@@ -1,5 +1,6 @@
 import type { DescriptionRun, Step } from '../../../fitting/description/client';
 import type { DescribedPlace } from '../../../fitting/transformers/description/Describe';
+import type { Call } from '../../../model/Work';
 
 /** A remark as the expert is shown it. */
 export interface RemarkInWords {
@@ -19,6 +20,11 @@ export interface ExpertRequest {
     mend?: readonly string[];
     /** Every other remark of the document. */
     others: readonly RemarkInWords[];
+    /**
+     * What was made by hand on the other desks: the calls of the document that are no remark and
+     * that no remark owns. The expert is told of them where they are given.
+     */
+    byHand?: readonly Call[];
     /** The document as it stands. */
     run: DescriptionRun;
     piece: {

@@ -3,14 +3,14 @@
  * renders it, and a remark's passage played brought out.
  *
  * Everything it plays is on the recording's clock, so the line is one number whatever is heard,
- * and other notes can be handed to the piano under it without the place being lost.
+ * and the piano can be handed other notes while it plays without the place being lost.
  *
- * It is no part of React. The hook hands it what the desk has after every render, and draws what
+ * It is no part of React. The hook hands it what the desk has after every render and shows what
  * it shows; the line it keeps apart, for the one thing that follows it.
  *
  * The Desk has one piano, which the app bar's transport plays as well. Whoever plays last has it:
- * this one notices by the schedule the piano holds that it is no longer its own, and lets go
- * without stopping what the other started.
+ * this one sees by the schedule the piano holds that it is no longer its own, and lets go without
+ * stopping what the other started.
  */
 import { addAbsoluteTime, type Schedule } from 'react-pianosound';
 import type { BroughtOut, DescriptionRun } from '../../../fitting/description/client';
@@ -105,19 +105,22 @@ export const createPlayer = (): Player => {
     /** Cancels a press that is waiting for the samples. */
     let waiting: (() => void) | null = null;
 
-    /** The remark brought out as it was rendered last, and whether it is to be played once it is. */
+    /** The remark brought out as it was rendered last, and whether it is still to be played. */
     let rendering: Rendering | null = null;
     let toPlay = false;
     /** How many renderings have been asked for, and whether one is being made. */
     let asked = 0;
     let making = false;
-    /** The MPM of one run as it stands, on the renderer's clock: what `lay` reads the roll's laying off. */
+    /** One run's MPM rendered as it stands, which `lay` reads the roll's own laying off. */
     let asItStands: { run: DescriptionRun; rendering: Promise<BroughtOut> } | null = null;
 
     const position = ({ from, schedule }: Flight) =>
         from + ((piano?.getTransportSeconds() ?? 0) - schedule.offset) * 1000 - AHEAD_MS;
 
-    /** The flight is over. The line goes back to where it is parked: at `at`, if it was the roll that played. */
+    /**
+     * The flight is over, and the line goes back to where it is parked: at `at`, if it was the
+     * roll that played.
+     */
     const land = (at: number) => {
         cancelAnimationFrame(frame);
         if (flight && !ofRemark) parked = at;
@@ -126,7 +129,7 @@ export const createPlayer = (): Player => {
         show({ playing: false });
     };
 
-    /** Stops what plays, and drops a press still waiting to. The line stays where it was heard last. */
+    /** Stops what plays, and drops a press still waiting to. The line stays where it was heard. */
     const halt = () => {
         waiting?.();
         waiting = null;
@@ -256,7 +259,7 @@ export const createPlayer = (): Player => {
         return asItStands.rendering;
     };
 
-    /** The remark brought out, rendered against the run as it stands; null where it cannot be played. */
+    /** The remark brought out, rendered against the run as it is now; null with nothing to play. */
     const make = async (): Promise<Rendering | null> => {
         const now = input;
         const remark = now?.run?.remarks.find((report) => report.id === shown.brought);

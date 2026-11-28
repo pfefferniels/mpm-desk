@@ -10,7 +10,7 @@ import type { PlayableNote } from '../../../performance/buildMidiFile';
 import { contextOf, type ScoreGrid, type Subject } from './context';
 import { keyOf } from './hearing';
 
-/** A note already sounding where the playing begins is struck with its first chord, this much softer. */
+/** A note already sounding where the playing begins is struck with its first chord, softer. */
 const HELD = 0.7;
 /** The hand that a remark on single notes does not name. */
 const SHADED = 0.55;
@@ -128,7 +128,8 @@ export const playedFor = (
         named(place) && !about.has('dynamics') && !hands.has(note.part) ? SHADED : 1;
 
     const around = roll.notes.filter(
-        (note) => own.has(note.id) || (note.date >= span.from && note.date <= span.to && near(note)),
+        (note) =>
+            own.has(note.id) || (note.date >= span.from && note.date <= span.to && near(note)),
     );
     const gains = new Map(around.map((note) => [note.id, levelOf(note)]));
     const begins = Math.min(...around.map((note) => note.date));

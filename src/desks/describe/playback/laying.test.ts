@@ -22,7 +22,9 @@ const DAMPED = 0.35;
 describe('a rendering carried onto the roll', () => {
     const run = aRun();
     /** The second bar was carried 80 ms: the renderer has it that much earlier than the roll. */
-    const plain = performed(run).notes.map((note) => (note.ms >= 2000 ? { ...note, ms: note.ms - 80, msEnd: note.msEnd - 80 } : note));
+    const plain = performed(run).notes.map((note) =>
+        note.ms >= 2000 ? { ...note, ms: note.ms - 80, msEnd: note.msEnd - 80 } : note,
+    );
 
     it('stands where the roll has it, rendered as the MPM stands', () => {
         const { notes } = lay(run.roll.notes, plain, plain);
@@ -30,7 +32,12 @@ describe('a rendering carried onto the roll', () => {
     });
 
     it('carries each note as far as the roll carried it', () => {
-        const out = plain.map((note) => ({ ...note, ms: note.ms + 7, msEnd: note.msEnd + 11, velocity: 80 }));
+        const out = plain.map((note) => ({
+            ...note,
+            ms: note.ms + 7,
+            msEnd: note.msEnd + 11,
+            velocity: 80,
+        }));
         const { notes } = lay(run.roll.notes, plain, out);
         expect(notes.get('r1')).toEqual({ ms: 507, msEnd: 961, velocity: 80 });
         expect(notes.get('r5')).toEqual({ ms: 2507, msEnd: 2961, velocity: 80 });
@@ -70,12 +77,37 @@ describe('a remark as it is played', () => {
     });
 
     it('hands the piano the notes where the roll shows them, the held one softer and with the first', () => {
-        const { moved, heard, from, until } = renderingOf(run.roll, place('tempo'), wroteOf(tempo), 0, brought)!;
-        expect(heard.notes.map((key) => key.id)).toEqual(['r2', 'l0', 'r3', 'r4', 'l1', 'r5', 'r6', 'r7']);
+        const { moved, heard, from, until } = renderingOf(
+            run.roll,
+            place('tempo'),
+            wroteOf(tempo),
+            0,
+            brought,
+        )!;
+        expect(heard.notes.map((key) => key.id)).toEqual([
+            'r2',
+            'l0',
+            'r3',
+            'r4',
+            'l1',
+            'r5',
+            'r6',
+            'r7',
+        ]);
         for (const key of heard.notes.filter((key) => key.id !== 'l0')) {
-            expect(key).toMatchObject({ onsetMs: moved!.get(key.id)!.ms, offsetMs: moved!.get(key.id)!.msEnd, velocity: 70 });
+            expect(key).toMatchObject({
+                onsetMs: moved!.get(key.id)!.ms,
+                offsetMs: moved!.get(key.id)!.msEnd,
+                velocity: 70,
+            });
         }
-        expect(heard.notes[1]).toEqual({ id: 'l0', pitch: 36, onsetMs: 1000, offsetMs: 2425, velocity: 49 });
+        expect(heard.notes[1]).toEqual({
+            id: 'l0',
+            pitch: 36,
+            onsetMs: 1000,
+            offsetMs: 2425,
+            velocity: 49,
+        });
         expect({ from, until }).toEqual({ from: 960, until: 5750 });
     });
 
@@ -85,7 +117,13 @@ describe('a remark as it is played', () => {
     });
 
     it('is the MPM as it stands where nothing is brought out', () => {
-        const { moved, heard, from, until } = renderingOf(run.roll, place('quiet'), wroteOf(run.remarks[1]), 0, null)!;
+        const { moved, heard, from, until } = renderingOf(
+            run.roll,
+            place('quiet'),
+            wroteOf(run.remarks[1]),
+            0,
+            null,
+        )!;
         expect(moved).toBeNull();
         expect(heard.notes).toEqual([
             { id: 'r1', pitch: 61, onsetMs: 500, offsetMs: 950, velocity: 60 },
@@ -100,7 +138,13 @@ describe('a remark as it is played', () => {
 
     it('is played from the line, for a remark on the whole piece', () => {
         const louder = { plain: performed(run), out: performed(run, 1, 10) };
-        const { moved, heard, from } = renderingOf(run.roll, place('whole'), wroteOf(whole), 1200, louder)!;
+        const { moved, heard, from } = renderingOf(
+            run.roll,
+            place('whole'),
+            wroteOf(whole),
+            1200,
+            louder,
+        )!;
         expect(heard.notes.map((key) => key.id)).toEqual(['r3', 'r4', 'l1', 'r5', 'r6', 'r7']);
         expect(from).toBe(1460);
         expect(moved!.get('r3')).toEqual({ ms: 1500, msEnd: 1950, velocity: 70 });
@@ -145,13 +189,21 @@ describe('a remark of the published transcription, laid on its roll', () => {
         return renderingOf(run.roll, passage, wrote, 0, { plain, out })!;
     };
     /** How far each note is from where the roll has it, in ms. */
-    const apart = (run: DescriptionRun, { moved }: { moved: ReadonlyMap<string, { ms: number }> | null }, ids?: Set<string>) =>
-        run.roll.notes.filter((note) => !ids || ids.has(note.id)).map((note) => Math.abs(moved!.get(note.id)!.ms - note.mpm.ms));
+    const apart = (
+        run: DescriptionRun,
+        { moved }: { moved: ReadonlyMap<string, { ms: number }> | null },
+        ids?: Set<string>,
+    ) =>
+        run.roll.notes
+            .filter((note) => !ids || ids.has(note.id))
+            .map((note) => Math.abs(moved!.get(note.id)!.ms - note.mpm.ms));
 
     it('puts every note where the roll has it while nothing is exaggerated or held back, however the roll was laid', () => {
         // The reconstruction's tempos do not all end on the chord the next begins on: the roll is
         // laid anew at each, and is a sixth of a second from the renderer's own clock in places.
-        const plain = new Map(bringOut(reconstructed, [], 1, 1).notes.map((note) => [note.id, note.ms]));
+        const plain = new Map(
+            bringOut(reconstructed, [], 1, 1).notes.map((note) => [note.id, note.ms]),
+        );
         const carried = reconstructed.roll.notes.map((note) => note.mpm.ms - plain.get(note.id)!);
         expect(Math.max(...carried) - Math.min(...carried)).toBeGreaterThan(150);
 
@@ -172,7 +224,9 @@ describe('a remark of the published transcription, laid on its roll', () => {
         const rendering = laid(described, 1.9, DAMPED);
         const played = new Set(rendering.heard.notes.map((key) => key.id));
         const still = described.roll.notes.filter(
-            (note) => played.has(note.id) && Math.abs(rendering.moved!.get(note.id)!.ms - note.mpm.ms) < 1e-6,
+            (note) =>
+                played.has(note.id) &&
+                Math.abs(rendering.moved!.get(note.id)!.ms - note.mpm.ms) < 1e-6,
         );
         // The chord that stays is the context before the two bars, and the playing begins with it.
         expect(still.length).toBeGreaterThan(0);

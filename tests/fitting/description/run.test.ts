@@ -579,6 +579,24 @@ describe('what a description adds to the chain', () => {
             expect(press.ms).toBeGreaterThanOrEqual(i ? played[i - 1]!.ms : -5000);
             expect(press.ms).toBeLessThan(last);
         }
+        // Each goes by the id the recording gives it, which is what a call names it by: traced
+        // alone, it is the one press the step was fitted to and the one the MPM holds.
+        const ids = played.map((press) => press.id);
+        expect(new Set(ids).size).toBe(played.length);
+        expect(ids.sort()).toEqual(
+            published.alignment.pedals
+                .filter((pedal) => pedal.source === choice[0]?.options['prefer'])
+                .map((pedal) => pedal['xml:id'])
+                .sort(),
+        );
+        const press = played.find(({ kind }) => kind === 'sustain')!;
+        const alone = run([...choice, remark('r1', [step('InsertPedal', { pedal: press.id })])]);
+        expect(alone.remarks[0]?.steps[0]).toMatchObject({
+            evidence: [press.id],
+            elements: [`${press.id}_down`, `${press.id}_rest`],
+        });
+        expect(alone.remarks[0]?.steps[0]?.error).toBeUndefined();
+
         // Nothing described, nothing rendered; described, the pedal goes down and comes up again.
         expect(base.roll.pedals.mpm).toEqual([]);
         const pedalled = run([...choice, remark('r1', [step('InsertPedal')])]);
