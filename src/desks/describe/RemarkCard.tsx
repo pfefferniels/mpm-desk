@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import { Box, Button, InputBase, Link, Paper, Typography } from '@mui/material';
 import { keyframes } from '@mui/material/styles';
 import type { RemarkReport } from '../../fitting/description/client';
-import type { Call } from '../../model/Work';
 import type { Asked } from './asking';
 import type { Remark } from './document';
 import { WORDS_FAMILY } from './roll/tones';
@@ -90,7 +89,6 @@ export const RemarkCard = ({
     const failure = asked?.failure ?? null;
     const concrete = new Map((report?.concrete ?? []).map((call) => [call.id, call]));
     const untold = remark.steps.length === 0 && remark.model === null && !awaited && question === null && failure === null;
-    const troubled = failure !== null || (report?.steps.some((step) => step.error !== undefined) ?? false);
 
     const commit = () => {
         const text = (typed ?? '').trim();
@@ -257,7 +255,7 @@ export const RemarkCard = ({
                     )}
                     {turn === null && hasKey && (
                         <Button variant="text" color="inherit" onClick={onAsk}>
-                            {untold ? 'Ask the expert' : troubled ? 'Ask again' : 'Ask again'}
+                            {untold ? 'Ask the expert' : 'Ask again'}
                         </Button>
                     )}
                     <Button variant="text" color="inherit" onClick={onDelete}>

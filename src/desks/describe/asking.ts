@@ -208,9 +208,10 @@ const createAsking = (idle: () => void): Asking => {
  */
 export interface DescribeSession {
     asking: Asking;
-    /** The client, started with the first call. The desk takes it when it opens. */
-    open: () => DescriptionClient;
-    /** The desk has closed. */
+    /** The client, started with the first call made of it and let go as said above. */
+    client: DescriptionClient;
+    /** The desk has opened, or closed. */
+    open: () => void;
     close: () => void;
     /**
      * The states of the document a run's result has been written over.
@@ -235,15 +236,15 @@ export const createSession = (createClient: () => DescriptionClient): DescribeSe
     return {
         asking,
         written: new WeakSet(),
+        // Not a client itself: one let go while nobody was there is started again by the next
+        // call, as the client's own contract has it for its worker.
+        client: {
+            describe: (...request) => held().describe(...request),
+            bringOut: (...request) => held().bringOut(...request),
+            dispose: () => undefined,
+        },
         open: () => {
             desks += 1;
-            // Not the client itself: one let go while an asking was still to try its steps out is
-            // started again by the next call, as the client's own contract has it.
-            return {
-                describe: (...request) => held().describe(...request),
-                bringOut: (...request) => held().bringOut(...request),
-                dispose: () => undefined,
-            };
         },
         close: () => {
             desks = Math.max(0, desks - 1);
