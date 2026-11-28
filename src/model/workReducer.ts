@@ -358,7 +358,8 @@ export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
 /**
  * Does this call say anything about the performance?
  *
- * These three do not. `InsertMetadata` writes `<metadata>` and no instruction. `ProcessVoices`
+ * These four do not. `InsertMetadata` writes `<metadata>` and no instruction. `Describe` holds
+ * a remark and names the calls it became, which are the ones that say something. `ProcessVoices`
  * says which MEI voice goes into which MSM part, a statement about the score's encoding. `AlignSource`
  * says which sounding event realises which written note, which a reconstruction reads before it
  * has said anything. `Modify`, `CorrectPedal` and `MakeChoice` are not exceptions: reshaping
@@ -369,7 +370,7 @@ export const alignmentsOf = (work: WorkFile): WorkAlignment[] =>
  * `elements` is recorded by a run, so a call made a moment ago has none, and this has to answer
  * before the fit comes back.
  */
-const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'ProcessVoices', 'AlignSource']);
+const WRITES_NO_INSTRUCTION = new Set(['InsertMetadata', 'Describe', 'ProcessVoices', 'AlignSource']);
 
 export const describesPerformance = (call: Call): boolean => !WRITES_NO_INSTRUCTION.has(call.name);
 

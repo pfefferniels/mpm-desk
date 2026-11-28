@@ -6,7 +6,8 @@ import { correspondingDesks } from './DeskSwitch';
  * `CorrectPedal`, which the corrections desk makes beside `Modify`; and what a desk's
  * buttons make beside the calls its gestures do, `CombineAdjacentRubatos` on the rubato desk,
  * `MergeMetricalAccentuations` on the accentuation desk and `MakeDefaultArticulation` on the
- * articulation desk.
+ * articulation desk; and `Describe`, a remark and the calls it became, which is about how the
+ * document was made and so opens the desk of the document itself.
  *
  * {@link deskOfCall} maps a call's name through this before it looks for the desk that made it,
  * and `DeskSwitch.test.ts` checks every entry against the desk registry.
@@ -20,6 +21,7 @@ export const TRANSFORMER_ALIASES: ReadonlyMap<string, string> = new Map([
     ['CombineAdjacentRubatos', 'InsertRubato'],
     ['MergeMetricalAccentuations', 'InsertMetricalAccentuation'],
     ['MakeDefaultArticulation', 'InsertArticulation'],
+    ['Describe', 'InsertMetadata'],
 ]);
 
 /**

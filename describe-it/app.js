@@ -53,7 +53,6 @@ import { createPlayer } from './player.js';
     selection: new Set(),
     selKind: 'none', // none (whole piece) | notes | span | box | arrow
     pen: { open: false, editing: null },
-    level: 64, // velocity drawn one row tall
     view: { ppt: 0.03, shadows: true, pencil: false, height: 1 },
     play: { on: false, source: 'played', at: 0, loading: null }, // `at` in ms
     hoverAnn: null,
@@ -230,7 +229,7 @@ import { createPlayer } from './player.js';
         const calls = ann.calls.map((call, index) => ({ id: `${ann.id}:${index}`, name: call.name, options: call.options || {} }));
         const { kind, from, to, ids } = ann.scope;
         const notes = kind === 'piece' || kind === 'span' ? [] : ids;
-        const options = { text: ann.text, scope: { kind, from, to, notes }, model: ann.model || null, date: ann.date || null, calls: calls.map((call) => call.id) };
+        const options = { text: ann.text, about: { kind, from, to, notes }, model: ann.model || null, date: ann.date || null, calls: calls.map((call) => call.id) };
         return [{ id: ann.id, name: 'Describe', options }, ...calls];
       });
 
@@ -299,6 +298,12 @@ import { createPlayer } from './player.js';
     result.beatMs = result.beats.map((beat) => beat.ms);
     result.total = result.notes.reduce((max, note) => Math.max(max, note.msEnd, note.mpm.msEnd), result.beatMs[result.beatMs.length - 1] || 0);
     result.byId = new Map(result.notes.map((note) => [note.id, note]));
+    // Loudness scale of this run's recording: its median velocity is one row tall, its 98th
+    // percentile three. A run that corrects the roll's dynamics has a scale of its own.
+    const velocities = result.notes.map((note) => note.velocity).sort((a, b) => a - b);
+    const level = velocities[velocities.length >> 1];
+    const loudest = velocities[Math.floor(velocities.length * 0.98)];
+    result.scale = { level, perOctave: 2 / Math.max(0.15, Math.log2(Math.max(loudest, level + 1) / level)) };
   };
 
   /** Time (ms) of a score date under the current tempo map, tweened after a refit. */
@@ -359,7 +364,7 @@ import { createPlayer } from './player.js';
   const penText = $('#penText');
   const pop = $('#pop');
   const ctx = canvas.getContext('2d');
-  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, lo: 36, hi: 84, perOctave: 4, rects: [], marks: [], pedals: [], penAt: null, promptRow: null };
+  const G = { gutter: 34, lanes: 1, top: 50, bottom: 8, width: 0, height: 0, rowH: 8, lo: 36, hi: 84, rects: [], marks: [], pedals: [], penAt: null, promptRow: null };
   let palette = {};
 
   const readPalette = () => {
@@ -401,20 +406,24 @@ import { createPlayer } from './player.js';
   const X = (ms) => G.gutter + ms * S.view.ppt - scroller.scrollLeft;
   const msOf = (px) => (px - G.gutter + scroller.scrollLeft) / S.view.ppt;
   const Y = (pitch) => G.top + HEAD + (G.hi - pitch + 0.5) * G.rowH;
-  /** Drawn height of a velocity: one row at `S.level`, `G.perOctave` rows more per doubling. */
-  const tall = (velocity) => G.rowH * clamp(1 + S.view.height * G.perOctave * Math.log2(Math.max(velocity, 1) / S.level), 0.3, 6);
+  /** Rows a velocity stands above the run's level (below, if negative): the scale height and opacity share. */
+  const loudness = (velocity) => S.result.scale.perOctave * Math.log2(Math.max(velocity, 1) / S.result.scale.level);
+  const tall = (velocity) => G.rowH * clamp(1 + S.view.height * loudness(velocity), 0.3, 6);
+  /** Opacity of a note: the louder, the more solid. */
+  const solid = (velocity) => clamp(0.7 + 0.15 * loudness(velocity), 0.3, 1);
   /** Rectangle of a note as the MPM renders it, tweened after a refit. */
   const rectOf = (note) => {
     const from = S.tween ? S.tween.from.get(note.id) : null;
     const t = S.tween ? S.tween.t : 1;
     const mix = (key) => (from ? from[key] + (note.mpm[key] - from[key]) * t : note.mpm[key]);
-    const h = tall(mix('velocity'));
-    return { x: X(mix('ms')), y: Y(note.pitch) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h };
+    const velocity = mix('velocity');
+    const h = tall(velocity);
+    return { x: X(mix('ms')), y: Y(note.pitch) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h, ink: solid(velocity) };
   };
   /** Rectangle of a note as recorded: its shadow. */
   const shadowOf = (note, played = note) => {
     const h = tall(played.velocity);
-    return { x: X(played.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (played.msEnd - played.ms) * S.view.ppt), h };
+    return { x: X(played.ms), y: Y(note.pitch) - h / 2, w: Math.max(2, (played.msEnd - played.ms) * S.view.ppt), h, ink: solid(played.velocity) };
   };
   const rounded = (x, y, w, h, r) => {
     ctx.beginPath();
@@ -720,7 +729,8 @@ import { createPlayer } from './player.js';
         const hue = note.part === 1 ? palette.rh : palette.lh;
         ctx.fillStyle = hue;
         ctx.strokeStyle = hue;
-        ctx.globalAlpha = dim ? 0.05 : 0.17;
+        // A shadow stays fainter than any note, and within that the louder is the darker.
+        ctx.globalAlpha = (0.08 + 0.48 * (was.ink - 0.3)) * (dim ? 0.3 : 1);
         rounded(was.x, was.y, was.w, was.h, 2.5);
         ctx.fill();
         ctx.setLineDash([3, 2]);
@@ -750,11 +760,12 @@ import { createPlayer } from './player.js';
       const r = rectOf(note);
       if (r.x + r.w < G.gutter || r.x > width) continue;
       const dim = dimmed(note.id);
-      ctx.globalAlpha = dim ? (chosen ? 0.3 : 0.16) : 0.78;
+      const faded = dim ? (chosen ? 0.4 : 0.22) : 1;
+      ctx.globalAlpha = r.ink * faded;
       ctx.fillStyle = note.part === 1 ? palette.rh : palette.lh;
       rounded(r.x, r.y, r.w, r.h, 2.5);
       ctx.fill();
-      ctx.globalAlpha = dim ? (chosen ? 0.4 : 0.2) : 0.95;
+      ctx.globalAlpha = Math.min(1, r.ink + 0.25) * faded;
       ctx.fillRect(r.x, r.y, Math.min(2, r.w), r.h);
       G.rects.push({ note, ...r });
     }
@@ -2571,11 +2582,6 @@ import { createPlayer } from './player.js';
       S.base = await Engine.run([]);
       index(S.base);
       S.bars = buildBars(S.base.timeSignatures, S.base.end);
-      S.level = S.base.level;
-      // Height scale: the 98th-percentile velocity is drawn three rows tall.
-      const velocities = S.base.notes.map((n) => n.velocity).sort((a, b) => a - b);
-      const loudest = velocities[Math.floor(velocities.length * 0.98)];
-      G.perOctave = 2 / Math.max(0.15, Math.log2(Math.max(loudest, S.level + 1) / S.level));
       S.result = S.base;
 
       const kept = restore();

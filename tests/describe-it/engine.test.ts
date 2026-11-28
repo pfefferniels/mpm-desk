@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { convertMeiToMsm } from 'espressivo';
 import { runFit } from '../../src/fitting/fit';
+import { buildChain } from '../../src/fitting/chain';
 import { asMSM } from '../../src/fitting/asMSM';
 import { parseWorkFile, type Call } from '../../src/model/Work';
 import { publishedPath } from '../../src/test/published';
@@ -222,7 +223,7 @@ describe('what a description adds to the chain', () => {
       'Describe',
       {
         text: 'steady by the bar',
-        scope: { kind: 'span', from: bar(1), to: bar(3), notes: [] },
+        about: { kind: 'span', from: bar(1), to: bar(3), notes: [] },
         model: 'claude-opus-5-5',
         date: '2026-11-27T12:00:00.000Z',
         calls: ['r1:0'],
@@ -245,6 +246,9 @@ describe('what a description adds to the chain', () => {
     // What was assumed for the rest stands before it, and nothing is recorded twice.
     expect(described.record.slice(0, at).every((step) => step.id.startsWith('assumed-tempo-'))).toBe(true);
     expect(new Set(described.record.map((step) => step.id)).size).toBe(described.record.length);
+    // The Desk reads the record as it reads any work file: it knows every step in it.
+    const file = JSON.stringify({ name: '', mei: '', mpm: '', provenance: described.record });
+    expect(buildChain(parseWorkFile(file).provenance).unknown).toEqual([]);
   });
 
   it('gives the pedals on the roll\'s clock: the presses as recorded, and the MPM\'s once it has any', () => {

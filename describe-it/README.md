@@ -3,8 +3,8 @@
 A prototype of another way into the MPM Desk: a reader describes a recorded performance in their
 own words, on its piano roll, and never has to know MPM.
 
-The roll draws the louder note taller, so that a loud note stands out of its own track into the
-ones beside it. The reader writes on the roll as on paper: a stroke along it brackets a passage,
+The roll draws the louder note taller and more solid, so that a loud note stands out of its own
+track into the ones beside it and a soft one is pale. The reader writes on the roll as on paper: a stroke along it brackets a passage,
 a stroke down it boxes some of its notes, a stroke from one note to another is an arrow, a
 direction the playing takes, a click picks a note, and with nothing in hand what is typed is
 about the whole piece. An expert, Claude Opus 5.5, reads each remark ("arpeggio
@@ -61,11 +61,13 @@ remark is itself a step, `Describe`, which changes nothing and names the calls t
 so that the list stays flat:
 
     { "id": "r1", "name": "Describe", "options": { "text": "steady tempo on half bars",
-      "scope": { "kind": "span", "from": 720, "to": 23760, "notes": [] },
+      "about": { "kind": "span", "from": 720, "to": 23760, "notes": [] },
       "model": "claude-opus-5-5", "date": "2026-11-27T12:00:00.000Z", "calls": ["r1:0", "r1:1"] } }
     { "id": "r1:0", "name": "InsertTempo", "options": { ... } }
 
-The MPM Desk has no `Describe` in its registry yet, so it does not open such a list as it is.
+`Describe` is a transformer of the Desk's registry (`src/fitting/transformers/description`), so
+the Desk reads such a list as it reads any other. No desk shows a remark yet: a link to one opens
+the desk of the document itself.
 
 ## What the engine adds to the chain
 
@@ -85,7 +87,7 @@ a remark made today may be about a place somebody spoke of yesterday.
 - **The pedals.** The presses as they were recorded and the moves the MPM's rendering makes, on
   the one clock.
 - **The record.** Every step as the Desk reads it, a fitted step stated as the call it came to,
-  under the `Describe` step of the remark it came from.
+  under the Desk's `Describe` step for the remark it came from.
 - **A later remark owns its place.** A tempo or dynamics span is taken out of every earlier one,
   which is refitted over what it has left; a roll on one chord goes before a roll over all.
 - **What a desk always writes** is filled in, an ornament gets its definition unasked, and a call
@@ -101,6 +103,7 @@ reconstruction replayed through it the rendering stands fifty times nearer the p
 - Tempo, rubato, dynamics and accentuation are written for both hands; one hand's share is said
   through note ids.
 - Remarks are kept in the browser's own storage.
-- A `work.json` can be saved from the page; the Desk cannot open it until it knows `Describe`.
+- A `work.json` can be saved from the page. The Desk knows every step in it; opening one there
+  has not been tried.
 - `app.js` is one long file still. The transport and the piano are modules of their own, and the
   rest is to follow them.

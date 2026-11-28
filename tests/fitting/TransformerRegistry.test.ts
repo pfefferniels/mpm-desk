@@ -45,6 +45,9 @@ describe('TransformerRegistry', () => {
      * `MakeDefaultArticulation` each have a control in a desk, so retiring one means deleting
      * that control. See `Order.ts`.
      *
+     * `Describe` is this repo's own too: a remark in words and the calls it became, which writes
+     * nothing.
+     *
      * `RoundNumbers` is this repo's own and last: it restates what everything before it wrote.
      * Grace notes, which the MSM leaves out and MPM v3 can play, have no transformer of their
      * own: `InsertTemporalSpread` fits their lead beside the roll of a chord.
@@ -70,6 +73,7 @@ describe('TransformerRegistry', () => {
         'MakeDefaultArticulation',
         'InsertPedal',
         'InsertMetadata',
+        'Describe',
         'RoundNumbers',
       ]);
     });
@@ -124,7 +128,7 @@ describe('TransformerRegistry', () => {
         (value): value is new () => Transformer =>
           typeof value === 'function' && value.prototype instanceof AbstractTransformer,
       );
-      expect(exported.length).toBe(19);
+      expect(exported.length).toBe(20);
       for (const constructor of exported) {
         const name = new constructor().name;
         expect(isRegistered(name), `${name} is exported but not registered`).toBe(true);

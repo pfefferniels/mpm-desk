@@ -13,5 +13,6 @@ export * from './Order';
 export * from './choice/MakeChoice';
 export * from './modification/Modify';
 export * from './modification/CorrectPedal';
+export * from './description/index';
 export * from './metadata/index';
 export * from './TransformerRegistry';

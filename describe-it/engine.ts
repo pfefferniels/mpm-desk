@@ -13,6 +13,7 @@ import {
 } from '../src/fitting/transformers/Transformer';
 import { InsertTempo, type InsertTempoOptions } from '../src/fitting/transformers/tempo/InsertTempo';
 import { InsertDynamics } from '../src/fitting/transformers/dynamics/InsertDynamics';
+import { Describe, type DescribeOptions } from '../src/fitting/transformers/description/Describe';
 import {
   coversDate,
   placeTempos,
@@ -351,16 +352,8 @@ export interface PlainCall {
   options: Record<string, unknown>;
 }
 
-/** Provenance step for one remark and the calls made from it; has no effect on the chain. */
-export const DESCRIBE = 'Describe';
-export interface DescribeOptions {
-  text: string;
-  scope: { kind: string; from: number; to: number; notes: string[] };
-  /** Null when the calls were written by hand. */
-  model: string | null;
-  date: string | null;
-  calls: string[];
-}
+/** The Desk's step for a remark and the calls made from it. It writes nothing, so it is kept out of the run. */
+const DESCRIBE = new Describe().name;
 
 const SYSTEM = new Set(['AssumeLevel']);
 /** The built-in transformer each of these runs, which is what satisfies a `requires`. */

@@ -3,6 +3,7 @@ import { InsertArticulation, MakeDefaultArticulation } from './articulation/inde
 import { StylizeArticulation } from './articulation/StylizeArticulation';
 import { MakeChoice } from './choice/MakeChoice';
 import { InsertDynamics } from './dynamics/index';
+import { Describe } from './description/index';
 import { InsertMetadata } from './metadata/index';
 import { Modify } from './modification/Modify';
 import { CorrectPedal } from './modification/CorrectPedal';
@@ -30,7 +31,7 @@ import {
 // Register the transformers, in reduction order — which is the order a chain runs in, whatever
 // order its calls were written.
 //
-// Twenty-one of them. What is registered is decided by whether anything in the editor can reach
+// Twenty-two of them. What is registered is decided by whether anything in the editor can reach
 // it, rather than by how often a transformer is used.
 //
 // Not registered: `InsertAsynchrony`, `CompressOrnamentation` and `ApproximateLogarithmicTempo`
@@ -43,6 +44,9 @@ import {
 // articulation Style desk) and `MakeDefaultArticulation`. Retiring a transformer that a desk can
 // still reach means deleting a control, and a control nobody notices going is much harder to ask
 // for back than a registry entry nobody runs. Unused is not the same as unreachable.
+//
+// `Describe` is registered though no desk makes one: the work files DescribeIt saves carry it, and
+// a file naming a step the registry does not hold is reported as unknown.
 //
 // No registered transformer `requires` an unregistered one — checked, not assumed. A saved work
 // file naming one is reported as unknown rather than silently skipped; see `validate` below.
@@ -125,6 +129,9 @@ const REGISTERED = [
   MakeDefaultArticulation,
   InsertPedal,
   InsertMetadata,
+  // A remark and the calls it became. It writes nothing, so it can stand anywhere; here, beside
+  // the other call that is about the document rather than the performance.
+  Describe,
   // Last, and it has to be: it restates what every call before it wrote, so anything registered
   // after it would be fitting against numbers that are about to be rewritten. Injected rather than
   // offered, like the hinge above — see the note on `INJECTED` in `chain.ts`.
