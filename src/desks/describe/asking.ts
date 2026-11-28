@@ -39,9 +39,9 @@ export type Failure = ExpertFailure;
 export interface Trial {
     /** The document as it would stand; the remark's report in it says what it displaces. */
     run: DescriptionRun;
-    /** What the document it was tried on is told by: its `runKey`, and the alignment it was run against. */
+    /** What the document it was tried on is told by: its `runKey`, and the score it was run against. */
     key: string;
-    alignment: object;
+    score: object;
 }
 
 /** What is known of one remark's way through the expert. */

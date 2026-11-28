@@ -57,7 +57,6 @@ export interface Tried {
     run: DescriptionRun;
     /** What the document it was tried on is told by. */
     key: string;
-    alignment: AlignmentData;
 }
 
 interface Description {
@@ -192,7 +191,7 @@ export const useDescription = ({ alignment, calls, asked, client, onRun, onTried
         client.describe(alignment, madeRef.current, { trial: { remark: tryId, steps: tryAnswer.steps } }).then(
             (run) => {
                 if (overtaken) return;
-                const written = onTriedRef.current(madeRef.current, { id: tryId, answer: tryAnswer, run, key, alignment });
+                const written = onTriedRef.current(madeRef.current, { id: tryId, answer: tryAnswer, run, key });
                 if (written) adoptRef.current(run, written);
             },
             () => {

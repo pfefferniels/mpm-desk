@@ -98,6 +98,11 @@ const piece = () =>
  * A step is one call named after its remark, its place among the steps and `0`, as the real ids
  * are. `Broken` does not run and says why; `Withheld` runs and is kept out; a remark with steps
  * that ran is rendered where it was played, and one without is rendered a tenth of a second late.
+ *
+ * A `FitTempo` meets the `InsertTempo` calls made by hand whose stretch it shares, and what comes
+ * of that is the fitting's rule. On trial the remark takes their place: its report names each
+ * with what is left of it outside the step. Written, the step gives way to them: it is cut
+ * round one that lies inside it, and stands behind one that covers it, coming to no call.
  */
 const scriptedClient = (arrived: Readonly<Record<string, Sounded>> = {}) => {
     const runOf = (alignment: { allNotes: AlignedNote[] }, calls: readonly Call[], trial?: { remark: string; steps: Step[] }): DescriptionRun => {
@@ -109,15 +114,42 @@ const scriptedClient = (arrived: Readonly<Record<string, Sounded>> = {}) => {
             if (tried) tried.steps = trial.steps;
             else remarks.push({ id: trial.remark, steps: trial.steps });
         }
+        const owned = new Set(calls.filter((call) => call.name === 'Describe').flatMap((call) => (call.options['calls'] ?? []) as string[]));
+        const byHand = calls.filter((call) => call.name === 'InsertTempo' && !owned.has(call.id));
+        const stretch = ({ options }: { options: Record<string, unknown> }) => ({ from: Number(options['from']), to: Number(options['to']) });
         const reports = remarks.map(({ id, steps }) => {
+            const onTrial = trial?.remark === id;
+            const displaced: { call: Call; left: Call[] }[] = [];
             const told = steps.map((step, index) => {
                 const call = { id: `${id}.${String(index)}.0`, name: step.name === 'FitTempo' ? 'InsertTempo' : step.name, options: step.options };
                 const report = { calls: [] as string[], elements: [] as string[], written: [] as string[], definitions: [], evidence: ['b', 'c'], fitted: [], range: null };
                 if (step.name === 'Broken') return { report: { ...report, evidence: [], error: 'there is nothing there to fit' }, concrete: [] };
                 if (step.name === 'Withheld') return { report: { ...report, withheld: 'InsertRubato needs an InsertTempo before it, and this run only assumed one' }, concrete: [] };
-                return { report: { ...report, calls: [call.id], elements: [`tempo_${call.id}`], written: ['<tempo date="0" bpm="60">'] }, concrete: [call] };
+                const ran = { ...report, calls: [call.id], elements: [`tempo_${call.id}`], written: ['<tempo date="0" bpm="60">'] };
+                const mine = stretch(step);
+                const met = step.name === 'FitTempo' ? byHand.filter((hand) => stretch(hand).from < mine.to && stretch(hand).to > mine.from) : [];
+                if (met.length === 0) return { report: ran, concrete: [call] };
+                if (onTrial) {
+                    for (const hand of met) {
+                        const theirs = stretch(hand);
+                        const before = theirs.from < mine.from ? [{ ...hand, options: { ...hand.options, to: mine.from } }] : [];
+                        const after = theirs.to > mine.to ? [{ ...hand, id: before.length > 0 ? `${hand.id}.1` : hand.id, options: { ...hand.options, from: mine.to } }] : [];
+                        displaced.push({ call: hand, left: [...before, ...after] });
+                    }
+                    return { report: { ...ran, displaces: met.map((hand) => hand.id) }, concrete: [call] };
+                }
+                const gaveWayTo = met.map((hand) => hand.id);
+                const covered = met.some((hand) => stretch(hand).from <= mine.from && stretch(hand).to >= mine.to);
+                return covered
+                    ? { report: { ...report, gaveWayTo, behind: `stands behind what was made by hand in its place: InsertTempo ×${String(met.length)}` }, concrete: [] }
+                    : { report: { ...ran, gaveWayTo }, concrete: [call] };
             });
-            return { id, concrete: told.flatMap((each) => each.concrete), steps: told.map((each) => each.report) };
+            return {
+                id,
+                concrete: told.flatMap((each) => each.concrete),
+                steps: told.map((each) => each.report),
+                ...(displaced.length > 0 && { displaced }),
+            };
         });
         const explained = reports.some((report) => report.concrete.length > 0);
         const late = explained ? 0 : 100;
@@ -293,13 +325,15 @@ const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused, arri
     const piano = pianoScript();
     const focusCall = vi.fn();
     const createExpert = vi.fn<DescribeServices['createExpert']>(() => expert.expert);
+    /** What time the desk is told it is. */
+    const clock = { now: '2026-11-28T12:00:00.000Z' };
     let ids = 0;
     const services: DescribeServices = {
         session: createSession(() => description.client),
         createExpert,
         expertModel: 'scripted-expert',
         leftIn,
-        now: () => '2026-11-28T12:00:00.000Z',
+        now: () => clock.now,
         newId: () => `r${String(++ids)}`,
     };
     const pristine = piece();
@@ -403,7 +437,7 @@ const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused, arri
     const settled = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
     const card = () => within(one<HTMLElement>('[data-remark-card]'));
 
-    return { ...view, ...description, ...expert, piano, focusCall, createExpert, services, bar, held, one, roll, boxOf, bracket, click, pen, say, calls: document_, remarks, undo, settled, card };
+    return { ...view, ...description, ...expert, piano, focusCall, createExpert, clock, services, bar, held, one, roll, boxOf, bracket, click, pen, say, calls: document_, remarks, undo, settled, card };
 };
 
 /** The roll is drawn once the first run is in. */
@@ -801,10 +835,18 @@ describe('the describe desk and the expert', () => {
         await waitFor(() => expect(desk.calls()).toHaveLength(2));
         callUp('steady throughout');
         const words = desk.card().getByLabelText('The remark');
+        // Said anew it is a new statement, later than whatever was said in between.
+        desk.clock.now = '2026-11-28T12:30:00.000Z';
         fireEvent.change(words, { target: { value: 'slowing towards the end' } });
         fireEvent.blur(words);
         expect(desk.calls()).toHaveLength(1);
-        expect(desk.remarks()[0].options).toMatchObject({ text: 'slowing towards the end', model: null, steps: [], calls: [] });
+        expect(desk.remarks()[0].options).toMatchObject({
+            text: 'slowing towards the end',
+            date: '2026-11-28T12:30:00.000Z',
+            model: null,
+            steps: [],
+            calls: [],
+        });
         await waitFor(() => expect(desk.asked).toHaveLength(2));
         expect(desk.asked[1].request.remark).toMatchObject({ text: 'slowing towards the end', steps: [] });
         expect(desk.asked[1].request.thread).toEqual([]);
@@ -829,7 +871,7 @@ describe('the describe desk and the expert', () => {
         fireEvent.click(card.getByRole('button', { name: 'InsertTempo' }));
         expect(desk.focusCall).toHaveBeenCalledExactlyOnceWith('r.0.0');
         // What ran in the picture and is kept out, and what did not run, each in plain words.
-        expect(card.getByText(/Withheld is in the picture here but kept out of the document: InsertRubato needs an InsertTempo/)).toBeInTheDocument();
+        expect(card.getByText(/Not written into the document\. InsertRubato needs an InsertTempo before it, and this run only assumed one\./)).toBeInTheDocument();
         expect(card.getByText(/Broken did not run: there is nothing there to fit/)).toBeInTheDocument();
     });
 
@@ -861,6 +903,226 @@ describe('the describe desk and the expert', () => {
         await desk.answer([TEMPO]);
         await desk.settled();
         expect(desk.calls()).toEqual([]);
+    });
+});
+
+describe('the describe desk where a remark meets what was drawn by hand', () => {
+    /** A tempo drawn by hand over the whole bar, and one over its second beat alone. */
+    const WHOLE: Call = { id: 'hand', name: 'InsertTempo', options: { scope: 'global', from: 0, to: 2880, bpm: 60, beatLength: 0.25 } };
+    const BEAT: Call = { id: 'beat', name: 'InsertTempo', options: { scope: 'global', from: 720, to: 1440, bpm: 72, beatLength: 0.25 } };
+    /** A step over the second beat alone, and one over the second half of the bar. */
+    const ON_THE_BEAT: Step = { name: 'FitTempo', options: { scope: 'global', from: 720, to: 1440, beatLength: 0.25 } };
+    const SECOND_HALF: Step = { name: 'FitTempo', options: { scope: 'global', from: 1440, to: 2880, beatLength: 0.25 } };
+    const LOUDER: Step = { name: 'InsertDynamics', options: { scope: 'global', from: 0, to: 2880 } };
+
+    /** A remark on the whole piece made over `calls`, and the expert asked about it. */
+    const said = async (calls: Call[], text = 'steady throughout') => {
+        const desk = mount({ calls });
+        await drawn();
+        fireEvent.click(desk.one('[data-prompt] rect'));
+        desk.say(text);
+        await waitFor(() => expect(desk.asked).toHaveLength(1));
+        return desk;
+    };
+    /** The same, answered with steps that would take the place of something: the reader is asked. */
+    const asked = async (calls: Call[], steps: Step[]) => {
+        const desk = await said(calls);
+        await desk.answer(steps);
+        await waitFor(() => expect(stateOf('r1')).toBe('question'));
+        fireEvent.click(screen.getByText('steady throughout'));
+        return desk;
+    };
+    const stateOf = (id: string) => document.querySelector(`[data-remark="${id}"]`)?.getAttribute('data-state');
+    const ids = (desk: ReturnType<typeof mount>) => desk.calls().map((call) => call.id);
+    const triedFor = (desk: ReturnType<typeof mount>, id: string) =>
+        desk.describe.mock.calls.filter(([, , options]) => options?.trial?.remark === id && options.trial.steps.length > 0);
+
+    it('tries an answer before it is written, and writes it at once where it takes no call\'s place', async () => {
+        const desk = await said([BEAT]);
+        const [runs, edits] = [desk.plainRuns().length, desk.held.history.past.length];
+        await desk.answer([SECOND_HALF]);
+        await waitFor(() => expect(ids(desk)).toEqual(['beat', 'r1', 'r1.0.0']));
+        expect(desk.remarks()[0].options).toMatchObject({ model: 'scripted-expert', steps: [SECOND_HALF], calls: ['r1.0.0'] });
+        // Tried once, as the remark on trial, against the document as it stood; written as one edit.
+        const [trial] = triedFor(desk, 'r1');
+        expect(triedFor(desk, 'r1')).toHaveLength(1);
+        expect(trial[1].map((call) => call.id)).toEqual(['beat', 'r1']);
+        expect(trial[2]).toEqual({ trial: { remark: 'r1', steps: [SECOND_HALF] } });
+        expect(desk.held.history.past).toHaveLength(edits + 1);
+        // The trial's run is the run of the document so written: it is not run again to learn that.
+        await desk.settled();
+        expect(desk.plainRuns()).toHaveLength(runs);
+        expect(stateOf('r1')).toBe('done');
+        expect(desk.boxOf('a').x).toBe(100);
+    });
+
+    it('asks the reader first where it would take the place of what was drawn by hand, and writes nothing', async () => {
+        const desk = await said([WHOLE]);
+        const before = desk.calls();
+        await desk.answer([TEMPO]);
+        await waitFor(() => expect(stateOf('r1')).toBe('question'));
+        await desk.settled();
+        // Not a call is touched, and the remark is as it was said: words and a place.
+        expect(desk.calls()).toBe(before);
+        expect(desk.remarks()[0].options).toMatchObject({ steps: [], model: null, calls: [] });
+        expect(screen.getByText(/“steady throughout” would take the place of what was drawn by hand: click it to replace that, or keep it\./)).toBeInTheDocument();
+        fireEvent.click(screen.getByText('steady throughout'));
+        const card = desk.card();
+        expect(card.getByText('This would take the place of 1 tempo drawn by hand in bar 1.')).toBeInTheDocument();
+        expect(card.getByRole('button', { name: 'Replace' })).toBeInTheDocument();
+        expect(card.getByRole('button', { name: 'Keep' })).toBeInTheDocument();
+        // It is the reader who is asked, not the expert: there is nothing to type an answer into.
+        expect(card.queryByLabelText('Your answer')).toBeNull();
+        expect(card.queryByText(/has not been turned into steps/)).toBeNull();
+    });
+
+    it('replaces what was drawn by hand in one edit, which one step of undo takes back', async () => {
+        const desk = await asked([WHOLE], [TEMPO]);
+        const [before, edits] = [desk.calls(), desk.held.history.past.length];
+        fireEvent.click(desk.card().getByRole('button', { name: 'Replace' }));
+        await waitFor(() => expect(ids(desk)).toEqual(['r1', 'r1.0.0']));
+        expect(desk.remarks()[0].options).toMatchObject({ model: 'scripted-expert', steps: [TEMPO], calls: ['r1.0.0'] });
+        expect(desk.held.history.past).toHaveLength(edits + 1);
+        expect(stateOf('r1')).toBe('done');
+        expect(desk.card().queryByRole('button', { name: 'Replace' })).toBeNull();
+        // Nothing is run or written a second time for it.
+        const runs = desk.plainRuns().length;
+        await desk.settled();
+        expect(desk.plainRuns()).toHaveLength(runs);
+        expect(desk.held.history.past).toHaveLength(edits + 1);
+
+        await desk.undo();
+        expect(desk.calls()).toBe(before);
+        // And the document undo brought back is left as it is.
+        await desk.settled();
+        expect(desk.calls()).toBe(before);
+    });
+
+    it('puts what is left of a call it only cuts into in that call\'s place', async () => {
+        const desk = await asked([WHOLE], [ON_THE_BEAT]);
+        const before = desk.calls();
+        expect(desk.card().getByText('This would take the place of 1 tempo drawn by hand in bar 1, leaving what it says elsewhere.')).toBeInTheDocument();
+        fireEvent.click(desk.card().getByRole('button', { name: 'Replace' }));
+        await waitFor(() => expect(ids(desk)).toEqual(['hand', 'hand.1', 'r1', 'r1.0.0']));
+        expect(desk.calls().slice(0, 2).map((call) => [call.options['from'], call.options['to']])).toEqual([
+            [0, 720],
+            [1440, 2880],
+        ]);
+        await desk.undo();
+        expect(desk.calls()).toBe(before);
+    });
+
+    it('keeps what was drawn by hand, and writes the remark to stand behind it', async () => {
+        const desk = await asked([WHOLE], [TEMPO]);
+        const edits = desk.held.history.past.length;
+        fireEvent.click(desk.card().getByRole('button', { name: 'Keep' }));
+        await waitFor(() => expect(desk.remarks()[0].options).toMatchObject({ model: 'scripted-expert', steps: [TEMPO], calls: [] }));
+        // The call drawn by hand stands as it did; the steps are in the document, and came to nothing.
+        expect(ids(desk)).toEqual(['hand', 'r1']);
+        expect(desk.calls()[0]).toBe(WHOLE);
+        expect(desk.held.history.past).toHaveLength(edits + 1);
+        // It says nothing at the moment, and nothing is wrong with it.
+        await waitFor(() => expect(stateOf('r1')).toBe('muted'));
+        const card = desk.card();
+        expect(card.getByText('Stands behind what was drawn by hand here: 1 tempo.')).toBeInTheDocument();
+        expect(card.queryByRole('button', { name: 'Replace' })).toBeNull();
+        fireEvent.click(card.getByRole('button', { name: 'bar 1' }));
+        expect(desk.focusCall).toHaveBeenCalledExactlyOnceWith('hand');
+    });
+
+    it('says of a step that was cut round what was drawn by hand that it was, and shows the remark done', async () => {
+        const desk = await asked([BEAT], [TEMPO]);
+        expect(desk.card().getByText('This would take the place of 1 tempo drawn by hand in bar 1.')).toBeInTheDocument();
+        fireEvent.click(desk.card().getByRole('button', { name: 'Keep' }));
+        await waitFor(() => expect(ids(desk)).toEqual(['beat', 'r1', 'r1.0.0']));
+        expect(stateOf('r1')).toBe('done');
+        expect(desk.card().getByText('Cut round what was drawn by hand here: 1 tempo.')).toBeInTheDocument();
+        fireEvent.click(desk.card().getByRole('button', { name: 'bar 1, beat 2' }));
+        expect(desk.focusCall).toHaveBeenCalledExactlyOnceWith('beat');
+    });
+
+    it('goes on to the next remark while one waits for the reader, with the document as it stands', async () => {
+        const desk = await said([WHOLE]);
+        await desk.answer([TEMPO]);
+        await waitFor(() => expect(stateOf('r1')).toBe('question'));
+        fireEvent.click(desk.one('[data-prompt] rect'));
+        desk.say('louder throughout');
+        await waitFor(() => expect(desk.asked).toHaveLength(2));
+        // The one that waits is shown the expert as the document has it: without its steps.
+        const { request } = desk.asked[1];
+        expect(request.remark.text).toBe('louder throughout');
+        expect(request.others).toEqual([expect.objectContaining({ id: 'r1', steps: [] })]);
+        expect(request.byHand).toEqual([WHOLE]);
+        await desk.answer([LOUDER]);
+        await waitFor(() => expect(ids(desk)).toEqual(['hand', 'r1', 'r2', 'r2.0.0']));
+        // And still waits, tried again on the document as it now stands: once when the other
+        // remark was said, and once when it was written.
+        await waitFor(() => expect(triedFor(desk, 'r1')).toHaveLength(3));
+        expect(triedFor(desk, 'r1').at(-1)?.[1].map((call) => call.id)).toEqual(['hand', 'r1', 'r2', 'r2.0.0']);
+        await waitFor(() => expect(stateOf('r1')).toBe('question'));
+        expect(stateOf('r2')).toBe('done');
+        expect(desk.remarks()[0].options).toMatchObject({ steps: [], model: null });
+        // Replaced now, the other remark is written as the document has it.
+        fireEvent.click(screen.getByText('steady throughout'));
+        fireEvent.click(desk.card().getByRole('button', { name: 'Replace' }));
+        await waitFor(() => expect(ids(desk)).toEqual(['r1', 'r1.0.0', 'r2', 'r2.0.0']));
+    });
+
+    it('tries a waiting answer again when the document changes under it, and writes it once nothing is in its way', async () => {
+        const desk = await asked([WHOLE], [TEMPO]);
+        // The tempo drawn by hand goes, as it would on its own desk.
+        act(() => desk.held.dispatch({ type: 'remove-calls', ids: ['hand'] }));
+        await waitFor(() => expect(ids(desk)).toEqual(['r1', 'r1.0.0']));
+        expect(triedFor(desk, 'r1')).toHaveLength(2);
+        expect(stateOf('r1')).toBe('done');
+    });
+
+    it('keeps the question while another desk is open, and does not try the answer again for that', async () => {
+        const desk = await asked([WHOLE], [TEMPO]);
+        act(() => desk.held.show(false));
+        act(() => desk.held.show(true));
+        await drawn();
+        await waitFor(() => expect(stateOf('r1')).toBe('question'));
+        await desk.settled();
+        expect(triedFor(desk, 'r1')).toHaveLength(1);
+        fireEvent.click(screen.getByText('steady throughout'));
+        fireEvent.click(await desk.card().findByRole('button', { name: 'Replace' }));
+        await waitFor(() => expect(ids(desk)).toEqual(['r1', 'r1.0.0']));
+    });
+
+    it('lets an answer go that cannot be tried, and says that none came', async () => {
+        const desk = await said([WHOLE]);
+        const run = desk.describe.getMockImplementation();
+        desk.describe.mockImplementation((alignment, calls, options) =>
+            (options?.trial?.steps.length ?? 0) > 0 ? Promise.reject(new Error('the worker is gone')) : run!(alignment, calls, options),
+        );
+        await desk.answer([TEMPO]);
+        await waitFor(() => expect(stateOf('r1')).toBe('trouble'));
+        expect(ids(desk)).toEqual(['hand', 'r1']);
+        fireEvent.click(screen.getByText('steady throughout'));
+        expect(desk.card().getByText(/No answer came/)).toBeInTheDocument();
+        expect(desk.card().getByRole('button', { name: 'Ask again' })).toBeInTheDocument();
+    });
+
+    it('lets a waiting answer go when the expert is asked again', async () => {
+        const desk = await asked([WHOLE], [TEMPO]);
+        fireEvent.click(desk.card().getByRole('button', { name: 'Ask again' }));
+        await waitFor(() => expect(desk.asked).toHaveLength(2));
+        expect(stateOf('r1')).toBe('pending');
+        expect(desk.card().queryByRole('button', { name: 'Replace' })).toBeNull();
+        await desk.answer([LOUDER]);
+        await waitFor(() => expect(ids(desk)).toEqual(['hand', 'r1', 'r1.0.0']));
+        expect(desk.remarks()[0].options).toMatchObject({ steps: [LOUDER] });
+    });
+
+    it('shows a remark that stands behind what was drawn by hand in the viewer too, with nothing to decide', async () => {
+        const behind = describeCall('r', 'steady throughout', { model: 'someone', steps: [TEMPO] });
+        const desk = mount({ calls: [WHOLE, behind], editable: false });
+        await drawn();
+        expect(stateOf('r')).toBe('muted');
+        fireEvent.click(screen.getByText('steady throughout'));
+        expect(desk.card().getByText('Stands behind what was drawn by hand here: 1 tempo.')).toBeInTheDocument();
+        expect(desk.card().queryByRole('button', { name: /Replace|Keep/ })).toBeNull();
     });
 });
 

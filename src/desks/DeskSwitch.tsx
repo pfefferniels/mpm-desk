@@ -553,6 +553,13 @@ export const correspondingDesks: DeskEntry[] = [
                     does: 'call it up: who answered, what each step became, and a link to every call',
                 },
                 {
+                    gesture: 'Replace, or Keep',
+                    does:
+                        'say what becomes of what was drawn by hand where a remark would take ' +
+                        'its place. Kept, the remark stands behind it',
+                    edits: true,
+                },
+                {
                     gesture: 'Rest on a remark',
                     does: 'hear its passage with what it wrote brought out and the rest held back',
                 },

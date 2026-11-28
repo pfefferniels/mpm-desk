@@ -171,7 +171,8 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
         // Asked anew, or gone, while it was tried.
         if (!editable || entry?.answer !== trial.answer || entry.kept) return null;
         if (displacedBy(trial.run, trial.id).length === 0) return put(document, trial);
-        asking.tried(trial.id, { run: trial.run, key: trial.key, alignment: trial.alignment });
+        // The score as loaded stands for the alignment: it is the same one when the desk is next opened.
+        if (pristine) asking.tried(trial.id, { run: trial.run, key: trial.key, score: pristine });
         return null;
     };
     const description = useDescription({
@@ -240,9 +241,9 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
     // true of that one: where the document has changed since, it is tried again.
     useEffect(() => {
         for (const [id, { displacing }] of asked) {
-            if (displacing !== null && (displacing.key !== description.key || displacing.alignment !== alignment)) asking.retry(id);
+            if (displacing !== null && (displacing.key !== description.key || displacing.score !== pristine)) asking.retry(id);
         }
-    }, [asked, asking, description.key, alignment]);
+    }, [asked, asking, description.key, pristine]);
 
     // What is known of a remark the document no longer holds is known of nothing.
     useEffect(() => {
@@ -286,7 +287,7 @@ export const useRemarks = (services: DescribeServices, expertKey: string | null)
             const entry = asking.read().get(id);
             const trial = entry?.displacing;
             // Only from a trial of the document as it stands: what was asked is what is done.
-            if (!entry?.answer || !trial || trial.key !== description.key || trial.alignment !== alignment) return;
+            if (!entry?.answer || !trial || trial.key !== description.key || trial.score !== pristine) return;
             description.adopt(trial.run, put(description.made, { id, answer: entry.answer, run: trial.run }));
         },
         keep: (id) => asking.keep(id),

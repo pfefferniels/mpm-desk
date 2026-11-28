@@ -130,7 +130,7 @@ export const displacingOf = (displaced: readonly Displaced[], about: DescribedPl
         about.kind === 'piece' ? undefined : about,
     );
     const cut = displaced.filter(({ left }) => left.length > 0).length;
-    const whose = cut === displaced.length ? (cut === 1 ? 'it says' : 'they say') : `${String(cut)} of them say`;
+    const whose = cut === displaced.length ? (cut === 1 ? 'it says' : 'they say') : `${String(cut)} of them ${cut === 1 ? 'says' : 'say'}`;
     return [
         `take the place of ${countedOf(displaced.map(({ call }) => call))} drawn by hand`,
         where === '' ? '' : ` in ${where}`,

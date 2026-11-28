@@ -109,7 +109,8 @@ interface DescribeSurfaceProps {
  * - **The document** holds the remarks: one `Describe` call each, with the calls it became after
  *   it. Every change to it is one edit (`document.ts`, `useRemarks`).
  * - **The session** (`asking.ts`) holds what is going on between a remark and the expert, which is
- *   not true of the document and has to outlast this component.
+ *   not true of the document and has to outlast this component; and an answer that waits for the
+ *   reader's word, because written as it is it would take the place of calls made by hand.
  * - **This component** holds what belongs to the reader's hand: what is being pointed at, what is
  *   being written, which remark is called up.
  *
@@ -342,10 +343,10 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
                       : run.problems.length > 0
                         ? run.problems.join(' ')
                         : remarks.length === 0
-                        ? editable
-                            ? 'Nothing is described yet. Notes: what the MPM so far renders. Shadows: what was played. Drag to bracket a passage, click a note, or just type.'
-                            : 'Nothing is described here. Notes: what the MPM renders. Shadows: what was played.'
-                        : `Notes: what the MPM so far renders. Shadows: what was played. ${ground && ground.assumed.length > 0 ? 'Dashed bar lines: tempo only assumed. ' : ''}Click a remark to see what it became; rest on it to hear it brought out. Space plays.`;
+                          ? editable
+                              ? 'Nothing is described yet. Notes: what the MPM so far renders. Shadows: what was played. Drag to bracket a passage, click a note, or just type.'
+                              : 'Nothing is described here. Notes: what the MPM renders. Shadows: what was played.'
+                          : `Notes: what the MPM so far renders. Shadows: what was played. ${ground && ground.assumed.length > 0 ? 'Dashed bar lines: tempo only assumed. ' : ''}Click a remark to see what it became; rest on it to hear it brought out. Space plays.`;
 
     const now = useMemo(() => (run ? services.leftIn(run.roll.notes) : null), [run, services]);
     const was = useMemo(() => (told.bare ? services.leftIn(told.bare.roll.notes) : null), [told.bare, services]);
