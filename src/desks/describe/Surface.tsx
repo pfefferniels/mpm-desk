@@ -137,6 +137,7 @@ export const DescribeSurface = ({ told, playback, expertKey, onExpertKey, servic
     const spelling = useMemo(() => spellingOf(alignment ?? { allNotes: [] }), [alignment]);
     const ground = useMemo(() => (run && alignment ? groundOf(run.roll, alignment) : null), [run, alignment]);
     const notes = useMemo(() => (run ? notesOf(run.roll, spelling, playback.moved) : []), [run, spelling, playback.moved]);
+    console.error('DEBUG moved', playback.brought, playback.moved?.size, playback.moved && run ? run.roll.notes.filter((n) => Math.abs((playback.moved?.get(n.id)?.ms ?? n.mpm.ms) - n.mpm.ms) > 5).length : null);
     const end = run?.roll.end ?? endOf(notes, ground?.bars ?? []);
     const bars = ground?.bars;
 

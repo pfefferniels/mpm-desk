@@ -94,6 +94,8 @@ export const renderingOf = (
             : playedFor(roll, place, wrote, (note) => carried(note).ms);
     if (!chosen) return null;
 
+    // The first chord that is played stays where the roll has it; everything else is as far from
+    // it as the rendering has it.
     const fresh = freshOf(roll.notes, chosen);
     const first = Math.min(...fresh.map((note) => note.date));
     const opening = fresh.filter((note) => note.date === first);
