@@ -81,7 +81,7 @@ const LiveRoll = ({ line, playing, ...roll }: LiveRollProps) => {
     );
 };
 
-export interface DescribeSurfaceProps {
+interface DescribeSurfaceProps {
     /** The remarks, the run they come to, and what can be done with one; see `useRemarks`. */
     told: Remarks;
     /** Hearing the roll. */

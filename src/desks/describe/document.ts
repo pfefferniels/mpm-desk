@@ -37,7 +37,7 @@ export interface Remark {
 }
 
 /** What `replaceCalls` takes. */
-export interface Edit {
+interface Edit {
     remove: string[];
     add: Call[];
 }

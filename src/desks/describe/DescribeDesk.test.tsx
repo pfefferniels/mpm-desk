@@ -7,18 +7,21 @@ import { Alignment, type AlignedNote } from '../../fitting/alignment';
 import type { DescriptionClient, DescriptionRun, Sounded, Step } from '../../fitting/description/client';
 import { CallSelectionProvider } from '../../hooks/CallSelection';
 import { EditingContext } from '../../hooks/Editing';
+import { PlaybackProvider } from '../../hooks/PlaybackProvider';
 import { ScoreDocumentProvider } from '../../hooks/ScoreDocument';
 import { ScrollSyncProvider } from '../../hooks/ScrollSyncProvider';
 import { WorkDocumentProvider } from '../../hooks/WorkDocument';
 import { ZoomContext } from '../../hooks/ZoomProvider';
 import type { Call, WorkFile } from '../../model/Work';
 import { initialHistory, workHistoryReducer, type WorkHistory } from '../../model/workReducer';
+import { createFakePiano } from '../../test/fakePiano';
 import { theme } from '../../theme';
 import { createSession } from './asking';
+import { DescribeDesk } from './DescribeDesk';
 import { leftIn } from './expert/left';
 import type { Expert, ExpertAnswer, ExpertFailure, ExpertRequest } from './expert';
 import type { DescribePlayback, Hearing, PlaybackInput } from './playback';
-import type { DescribeServices } from './services';
+import { DescribeServicesContext, type DescribeServices } from './services';
 import { DescribeSurface } from './Surface';
 import { useRemarks } from './useRemarks';
 
@@ -29,6 +32,17 @@ import { useRemarks } from './useRemarks';
  * The document is the real one: the editor's own reducer with its history under the real
  * `WorkDocumentProvider`, so that "one edit" here is one step of undo as the editor counts them.
  */
+
+/**
+ * The Desk's one piano, for the desk as it is registered: a rig that keeps what it was handed to
+ * play. Every other test here hands the desk a scripted playback and never comes by it.
+ */
+const rig = createFakePiano();
+vi.mock('../../performance/piano', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../performance/piano')>()),
+    usePiano: () => rig.usePiano(),
+    whenSamplesArrive: () => null,
+}));
 
 /** An identity screen matrix, which jsdom has none of and every gesture on the roll goes through. */
 beforeAll(() => {
@@ -262,18 +276,24 @@ interface MountOptions {
     expertKey?: string | null;
     /** Why the worker refuses the document, if it does. */
     refused?: string;
+    /**
+     * Mount `DescribeDesk` itself, as the Desk does: the reader's key from the browser and the
+     * Desk's piano, with only what reaches outside the page given from here.
+     */
+    registered?: boolean;
 }
 
-const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused }: MountOptions = {}) => {
+const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused, registered = false }: MountOptions = {}) => {
     const description = scriptedClient();
     if (refused !== undefined) description.describe.mockRejectedValue(new Error(refused));
     const expert = scriptedExpert();
     const piano = pianoScript();
     const focusCall = vi.fn();
+    const createExpert = vi.fn<DescribeServices['createExpert']>(() => expert.expert);
     let ids = 0;
     const services: DescribeServices = {
         session: createSession(() => description.client),
-        createExpert: () => expert.expert,
+        createExpert,
         expertModel: 'scripted-expert',
         leftIn,
         now: () => '2026-11-28T12:00:00.000Z',
@@ -297,6 +317,14 @@ const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused }: Mo
         const playback = useScriptedPlayback(piano, { run: told.run, places: told.places, client: services.session.client });
         return <DescribeSurface told={told} playback={playback} expertKey={key} onExpertKey={setKey} services={services} />;
     };
+
+    const Registered = () => (
+        <PlaybackProvider scoreMsm="" performanceMpm="" dateByNoteId={new Map()}>
+            <DescribeServicesContext value={services}>
+                <DescribeDesk />
+            </DescribeServicesContext>
+        </PlaybackProvider>
+    );
 
     const Harness = () => {
         const work: WorkFile = { name: 'Four notes', mei: '', mpm: '', provenance: calls };
@@ -324,7 +352,7 @@ const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused }: Mo
                                         onRemoveCalls={vi.fn()}
                                         focusCall={focusCall}
                                     >
-                                        <DeskToolbarProvider target={bar}>{open && <Desk />}</DeskToolbarProvider>
+                                        <DeskToolbarProvider target={bar}>{open && (registered ? <Registered /> : <Desk />)}</DeskToolbarProvider>
                                     </CallSelectionProvider>
                                 </ScrollSyncProvider>
                             </ZoomContext>
@@ -372,7 +400,7 @@ const mount = ({ calls = [], editable = true, expertKey = 'a-key', refused }: Mo
     const settled = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
     const card = () => within(one<HTMLElement>('[data-remark-card]'));
 
-    return { ...view, ...description, ...expert, piano, focusCall, services, bar, held, one, roll, boxOf, bracket, click, pen, say, calls: document_, remarks, undo, settled, card };
+    return { ...view, ...description, ...expert, piano, focusCall, createExpert, services, bar, held, one, roll, boxOf, bracket, click, pen, say, calls: document_, remarks, undo, settled, card };
 };
 
 /** The roll is drawn once the first run is in. */
@@ -1108,5 +1136,41 @@ describe('the describe desk outlasts being closed', () => {
         await drawn();
         act(() => desk.held.show(false));
         expect(desk.client.dispose).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('the describe desk as the Desk opens it', () => {
+    it('is the same desk, with the reader\'s own key from this browser and the Desk\'s piano', async () => {
+        const desk = mount({ registered: true });
+        await drawn();
+
+        // No key is kept in this browser yet. It is given on the toolbar, and kept here.
+        fireEvent.click(within(desk.bar).getByRole('button', { name: 'Expert' }));
+        fireEvent.change(screen.getByLabelText('Anthropic API key'), { target: { value: 'sk-ant-the-readers' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Keep it' }));
+        expect(localStorage.getItem('mpm-desk.expert-key')).toBe('sk-ant-the-readers');
+        expect(desk.calls()).toEqual([]);
+        fireEvent.keyDown(screen.getByText(/^A key is kept, ending in/), { key: 'Escape', code: 'Escape' });
+        await waitFor(() => expect(document.querySelector('[data-expert-key]')).toBeNull());
+
+        // A remark is asked of the expert that key makes, and written as any is.
+        fireEvent.click(desk.one('[data-prompt] rect'));
+        desk.say('steady throughout');
+        await waitFor(() => expect(desk.asked).toHaveLength(1));
+        expect(desk.createExpert).toHaveBeenCalledWith('sk-ant-the-readers');
+        await desk.answer([TEMPO]);
+        await waitFor(() => expect(desk.calls().map((call) => call.id)).toEqual(['r1', 'r1.0.0']));
+
+        // The roll plays on the piano the Desk has.
+        const before = rig.played.length;
+        fireEvent.click(within(desk.bar).getByRole('button', { name: 'Play the roll' }));
+        expect(rig.played).toHaveLength(before + 1);
+        fireEvent.click(await within(desk.bar).findByRole('button', { name: 'Stop the roll' }));
+        expect(await within(desk.bar).findByRole('button', { name: 'Play the roll' })).toBeInTheDocument();
+
+        // And the key is forgotten where it was given.
+        fireEvent.click(within(desk.bar).getByRole('button', { name: 'Expert' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Forget it' }));
+        expect(localStorage.getItem('mpm-desk.expert-key')).toBeNull();
     });
 });

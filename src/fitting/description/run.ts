@@ -9,6 +9,45 @@
  *
  * Where `runFit` refuses a chain, this leaves a call out and says why, a step at a time: a reader
  * describing a piece bit by bit is never without a rendering.
+ *
+ * ## A remark and the calls made by hand
+ *
+ * Where a remark speaks of a place a call made by hand speaks of too, one of the two gives way,
+ * as an earlier remark gives way to a later one (`settle.ts`), and which is the reader's to say:
+ *
+ * - **On trial**, the remark is later than every call made by hand. Its steps take their place,
+ *   the run is the document as it would stand after that, and the remark's report names what
+ *   it displaces ({@link RemarkReport.displaced}) with what is left of each. Nothing is taken
+ *   from the document by that: it is what the reader is asked about.
+ * - **Written**, a remark is earlier than the calls made by hand that still stand in its place:
+ *   they were made after it, or kept when it was written. Its steps are cut round them
+ *   ({@link StepReport.gaveWayTo}), and one that is left with nothing says so
+ *   ({@link StepReport.behind}).
+ *
+ * So a remark tried and then written without what it displaces being taken out comes out cut
+ * round those calls; that is "keep". "Replace" is one edit of the document, from the run of the
+ * trial: with `tried` the remark on trial's report,
+ *
+ * ```ts
+ * replaceCalls(
+ *     [
+ *         ...(tried.displaced ?? []).map(({ call }) => call.id),
+ *         ...every `Describe` call's id, and every id one of them names in `calls`,
+ *     ],
+ *     [
+ *         ...(tried.displaced ?? []).flatMap(({ left }) => left),
+ *         ...run.remarks.flatMap((remark) => [
+ *             the remark's `Describe` call, with `calls` the ids of `remark.concrete`,
+ *             ...remark.concrete,
+ *         ]),
+ *     ],
+ * );
+ * ```
+ *
+ * in that order: what is left of the calls made by hand, then every remark with what it resolved
+ * to. A remark new to the document is given a `date` later than every other's, as it was last on
+ * trial. A plain run of the document so written resolves every remark to the same calls and
+ * displaces nothing, and the Desk's own chain makes the same MPM of it, less what was assumed.
  */
 import { Alignment } from '../alignment';
 import { buildChain } from '../chain';
@@ -19,10 +58,18 @@ import { validate } from '../transformers/Order';
 import type { Transformer } from '../transformers/Transformer';
 import { parseWorkFile, serializeWorkFile, type Call } from '../../model/Work';
 import { assume, AssumeLevel, AssumeTempo, levelOf, STANDS_FOR } from './assume';
-import { expand, rollsEveryChord, type Step } from './expand';
+import { expand, rolledBy, type Step } from './expand';
 import { silently, type Sounded } from './perform';
 import { layRoll, soundOf, type Assumed, type Roll } from './roll';
-import { DYNAMICS, settle, TEMPO, type StepCall } from './settle';
+import {
+    DYNAMICS,
+    everywhere,
+    settle,
+    TEMPO,
+    type Displaced,
+    type Places,
+    type StepCall,
+} from './settle';
 import { FitDynamics, FitTempo } from './steps';
 
 /** What one step of a remark came to in a run. */
@@ -48,9 +95,24 @@ export interface StepReport {
     error?: string;
     /**
      * Why calls of it that ran here are kept out of `concrete`: the Desk's own chain would refuse
-     * the document holding them, for want of something this run only assumed.
+     * the document holding them, for want of something this run only assumed; or they wrote
+     * nothing, what they say being said in their place already.
      */
     withheld?: string;
+    /**
+     * On trial, where it takes the place of calls made by hand: their ids. What becomes of each
+     * is in the remark's `displaced`.
+     */
+    displaces?: string[];
+    /**
+     * Where it gave way to calls made by hand, being cut round them or left out: their ids.
+     */
+    gaveWayTo?: string[];
+    /**
+     * Where giving way left nothing of the step: what it stands behind, in words. That is no
+     * error, and it comes to no call until what stands in its place is gone.
+     */
+    behind?: string;
 }
 
 /** What one remark came to in a run. */
@@ -65,6 +127,15 @@ export interface RemarkReport {
     concrete: Call[];
     /** Per step, in the order of `Describe.options.steps`. */
     steps: StepReport[];
+    /**
+     * On the remark on trial, where calls made by hand stand in its place: each of them as the
+     * document holds it, with what is left of it, to be put in its place (none where it goes
+     * entirely). Absent on every other remark, and where nothing made by hand stands in the way.
+     *
+     * A remainder keeps the call's id, and a second one is `${id}.1` (or the next id the
+     * document has free), so the same trial names them alike each time it is run.
+     */
+    displaced?: Displaced[];
 }
 
 export interface DescriptionRun {
@@ -85,7 +156,8 @@ export interface DescriptionRun {
 export interface DescribeRunOptions {
     /**
      * Steps tried in place of one remark's for this run alone. A remark the document does not
-     * hold is taken for a new one, made after every other.
+     * hold is taken for a new one, made after every other. The remark on trial takes the place
+     * of the calls made by hand it stands over; see the head of this file.
      */
     trial?: { remark: string; steps: DescribeOptions['steps'] };
 }
@@ -181,12 +253,17 @@ const inScoreOrder = (
     );
 };
 
-/** The start tag of every element with an `xml:id`, and every definition by its name. */
+/**
+ * The start tag of every element with an `xml:id`, the ids more than one element goes by, and
+ * every definition by its name.
+ */
 const elementsOf = (xml: string) => {
     const tags = new Map<string, string>();
+    const twice = new Set<string>();
     for (const [tag, , id] of xml.matchAll(
         /<[\w.:-]+(\s+[\w.:-]+="[^"]*")*?\s+xml:id="([^"]+)"[^>]*>/g,
     )) {
+        if (tags.has(id!)) twice.add(id!);
         tags.set(id!, tag);
     }
     const definitions = new Map<string, string>();
@@ -195,7 +272,7 @@ const elementsOf = (xml: string) => {
     )) {
         definitions.set(name!, definition);
     }
-    return { tags, definitions };
+    return { tags, definitions, twice };
 };
 
 /** The plain Desk calls a call of a step came to when it ran, and what it read off the recording. */
@@ -306,7 +383,7 @@ export const describe = (
                 reportOf({ remark, step }).error = expanded;
                 return [];
             }
-            const general = rollsEveryChord(source);
+            const general = everywhere(source);
             return expanded.map(({ part, call }) => ({
                 call,
                 remark,
@@ -385,17 +462,44 @@ export const describe = (
         shift();
     };
 
-    const described = settle(
+    // The remarks' steps against one another and against what was made by hand: on trial a
+    // remark takes the place of those calls, written it stands behind them.
+    const rolls = new Map<Call, Set<number>>();
+    const places: Places = {
+        dates: [...new Set(played.allNotes.map((note) => note.date))].sort((a, b) => a - b),
+        rolled: (call) => rolls.get(call) ?? rolls.set(call, rolledBy(call, played)).get(call)!,
+    };
+    const settled = settle(
         writeOut(
             steps.filter((step) => !corrects(step)),
             played,
         ),
+        byHand.filter((call) => !GROUND.has(call.name)),
+        trial?.remark,
+        new Set(calls.map((call) => call.id)),
+        places,
     );
+    const described = settled.calls;
     for (const entry of described) origin.set(entry.call.id, entry);
     const derived = ofRemarks([...corrections, ...described]);
 
+    for (const { call, by } of settled.displaced) {
+        for (const entry of by) (reportOf(entry).displaces ??= []).push(call.id);
+    }
+    const stoodOver = Map.groupBy(settled.gaveWay, ({ entry }) => reportOf(entry));
+    for (const [report, gave] of stoodOver) {
+        const { remark, step } = gave[0]!.entry;
+        const to = [...new Set(gave.flatMap((one) => one.to))];
+        report.gaveWayTo = to.map((call) => call.id);
+        if (described.some((left) => left.remark === remark && left.step === step)) continue;
+        const names = [...Map.groupBy(to, (call) => call.name)].map(
+            ([name, named]) => `${name} ×${named.length}`,
+        );
+        report.behind = `stands behind what was made by hand in its place: ${names.join(', ')}`;
+    }
+
     const standing = [
-        ...byHand.filter((call) => !GROUND.has(call.name)),
+        ...settled.byHand,
         ...derived.filter((entry) => !GROUND.has(entry.call.name)).map((entry) => entry.call),
     ];
     const assumptions = assume(standing, played);
@@ -487,11 +591,41 @@ export const describe = (
         concrete.set(entry.call.id, made);
     }
 
-    // Nothing is handed over that the Desk's own chain would refuse: a requirement this run met
-    // with an assumption is not met in the document, and `runFit` throws on the whole of it.
+    // Nothing is handed over that says nothing: a call whose business is an instruction, and
+    // which left none in the document, found its place spoken for. Nor one whose element goes by
+    // an id another element has, which two calls describing one thing come to.
+    const { tags, definitions, twice } = elementsOf(xml);
+    if (twice.size > 0) {
+        problems.push(
+            `${twice.size} elements of the MPM share their xml:id with another ` +
+                `(${[...twice].slice(0, 3).join(', ')}): two calls describe the same thing`,
+        );
+    }
+    const silent = new Map<StepReport, string>();
+    for (const transformer of ran) {
+        const entry = origin.get(transformer.id);
+        if (!entry || !/^(Insert|Fit)/.test(transformer.name)) continue;
+        const shared = transformer.created.find((id) => twice.has(id));
+        if (shared !== undefined) {
+            reportOf(entry).withheld ??=
+                `${transformer.name} wrote ${shared}, which another call wrote as well`;
+        } else if (transformer.created.some((id) => tags.has(id))) {
+            continue;
+        } else {
+            silent.set(
+                reportOf(entry),
+                `${transformer.name} wrote nothing: what it says is said in its place already`,
+            );
+        }
+        concrete.delete(entry.call.id);
+    }
+
+    // Nor anything the Desk's own chain would refuse: a requirement this run met with an
+    // assumption is not met in the document, and `runFit` throws on the whole of it.
+    const kept = [...byHand.filter((call) => GROUND.has(call.name)), ...settled.byHand];
     for (;;) {
         const handed = derived.flatMap((entry) => concrete.get(entry.call.id) ?? []);
-        const { transformers } = buildChain([...byHand, ...handed]);
+        const { transformers } = buildChain([...kept, ...handed]);
         const refused = new Map(
             validate(transformers).map(({ index, message }) => [transformers[index]!.id, message]),
         );
@@ -509,11 +643,16 @@ export const describe = (
         }
     }
 
-    const { tags, definitions } = elementsOf(xml);
     for (const entry of derived) {
         reportOf(entry).calls.push(...(concrete.get(entry.call.id) ?? []).map((call) => call.id));
     }
     for (const report of [...reports.values()].flat()) {
+        // Said only where the step comes to nothing by it: a press that cannot be placed, among
+        // the presses of a step that traces them all, is passed over as an unrolled chord is.
+        if (report.calls.length === 0 && !report.error && !report.behind) {
+            report.withheld ??= silent.get(report);
+        }
+        if (report.displaces) report.displaces = [...new Set(report.displaces)];
         report.elements = [...new Set(report.elements)];
         report.written = report.elements.map((id) => tags.get(id) ?? '');
         const named = report.written.map((tag) => /\sname\.ref="([^"]+)"/.exec(tag)?.[1]);
@@ -533,6 +672,10 @@ export const describe = (
                 .filter((entry) => entry.remark === id)
                 .flatMap((entry) => concrete.get(entry.call.id) ?? []),
             steps: reports.get(id)!,
+            ...(id === trial?.remark &&
+                settled.displaced.length > 0 && {
+                    displaced: settled.displaced.map(({ call, left }) => ({ call, left })),
+                }),
         })),
         problems,
     };

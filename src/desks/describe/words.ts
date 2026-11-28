@@ -13,7 +13,7 @@ type Bars = readonly { n: number; from: number; to: number }[];
 const barAt = (bars: Bars, tick: number) => bars.findLast((bar) => tick >= bar.from - 1e-6) ?? bars[0];
 
 /** A stretch of the score by its bars: `bar 3`, `bars 3–8`. */
-export const stretchOf = (bars: Bars, from: number, to: number): string => {
+const stretchOf = (bars: Bars, from: number, to: number): string => {
     const first = barAt(bars, from);
     const last = barAt(bars, Math.max(from, to - 1));
     if (!first || !last) return '';

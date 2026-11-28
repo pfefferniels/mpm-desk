@@ -10,7 +10,7 @@
  */
 import '../transformers/Order';
 import { Alignment } from '../alignment';
-import type { Mpm, Scope } from '../instructions/index';
+import { fingerprintInstructions, type Mpm, type Scope } from '../instructions/index';
 import { PULSES_PER_WHOLE } from '../ppq';
 import {
     InsertDynamics,
@@ -20,7 +20,11 @@ import type { Range } from '../transformers/range';
 import { InsertTempo, type InsertTempoOptions } from '../transformers/tempo/InsertTempo';
 import { placeTempos } from '../transformers/tempo/placedTempos';
 import { millisecondsAt, resolveSpan } from '../transformers/tempo/tempoCalculations';
-import { AbstractTransformer, type ScopedTransformationOptions } from '../transformers/Transformer';
+import {
+    AbstractTransformer,
+    type ScopedTransformationOptions,
+    type Transformer,
+} from '../transformers/Transformer';
 import { registerTransformer } from '../transformers/TransformerRegistry';
 
 /** A score date, in ticks, and when it sounded, in ms. */
@@ -159,6 +163,19 @@ export const startOf = (
     return first;
 };
 
+/**
+ * Runs the plain call a fitted step makes, and says what of the document that call changed
+ * without being answerable for it: a tempo it wrote back at its span's end, which is another
+ * call's and must not be credited to the step.
+ */
+const make = (call: Transformer, msm: Alignment, mpm: Mpm): string[] => {
+    const before = fingerprintInstructions(mpm);
+    call.run(msm, mpm);
+    return [...fingerprintInstructions(mpm)]
+        .filter(([id, xml]) => before.get(id) !== xml && !call.created.includes(id))
+        .map(([id]) => id);
+};
+
 interface FitTempoOptions extends ScopedTransformationOptions {
     /** In ticks. */
     from: number;
@@ -182,6 +199,7 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
     fitted?: InsertTempoOptions & { rmsMs: number; onsets: number };
     /** The constant tempo a transition closed on the score's last chord is followed by. */
     closing?: InsertTempoOptions;
+    private restored: string[] = [];
 
     constructor(options?: FitTempoOptions) {
         super(options ?? { scope: 'global', from: 0, to: 0, beatLength: 0.25, shape: 'steady' });
@@ -191,9 +209,14 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
         return { from: this.options.from, to: this.options.to };
     }
 
+    protected override disowned(): readonly string[] {
+        return this.restored;
+    }
+
     protected transform(msm: Alignment, mpm: Mpm): void {
         this.fitted = undefined;
         this.closing = undefined;
+        this.restored = [];
         msm.shiftToFirstOnset();
         const { scope, from, beatLength, shape } = this.options;
         let { to } = this.options;
@@ -237,12 +260,18 @@ export class FitTempo extends AbstractTransformer<FitTempoOptions> {
                 meanTempoAt: fit.meanTempoAt,
             }),
         };
-        new InsertTempo(options).run(msm, mpm);
+        this.restored.push(...make(new InsertTempo(options), msm, mpm));
         this.fitted = { ...options, rmsMs: fit.rmsMs, onsets: fit.onsets };
 
         if (closes && fit.transitionTo !== undefined) {
             const closing = { scope, from: to, to: msm.end, beatLength, bpm: fit.transitionTo };
-            new InsertTempo(closing).run(msm, mpm);
+            const follows = new InsertTempo(closing);
+            const more = make(follows, msm, mpm);
+            // It may stand where the first wrote one back, and that date is then its own.
+            this.restored = [
+                ...this.restored.filter((id) => !follows.created.includes(id)),
+                ...more,
+            ];
             this.closing = closing;
         }
     }

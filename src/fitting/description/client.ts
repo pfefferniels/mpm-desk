@@ -14,6 +14,7 @@ export type {
     BroughtOut,
     DescribeRunOptions,
     DescriptionRun,
+    Displaced,
     RemarkReport,
     Roll,
     RollNote,

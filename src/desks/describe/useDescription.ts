@@ -33,7 +33,7 @@ interface DescriptionOptions {
     onRun: (made: readonly Call[], run: DescriptionRun) => void;
 }
 
-export interface Description {
+interface Description {
     /** The last run that came in; null until the first has. */
     run: DescriptionRun | null;
     /** The same document with nothing described: what the match is measured against. */

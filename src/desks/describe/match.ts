@@ -22,7 +22,7 @@ export interface Left {
     length: number;
 }
 
-export type Meter = 'pulse' | 'chords' | 'loud' | 'length';
+type Meter = 'pulse' | 'chords' | 'loud' | 'length';
 
 /** The four, in the order they are shown, with what each is called and what it says. */
 export const METERS: readonly { key: Meter; name: string; says: string }[] = [

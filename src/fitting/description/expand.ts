@@ -3,8 +3,10 @@
  *
  * Most steps are one call. `Repeat` is one per stretch of a span, `FitSpread` one per rolled chord
  * of a passage, a `FitTempo` with a `step` one per stretch between chords. A roll over every chord
- * is written chord by chord as well, as the arpeggiation desk writes them: one call over all would
- * have to run after every call on a single chord, and a document keeps no such order.
+ * is written chord by chord as well, as the arpeggiation desk writes them, and the pedal's line
+ * over every press is written press by press: one call over all would have to run after every
+ * call on a single chord, and a document keeps no such order; and only a call about one chord or
+ * one press can give way to another about the same.
  */
 import type { Alignment } from '../alignment';
 import type { Scope } from '../instructions/index';
@@ -12,6 +14,7 @@ import type { Call } from '../../model/Work';
 import type { DescribeOptions } from '../transformers/description/Describe';
 import { leanOf, rampVelocities } from '../transformers/ornamentation/InsertDynamicsGradient';
 import { complete, refusal } from './complete';
+import { everywhere } from './settle';
 import { chordsOf } from './steps';
 
 /** A step of a remark, as `Describe` keeps it. */
@@ -23,14 +26,6 @@ interface Draft {
     name: string;
     options: Record<string, unknown>;
 }
-
-/** Whether a step rolls every chord of its scope, and not the one on a date or a grace figure. */
-export const rollsEveryChord = ({ name, options }: Step): boolean =>
-    (name === 'InsertTemporalSpread' &&
-        !('date' in options) &&
-        !('group' in options) &&
-        !('graces' in options)) ||
-    (name === 'InsertDynamicsGradient' && !('date' in options));
 
 const substitute = (value: unknown, bindings: Record<string, number>): unknown => {
     if (typeof value === 'string' && value in bindings) return bindings[value];
@@ -63,7 +58,7 @@ const repeated = (options: Step['options'], piece: Alignment): Draft[] | string 
     if (!template || typeof template.name !== 'string') return 'Repeat: no "call" to repeat';
     const { name } = template;
     const stated = template.options ?? {};
-    if (name === 'Repeat' || name === 'FitSpread' || rollsEveryChord({ name, options: stated })) {
+    if (name === 'Repeat' || name === 'FitSpread' || everywhere({ name, options: stated })) {
         return `Repeat: ${name} covers a passage by itself, and is not repeated over one`;
     }
 
@@ -189,7 +184,7 @@ const drafted = ({ name, options }: Step, piece: Alignment): Draft[] | string =>
             ? `FitSpread: between ticks ${from} and ${to}, ${made}`
             : made;
     }
-    if (name === 'InsertTemporalSpread' && rollsEveryChord({ name, options })) {
+    if (name === 'InsertTemporalSpread' && everywhere({ name, options })) {
         const { durationThreshold: _threshold, ...stated } = options;
         void _threshold;
         const made = spreads(options, piece, -Infinity, Infinity, stated);
@@ -199,8 +194,27 @@ const drafted = ({ name, options }: Step, piece: Alignment): Draft[] | string =>
         const made = gradients(options, piece);
         return typeof made === 'string' ? `${name}: ${made}` : made;
     }
+    if (name === 'InsertPedal' && everywhere({ name, options })) {
+        const presses = [...new Set(piece.pedals.map((press) => press['xml:id']))];
+        return presses.length > 0
+            ? presses.map((pedal, part) => ({ part, name, options: { ...options, pedal } }))
+            : `${name}: no press of a pedal was recorded`;
+    }
     if (name === 'FitTempo' && options['step'] !== undefined) return steppedTempo(options, piece);
     return [{ part: 0, name, options }];
+};
+
+/**
+ * The dates of the chords a roll over every chord of its scope describes: those the call would
+ * write an ornament on, which is where a roll said of one chord meets it.
+ */
+export const rolledBy = ({ name, options }: Step, piece: Alignment): Set<number> => {
+    const drafts =
+        name === 'InsertTemporalSpread'
+            ? spreads(options, piece, -Infinity, Infinity, {})
+            : gradients(options, piece);
+    const dates = typeof drafts === 'string' ? [] : drafts.map((draft) => draft.options['date']);
+    return new Set(dates.filter((date) => typeof date === 'number'));
 };
 
 /**

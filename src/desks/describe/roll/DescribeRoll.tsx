@@ -407,8 +407,10 @@ export const DescribeRoll = ({
             <div ref={scroller} style={{ flex: 1, minWidth: 0, overflowX: 'auto', overflowY: 'hidden', position: 'relative' }}>
                 {viewport && (
                     <>
-                        {/* What is said of the whole piece is not at any place along the roll, and stays where it is. */}
-                        <div style={{ position: 'sticky', left: 0, width: size.width, height: lanesHeight }}>
+                        {/* What is said of the whole piece is not at any place along the roll, and stays
+                            where it is. A sticky box stacks what it holds by itself: it is raised as a
+                            whole, or the words on the roll would be drawn over a popover hanging from it. */}
+                        <div style={{ position: 'sticky', left: 0, width: size.width, height: lanesHeight, zIndex: 3 }}>
                             <Lanes
                                 lanes={lanes.placed}
                                 rows={laneRows}
