@@ -78,6 +78,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     undo: null,
     notice: null,
     tween: null,
+    brought: null, // { ann, shown: Map<id, {ms, msEnd, velocity}> }: a remark's exaggerated rendering, drawn in place of the notes
   };
 
   // ------------------------------------------------------------------------------------------
@@ -470,10 +471,18 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   /** Opacity of a note: the louder, the more solid. */
   const solid = (velocity) => clamp(0.7 + 0.15 * loudness(velocity), 0.3, 1);
   /** Rectangle of a note as the MPM renders it, tweened after a refit. */
+  /** A note as it is drawn now: as the MPM renders it, or as a remark brought out has it. */
+  const shownNow = (note) => (S.brought && S.brought.shown.get(note.id)) || note.mpm;
+  /** Start moving the notes from where `was` has them to wherever they are drawn next. */
+  const tweenFrom = (was) => {
+    if (!S.result || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    S.tween = { from: new Map(S.result.notes.map((note) => [note.id, was(note)])), beatDates: S.result.beatDates, beatMs: S.result.beatMs, start: performance.now(), t: 0 };
+  };
   const rectOf = (note) => {
     const from = S.tween ? S.tween.from.get(note.id) : null;
     const t = S.tween ? S.tween.t : 1;
-    const mix = (key) => (from ? from[key] + (note.mpm[key] - from[key]) * t : note.mpm[key]);
+    const to = shownNow(note);
+    const mix = (key) => (from ? from[key] + (to[key] - from[key]) * t : to[key]);
     const velocity = mix('velocity');
     const h = tall(velocity);
     return { x: X(mix('ms')), y: Y(rowOf(note.id, note.pitch)) - h / 2, w: Math.max(2, (mix('msEnd') - mix('ms')) * S.view.ppt), h, ink: solid(velocity) };
@@ -802,7 +811,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       ctx.globalAlpha = 1;
     }
 
-    const lit = S.hoverAnn || S.openAnn;
+    const lit = S.hoverAnn || S.openAnn || (S.brought && !S.brought.ann.all ? S.brought.ann : null);
     const evidence = lit && lit.report && lit.report.evidence.size ? lit.report.evidence : lit ? new Set(idsOf(lit.scope)) : null;
     // Notes outside the annotation being written are dimmed.
     const chosen = !lit && draft && draft.kind !== 'piece' ? (draft.kind === 'arrow' ? new Set(idsOf(draft)) : S.selection) : null;
@@ -1340,6 +1349,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
 
   const openPen = (seed) => {
     if (S.reference || !S.result) return;
+    Player.rest();
     closePop();
     S.pen.open = true;
     pen.hidden = false;
@@ -1727,9 +1737,12 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   const Player = (() => {
     let only = null;
     let scoped = false;
-    // While a remark is brought out: its rendering's clock against the roll's, chord by chord.
+    // While a remark is brought out: how far its rendering's clock is from the roll's.
     let clock = null;
     let hovering = 0;
+    let sliding = false;
+    let asked = 0;
+    const EVERYTHING = { all: true, text: 'everything described', scope: { kind: 'piece' } };
 
     const reflect = () => {
       const on = transport.playing;
@@ -1785,17 +1798,18 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     };
 
     /**
-     * Plays a remark's passage with the instructions it wrote exaggerated and the others damped,
-     * the inner voice humming along. An exaggerated tempo moves every onset, so the rendering
-     * has a clock of its own; the playhead is carried back onto the roll chord by chord.
+     * A remark's passage as the engine performs it with the instructions the remark wrote
+     * exaggerated and the others damped: which notes to play, and where they are drawn. An
+     * exaggerated tempo moves every onset, so the rendering has a clock of its own; it is laid on
+     * the roll's where its first chord stands.
      */
-    const bring = async (ann) => {
+    const render = async (ann) => {
       const result = S.result;
-      const ids = ann.report ? ann.report.elements : [];
-      if (!result || !ids.length || transport.loading) return;
+      if (!result) return null;
+      const ids = ann.all ? result.calls.flatMap((report) => report.elements) : ann.report ? ann.report.elements : [];
       // The engine keeps only its last few runs; one it has forgotten is not brought out.
-      const out = await Engine.bringOut(result.mpm, ids, S.view.bring, DAMPED).catch(() => null);
-      if (!out || S.hoverAnn !== ann || S.result !== result) return;
+      const out = ids.length ? await Engine.bringOut(result.mpm, ids, S.view.bring, DAMPED).catch(() => null) : null;
+      if (!out || S.result !== result) return null;
       const performed = new Map(out.notes.map((note) => [note.id, note]));
       const notes = result.notes.filter((note) => performed.has(note.id));
       const soundOf = (note) => performed.get(note.id);
@@ -1803,26 +1817,72 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       const seen = notes.filter((note) => X(note.mpm.ms) >= G.gutter && X(note.mpm.ms) < G.width).map((note) => note.id);
       const chosen = ann.scope.kind === 'piece' ? { gains: new Map(seen.map((id) => [id, 1])), held: new Set(), own: new Set(seen) } : playedFor(ann.scope, ann, (note) => (performed.get(note.id) || note.mpm).ms);
       const fresh = notes.filter((note) => chosen.gains.has(note.id) && !chosen.held.has(note.id));
-      if (!fresh.length) return;
+      if (!fresh.length) return null;
+      const opening = fresh.filter((note) => note.date === Math.min(...fresh.map((other) => other.date)));
+      const shift = Math.min(...opening.map((note) => note.mpm.ms)) - Math.min(...opening.map((note) => soundOf(note).ms));
+      const shown = new Map(fresh.map((note) => [note.id, { ms: soundOf(note).ms + shift, msEnd: soundOf(note).msEnd + shift, velocity: soundOf(note).velocity }]));
+      return { ann, out, performed, notes, chosen, fresh, shift, shown };
+    };
+
+    /** Draw the notes where a rendering has them, or with none where the MPM does; `glide` moves them there. */
+    const show = (rendering, glide) => {
+      if (glide) tweenFrom(shownNow);
+      S.brought = rendering ? { ann: rendering.ann, shown: rendering.shown } : null;
+      renderHint();
+      draw();
+    };
+
+    /** Show a remark brought out and play it, the inner voice humming along. */
+    const bring = async (ann, stillWanted = () => true) => {
+      if (transport.loading) return;
+      const rendering = await render(ann);
+      if (!rendering || !stillWanted()) return;
+      show(rendering, !S.brought);
+      const { out, performed, notes, chosen, fresh, shift } = rendering;
+      const soundOf = (note) => performed.get(note.id);
       const { from, until } = timesOf(fresh.map(soundOf), fresh.filter((note) => chosen.own.has(note.id)).map(soundOf));
-      const dates = [...new Set(fresh.map((note) => note.date))].sort((a, b) => a - b);
-      const earliest = (pick) => dates.map((date) => Math.min(...fresh.filter((note) => note.date === date).map(pick)));
-      clock = { theirs: earliest((note) => soundOf(note).ms), ours: earliest((note) => note.mpm.ms) };
+      const dates = fresh.map((note) => note.date);
+      clock = { shift };
       only = chosen;
       scoped = true;
       S.play.bringing = ann;
-      const line = lineOf(S.reduction, performed, dates[0], dates[dates.length - 1] + 1);
+      const line = lineOf(S.reduction, performed, Math.min(...dates), Math.max(...dates) + 1);
       const started = await transport.play(struck(soundsOf(notes, soundOf, chosen), spansOf(out.pedal, until), 0), { from, until, line, exaggerate: S.view.bring });
       S.play.loading = null;
       if (!started) S.play.bringing = null;
     };
 
+    /** Put the notes back where the MPM has them, and stop what was brought out. */
+    const rest = () => {
+      // A rendering still being worked out when the notes are put back is not shown after all.
+      asked += 1;
+      if (S.play.bringing) transport.stop();
+      if (S.brought) show(null, true);
+    };
+
+    /** The remark the slider acts on: the one called up or pointed at, the one last brought out, else everything. */
+    const focus = () => S.openAnn || S.hoverAnn || (S.brought && S.brought.ann) || EVERYTHING;
+    const kept = () => sliding || (S.brought && (S.brought.ann === S.openAnn || S.brought.ann === S.hoverAnn));
+
     /** The pointer came to rest on a remark (`ann`), or left it (`null`). */
     const hover = (ann) => {
       clearTimeout(hovering);
       const free = !S.pen.open && !S.reference && transport.unlocked && (!transport.playing || S.play.bringing);
-      if (ann && free && ann !== S.play.bringing) hovering = setTimeout(() => bring(ann), DWELL_MS);
-      else if (!ann && S.play.bringing) hovering = setTimeout(() => S.play.bringing && transport.stop(), LINGER_MS);
+      if (ann && free && ann !== S.play.bringing) hovering = setTimeout(() => bring(ann, () => S.hoverAnn === ann), DWELL_MS);
+      else if (!ann) hovering = setTimeout(() => !kept() && rest(), LINGER_MS);
+    };
+
+    /** The slider moved: the notes go to where the rendering now has them. Only the latest move counts. */
+    const strength = async () => {
+      const mine = ++asked;
+      const rendering = await render(focus());
+      if (rendering && mine === asked) show(rendering, !S.brought);
+    };
+
+    /** The pointer is on the slider, or has left it. */
+    const slide = (on) => {
+      sliding = on;
+      if (!on && !kept()) rest();
     };
 
     const stop = () => {
@@ -1840,7 +1900,8 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     };
 
     const refresh = () => {
-      // A remark brought out is one rendering of one run: a new run ends it.
+      // What is brought out is one rendering of one run: a new run ends it.
+      S.brought = null;
       if (S.play.bringing) transport.stop();
       else transport.replace(keysOf(S.result, S.play.source, only));
     };
@@ -1863,7 +1924,12 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
       unlock: () => transport.unlock(),
       toggle: () => (transport.playing ? stop() : start()),
       /** Where the playing is, on the roll's clock. */
-      now: () => (clock && S.play.bringing ? along(clock.theirs, clock.ours, transport.position()) : transport.position()),
+      now: () => transport.position() + (clock && S.play.bringing ? clock.shift : 0),
+      strength,
+      slide,
+      rest,
+      /** Play what the slider acts on, once it is let go. */
+      settle: () => transport.unlocked && bring(focus()),
       get playing() {
         return transport.playing;
       },
@@ -2004,6 +2070,10 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
     }
     if (S.play.bringing) {
       hint.append(`Bringing out “${shown(S.play.bringing.text)}”: what it wrote ×${S.view.bring.toFixed(1)}, the rest held back${S.reduction.notes.length ? ', the inner voice humming along' : ''}.`);
+      return;
+    }
+    if (S.brought) {
+      hint.append(`The notes show “${shown(S.brought.ann.text)}” brought out ×${S.view.bring.toFixed(1)}. Let go of the slider to hear it.`);
       return;
     }
     if (S.pen.open) {
@@ -2223,6 +2293,7 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   };
   const closePop = () => {
     if (!S.openAnn) return;
+    if (S.brought && S.brought.ann === S.openAnn) Player.rest();
     S.openAnn = null;
     pop.hidden = true;
     pop.replaceChildren();
@@ -2766,7 +2837,12 @@ import { ACCIDENTAL, BASS, TREBLE, ledgersOf, signatureMarks, signatureOf, spell
   $('#bring').addEventListener('input', (event) => {
     S.view.bring = clamp(Number(event.target.value), 1, 1.9);
     keepView();
+    Player.strength();
   });
+  $('#bring').addEventListener('change', () => Player.settle());
+  $('#bring').addEventListener('blur', () => Player.slide(false));
+  $('.bring').addEventListener('pointerenter', () => Player.slide(true));
+  $('.bring').addEventListener('pointerleave', () => Player.slide(false));
   const setHeight = (factor) => {
     S.view.height = clamp(S.view.height * factor, 0.25, 4);
     keepView();
